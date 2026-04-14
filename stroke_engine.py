@@ -3851,3 +3851,152 @@ class Painter:
 
         print(f"  Impasto texture pass complete  "
               f"(angle={light_angle:.0f}°, ridge_height={ridge_height:.2f})")
+
+    # ── Atmospheric depth pass — aerial perspective (Leonardo / Friedrich) ─────
+
+    def atmospheric_depth_pass(
+            self,
+            haze_color:      Color = (0.72, 0.78, 0.88),  # cool blue-grey haze
+            desaturation:    float = 0.65,                  # saturation loss at max depth
+            lightening:      float = 0.50,                  # blend toward haze at max depth
+            depth_gamma:     float = 1.6,                   # depth curve shape (>1 = effect
+                                                            # concentrates near horizon)
+            background_only: bool  = True,                  # apply only outside figure mask
+    ) -> None:
+        """
+        Atmospheric depth (aerial perspective) pass.
+
+        Leonardo da Vinci described this phenomenon in *Trattato della Pittura*
+        (c. 1490–1510) as *prospettiva aerea* (aerial perspective): the
+        atmosphere between the viewer and a distant object scatters and absorbs
+        light so that distant surfaces appear progressively —
+
+          1. **Lighter in value** — atmosphere adds a veil of bright sky to
+             every distant surface.
+          2. **Cooler / bluer** — Rayleigh scattering shifts the apparent colour
+             of distant elements toward the blue of the sky.
+          3. **Less saturated** — the atmosphere desaturates and blends all
+             colours toward the ambient sky tone.
+          4. **Lower contrast** — dark darks become less dark; lights become
+             less light, as everything resolves toward the same atmospheric grey.
+
+        This pass simulates the effect by reading the current canvas state and
+        applying a depth-weighted blend: pixels near the top of the canvas
+        (the far sky / distant landscape) receive the strongest atmospheric
+        treatment; pixels at the bottom (foreground) are untouched.
+
+        The depth gradient is purely positional (y-axis), which is physically
+        correct for landscape paintings where the horizon is always above the
+        foreground ground plane.
+
+        Caspar David Friedrich applied aerial perspective with extraordinary
+        systematic rigour: each of the three major zones (foreground, middle
+        distance, far horizon / sky) is painted in its own atmospheric register,
+        each noticeably cooler, lighter, and less saturated than the one below.
+        The technique pre-dates photographic depth-of-field but achieves a
+        similar sense of spatial recession through colour temperature alone.
+
+        Parameters
+        ----------
+        haze_color      : The colour toward which distant pixels are blended.
+                          Should match the ambient sky / horizon tone.
+                          Default: pale blue-grey (0.72, 0.78, 0.88).
+        desaturation    : How much to desaturate at maximum depth (0–1).
+                          0 = no desaturation; 1 = full greyscale at the horizon.
+                          Typical range 0.50–0.75.
+        lightening      : How much to blend toward haze_color at maximum depth
+                          (0–1).  0 = no atmospheric tinting; 1 = full haze.
+                          Typical range 0.35–0.60.
+        depth_gamma     : Shape of the depth falloff curve.  Values > 1.0
+                          concentrate the atmospheric effect near the horizon;
+                          values < 1.0 spread it further into the mid-ground.
+                          1.6 (default) gives a convincing natural falloff.
+        background_only : If True (default), apply only to the background zone
+                          (pixels outside the figure mask).  The figure is left
+                          untouched so portrait subjects retain their local colour.
+                          Pass False to apply to the whole canvas (landscape-only
+                          scenes with no figure mask).
+
+        Notes
+        -----
+        Friedrich's *Wanderer above the Sea of Fog* (1818) demonstrates the
+        three atmospheric zones almost diagrammatically: jet-black pine
+        silhouettes at the very bottom; grey-green fog-draped ridges in the
+        middle; a pale cerulean-white sky at the top.  Each zone is internally
+        consistent and makes the next zone read correctly by contrast.
+
+        Leonardo's own instructions in Trattato della Pittura:
+          "Objects at a distance should be less dark and their outlines lost;
+           the further you place them the lighter, bluer and more blurred."
+
+        Applies to all landscape-heavy paintings:
+        ROMANTIC (Turner, Friedrich), RENAISSANCE landscape bg (Leonardo),
+        IMPRESSIONIST exterior (Monet, Pissarro), Ukiyo-e background sky.
+        """
+        print(f"Atmospheric depth pass  "
+              f"(haze={haze_color}  desat={desaturation:.2f}"
+              f"  lighten={lightening:.2f}  gamma={depth_gamma:.1f})…")
+
+        w, h = self.canvas.w, self.canvas.h
+
+        # ── Read current canvas buffer ──────────────────────────────────────────
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        # Cairo stores BGRA; convert to float RGB [0, 1]
+        rgb = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0  # (H, W, 3)
+
+        hr, hg, hb = haze_color
+
+        # ── Build spatial depth map ─────────────────────────────────────────────
+        # y=0 is the TOP of the image (most distant / sky);
+        # y=H-1 is the BOTTOM (foreground).
+        # depth = 1 at the very top, 0 at the very bottom.
+        ys = np.arange(h, dtype=np.float32)
+        depth_linear = 1.0 - ys / max(h - 1, 1)              # (H,)
+        depth        = depth_linear ** depth_gamma             # apply curve
+        depth        = depth[:, np.newaxis]                    # (H, 1)  — broadcast over W
+
+        # ── Background mask ─────────────────────────────────────────────────────
+        if background_only and self._figure_mask is not None:
+            # bg_weight[y, x] = 0 where figure is present, 1 in background.
+            bg_weight = np.clip(1.0 - self._figure_mask, 0.0, 1.0)
+        else:
+            bg_weight = np.ones((h, w), dtype=np.float32)
+
+        # Combined per-pixel effect weight: depth × background_weight
+        # Both broadcast over the 3 colour channels.
+        effect = (depth * bg_weight)[:, :, np.newaxis]       # (H, W, 1)
+
+        # ── Stage 1: Desaturate toward luminance ─────────────────────────────────
+        # Convert to per-pixel luminance (BT.601 weights) and lerp toward it.
+        lum = (0.299 * rgb[:, :, 0] +
+               0.587 * rgb[:, :, 1] +
+               0.114 * rgb[:, :, 2])[:, :, np.newaxis]       # (H, W, 1)
+
+        desaturation_weight = effect * desaturation
+        rgb_desat = rgb * (1.0 - desaturation_weight) + lum * desaturation_weight
+
+        # ── Stage 2: Haze blend toward haze_color ────────────────────────────────
+        haze_vec = np.array([hr, hg, hb], dtype=np.float32)   # (3,)
+        lightening_weight = effect * lightening
+        rgb_final = rgb_desat * (1.0 - lightening_weight) + haze_vec * lightening_weight
+
+        rgb_final = np.clip(rgb_final, 0.0, 1.0)
+
+        # ── Write modified pixels back to Cairo surface ──────────────────────────
+        # Build BGRA uint8 array: Cairo needs B, G, R, A channel order.
+        # Alpha channel is preserved from the original buffer.
+        out = np.zeros((h, w, 4), dtype=np.uint8)
+        out[:, :, 0] = (rgb_final[:, :, 2] * 255).astype(np.uint8)   # B
+        out[:, :, 1] = (rgb_final[:, :, 1] * 255).astype(np.uint8)   # G
+        out[:, :, 2] = (rgb_final[:, :, 0] * 255).astype(np.uint8)   # R
+        out[:, :, 3] = buf[:, :, 3]                                    # A (preserve)
+
+        out_bytes = bytearray(out.tobytes())
+        haze_surf = cairo.ImageSurface.create_for_data(
+            out_bytes, cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(haze_surf, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"  Atmospheric depth complete  "
+              f"({h}×{w} canvas, gamma={depth_gamma:.1f})")
