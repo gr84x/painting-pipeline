@@ -446,7 +446,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     sys.path.insert(0, str(Path(__file__).parent))
     from PIL import Image
     from stroke_engine import (Painter, ellipse_mask, spherical_flow,
-                               flow_field, ellipse_mask)
+                               flow_field, anatomy_flow_field, ellipse_mask)
     from figure_builder import compute_landmarks
     from scene_schema import PoseDetail, Period
 
@@ -479,8 +479,35 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             print("  [warn] No figure mask found — painting without region separation")
 
     is_pointillist = (scene.style.period == Period.POINTILLIST)
+    is_ukiyo_e     = (scene.style.period == Period.UKIYO_E)
 
-    if is_pointillist:
+    if is_ukiyo_e:
+        # ── Ukiyo-e / woodblock print pipeline (Hokusai technique) ───────────
+        # Rice paper ground — pale cream, almost no texture (ukiyo-e used
+        # smooth washi paper, not woven linen).
+        p.tone_ground((0.90, 0.88, 0.80), texture_strength=0.02)
+
+        # Three-stage woodblock process:
+        # 1. Flat colour quantisation (colour blocks)
+        # 2. Bokashi Prussian-blue gradient (background atmosphere)
+        # 3. Ink keyblock contour lines
+        p.woodblock_pass(
+            ref,
+            n_colors          = 8,            # typical ukiyo-e palette is 6–10 colours
+            bokashi_color     = (0.15, 0.38, 0.72),   # Prussian blue (Bokashi)
+            bokashi_strength  = 0.42,
+            bokashi_vertical  = True,
+            contour_weight    = 0.35,
+            contour_thickness = float(sp["stroke_size_face"]),
+            ink_color         = (0.06, 0.04, 0.10),
+        )
+
+        # No glaze — ukiyo-e pigment is transparent watercolour; the cream
+        # paper reads through flat colour areas.
+        # Very gentle vignette only; no crackle (prints don't age like oil varnish).
+        p.finish(vignette=0.12, crackle=False)
+
+    elif is_pointillist:
         # ── Pointillist / divisionist pipeline (Seurat technique) ────────────
         # Pale canvas ground — dots are sparse enough that the ground shows
         # through in highlight areas, creating the luminous haze of La Grande Jatte.
@@ -557,7 +584,18 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             # Tighter face ellipse: was rx*1.25, ry*1.20 — that extended into hair.
             # Now rx*1.0, ry*0.95 keeps the mask within the face geometry.
             face_mask  = ellipse_mask(W, H, cx, cy, rx * 1.00, ry * 0.95, feather=0.28)
-            face_flow  = spherical_flow(W, H, cx, cy, rx, ry)
+
+            # anatomy_flow_field() encodes the major anatomical planes of the face:
+            # horizontal forehead strokes, orbital curves around the eye sockets,
+            # vertical nasal planes, diagonal cheekbone strokes, etc.  This gives
+            # brushwork that reads more naturally than a generic spherical_flow()
+            # because it mirrors how trained portrait painters actually work.
+            # spherical_flow is passed as gradient_fallback so strokes outside
+            # the face ellipse still follow the surface curvature.
+            sphere_flow = spherical_flow(W, H, cx, cy, rx, ry)
+            face_flow   = anatomy_flow_field(W, H, cx, cy, rx, ry,
+                                             gradient_fallback=sphere_flow)
+
             eyes_mask  = ellipse_mask(W, H, cx, cy - ry//4, rx * 0.80, ry * 0.50, feather=0.22)
             lips_mask  = ellipse_mask(W, H, cx, cy + ry//2, rx * 0.50, ry * 0.28, feather=0.28)
 

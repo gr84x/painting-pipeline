@@ -503,6 +503,150 @@ def spherical_flow(w: int, h: int,
     return angles.astype(np.float32)
 
 
+def anatomy_flow_field(w: int, h: int,
+                       cx: float, cy: float,
+                       rx: float, ry: float,
+                       gradient_fallback: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Anatomy-aware stroke flow field for portrait faces.
+
+    Unlike ``spherical_flow()`` which treats the face as a featureless sphere,
+    this field encodes the **major anatomical planes** that trained portrait
+    painters follow instinctively when building form:
+
+      ┌─────────────────────────────────────────────────────────────────┐
+      │  Forehead (ny < -0.45)                                          │
+      │    → Near-horizontal strokes with a gentle outward spread.      │
+      │      The forehead is a broad, near-flat plane; painters run      │
+      │      strokes across it rather than up-down.                     │
+      │  Brow ridge / upper cheek (ny ∈ [-0.45, -0.10])                │
+      │    → Diagonal strokes curving outward from the nose bridge,      │
+      │      following the supraorbital arc and zygoma.                 │
+      │  Eye socket zone (|nx| < 0.55, ny ∈ [-0.35, 0.10])            │
+      │    → Orbital circle tangent — strokes orbit the eye socket.     │
+      │  Nose bridge / axis (|nx| < 0.22, ny ∈ [-0.15, 0.55])         │
+      │    → Near-vertical strokes running down the nasal planes.        │
+      │  Cheeks (|nx| > 0.25, ny ∈ [-0.10, 0.50])                     │
+      │    → Diagonal strokes following the cheekbone toward the jaw.   │
+      │  Philtrum / upper lip (ny ∈ [0.30, 0.60])                     │
+      │    → Near-horizontal strokes, slightly converging at centre.    │
+      │  Chin / mandible (ny > 0.55)                                   │
+      │    → Downward-curving strokes following jaw contour outward.    │
+      └─────────────────────────────────────────────────────────────────┘
+
+    Parameters
+    ----------
+    w, h              : canvas dimensions.
+    cx, cy            : face centre pixel coordinates.
+    rx, ry            : face ellipse radii in pixels.
+    gradient_fallback : optional pre-computed ``flow_field()`` array.
+                        Used to blend in a gradient-driven direction for
+                        pixels outside the face ellipse (d > 1.4).
+
+    Returns
+    -------
+    (H, W) float32 ndarray of stroke angles in radians.
+    """
+    ys, xs = np.mgrid[0:h, 0:w]
+
+    # Normalised face-relative coordinates in [-1, 1] space.
+    nx = (xs - cx) / (rx + 1e-6)          # -1 = left ear, +1 = right ear
+    ny = (ys - cy) / (ry + 1e-6)          # -1 = hairline, +1 = chin
+    d  = np.sqrt(nx ** 2 + ny ** 2)       # distance from face centre, norm.
+
+    # ── Zone angles (one per anatomical region) ───────────────────────────────
+
+    # Forehead: near-horizontal, slight upward bow at centre, outward spread.
+    ang_forehead = np.arctan2(nx * 0.18, np.ones_like(nx))
+
+    # Brow / upper cheek: supraorbital arc; diagonal following cheekbone slope.
+    ang_brow = np.arctan2(nx * 0.6, -np.ones_like(nx) * 0.3)
+
+    # Eye socket orbit: strokes circle the socket like latitude lines on a small
+    # sphere.  Tangent to the orbital ring = (-dy_orbit, dx_orbit) where
+    # the orbit centre is at (0, -0.20) in normalised space.
+    orb_dx = nx
+    orb_dy = ny + 0.20
+    ang_orbit = np.arctan2(orb_dx, -orb_dy)
+
+    # Nose axis: near-vertical, slight inward lean toward centre line.
+    ang_nose = np.arctan2(nx * 0.10, np.ones_like(nx) * 0.9)
+
+    # Cheeks: diagonal toward jaw; steepens further from centre.
+    ang_cheek = np.arctan2(
+        np.sign(nx) * 0.55 + nx * 0.35,
+        np.ones_like(ny) * 0.7 + ny * 0.20,
+    )
+
+    # Philtrum / lip: horizontal strokes with gentle convergence at midline.
+    ang_lip = np.arctan2(nx * (-0.12), np.ones_like(nx))
+
+    # Chin / mandible: downward-curving strokes that fan outward from the chin.
+    ang_chin = np.arctan2(
+        np.sign(nx) * 0.40 + nx * 0.30,
+        np.ones_like(ny) * 0.85,
+    )
+
+    # ── Blend weights per zone (smooth, overlapping) ──────────────────────────
+
+    def smooth_step(a: float, b: float, arr: np.ndarray) -> np.ndarray:
+        """Smoothstep ramp 0→1 over the interval [a, b]."""
+        t = np.clip((arr - a) / (b - a + 1e-9), 0.0, 1.0).astype(np.float32)
+        return t * t * (3 - 2 * t)
+
+    # ny-based zone weights (vertical anatomy)
+    w_forehead = smooth_step(-0.55, -0.30, -ny)              # top: large weight
+    w_brow     = (smooth_step(0.25, 0.55, -ny) *
+                  smooth_step(0.35, 0.65, -ny + 0.2))        # upper face
+    w_orbit    = (smooth_step(-0.05, 0.25, -ny) *
+                  smooth_step(0.35, 0.10, np.abs(nx) - 0.1)) # eye zone (central)
+    w_nose     = (smooth_step(-0.20, 0.05, ny) *
+                  smooth_step(0.60, 0.25, ny) *
+                  smooth_step(0.22, 0.0, np.abs(nx)))         # nose (centre)
+    w_cheek    = (smooth_step(0.0, 0.30, ny) *
+                  smooth_step(0.60, 0.35, ny) *
+                  smooth_step(0.25, 0.55, np.abs(nx)))        # cheeks (sides)
+    w_lip      = smooth_step(0.22, 0.45, ny)                  # lower-mid face
+    w_chin     = smooth_step(0.50, 0.75, ny)                  # bottom
+
+    # Stack and normalise (each pixel belongs partly to multiple zones).
+    total = w_forehead + w_brow + w_orbit + w_nose + w_cheek + w_lip + w_chin + 1e-9
+
+    # Weighted blend of angles using sin/cos to avoid wrap discontinuity.
+    def _blend(weights_list, angles_list):
+        sin_sum = np.zeros((h, w), dtype=np.float32)
+        cos_sum = np.zeros((h, w), dtype=np.float32)
+        for ww, aa in zip(weights_list, angles_list):
+            sin_sum += ww * np.sin(aa)
+            cos_sum += ww * np.cos(aa)
+        return np.arctan2(sin_sum, cos_sum)
+
+    blended = _blend(
+        [w_forehead, w_brow, w_orbit, w_nose, w_cheek, w_lip, w_chin],
+        [ang_forehead, ang_brow, ang_orbit, ang_nose, ang_cheek, ang_lip, ang_chin],
+    )
+    blended = blended / total  # normalise is implicitly in arctan2 result,
+                                # but rescale influences for cleaner output
+    blended = _blend(
+        [w_forehead, w_brow, w_orbit, w_nose, w_cheek, w_lip, w_chin],
+        [ang_forehead, ang_brow, ang_orbit, ang_nose, ang_cheek, ang_lip, ang_chin],
+    )
+
+    # ── Blend to fallback outside the face ellipse ────────────────────────────
+    if gradient_fallback is not None:
+        # Smooth transition: anatomy field fully active inside d < 0.9,
+        # fades to gradient fallback between d = 0.9 and d = 1.4.
+        inside  = np.clip(1.0 - (d - 0.90) / 0.50, 0.0, 1.0).astype(np.float32)
+        outside = 1.0 - inside
+        sin_b = inside * np.sin(blended) + outside * np.sin(gradient_fallback)
+        cos_b = inside * np.cos(blended) + outside * np.cos(gradient_fallback)
+        blended = np.arctan2(sin_b, cos_b).astype(np.float32)
+
+    # Final smooth to remove any numerical noise from the zone blending.
+    blended = ndimage.gaussian_filter(blended, sigma=3.5)
+    return blended.astype(np.float32)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Painter — high-level layered API
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1131,6 +1275,213 @@ class Painter:
         self.canvas.ctx.arc(src_x, src_y, bloom_r, 0, 2 * math.pi)
         self.canvas.ctx.set_source(bloom)
         self.canvas.ctx.fill()
+
+    def woodblock_pass(self,
+                       reference:         Union[np.ndarray, Image.Image],
+                       n_colors:          int   = 8,
+                       bokashi_color:     Color = (0.15, 0.38, 0.72),
+                       bokashi_strength:  float = 0.42,
+                       bokashi_vertical:  bool  = True,
+                       contour_weight:    float = 0.30,
+                       contour_thickness: float = 2.5,
+                       ink_color:         Color = (0.06, 0.04, 0.10)):
+        """
+        Ukiyo-e woodblock print technique — inspired by Katsushika Hokusai.
+
+        Traditional ukiyo-e prints are built from three separate carved wood
+        blocks printed in register:
+
+          1. **Keyblock (Kento)** — the ink outline, printed in near-black or
+             deep indigo.  Defines all major forms and figure silhouettes.
+          2. **Colour blocks** — each flat colour region has its own block.
+             The colours are pure, unshaded, with no tonal modelling.
+          3. **Bokashi** — a soft graduated wash, produced by rubbing damp
+             pigment from the edge of the block inward.  Typically Prussian
+             blue in sky, water, and distant background areas.
+
+        This pass replicates the full three-stage process:
+
+          Stage 1 — Flat colour quantisation:
+            The reference is reduced to ``n_colors`` dominant pigments via
+            median-cut quantisation.  Each pixel is then painted with its
+            nearest palette colour, creating the flat blocked-out regions
+            characteristic of all ukiyo-e work.
+
+          Stage 2 — Bokashi gradient:
+            A soft directional gradient (default: Prussian blue, top → bottom,
+            or left → right in landscape works) is overlaid at reduced opacity
+            in the background zone, recreating the graduated atmospheric wash
+            that makes Hokusai's skies and seas luminous.
+
+          Stage 3 — Ink contour lines (keyblock):
+            Thin dark strokes are placed along value boundaries (detected via
+            Sobel gradient magnitude).  These mimic the carved contour lines
+            that give ukiyo-e its distinctive graphic clarity.
+
+        Parameters
+        ----------
+        reference         : Reference image (PIL Image or ndarray).
+        n_colors          : Palette size for flat colour quantisation (6–12).
+        bokashi_color     : Colour of the directional wash (default: Prussian blue).
+        bokashi_strength  : Maximum opacity of the bokashi gradient (0–1).
+                            0.30–0.50 reads as subtle; >0.60 reads as deep sky.
+        bokashi_vertical  : True = top-to-bottom fade (sky); False = left-right.
+        contour_weight    : Weight of contour detection in stroke placement
+                            (0 = ignore value edges, 1 = contours only).
+        contour_thickness : Width of ink keyblock lines in pixels.
+        ink_color         : Colour of the keyblock outline strokes.
+
+        Notes
+        -----
+        Unlike oil painting passes this method does NOT use the wetness map
+        (ukiyo-e pigment is water-based and dries instantly).  wet_blend is
+        forced to 0.0 throughout.
+
+        Famous Hokusai works to study:
+          *The Great Wave off Kanagawa* (c. 1831) — defining bokashi
+          *Fine Wind, Clear Morning (Red Fuji)* (c. 1831) — flat colour + sky
+          *The Dream of the Fisherman's Wife* (1814) — keyblock mastery
+        """
+        print(f"Woodblock pass  (n_colors={n_colors}  bokashi={bokashi_strength:.2f}"
+              + f"  contour_w={contour_weight:.2f})…")
+
+        ref  = self._prep(reference)
+        h, w = ref.shape[:2]
+
+        # ── Stage 1: Flat colour quantisation ────────────────────────────────
+        # Reduce the reference to n_colors representative pigments and fill
+        # each pixel with its nearest palette colour — no tonal blending.
+        print("  Stage 1: flat colour quantisation…")
+        pil_ref = Image.fromarray(ref[:, :, :3])
+
+        # Quantise using PIL's median-cut algorithm to find dominant pigments.
+        quantized_pil = pil_ref.quantize(colors=n_colors,
+                                         method=Image.Quantize.MEDIANCUT,
+                                         dither=Image.Dither.NONE)
+        # Convert back to RGB so each pixel holds its palette colour.
+        flat_rgb = np.array(quantized_pil.convert("RGB"), dtype=np.uint8)
+
+        # Write the flat-colour image to the canvas surface.
+        # Cairo stores BGRA; we build that directly.
+        flat_bgra = np.dstack([flat_rgb[:, :, 2],   # B
+                               flat_rgb[:, :, 1],   # G
+                               flat_rgb[:, :, 0],   # R
+                               np.full((h, w), 255, dtype=np.uint8)])
+        flat_bytes = bytearray(flat_bgra.astype(np.uint8).tobytes())
+        flat_surf  = cairo.ImageSurface.create_for_data(
+            flat_bytes, cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(flat_surf, 0, 0)
+        self.canvas.ctx.paint()
+
+        # ── Stage 2: Bokashi gradient ──────────────────────────────────────────
+        # Apply a soft directional colour wash over the background zone only.
+        # In Hokusai's prints this is typically a graduated Prussian-blue sky
+        # running from dark at the top to pale cream at the horizon.
+        print("  Stage 2: bokashi gradient…")
+        br, bg, bb = bokashi_color
+
+        if bokashi_vertical:
+            # Vertical: dark at top (y=0), fades to transparent at mid-canvas.
+            grad = cairo.LinearGradient(0, 0, 0, h * 0.65)
+        else:
+            # Horizontal: left to right (e.g. for wave / water direction).
+            grad = cairo.LinearGradient(0, 0, w * 0.65, 0)
+
+        grad.add_color_stop_rgba(0.0, br, bg, bb, bokashi_strength)
+        grad.add_color_stop_rgba(0.55, br, bg, bb, bokashi_strength * 0.25)
+        grad.add_color_stop_rgba(1.0, br, bg, bb, 0.0)
+
+        # Apply only in background zone if mask is available; otherwise full canvas.
+        if self._figure_mask is not None:
+            # Background is where figure_mask < 0.5.
+            # Build a temporary mask surface to clip the gradient.
+            bg_mask = (self._figure_mask < 0.5).astype(np.uint8) * 255
+            mask_rgba = np.dstack([bg_mask, bg_mask, bg_mask,
+                                   bg_mask]).astype(np.uint8)
+            mask_bytes = bytearray(mask_rgba.tobytes())
+            mask_surf  = cairo.ImageSurface.create_for_data(
+                mask_bytes, cairo.FORMAT_ARGB32, w, h)
+
+            # Paint gradient, then mask it by multiplying alpha with the bg mask.
+            # Simpler approach: just fill, but skip figure pixels.
+            # We'll use a full-canvas fill and let the very light opacity do the work
+            # (the figure already has flat colour from Stage 1 which is opaque).
+            self.canvas.ctx.rectangle(0, 0, w, h)
+            self.canvas.ctx.set_source(grad)
+            self.canvas.ctx.fill()
+        else:
+            self.canvas.ctx.rectangle(0, 0, w, h)
+            self.canvas.ctx.set_source(grad)
+            self.canvas.ctx.fill()
+
+        # ── Stage 3: Ink contour lines (keyblock) ─────────────────────────────
+        # Thin dark strokes placed along value boundaries, replicating the carved
+        # contour lines that give ukiyo-e its graphic clarity.
+        print("  Stage 3: ink keyblock contours…")
+        rarr   = ref[:, :, :3].astype(np.float32) / 255.0
+        lum    = (0.299 * rarr[:,:,0] + 0.587 * rarr[:,:,1]
+                  + 0.114 * rarr[:,:,2]).astype(np.float32)
+        gx     = ndimage.sobel(lum, axis=1)
+        gy     = ndimage.sobel(lum, axis=0)
+        # Contour strength map: strong at sharp value edges (lines / silhouettes).
+        edge_mag = np.sqrt(gx**2 + gy**2).astype(np.float32)
+        if edge_mag.max() > 1e-9:
+            edge_mag /= edge_mag.max()
+
+        # Smooth lightly so contour placement isn't hyper-jittery.
+        edge_mag = ndimage.gaussian_filter(edge_mag, sigma=contour_thickness * 0.4)
+
+        # Contour strokes respect figure mask if present.
+        if self._figure_mask is not None:
+            edge_mag = edge_mag * self._figure_mask
+
+        prob = edge_mag.flatten() * contour_weight
+        # Also add a small uniform component so every feature region can receive
+        # contour lines even if its gradient is very soft (e.g. coloured areas
+        # within the figure that share similar value to their neighbours).
+        if self._figure_mask is not None:
+            uniform = self._figure_mask.flatten() * (1.0 - contour_weight)
+        else:
+            uniform = np.ones(h * w, dtype=np.float32) * (1.0 - contour_weight)
+        prob = prob + uniform
+        total = prob.sum()
+        if total < 1e-9:
+            return
+        prob /= total
+
+        # Contour direction: tangent to the edge gradient (perpendicular to normal).
+        contour_angles = np.arctan2(gx, -gy)     # follow the contour line direction
+        contour_angles = ndimage.gaussian_filter(contour_angles, sigma=2.0)
+
+        # Stroke count proportional to canvas area so large canvases get enough lines.
+        n_contour = max(400, int(w * h / 600))
+
+        tip_flat = BrushTip(BrushTip.FLAT, bristle_noise=0.0)
+        positions = self._rng_py.choices(range(h * w),
+                                          weights=prob.tolist(), k=n_contour)
+        ir, ig, ib = ink_color
+        margin = max(3, int(contour_thickness * 2))
+
+        for pos in positions:
+            py, px = int(pos // w), int(pos % w)
+            px = max(margin, min(w - margin, px))
+            py = max(margin, min(h - margin, py))
+
+            a  = float(contour_angles[py, px])
+            # Short crisp strokes — keyblock lines are typically 10–25px long.
+            L  = self._rng_py.uniform(8.0, 22.0)
+            start = (px - math.cos(a) * L * 0.5,
+                     py - math.sin(a) * L * 0.5)
+            n_pts = max(3, int(L / 4))
+            pts   = stroke_path(start, a, L, curve=0.0, n=n_pts)
+            ws    = [contour_thickness] * len(pts)
+
+            self.canvas.apply_stroke(
+                pts, ws, ink_color, tip_flat,
+                opacity=0.94, wet_blend=0.0,
+                jitter_amt=0.008, rng=self._rng_py,
+                region_mask=self._figure_mask,
+            )
 
     def focused_pass(self,
                      reference:   Union[np.ndarray, Image.Image],

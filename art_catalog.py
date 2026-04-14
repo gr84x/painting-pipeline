@@ -514,6 +514,56 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Diego Velázquez ───────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Velázquez pioneered "painting the air" — the atmosphere between figures —
+    # and applied paint with breathtaking virtuosity and apparent looseness that
+    # only resolves into crisp form at the correct viewing distance.
+    "velazquez": ArtStyle(
+        artist="Diego Rodríguez de Silva y Velázquez",
+        movement="Spanish Baroque",
+        nationality="Spanish",
+        period="1617–1660",
+        palette=[
+            (0.82, 0.62, 0.44),   # warm flesh — silvery rose highlight
+            (0.55, 0.40, 0.25),   # mid-flesh — raw sienna
+            (0.28, 0.20, 0.12),   # deep umber shadow
+            (0.60, 0.56, 0.50),   # silvery grey — armour / neutral mid
+            (0.18, 0.14, 0.08),   # near-black — deep shadow / background
+            (0.80, 0.68, 0.42),   # warm ochre — lit costume / fabric
+        ],
+        ground_color=(0.28, 0.22, 0.14),    # warm dark ground (walnut-oil imprimatura)
+        stroke_size=8,
+        wet_blend=0.38,                      # alla prima: wet strokes drag into each other
+        edge_softness=0.52,                  # edges present but lose resolution up close
+        jitter=0.050,
+        glazing=(0.65, 0.50, 0.22),          # warm amber final glaze — unifies flesh
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Alla prima (wet-in-wet) with virtuosic apparent looseness. "
+            "Velázquez 'paints the air' — the luminous space between objects — "
+            "not the objects themselves. Broad, confident strokes of pure colour "
+            "that look unfinished at close range but coalesce into form at the "
+            "correct viewing distance. Cool silvery neutrals oppose warm flesh. "
+            "Shadows transparent, not opaque; deep darks achieved by glazing "
+            "over the brown ground. Las Meninas (1656): masterwork of illusionism."
+        ),
+        famous_works=[
+            ("Las Meninas", "1656"),
+            ("Portrait of Pope Innocent X", "1650"),
+            ("The Rokeby Venus", "1647–1651"),
+            ("The Spinners (Las Hilanderas)", "c. 1657"),
+        ],
+        inspiration=(
+            "Medium wet_blend + edge_softness: edges are present but soft, "
+            "not razor-sharp. block_in() strokes unusually large — Velázquez "
+            "worked at arm's length. High jitter in build_form(). Final "
+            "focused_pass uses warm flesh against cool silvery half-tones. "
+            "The ground reads through in shadow areas."
+        ),
+    ),
+
     # ── Katsushika Hokusai ────────────────────────────────────────────────────
     "hokusai": ArtStyle(
         artist="Katsushika Hokusai",

@@ -184,6 +184,7 @@ class Period(Enum):
     POINTILLIST   = auto()   # Seurat / divisionism — dots, no wet blending
     ROMANTIC      = auto()   # Turner — luminous light vortex, dissolved edges
     ART_NOUVEAU   = auto()   # Klimt — gold leaf, flat ornament, symbolic colour
+    UKIYO_E       = auto()   # Hokusai — flat colour, bokashi gradient, ink contours
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -382,6 +383,11 @@ class Style:
             # Art Nouveau (Klimt): moderate strokes; low wet blend to keep colour
             # zones crisp; the decorative gold overlay is applied as a glaze pass.
             Period.ART_NOUVEAU:   dict(stroke_size_face=6,  stroke_size_bg=20, wet_blend=0.15, edge_softness=0.40),
+            # Ukiyo-e (Hokusai): woodblock print aesthetic — flat colour regions,
+            # Prussian blue bokashi gradient, bold ink contour keyblock lines.
+            # stroke_size_face is the ink contour line width; stroke_size_bg is
+            # the bokashi soft-brush pass size used for sky/background gradients.
+            Period.UKIYO_E:       dict(stroke_size_face=3,  stroke_size_bg=12, wet_blend=0.04, edge_softness=0.08),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
