@@ -1261,3 +1261,159 @@ def test_highlight_bloom_pass_no_error_figure_only():
     mask[16:48, 16:48] = 1.0
     p._figure_mask = mask
     p.highlight_bloom_pass(figure_only=True, bloom_opacity=0.20)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# chromatic_shadow_pass() — session 20 random artistic improvement
+# Inspired by Eugène Delacroix's discovery that shadows contain the complement
+# of the dominant light colour.
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_chromatic_shadow_pass_exists():
+    """Painter must have chromatic_shadow_pass() method after session 20."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "chromatic_shadow_pass"), (
+        "chromatic_shadow_pass not found on Painter")
+    assert callable(getattr(Painter, "chromatic_shadow_pass"))
+
+
+def test_chromatic_shadow_pass_no_error():
+    """chromatic_shadow_pass() runs without error on a tiny canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.chromatic_shadow_pass(shadow_threshold=0.45, strength=0.26)
+
+
+def test_chromatic_shadow_pass_modifies_canvas():
+    """chromatic_shadow_pass() must change at least some canvas pixels."""
+    import cairo
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.12, 0.06), texture_strength=0.08)  # very dark ground
+    p.block_in(ref, stroke_size=10, n_strokes=60)
+
+    surf = p.canvas.surface
+    h, w = surf.get_height(), surf.get_width()
+    before = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+    p.chromatic_shadow_pass(shadow_threshold=0.55, strength=0.50, lum_preserve=False)
+
+    after = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+    assert not np.array_equal(before, after), (
+        "chromatic_shadow_pass() should have changed at least some pixels")
+
+
+def test_chromatic_shadow_pass_lum_preserve_keeps_luminance():
+    """With lum_preserve=True, per-pixel luminance must be preserved (within tolerance)."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.30, 0.22, 0.10), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=60)
+
+    surf = p.canvas.surface
+    h, w = surf.get_height(), surf.get_width()
+    before_buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+    # Compute luminance from Cairo ARGB32 (B=0, G=1, R=2)
+    def _lum(buf):
+        r = buf[:, :, 2].astype(np.float32) / 255.0
+        g = buf[:, :, 1].astype(np.float32) / 255.0
+        b = buf[:, :, 0].astype(np.float32) / 255.0
+        return 0.299 * r + 0.587 * g + 0.114 * b
+
+    lum_before = _lum(before_buf)
+
+    # Shadow pixels only (lum < 0.50)
+    shadow_mask = lum_before < 0.50
+
+    p.chromatic_shadow_pass(shadow_threshold=0.50, strength=0.40, lum_preserve=True)
+
+    after_buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+    lum_after = _lum(after_buf)
+
+    # In shadow zones, luminance must not change by more than ±0.08 (8%)
+    # Small rounding errors from uint8 quantisation are expected.
+    if shadow_mask.any():
+        delta = np.abs(lum_after[shadow_mask] - lum_before[shadow_mask])
+        assert delta.max() <= 0.08, (
+            f"lum_preserve=True should keep luminance constant; "
+            f"max delta was {delta.max():.4f}")
+
+
+def test_chromatic_shadow_pass_fixed_tint_no_error():
+    """chromatic_shadow_pass() with a fixed shadow_tint should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    # Violet shadow tint — warm-lit Delacroix scene
+    p.chromatic_shadow_pass(shadow_tint=(0.35, 0.22, 0.72), strength=0.30)
+
+
+def test_chromatic_shadow_pass_figure_only_no_error():
+    """chromatic_shadow_pass() with figure_only=True and a mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.chromatic_shadow_pass(figure_only=True, strength=0.28)
+
+
+def test_chromatic_shadow_pass_pixels_in_range():
+    """chromatic_shadow_pass() must not produce out-of-range pixel values."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.22, 0.14, 0.06), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=50)
+    p.chromatic_shadow_pass(shadow_threshold=0.60, strength=0.50, lum_preserve=False)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_chromatic_shadow_pass_zero_strength_is_noop():
+    """With strength=0, chromatic_shadow_pass() should not change the canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=40)
+
+    surf = p.canvas.surface
+    h, w = surf.get_height(), surf.get_width()
+    before = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+    p.chromatic_shadow_pass(strength=0.0)
+
+    after = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+    assert np.array_equal(before, after), (
+        "strength=0 should leave the canvas unchanged")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# BAROQUE routing flag — scene_to_painting() flags
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_baroque_routing_flag_true_for_baroque_period():
+    """is_baroque should be True when Period.BAROQUE is set."""
+    style = Style(medium=Medium.OIL, period=Period.BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    assert style.period == Period.BAROQUE
+
+
+def test_baroque_routing_flag_false_for_renaissance():
+    """BAROQUE flag must not fire for RENAISSANCE period."""
+    assert Period.BAROQUE != Period.RENAISSANCE
+
+
+def test_baroque_stroke_params_present():
+    """BAROQUE period must have stroke_params defined."""
+    style = Style(medium=Medium.OIL, period=Period.BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"BAROQUE stroke_params missing key: {key!r}"

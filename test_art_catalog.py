@@ -28,7 +28,9 @@ from scene_schema import Period, Style, Medium, PaletteHint
 
 EXPECTED_ARTISTS = [
     "artemisia_gentileschi",
-    "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
+    "caravaggio", "caspar_david_friedrich", "cezanne",
+    "delacroix",
+    "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "jan_van_eyck",
     "kandinsky",
@@ -1029,3 +1031,94 @@ def test_early_netherlandish_stroke_params_all_keys_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"EARLY_NETHERLANDISH stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Eugène Delacroix — session 20 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_delacroix_in_catalog():
+    """Delacroix (session 20) must be present in CATALOG."""
+    assert "delacroix" in CATALOG
+
+
+def test_delacroix_artist_name():
+    s = get_style("delacroix")
+    assert "Delacroix" in s.artist
+
+
+def test_delacroix_movement_contains_romanticism():
+    """Delacroix's movement must reference French Romanticism or Colorism."""
+    s = get_style("delacroix")
+    movement_lower = s.movement.lower()
+    assert "romant" in movement_lower or "coloris" in movement_lower or "colour" in movement_lower
+
+
+def test_delacroix_palette_length():
+    """Delacroix catalog entry must have at least 6 palette colours."""
+    s = get_style("delacroix")
+    assert len(s.palette) >= 6
+
+
+def test_delacroix_palette_values_in_range():
+    """All Delacroix palette RGB values must be in [0, 1]."""
+    s = get_style("delacroix")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Delacroix palette {rgb}")
+
+
+def test_delacroix_ground_color_valid():
+    s = get_style("delacroix")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_delacroix_ground_color_is_dark_warm():
+    """Delacroix painted on a warm dark umber ground."""
+    s = get_style("delacroix")
+    r, g, b = s.ground_color
+    # Warm: red channel dominates over blue
+    assert r > b, "Delacroix ground should be warmer (R > B)"
+    # Dark: luminance below 0.60
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.60, f"Delacroix ground should be relatively dark; lum={lum:.3f}"
+
+
+def test_delacroix_wet_blend_moderate():
+    """Delacroix's alla prima wet_blend should be moderate (vigorous wet-into-wet)."""
+    s = get_style("delacroix")
+    assert 0.20 <= s.wet_blend <= 0.55, (
+        f"Delacroix wet_blend expected moderate; got {s.wet_blend}")
+
+
+def test_delacroix_has_glazing():
+    """Delacroix used a warm amber final glaze to unify the surface."""
+    s = get_style("delacroix")
+    assert s.glazing is not None
+    assert len(s.glazing) == 3
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_delacroix_crackle_true():
+    """Delacroix's 19th-century oil canvases show craquelure — crackle should be True."""
+    s = get_style("delacroix")
+    assert s.crackle is True
+
+
+def test_delacroix_famous_works_present():
+    """Delacroix catalog entry must include his major paintings."""
+    s = get_style("delacroix")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Liberty" in t for t in titles), "Missing 'Liberty Leading the People'"
+    assert any("Sardanapalus" in t or "Sardanapale" in t for t in titles), (
+        "Missing 'Death of Sardanapalus'")
+
+
+def test_delacroix_in_expected_artists_list():
+    """EXPECTED_ARTISTS list must include delacroix."""
+    assert "delacroix" in EXPECTED_ARTISTS

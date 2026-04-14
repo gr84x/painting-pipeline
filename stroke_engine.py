@@ -6066,3 +6066,151 @@ class Painter:
 
         n_bloomed = int((hi_wt > 0.01).sum())
         print(f"  Highlight bloom pass complete  (bloom_source={n_bloomed}px)")
+
+    def chromatic_shadow_pass(self,
+                              shadow_threshold: float = 0.42,
+                              strength:         float = 0.22,
+                              shadow_tint:      Optional[Color] = None,
+                              lum_preserve:     bool  = True,
+                              figure_only:      bool  = False):
+        """
+        Chromatic shadow pass — inspired by Eugène Delacroix's key colour discovery.
+
+        Delacroix's journal records his pivotal observation: shadows are not simply
+        dark versions of the lit colour — they contain the chromatic COMPLEMENT of
+        the dominant light.  Under warm (yellowish) light, shadows trend toward
+        violet-blue; under cool (bluish) studio light, shadows trend toward warm
+        amber-orange.  This is the foundational insight that separates Delacroix
+        from the academic tradition and anticipates Impressionism by 30 years.
+
+        This pass identifies shadow zones (luminance < shadow_threshold) and adds a
+        subtle complementary tint to each pixel in proportion to its darkness.  The
+        luminance is optionally preserved (hue/chroma shift only, not brightness) so
+        the pass cannot lighten or darken the painting — only enrich the colour depth
+        of shadow passages.
+
+        Implementation
+        --------------
+        1. Read the current canvas buffer as float32 RGB.
+        2. Compute per-pixel luminance.
+        3. Build a shadow weight: shadow_wt = max(0, (threshold − lum) / threshold)^1.5
+           — ramps from 0 at the threshold boundary to maximum at luminance = 0.
+        4. Compute the per-pixel complement colour:
+               complement = (1 − r, 1 − g, 1 − b)   [spectral complement]
+           If shadow_tint is provided, use that as the fixed tint colour instead.
+        5. Blend toward the complement by shadow_wt × strength × 0.5:
+               r_out = r + blend × (tint_r − r)
+        6. If lum_preserve: rescale each output pixel to match the original luminance,
+           keeping all brightness intact — only hue and saturation shift.
+        7. Apply optional figure_only masking.
+
+        Parameters
+        ----------
+        shadow_threshold : Luminance below which a pixel is 'in shadow'.
+                          0.42 captures the lower half of the tonal range.
+                          Lower (0.30) → stronger effect; higher (0.55) → includes
+                          mid-tones.
+        strength         : Maximum blend fraction toward the complement colour.
+                          0.15–0.25 = subtle, photographic (Impressionist level).
+                          0.30–0.45 = strong, expressive (late Delacroix).
+        shadow_tint      : Optional fixed (R,G,B) shadow tint.  Use when the dominant
+                          light colour is known, e.g. (0.30, 0.25, 0.70) for violet
+                          shadows under warm candlelight.  None = per-pixel complement.
+        lum_preserve     : If True (default), rescale each shadow pixel to its
+                          original luminance after blending (chrominance-only shift).
+                          If False, the complement blend may lighten dark pixels.
+        figure_only      : If True and a figure mask is loaded, restrict the chromatic
+                          shift to the figure region only.
+
+        Notes
+        -----
+        Call AFTER block_in() and build_form() but BEFORE the final glaze, so the
+        chromatic shift is gently softened by the glaze layer on top.
+
+        Delacroix used this empirically; Chevreul formulated it as the law of
+        simultaneous contrast (1839); Seurat operationalised it as Divisionism;
+        Monet made it the entire subject of his serial paintings (Haystacks,
+        Rouen Cathedral series).
+        """
+        print(f"Chromatic shadow pass  (threshold={shadow_threshold:.2f}  "
+              f"strength={strength:.2f}  lum_preserve={lum_preserve})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        # Cairo FORMAT_ARGB32 byte order: index 0=B, 1=G, 2=R, 3=A
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+
+        # ── Shadow weight: strongest in deepest darks, fades to 0 at threshold ──
+        # Power 1.5 concentrates the effect in the true shadow zones and avoids
+        # contaminating the mid-tone range where the effect would look muddy.
+        shadow_wt = np.clip(
+            (shadow_threshold - lum) / max(shadow_threshold, 1e-6), 0.0, 1.0
+        ) ** 1.5
+
+        # ── Optional figure mask ──────────────────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            shadow_wt = shadow_wt * self._figure_mask
+
+        # ── Target tint per pixel ─────────────────────────────────────────────
+        if shadow_tint is not None:
+            # Fixed shadow tint: the painter knows the dominant light colour
+            tint_r = np.full_like(r_ch, float(shadow_tint[0]))
+            tint_g = np.full_like(g_ch, float(shadow_tint[1]))
+            tint_b = np.full_like(b_ch, float(shadow_tint[2]))
+        else:
+            # Per-pixel spectral complement: each shadow pixel drifts toward
+            # its chromatic opposite.  Warm shadow pixels → cooler tint;
+            # cool shadow pixels → warmer tint.  Exactly Delacroix's observation.
+            tint_r = 1.0 - r_ch
+            tint_g = 1.0 - g_ch
+            tint_b = 1.0 - b_ch
+
+        # ── Blend toward tint in proportion to shadow weight ──────────────────
+        # Factor of 0.5 dampens the blend to a gentle chromatic enrichment rather
+        # than a jarring hue inversion.  Delacroix's effect is felt, not seen.
+        blend = shadow_wt * strength * 0.5
+        r_out = r_ch + blend * (tint_r - r_ch)
+        g_out = g_ch + blend * (tint_g - g_ch)
+        b_out = b_ch + blend * (tint_b - b_ch)
+
+        # ── Luminance preservation ────────────────────────────────────────────
+        # Rescale each pixel so the output luminance matches the input.
+        # This ensures chromatic_shadow_pass is a pure hue/saturation adjustment —
+        # it cannot brighten or darken the painting, only enrich shadow colour.
+        if lum_preserve:
+            out_lum = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+            # Where the shadow_wt is near-zero, scale ≈ 1.0 (no change).
+            # Clamp scale to [0.5, 2.0] to prevent numerical explosion near black.
+            scale = np.where(
+                out_lum > 1e-6,
+                np.clip(lum / (out_lum + 1e-8), 0.5, 2.0),
+                1.0
+            )
+            r_out = np.clip(r_out * scale, 0.0, 1.0)
+            g_out = np.clip(g_out * scale, 0.0, 1.0)
+            b_out = np.clip(b_out * scale, 0.0, 1.0)
+        else:
+            r_out = np.clip(r_out, 0.0, 1.0)
+            g_out = np.clip(g_out, 0.0, 1.0)
+            b_out = np.clip(b_out, 0.0, 1.0)
+
+        # ── Write back to canvas surface ──────────────────────────────────────
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_shadow = int((shadow_wt > 0.01).sum())
+        print(f"  Chromatic shadow pass complete  (shadow_pixels={n_shadow})")

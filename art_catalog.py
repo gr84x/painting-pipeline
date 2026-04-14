@@ -1559,6 +1559,67 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Eugène Delacroix ─────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Delacroix is the fulcrum between Romantic grandeur and the chromatic
+    # revolution that produced Impressionism.  His pivotal discovery — recorded
+    # obsessively in his journal — was that SHADOWS CONTAIN THE COMPLEMENT of
+    # the dominant light colour.  Under warm yellow candlelight the shadow side
+    # of a face must contain violet; in clear daylight shadows lean blue-violet,
+    # not grey-brown.  This is the empirical origin of Chevreul's simultaneous-
+    # contrast law and the foundation on which Monet, Renoir, and Seurat built
+    # their entire enterprise.  Without Delacroix there is no Impressionism.
+    "delacroix": ArtStyle(
+        artist="Eugène Delacroix",
+        movement="French Romanticism / Colorism",
+        nationality="French",
+        period="1816–1863",
+        palette=[
+            (0.82, 0.28, 0.12),   # vermilion red — theatrical fire, blood, urgency
+            (0.22, 0.30, 0.75),   # cobalt blue — sky, armour, shadow complement
+            (0.78, 0.62, 0.18),   # cadmium yellow-gold — sunlight, armour, crown
+            (0.25, 0.42, 0.22),   # viridian — foliage, distant landscape
+            (0.80, 0.55, 0.38),   # warm sienna — flesh, sandy earth
+            (0.45, 0.28, 0.62),   # violet — shadow complement to warm light
+            (0.22, 0.12, 0.08),   # dark umber — deep shadow, defining darks
+        ],
+        ground_color=(0.42, 0.30, 0.18),    # warm brown ground — building on Rubens' method
+        stroke_size=10,
+        wet_blend=0.32,                      # alla prima with vigorous wet-into-wet
+        edge_softness=0.45,                  # edges present but gestural, not precise
+        jitter=0.055,                        # energetic colour variation stroke to stroke
+        glazing=(0.62, 0.35, 0.12),          # warm amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "The defining innovation: colored shadows.  Warm light → shadow is "
+            "cool violet/blue; cool light → shadow is warm amber/orange.  This "
+            "chromatic opposition (not tonal darkening) makes Delacroix's paintings "
+            "vibrate with optical energy absent from academic predecessors.  Vigorous, "
+            "gestural brushwork — strokes larger and more expressive than the Old "
+            "Masters; heavy influence of Rubens in rhetorical grandeur and warm umber "
+            "grounds.  Diagonal compositional thrust: figures rise from lower-left to "
+            "upper-right, creating momentum and upheaval (Liberty Leading the People, "
+            "Death of Sardanapalus).  Historical and literary subjects as vehicles for "
+            "colour drama over historical accuracy."
+        ),
+        famous_works=[
+            ("Liberty Leading the People", "1830"),
+            ("The Death of Sardanapalus", "1827"),
+            ("Women of Algiers in Their Apartment", "1834"),
+            ("The Massacre at Chios", "1824"),
+            ("Jacob Wrestling with the Angel", "1861"),
+            ("The Tiger Hunt", "1854"),
+        ],
+        inspiration=(
+            "Use chromatic_shadow_pass(): identify shadow zones (lum < 0.45) and "
+            "add a subtle complementary colour tint — violet/blue in warm-lit shadows, "
+            "amber/orange in cool-lit shadows.  Combine with vigorous wet_blend alla "
+            "prima strokes.  Preserve luminance so only chrominance shifts.  "
+            "The result gives shadows depth and warmth that grey shadow mixing cannot."
+        ),
+    ),
+
     # ── Artemisia Gentileschi ──────────────────────────────────────────────────
     "artemisia_gentileschi": ArtStyle(
         artist="Artemisia Gentileschi",
