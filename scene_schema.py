@@ -185,6 +185,7 @@ class Period(Enum):
     ROMANTIC      = auto()   # Turner — luminous light vortex, dissolved edges
     ART_NOUVEAU   = auto()   # Klimt — gold leaf, flat ornament, symbolic colour
     UKIYO_E       = auto()   # Hokusai — flat colour, bokashi gradient, ink contours
+    PROTO_EXPRESSIONIST = auto()  # Goya — black void, crude urgency, darkness as subject
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -388,6 +389,11 @@ class Style:
             # stroke_size_face is the ink contour line width; stroke_size_bg is
             # the bokashi soft-brush pass size used for sky/background gradients.
             Period.UKIYO_E:       dict(stroke_size_face=3,  stroke_size_bg=12, wet_blend=0.04, edge_softness=0.08),
+            # Proto-Expressionist (Goya Black Paintings): crude, urgent dark strokes.
+            # stroke_size_face large — spatula-like marks; stroke_size_bg very large
+            # (black void background needs few, vast, dark strokes).
+            # Very low wet_blend and edge_softness — forms are barely resolved.
+            Period.PROTO_EXPRESSIONIST: dict(stroke_size_face=14, stroke_size_bg=45, wet_blend=0.12, edge_softness=0.25),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

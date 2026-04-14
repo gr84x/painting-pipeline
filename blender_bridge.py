@@ -446,9 +446,10 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     sys.path.insert(0, str(Path(__file__).parent))
     from PIL import Image
     from stroke_engine import (Painter, ellipse_mask, spherical_flow,
-                               flow_field, anatomy_flow_field, ellipse_mask)
+                               flow_field, anatomy_flow_field)
     from figure_builder import compute_landmarks
     from scene_schema import PoseDetail, Period, Medium
+    from art_catalog import CATALOG as _ART_CATALOG
 
     # Step 1: Blender reference render (also writes _mask.png and _normals.png alongside)
     ref_path     = output_path.replace(".png", "_ref.png")
@@ -478,11 +479,50 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         if verbose:
             print("  [warn] No figure mask found — painting without region separation")
 
-    is_pointillist  = (scene.style.period == Period.POINTILLIST)
-    is_ukiyo_e      = (scene.style.period == Period.UKIYO_E)
-    is_watercolor   = (scene.style.medium == Medium.WATERCOLOR)
+    is_pointillist       = (scene.style.period == Period.POINTILLIST)
+    is_ukiyo_e           = (scene.style.period == Period.UKIYO_E)
+    is_watercolor        = (scene.style.medium == Medium.WATERCOLOR)
+    is_proto_expressionist = (scene.style.period == Period.PROTO_EXPRESSIONIST)
+    # Renaissance with high edge_softness triggers the improved sfumato veil pass
+    is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
+                             and sp.get("edge_softness", 0.0) >= 0.80)
 
-    if is_watercolor:
+    if is_proto_expressionist:
+        # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
+        # Near-black ground; figures consumed by void; crude spatula-like marks.
+        # Goya's palette is predominantly void — there is almost no paint, only
+        # the darkness that surrounds and dissolves what little light exists.
+        goya_style = _ART_CATALOG.get("goya")
+        ground_col = goya_style.ground_color if goya_style else (0.04, 0.03, 0.02)
+        flesh_col  = (0.68, 0.55, 0.35)   # ashen ochre
+        accent_col = (0.72, 0.18, 0.08)   # blood red
+
+        # Black-ground tone — extremely dark, almost nothing visible on canvas
+        p.tone_ground(ground_col, texture_strength=0.12)
+
+        # No underpainting — Goya worked directly and crudely onto the dark ground.
+        # A single coarse block-in to establish figure masses before the void pass.
+        p.block_in(ref, stroke_size=int(sp["stroke_size_bg"]), n_strokes=120)
+
+        # Dark void pass: voids background, adds crude figure strokes, void encroachment
+        p.dark_void_pass(
+            ref,
+            void_darkness = 0.94,
+            n_strokes     = 600,
+            stroke_size   = float(sp["stroke_size_face"]),
+            flesh_color   = flesh_col,
+            accent_color  = accent_col,
+            accent_prob   = 0.07,
+            void_depth    = 0.75,
+        )
+
+        # A single final very dark glaze — Goya's world is never quite black,
+        # it is a dark warm amber-brown at the deepest shadows.
+        p.glaze((0.18, 0.10, 0.04), opacity=0.12)
+        # Heavy vignette crushes edges further into void; no crackle — plaster not canvas.
+        p.finish(vignette=0.75, crackle=False)
+
+    elif is_watercolor:
         # ── Watercolour pipeline (Sargent technique) ─────────────────────────
         # Cream paper ground — watercolour is painted on white/cream paper, not
         # linen.  The ground texture is much finer than oil canvas, and very
@@ -639,6 +679,22 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
                            form_angles=face_flow)
 
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=500)
+
+        # ── Sfumato veil pass for Leonardo-style Renaissance rendering ────────
+        # Activated when edge_softness is high (≥0.80) — the sfumato_veil_pass
+        # replaces crude edge_softness approximation with physically motivated
+        # multi-layer warm glaze accumulation, as Leonardo applied ~30 layers
+        # of imperceptibly thin glaze to the mouth and eye corners of the Mona Lisa.
+        if is_renaissance_soft:
+            p.sfumato_veil_pass(
+                ref,
+                n_veils      = 9,
+                blur_radius  = max(6.0, float(sp["stroke_size_face"]) * 0.8),
+                warmth       = 0.30,
+                veil_opacity = 0.06,
+                edge_only    = True,
+            )
+
         p.glaze((0.60, 0.42, 0.14), opacity=0.07)
         p.finish(vignette=0.50, crackle=True)
 

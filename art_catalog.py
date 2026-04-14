@@ -617,6 +617,63 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Francisco Goya ────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Goya's late "Pinturas Negras" (Black Paintings, 1819–1823) are among
+    # the most psychologically raw works in Western art.  Painted directly
+    # onto the plaster walls of his country house (Quinta del Sordo) with
+    # crude tools, they represent a complete rejection of courtly polish.
+    # Saturn Devouring His Son, The Dog, Witches' Sabbath — their power
+    # comes from what is NOT painted: vast void backgrounds that swallow
+    # the subject.  Goya is the ancestor of Expressionism, Surrealism, and
+    # every subsequent dark figurative tradition.
+    "goya": ArtStyle(
+        artist="Francisco José de Goya y Lucientes",
+        movement="Romanticism / Proto-Expressionism / Black Paintings",
+        nationality="Spanish",
+        period="1786–1828",
+        palette=[
+            (0.04, 0.03, 0.02),   # near-black void — the dominant 'colour'
+            (0.28, 0.20, 0.10),   # charred umber — mid shadow
+            (0.68, 0.55, 0.35),   # ashen ochre — ravaged flesh
+            (0.55, 0.28, 0.12),   # raw sienna — earthen mid-tone
+            (0.72, 0.18, 0.08),   # blood red — rare hot accent
+            (0.80, 0.78, 0.70),   # pale ash — spectral highlight
+        ],
+        ground_color=(0.04, 0.03, 0.02),    # black ground — darkness is the canvas
+        stroke_size=14,
+        wet_blend=0.20,                      # strokes deliberately crude, not blended
+        edge_softness=0.30,
+        jitter=0.070,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Pinturas Negras (Black Paintings) technique. "
+            "Near-black ground with near-black background — the subject is "
+            "imprisoned in void.  Crude, urgent brushwork applied with spatula "
+            "and rags as well as brushes.  Flesh is ashen, spectral, barely "
+            "differentiating from shadow.  A single blood-red or ochre accent "
+            "carries enormous weight against the surrounding darkness.  Forms are "
+            "barely resolved — they emerge from blackness and dissolve back into it. "
+            "No decorative flourish; only visceral necessity.  Goya painted these "
+            "works aged 73–75, deaf, embittered, living alone, for no patron."
+        ),
+        famous_works=[
+            ("Saturn Devouring His Son", "1819–1823"),
+            ("The Dog (Perro Semihundido)", "1819–1823"),
+            ("Witches' Sabbath (El Aquelarre)", "1821–1823"),
+            ("Duel with Cudgels", "1820–1823"),
+            ("The Third of May 1808", "1814"),  # earlier but equally raw
+        ],
+        inspiration=(
+            "Use dark_void_pass(): near-black ground, massive void background, "
+            "figures barely sketched in umber/ochre against darkness. "
+            "Single blood-red or pale-ash accent stroke for maximum weight. "
+            "Crude, spatula-like flat strokes; no sfumato or glaze refinement."
+        ),
+    ),
+
     # ── Katsushika Hokusai ────────────────────────────────────────────────────
     "hokusai": ArtStyle(
         artist="Katsushika Hokusai",

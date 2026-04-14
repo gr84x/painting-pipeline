@@ -1894,6 +1894,337 @@ class Painter:
                                      jitter_amt=jitter_amt, rng=self._rng_py,
                                      region_mask=mask if mask is not None else None)
 
+    def dark_void_pass(self,
+                       reference:       Union[np.ndarray, Image.Image],
+                       void_darkness:   float = 0.96,
+                       n_strokes:       int   = 600,
+                       stroke_size:     float = 16,
+                       flesh_color:     Color = (0.68, 0.55, 0.35),
+                       accent_color:    Color = (0.72, 0.18, 0.08),
+                       accent_prob:     float = 0.08,
+                       void_depth:      float = 0.80):
+        """
+        Pinturas Negras (Black Paintings) technique — inspired by Francisco Goya.
+
+        Goya painted his Black Paintings directly onto the plaster walls of his
+        Quinta del Sordo between 1819–1823, aged 73–75, deaf, and living in
+        voluntary isolation.  *Saturn Devouring His Son*, *The Dog*, *Witches'
+        Sabbath* — these works share a single visual strategy: near-black void
+        surrounding barely-resolved figures.
+
+        The technique:
+          1. **Void ground** — the background is deepened to near-black by
+             compositing a dark screen over background pixels. The figure is
+             the only light source in a universe of darkness.
+          2. **Crude figure strokes** — applied with a spatula and stiff brush;
+             no wet blending, no refinement. Forms emerge from the dark only
+             enough to be horrifying.  Ashen ochre and charred umber predominate.
+          3. **Blood accent** — a single small intense stroke of blood-red or
+             bone-white carries extraordinary weight against the surrounding void.
+             Goya used this with surgical restraint.
+          4. **Void encroachment** — dark strokes are placed even in figure areas
+             near the edges, letting the void bleed into and consume the figure.
+             This creates the sensation of figures dissolving rather than standing.
+
+        Parameters
+        ----------
+        reference    : PIL Image or ndarray reference.
+        void_darkness: Opacity of the black void overlay on background (0–1).
+                       0.90–0.96 gives the characteristic impenetrable black.
+        n_strokes    : Number of figure strokes.  Goya used fewer, larger marks
+                       than conventional painters — 400–700 is appropriate.
+        stroke_size  : Base width of strokes in pixels.  Keep large (12–20px) —
+                       these are spatula marks, not fine brushwork.
+        flesh_color  : Ashen ochre-grey used for figure flesh and mid-tones.
+        accent_color : Blood red (or pale ash) used for the single hot accent.
+        accent_prob  : Probability (0–1) that a stroke is placed in the accent
+                       color rather than the flesh/umber range. Keep very low
+                       (0.05–0.12) — Goya's restraint is part of the effect.
+        void_depth   : Fraction of background pixels that receive additional
+                       dark strokes (encroachment into the figure's territory).
+        """
+        print(f"Dark void pass  ({n_strokes} strokes  size={stroke_size:.0f}px"
+              f"  void={void_darkness:.2f})…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # ── Stage 1: Void the background ─────────────────────────────────────
+        # Overlay pure near-black on all non-figure pixels.
+        # This replicates Goya's black ground — the wall plaster was dark before
+        # he began, and background areas received no light-valued paint at all.
+        print("  Voiding background…")
+        void_color = (0.02, 0.015, 0.008)   # near-black with a faint warm cast
+
+        ctx = self.canvas.ctx
+        if self._figure_mask is not None:
+            # Background mask as a soft numpy field
+            bg = np.clip(1.0 - self._figure_mask, 0.0, 1.0)
+            # Read current canvas buffer
+            buf = np.frombuffer(self.canvas.surface.get_data(),
+                                dtype=np.uint8).reshape(h, w, 4).copy()
+            carr = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0  # RGB
+
+            # Blend toward void using the mask
+            for c_idx, v in enumerate(void_color):
+                src_ch = carr[:, :, c_idx]
+                carr[:, :, c_idx] = src_ch * (1.0 - bg * void_darkness) + v * (bg * void_darkness)
+
+            # Write back — Cairo BGRA
+            buf[:, :, 2] = np.clip(carr[:, :, 0] * 255, 0, 255).astype(np.uint8)
+            buf[:, :, 1] = np.clip(carr[:, :, 1] * 255, 0, 255).astype(np.uint8)
+            buf[:, :, 0] = np.clip(carr[:, :, 2] * 255, 0, 255).astype(np.uint8)
+            buf[:, :, 3] = 255
+            tmp = cairo.ImageSurface.create_for_data(
+                bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            ctx.set_source_surface(tmp, 0, 0)
+            ctx.paint()
+        else:
+            # No mask: darken the whole canvas (full-void approach)
+            ctx.set_source_rgba(*void_color, void_darkness * 0.5)
+            ctx.rectangle(0, 0, w, h)
+            ctx.fill()
+
+        # ── Stage 2: Crude figure strokes ────────────────────────────────────
+        # Ashen, umber, and occasional blood-red strokes on the figure.
+        # Error-driven sampling ensures strokes go where the reference differs
+        # most from the dark canvas — i.e., where the figure should be.
+        print(f"  Figure strokes ({n_strokes})…")
+
+        cbuf = np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=np.uint8).reshape(h, w, 4).copy()
+        carr = cbuf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+        err  = np.mean(np.abs(carr - rarr), axis=2).astype(np.float32)
+        err  = ndimage.gaussian_filter(err, sigma=stroke_size * 0.5)
+
+        region = self._figure_mask
+        if region is not None:
+            err = err * region
+
+        err_flat = err.flatten()
+        total    = err_flat.sum()
+        if total < 1e-9:
+            prob = np.ones(h * w, dtype=np.float32) / (h * w)
+        else:
+            prob = err_flat / total
+
+        positions = self.rng.choice(h * w, size=n_strokes, p=prob, replace=True)
+        tip_flat  = BrushTip(BrushTip.FLAT, bristle_noise=0.25)  # crude, bristled
+        self.canvas.dry(1.0)
+
+        angles = flow_field(rarr)   # gradient-based angles
+
+        for pos in positions:
+            py, px = int(pos // w), int(pos % w)
+            margin = max(int(stroke_size) + 2, 4)
+            px = int(np.clip(px, margin, w - margin))
+            py = int(np.clip(py, margin, h - margin))
+
+            # Goya's colour choice: almost always ashen ochre/umber unless the
+            # accent_prob dice roll fires.
+            if self._rng_py.random() < accent_prob:
+                col = accent_color
+            else:
+                # Reference-sampled colour crushed toward ashen flesh palette
+                ref_col = tuple(float(rarr[py, px, c]) for c in range(3))
+                # Lerp toward flesh_color (50/50): makes everything read more ashen
+                col = mix_paint(ref_col, flesh_color, 0.55)
+
+            col = jitter(col, 0.06, self._rng_py)
+
+            a = float(angles[py, px]) + self._rng_py.uniform(-0.4, 0.4)  # crude angle jitter
+            length = stroke_size * self._rng_py.uniform(1.5, 3.5)
+            start  = (px - math.cos(a) * length * 0.5,
+                      py - math.sin(a) * length * 0.5)
+            pts = stroke_path(start, a, length,
+                              curve=self._rng_py.uniform(-0.12, 0.12),
+                              n=max(3, int(length / 4)))
+            ws  = [stroke_size * self._rng_py.uniform(0.6, 1.3)] * len(pts)
+
+            self.canvas.apply_stroke(pts, ws, col, tip_flat,
+                                     opacity=self._rng_py.uniform(0.65, 0.92),
+                                     wet_blend=0.08,   # near-zero blending — crude
+                                     jitter_amt=0.05, rng=self._rng_py,
+                                     region_mask=region)
+
+        # ── Stage 3: Void encroachment ────────────────────────────────────────
+        # Dark strokes placed near the figure's silhouette edge consume parts
+        # of the figure, replicating how Goya's figures dissolve into blackness.
+        if self._figure_mask is not None and void_depth > 0.0:
+            print("  Void encroachment…")
+            # Edge zone: where figure mask transitions from 1→0
+            edge_zone = ndimage.gaussian_filter(self._figure_mask, sigma=stroke_size * 0.8)
+            edge_zone = np.clip(self._figure_mask - edge_zone * 0.55, 0.0, 1.0)
+            edge_zone *= void_depth
+
+            edge_flat = edge_zone.flatten()
+            total_e   = edge_flat.sum()
+            if total_e > 1e-9:
+                n_edge    = max(50, n_strokes // 5)
+                prob_e    = edge_flat / total_e
+                edge_pos  = self.rng.choice(h * w, size=n_edge, p=prob_e, replace=True)
+
+                for pos in edge_pos:
+                    py, px = int(pos // w), int(pos % w)
+                    margin = max(int(stroke_size) + 2, 4)
+                    px = int(np.clip(px, margin, w - margin))
+                    py = int(np.clip(py, margin, h - margin))
+
+                    # Very dark — almost void colour, with a faint umber warmth
+                    col = jitter(void_color, 0.04, self._rng_py)
+                    a   = self._rng_py.uniform(0, math.pi * 2)
+                    length = stroke_size * self._rng_py.uniform(1.0, 2.0)
+                    start  = (px - math.cos(a) * length * 0.5,
+                              py - math.sin(a) * length * 0.5)
+                    pts = stroke_path(start, a, length, curve=0.0,
+                                      n=max(2, int(length / 6)))
+                    ws  = [stroke_size * 0.7] * len(pts)
+
+                    self.canvas.apply_stroke(pts, ws, col, tip_flat,
+                                             opacity=self._rng_py.uniform(0.55, 0.85),
+                                             wet_blend=0.05,
+                                             jitter_amt=0.03, rng=self._rng_py,
+                                             region_mask=None)  # allow crossing boundary
+
+    def sfumato_veil_pass(self,
+                          reference:    Union[np.ndarray, Image.Image],
+                          n_veils:      int   = 7,
+                          blur_radius:  float = 12.0,
+                          warmth:       float = 0.35,
+                          veil_opacity: float = 0.08,
+                          edge_only:    bool  = True):
+        """
+        Sfumato veil — improved Renaissance edge-softening technique.
+
+        Named after Leonardo da Vinci's term 'sfumato' (from *sfumare*,
+        'to evaporate like smoke'), this pass simulates the imperceptible
+        transitions between light and shadow that are the hallmark of
+        Leonardo's portrait technique.
+
+        **Improvement over naive edge-softness:**
+        Previous sessions approximated sfumato by reducing edge_softness in
+        stroke_params.  This pass provides a physically motivated simulation:
+        multiple thin, warm, blurred semi-transparent glazes are composited
+        over the edge zone only, replicating how Leonardo built up sfumato
+        through 30–40 imperceptible layers of oil glaze with fingertip
+        blending.
+
+        Technique:
+          1. Detect the edge zone — where luminance gradient is above a
+             threshold (form boundaries, transitions between light and shadow).
+          2. Generate a blurred, warm-tinted version of the reference at
+             each edge pixel.
+          3. Composite n_veils thin copies at progressively larger blur
+             radii, so the final result has a gentle gradient of haziness
+             that increases away from the lit surface.
+
+        The result: edges do not simply become soft (a smear) — they become
+        *atmospheric*, as if seen through a thin curtain of warm smoke.
+        Form is still readable; the boundary simply ceases to be findable.
+
+        Parameters
+        ----------
+        reference    : PIL Image or ndarray — the reference to draw from.
+        n_veils      : Number of glaze layers.  7–12 gives best results;
+                       fewer looks too abrupt, more reads as out-of-focus.
+        blur_radius  : Gaussian sigma for the initial blur, in pixels.
+                       Final veil uses blur_radius * 2.0 (grows outward).
+        warmth       : Warm tint strength (0 = neutral, 1 = full amber glaze).
+                       Leonardo used a warm amber sfumato that shifts flesh
+                       tones toward golden ochre at the edges.
+        veil_opacity : Alpha per veil layer.  Keep very low (0.04–0.12) —
+                       the veils accumulate across n_veils layers.
+        edge_only    : If True (default), veils are masked to the gradient
+                       edge zone only — form interiors are not hazed, matching
+                       Leonardo's selective sfumato. If False, applies globally.
+
+        Notes
+        -----
+        *Mona Lisa* (Louvre) shows sfumato most clearly at the corners of
+        the mouth and eyes — precisely where expression is ambiguous.
+        Leonardo never resolved these areas; the ambiguity is the technique.
+
+        X-ray and infrared reflectography reveal up to 30 distinct glaze
+        layers in the sfumato zones, each individually invisible.
+        """
+        print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
+              f"  warmth={warmth:.2f})…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # ── Warm the reference toward amber (Leonardo's characteristic tone) ──
+        # The sfumato is not a neutral grey haze but a warm golden one —
+        # Leonardo used lead white + raw umber + a touch of red ochre in his glaze.
+        amber = (0.80, 0.62, 0.35)
+        warmed = np.zeros_like(rarr)
+        for c in range(3):
+            warmed[:, :, c] = rarr[:, :, c] * (1.0 - warmth) + amber[c] * warmth
+
+        # ── Edge zone mask ────────────────────────────────────────────────────
+        lum = (0.299 * rarr[:, :, 0] + 0.587 * rarr[:, :, 1] + 0.114 * rarr[:, :, 2])
+        gx  = ndimage.sobel(lum, axis=1).astype(np.float32)
+        gy  = ndimage.sobel(lum, axis=0).astype(np.float32)
+        grad_mag = np.sqrt(gx ** 2 + gy ** 2)
+        if grad_mag.max() > 1e-9:
+            grad_mag /= grad_mag.max()
+
+        if edge_only:
+            # Expand the gradient edge zone with a Gaussian so the sfumato
+            # covers a band around form boundaries, not just the 1-pixel edge.
+            edge_mask = ndimage.gaussian_filter(
+                grad_mag.astype(np.float32), sigma=blur_radius * 0.7)
+            edge_mask = np.clip(edge_mask * 3.5, 0.0, 1.0)
+            # Also apply figure mask if available
+            if self._figure_mask is not None:
+                edge_mask = edge_mask * self._figure_mask
+        else:
+            if self._figure_mask is not None:
+                edge_mask = self._figure_mask.copy()
+            else:
+                edge_mask = np.ones((h, w), dtype=np.float32)
+
+        # ── Multi-veil accumulation ───────────────────────────────────────────
+        # Each veil: blur the warmed reference at a slightly larger radius,
+        # weight by the edge mask, and composite at veil_opacity.
+        ctx = self.canvas.ctx
+
+        for i in range(n_veils):
+            t = (i + 1) / n_veils                      # 0→1 across veil sequence
+            sigma = blur_radius * (0.5 + t * 1.5)      # grows from small to large
+            veil_warmth = warmth * (0.6 + 0.4 * t)     # warmer in outer veils
+
+            # Re-warm each veil individually (outer veils are warmer / more golden)
+            veil_ref = np.zeros_like(rarr)
+            for c in range(3):
+                veil_ref[:, :, c] = (rarr[:, :, c] * (1.0 - veil_warmth)
+                                     + amber[c] * veil_warmth)
+
+            # Gaussian blur to create the smoke effect
+            blurred = np.stack([
+                ndimage.gaussian_filter(veil_ref[:, :, c].astype(np.float32), sigma=sigma)
+                for c in range(3)
+            ], axis=2)
+
+            # Composite: only where edge_mask is active
+            alpha = edge_mask * veil_opacity            # (H, W) float
+
+            # Build an RGBA surface for this veil
+            veil_rgba = np.zeros((h, w, 4), dtype=np.uint8)
+            veil_rgba[:, :, 0] = np.clip(blurred[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B (BGRA)
+            veil_rgba[:, :, 1] = np.clip(blurred[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G
+            veil_rgba[:, :, 2] = np.clip(blurred[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R
+            veil_rgba[:, :, 3] = np.clip(alpha * 255, 0, 255).astype(np.uint8)              # A
+
+            veil_surf = cairo.ImageSurface.create_for_data(
+                bytearray(veil_rgba.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            ctx.set_source_surface(veil_surf, 0, 0)
+            ctx.paint_with_alpha(1.0)   # alpha is already encoded per-pixel
+
+        print(f"  Sfumato complete ({n_veils} veils accumulated).")
+
     def glaze(self, color: Color, opacity: float = 0.10):
         """
         Step 6 — Final glaze.
