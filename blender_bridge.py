@@ -489,6 +489,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_synthetist        = (scene.style.period == Period.SYNTHETIST)
     is_mannerist         = (scene.style.period == Period.MANNERIST)
     is_surrealist        = (scene.style.period == Period.SURREALIST)
+    is_abstract_expressionist = (scene.style.period == Period.ABSTRACT_EXPRESSIONIST)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
@@ -851,6 +852,58 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.glaze((0.68, 0.48, 0.18), opacity=0.05)
         # No crackle — Masonite/metal panel; light vignette to frame the picture
         p.finish(vignette=0.25, crackle=False)
+
+    elif is_abstract_expressionist:
+        # ── Abstract Expressionist pipeline (Kandinsky technique) ────────────
+        # Kandinsky worked on off-white grounds so that colour could radiate
+        # from the surface without the warming or darkening influence of a
+        # toned preparation.  His Bauhaus compositions have an almost enamel
+        # surface quality — controlled, flat-bodied paint with geometric
+        # precision.  The geometric_resonance_pass() is the signature technique:
+        # floating circles, triangles, and radiating tension lines overlay the
+        # composition with Kandinsky's synesthetic colour-form vocabulary.
+        #
+        # Pipeline:
+        #   1. Off-white ground — colour radiates cleanly; minimal texture.
+        #   2. Light underpainting + block_in to establish form reading beneath
+        #      the abstract geometric layer.
+        #   3. build_form() at medium stroke — forms are present but not
+        #      heavily modelled (pure abstraction suppresses chiaroscuro).
+        #   4. geometric_resonance_pass() — the Kandinsky signature: scatter
+        #      floating geometric primitives coloured by synesthetic theory.
+        #      Circles (blue resonance), triangles (yellow/warm), tension lines.
+        #   5. No glaze — Kandinsky did not varnish; colour surface is final.
+        #   6. Minimal vignette; no crackle (modern canvas).
+        kandinsky_style = _ART_CATALOG.get("kandinsky")
+        ground_col      = kandinsky_style.ground_color if kandinsky_style else (0.92, 0.91, 0.87)
+
+        # Off-white ground — Kandinsky's clean radiating surface
+        p.tone_ground(ground_col, texture_strength=0.03)
+
+        # Establish compositional masses — necessary so the resonance pass has
+        # meaningful colour regions to sample and respond to
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.3), n_strokes=120)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=240)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=380)
+
+        # Core Kandinsky technique: geometric resonance overlay
+        # Kandinsky's Bauhaus phase (1922–1933) used precise, controlled geometry;
+        # his lyrical phase used organic swirling forms.  The pass unifies both
+        # by scattering primitives that respond to the underlying colour regions.
+        p.geometric_resonance_pass(
+            ref,
+            n_circles      = 14,
+            n_triangles    = 10,
+            n_lines        = 22,
+            shape_opacity  = 0.20,
+            min_radius     = 0.03,
+            max_radius     = 0.16,
+            line_thickness = max(1.5, float(sp["stroke_size_face"]) * 0.18),
+        )
+
+        # No glaze — Kandinsky's colour is direct and unmediated by varnish.
+        # Very light vignette only; no crackle.
+        p.finish(vignette=0.15, crackle=False)
 
     elif is_synthetist:
         # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────

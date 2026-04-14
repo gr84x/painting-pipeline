@@ -5,8 +5,9 @@ Covers:
   - All expected artists are present in CATALOG
   - Each ArtStyle has structurally valid data (palette colours in [0, 1], etc.)
   - El Greco entry is correct (session 11 addition)
+  - Kandinsky entry is correct (session 14 addition)
   - get_style() and list_artists() behave correctly
-  - Period enum contains all expected values including MANNERIST (session 11)
+  - Period enum contains all expected values including ABSTRACT_EXPRESSIONIST (session 14)
   - Style.stroke_params returns valid dicts for every Period value
 """
 
@@ -27,6 +28,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 EXPECTED_ARTISTS = [
     "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
+    "kandinsky",
     "klimt", "leonardo", "manet", "monet", "rembrandt", "rothko", "sargent",
     "seurat", "turner", "van_gogh", "velazquez", "vermeer",
 ]
@@ -306,3 +308,107 @@ def test_surrealist_stroke_params_low_wet_blend():
     p = style.stroke_params
     assert p["wet_blend"] <= 0.15, (
         f"SURREALIST wet_blend should be very low, got {p['wet_blend']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 14: Wassily Kandinsky + Period.ABSTRACT_EXPRESSIONIST
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_kandinsky_in_catalog():
+    """Session 14: Kandinsky must be present in CATALOG."""
+    assert "kandinsky" in CATALOG, "kandinsky not found in CATALOG"
+
+
+def test_kandinsky_movement():
+    """Kandinsky's movement must reference Blaue Reiter or Abstract."""
+    s = get_style("kandinsky")
+    movement_lower = s.movement.lower()
+    assert ("blaue" in movement_lower or "abstract" in movement_lower
+            or "bauhaus" in movement_lower), (
+        f"Kandinsky movement should reference Der Blaue Reiter, Bauhaus, or Abstract; "
+        f"got: {s.movement!r}")
+
+
+def test_kandinsky_nationality():
+    """Kandinsky was Russian-German."""
+    s = get_style("kandinsky")
+    nat_lower = s.nationality.lower()
+    assert "russian" in nat_lower or "german" in nat_lower, (
+        f"Kandinsky nationality should contain Russian or German; got: {s.nationality!r}")
+
+
+def test_kandinsky_palette_has_primary_triad():
+    """Kandinsky's palette must include a yellow, a blue, and a red (his core synesthetic triad)."""
+    s = get_style("kandinsky")
+    has_yellow = any(r > 0.70 and g > 0.60 and b < 0.40
+                     for r, g, b in s.palette)
+    has_blue   = any(b > 0.50 and r < 0.35 and g < 0.40
+                     for r, g, b in s.palette)
+    has_red    = any(r > 0.60 and g < 0.30 and b < 0.30
+                     for r, g, b in s.palette)
+    assert has_yellow, "Kandinsky palette missing yellow (advancing/trumpet colour)"
+    assert has_blue,   "Kandinsky palette missing blue (receding/cello colour)"
+    assert has_red,    "Kandinsky palette missing red (drumbeat colour)"
+
+
+def test_kandinsky_low_wet_blend():
+    """Kandinsky's geometric forms demand crisp edges; wet_blend must be low."""
+    s = get_style("kandinsky")
+    assert s.wet_blend <= 0.15, (
+        f"Kandinsky wet_blend should be low for crisp geometry; got {s.wet_blend}")
+
+
+def test_kandinsky_low_edge_softness():
+    """Kandinsky: circles and triangles have hard edges; edge_softness must be low."""
+    s = get_style("kandinsky")
+    assert s.edge_softness <= 0.25, (
+        f"Kandinsky edge_softness should be low; got {s.edge_softness}")
+
+
+def test_kandinsky_no_crackle():
+    """Kandinsky worked on modern canvas; no aged crackle finish."""
+    s = get_style("kandinsky")
+    assert not s.crackle, "Kandinsky crackle should be False (modern canvas)"
+
+
+def test_kandinsky_famous_works_not_empty():
+    """Kandinsky should have at least 4 famous works documented."""
+    s = get_style("kandinsky")
+    assert len(s.famous_works) >= 4, (
+        f"Kandinsky should have ≥4 famous works; got {len(s.famous_works)}")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Composition" in t for t in titles), (
+        "Kandinsky famous works should include at least one Composition")
+
+
+def test_kandinsky_inspiration_references_geometric_resonance():
+    """Kandinsky inspiration text should reference geometric_resonance_pass."""
+    s = get_style("kandinsky")
+    assert "geometric_resonance" in s.inspiration.lower().replace(" ", "_"), (
+        "Kandinsky inspiration should reference geometric_resonance_pass()")
+
+
+def test_abstract_expressionist_period_present():
+    """Session 14: ABSTRACT_EXPRESSIONIST must exist in Period enum."""
+    assert hasattr(Period, "ABSTRACT_EXPRESSIONIST"), (
+        "Period.ABSTRACT_EXPRESSIONIST not found")
+    assert Period.ABSTRACT_EXPRESSIONIST in list(Period)
+
+
+def test_abstract_expressionist_stroke_params_low_wet_blend():
+    """ABSTRACT_EXPRESSIONIST should have low wet_blend for crisp geometric edges."""
+    style = Style(medium=Medium.OIL, period=Period.ABSTRACT_EXPRESSIONIST,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.15, (
+        f"ABSTRACT_EXPRESSIONIST wet_blend should be low for crisp geometry; "
+        f"got {p['wet_blend']}")
+
+
+def test_abstract_expressionist_stroke_params_low_edge_softness():
+    """ABSTRACT_EXPRESSIONIST should have low edge_softness (geometric precision)."""
+    style = Style(medium=Medium.OIL, period=Period.ABSTRACT_EXPRESSIONIST,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.20, (
+        f"ABSTRACT_EXPRESSIONIST edge_softness should be low; got {p['edge_softness']}")
