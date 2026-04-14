@@ -229,70 +229,93 @@ def make_reference() -> Image.Image:
                             if d > 0.84 else 1.0)
                     ref[y, x] = ref[y, x] * (1 - fade) + col * fade
 
-    # Hair: dark warm brown, centre-parted, waves on either side ─────────────
+    # Hair: dark warm brown, centre-parted, waves draping down either side ─────
+    # Rendered as two zones: (a) the crown cap above the face oval, and
+    # (b) side curtains that fall along the face and continue below it.
+    # A sine-wave boundary breaks up any rectangular hard edge.
     hair_lit = np.array([0.22, 0.13, 0.06])
     hair_shd = np.array([0.06, 0.04, 0.01])
-    hair_spread_x = int(W * 0.072)
-    hair_spread_y = int(W * 0.024)
-    for y in range(face_cy - face_ry - 6, face_cy + int(face_ry * 0.62)):
-        for x in range(face_cx - face_rx - hair_spread_x,
-                       face_cx + face_rx + int(W * 0.055)):
-            if 0 <= y < H and 0 <= x < W:
-                fdx    = (x - face_cx) / face_rx
-                fdy    = (y - face_cy) / face_ry
-                face_d = fdx * fdx + fdy * fdy
-                outer_d = ((x - face_cx) / (face_rx + hair_spread_x)) ** 2 + \
-                          ((y - face_cy) / (face_ry + hair_spread_y)) ** 2
-                if outer_d <= 1.06 and face_d >= 0.86:
-                    ht  = max(0.0, (x - face_cx) / (face_rx + int(W * 0.01)))
-                    col = hair_lit * (1 - ht * 0.50) + hair_shd * ht * 0.50
-                    ref[y, x] = col
-
-    # Veil: dark semi-transparent over crown / temples ────────────────────────
-    veil_c = np.array([0.07, 0.05, 0.08])
-    for y in range(face_cy - face_ry - 4, face_cy + int(face_ry * 0.42)):
-        for x in range(face_cx - face_rx - int(W * 0.030),
-                       face_cx + face_rx + int(W * 0.018)):
+    # Side curtain extent
+    hair_side_x = int(W * 0.082)   # how far hair extends beyond face horizontally
+    hair_btm    = face_cy + int(face_ry * 1.05)  # hair falls below jaw line
+    for y in range(face_cy - face_ry - 14, hair_btm):
+        for x in range(face_cx - face_rx - hair_side_x,
+                       face_cx + face_rx + int(W * 0.062)):
             if 0 <= y < H and 0 <= x < W:
                 fdx = (x - face_cx) / face_rx
                 fdy = (y - face_cy) / face_ry
-                if fdx * fdx + fdy * fdy >= 0.88:
+                face_d = fdx * fdx + fdy * fdy
+
+                # Outer boundary: a tall rounded shape with a subtle sine wave
+                # on the x-boundary to simulate the organic wave of the hair.
+                wave = 0.03 * math.sin((y - face_cy) / (face_ry * 0.28))
+                outer_rx = face_rx + hair_side_x
+                outer_ry = face_ry + int(face_ry * 0.18)   # taller than face
+                outer_d  = ((x - face_cx) / outer_rx + wave) ** 2 + \
+                           ((y - face_cy) / outer_ry) ** 2
+
+                if outer_d <= 1.05 and face_d >= 0.84:
+                    ht  = max(0.0, (x - face_cx) / (face_rx + int(W * 0.012)))
+                    col = hair_lit * (1 - ht * 0.55) + hair_shd * ht * 0.55
+                    ref[y, x] = col
+
+    # Veil: dark semi-transparent over crown / temples, draping behind shoulders
+    veil_c = np.array([0.07, 0.05, 0.08])
+    for y in range(face_cy - face_ry - 12, face_cy + int(face_ry * 0.52)):
+        for x in range(face_cx - face_rx - int(W * 0.036),
+                       face_cx + face_rx + int(W * 0.024)):
+            if 0 <= y < H and 0 <= x < W:
+                fdx = (x - face_cx) / face_rx
+                fdy = (y - face_cy) / face_ry
+                if fdx * fdx + fdy * fdy >= 0.86:
                     ref[y, x] = veil_c
 
-    # Eyes: dark, heavy-lidded ─────────────────────────────────────────────────
-    eye_sep = int(face_rx * 0.46)
-    eye_y   = face_cy - int(face_ry * 0.065)
-    eye_rx  = int(face_rx * 0.215)
-    eye_ry  = int(face_ry * 0.108)
-    iris_c  = np.array([0.10, 0.08, 0.06])
-    sclera  = np.array([0.82, 0.75, 0.62])     # warm ivory sclera
+    # Eyes: dark, heavy-lidded — rendered large and high-contrast so they
+    # survive the broad block-in passes. The iris is fully opaque dark umber;
+    # the sclera is warm ivory. A dark upper-lid shadow band is drawn explicitly.
+    eye_sep  = int(face_rx * 0.46)
+    eye_y    = face_cy - int(face_ry * 0.065)
+    eye_rx   = int(face_rx * 0.30)    # wider — heavy-lidded eyes are prominent
+    eye_ry   = int(face_ry * 0.148)   # taller
+    iris_c   = np.array([0.08, 0.06, 0.04])   # near-black warm umber iris
+    sclera   = np.array([0.84, 0.77, 0.64])   # warm ivory sclera
+    lid_shd  = np.array([0.06, 0.04, 0.02])   # upper-lid cast shadow
 
     for ex in [face_cx - eye_sep, face_cx + eye_sep]:
-        for dy_e in range(-eye_ry - 2, eye_ry + 3):
-            for dx_e in range(-eye_rx - 2, eye_rx + 3):
-                ey = eye_y + dy_e
+        for dy_e in range(-eye_ry - 3, eye_ry + 4):
+            for dx_e in range(-eye_rx - 3, eye_rx + 4):
+                ey  = eye_y + dy_e
                 ex2 = ex + dx_e
                 if 0 <= ey < H and 0 <= ex2 < W:
-                    de_full  = (dx_e / eye_rx)  ** 2 + (dy_e / eye_ry)  ** 2
-                    de_iris  = (dx_e / (eye_rx * 0.52)) ** 2 + \
-                               (dy_e / (eye_ry * 0.55)) ** 2
+                    de_full = (dx_e / eye_rx) ** 2 + (dy_e / eye_ry) ** 2
+                    de_iris = (dx_e / (eye_rx * 0.50)) ** 2 + \
+                              (dy_e / (eye_ry * 0.52)) ** 2
                     if de_full <= 1.0:
                         if de_iris <= 1.0:
-                            fade_e = max(0.0, 1.0 - de_iris * 0.4)
-                            ref[ey, ex2] = ref[ey, ex2] * (1 - fade_e) \
-                                           + iris_c * fade_e
+                            # Hard iris — fully opaque so block-in can't erase it
+                            ref[ey, ex2] = iris_c
                         else:
-                            fade_e = max(0.0, 1.0 - (de_full - 0.55) / 0.45)
-                            ref[ey, ex2] = ref[ey, ex2] * (1 - fade_e * 0.45) \
-                                           + sclera * fade_e * 0.45
+                            # Sclera with a soft blend at the iris edge
+                            t = min(1.0, (de_full - 0.45) / 0.55)
+                            ref[ey, ex2] = sclera * (1 - t * 0.5) + \
+                                           iris_c * t * 0.5
+                # Upper eyelid shadow band: a thin dark strip above each eye
+                lid_dy = dy_e + eye_ry - 2
+                if (0 <= lid_dy <= 4
+                        and abs(dx_e) <= eye_rx
+                        and 0 <= eye_y - eye_ry + lid_dy < H
+                        and 0 <= ex + dx_e < W):
+                    ref[eye_y - eye_ry + lid_dy, ex + dx_e] = lid_shd
 
-    # Lips: closed, warm rose; corners turned very slightly upward ────────────
+    # Lips: closed, warm rose; larger and more saturated so block-in passes
+    # register them. Corners carry a very slight upward bow — the ambiguous
+    # quality between smile and neutral.
     lip_cx = face_cx + int(face_rx * 0.030)
     lip_cy = face_cy + int(face_ry * 0.470)
-    lip_c  = np.array([0.66, 0.38, 0.27])
+    lip_c  = np.array([0.72, 0.34, 0.22])    # richer, more saturated rose-red
 
-    for dy_l in range(-int(face_ry * 0.055), int(face_ry * 0.055) + 1):
-        for dx_l in range(-int(face_rx * 0.28), int(face_rx * 0.28) + 1):
+    for dy_l in range(-int(face_ry * 0.072), int(face_ry * 0.072) + 1):
+        for dx_l in range(-int(face_rx * 0.32), int(face_rx * 0.32) + 1):
             lx = lip_cx + dx_l
             ly = lip_cy + dy_l
             if 0 <= ly < H and 0 <= lx < W:
@@ -342,8 +365,8 @@ def _make_face_ellipse_mask(h: int, w: int) -> np.ndarray:
     fig_cx  = int(w * 0.545)
     face_cx = fig_cx - int(w * 0.018)
     face_cy = int(h * 0.197)
-    face_rx = int(w * 0.124) * 2     # expand the region slightly beyond
-    face_ry = int(w * 0.164) * 2     # the face oval to include the neck
+    face_rx = int(w * 0.124) + int(w * 0.04)   # expand slightly beyond face oval
+    face_ry = int(w * 0.164) + int(w * 0.05)   # include neck area below
 
     mask = np.zeros((h, w), dtype=np.float32)
     ys, xs = np.ogrid[:h, :w]
@@ -430,23 +453,7 @@ def paint(out_path: str = None) -> str:
     print("Step 6 — Place lights (specular highlights)…")
     p.place_lights(ref, stroke_size=5, n_strokes=580)
 
-    # ── 7. Focused pass — face detail ─────────────────────────────────────────
-    # Concentrates fine strokes on the face region. stroke_size=4 follows the
-    # micro-form of the cheekbones, orbital rims, nose, and lip boundary.
-    print("Step 7 — Focused pass (face detail)…")
-    face_mask = _make_face_ellipse_mask(H_r, W_r)
-    p.focused_pass(
-        ref,
-        region_mask = face_mask,
-        stroke_size = 4,
-        n_strokes   = 800,
-        opacity     = 0.78,
-        wet_blend   = 0.08,     # low wet-blend on face: no dragged marks
-        jitter_amt  = 0.018,    # very low colour jitter: skin is unified
-        curvature   = 0.05,
-    )
-
-    # ── 8. Warm-cool boundary vibration ──────────────────────────────────────
+    # ── 7. Warm-cool boundary vibration ──────────────────────────────────────
     # Micro-pushes warm/cool tones at every colour boundary — gives the
     # face-to-background edge the "inhabited" quality of hand-painted transitions.
     print("Step 8 — Warm-cool boundary pass…")
@@ -470,49 +477,55 @@ def paint(out_path: str = None) -> str:
     )
 
     # ── 10. Sfumato veil pass ─────────────────────────────────────────────────
-    # The defining technique. Nine warm amber veils; chroma_dampen=0.24 gives
-    # the subtle grey-amber edge quality found in X-ray studies of the Mona Lisa
-    # (particularly visible at the corners of the mouth and the jaw line).
-    # edge_only=True ensures the figure interior remains clear while only the
-    # transitional boundary zones acquire the smoky atmospheric quality.
-    print("Step 10 — Sfumato veil pass (9 veils, chroma_dampen=0.24)…")
+    # Reduced to 6 veils and a tighter blur radius so the face features
+    # survive. edge_only=True applies the smoky haze only at gradient
+    # transitions (silhouette, hair-face boundary) — not over the features.
+    print("Step 10 — Sfumato veil pass (6 veils, chroma_dampen=0.20)…")
     p.sfumato_veil_pass(
         ref,
-        n_veils       = 9,
-        blur_radius   = 10.0,
-        warmth        = 0.30,
-        veil_opacity  = 0.048,
+        n_veils       = 6,
+        blur_radius   = 7.0,
+        warmth        = 0.28,
+        veil_opacity  = 0.042,
         edge_only     = True,
-        chroma_dampen = 0.24,
+        chroma_dampen = 0.20,
     )
 
     # ── 11. Glazed panel pass ─────────────────────────────────────────────────
-    # Ten transparent glaze layers simulate the optical depth of an oil-on-panel
-    # painting built on a chalk-white gesso ground. Shadows accumulate warm
-    # amber-umber; highlights retain cool panel brightness.
-    print("Step 11 — Glazed panel pass (10 transparent layers)…")
+    print("Step 11 — Glazed panel pass (7 transparent layers)…")
     p.glazed_panel_pass(
         ref,
-        n_glaze_layers    = 10,
-        glaze_opacity     = 0.065,
-        shadow_warmth     = 0.30,
-        highlight_cool    = 0.14,
+        n_glaze_layers    = 7,
+        glaze_opacity     = 0.055,
+        shadow_warmth     = 0.28,
+        highlight_cool    = 0.12,
         shadow_thresh     = 0.36,
         highlight_thresh  = 0.74,
-        panel_bloom       = 0.07,
+        panel_bloom       = 0.06,
     )
 
     # ── 12. Final amber unifying glaze ───────────────────────────────────────
-    # Leonardo's characteristic varnish tone — a thin warm amber coat that
-    # ties all values together and gives the painting its golden interior light.
     print("Step 12 — Final amber glaze…")
-    p.glaze((0.62, 0.44, 0.14), opacity=0.055)
+    p.glaze((0.62, 0.44, 0.14), opacity=0.050)
 
-    # ── 13. Finish: vignette + aged crackle varnish ───────────────────────────
-    # Vignette darkens the corners and draws attention to the face.
-    # Crackle simulates the fine network of aged oil varnish — authenticates
-    # the sense that this is a panel painting centuries old.
-    print("Step 13 — Finish (vignette + crackle varnish)…")
+    # ── 13. Focused pass — face detail, painted last ──────────────────────────
+    # All broad atmospheric work (sfumato, glazing) is complete. Fine feature
+    # strokes placed now cannot be overwritten by anything.
+    print("Step 13 — Focused pass (face detail, last)…")
+    face_mask = _make_face_ellipse_mask(H_r, W_r)
+    p.focused_pass(
+        ref,
+        region_mask = face_mask,
+        stroke_size = 4,
+        n_strokes   = 900,
+        opacity     = 0.80,
+        wet_blend   = 0.06,
+        jitter_amt  = 0.015,
+        curvature   = 0.05,
+    )
+
+    # ── 14. Finish: vignette + aged crackle varnish ───────────────────────────
+    print("Step 14 — Finish (vignette + crackle varnish)…")
     p.finish(vignette=0.48, crackle=True)
 
     p.save(out_path)
