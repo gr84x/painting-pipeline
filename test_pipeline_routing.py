@@ -172,6 +172,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_venetian":                period == Period.VENETIAN_RENAISSANCE,
         "is_fauvist":                 period == Period.FAUVIST,
         "is_primitivist":             period == Period.PRIMITIVIST,
+        "is_early_netherlandish":     period == Period.EARLY_NETHERLANDISH,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -911,3 +912,158 @@ def test_primitivist_mutually_exclusive_with_fauvist():
     assert not flags_p["is_fauvist"]
     assert     flags_f["is_fauvist"]
     assert not flags_f["is_primitivist"]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# glazed_panel_pass() (session 18)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_glazed_panel_pass_exists():
+    """Painter must have glazed_panel_pass() method after session 18."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "glazed_panel_pass"), (
+        "glazed_panel_pass not found on Painter")
+
+
+def test_glazed_panel_pass_no_error():
+    """glazed_panel_pass() must run without raising on a small synthetic canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.95, 0.93, 0.88), texture_strength=0.02)
+    p.block_in(ref, stroke_size=12, n_strokes=60)
+    p.glazed_panel_pass(ref, n_glaze_layers=3, glaze_opacity=0.08)
+
+
+def test_glazed_panel_pass_modifies_canvas():
+    """glazed_panel_pass() must change at least some pixel values.
+
+    The solid warm-grey reference has luminance ~0.61.  shadow_thresh is raised
+    to 0.75 so the mid-value reference pixels fall inside the shadow zone and
+    the glaze accumulation fires.
+    """
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.95, 0.93, 0.88), texture_strength=0.02)
+    p.block_in(ref, stroke_size=12, n_strokes=60)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    # shadow_thresh=0.75 ensures the ~0.61 luminance reference pixels are treated
+    # as shadow-zone pixels and receive the warm amber glaze accumulation.
+    p.glazed_panel_pass(ref, n_glaze_layers=5, glaze_opacity=0.10,
+                        shadow_warmth=0.40, shadow_thresh=0.75)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    assert not np.array_equal(before, after), (
+        "glazed_panel_pass should modify canvas pixels in shadow zones")
+
+
+def test_glazed_panel_pass_pixels_in_range():
+    """glazed_panel_pass() must not produce out-of-range pixel values."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.95, 0.93, 0.88), texture_strength=0.02)
+    p.block_in(ref, stroke_size=12, n_strokes=40)
+    p.glazed_panel_pass(ref)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.max() <= 255
+    assert buf.min() >= 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# micro_detail_pass() — session 18 random artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_micro_detail_pass_exists():
+    """Painter must have micro_detail_pass() method after session 18."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "micro_detail_pass"), (
+        "micro_detail_pass not found on Painter")
+
+
+def test_micro_detail_pass_no_error():
+    """micro_detail_pass() must run without raising on a small synthetic canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.95, 0.93, 0.88), texture_strength=0.02)
+    p.block_in(ref, stroke_size=12, n_strokes=60)
+    p.micro_detail_pass(strength=0.20, fine_sigma=0.8, coarse_sigma=3.0)
+
+
+def test_micro_detail_pass_modifies_canvas():
+    """micro_detail_pass() must modify pixels near sharp fine edges."""
+    import numpy as np
+    from PIL import Image as _PILImg
+    p = _make_small_painter(64, 64)
+
+    # Synthetic reference with a sharp warm/cool contrast stripe for detectable edges
+    arr = np.zeros((64, 64, 3), dtype=np.uint8)
+    arr[:, :32, :] = [220, 180, 140]    # warm left half
+    arr[:, 32:, :] = [100, 120, 160]    # cool right half
+    ref = _PILImg.fromarray(arr, "RGB")
+    p.tone_ground((0.95, 0.93, 0.88), texture_strength=0.02)
+    p.block_in(ref, stroke_size=14, n_strokes=60)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.micro_detail_pass(strength=0.35, edge_thresh=0.03, figure_only=False)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    assert not np.array_equal(before, after), (
+        "micro_detail_pass should modify pixels along fine edges")
+
+
+def test_micro_detail_pass_pixels_in_range():
+    """micro_detail_pass() must not produce out-of-range pixel values."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.08)
+    p.block_in(ref, stroke_size=12, n_strokes=40)
+    p.micro_detail_pass()
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.max() <= 255
+    assert buf.min() >= 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EARLY_NETHERLANDISH period routing flags (session 18)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_early_netherlandish_flag_set_for_early_netherlandish_period():
+    """is_early_netherlandish routing flag must be True for Period.EARLY_NETHERLANDISH."""
+    flags = _routing_flags(Period.EARLY_NETHERLANDISH)
+    assert flags["is_early_netherlandish"] is True
+
+
+def test_early_netherlandish_flag_not_set_for_other_periods():
+    """is_early_netherlandish must be False for all periods except EARLY_NETHERLANDISH."""
+    for period in Period:
+        if period == Period.EARLY_NETHERLANDISH:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_early_netherlandish"], (
+            f"is_early_netherlandish should be False for {period.name}")
+
+
+def test_early_netherlandish_mutually_exclusive_with_renaissance():
+    """EARLY_NETHERLANDISH and RENAISSANCE are distinct periods."""
+    flags_e = _routing_flags(Period.EARLY_NETHERLANDISH)
+    flags_r = _routing_flags(Period.RENAISSANCE)
+    assert     flags_e["is_early_netherlandish"]
+    assert not flags_e.get("is_renaissance_soft", False)
+    assert not flags_r["is_early_netherlandish"]
+
+
+def test_early_netherlandish_mutually_exclusive_with_venetian():
+    """EARLY_NETHERLANDISH and VENETIAN_RENAISSANCE are distinct glazing traditions."""
+    flags_e = _routing_flags(Period.EARLY_NETHERLANDISH)
+    flags_v = _routing_flags(Period.VENETIAN_RENAISSANCE)
+    assert     flags_e["is_early_netherlandish"]
+    assert not flags_e["is_venetian"]
+    assert     flags_v["is_venetian"]
+    assert not flags_v["is_early_netherlandish"]

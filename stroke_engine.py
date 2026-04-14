@@ -5491,3 +5491,301 @@ class Painter:
         n_cool   = int((active & cool_side).sum())
         print(f"  Warm-cool boundary pass complete  "
               f"(active={n_active}px  warm={n_warm}  cool={n_cool})")
+
+    def glazed_panel_pass(self,
+                          reference:       Union[np.ndarray, Image.Image],
+                          n_glaze_layers:  int   = 8,
+                          glaze_opacity:   float = 0.07,
+                          shadow_warmth:   float = 0.28,
+                          highlight_cool:  float = 0.12,
+                          shadow_thresh:   float = 0.38,
+                          highlight_thresh: float = 0.72,
+                          panel_bloom:     float = 0.08):
+        """
+        Flemish panel painting glaze technique — inspired by Jan van Eyck.
+
+        Van Eyck's revolutionary contribution was the systematic use of
+        transparent oil glazes stacked over a chalk-white gesso panel ground.
+        Unlike tempera (which is opaque and cannot be glazed), oil paint can be
+        diluted to near-transparency.  Each glaze layer adds colour depth while
+        allowing light to penetrate to the brilliant white ground below and
+        reflect back upward through all layers — creating a luminosity that no
+        opaque paint technique can replicate.
+
+        The key physics: light entering a glazed oil painting travels through
+        N transparent films of varying colour, strikes the white ground, and
+        returns through the same films.  Shadow areas accumulate more amber-
+        umber glaze (warm deep shadows); highlights retain the cool brilliance
+        of the nearly-bare white ground.  This warm-shadow / cool-highlight
+        reversal is the defining quality of Flemish panel luminosity and the
+        opposite of the warm-light / cool-shadow convention used in outdoor
+        Impressionism.
+
+        Implementation
+        --------------
+        1. Read current canvas buffer as float32 RGB.
+        2. Build a per-pixel luminance map from the reference.
+        3. Shadow zones (lum < shadow_thresh): accumulate thin warm amber-umber
+           glaze layers — each layer is composited at very low opacity so the
+           effect builds gradually without over-darkening.
+        4. Highlight zones (lum > highlight_thresh): apply a faint cool-neutral
+           tint toward the chalk-white panel ground — the highlights are not
+           pushed warm; they stay cool and bright.
+        5. Mid-tone zones receive balanced warm/cool glazes for tonal unity.
+        6. Panel bloom: a very slight radial luminance boost centred on the
+           brightest highlight zone, simulating how light diffuses slightly in
+           the topmost oil glaze film.
+
+        Parameters
+        ----------
+        reference        : PIL Image or numpy array — original scene reference
+                           used to compute the luminance guidance map.
+        n_glaze_layers   : Number of simulated transparent glaze layers to
+                           accumulate.  8–12 is realistic for a Flemish portrait.
+        glaze_opacity    : Per-layer opacity.  0.05–0.10 keeps each layer
+                           physically thin.  n_layers × opacity = total shadow depth.
+        shadow_warmth    : Warmth of the shadow glaze (R-channel boost, B-damp).
+                           0.20–0.35 gives the characteristic warm Flemish shadow.
+        highlight_cool   : Cool pull applied to highlights.  0.08–0.15 gives
+                           the chalk-grey Flemish highlight quality.
+        shadow_thresh    : Luminance below which shadow glaze is applied (0–1).
+        highlight_thresh : Luminance above which highlight cool is applied (0–1).
+        panel_bloom      : Opacity of the panel bloom diffusion (0.05–0.12).
+
+        Notes
+        -----
+        This pass must be called AFTER the main form-building passes and BEFORE
+        the final glaze / vignette calls.  It is designed for EARLY_NETHERLANDISH
+        period but the luminosity effect is beneficial for any period using a
+        light ground (BAROQUE, RENAISSANCE).
+        """
+        print(f"Glazed panel pass  (n_layers={n_glaze_layers}  "
+              f"opacity={glaze_opacity:.3f}  shadow_warmth={shadow_warmth:.2f})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        # ── Build luminance guidance map from reference ───────────────────────
+        ref_arr = self._prep(reference)   # (H, W, 3) uint8
+        ref_f   = ref_arr.astype(np.float32) / 255.0
+        lum_ref = (0.299 * ref_f[:, :, 0]
+                   + 0.587 * ref_f[:, :, 1]
+                   + 0.114 * ref_f[:, :, 2])   # (H, W) in [0, 1]
+
+        # Resize lum_ref to canvas size if needed
+        if lum_ref.shape != (h, w):
+            from PIL import Image as _PILImg
+            lum_pil = _PILImg.fromarray((lum_ref * 255).astype(np.uint8), "L")
+            lum_pil = lum_pil.resize((w, h), _PILImg.BILINEAR)
+            lum_ref = np.array(lum_pil).astype(np.float32) / 255.0
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Shadow zone glaze accumulation ────────────────────────────────────
+        # Warm amber-umber glaze: boost R slightly, slightly reduce B.
+        # Multiple thin layers simulate the stacked transparent film effect.
+        shadow_mask = np.clip((shadow_thresh - lum_ref) / shadow_thresh, 0.0, 1.0)
+        # Slightly blur the mask for smooth zone transitions
+        shadow_mask = ndimage.gaussian_filter(shadow_mask.astype(np.float32), sigma=2.0)
+
+        glaze_r_boost =  shadow_warmth * 0.55
+        glaze_b_damp  = -shadow_warmth * 0.35
+        glaze_g_boost =  shadow_warmth * 0.08
+
+        for _ in range(n_glaze_layers):
+            alpha = glaze_opacity * shadow_mask
+            r_ch = np.clip(r_ch + alpha * glaze_r_boost, 0.0, 1.0)
+            g_ch = np.clip(g_ch + alpha * glaze_g_boost, 0.0, 1.0)
+            b_ch = np.clip(b_ch + alpha * glaze_b_damp,  0.0, 1.0)
+
+        # ── Highlight zone cool pull ──────────────────────────────────────────
+        # Chalk-white gesso reflects slightly cool — the highest lights retain
+        # a slight blue-grey neutral quality (not the warm highlights of Italian oil).
+        highlight_mask = np.clip((lum_ref - highlight_thresh) / (1.0 - highlight_thresh),
+                                 0.0, 1.0)
+        highlight_mask = ndimage.gaussian_filter(highlight_mask.astype(np.float32), sigma=1.5)
+
+        cool_r_damp  = -highlight_cool * 0.30
+        cool_b_boost =  highlight_cool * 0.25
+        cool_g_boost =  highlight_cool * 0.05
+
+        r_ch = np.clip(r_ch + highlight_mask * cool_r_damp,  0.0, 1.0)
+        g_ch = np.clip(g_ch + highlight_mask * cool_g_boost, 0.0, 1.0)
+        b_ch = np.clip(b_ch + highlight_mask * cool_b_boost, 0.0, 1.0)
+
+        # ── Panel bloom — diffuse luminance spread at brightest highlight ─────
+        # The outermost oil glaze film creates a slight scattering halo around
+        # specular highlights, visible in close inspection of van Eyck's panels
+        # (e.g. the pearls in the Arnolfini Portrait).
+        if panel_bloom > 0.001:
+            bright_zone = np.clip((lum_ref - 0.85) / 0.15, 0.0, 1.0).astype(np.float32)
+            bloom = ndimage.gaussian_filter(bright_zone, sigma=4.0)
+            if bloom.max() > 1e-9:
+                bloom = bloom / bloom.max() * panel_bloom
+            r_ch = np.clip(r_ch + bloom, 0.0, 1.0)
+            g_ch = np.clip(g_ch + bloom * 0.92, 0.0, 1.0)
+            b_ch = np.clip(b_ch + bloom * 0.82, 0.0, 1.0)
+
+        # ── Write back to canvas ──────────────────────────────────────────────
+        buf[:, :, 2] = np.clip(r_ch * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_ch * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_ch * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        shadow_px    = int((shadow_mask > 0.1).sum())
+        highlight_px = int((highlight_mask > 0.1).sum())
+        print(f"  Glazed panel pass complete  "
+              f"(shadow_px={shadow_px}  highlight_px={highlight_px}  "
+              f"layers={n_glaze_layers})")
+
+    def micro_detail_pass(self,
+                          strength:       float = 0.22,
+                          fine_sigma:     float = 0.8,
+                          coarse_sigma:   float = 3.5,
+                          edge_thresh:    float = 0.06,
+                          light_boost:    float = 0.18,
+                          shadow_deepen:  float = 0.14,
+                          figure_only:    bool  = True):
+        """
+        Flemish micro-detail enhancement — inspired by Jan van Eyck's
+        hyper-precise rendering of individual hairs, fabric threads, and
+        gemstone reflections.
+
+        Van Eyck painted at a level of detail that remained unmatched until
+        photography: individual hairs are painted one by one, fabric weave
+        threads are rendered at near-microscopic scale, reflections in pearls
+        and polished metal show tiny accurate mirror images of the room.
+        This was possible partly because of the slow-drying oil medium
+        (allowing fine rework) and partly because of his extraordinary
+        patience and technique.
+
+        The micro-detail pass enhances fine-scale edge contrast across the
+        entire canvas — brightening the light side of every fine edge and
+        deepening the shadow side.  This is equivalent to an unsharp-mask
+        but physically motivated: it simulates the way a thin specular
+        oil film produces micro-highlights along texture ridges.
+
+        Implementation
+        --------------
+        1. Read the current canvas RGB buffer.
+        2. Compute a fine-scale luminance gradient (tight Sobel with small sigma).
+        3. Subtract a coarse-scale gradient to isolate only the finest edges
+           (high-pass filtering in the spatial frequency domain).
+        4. For each fine edge pixel:
+             - The light side (gradient pointing toward bright area) receives
+               a small brightness boost (``light_boost``).
+             - The shadow side receives a small darkening (``shadow_deepen``).
+        5. Apply ``strength`` weighting and ``edge_thresh`` threshold so that
+           only genuine fine edges are processed, not noise or flat areas.
+        6. If ``figure_only`` and a figure mask exists, restrict the pass to
+           the figure region (fabric, skin, hair).
+
+        Parameters
+        ----------
+        strength      : Overall intensity multiplier.  0.15–0.25 is subtle
+                        and naturalistic; >0.35 looks sharpened.
+        fine_sigma    : Gaussian blur sigma for the fine edge detection.
+                        0.5–1.0 captures hair-scale detail.
+        coarse_sigma  : Gaussian blur sigma for the coarse subtracted layer.
+                        3.0–5.0 removes broad gradients, isolating micro-detail.
+        edge_thresh   : Minimum edge magnitude (fine-scale, normalised) to
+                        receive the micro-detail enhancement.  0.04–0.08 is good.
+        light_boost   : Brightness boost applied to the light side of fine edges.
+                        Simulates specular oil film micro-highlights.
+        shadow_deepen : Darkening applied to the shadow side of fine edges.
+                        Simulates the tiny shadow grooves of fabric weave.
+        figure_only   : If True and a figure mask is loaded, restrict the pass
+                        to the figure region only.  This prevents excessive
+                        sharpening of background elements.
+
+        Notes
+        -----
+        This pass should be called AFTER glazed_panel_pass() and BEFORE the
+        final vignette.  It is designed for EARLY_NETHERLANDISH period but
+        benefits any period with visible micro-texture (BAROQUE, VENETIAN_RENAISSANCE,
+        MANNERIST).  Keep strength below 0.30 to avoid an over-sharpened look.
+        """
+        print(f"Micro-detail pass  (strength={strength:.2f}  "
+              f"fine_sigma={fine_sigma:.1f}  coarse_sigma={coarse_sigma:.1f})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+
+        # ── Fine-scale edge detection ─────────────────────────────────────────
+        # Blur at fine scale, then compute Sobel gradient.
+        lum_fine   = ndimage.gaussian_filter(lum, sigma=fine_sigma)
+        gx_fine    = ndimage.sobel(lum_fine, axis=1).astype(np.float32)
+        gy_fine    = ndimage.sobel(lum_fine, axis=0).astype(np.float32)
+        mag_fine   = np.sqrt(gx_fine ** 2 + gy_fine ** 2)
+
+        # ── Coarse-scale edge detection to subtract ───────────────────────────
+        # Removing the coarse gradient isolates only micro-scale edges.
+        lum_coarse = ndimage.gaussian_filter(lum, sigma=coarse_sigma)
+        gx_coarse  = ndimage.sobel(lum_coarse, axis=1).astype(np.float32)
+        gy_coarse  = ndimage.sobel(lum_coarse, axis=0).astype(np.float32)
+        mag_coarse = np.sqrt(gx_coarse ** 2 + gy_coarse ** 2)
+
+        # High-pass: fine edges minus coarse edges
+        mag_micro = np.clip(mag_fine - mag_coarse * 0.5, 0.0, None)
+        if mag_micro.max() > 1e-9:
+            mag_micro = mag_micro / mag_micro.max()
+
+        # ── Build enhancement weight map ──────────────────────────────────────
+        active     = mag_micro > edge_thresh
+        edge_wt    = np.clip(mag_micro, 0.0, 1.0) * strength
+
+        # Apply figure mask if requested
+        if figure_only and self._figure_mask is not None:
+            active  = active & (self._figure_mask > 0.1)
+            edge_wt = edge_wt * self._figure_mask
+
+        # ── Gradient direction for light/shadow side classification ───────────
+        # The gradient vector points from dark → bright.
+        # Light side: move in gradient direction → more luminance nearby → boost.
+        # Shadow side: move against gradient direction → less luminance → deepen.
+        # Approximate: use local luminance relative to neighbourhood mean.
+        lum_mean = ndimage.uniform_filter(lum, size=5)
+        light_side = (lum > lum_mean) & active
+        shadow_side = (lum <= lum_mean) & active
+
+        # ── Apply enhancement ─────────────────────────────────────────────────
+        boost_map  = light_boost  * edge_wt
+        deepen_map = shadow_deepen * edge_wt
+
+        r_ch = np.clip(r_ch + light_side * boost_map  - shadow_side * deepen_map, 0.0, 1.0)
+        g_ch = np.clip(g_ch + light_side * boost_map * 0.95 - shadow_side * deepen_map * 0.95, 0.0, 1.0)
+        b_ch = np.clip(b_ch + light_side * boost_map * 0.88 - shadow_side * deepen_map * 0.90, 0.0, 1.0)
+
+        # ── Write back to canvas ──────────────────────────────────────────────
+        buf[:, :, 2] = np.clip(r_ch * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_ch * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_ch * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_boosted  = int(light_side.sum())
+        n_deepened = int(shadow_side.sum())
+        print(f"  Micro-detail pass complete  "
+              f"(light_side={n_boosted}px  shadow_side={n_deepened}px)")

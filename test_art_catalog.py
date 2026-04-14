@@ -757,3 +757,162 @@ def test_primitivist_stroke_params_all_keys_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"PRIMITIVIST stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Jan van Eyck — Early Netherlandish (session 18)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_jan_van_eyck_in_catalog():
+    """Jan van Eyck must be present in the CATALOG under key 'jan_van_eyck'."""
+    assert "jan_van_eyck" in CATALOG, "jan_van_eyck not found in CATALOG"
+
+
+def test_jan_van_eyck_style_retrieval():
+    """get_style('jan_van_eyck') must return an ArtStyle without raising."""
+    s = get_style("jan_van_eyck")
+    assert s is not None
+
+
+def test_jan_van_eyck_movement():
+    """Jan van Eyck movement must be 'Early Netherlandish'."""
+    s = get_style("jan_van_eyck")
+    assert "netherlandish" in s.movement.lower(), (
+        f"Expected 'Early Netherlandish' movement, got {s.movement!r}")
+
+
+def test_jan_van_eyck_nationality():
+    """Jan van Eyck must be listed as Flemish."""
+    s = get_style("jan_van_eyck")
+    assert s.nationality.lower() == "flemish", (
+        f"Expected nationality 'Flemish', got {s.nationality!r}")
+
+
+def test_jan_van_eyck_palette_has_lapis_blue():
+    """Palette must include a deep lapis-like blue (B channel dominant, not too bright)."""
+    s = get_style("jan_van_eyck")
+    has_deep_blue = any(
+        b > 0.45 and b > r and b > g and (r + g + b) / 3 < 0.65
+        for r, g, b in s.palette
+    )
+    assert has_deep_blue, (
+        "jan_van_eyck palette should include a deep lapis lazuli blue")
+
+
+def test_jan_van_eyck_palette_has_chalk_white_highlight():
+    """Palette must include a near-white chalk highlight colour."""
+    s = get_style("jan_van_eyck")
+    has_white = any(r > 0.85 and g > 0.80 and b > 0.70 for r, g, b in s.palette)
+    assert has_white, (
+        "jan_van_eyck palette should include a chalk-white gesso highlight")
+
+
+def test_jan_van_eyck_ground_is_very_light():
+    """Ground colour must be nearly white — chalk gesso panel."""
+    s = get_style("jan_van_eyck")
+    mean_ground = sum(s.ground_color) / 3
+    assert mean_ground > 0.85, (
+        f"jan_van_eyck ground should be chalk-white (mean > 0.85), got {mean_ground:.3f}")
+
+
+def test_jan_van_eyck_has_glazing():
+    """Van Eyck used a warm amber oil glaze — glazing should not be None."""
+    s = get_style("jan_van_eyck")
+    assert s.glazing is not None, "jan_van_eyck should have a warm amber glazing colour"
+    r, g, b = s.glazing
+    assert r > g > b, (
+        f"Van Eyck glaze should be warm-amber (R>G>B), got ({r:.2f},{g:.2f},{b:.2f})")
+
+
+def test_jan_van_eyck_crackle_true():
+    """15th-century oak panel — crackle must be True."""
+    s = get_style("jan_van_eyck")
+    assert s.crackle, "jan_van_eyck's oak panel should have crackle=True"
+
+
+def test_jan_van_eyck_palette_has_seven_colours():
+    """Palette should have exactly 7 key pigment entries."""
+    s = get_style("jan_van_eyck")
+    assert len(s.palette) == 7, (
+        f"jan_van_eyck palette should have 7 entries, got {len(s.palette)}")
+
+
+def test_jan_van_eyck_wet_blend_moderate():
+    """Van Eyck's glazing technique requires moderate wet_blend (0.40–0.70)."""
+    s = get_style("jan_van_eyck")
+    assert 0.40 <= s.wet_blend <= 0.70, (
+        f"jan_van_eyck wet_blend should be moderate (glazing), got {s.wet_blend}")
+
+
+def test_jan_van_eyck_famous_works_not_empty():
+    s = get_style("jan_van_eyck")
+    assert len(s.famous_works) >= 3, "jan_van_eyck should have at least 3 famous works"
+
+
+def test_jan_van_eyck_famous_works_include_arnolfini():
+    """Arnolfini Portrait must be in jan_van_eyck famous works."""
+    s = get_style("jan_van_eyck")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Arnolfini" in t for t in titles), (
+        "jan_van_eyck famous works should include The Arnolfini Portrait")
+
+
+def test_jan_van_eyck_inspiration_references_glazed_panel():
+    """Inspiration text must reference glazed_panel_pass."""
+    s = get_style("jan_van_eyck")
+    assert "glazed_panel" in s.inspiration.lower().replace(" ", "_"), (
+        "jan_van_eyck inspiration should reference glazed_panel_pass()")
+
+
+def test_jan_van_eyck_inspiration_references_micro_detail():
+    """Inspiration text must reference micro_detail_pass."""
+    s = get_style("jan_van_eyck")
+    assert "micro_detail" in s.inspiration.lower().replace(" ", "_"), (
+        "jan_van_eyck inspiration should reference micro_detail_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EARLY_NETHERLANDISH period (session 18)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_early_netherlandish_period_present():
+    """EARLY_NETHERLANDISH must exist in Period enum (session 18)."""
+    assert hasattr(Period, "EARLY_NETHERLANDISH"), "Period.EARLY_NETHERLANDISH not found"
+    assert Period.EARLY_NETHERLANDISH in list(Period)
+
+
+def test_early_netherlandish_stroke_params_moderate_wet_blend():
+    """EARLY_NETHERLANDISH wet_blend should be moderate (glazing requires blending)."""
+    style = Style(medium=Medium.OIL, period=Period.EARLY_NETHERLANDISH,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.35 <= p["wet_blend"] <= 0.75, (
+        f"EARLY_NETHERLANDISH wet_blend should be moderate, got {p['wet_blend']}")
+
+
+def test_early_netherlandish_stroke_params_moderate_edge_softness():
+    """EARLY_NETHERLANDISH edge_softness should be moderate (glazed but not sfumato)."""
+    style = Style(medium=Medium.OIL, period=Period.EARLY_NETHERLANDISH,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.30 <= p["edge_softness"] <= 0.65, (
+        f"EARLY_NETHERLANDISH edge_softness should be moderate; got {p['edge_softness']}")
+
+
+def test_early_netherlandish_stroke_params_small_face_stroke():
+    """EARLY_NETHERLANDISH stroke_size_face should be very small — Flemish micro-detail."""
+    style = Style(medium=Medium.OIL, period=Period.EARLY_NETHERLANDISH,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 6, (
+        f"EARLY_NETHERLANDISH stroke_size_face should be small (fine Flemish detail), "
+        f"got {p['stroke_size_face']}")
+
+
+def test_early_netherlandish_stroke_params_all_keys_present():
+    """EARLY_NETHERLANDISH stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.EARLY_NETHERLANDISH,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"EARLY_NETHERLANDISH stroke_params missing key: {key!r}"
