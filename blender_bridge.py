@@ -494,6 +494,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_venetian          = (scene.style.period == Period.VENETIAN_RENAISSANCE)
     is_fauvist           = (scene.style.period == Period.FAUVIST)
     is_primitivist       = (scene.style.period == Period.PRIMITIVIST)
+    is_early_netherlandish = (scene.style.period == Period.EARLY_NETHERLANDISH)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -1081,6 +1082,81 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # No formal glaze — Modigliani's colour is direct and final.
         # Light vignette; no crackle (early 20th century, no extreme ageing yet).
         p.finish(vignette=0.20, crackle=False)
+
+    elif is_early_netherlandish:
+        # ── Early Netherlandish pipeline (Jan van Eyck technique) ─────────────
+        # Van Eyck's revolutionary contribution was the systematic perfection of
+        # oil paint as a glazing medium.  He worked on seasoned oak panels prepared
+        # with multiple chalk-white gesso layers sanded to glass smoothness —
+        # a near-perfect reflective surface.  Paint was built in multiple thin,
+        # transparent oil glazes using walnut or linseed oil as the medium.
+        # Each layer dried completely before the next, allowing light to travel
+        # through the stacked transparent films and reflect from the white ground
+        # beneath — creating luminosity that tempera could not achieve.
+        #
+        # Pipeline:
+        #   1. Chalk-white gesso ground — very pale, high luminosity base.
+        #      Minimal texture_strength: a gesso panel is glass-smooth.
+        #   2. Underpainting + block_in + build_form to establish full figure
+        #      volumes.  Van Eyck's underdrawings (visible under infrared
+        #      reflectography) are extremely detailed and precise.
+        #   3. place_lights() for impasto highlights — though van Eyck rarely
+        #      used truly thick paint, his highlights are brighter than anything
+        #      else on the panel, loaded with lead white.
+        #   4. glazed_panel_pass() — the signature van Eyck technique:
+        #      (a) accumulate thin warm amber-umber shadow glazes (n layers),
+        #      (b) apply faint cool-neutral tint to highlights (white ground showing),
+        #      (c) panel bloom diffusion at brightest highlight peaks.
+        #   5. micro_detail_pass() — session 18 random artistic improvement:
+        #      enhance fine-scale edge contrast to replicate van Eyck's
+        #      hyper-precise rendering of individual hairs, fabric weave,
+        #      and gem reflections.
+        #   6. Warm amber final glaze (linseed/walnut oil top varnish layer).
+        #   7. Moderate vignette; crackle=True — 15th-century oak panel ageing.
+        van_eyck_style = _ART_CATALOG.get("jan_van_eyck")
+        ground_col     = van_eyck_style.ground_color if van_eyck_style else (0.95, 0.93, 0.88)
+
+        # Chalk-white gesso panel ground — glass-smooth, near-white, minimal tooth
+        p.tone_ground(ground_col, texture_strength=0.018)
+
+        # Detailed underdrawing fidelity: full underpainting + block_in + build_form.
+        # Van Eyck's build-up was meticulous — forms were fully modelled before glazing.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.8), n_strokes=180)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=340)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=820)
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"],             n_strokes=550)
+
+        # Core van Eyck technique: transparent oil glaze layers on white gesso
+        p.glazed_panel_pass(
+            ref,
+            n_glaze_layers   = 9,
+            glaze_opacity    = 0.07,
+            shadow_warmth    = 0.28,
+            highlight_cool   = 0.12,
+            shadow_thresh    = 0.38,
+            highlight_thresh = 0.72,
+            panel_bloom      = 0.08,
+        )
+
+        # Session 18 random artistic improvement: Flemish micro-detail enhancement
+        # Brightens fine edge light-sides, deepens shadow-sides → hyper-crisp detail
+        p.micro_detail_pass(
+            strength      = 0.22,
+            fine_sigma    = 0.8,
+            coarse_sigma  = 3.5,
+            edge_thresh   = 0.06,
+            light_boost   = 0.18,
+            shadow_deepen = 0.14,
+            figure_only   = True,
+        )
+
+        # Warm amber final varnish glaze — linseed + walnut oil yellow naturally
+        # over time; even fresh van Eyck panels had a warm amber tonality
+        van_eyck_glaze = van_eyck_style.glazing if van_eyck_style else (0.75, 0.58, 0.28)
+        p.glaze(van_eyck_glaze, opacity=0.06)
+
+        # Moderate vignette; crackle=True — 15th-century oak panel craquelure
+        p.finish(vignette=0.35, crackle=True)
 
     elif is_synthetist:
         # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────

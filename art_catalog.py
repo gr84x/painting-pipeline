@@ -1502,6 +1502,63 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jan van Eyck ──────────────────────────────────────────────────────────
+    "jan_van_eyck": ArtStyle(
+        artist="Jan van Eyck",
+        movement="Early Netherlandish",
+        nationality="Flemish",
+        period="1422–1441",
+        palette=[
+            (0.92, 0.88, 0.78),   # chalk-white gesso highlight
+            (0.82, 0.68, 0.42),   # warm golden-amber flesh
+            (0.55, 0.38, 0.22),   # warm umber shadow
+            (0.18, 0.28, 0.52),   # deep lapis lazuli blue (ultramarine)
+            (0.62, 0.18, 0.12),   # deep vermilion red
+            (0.28, 0.42, 0.22),   # dark malachite green
+            (0.38, 0.28, 0.14),   # warm dark umber outline
+        ],
+        ground_color=(0.95, 0.93, 0.88),    # chalk-white gesso panel (almost pure white)
+        stroke_size=4,
+        wet_blend=0.55,                      # moderate — glazing requires careful blending
+        edge_softness=0.45,                  # moderate — Flemish edges are present but softened by glaze layers
+        jitter=0.012,                        # very low — precision Flemish technique
+        glazing=(0.75, 0.58, 0.28),          # warm amber final varnish glaze (linseed + walnut oil)
+        crackle=True,                        # 15th-century oak panel — characteristic craquelure
+        chromatic_split=False,
+        technique=(
+            "Flemish panel painting technique: chalk-white gesso ground applied over "
+            "seasoned oak panel in multiple fine layers, sanded to glass smoothness. "
+            "Underdrawing in metalpoint or ink visible under infrared.  Paint built in "
+            "thin transparent oil glazes using walnut or linseed oil — each layer must "
+            "dry completely before the next is applied, creating extraordinary "
+            "luminosity as light passes through stacked transparent films and reflects "
+            "from the white ground beneath.  Highlights are near-white with cool grey "
+            "halftone; shadows accumulate warm umber and amber glazes.  "
+            "Extraordinary micro-detail in all areas: individual hairs, fabric weave "
+            "threads, reflections in polished metal and pearls, dewdrops on foliage. "
+            "Contours are precise but slightly softened by the final glaze layer. "
+            "Colours are gem-like and deeply saturated: lapis lazuli, vermilion, "
+            "malachite — ground as fine pigment particles in oil, not tempera."
+        ),
+        famous_works=[
+            ("The Arnolfini Portrait", "1434"),
+            ("Ghent Altarpiece (Adoration of the Mystic Lamb)", "1432"),
+            ("Portrait of a Man in a Turban", "1433"),
+            ("Madonna of Chancellor Rolin", "1435"),
+            ("The Virgin of the Chancellor Rolin", "1435"),
+            ("Portrait of Margareta van Eyck", "1439"),
+        ],
+        inspiration=(
+            "Use glazed_panel_pass() to replicate van Eyck's stacked transparent oil "
+            "glaze technique on a white gesso ground — thin warm washes accumulate in "
+            "shadow zones while highlights retain the brilliant white ground luminosity. "
+            "Follow with micro_detail_pass() to enhance fine-scale edge contrast, "
+            "replicating the hyper-crisp Flemish detail in hair strands, fabric texture, "
+            "and gemstone highlights.  Palette: lapis blue, vermilion, malachite green "
+            "over chalk-white with warm amber unifying glaze."
+        ),
+    ),
+
 }
 
 

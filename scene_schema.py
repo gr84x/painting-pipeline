@@ -196,6 +196,7 @@ class Period(Enum):
     VENETIAN_RENAISSANCE = auto()  # Titian — rich colourism, warm glazing, gestural impasto, luminous depth
     FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
     PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
+    EARLY_NETHERLANDISH = auto()  # Jan van Eyck — stacked transparent oil glazes, chalk-white gesso, Flemish micro-detail
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -473,6 +474,13 @@ class Style:
             # Very low wet_blend: zones must stay flat, no blending across boundaries.
             # Low edge_softness: the oval contour outline is present and deliberate.
             Period.PRIMITIVIST:   dict(stroke_size_face=9,  stroke_size_bg=20, wet_blend=0.10, edge_softness=0.18),
+            # Early Netherlandish (van Eyck): very fine brushwork, multiple transparent glaze layers.
+            # stroke_size_face is very small — Flemish faces are built with tiny, precise marks.
+            # stroke_size_bg is moderate — architectural and landscape details are also fine.
+            # Moderate wet_blend: glazing requires careful wet-into-wet in highlight passages,
+            # but each glaze layer must stay distinct.  Moderate edge_softness: Flemish edges
+            # are present and precise, softened only by the outermost translucent glaze film.
+            Period.EARLY_NETHERLANDISH: dict(stroke_size_face=4, stroke_size_bg=14, wet_blend=0.55, edge_softness=0.45),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
