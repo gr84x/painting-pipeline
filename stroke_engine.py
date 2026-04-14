@@ -1777,6 +1777,208 @@ class Painter:
                     region_mask=effective_mask,
                 )
 
+    def flat_plane_pass(self,
+                        reference:       Union[np.ndarray, Image.Image],
+                        n_planes:        int   = 5,
+                        strokes_per_plane: int = 500,
+                        stroke_size:     float = 11.0,
+                        plane_opacity:   float = 0.80,
+                        border_strokes:  int   = 300,
+                        border_size:     float = 4.0,
+                        border_opacity:  float = 0.88,
+                        black_color:     Color = (0.06, 0.05, 0.06),
+                        wet_blend:       float = 0.12):
+        """
+        Flat value-plane pass — inspired by Édouard Manet.
+
+        Manet's revolutionary technique broke with academic chiaroscuro by
+        rendering forms as a small number of discrete tonal planes separated
+        by visible (but not hard) boundaries.  Where a Renaissance painter
+        would smoothly graduate from highlight to shadow through hundreds of
+        nuanced mid-tones, Manet laid down 3–5 flat patches of colour and
+        left the boundary visible.  Olympia (1863) looks like a playing card
+        at arm's length — and that flatness is the radical act.
+
+        Algorithm
+        ---------
+        1. **Value quantisation** — Convert the reference to luminance.
+           Cluster pixels into ``n_planes`` tonal bands (darkest to lightest)
+           using evenly-spaced luminance thresholds.
+
+        2. **Flat stroke patches** — For each band, sample random pixels
+           inside that band and paint broad, nearly-flat strokes using the
+           reference colour at that pixel.  Very low wet_blend keeps each
+           patch from bleeding into adjacent bands (the 'mosaic' quality).
+
+        3. **Plane-boundary dark strokes** — Detect the luminance gradient
+           (edges between planes) and lay short, bold dark strokes along
+           those edges.  Manet's characteristic border mark: a loaded flat
+           brush pulled swiftly along the shadow side of a form.  Black is
+           used as a pure chromatic colour here, not a neutral shadow mixer.
+
+        Parameters
+        ----------
+        reference        : PIL Image or ndarray
+        n_planes         : Number of tonal value bands (4–6 gives best results).
+                           Too many → approaches normal painting; too few →
+                           posterised / woodblock feel.
+        strokes_per_plane: Broad flat strokes per tonal band.
+        stroke_size      : Width of the flat plane strokes in pixels.
+        plane_opacity    : Opacity of each flat stroke (high = decisive, loaded).
+        border_strokes   : Short dark strokes placed at plane boundaries.
+        border_size      : Width of the dark border strokes.
+        border_opacity   : Opacity of the border strokes (deliberately high —
+                           Manet's borders are confident, not timid).
+        black_color      : The rich black used for border and shadow strokes.
+                           Manet used black as a chromatic value, not merely
+                           shadow — so this is a warm-neutral near-black, not
+                           (0, 0, 0).
+        wet_blend        : Within-plane wet blending.  Keep very low (0.10–0.20)
+                           so patches stay flat.  Manet's whole point is the
+                           absence of smooth gradients between planes.
+        """
+        print(f"Flat plane pass  ({n_planes} planes  {strokes_per_plane} strokes/plane)…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        tip_flat  = BrushTip(BrushTip.FLAT)
+        tip_round = BrushTip(BrushTip.ROUND)
+
+        # ── 1. Luminance map and plane thresholds ─────────────────────────────
+        # Manet's cool-biased palette: weight luminance toward the green channel
+        # (standard photometric) but suppress the red channel slightly so warm
+        # tones read a touch darker — matching his silvery cool half-tones.
+        lum = (0.28 * rarr[:, :, 0] +
+               0.60 * rarr[:, :, 1] +
+               0.12 * rarr[:, :, 2]).astype(np.float32)
+
+        thresholds = [i / n_planes for i in range(1, n_planes)]
+
+        # ── 2. Flat stroke patches per tonal band ─────────────────────────────
+        for plane_idx in range(n_planes):
+            lo = 0.0          if plane_idx == 0            else thresholds[plane_idx - 1]
+            hi = 1.001        if plane_idx == n_planes - 1 else thresholds[plane_idx]
+
+            plane_mask_bool = (lum >= lo) & (lum < hi)
+            candidate_ys, candidate_xs = np.where(plane_mask_bool)
+            if len(candidate_ys) == 0:
+                continue
+
+            # Apply figure mask if available — prefer painting the figure first,
+            # then background (matches Manet's process: figure block-in, then bg).
+            if self._figure_mask is not None:
+                fig_vals = self._figure_mask[candidate_ys, candidate_xs]
+                # Prefer figure pixels (high mask weight) — sample with weighting
+                probs = 0.3 + 0.7 * fig_vals
+                probs = probs / probs.sum()
+            else:
+                probs = None
+
+            # Per plane, lay strokes sampling broadly across that tonal band.
+            n_here = min(strokes_per_plane, len(candidate_ys))
+            chosen = self.rng.choice(len(candidate_ys), size=n_here,
+                                         replace=len(candidate_ys) < n_here,
+                                         p=probs)
+
+            for idx in chosen:
+                py, px = int(candidate_ys[idx]), int(candidate_xs[idx])
+                col = tuple(float(rarr[py, px, c]) for c in range(3))
+
+                # Manet's key: cool silver in mid-tones, not warm brown.
+                # Slightly desaturate mid-tones and nudge them cool.
+                t_plane = plane_idx / max(n_planes - 1, 1)   # 0=dark, 1=light
+                is_midtone = 0.25 < t_plane < 0.75
+                if is_midtone:
+                    col = temp_shift(col, warmth=-0.4)
+
+                col = jitter(col, 0.028, self._rng_py)
+
+                # Stroke direction: roughly horizontal for the torso/background
+                # (Manet's confident loaded flat-brush sweep), with slight
+                # individual variation.  This produces the visible planar
+                # quality — strokes have direction, not random noise.
+                base_angle = 0.0   # horizontal (flat drag)
+                if plane_idx < n_planes // 2:
+                    # Darker planes: slightly diagonal toward lower-left —
+                    # Manet's shadow-side strokes have a deliberate lean.
+                    base_angle = math.radians(20.0)
+                a = base_angle + self._rng_py.uniform(-0.35, 0.35)
+
+                # Broad strokes: length 2.5–5× width for a 'loaded sweep' look
+                length = stroke_size * self._rng_py.uniform(2.5, 5.0)
+                start  = (px - math.cos(a) * length * 0.5,
+                          py - math.sin(a) * length * 0.5)
+                pts    = stroke_path(start, a, length,
+                                     curve=self._rng_py.uniform(-0.04, 0.04),
+                                     n=max(3, int(length / 6)))
+                ws     = [stroke_size * self._rng_py.uniform(0.85, 1.15)] * len(pts)
+
+                self.canvas.apply_stroke(
+                    pts, ws, col, tip_flat,
+                    opacity=plane_opacity * self._rng_py.uniform(0.85, 1.0),
+                    wet_blend=wet_blend,
+                    jitter_amt=0.018,
+                    rng=self._rng_py,
+                    region_mask=self._figure_mask,
+                )
+
+        # ── 3. Plane-boundary dark strokes ────────────────────────────────────
+        # Detect luminance gradients — high gradient = boundary between planes.
+        # Manet placed short, bold, dark strokes (often black) right at these
+        # boundaries — the most distinctive mark of his style.
+        grad_y = ndimage.sobel(lum, axis=0)
+        grad_x = ndimage.sobel(lum, axis=1)
+        grad_mag = np.hypot(grad_x, grad_y).astype(np.float32)
+        grad_mag /= (grad_mag.max() + 1e-9)
+
+        # Threshold: only paint at genuine plane boundaries
+        boundary_mask = grad_mag > 0.18
+        bys, bxs = np.where(boundary_mask)
+        if len(bys) > 0:
+            n_border = min(border_strokes, len(bys))
+            b_chosen = self.rng.choice(len(bys), size=n_border, replace=False)
+
+            for idx in b_chosen:
+                py, px = int(bys[idx]), int(bxs[idx])
+
+                # Dark colour: Manet's black — warm-neutral, not absolute.
+                # In the lightest areas add a hint of the local colour so the
+                # shadow stroke is 'coloured dark' rather than dead grey.
+                if lum[py, px] > 0.65:
+                    local = tuple(float(rarr[py, px, c]) for c in range(3))
+                    # Darken local by blending with black 70:30
+                    col = mix_paint(local, black_color, 0.70)
+                else:
+                    col = jitter(black_color, 0.015, self._rng_py)
+
+                # Stroke direction: follow the gradient direction (perpendicular
+                # to the edge, into the darker side) — matching how Manet's
+                # loaded brush draws across the shadow side of a form boundary.
+                gx = float(grad_x[py, px])
+                gy = float(grad_y[py, px])
+                mag = math.sqrt(gx * gx + gy * gy) or 1.0
+                # Perpendicular to gradient = along the edge
+                a = math.atan2(gx / mag, -(gy / mag))
+                a += self._rng_py.uniform(-0.30, 0.30)
+
+                length = border_size * self._rng_py.uniform(3.0, 7.0)
+                start  = (px - math.cos(a) * length * 0.5,
+                          py - math.sin(a) * length * 0.5)
+                pts    = stroke_path(start, a, length, curve=0.0,
+                                     n=max(2, int(length / 5)))
+                ws     = [border_size * self._rng_py.uniform(0.8, 1.2)] * len(pts)
+
+                self.canvas.apply_stroke(
+                    pts, ws, col, tip_flat,
+                    opacity=border_opacity * self._rng_py.uniform(0.75, 1.0),
+                    wet_blend=0.04,     # very dry — Manet's dark accents don't bleed
+                    jitter_amt=0.012,
+                    rng=self._rng_py,
+                    region_mask=None,   # border strokes cross figure/background boundary
+                )
+
     def focused_pass(self,
                      reference:   Union[np.ndarray, Image.Image],
                      region_mask: np.ndarray,

@@ -674,6 +674,63 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Édouard Manet ─────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Manet is the fulcrum between Realism and Impressionism.  He rejected
+    # academic chiaroscuro (smooth tonal gradients modeling 3D volume) in favour
+    # of FLAT VALUE PLANES separated by bold dark strokes.  His contemporaries
+    # were scandalized — Olympia (1863) looks like a playing card, not a nude.
+    # That 'flatness' is the revolutionary act: he painted what the eye SEES
+    # (flat colour patches) not what the mind KNOWS (a round, modelled body).
+    # Influenced every modern painter.  Influenced photography, Japanese prints,
+    # Cézanne, Monet, and ultimately all of Western modernism.
+    "manet": ArtStyle(
+        artist="Édouard Manet",
+        movement="Realism / Pre-Impressionism / Modernism",
+        nationality="French",
+        period="1856–1883",
+        palette=[
+            (0.88, 0.78, 0.62),   # warm cream — sunlit flesh / fabric highlight
+            (0.65, 0.58, 0.48),   # silvery ochre — mid-tone, very neutral
+            (0.52, 0.50, 0.52),   # cool silver-grey — shadow half-tone (cool)
+            (0.08, 0.06, 0.07),   # rich black — Manet used black as a pure colour
+            (0.75, 0.42, 0.22),   # warm sienna — warm costume / background
+            (0.82, 0.82, 0.80),   # pearl white — highest highlight
+        ],
+        ground_color=(0.52, 0.50, 0.48),    # cool mid-tone grey ground — not warm like old masters
+        stroke_size=11,
+        wet_blend=0.28,                      # alla prima but not heavily blended — flat patches
+        edge_softness=0.20,                  # fairly crisp; flat planes meet at visible boundaries
+        jitter=0.038,
+        glazing=None,                        # no old-master glazing — direct paint only
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Flat value-plane technique. Forms modelled in 3–5 discrete tonal bands "
+            "with minimal gradient between them — a 'playing card' flatness that "
+            "scandalized the Paris Salon. Black used as a positive chromatic colour, "
+            "not just shadow (unlike Impressionists who excluded black). "
+            "Cool silver-grey half-tones oppose warm cream lights — never a brown "
+            "transition zone. Confident, loaded-brush alla prima strokes. "
+            "Edges between value planes are soft-but-present, not sfumato-dissolved. "
+            "Manet built an image like a mosaic of colored shapes, each flatly painted."
+        ),
+        famous_works=[
+            ("Olympia", "1863"),
+            ("Le Déjeuner sur l'herbe", "1863"),
+            ("A Bar at the Folies-Bergère", "1882"),
+            ("The Balcony", "1868–1869"),
+            ("Émile Zola", "1868"),
+        ],
+        inspiration=(
+            "Use flat_plane_pass(): quantize to 4–5 value bands, apply flat "
+            "loaded-brush stroke patches per band with minimal blending. "
+            "Bold dark strokes (not outlines) mark transitions between planes. "
+            "Black is a colour — use it in shadow areas without warming it. "
+            "Cool silver half-tone; warm cream light. No sfumato, no brown mid-tones."
+        ),
+    ),
+
     # ── Katsushika Hokusai ────────────────────────────────────────────────────
     "hokusai": ArtStyle(
         artist="Katsushika Hokusai",

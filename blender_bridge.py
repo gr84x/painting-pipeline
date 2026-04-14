@@ -483,6 +483,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_ukiyo_e           = (scene.style.period == Period.UKIYO_E)
     is_watercolor        = (scene.style.medium == Medium.WATERCOLOR)
     is_proto_expressionist = (scene.style.period == Period.PROTO_EXPRESSIONIST)
+    is_realist           = (scene.style.period == Period.REALIST)
+    is_romantic          = (scene.style.period == Period.ROMANTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -575,6 +577,52 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # paper reads through flat colour areas.
         # Very gentle vignette only; no crackle (prints don't age like oil varnish).
         p.finish(vignette=0.12, crackle=False)
+
+    elif is_realist:
+        # ── Realist / flat-plane pipeline (Manet technique) ──────────────────
+        # Manet laid paint in a small number of discrete tonal planes.  He
+        # rejected the academic convention of smoothly graduated chiaroscuro
+        # and replaced it with bold flat patches separated by visible (but not
+        # hard-outline) boundaries.  A cool mid-tone silver ground, warm cream
+        # lights, and rich black used as a positive colour.
+        #
+        # Pipeline:
+        #   1. Mid-tone cool grey ground — not the warm brown of Old Masters.
+        #   2. Light block_in to establish composition masses.
+        #   3. flat_plane_pass() — the signature Manet technique: quantized
+        #      value bands, flat loaded-brush strokes, dark border marks.
+        #   4. place_lights() for the brightest impasto highlights.
+        #   5. Cool amber glaze (minimal) to unify.
+        manet_style  = _ART_CATALOG.get("manet")
+        ground_col   = manet_style.ground_color if manet_style else (0.52, 0.50, 0.48)
+
+        # Cool silver-grey ground (not warm sienna — Manet's modernity)
+        p.tone_ground(ground_col, texture_strength=0.06)
+
+        # Light composition pass to establish masses before flat planes
+        p.block_in(ref, stroke_size=int(sp["stroke_size_bg"]), n_strokes=180)
+
+        # Core Manet technique: flat tonal planes + dark boundary strokes
+        p.flat_plane_pass(
+            ref,
+            n_planes          = 5,
+            strokes_per_plane = 600,
+            stroke_size       = float(sp["stroke_size_face"]),
+            plane_opacity     = 0.82,
+            border_strokes    = 350,
+            border_size       = float(sp["stroke_size_face"]) * 0.38,
+            border_opacity    = 0.88,
+            black_color       = (0.06, 0.05, 0.06),
+            wet_blend         = sp["wet_blend"],
+        )
+
+        # Impasto light placement — Manet's highest highlights are loaded and direct
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=350)
+
+        # Very subtle warm glaze — Manet did not varnish elaborately
+        p.glaze((0.55, 0.50, 0.38), opacity=0.04)
+        # Moderate vignette; no crackle (modern technique)
+        p.finish(vignette=0.35, crackle=False)
 
     elif is_pointillist:
         # ── Pointillist / divisionist pipeline (Seurat technique) ────────────
@@ -693,6 +741,24 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
                 warmth       = 0.30,
                 veil_opacity = 0.06,
                 edge_only    = True,
+            )
+
+        # ── Luminous glow pass for Romantic / Turner atmospheric light ────────
+        # Turner dissolved all solid form into radiant light — his late works are
+        # nearly abstract vortices of warm yellow at the light centre fading to
+        # cool blue-violet at the periphery.  luminous_glow_pass() locates the
+        # brightest point in the reference and overlays concentric warm-to-cool
+        # radial glaze rings — the defining quality of his work that cannot be
+        # achieved through ordinary stroke painting alone.
+        if is_romantic:
+            p.luminous_glow_pass(
+                ref,
+                n_rings      = 11,
+                max_radius   = 0.58,
+                core_color   = (0.98, 0.94, 0.72),   # incandescent sun core
+                haze_color   = (0.48, 0.60, 0.80),   # cool atmospheric periphery
+                core_opacity = 0.24,
+                haze_opacity = 0.10,
             )
 
         p.glaze((0.60, 0.42, 0.14), opacity=0.07)
