@@ -30,7 +30,7 @@ EXPECTED_ARTISTS = [
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "kandinsky",
     "klimt", "leonardo", "manet", "monet", "rembrandt", "rothko", "sargent",
-    "seurat", "turner", "van_gogh", "velazquez", "vermeer",
+    "seurat", "titian", "turner", "van_gogh", "velazquez", "vermeer",
 ]
 
 
@@ -154,6 +154,7 @@ EXPECTED_PERIODS = [
     "POINTILLIST", "ROMANTIC", "ART_NOUVEAU", "UKIYO_E",
     "PROTO_EXPRESSIONIST", "REALIST", "VIENNESE_EXPRESSIONIST",
     "COLOR_FIELD", "SYNTHETIST", "MANNERIST", "SURREALIST",
+    "ABSTRACT_EXPRESSIONIST", "VENETIAN_RENAISSANCE",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -412,3 +413,111 @@ def test_abstract_expressionist_stroke_params_low_edge_softness():
     p = style.stroke_params
     assert p["edge_softness"] <= 0.20, (
         f"ABSTRACT_EXPRESSIONIST edge_softness should be low; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Titian + Period.VENETIAN_RENAISSANCE — current session addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_titian_in_catalog():
+    """Titian must be present in CATALOG."""
+    assert "titian" in CATALOG, "titian not found in CATALOG"
+
+
+def test_titian_movement():
+    """Titian's movement must reference Venetian."""
+    s = get_style("titian")
+    assert "Venetian" in s.movement or "venetian" in s.movement.lower(), (
+        f"Titian movement should reference Venetian; got: {s.movement!r}")
+
+
+def test_titian_nationality():
+    """Titian was Italian (Venetian)."""
+    s = get_style("titian")
+    assert "Italian" in s.nationality, (
+        f"Titian nationality should contain Italian; got: {s.nationality!r}")
+
+
+def test_titian_palette_length():
+    s = get_style("titian")
+    assert len(s.palette) >= 5, "Titian palette should have at least 5 key colours"
+
+
+def test_titian_palette_values_in_range():
+    """All Titian palette RGB values must be in [0, 1]."""
+    s = get_style("titian")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Titian palette {rgb}")
+
+
+def test_titian_palette_has_warm_red():
+    """Titian's palette must include a dominant warm red (vermilion)."""
+    s = get_style("titian")
+    has_warm_red = any(r > 0.65 and g < 0.45 and b < 0.35
+                       for r, g, b in s.palette)
+    assert has_warm_red, "Titian palette should include warm vermilion-red"
+
+
+def test_titian_high_wet_blend():
+    """Titian worked wet-into-wet — wet_blend must be high."""
+    s = get_style("titian")
+    assert s.wet_blend >= 0.70, (
+        f"Titian wet_blend should be high (wet-into-wet technique); got {s.wet_blend}")
+
+
+def test_titian_crackle():
+    """Titian worked on 16th-century Venetian canvas — crackle should be True."""
+    s = get_style("titian")
+    assert s.crackle, "Titian crackle should be True (aged Venetian canvas)"
+
+
+def test_titian_has_glazing():
+    """Titian used a warm red-amber unifying glaze — glazing must not be None."""
+    s = get_style("titian")
+    assert s.glazing is not None, "Titian glazing should be set (warm Venetian glaze)"
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0, f"Titian glazing channel out of range: {ch}"
+
+
+def test_titian_famous_works_include_venus():
+    """Titian's famous works should include Venus of Urbino."""
+    s = get_style("titian")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Venus" in t for t in titles), (
+        "Titian famous works should include Venus of Urbino")
+
+
+def test_titian_inspiration_references_venetian_glaze():
+    """Titian inspiration text should reference venetian_glaze_pass."""
+    s = get_style("titian")
+    assert "venetian_glaze" in s.inspiration.lower().replace(" ", "_"), (
+        "Titian inspiration should reference venetian_glaze_pass()")
+
+
+def test_venetian_renaissance_period_present():
+    """VENETIAN_RENAISSANCE must exist in Period enum."""
+    assert hasattr(Period, "VENETIAN_RENAISSANCE"), (
+        "Period.VENETIAN_RENAISSANCE not found")
+    assert Period.VENETIAN_RENAISSANCE in list(Period)
+
+
+def test_venetian_renaissance_stroke_params_high_wet_blend():
+    """VENETIAN_RENAISSANCE should have high wet_blend for Titian's wet-into-wet technique."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"VENETIAN_RENAISSANCE wet_blend should be high; got {p['wet_blend']}")
+
+
+def test_venetian_renaissance_stroke_params_moderate_edge_softness():
+    """VENETIAN_RENAISSANCE edge_softness should be between sfumato and Baroque."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.45 <= p["edge_softness"] <= 0.80, (
+        f"VENETIAN_RENAISSANCE edge_softness should be moderate (0.45–0.80); "
+        f"got {p['edge_softness']}")

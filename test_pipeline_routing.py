@@ -169,6 +169,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_surrealist":              period == Period.SURREALIST,
         "is_abstract_expressionist":  period == Period.ABSTRACT_EXPRESSIONIST,
         "is_romantic":                period == Period.ROMANTIC,
+        "is_venetian":                period == Period.VENETIAN_RENAISSANCE,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -509,3 +510,138 @@ def test_sfumato_veil_pass_chroma_dampen_zero_same_as_default():
         blur_radius   = 4.0,
         chroma_dampen = 0.0,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Current session: venetian_glaze_pass + subsurface_glow_pass + VENETIAN_RENAISSANCE
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_venetian_glaze_pass_exists():
+    """Painter must have venetian_glaze_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "venetian_glaze_pass"), (
+        "venetian_glaze_pass not found on Painter")
+    assert callable(getattr(Painter, "venetian_glaze_pass"))
+
+
+def test_subsurface_glow_pass_exists():
+    """Painter must have subsurface_glow_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "subsurface_glow_pass"), (
+        "subsurface_glow_pass not found on Painter")
+    assert callable(getattr(Painter, "subsurface_glow_pass"))
+
+
+def test_venetian_glaze_pass_no_error():
+    """venetian_glaze_pass() runs without error on a plain toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.54, 0.34, 0.22), texture_strength=0.08)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    # Should not raise
+    p.venetian_glaze_pass(
+        ref,
+        n_glaze_layers  = 3,
+        glaze_warmth    = 0.55,
+        shadow_depth    = 0.70,
+        impasto_strokes = 30,
+        impasto_size    = 5.0,
+        impasto_opacity = 0.85,
+    )
+
+
+def test_venetian_glaze_pass_modifies_canvas():
+    """venetian_glaze_pass() must modify a non-trivial canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.54, 0.34, 0.22), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.venetian_glaze_pass(ref, n_glaze_layers=3, impasto_strokes=20)
+    after  = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    assert np.abs(after - before).max() > 0, (
+        "venetian_glaze_pass should modify the canvas")
+
+
+def test_subsurface_glow_pass_no_error_no_mask():
+    """subsurface_glow_pass() runs without error when no figure mask is set."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.54, 0.34, 0.22), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.subsurface_glow_pass(
+        ref,
+        glow_color    = (0.90, 0.42, 0.24),
+        glow_strength = 0.15,
+        blur_sigma    = 4.0,
+        edge_falloff  = 0.55,
+    )
+
+
+def test_subsurface_glow_pass_no_error_with_mask():
+    """subsurface_glow_pass() runs correctly when a figure mask is provided."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.54, 0.34, 0.22), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+
+    p.subsurface_glow_pass(
+        ref,
+        glow_color    = (0.88, 0.40, 0.22),
+        glow_strength = 0.18,
+        blur_sigma    = 3.0,
+    )
+
+
+def test_subsurface_glow_pass_modifies_canvas():
+    """subsurface_glow_pass() with glow_strength > 0 and a figure mask edge must modify the canvas."""
+    from PIL import Image as _PILImg
+    p   = _make_small_painter(64, 64)
+
+    # Use a non-uniform reference with a clear bright/dark boundary so there are
+    # detectable luminance gradient edges for the glow zone.
+    arr = np.zeros((64, 64, 3), dtype=np.uint8)
+    arr[:, :32, :] = [200, 160, 110]   # left: warm mid-tone
+    arr[:, 32:, :] = [60, 48, 36]      # right: dark shadow
+    ref = _PILImg.fromarray(arr, "RGB")
+
+    p.tone_ground((0.54, 0.34, 0.22), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.subsurface_glow_pass(ref, glow_strength=0.40, blur_sigma=3.0, edge_falloff=0.0)
+    after  = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    assert np.abs(after - before).max() > 0, (
+        "subsurface_glow_pass with glow_strength=0.40 should modify the canvas")
+
+
+def test_venetian_flag_set_for_venetian_period():
+    """VENETIAN_RENAISSANCE period must set is_venetian=True."""
+    flags = _routing_flags(Period.VENETIAN_RENAISSANCE)
+    assert flags["is_venetian"] is True
+
+
+def test_venetian_flag_not_set_for_other_periods():
+    """is_venetian must be False for all periods except VENETIAN_RENAISSANCE."""
+    for period in Period:
+        if period == Period.VENETIAN_RENAISSANCE:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_venetian"], (
+            f"is_venetian should be False for {period.name}")
+
+
+def test_venetian_mutually_exclusive_with_renaissance():
+    """VENETIAN_RENAISSANCE and RENAISSANCE are distinct periods."""
+    flags_v = _routing_flags(Period.VENETIAN_RENAISSANCE)
+    flags_r = _routing_flags(Period.RENAISSANCE)
+    assert     flags_v["is_venetian"]
+    assert not flags_v.get("is_renaissance_soft", False)
+    assert not flags_r["is_venetian"]

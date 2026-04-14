@@ -193,6 +193,7 @@ class Period(Enum):
     MANNERIST     = auto()   # El Greco — elongated figures, jewel-tone palette, inner-lit silver flesh
     SURREALIST    = auto()   # Kahlo — flat folk-art zones, intense saturated palette, dark contour outlines
     ABSTRACT_EXPRESSIONIST = auto()  # Kandinsky — geometric resonance, synesthetic colour theory, floating primitives
+    VENETIAN_RENAISSANCE = auto()  # Titian — rich colourism, warm glazing, gestural impasto, luminous depth
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -447,6 +448,14 @@ class Style:
             # Very low wet_blend: geometric edges must stay hard.
             # Low edge_softness: no sfumato; circles and triangles have clean arcs.
             Period.ABSTRACT_EXPRESSIONIST: dict(stroke_size_face=10, stroke_size_bg=22, wet_blend=0.08, edge_softness=0.12),
+            # Venetian Renaissance (Titian): rich warm impasto and transparent glazing.
+            # stroke_size_face is the impasto highlight stroke width — bold (12px) to
+            # match Titian's thick loaded-brush passages.  stroke_size_bg is the
+            # background block-in stroke — moderate.  High wet_blend: Titian worked
+            # wet-into-wet, pushing and pulling colours across a moist surface.
+            # Moderate-high edge_softness: edges soften through glazing, but Titian
+            # is firmer than Leonardo's pure sfumato — forms are readable.
+            Period.VENETIAN_RENAISSANCE: dict(stroke_size_face=12, stroke_size_bg=30, wet_blend=0.72, edge_softness=0.62),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

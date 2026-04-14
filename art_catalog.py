@@ -1258,6 +1258,99 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Titian (Tiziano Vecellio) ─────────────────────────────────────────────
+    #
+    # Titian is the supreme master of Venetian colorism — the doctrine that
+    # colour, not line, is the primary vehicle of pictorial truth.  Where
+    # Florentine painters drew a linear cartoon and filled it with tone,
+    # Titian built his paintings from colour itself: dense warm glazes laid
+    # wet-into-wet, then scraped back, re-glazed, and scraped again over
+    # weeks and months.  X-ray reveals radically reworked passages in nearly
+    # every major work.
+    #
+    # Key technical facts:
+    #
+    #   Ground: Venetian painters primed canvas with a warm red-earth imprimatura
+    #   that glows through thin colour layers in the final work.  Titian's
+    #   grounds range from warm red (early work) to a cooler grey-buff in his
+    #   late "unfinished" style.
+    #
+    #   Glazing: Thin transparent layers of lead white + Venice turpentine +
+    #   pigment.  Flesh is built from transparent glazes of vermilion and
+    #   red lake over a white underpaint, producing a translucent, luminous
+    #   pink rather than an opaque flesh tone.  Deep shadows are glazed with
+    #   raw umber + Venetian red — warm rather than cold.
+    #
+    #   Impasto: Highlights are loaded impasto — thick passages of lead white
+    #   and pale yellow.  The contrast between translucent shadows and opaque
+    #   peaks gives the surface its three-dimensional texture.
+    #
+    #   Late style: Titian's last works (1560s–1576) abandon precise contour
+    #   entirely.  Brushwork is visible and gestural; figures dissolve into a
+    #   shimmering atmosphere of broken colour.  Vasari noted he used his
+    #   fingers as much as his brushes.
+    #
+    #   Palette: Dominated by rich scarlet (vermilion + red lake), warm gold
+    #   (Naples yellow, lead white, yellow ochre), deep Venetian blue (lapis
+    #   lazuli modified with lead white), and warm ivory flesh.  The overall
+    #   key is warm — blues are used sparingly as spatial punctuation, not
+    #   ambient tone.
+    #
+    # Pipeline inspiration: the venetian_glaze_pass() — build warm transparent
+    # glaze layers that deepen shadows with red-amber warmth while preserving
+    # translucency.  Impasto highlight strokes are applied last in opaque thick
+    # passages.  subsurface_glow_pass() simulates the translucent skin quality
+    # achieved by Titian's red-lake glazes over white ground.
+    "titian": ArtStyle(
+        artist="Titian (Tiziano Vecellio)",
+        movement="Venetian Renaissance / Venetian Colorism",
+        nationality="Italian (Venetian)",
+        period="1490–1576",
+        palette=[
+            (0.84, 0.28, 0.18),   # vermilion-red — Titian's defining colour
+            (0.76, 0.52, 0.18),   # Naples yellow-gold — lit passages
+            (0.90, 0.80, 0.60),   # warm ivory flesh — lit skin
+            (0.52, 0.32, 0.20),   # warm umber — flesh mid-tone
+            (0.30, 0.20, 0.12),   # deep raw umber shadow
+            (0.28, 0.38, 0.62),   # Venetian lapis blue — cool accent
+            (0.60, 0.18, 0.14),   # deep red lake — transparent shadow glaze
+        ],
+        ground_color=(0.54, 0.34, 0.22),    # warm red-earth imprimatura
+        stroke_size=14,
+        wet_blend=0.82,                      # rich wet-into-wet blending
+        edge_softness=0.72,                  # softer than Baroque, firmer than sfumato
+        jitter=0.038,                        # Titian's surfaces have organic irregularity
+        glazing=(0.72, 0.40, 0.18),          # warm Venetian red-amber glaze
+        crackle=True,                        # 16th-century Venetian canvas
+        chromatic_split=False,
+        technique=(
+            "Venetian colorism: colour replaces line as structural element. "
+            "Transparent warm glazes (vermilion, red lake, yellow ochre) "
+            "over white underpaint produce luminous, translucent flesh. "
+            "Deep shadows glazed with warm umber rather than cool grey. "
+            "Impasto highlights in thick lead white and Naples yellow. "
+            "Late works: gestural broken brushwork; fingers used as much as brushes. "
+            "The warm red-earth ground glows through thin colour zones."
+        ),
+        famous_works=[
+            ("Assumption of the Virgin", "1516–1518"),
+            ("Bacchus and Ariadne", "1520–1523"),
+            ("Venus of Urbino", "1538"),
+            ("Portrait of a Man", "c. 1512"),
+            ("The Flaying of Marsyas", "c. 1570–1576"),
+            ("Pieta", "c. 1576"),
+        ],
+        inspiration=(
+            "Use venetian_glaze_pass(): build translucent warm glaze layers "
+            "that deepen shadows with red-amber warmth while preserving luminosity. "
+            "Follow with subsurface_glow_pass() to simulate the translucent skin "
+            "quality of red-lake glazes over white ground — edges of the face and "
+            "hands glow warm red as light passes through thin skin. "
+            "Impasto highlight strokes are thick and directional, applied last. "
+            "The ground colour (warm red-earth) should remain visible in thin zones."
+        ),
+    ),
+
 }
 
 
