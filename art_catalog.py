@@ -1418,6 +1418,90 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Amedeo Modigliani ──────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Modigliani (1884–1920) was an Italian painter of the École de Paris whose
+    # singular portraiture style is among the most immediately recognisable in
+    # Western art.  Born in Livorno, he came to Paris in 1906, absorbed the formal
+    # simplifications of Paul Cézanne and the mask aesthetics of African and
+    # Cycladic sculpture, and forged a style that has no true antecedent.
+    #
+    # His faces are oval — elongated to an extreme that echoes medieval Sienese
+    # altarpieces and African ritual masks — with swan necks, tilted heads, and
+    # almond-shaped eyes rendered as solid ellipses of a single cool colour with
+    # no pupils (or with tiny irises reduced to slits).  The nose is suggested by
+    # a single narrow ridge-line; the mouth is small and precisely placed.  There
+    # is almost no chiaroscuro: flesh is a warm, flat ochre that barely modulates
+    # across the face.  A single thin shadow-blue beneath the chin separates face
+    # from neck.  The background — when not a warm neutral — is a single cool
+    # cobalt or viridian plane.
+    #
+    # This radical simplification was not poverty of means but philosophical
+    # intention: Modigliani wanted to paint the soul rather than the surface.
+    # His primary influences were Sienese Gothic painting (Duccio, Simone Martini),
+    # African masks, Cycladic marble heads, and Cézanne's structural reduction.
+    # Brancusi introduced him to the direct-cut sculpture that made him think of
+    # form as the primary reality beneath appearance.
+    #
+    # Pipeline: warm ochre ground, oil underpainting, build_form (minimal),
+    # oval_mask_pass() for the mask-like face (warm flat flesh, almond-eye ovals,
+    # smooth oval contour outline), warm_cool_boundary_pass() for simultaneous
+    # contrast at the face/background boundary.
+    "modigliani": ArtStyle(
+        artist="Amedeo Modigliani",
+        movement="École de Paris / Post-Impressionism / Primitivism",
+        nationality="Italian",
+        period="1906–1920",
+        palette=[
+            (0.84, 0.62, 0.38),   # warm ochre flesh — the defining Modigliani skin tone
+            (0.68, 0.44, 0.24),   # raw sienna shadow — the only face shadow allowed
+            (0.22, 0.38, 0.70),   # cobalt blue — the eye fill colour (no pupils)
+            (0.24, 0.60, 0.42),   # viridian cool — background plane colour
+            (0.90, 0.78, 0.52),   # Naples yellow-ivory — lit passages and hands
+            (0.10, 0.07, 0.06),   # near-black outline — the mask contour
+            (0.62, 0.54, 0.72),   # blue-grey mauve — cool shadow / background neutral
+        ],
+        ground_color=(0.78, 0.62, 0.40),    # warm sand-ochre — Modigliani worked on
+        # unprepared or lightly primed canvas; the ochre ground glows through thin areas
+        stroke_size=9,
+        wet_blend=0.12,                      # minimal blending — flat, decisive colour zones
+        edge_softness=0.15,                  # outlines are present but not totally hard
+        jitter=0.020,
+        glazing=None,                        # no formal glazing — colour applied direct
+        crackle=False,                       # his works are relatively recent (1906-1920)
+        chromatic_split=False,
+        technique=(
+            "Primitivist mask technique: highly elongated oval faces derived from "
+            "African mask forms and Cycladic marble sculpture.  Almond-shaped eyes "
+            "rendered as solid ellipses of cobalt blue or grey-violet with no pupils "
+            "(or tiny irises reduced to crescent slits).  Nose suggested by a single "
+            "narrow ridge; lips small and precisely placed.  Neck stretched far beyond "
+            "anatomical proportion — as long as the face itself.  Flesh is warm flat "
+            "ochre with almost no modelling; the single shadow colour (raw sienna or "
+            "blue-grey) appears only beneath the chin and in the eye sockets. "
+            "Backgrounds are single flat planes of cobalt, viridian, or grey-mauve — "
+            "never illusionistic space.  The contour outline (near-black) is the "
+            "primary structural element — drawn as one continuous oval, unbroken."
+        ),
+        famous_works=[
+            ("Jeanne Hébuterne with a Hat", "1918"),
+            ("Nu couché (sur le côté gauche)", "1917"),
+            ("Portrait of Lunia Czechowska", "1918"),
+            ("Seated Nude", "1916"),
+            ("Portrait of Paul Guillaume", "1916"),
+            ("Reclining Nude (La Grande Nue)", "1919"),
+        ],
+        inspiration=(
+            "Use oval_mask_pass() to impose the Modigliani mask on the figure: "
+            "flatten face modelling to warm-ochre field, draw smooth oval contour, "
+            "elongate neck.  Follow with warm_cool_boundary_pass() to create the "
+            "simultaneous-contrast edge vibration between warm flesh and cool "
+            "cobalt/viridian background — the boundary that makes his figures "
+            "appear to glow against their surroundings."
+        ),
+    ),
+
 }
 
 

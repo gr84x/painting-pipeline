@@ -493,6 +493,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     is_venetian          = (scene.style.period == Period.VENETIAN_RENAISSANCE)
     is_fauvist           = (scene.style.period == Period.FAUVIST)
+    is_primitivist       = (scene.style.period == Period.PRIMITIVIST)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -1017,6 +1018,69 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # No glaze — Matisse's colour is direct and final, not mediated by varnish.
         # Very light vignette; no crackle (modern canvas).
         p.finish(vignette=0.12, crackle=False)
+
+    elif is_primitivist:
+        # ── Primitivist pipeline (Amedeo Modigliani technique) ───────────────
+        # Modigliani painted on warm sand-ochre grounds, often unprepared canvas.
+        # His figure painting is a process of geometric abstraction: he distilled
+        # each sitter into a mask archetype — oval face, elongated neck, almond
+        # eyes, minimal shadow.  He worked rapidly; many portraits were finished
+        # in a single session.  The background is a single flat plane of cool
+        # cobalt or viridian that contrasts sharply with the warm flesh tones,
+        # creating the strong figure-ground boundary that defines his compositions.
+        #
+        # Pipeline:
+        #   1. Warm sand-ochre ground — the ground colour reads through in the
+        #      thinnest flesh zones and through the canvas weave.
+        #   2. Standard underpainting + block_in to establish figure masses.
+        #   3. build_form (minimal) — just enough to know where the shadow edge
+        #      lies before the oval mask flattens everything else.
+        #   4. oval_mask_pass() — the signature Modigliani technique:
+        #      (a) flatten luminance modelling in face zone toward a single warm
+        #          ochre mid-value (suppress chiaroscuro),
+        #      (b) tint face zone toward warm ochre flesh colour,
+        #      (c) draw smooth oval face contour + elongated neck column in
+        #          near-black, giving the mask-like silhouette.
+        #   5. warm_cool_boundary_pass() — session 17 artistic improvement:
+        #      micro-push warm/cool temperature at all colour boundaries so the
+        #      face-to-background edge vibrates with simultaneous contrast.
+        #   6. No formal glaze — Modigliani did not varnish; paint surface is final.
+        #   7. Light vignette; no crackle (modern early-20th-century canvas).
+        modi_style = _ART_CATALOG.get("modigliani")
+        ground_col = modi_style.ground_color if modi_style else (0.78, 0.62, 0.40)
+
+        # Warm sand-ochre ground — Modigliani's warm foundation
+        p.tone_ground(ground_col, texture_strength=0.05)
+
+        # Standard layered build: underpainting to know the figure, block_in to
+        # establish masses, minimal build_form for shadow placement
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.5), n_strokes=120)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=240)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=350)
+
+        # Core Modigliani technique: mask face, elongate neck, draw oval contour
+        p.oval_mask_pass(
+            ref,
+            flesh_color       = (0.84, 0.62, 0.38),   # warm ochre flesh
+            shadow_color      = (0.68, 0.44, 0.24),   # raw sienna chin shadow
+            outline_color     = (0.10, 0.07, 0.06),   # near-black contour
+            outline_thickness = max(2.0, float(sp["stroke_size_face"]) * 0.28),
+            outline_opacity   = 0.90,
+            neck_elongation   = 0.22,
+            flesh_flatten     = 0.58,
+            flesh_tint        = 0.32,
+        )
+
+        # Warm-cool boundary vibration — makes the face/background edge alive
+        p.warm_cool_boundary_pass(
+            strength    = 0.14,
+            edge_thresh = 0.08,
+            blur_sigma  = 1.8,
+        )
+
+        # No formal glaze — Modigliani's colour is direct and final.
+        # Light vignette; no crackle (early 20th century, no extreme ageing yet).
+        p.finish(vignette=0.20, crackle=False)
 
     elif is_synthetist:
         # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────

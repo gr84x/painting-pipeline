@@ -30,8 +30,9 @@ EXPECTED_ARTISTS = [
     "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "kandinsky",
-    "klimt", "leonardo", "manet", "matisse", "monet", "rembrandt", "rothko",
-    "sargent", "seurat", "titian", "turner", "van_gogh", "velazquez", "vermeer",
+    "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "rembrandt",
+    "rothko", "sargent", "seurat", "titian", "turner", "van_gogh", "velazquez",
+    "vermeer",
 ]
 
 
@@ -156,6 +157,7 @@ EXPECTED_PERIODS = [
     "PROTO_EXPRESSIONIST", "REALIST", "VIENNESE_EXPRESSIONIST",
     "COLOR_FIELD", "SYNTHETIST", "MANNERIST", "SURREALIST",
     "ABSTRACT_EXPRESSIONIST", "VENETIAN_RENAISSANCE",
+    "FAUVIST", "PRIMITIVIST",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -639,3 +641,119 @@ def test_fauvist_stroke_params_all_keys_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"FAUVIST stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Modigliani catalog entry (session 17)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_modigliani_in_catalog():
+    """Modigliani (session 17) must be in the catalog."""
+    assert "modigliani" in CATALOG
+
+
+def test_modigliani_movement():
+    s = get_style("modigliani")
+    movement_lower = s.movement.lower()
+    assert ("paris" in movement_lower or "primitivis" in movement_lower
+            or "école" in movement_lower or "post" in movement_lower), (
+        f"Modigliani movement should reference École de Paris or Primitivism; got {s.movement!r}")
+
+
+def test_modigliani_palette_length():
+    s = get_style("modigliani")
+    assert len(s.palette) >= 5, "Modigliani palette should have at least 5 key colours"
+
+
+def test_modigliani_palette_values_in_range():
+    """All Modigliani palette RGB values must be in [0, 1]."""
+    s = get_style("modigliani")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Modigliani palette {rgb}")
+
+
+def test_modigliani_ground_warm():
+    """Modigliani's warm ochre ground: R channel must dominate B."""
+    s = get_style("modigliani")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Modigliani ground should be warm (R > B), got R={r:.2f} B={b:.2f}")
+
+
+def test_modigliani_wet_blend_low():
+    """Modigliani's flat zone technique: wet_blend must be very low."""
+    s = get_style("modigliani")
+    assert s.wet_blend <= 0.20, (
+        f"Modigliani wet_blend should be low (flat zones), got {s.wet_blend}")
+
+
+def test_modigliani_edge_softness_low():
+    """Modigliani uses hard oval contour outlines — edge_softness must be low."""
+    s = get_style("modigliani")
+    assert s.edge_softness <= 0.25, (
+        f"Modigliani edge_softness should be low (hard oval contour), got {s.edge_softness}")
+
+
+def test_modigliani_no_crackle():
+    """Modigliani worked in the early 20th century — crackle should be False."""
+    s = get_style("modigliani")
+    assert not s.crackle, "Modigliani's modern canvas does not crackle"
+
+
+def test_modigliani_famous_works_not_empty():
+    s = get_style("modigliani")
+    assert len(s.famous_works) >= 3, "Modigliani should have at least 3 famous works"
+
+
+def test_modigliani_famous_works_include_known_painting():
+    s = get_style("modigliani")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Nu" in t or "Portrait" in t or "Jeanne" in t for t in titles), (
+        "Modigliani famous works should include a known nude or portrait")
+
+
+def test_modigliani_inspiration_references_oval_mask():
+    """Modigliani inspiration text should reference oval_mask_pass."""
+    s = get_style("modigliani")
+    assert "oval_mask" in s.inspiration.lower().replace(" ", "_"), (
+        "Modigliani inspiration should reference oval_mask_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PRIMITIVIST period (session 17)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_primitivist_period_present():
+    """PRIMITIVIST must exist in Period enum (session 17)."""
+    assert hasattr(Period, "PRIMITIVIST"), "Period.PRIMITIVIST not found"
+    assert Period.PRIMITIVIST in list(Period)
+
+
+def test_primitivist_stroke_params_low_wet_blend():
+    """PRIMITIVIST should have low wet_blend — flat zones, no colour bleed."""
+    style = Style(medium=Medium.OIL, period=Period.PRIMITIVIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.20, (
+        f"PRIMITIVIST wet_blend should be low (flat zones), got {p['wet_blend']}")
+
+
+def test_primitivist_stroke_params_low_edge_softness():
+    """PRIMITIVIST should have low edge_softness — oval contour present, no sfumato."""
+    style = Style(medium=Medium.OIL, period=Period.PRIMITIVIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.30, (
+        f"PRIMITIVIST edge_softness should be low; got {p['edge_softness']}")
+
+
+def test_primitivist_stroke_params_all_keys_present():
+    """PRIMITIVIST stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.PRIMITIVIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"PRIMITIVIST stroke_params missing key: {key!r}"

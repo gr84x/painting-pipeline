@@ -195,6 +195,7 @@ class Period(Enum):
     ABSTRACT_EXPRESSIONIST = auto()  # Kandinsky — geometric resonance, synesthetic colour theory, floating primitives
     VENETIAN_RENAISSANCE = auto()  # Titian — rich colourism, warm glazing, gestural impasto, luminous depth
     FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
+    PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -465,6 +466,13 @@ class Style:
             # into each other — flat is the point.  Very low edge_softness: coloured
             # contour lines separate zones cleanly, no sfumato.
             Period.FAUVIST:       dict(stroke_size_face=10, stroke_size_bg=22, wet_blend=0.05, edge_softness=0.08),
+            # Primitivist (Modigliani): mask-like oval faces, minimal modelling.
+            # stroke_size_face is the face zone fill stroke — medium (broad decisive
+            # ochre passages over the face plane).  stroke_size_bg is the background
+            # flat fill — large (single flat cobalt/viridian background plane).
+            # Very low wet_blend: zones must stay flat, no blending across boundaries.
+            # Low edge_softness: the oval contour outline is present and deliberate.
+            Period.PRIMITIVIST:   dict(stroke_size_face=9,  stroke_size_bg=20, wet_blend=0.10, edge_softness=0.18),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

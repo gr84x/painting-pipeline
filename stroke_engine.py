@@ -5144,3 +5144,350 @@ class Painter:
               f"(light zone: {light_mask.sum()} px  "
               f"shadow zone: {shadow_mask.sum()} px  "
               f"mid-tone: {mid_mask.sum()} px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Oval mask pass — Amedeo Modigliani / Primitivist portrait (session 17)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def oval_mask_pass(self,
+                       reference:        Union[np.ndarray, Image.Image],
+                       flesh_color:      Color = (0.84, 0.62, 0.38),
+                       shadow_color:     Color = (0.68, 0.44, 0.24),
+                       outline_color:    Color = (0.10, 0.07, 0.06),
+                       outline_thickness: float = 2.5,
+                       outline_opacity:  float = 0.88,
+                       neck_elongation:  float = 0.18,
+                       flesh_flatten:    float = 0.55,
+                       flesh_tint:       float = 0.30):
+        """
+        Primitivist mask pass — inspired by Amedeo Modigliani.
+
+        Modigliani's faces are derived from two primary sources: African ritual
+        masks (long oval form, almond eye cavities) and Cycladic marble idols
+        (featureless, archaic simplification).  His portrait technique reduces
+        the human face to its essential geometry:
+
+          1. An oval — smooth, unbroken, elongated about 30% beyond anatomical
+             proportion.  One continuous contour line defines the whole face.
+
+          2. Flat warm-ochre flesh fill — minimal modelling.  The only shadow
+             colour is raw sienna or blue-grey, placed only beneath the chin
+             and at the eye sockets.  No chiaroscuro: form is stated by the
+             contour alone.
+
+          3. Almond eyes — solid ellipses of cobalt blue or grey-mauve.  No
+             pupils in the early work; tiny iris slits in the later portraits.
+             The eye is a shape, not a window.
+
+          4. Elongated neck — longer than the face itself, a single unbroken
+             column.  This is the most visually distinctive Modigliani marker.
+
+        Implementation
+        --------------
+        1. Detect face region from figure mask (upper figure region) or
+           luminance analysis if no mask is available.
+
+        2. Within the face ellipse: compress luminance variation toward a
+           neutral mid-value (``flesh_flatten`` controls strength).  This
+           simulates the near-total suppression of chiaroscuro Modigliani used.
+
+        3. Tint the flattened face zone toward warm ochre (``flesh_tint``
+           controls strength — 0 = unchanged, 1 = fully ochre).
+
+        4. Draw a smooth oval contour around the detected face region using
+           Cairo arc operations.  The oval is slightly taller than the detected
+           face (elongation factor), giving the mask-like silhouette.
+
+        5. Elongate the neck: extend the face contour downward by
+           ``neck_elongation`` as a fraction of the face height.
+
+        Parameters
+        ----------
+        reference         : PIL Image or ndarray — used for luminance analysis.
+        flesh_color       : RGB of the warm ochre flesh fill target.
+        shadow_color      : RGB of the raw sienna shadow placed at chin/eyes.
+        outline_color     : RGB of the near-black oval contour line.
+        outline_thickness : Width of the contour line in pixels.
+        outline_opacity   : Alpha of the contour composite.
+        neck_elongation   : Neck extension as fraction of face height (0.18 =
+                            18%).  Modigliani's necks are about 0.3–0.45 of the
+                            face height but 0.18–0.25 is enough in the pipeline.
+        flesh_flatten     : Strength of luminance compression in the face zone
+                            (0 = no change, 1 = fully flat mid-value).
+        flesh_tint        : Strength of ochre tint overlay (0 = no tint,
+                            1 = full replacement with flesh_color).
+
+        Notes
+        -----
+        Famous works to study:
+          *Jeanne Hébuterne with a Hat* (1918) — definitive oval, tilted neck.
+          *Nu couché* (1917) — the mask face on a reclining nude.
+          *Portrait of Lunia Czechowska* (1918) — severe elongation, cobalt eyes.
+        """
+        print(f"Oval mask pass  (flatten={flesh_flatten:.2f}  tint={flesh_tint:.2f}  "
+              f"neck={neck_elongation:.2f})…")
+
+        ref  = self._prep(reference)
+        h, w = ref.shape[:2]
+
+        # ── Locate face ellipse centre from figure mask ───────────────────────
+        # If a figure mask is available, the face is in the upper ~40% of the
+        # figure bounding box.  Without a mask, fall back to the upper-centre
+        # of the canvas where a portrait subject would typically sit.
+        if self._figure_mask is not None:
+            rows   = np.any(self._figure_mask > 0.5, axis=1)
+            cols   = np.any(self._figure_mask > 0.5, axis=0)
+            if rows.any() and cols.any():
+                r0, r1 = int(np.argmax(rows)), int(h - 1 - np.argmax(rows[::-1]))
+                c0, c1 = int(np.argmax(cols)), int(w - 1 - np.argmax(cols[::-1]))
+                # Face is upper 40% of figure height
+                face_top    = r0
+                face_bottom = r0 + int((r1 - r0) * 0.42)
+                face_cx     = (c0 + c1) // 2
+                face_cy     = (face_top + face_bottom) // 2
+                face_ry     = max(20, (face_bottom - face_top) // 2)
+                face_rx     = max(14, int(face_ry * 0.62))   # oval is taller than wide
+            else:
+                face_cx, face_cy = w // 2, h // 3
+                face_ry = h // 6
+                face_rx = int(face_ry * 0.62)
+        else:
+            face_cx, face_cy = w // 2, h // 3
+            face_ry = h // 6
+            face_rx = int(face_ry * 0.62)
+
+        # ── Stage 1: Flatten and tint face zone ──────────────────────────────
+        # Read current canvas pixel values
+        ctx  = self.canvas.ctx
+        surf = self.canvas.surface
+        buf  = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+        # Build face ellipse mask (soft-edged)
+        yy, xx = np.ogrid[:h, :w]
+        dist_sq = ((xx - face_cx) / max(face_rx, 1)) ** 2 + \
+                  ((yy - face_cy) / max(face_ry, 1)) ** 2
+        # Feather: 1.0 at centre, 0.0 outside the ellipse, smooth transition
+        face_zone = np.clip(1.5 - dist_sq, 0.0, 1.0).astype(np.float32)
+
+        # Current canvas RGB (Cairo BGRA: [B, G, R, A])
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+        mid_lum = float(np.median(lum[face_zone > 0.5])) if (face_zone > 0.5).any() else 0.55
+
+        # Compress luminance variation toward mid-value within face zone
+        # New lum = lerp(lum, mid_lum, flesh_flatten * face_zone)
+        blend_w = flesh_flatten * face_zone
+        flat_r  = r_ch * (1.0 - blend_w) + mid_lum * blend_w
+        flat_g  = g_ch * (1.0 - blend_w) + mid_lum * blend_w
+        flat_b  = b_ch * (1.0 - blend_w) + mid_lum * blend_w
+
+        # Tint face zone toward warm ochre flesh colour
+        fr, fg, fb = flesh_color
+        tint_w = flesh_tint * face_zone
+        final_r = flat_r * (1.0 - tint_w) + fr * tint_w
+        final_g = flat_g * (1.0 - tint_w) + fg * tint_w
+        final_b = flat_b * (1.0 - tint_w) + fb * tint_w
+
+        # Write back into buffer (BGRA order)
+        buf[:, :, 2] = np.clip(final_r * 255, 0, 255).astype(np.uint8)  # R
+        buf[:, :, 1] = np.clip(final_g * 255, 0, 255).astype(np.uint8)  # G
+        buf[:, :, 0] = np.clip(final_b * 255, 0, 255).astype(np.uint8)  # B
+        buf[:, :, 3] = 255
+
+        tmp_surf = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp_surf, 0, 0)
+        ctx.paint()
+
+        # ── Stage 2: Draw oval contour and neck line ──────────────────────────
+        # Modigliani's contour is a single continuous near-black line around the
+        # face oval.  The neck is two near-parallel lines extending downward from
+        # the chin point, separated by roughly the chin width.
+        neck_length = int(face_ry * neck_elongation * 2.0)
+        or_, og, ob = outline_color
+
+        ctx.save()
+        ctx.set_source_rgba(or_, og, ob, outline_opacity)
+        ctx.set_line_width(outline_thickness)
+
+        # Face oval (slightly taller than detected: *1.05 elongation factor)
+        oval_ry = face_ry * 1.05
+        oval_rx = face_rx
+        ctx.arc(face_cx, face_cy, 1.0, 0, 2 * math.pi)  # unit circle → scaled
+        ctx.new_path()
+        ctx.save()
+        ctx.translate(face_cx, face_cy)
+        ctx.scale(oval_rx, oval_ry)
+        ctx.arc(0, 0, 1.0, 0, 2 * math.pi)
+        ctx.restore()
+        ctx.stroke()
+
+        # Neck column: two vertical lines from chin down by neck_length
+        chin_y   = face_cy + int(oval_ry)
+        neck_w   = max(4, int(face_rx * 0.38))   # neck width fraction of face
+
+        ctx.move_to(face_cx - neck_w, chin_y)
+        ctx.line_to(face_cx - neck_w, chin_y + neck_length)
+        ctx.stroke()
+
+        ctx.move_to(face_cx + neck_w, chin_y)
+        ctx.line_to(face_cx + neck_w, chin_y + neck_length)
+        ctx.stroke()
+
+        ctx.restore()
+
+        print(f"  Oval mask pass complete  "
+              f"(face_cx={face_cx}, face_cy={face_cy}  "
+              f"rx={face_rx}, ry={face_ry}  neck={neck_length}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Warm-cool boundary pass — session 17 random artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def warm_cool_boundary_pass(self,
+                                strength:    float = 0.14,
+                                edge_thresh: float = 0.08,
+                                blur_sigma:  float = 1.8,
+                                warm_push:   Color = (0.12, 0.02, -0.06),
+                                cool_push:   Color = (-0.06, 0.01, 0.10)):
+        """
+        Warm-cool boundary vibration — universally applicable tonal refinement.
+
+        Painters from Delacroix through Cézanne, the Impressionists, and
+        Modigliani discovered that boundaries between colour areas appear more
+        perceptually vivid when warm and cool tones are juxtaposed across the
+        edge.  This is simultaneous contrast (Chevreul, 1839): each colour
+        intensifies the apparent contrast of its neighbour across an edge by
+        shifting the viewer's perception slightly toward the complementary.
+
+        In practice this means:
+          - The warm side of a boundary (more red/yellow) gets a micro-push
+            toward warm (boost R slightly, damp B).
+          - The cool side (more blue/green) gets a micro-push toward cool
+            (boost B slightly, damp R).
+
+        The visual result is that boundaries feel "inhabited" — alive and
+        subtly vibrating — rather than static.  This is particularly important
+        in portrait painting where the face-to-background edge is the central
+        perceptual event.
+
+        Unlike folk_retablo_pass() boundary_vibration (which uses explicit
+        warm/cool strokes at zone edges), this pass operates directly on the
+        canvas pixel buffer using vectorised numpy operations — fast, globally
+        applied, and style-agnostic.  It is useful after any style pass that
+        tends to produce flat or dead-looking boundaries.
+
+        Implementation
+        --------------
+        1. Read the current canvas buffer as float32 RGB.
+        2. Compute a Sobel edge-magnitude map.
+        3. Threshold: pixels above ``edge_thresh`` are boundary pixels.
+        4. For each boundary pixel, classify as "warm side" or "cool side"
+           by comparing local R+G (warm channels) vs B+G (cool channels).
+           A simple warm/cool score = (R - B) in the blurred reference.
+        5. Apply ``warm_push`` delta to warm-side boundary pixels and
+           ``cool_push`` delta to cool-side boundary pixels, weighted by
+           edge magnitude and ``strength``.
+        6. Composite back to the Cairo surface.
+
+        Parameters
+        ----------
+        strength    : Overall intensity of the temperature push.  0.10–0.18
+                      is subtle and naturalistic; >0.25 reads as artificial.
+        edge_thresh : Minimum normalised edge magnitude to receive the push.
+                      0.06–0.12 is a good range.
+        blur_sigma  : Gaussian blur applied to the edge map before thresholding,
+                      so isolated noise pixels don't fire.  1.5–2.5 is good.
+        warm_push   : RGB delta applied to the warm side of each boundary.
+                      Positive R, small positive G, negative B = red-orange push.
+        cool_push   : RGB delta applied to the cool side.
+                      Negative R, small positive G, positive B = blue-violet push.
+
+        Notes
+        -----
+        This pass should be called AFTER the main style passes and BEFORE the
+        final glaze/vignette.  It is particularly effective after:
+          - oval_mask_pass() — to make the face-background boundary vibrate
+          - fauvist_mosaic_pass() — to micro-push zone boundaries even further
+          - flat_plane_pass() — to animate Manet's flat value-plane edges
+        """
+        print(f"Warm-cool boundary pass  (strength={strength:.2f}  "
+              f"thresh={edge_thresh:.2f}  sigma={blur_sigma:.1f})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+        # Current canvas RGB (Cairo BGRA: [B, G, R, A])
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Edge detection ───────────────────────────────────────────────────
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+        gx  = ndimage.sobel(lum, axis=1).astype(np.float32)
+        gy  = ndimage.sobel(lum, axis=0).astype(np.float32)
+        edge_mag = np.sqrt(gx ** 2 + gy ** 2)
+        if edge_mag.max() > 1e-9:
+            edge_mag /= edge_mag.max()
+
+        # Smooth to reduce noise
+        edge_mag = ndimage.gaussian_filter(edge_mag, sigma=blur_sigma)
+        if edge_mag.max() > 1e-9:
+            edge_mag /= edge_mag.max()
+
+        # ── Warm / cool classification ───────────────────────────────────────
+        # warm_score > 0 → warm side (reddish), < 0 → cool side (bluish)
+        warm_score = r_ch - b_ch
+
+        # Apply a slight blur so that classification reflects local neighbourhood,
+        # not just the single edge pixel (which may be a neutral transition colour).
+        warm_score = ndimage.gaussian_filter(warm_score, sigma=blur_sigma * 1.5)
+
+        warm_side = warm_score > 0.0
+        cool_side = ~warm_side
+
+        # ── Build delta maps ─────────────────────────────────────────────────
+        # Weight by edge magnitude * strength so only true boundaries are affected.
+        edge_weight = np.clip(edge_mag, 0.0, 1.0) * strength
+
+        # Only apply where edge is above threshold
+        active = edge_mag > edge_thresh
+
+        dr = np.zeros((h, w), dtype=np.float32)
+        dg = np.zeros((h, w), dtype=np.float32)
+        db = np.zeros((h, w), dtype=np.float32)
+
+        # Warm-side pixels get the warm push
+        wp = active & warm_side
+        dr[wp] += warm_push[0] * edge_weight[wp]
+        dg[wp] += warm_push[1] * edge_weight[wp]
+        db[wp] += warm_push[2] * edge_weight[wp]
+
+        # Cool-side pixels get the cool push
+        cp = active & cool_side
+        dr[cp] += cool_push[0] * edge_weight[cp]
+        dg[cp] += cool_push[1] * edge_weight[cp]
+        db[cp] += cool_push[2] * edge_weight[cp]
+
+        # ── Apply deltas to canvas buffer ────────────────────────────────────
+        buf[:, :, 2] = np.clip((r_ch + dr) * 255, 0, 255).astype(np.uint8)  # R
+        buf[:, :, 1] = np.clip((g_ch + dg) * 255, 0, 255).astype(np.uint8)  # G
+        buf[:, :, 0] = np.clip((b_ch + db) * 255, 0, 255).astype(np.uint8)  # B
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_active = int(active.sum())
+        n_warm   = int((active & warm_side).sum())
+        n_cool   = int((active & cool_side).sum())
+        print(f"  Warm-cool boundary pass complete  "
+              f"(active={n_active}px  warm={n_warm}  cool={n_cool})")

@@ -171,6 +171,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_romantic":                period == Period.ROMANTIC,
         "is_venetian":                period == Period.VENETIAN_RENAISSANCE,
         "is_fauvist":                 period == Period.FAUVIST,
+        "is_primitivist":             period == Period.PRIMITIVIST,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -768,3 +769,145 @@ def test_fauvist_mutually_exclusive_with_synthetist():
     assert not flags_f["is_synthetist"]
     assert     flags_s["is_synthetist"]
     assert not flags_s["is_fauvist"]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# oval_mask_pass — Modigliani Primitivist technique (session 17)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_oval_mask_pass_exists():
+    """Painter must have oval_mask_pass() method after session 17."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "oval_mask_pass"), "oval_mask_pass not found on Painter"
+    assert callable(getattr(Painter, "oval_mask_pass"))
+
+
+def test_oval_mask_pass_no_error_no_mask():
+    """oval_mask_pass() should complete without error when no figure mask is set."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.78, 0.62, 0.40), texture_strength=0.05)
+    p.block_in(ref, stroke_size=12, n_strokes=30)
+    p.oval_mask_pass(ref)
+
+
+def test_oval_mask_pass_modifies_canvas():
+    """oval_mask_pass() must change at least some pixel values in the face zone."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.78, 0.62, 0.40), texture_strength=0.05)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.oval_mask_pass(ref, flesh_tint=0.60)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    assert not np.array_equal(before, after), (
+        "oval_mask_pass should modify at least some canvas pixels")
+
+
+def test_oval_mask_pass_pixels_in_range():
+    """oval_mask_pass() must not produce out-of-range (>255) pixel values."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.78, 0.62, 0.40), texture_strength=0.05)
+    p.block_in(ref, stroke_size=12, n_strokes=30)
+    p.oval_mask_pass(ref)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.max() <= 255
+    assert buf.min() >= 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# warm_cool_boundary_pass — session 17 random artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_warm_cool_boundary_pass_exists():
+    """Painter must have warm_cool_boundary_pass() method after session 17."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "warm_cool_boundary_pass"), (
+        "warm_cool_boundary_pass not found on Painter")
+    assert callable(getattr(Painter, "warm_cool_boundary_pass"))
+
+
+def test_warm_cool_boundary_pass_no_error():
+    """warm_cool_boundary_pass() should complete without error on a plain canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.08)
+    p.block_in(ref, stroke_size=12, n_strokes=40)
+    p.warm_cool_boundary_pass()
+
+
+def test_warm_cool_boundary_pass_modifies_boundaries():
+    """
+    With a two-tone reference (warm left / cool right), the pass should produce
+    different pixel values near the centre than far from it.
+    """
+    import numpy as np
+    from PIL import Image as _PILImg
+
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+
+    # Paint half warm, half cool so there is a strong boundary
+    arr = np.zeros((64, 64, 3), dtype=np.uint8)
+    arr[:, :32, :] = [200, 120, 60]    # left: warm
+    arr[:, 32:, :] = [60, 100, 200]   # right: cool
+    ref = _PILImg.fromarray(arr, "RGB")
+    p.block_in(ref, stroke_size=14, n_strokes=60)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.warm_cool_boundary_pass(strength=0.30, edge_thresh=0.05)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    assert not np.array_equal(before, after), (
+        "warm_cool_boundary_pass should modify pixels near the warm/cool boundary")
+
+
+def test_warm_cool_boundary_pass_pixels_in_range():
+    """warm_cool_boundary_pass() must not produce out-of-range pixel values."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.08)
+    p.block_in(ref, stroke_size=12, n_strokes=40)
+    p.warm_cool_boundary_pass()
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.max() <= 255
+    assert buf.min() >= 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PRIMITIVIST period routing flags (session 17)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_primitivist_flag_set_for_primitivist_period():
+    """is_primitivist routing flag must be True for Period.PRIMITIVIST."""
+    flags = _routing_flags(Period.PRIMITIVIST)
+    assert flags["is_primitivist"] is True
+
+
+def test_primitivist_flag_not_set_for_other_periods():
+    """is_primitivist must be False for all periods except PRIMITIVIST."""
+    for period in Period:
+        if period == Period.PRIMITIVIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_primitivist"], (
+            f"is_primitivist should be False for {period.name}")
+
+
+def test_primitivist_mutually_exclusive_with_fauvist():
+    """PRIMITIVIST and FAUVIST are distinct flat-colour periods."""
+    flags_p = _routing_flags(Period.PRIMITIVIST)
+    flags_f = _routing_flags(Period.FAUVIST)
+    assert     flags_p["is_primitivist"]
+    assert not flags_p["is_fauvist"]
+    assert     flags_f["is_fauvist"]
+    assert not flags_f["is_primitivist"]
