@@ -448,7 +448,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     from stroke_engine import (Painter, ellipse_mask, spherical_flow,
                                flow_field, anatomy_flow_field)
     from figure_builder import compute_landmarks
-    from scene_schema import PoseDetail, Period, Medium
+    from scene_schema import PoseDetail, Period, Medium, Style
     from art_catalog import CATALOG as _ART_CATALOG
 
     # Step 1: Blender reference render (also writes _mask.png and _normals.png alongside)
@@ -486,6 +486,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_realist           = (scene.style.period == Period.REALIST)
     is_viennese_expressionist = (scene.style.period == Period.VIENNESE_EXPRESSIONIST)
     is_color_field       = (scene.style.period == Period.COLOR_FIELD)
+    is_synthetist        = (scene.style.period == Period.SYNTHETIST)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
@@ -603,6 +604,19 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             bloom_prob       = 0.22,
         )
 
+        # Pigment granulation pass — physically-based paper-tooth modulation.
+        # Certain watercolour pigments (ultramarine, burnt sienna, cobalt) have
+        # large particles that settle into paper hollows as the wash dries,
+        # creating a speckled, tactile granular texture.  Applied AFTER the
+        # washes so it reads as a property of dried pigment, not a paint layer.
+        # Cold-press paper has pronounced tooth that makes this effect vivid.
+        p.pigment_granulation_pass(
+            strength  = 0.44,
+            lum_lo    = 0.08,
+            lum_hi    = 0.80,
+            tex_mean  = 0.84,   # midpoint of cold-press texture [0.68, 1.0]
+        )
+
         # No oil glaze or crackle — watercolours don't varnish.
         # Light vignette only to frame the paper edges.
         p.finish(vignette=0.18, crackle=False)
@@ -714,6 +728,54 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # No glaze, no crackle — Schiele's works on paper do not have oil varnish.
         # Very light vignette to evoke the feel of a paper sheet edge.
         p.finish(vignette=0.12, crackle=False)
+
+    elif is_synthetist:
+        # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────
+        # Gauguin's Cloisonnism reduces the world to flat zones of saturated,
+        # anti-naturalistic colour enclosed in thick dark contour lines — named
+        # after cloisonné enamel jewellery where metallic 'cloisons' separate
+        # vivid glass fields.  No chiaroscuro, no sfumato — bold zones and the
+        # leading line are the entire pictorial vocabulary.
+        #
+        # Pipeline:
+        #   1. Warm cream-ochre ground (Gauguin worked on raw or lightly primed
+        #      canvas; the warm ground glows through thin colour areas).
+        #   2. Light underpainting to establish figure masses — very brief;
+        #      Cloisonnism suppresses modelling so this pass stays thin.
+        #   3. cloisonne_pass() — quantize reference to N flat colour zones,
+        #      boost saturation toward Tahitian register, fill each zone with
+        #      flat loaded-brush strokes, draw thick Prussian-dark contour lines
+        #      at all zone boundaries.
+        #   4. Minimal finish — very light vignette; no glaze (raw colour is the
+        #      point), no aged crackle (Gauguin's canvas is modern).
+        gauguin_style = _ART_CATALOG.get("gauguin")
+        ground_col    = gauguin_style.ground_color if gauguin_style else (0.88, 0.80, 0.60)
+
+        # Warm cream-ochre ground — Gauguin's ground colour glows through the
+        # thin flat colour zones, unifying the picture with warmth
+        p.tone_ground(ground_col, texture_strength=0.06)
+
+        # Very brief underpainting: just enough to know where the figure is
+        # before the flat colour zones take over completely
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.6), n_strokes=100)
+
+        # Core Gauguin technique: flat colour zones + cloisonné leading
+        p.cloisonne_pass(
+            ref,
+            n_colors          = 8,
+            contour_thickness = float(sp["stroke_size_face"]) * 0.55,
+            contour_color     = (0.06, 0.04, 0.10),   # near-black Prussian blue
+            saturation_boost  = 1.40,
+            hue_exotic_shift  = 0.03,
+            zone_opacity      = 0.92,
+            contour_opacity   = 0.94,
+            n_zone_strokes    = int(W * H / 520),      # scale with canvas size
+        )
+
+        # No glaze (raw colour is the work), no crackle.
+        # Very light vignette to frame the canvas edge — Gauguin's pictures
+        # are often edge-to-edge with colour, so keep this gentle.
+        p.finish(vignette=0.20, crackle=False)
 
     elif is_pointillist:
         # ── Pointillist / divisionist pipeline (Seurat technique) ────────────

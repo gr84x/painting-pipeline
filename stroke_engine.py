@@ -2785,6 +2785,343 @@ class Painter:
         print(f"  Angular contour complete ({n_flat_strokes} fill  "
               f"{n_contour_strokes} contour lines).")
 
+    def cloisonne_pass(self,
+                       reference:          Union[np.ndarray, Image.Image],
+                       n_colors:           int   = 8,
+                       contour_thickness:  float = 4.5,
+                       contour_color:      Color = (0.06, 0.04, 0.10),
+                       saturation_boost:   float = 1.40,
+                       hue_exotic_shift:   float = 0.03,
+                       zone_opacity:       float = 0.92,
+                       contour_opacity:    float = 0.94,
+                       n_zone_strokes:     int   = 1400):
+        """
+        Cloisonnism / Synthetism pass — inspired by Paul Gauguin.
+
+        Gauguin's Cloisonnism (named for cloisonné enamel jewellery where
+        metallic 'cloisons' separate vivid glass fields) renders the world as
+        flat zones of saturated, anti-naturalistic colour enclosed in dark
+        thick organic contour lines — like stained-glass leading.  Chiaroscuro
+        modelling is abandoned in favour of colour-as-emotion.  In Tahiti
+        (1891–1903) his palette became the most exotic in Western painting:
+        hot cadmium orange, deep cerulean, rose-magenta, viridian, golden ochre.
+
+        Algorithm
+        ---------
+        1. Quantize the reference to ``n_colors`` flat zones using PIL palette
+           quantization.  Each zone is assigned its mean colour from the
+           reference, then saturation-boosted and hue-drifted toward Gauguin's
+           tropical register.
+        2. Fill each colour zone with flat loaded-brush strokes — opaque,
+           low-wet-blend, broad.  Strokes are sampled from within each zone's
+           pixel mask so colour never crosses a zone boundary.
+        3. Detect inter-zone boundaries with Sobel on the zone index map.
+        4. Draw thick dark organic contour lines along all zone boundaries —
+           the 'cloisonné leading' that gives the technique its graphic power.
+           Gauguin used near-black Prussian blue-black, not pure black.
+
+        Parameters
+        ----------
+        reference         : PIL Image or ndarray reference.
+        n_colors          : Number of colour zones (6–10 is Gauguin's range).
+        contour_thickness : Width of the dark boundary lines in pixels.
+        contour_color     : Cloisonné line colour — near-black with blue-purple
+                            warmth (Gauguin used Prussian blue-black, not raw black).
+        saturation_boost  : HSV saturation multiplier applied to each zone's
+                            mean colour.  > 1 pushes toward exotic intensity.
+        hue_exotic_shift  : Fraction of the hue wheel to drift each zone colour.
+                            Small positive values push toward warm-tropical.
+        zone_opacity      : Opacity of flat zone fill strokes.
+        contour_opacity   : Opacity of contour line strokes.
+        n_zone_strokes    : Total flat-fill strokes across all colour zones.
+        """
+        print(f"Cloisonné pass  (n_colors={n_colors}  "
+              f"contour={contour_thickness:.1f}px  boost={saturation_boost:.2f})…")
+
+        ref  = self._prep(reference)
+        h, w = ref.shape[:2]
+
+        # ── Step 1: Palette quantization ─────────────────────────────────────
+        # PIL quantize gives us an index image and a compact palette.
+        ref_pil = Image.fromarray(ref[:, :, :3])
+        quantized = ref_pil.quantize(colors=n_colors, method=0, dither=0)
+        index_arr = np.array(quantized, dtype=np.int32)   # (H, W), values 0..n_colors-1
+
+        # Extract the palette as (n_colors, 3) float array in [0, 1].
+        raw_palette = quantized.getpalette()               # flat list R,G,B × 256
+        zone_colors_rgb: List[Color] = []
+        for zi in range(n_colors):
+            r = raw_palette[zi * 3]     / 255.0
+            g = raw_palette[zi * 3 + 1] / 255.0
+            b = raw_palette[zi * 3 + 2] / 255.0
+            zone_colors_rgb.append((r, g, b))
+
+        # ── Step 2: Boost saturation and drift hue toward tropical palette ───
+        def _gauguin_shift(c: Color) -> Color:
+            """Boost saturation and apply exotic hue drift in HSV space."""
+            h_hsv, s, v = colorsys.rgb_to_hsv(*c)
+            # Drift hue toward warm-tropical (orange-red register)
+            h_hsv = (h_hsv + hue_exotic_shift) % 1.0
+            # Boost saturation — Gauguin's colours are never muddy
+            s = min(1.0, s * saturation_boost)
+            # Slight value push: very dark zones stay dark, but mid-tones
+            # are pushed slightly lighter (paper under thin paint glows through)
+            if 0.15 < v < 0.65:
+                v = v * 0.85 + 0.15
+            return colorsys.hsv_to_rgb(h_hsv, s, v)
+
+        zone_colors_shifted = [_gauguin_shift(c) for c in zone_colors_rgb]
+
+        # ── Step 3: Flat zone fill ────────────────────────────────────────────
+        print("  Stage 1: flat colour zone fill…")
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+
+        tip_flat = BrushTip(BrushTip.FLAT, bristle_noise=0.04)
+
+        # Distribute strokes across zones proportional to zone area.
+        zone_areas = np.array([float((index_arr == zi).sum())
+                                for zi in range(n_colors)], dtype=np.float32)
+        total_area = zone_areas.sum() + 1e-9
+        zone_strokes_alloc = [
+            max(20, int(n_zone_strokes * (zone_areas[zi] / total_area)))
+            for zi in range(n_colors)
+        ]
+
+        for zi in range(n_colors):
+            zone_mask = (index_arr == zi).astype(np.float32)  # (H, W)
+            if zone_mask.sum() < 4:
+                continue
+
+            # Apply figure mask if set — prefer not to flood background with
+            # garish tropical colour unless the reference has a figure there.
+            effective_zone = zone_mask
+            if self._figure_mask is not None:
+                # Blend: full weight in figure zone, 0.6 weight in background zone
+                bg_weight = 0.60 * (1.0 - self._figure_mask)
+                effective_zone = zone_mask * (self._figure_mask + bg_weight)
+                effective_zone = np.clip(effective_zone, 0.0, 1.0)
+
+            zone_flat = effective_zone.flatten()
+            zone_total = zone_flat.sum()
+            if zone_total < 1e-9:
+                continue
+            zone_prob = zone_flat / zone_total
+
+            col_base = zone_colors_shifted[zi]
+            n_here   = zone_strokes_alloc[zi]
+
+            positions = self.rng.choice(h * w, size=n_here, p=zone_prob, replace=True)
+
+            stroke_size = max(6.0, min(w, h) * 0.018)   # ~1.8% canvas short side
+
+            for pos in positions:
+                py, px = int(pos // w), int(pos % w)
+                margin = max(3, int(stroke_size))
+                px = int(np.clip(px, margin, w - margin))
+                py = int(np.clip(py, margin, h - margin))
+
+                # Slight per-stroke jitter in hue/value to avoid perfectly flat blocks
+                col = jitter(col_base, 0.022, self._rng_py)
+
+                # Broadly horizontal strokes — Gauguin's zone fills are confident
+                # lateral sweeps, not random marks
+                a      = self._rng_py.uniform(-0.20, 0.20)   # near-horizontal
+                length = stroke_size * self._rng_py.uniform(2.0, 4.5)
+                start  = (px - math.cos(a) * length * 0.5,
+                          py - math.sin(a) * length * 0.5)
+                n_pts  = max(3, int(length / 7))
+                pts    = stroke_path(start, a, length, curve=0.0, n=n_pts)
+                ws     = [stroke_size * self._rng_py.uniform(0.85, 1.15)] * len(pts)
+
+                self.canvas.apply_stroke(
+                    pts, ws, col, tip_flat,
+                    opacity=zone_opacity * self._rng_py.uniform(0.88, 1.0),
+                    wet_blend=0.05,      # Synthetism: flat, not blended
+                    jitter_amt=0.015,
+                    rng=self._rng_py,
+                    region_mask=zone_mask,   # hard zone boundary — no colour bleed
+                )
+
+        # ── Step 4: Cloisonné contour lines (zone boundaries) ────────────────
+        # Sobel on the index map locates every transition between colour zones.
+        # This is the 'cloisonné leading' — the dark line that gives the
+        # technique its graphic, stained-glass quality.
+        print("  Stage 2: cloisonné boundary lines…")
+
+        idx_float = index_arr.astype(np.float32) / max(n_colors - 1, 1)
+        gx = ndimage.sobel(idx_float, axis=1).astype(np.float32)
+        gy = ndimage.sobel(idx_float, axis=0).astype(np.float32)
+        edge_mag = np.sqrt(gx ** 2 + gy ** 2).astype(np.float32)
+        if edge_mag.max() > 1e-9:
+            edge_mag /= edge_mag.max()
+
+        # Smooth slightly so contour strokes cluster neatly, not pixel-by-pixel
+        edge_smooth = ndimage.gaussian_filter(edge_mag, sigma=contour_thickness * 0.45)
+
+        # Sample contour positions heavily from boundary pixels
+        boundary_weight = edge_smooth.flatten()
+        boundary_total  = boundary_weight.sum()
+        if boundary_total < 1e-9:
+            print("  No zone boundaries detected — skipping contour stage.")
+        else:
+            boundary_weight /= boundary_total
+
+            # Contour stroke count scales with canvas area
+            n_contour = max(600, int(w * h / 500))
+            positions_c = self.rng.choice(h * w, size=n_contour,
+                                           p=boundary_weight, replace=True)
+
+            # Contour direction: tangent to the zone edge (perpendicular to Sobel gradient)
+            contour_angles = np.arctan2(gx, -gy).astype(np.float32)
+            contour_angles = ndimage.gaussian_filter(contour_angles, sigma=1.8)
+
+            tip_round = BrushTip(BrushTip.ROUND, bristle_noise=0.02)
+            margin_c  = max(3, int(contour_thickness * 2))
+
+            for pos in positions_c:
+                py, px = int(pos // w), int(pos % w)
+                px = int(np.clip(px, margin_c, w - margin_c))
+                py = int(np.clip(py, margin_c, h - margin_c))
+
+                local_edge = float(edge_mag[py, px])
+                if local_edge < 0.05:
+                    continue   # skip weak-boundary noise
+
+                # Gauguin's cloisonné line: thick where the zone contrast is
+                # highest, thinner across gentler transitions — the 'lead'
+                # varies in weight like hand-drawn metalwork.
+                thick = (contour_thickness
+                         * self._rng_py.uniform(0.70, 1.35)
+                         * (0.55 + 0.75 * min(1.0, local_edge * 1.5)))
+
+                a = float(contour_angles[py, px])
+                a += self._rng_py.uniform(-0.10, 0.10)   # organic wobble
+
+                # Short strokes — the leading is a series of overlapping segments,
+                # not a single continuous ruled line.
+                L = thick * self._rng_py.uniform(4.0, 9.0)
+                start = (px - math.cos(a) * L * 0.5,
+                         py - math.sin(a) * L * 0.5)
+                pts = stroke_path(start, a, L, curve=0.0,
+                                   n=max(2, int(L / 5)))
+                ws  = [thick] * len(pts)
+
+                col = jitter(contour_color, 0.018, self._rng_py)
+
+                self.canvas.apply_stroke(
+                    pts, ws, col, tip_round,
+                    opacity=contour_opacity * (0.72 + 0.28 * min(1.0, local_edge * 2)),
+                    wet_blend=0.0,   # ink contour — never wet-blends
+                    jitter_amt=0.010,
+                    rng=self._rng_py,
+                    region_mask=None,   # contour lines cross all boundaries
+                )
+
+        print(f"  Cloisonné complete ({n_colors} zones  contour={contour_thickness:.1f}px).")
+
+    def pigment_granulation_pass(self,
+                                 strength:   float = 0.42,
+                                 lum_lo:     float = 0.08,
+                                 lum_hi:     float = 0.82,
+                                 tex_mean:   float = 0.84):
+        """
+        Watercolour pigment granulation — physical paper-tooth pigment settling.
+
+        Certain watercolour pigments (ultramarine blue PB29, burnt sienna PR101,
+        cobalt PB28, raw umber PBr7) have unusually large or heavy particles.
+        As a freshly-applied wash dries, these particles settle by gravity and
+        surface tension into the depressions ('hollows') of the paper tooth, while
+        the water-soluble binder lifts them off the peaks.  The result is a
+        speckled, tactile texture where:
+          - **Paper hollows** (low texture value) = concentrated dark pigment
+          - **Paper peaks** (high texture value) = diluted or absent pigment
+
+        This is impossible to replicate by varying stroke size or opacity alone —
+        it requires a direct pixel-level modulation of the painted surface using
+        the same paper texture that drives the substrate rendering.
+
+        The pass reads the current canvas buffer, computes per-pixel luminance,
+        then applies the paper-texture map (self.canvas.texture) as a physical
+        offset: hollows are darkened, peaks are lightened, by up to ``strength``.
+        Only mid-luminance pixels (lum_lo … lum_hi) receive the effect — bare
+        paper (very light) and deep darks are left untouched, matching how real
+        granulating pigments are transparent in high-dilution zones.
+
+        This improvement is applied *after* the wet-into-wet wash passes so that
+        the granulation reads as a property of the dried pigment deposit, not an
+        additional paint layer.
+
+        Parameters
+        ----------
+        strength : Maximum luminance shift at full texture contrast (0–1).
+                   0.35–0.50 gives a naturalistic granulation; above 0.60
+                   looks like deliberate texture.
+        lum_lo   : Lower luminance gate (shadows below this are untouched).
+        lum_hi   : Upper luminance gate (lights above this are untouched — bare paper).
+        tex_mean : Neutral texture value around which hollows and peaks are measured.
+                   Should match the midpoint of the texture range (linen ~0.86,
+                   cold-press paper ~0.84).
+        """
+        print(f"Pigment granulation pass  (strength={strength:.2f}  "
+              f"lum=[{lum_lo:.2f}, {lum_hi:.2f}])…")
+
+        h, w = self.h, self.w
+
+        # ── Read current canvas ───────────────────────────────────────────────
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        # Cairo BGRA → RGB float [0, 1]
+        carr = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        # ── Paper texture (already generated for the substrate) ───────────────
+        tex = self.canvas.texture   # (H, W) float32 in [0.68, 1.0]
+
+        # ── Luminance map ─────────────────────────────────────────────────────
+        lum = (0.299 * carr[:, :, 0] +
+               0.587 * carr[:, :, 1] +
+               0.114 * carr[:, :, 2]).astype(np.float32)
+
+        # ── Granulation mask: only mid-luminance painted areas ────────────────
+        gran_mask = ((lum > lum_lo) & (lum < lum_hi)).astype(np.float32)
+
+        # Smooth the mask so the effect fades in at both luminance extremes
+        gran_mask = ndimage.gaussian_filter(gran_mask, sigma=1.5)
+        gran_mask = np.clip(gran_mask, 0.0, 1.0)
+
+        # Apply figure mask if present: granulation is strongest on figure
+        # surfaces (where pigment was actually applied) and weaker in the
+        # bare-paper background.
+        if self._figure_mask is not None:
+            fig_weight = 0.40 + 0.60 * self._figure_mask   # bg gets 40% strength
+            gran_mask  = gran_mask * fig_weight
+
+        # ── Texture offset ────────────────────────────────────────────────────
+        # tex values below tex_mean = hollow = more pigment → darker
+        # tex values above tex_mean = peak   = less pigment → lighter
+        # offset is negative in hollows (darken), positive on peaks (lighten)
+        tex_offset = (tex - tex_mean) * strength   # (H, W) in [-strength*0.16, +strength*0.16]
+        # Scale by mask so effect only appears in the painted mid-tone zone
+        tex_offset = tex_offset * gran_mask         # (H, W)
+
+        # ── Apply modulation to RGB channels ──────────────────────────────────
+        # All three channels shift equally to preserve hue; only luminance changes.
+        modified = np.zeros_like(carr)
+        for c in range(3):
+            modified[:, :, c] = np.clip(carr[:, :, c] + tex_offset, 0.0, 1.0)
+
+        # ── Write back to Cairo surface (RGB → BGR for BGRA layout) ──────────
+        buf[:, :, 2] = np.clip(modified[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R
+        buf[:, :, 1] = np.clip(modified[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G
+        buf[:, :, 0] = np.clip(modified[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print("  Granulation complete.")
+
     def glaze(self, color: Color, opacity: float = 0.10):
         """
         Step 6 — Final glaze.

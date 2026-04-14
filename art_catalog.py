@@ -867,6 +867,77 @@ CATALOG: Dict[str, ArtStyle] = {
             "Prussian blue dominant in atmospheric distance zones."
         ),
     ),
+
+    # ── Paul Gauguin ──────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Gauguin abandoned his Paris stockbroker career, his family, and European
+    # civilisation itself to paint in Martinique, Brittany (Vision After the
+    # Sermon, 1888), and ultimately Tahiti and the Marquesas Islands (1891–1903).
+    #
+    # His defining technique is Cloisonnism / Synthetism — named after cloisonné
+    # enamel jewellery where metallic lead lines ('cloisons') separate flat zones
+    # of vivid coloured glass.  Bernard and Anquetin coined the term; Gauguin
+    # pushed it furthest.  Forms are reduced to their essential silhouette and
+    # filled with bold, anti-naturalistic, emotion-driven colour — teal where a
+    # European painter would use grey, hot magenta where pink, golden ochre
+    # everywhere the eye expects brown or green.
+    #
+    # His Tahitian palette is among the most exotic in Western art: luminous
+    # cadmium orange, deep cerulean, hot rose-magenta, viridian green, warm gold,
+    # and near-black Prussian outlines.  Colour is divorced from description and
+    # becomes pure expressive force.  'Where Do We Come From? What Are We? Where
+    # Are We Going?' (1897–98) is the summation — a 12-foot mural painted in a
+    # fever, Gauguin planning suicide immediately after.
+    "gauguin": ArtStyle(
+        artist="Paul Gauguin",
+        movement="Post-Impressionism / Synthetism / Cloisonnism",
+        nationality="French",
+        period="1880–1903",
+        palette=[
+            (0.10, 0.42, 0.60),   # deep cerulean — Tahitian sea
+            (0.85, 0.38, 0.18),   # cadmium orange-red — tropical warmth
+            (0.80, 0.62, 0.08),   # golden ochre — sand, skin highlight
+            (0.72, 0.18, 0.45),   # hot rose-magenta — flower, garment
+            (0.18, 0.52, 0.35),   # viridian green — foliage, shadow
+            (0.06, 0.04, 0.10),   # near-black Prussian — the cloison line
+        ],
+        ground_color=(0.88, 0.80, 0.60),    # warm cream-ochre — raw canvas
+        stroke_size=5,
+        wet_blend=0.06,                      # Synthetism is flat, not blended
+        edge_softness=0.12,                  # crisp zone boundaries (the cloisonné line)
+        jitter=0.025,
+        glazing=None,                        # no final oil glaze — colour is raw
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Cloisonnism / Synthetism: forms reduced to flat zones of saturated, "
+            "anti-naturalistic colour enclosed in dark, thick organic contour lines. "
+            "Named after cloisonné enamel — lead 'cloisons' separate vivid glass fields. "
+            "Colour chosen for emotional truth, not optical accuracy: teal shadows, "
+            "magenta flesh, golden ochre where convention demands neutral brown. "
+            "Gauguin's Tahitian palette (1891–1903) is among the most exotic in "
+            "Western art: hot cadmium orange, deep cerulean, rose-magenta, viridian. "
+            "No chiaroscuro modelling — a single flat zone may span an entire torso. "
+            "The dark cloisonné outline (Prussian black-blue) reads simultaneously as "
+            "drawing and as leading in a stained-glass window."
+        ),
+        famous_works=[
+            ("Vision After the Sermon (Jacob Wrestling with the Angel)", "1888"),
+            ("The Yellow Christ", "1889"),
+            ("Nafea Faa Ipoipo (When Will You Marry?)", "1892"),
+            ("The Spirit of the Dead Watching (Manao Tupapau)", "1892"),
+            ("Where Do We Come From? What Are We? Where Are We Going?", "1897–1898"),
+            ("Nevermore", "1897"),
+        ],
+        inspiration=(
+            "Use cloisonne_pass(): quantize reference to 6–10 flat colour zones, "
+            "boost saturation and drift hues toward Tahitian tropical palette, "
+            "fill each zone with flat opaque strokes, then draw thick dark organic "
+            "Prussian-blue contour lines along all zone boundaries — the cloisonné "
+            "leading that gives the technique its stained-glass graphic power. "
+            "Ground: warm cream-ochre. No wet blending; no sfumato."
+        ),
+    ),
 }
 
 

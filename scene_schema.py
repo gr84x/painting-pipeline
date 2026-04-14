@@ -189,6 +189,7 @@ class Period(Enum):
     REALIST       = auto()   # Manet — flat value planes, bold black, cool silver half-tones
     VIENNESE_EXPRESSIONIST = auto()  # Schiele — angular contour, flat muted void, psychological rawness
     COLOR_FIELD   = auto()   # Rothko — luminous horizontal bands, optical vibration, absorbing void
+    SYNTHETIST    = auto()   # Gauguin — flat colour zones, dark cloisonné contour lines, tropical palette
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -414,6 +415,13 @@ class Style:
             # brush width — extremely wide (40–60px).  stroke_size_bg matches: the
             # background absorbing void is painted with the same vast brush.
             Period.COLOR_FIELD:   dict(stroke_size_face=42, stroke_size_bg=55, wet_blend=0.72, edge_softness=0.90),
+            # Synthetist / Cloisonnist (Gauguin): bold flat colour zones with hard edges.
+            # stroke_size_face is the flat fill stroke width — moderately wide (8–12px)
+            # so each zone is covered in a few broad loaded sweeps.  stroke_size_bg is the
+            # zone-fill stroke in background areas — larger (18–22px) for expansive fields.
+            # Very low wet_blend: Synthetism demands crisp, non-blended zones.
+            # Very low edge_softness: the cloisonné line is hard, not sfumatoed.
+            Period.SYNTHETIST:    dict(stroke_size_face=10, stroke_size_bg=20, wet_blend=0.06, edge_softness=0.10),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
