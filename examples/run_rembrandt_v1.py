@@ -47,10 +47,10 @@ scene = Scene(
     ),
     width  = 780,
     height = 1080,
-    title  = "mona_lisa_v20",
+    title  = "rembrandt_portrait_v1",
 )
 
-print("Starting v20 pipeline (single-light Rembrandt, close camera, -22° turn)…")
+print("Starting rembrandt_v1 pipeline (single-light Rembrandt, close camera, -22° turn)…")
 _out_dir = os.path.join(os.path.dirname(__file__), '..')
-out = scene_to_painting(scene, os.path.join(_out_dir, 'mona_lisa_v20.png'), verbose=True)
+out = scene_to_painting(scene, os.path.join(_out_dir, 'rembrandt_portrait_v1.png'), verbose=True)
 print("Done:", out)

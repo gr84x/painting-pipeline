@@ -1,6 +1,6 @@
 """
-paint_mona_lisa_direct.py — Renders the described portrait directly via the
-stroke engine, bypassing Blender.
+paint_portrait_direct.py — Renders a Renaissance sfumato portrait directly via
+the stroke engine, bypassing Blender.
 
 A synthetic reference image is constructed in numpy/PIL to approximate the
 described scene composition, then the full Renaissance/sfumato pipeline is
@@ -238,7 +238,7 @@ def make_reference() -> Image.Image:
 def paint() -> str:
     print("Building synthetic reference…")
     ref = make_reference()
-    ref.save(os.path.join(os.path.dirname(__file__), '..', 'mona_lisa_ref.png'))
+    ref.save(os.path.join(os.path.dirname(__file__), '..', 'portrait_ref.png'))
 
     W_r, H_r = ref.size
     print(f"  Reference: {W_r}×{H_r}")
@@ -270,12 +270,12 @@ def paint() -> str:
     p.place_lights(ref, stroke_size=5, n_strokes=600)
 
     # Save before post-processing to verify the base painting
-    p.save(os.path.join(os.path.dirname(__file__), '..', 'mona_lisa_base.png'))
+    p.save(os.path.join(os.path.dirname(__file__), '..', 'portrait_base.png'))
 
     # ── Sfumato veil — improved with chroma_dampen (session 14) ───────────────
     # Subtle settings: 7 veils, low opacity, so the painting reads through clearly.
-    # chroma_dampen=0.22 gives the warm grey-amber edge quality of the Mona Lisa
-    # under X-ray — slightly desaturated at form transitions.
+    # chroma_dampen=0.22 gives the warm grey-amber edge quality seen in X-ray
+    # studies of Renaissance portraits — slightly desaturated at form transitions.
     print("Sfumato veil pass (chroma_dampen improvement)…")
     p.sfumato_veil_pass(
         ref,
@@ -295,7 +295,7 @@ def paint() -> str:
     print("Finishing…")
     p.finish(vignette=0.45, crackle=True)
 
-    out_path = os.path.join(os.path.dirname(__file__), '..', 'mona_lisa_final.png')
+    out_path = os.path.join(os.path.dirname(__file__), '..', 'portrait_final.png')
     p.save(out_path)
     print(f"\nPainting complete: {out_path}")
     return out_path
