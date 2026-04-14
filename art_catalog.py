@@ -868,6 +868,78 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── El Greco ──────────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # El Greco (Domenikos Theotokopoulos, 1541–1614) was a Greek painter who
+    # settled in Toledo, Spain and never assimilated into the Renaissance
+    # mainstream.  His work is immediately recognisable by a handful of
+    # obsessive formal choices that no contemporary would have endorsed:
+    #   - Extreme vertical elongation of figures (especially in late works)
+    #   - Jewel-tone palette: vermilion, cerulean, lemon yellow, viridian —
+    #     colours that vibrate against each other rather than harmonise
+    #   - Supernatural, inner-lit passages of pale silver-grey flesh that
+    #     glow from within the surrounding darkness
+    #   - Stormy, turbulent backgrounds (View of Toledo) or near-void darks
+    #   - Expressive, almost sculptural drapery in violent folds
+    #
+    # El Greco's style is now classified as Mannerist — a late phase of the
+    # Renaissance characterised by exaggeration for expressive effect rather
+    # than idealized naturalism.  But he went further than any Mannerist:
+    # his elongation reaches towards the spiritually dematerialised, as if
+    # the spirit was stretching the body upward toward heaven.
+    #
+    # Pipeline key: elongation_distortion_pass() — vertically distorts the
+    # figure region and applies jewel-tone saturation boost to the whole
+    # canvas, then adds inner-glow to pale flesh highlights.
+    "el_greco": ArtStyle(
+        artist="Domenikos Theotokopoulos (El Greco)",
+        movement="Mannerism / Spanish Renaissance",
+        nationality="Greek-Spanish",
+        period="1577–1614",
+        palette=[
+            (0.78, 0.20, 0.14),   # vermilion red — his most saturated warm
+            (0.20, 0.35, 0.72),   # deep cerulean blue — cold spirit zone
+            (0.88, 0.82, 0.22),   # lemon yellow — supernatural light source
+            (0.22, 0.52, 0.38),   # viridian green — costume / foliage accents
+            (0.82, 0.80, 0.78),   # silver-grey flesh — inner spiritual glow
+            (0.10, 0.08, 0.18),   # deep purple-black void — near-black bg
+        ],
+        ground_color=(0.12, 0.10, 0.20),    # deep violet-black ground — dark spiritual void
+        stroke_size=7,
+        wet_blend=0.22,                      # moderate blending — drapery is decisive, not blurred
+        edge_softness=0.35,                  # edges present but softened by inner glow
+        jitter=0.040,
+        glazing=(0.28, 0.20, 0.48),          # cool violet glaze — the uncanny pallor of his flesh
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Extreme figure elongation: limbs, fingers, and faces stretched upward "
+            "beyond anatomical possibility — the spirit pulling matter toward heaven. "
+            "Jewel-tone palette (vermilion, cerulean, lemon, viridian) in violent "
+            "contrast, divorced from natural local colour. Silver-grey inner-lit flesh "
+            "glows as if figures are self-luminous rather than lit from outside. "
+            "Turbulent, sculptural drapery in angular, impossible folds. "
+            "Dark void or storm-cloud backgrounds concentrate attention on the figure. "
+            "Influence: El Manierismo + Byzantine icon tradition + Titian's Venetian colour. "
+            "Cézanne and Picasso (Proto-Cubism) both cited El Greco as forefather."
+        ),
+        famous_works=[
+            ("The Burial of the Count of Orgaz", "1586–1588"),
+            ("View of Toledo", "c. 1596–1600"),
+            ("The Disrobing of Christ (El Espolio)", "1577–1579"),
+            ("Portrait of a Cardinal (probably Cardinal Niño de Guevara)", "c. 1600"),
+            ("The Opening of the Fifth Seal", "1608–1614"),
+        ],
+        inspiration=(
+            "Use elongation_distortion_pass(): stretch the figure region vertically "
+            "by 12–18% to simulate El Greco's characteristic elongation. "
+            "Apply jewel-tone saturation boost (HSV: s *= 1.3) to the whole canvas. "
+            "Pale silver flesh areas get an inner-glow compositing pass: "
+            "a soft bright warm halo radiating outward from the lightest flesh pixels. "
+            "Dark violet-black void ground with the cool glazing glaze at finish."
+        ),
+    ),
+
     # ── Paul Gauguin ──────────────────────────────────────────────────────────
     # Randomly selected artist for this session's inspiration.
     # Gauguin abandoned his Paris stockbroker career, his family, and European

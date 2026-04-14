@@ -487,6 +487,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_viennese_expressionist = (scene.style.period == Period.VIENNESE_EXPRESSIONIST)
     is_color_field       = (scene.style.period == Period.COLOR_FIELD)
     is_synthetist        = (scene.style.period == Period.SYNTHETIST)
+    is_mannerist         = (scene.style.period == Period.MANNERIST)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
@@ -728,6 +729,66 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # No glaze, no crackle — Schiele's works on paper do not have oil varnish.
         # Very light vignette to evoke the feel of a paper sheet edge.
         p.finish(vignette=0.12, crackle=False)
+
+    elif is_mannerist:
+        # ── Mannerist pipeline (El Greco technique) ───────────────────────────
+        # El Greco worked on a dark ground, building form in dense layers before
+        # applying his extraordinary jewel palette in final opaque passages.
+        # His figures are elongated to express spiritual rather than bodily truth;
+        # his flesh is a cool silver-grey that seems to emit its own inner light.
+        #
+        # Pipeline:
+        #   1. Deep violet-black ground — the spiritual void from which figures
+        #      emerge.  Very dark, very low texture (primed Italian canvas).
+        #   2. Underpainting + block_in to establish figure masses.
+        #   3. build_form + place_lights for jewel-zone highlights.
+        #   4. elongation_distortion_pass() — the signature El Greco technique:
+        #      (a) vertical figure stretch, (b) jewel saturation boost,
+        #      (c) inner-glow on pale flesh zones.
+        #   5. Sfumato veil pass for edge softening (El Greco studied in Venice
+        #      under Titian; soft edge haze persists in his mid-period work).
+        #   6. Cool violet glaze + moderate crackle (old Spanish canvas).
+        el_greco_style = _ART_CATALOG.get("el_greco")
+        ground_col     = el_greco_style.ground_color if el_greco_style else (0.12, 0.10, 0.20)
+
+        # Deep violet-black ground — very dark, almost no texture showing through
+        p.tone_ground(ground_col, texture_strength=0.05)
+
+        # Dense underpainting and block_in to build the figure before
+        # the dramatic jewel passages are applied.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.5), n_strokes=160)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=300)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=700)
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"],             n_strokes=450)
+
+        # Core El Greco technique: elongation + jewel boost + inner glow
+        fig_mask = p._figure_mask   # may be None if no mask was loaded
+        p.elongation_distortion_pass(
+            ref,
+            elongation_factor  = 0.14,       # 14%: El Greco's typical vertical stretch
+            figure_mask        = fig_mask,
+            jewel_boost        = 1.28,        # jewel-tone saturation boost
+            inner_glow_radius  = 16.0,        # glow spread in pixels
+            inner_glow_opacity = 0.20,        # subtle — it is an inner quality, not a halo
+            glow_color         = (0.88, 0.86, 0.78),   # silver-grey warm
+        )
+
+        # Soft sfumato veil over edge zones — El Greco's Venetian training
+        # kept gentle sfumato on face edges even in his most extreme late work.
+        p.sfumato_veil_pass(
+            ref,
+            n_veils      = 5,
+            blur_radius  = float(sp["stroke_size_face"]) * 0.70,
+            warmth       = 0.12,
+            veil_opacity = 0.04,
+            edge_only    = True,
+        )
+
+        # Cool violet unifying glaze — his flesh shadows always have a blue-violet
+        # quality from the Venice / Byzantine influence
+        p.glaze((0.25, 0.18, 0.45), opacity=0.08)
+        # Moderate crackle — 16th-century Spanish oil on canvas
+        p.finish(vignette=0.55, crackle=True)
 
     elif is_synthetist:
         # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────
