@@ -491,6 +491,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_surrealist        = (scene.style.period == Period.SURREALIST)
     is_abstract_expressionist = (scene.style.period == Period.ABSTRACT_EXPRESSIONIST)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
+    is_venetian          = (scene.style.period == Period.VENETIAN_RENAISSANCE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -904,6 +905,57 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # No glaze — Kandinsky's colour is direct and unmediated by varnish.
         # Very light vignette only; no crackle.
         p.finish(vignette=0.15, crackle=False)
+
+    elif is_venetian:
+        # ── Venetian Renaissance pipeline (Titian technique) ─────────────────
+        # Titian built paintings through layered warm glazes over a red-earth
+        # imprimatura.  The pipeline approximates his three-stage method:
+        #   1. Warm red-earth ground (imprimatura glows through thin zones)
+        #   2. Standard oil underpainting + block-in to establish masses
+        #   3. venetian_glaze_pass() — warm shadow glazes + mid-tone strokes
+        #      + loaded impasto highlights
+        #   4. subsurface_glow_pass() — warm SSS glow at figure edges and
+        #      thin-skin zones (simulates Titian's red-lake glaze effect)
+        #   5. Warm Venetian red-amber glaze to unify the surface
+        titian_style  = _ART_CATALOG.get("titian")
+        ground_col    = titian_style.ground_color if titian_style else (0.54, 0.34, 0.22)
+
+        # Warm red-earth imprimatura — Titian's ground colour glows through
+        # thin transparent colour zones throughout the painting
+        p.tone_ground(ground_col, texture_strength=0.08)
+
+        # Standard layered oil build-up before the characteristic Venetian
+        # glazing stages begin
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.3), n_strokes=180)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=360)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=700)
+
+        # Core Venetian technique: warm shadow glazing + gestural mid-tones
+        # + loaded impasto highlights
+        p.venetian_glaze_pass(
+            ref,
+            n_glaze_layers  = 7,
+            glaze_warmth    = 0.58,
+            shadow_depth    = 0.74,
+            impasto_strokes = 450,
+            impasto_size    = float(sp["stroke_size_face"]) * 0.90,
+            impasto_opacity = 0.88,
+        )
+
+        # Subsurface scattering glow — simulates Titian's red-lake translucency
+        # at figure edges and thin skin areas
+        p.subsurface_glow_pass(
+            ref,
+            glow_color    = (0.90, 0.40, 0.22),
+            glow_strength = 0.16,
+            blur_sigma    = max(6.0, float(sp["stroke_size_face"]) * 0.75),
+            edge_falloff  = 0.60,
+        )
+
+        # Warm Venetian red-amber unifying glaze
+        p.glaze((0.72, 0.38, 0.18), opacity=0.07)
+        # Strong vignette (Titian often used dark edges), aged crackle appropriate
+        p.finish(vignette=0.50, crackle=True)
 
     elif is_synthetist:
         # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────

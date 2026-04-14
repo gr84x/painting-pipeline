@@ -4426,3 +4426,332 @@ class Painter:
 
         print(f"  Geometric resonance complete  "
               f"({n_circles} circles, {n_triangles} triangles, {n_lines} lines)")
+
+    def venetian_glaze_pass(self,
+                            reference:       Union[np.ndarray, Image.Image],
+                            n_glaze_layers:  int   = 6,
+                            glaze_warmth:    float = 0.55,
+                            shadow_depth:    float = 0.72,
+                            impasto_strokes: int   = 400,
+                            impasto_size:    float = 7.0,
+                            impasto_opacity: float = 0.85):
+        """
+        Venetian glaze pass — inspired by Titian's colorist technique.
+
+        Titian built his paintings through accumulating transparent warm glazes
+        over a white underpaint.  The layered structure produces flesh tones of
+        extraordinary luminosity: light penetrates the transparent colour layers,
+        reflects off the white ground beneath, and returns through the glazes —
+        a visual analog of subsurface light scattering in real skin.
+
+        The pass has three stages:
+
+          1. Transparent shadow glazes: warm red-umber glaze layers are applied
+             to all areas darker than a luminance threshold.  Shadow areas deepen
+             with warm umber rather than cool grey — the Venetian principle that
+             shadows are warm, not cold.  Multiple thin layers accumulate to
+             produce depth without opacity.
+
+          2. Mid-tone colour enrichment: short gestural strokes are applied with
+             the Venetian vermilion-gold palette, with moderate wet_blend.  These
+             represent Titian's active wet-into-wet working method where colours
+             are pushed and pulled across the wet surface before each layer dries.
+
+          3. Impasto highlights: thick, directional highlight strokes in near-
+             white to warm ivory are placed only at the highest luminance peaks
+             (lum > 0.70).  These represent the loaded-brush impasto that gives
+             Titian's surfaces their three-dimensional, relief-like quality.
+             Titian's impasto reads as physically built-up paint even in
+             reproduction — light catches the edges of thick strokes.
+
+        Parameters
+        ----------
+        reference       : PIL Image or ndarray — painted base to glaze over.
+        n_glaze_layers  : Number of transparent shadow glaze passes.
+                          6–9 gives the characteristic Venetian depth; fewer
+                          looks too thin, more can muddy the shadows.
+        glaze_warmth    : Warmth of the shadow glaze (0 = neutral umber,
+                          1 = full warm vermilion).  Titian's glazes are
+                          distinctly warm — a value of 0.5–0.65 is authentic.
+        shadow_depth    : Luminance threshold below which shadow glazing
+                          is applied (0 = only deepest shadows, 1 = everywhere).
+                          0.65–0.80 is appropriate; too high flattens lit areas.
+        impasto_strokes : Number of loaded highlight strokes for the impasto
+                          stage.  300–600 for a half-length portrait.
+        impasto_size    : Mean brush radius for impasto strokes (pixels).
+                          Titian's impasto is bold — 6–12px is appropriate.
+        impasto_opacity : Opacity of impasto strokes.  High (0.80–0.95) so the
+                          highlights are physically opaque, as in real impasto.
+        """
+        print(f"Venetian glaze pass  ({n_glaze_layers} glaze layers  "
+              f"warmth={glaze_warmth:.2f}  impasto={impasto_strokes} strokes)…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        lum = (0.299 * rarr[:, :, 0] + 0.587 * rarr[:, :, 1] + 0.114 * rarr[:, :, 2])
+
+        # ── Stage 1: Transparent warm shadow glazes ───────────────────────────
+        # Titian's signature move: warm umber deepens shadows while preserving
+        # their transparency.  Each glaze is a thin wash of warm-red tone,
+        # masked to shadow regions.  The accumulated effect produces the
+        # characteristic "glowing dark" of Venetian painting.
+        warm_shadow_a = (0.55, 0.28, 0.12)   # warm red-umber base
+        warm_shadow_b = (0.72, 0.40, 0.18)   # vermilion-shifted warm glaze
+        ctx = self.canvas.ctx
+
+        shadow_mask = np.clip((shadow_depth - lum) / max(shadow_depth, 0.01), 0.0, 1.0)
+        if self._figure_mask is not None:
+            shadow_mask = shadow_mask * self._figure_mask
+
+        for i in range(n_glaze_layers):
+            t = (i + 1) / n_glaze_layers
+            # Alternate between warm umber and vermilion across layers —
+            # Titian interleaved pigment types for chromatic complexity
+            glaze_col = tuple(
+                warm_shadow_a[c] * (1 - glaze_warmth) + warm_shadow_b[c] * glaze_warmth
+                for c in range(3)
+            )
+
+            # Build glaze layer: current canvas colour shifted toward glaze_col
+            # in shadow regions, at very low per-layer opacity (accumulates)
+            per_layer_opacity = 0.055 * (0.7 + 0.3 * t)   # slightly heavier in later layers
+
+            # ARGB32 premultiplied — shadow mask controls where glaze lands
+            glaze_arr = np.zeros((h, w, 4), dtype=np.uint8)
+            alpha_map = shadow_mask * per_layer_opacity
+            premul = np.stack([
+                alpha_map * glaze_col[2],  # B premul
+                alpha_map * glaze_col[1],  # G premul
+                alpha_map * glaze_col[0],  # R premul
+            ], axis=2)
+            glaze_arr[:, :, :3] = np.clip(premul * 255, 0, 255).astype(np.uint8)
+            glaze_arr[:, :, 3]  = np.clip(alpha_map * 255, 0, 255).astype(np.uint8)
+
+            glaze_surf = cairo.ImageSurface.create_for_data(
+                bytearray(glaze_arr.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            ctx.set_source_surface(glaze_surf, 0, 0)
+            ctx.paint()
+
+        # ── Stage 2: Gestural mid-tone enrichment strokes ─────────────────────
+        # Short, directional strokes in the Venetian vermilion-gold register are
+        # pushed across mid-tone areas.  This represents Titian's wet-into-wet
+        # working where colours are physically merged on the surface.
+        venetian_palette = [
+            (0.84, 0.28, 0.18),   # vermilion
+            (0.76, 0.52, 0.18),   # Naples yellow-gold
+            (0.90, 0.80, 0.60),   # warm ivory
+            (0.60, 0.18, 0.14),   # deep red lake
+        ]
+        n_midtone_strokes = 300
+        rng = self._rng_py
+
+        for _ in range(n_midtone_strokes):
+            # Sample position from mid-tone region (lum 0.30–0.65)
+            attempts = 0
+            cx_s = rng.randint(0, w - 1)
+            cy_s = rng.randint(0, h - 1)
+            while attempts < 8:
+                tx = rng.randint(0, w - 1)
+                ty = rng.randint(0, h - 1)
+                if 0.28 < lum[ty, tx] < 0.68:
+                    cx_s, cy_s = tx, ty
+                    break
+                attempts += 1
+
+            col = venetian_palette[rng.randint(0, len(venetian_palette) - 1)]
+            # Sample underlying colour for wet_blend mix
+            ref_col = tuple(float(rarr[cy_s, cx_s, c]) for c in range(3))
+            blended = tuple(
+                math.sqrt(0.35 * col[c] ** 2 + 0.65 * ref_col[c] ** 2)
+                for c in range(3)
+            )
+            sz = max(3.0, impasto_size * rng.uniform(0.6, 1.1))
+            angle = rng.uniform(0, math.pi)
+            length = sz * rng.uniform(2.0, 4.5)
+            pts = stroke_path((cx_s, cy_s), angle, length, 0.06, 8)
+            widths = [sz * w_v for w_v in width_profile(len(pts), tip_frac=0.28)]
+
+            self.canvas.apply_stroke(
+                pts, widths, blended,
+                tip=BrushTip(BrushTip.FILBERT),
+                opacity=0.28,
+                wet_blend=0.72,
+                jitter_amt=0.022,
+                rng=rng,
+                region_mask=self._figure_mask,
+            )
+
+        # ── Stage 3: Loaded impasto highlights ────────────────────────────────
+        # Titian's impasto is a physical presence — thick ridges of lead white
+        # and pale yellow that catch directional light.  Applied only at
+        # luminance peaks so they read as genuine specular highlights.
+        highlight_lum_thresh = 0.68
+        highlight_palette = [
+            (0.96, 0.92, 0.78),   # near-white ivory — lead white
+            (0.94, 0.87, 0.62),   # warm Naples yellow-white
+            (0.98, 0.95, 0.84),   # cool pale highlight
+        ]
+
+        highlight_mask = np.clip((lum - highlight_lum_thresh) / (1.0 - highlight_lum_thresh),
+                                 0.0, 1.0)
+        if self._figure_mask is not None:
+            highlight_mask = highlight_mask * self._figure_mask
+
+        placed = 0
+        attempts_total = 0
+        while placed < impasto_strokes and attempts_total < impasto_strokes * 8:
+            attempts_total += 1
+            tx = rng.randint(0, w - 1)
+            ty = rng.randint(0, h - 1)
+            if highlight_mask[ty, tx] < rng.uniform(0.1, 0.9):
+                continue
+
+            col = highlight_palette[rng.randint(0, len(highlight_palette) - 1)]
+            # Mix with reference colour — impasto sits on top but is not fully opaque
+            ref_col = tuple(float(rarr[ty, tx, c]) for c in range(3))
+            mixed = tuple(
+                math.sqrt(impasto_opacity * col[c] ** 2 + (1 - impasto_opacity) * ref_col[c] ** 2)
+                for c in range(3)
+            )
+            sz = max(2.5, impasto_size * rng.uniform(0.5, 1.4))
+            # Impasto strokes are short and fat — directional brush loads
+            angle = rng.uniform(0, math.pi)
+            length = sz * rng.uniform(1.5, 3.0)
+            pts = stroke_path((tx, ty), angle, length, 0.04, 6)
+            widths = [sz * w_v for w_v in width_profile(len(pts), tip_frac=0.22)]
+
+            self.canvas.apply_stroke(
+                pts, widths, mixed,
+                tip=BrushTip(BrushTip.FLAT),
+                opacity=impasto_opacity * 0.95,
+                wet_blend=0.28,    # low wet_blend — impasto stays crisp
+                jitter_amt=0.012,
+                rng=rng,
+                region_mask=self._figure_mask,
+            )
+            placed += 1
+
+        print(f"  Venetian glaze complete  ({n_glaze_layers} glazes, "
+              f"{n_midtone_strokes} mid-tone strokes, {placed} impasto highlights)")
+
+    def subsurface_glow_pass(self,
+                             reference:     Union[np.ndarray, Image.Image],
+                             glow_color:    Color = (0.90, 0.42, 0.24),
+                             glow_strength: float = 0.18,
+                             blur_sigma:    float = 10.0,
+                             edge_falloff:  float = 0.55):
+        """
+        Subsurface scattering glow — simulates light transmission through thin skin.
+
+        In real human skin, light does not simply bounce off the surface —
+        it penetrates a millimetre or two, scatters through the translucent
+        dermis, and exits at a slightly different point, tinted by the
+        haemoglobin and melanin in the tissue.  The result is a warm reddish
+        glow at the edges of the figure silhouette (where the skin is thin and
+        the light path through tissue is short) and at anatomical thin-skin
+        areas (ear lobes, nose tip, inner corners of the eye).
+
+        Titian achieved this effect through red-lake glazes over white underpaint.
+        The transparent red-lake layer selectively absorbs blue and green,
+        transmitting warm red-orange light from the ground beneath.  The
+        visual result is flesh that glows warm from within rather than reflecting
+        cold light from the surface.
+
+        Implementation
+        --------------
+        1. Detect edge/silhouette zone from the figure mask (or luminance
+           gradient if no mask is available).  The glow is strongest where
+           the figure boundary is thin and light can penetrate.
+        2. Blur this zone outward (Gaussian) so the glow halos around the edge
+           rather than sitting exactly on it.
+        3. Tint the glow with a warm red-orange (haemoglobin scattering colour)
+           and composite at low opacity over the existing painting.
+
+        The pass should always be applied before final glazing so the glow
+        is unified under the ambient glaze.
+
+        Parameters
+        ----------
+        reference     : PIL Image or ndarray — used to detect edge zones.
+        glow_color    : RGB tint of the scattered light.  (0.90, 0.42, 0.24)
+                        is warm vermilion-orange — correct for pale skin.
+                        Darker or more melanated skin should use a deeper,
+                        more umber-red: e.g. (0.70, 0.28, 0.14).
+        glow_strength : Maximum opacity of the glow composite.  0.10–0.25
+                        is subtle and naturalistic; >0.35 looks artificial.
+        blur_sigma    : Gaussian spread of the glow in pixels.  Larger values
+                        create a broader, softer halo.  8–14px for a portrait
+                        at 780×1080.
+        edge_falloff  : How strongly to weight the glow toward true silhouette
+                        edges vs. internal form-transition edges.  1.0 = figure
+                        silhouette only; 0.0 = all luminance gradient edges.
+                        0.5 gives a natural blend.
+        """
+        print(f"Subsurface glow pass  (glow={glow_color}  "
+              f"strength={glow_strength:.2f}  sigma={blur_sigma:.1f})…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        lum = (0.299 * rarr[:, :, 0] + 0.587 * rarr[:, :, 1] + 0.114 * rarr[:, :, 2])
+
+        # ── Build glow zone mask ──────────────────────────────────────────────
+        # Primary source: figure silhouette edge (where mask transitions 0→1)
+        if self._figure_mask is not None:
+            # Detect silhouette edge via Sobel on the binary figure mask
+            sil_gx = ndimage.sobel(self._figure_mask, axis=1).astype(np.float32)
+            sil_gy = ndimage.sobel(self._figure_mask, axis=0).astype(np.float32)
+            silhouette_edge = np.sqrt(sil_gx ** 2 + sil_gy ** 2)
+            if silhouette_edge.max() > 1e-9:
+                silhouette_edge /= silhouette_edge.max()
+        else:
+            silhouette_edge = np.zeros((h, w), dtype=np.float32)
+
+        # Secondary source: luminance gradient (internal form transitions)
+        lum_gx = ndimage.sobel(lum, axis=1).astype(np.float32)
+        lum_gy = ndimage.sobel(lum, axis=0).astype(np.float32)
+        lum_edge = np.sqrt(lum_gx ** 2 + lum_gy ** 2)
+        if lum_edge.max() > 1e-9:
+            lum_edge /= lum_edge.max()
+
+        # Blend silhouette and luminance edges according to edge_falloff
+        glow_zone = silhouette_edge * edge_falloff + lum_edge * (1.0 - edge_falloff)
+        if glow_zone.max() > 1e-9:
+            glow_zone /= glow_zone.max()
+
+        # Blur outward so the glow halos around the edge
+        glow_zone = ndimage.gaussian_filter(glow_zone.astype(np.float32), sigma=blur_sigma)
+        glow_zone = np.clip(glow_zone * 3.5, 0.0, 1.0)
+
+        # Restrict glow to figure interior and immediate edge only
+        if self._figure_mask is not None:
+            # Allow glow to extend slightly beyond figure boundary (halo effect)
+            dilated_mask = ndimage.gaussian_filter(
+                self._figure_mask.astype(np.float32), sigma=blur_sigma * 0.4)
+            dilated_mask = np.clip(dilated_mask * 2.5, 0.0, 1.0)
+            glow_zone = glow_zone * dilated_mask
+
+        # ── Composite warm glow over current painting ─────────────────────────
+        # ARGB32 premultiplied — Cairo compositing handles the alpha correctly
+        ctx = self.canvas.ctx
+
+        alpha_map = glow_zone * glow_strength
+        alpha_3ch = alpha_map[:, :, np.newaxis]
+        premul_rgb = np.array(glow_color)[np.newaxis, np.newaxis, :] * alpha_3ch
+
+        glow_rgba = np.zeros((h, w, 4), dtype=np.uint8)
+        glow_rgba[:, :, 0] = np.clip(premul_rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B premul
+        glow_rgba[:, :, 1] = np.clip(premul_rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G premul
+        glow_rgba[:, :, 2] = np.clip(premul_rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R premul
+        glow_rgba[:, :, 3] = np.clip(alpha_map * 255, 0, 255).astype(np.uint8)             # A
+
+        glow_surf = cairo.ImageSurface.create_for_data(
+            bytearray(glow_rgba.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(glow_surf, 0, 0)
+        ctx.paint()
+
+        print(f"  Subsurface glow complete  "
+              f"(peak alpha={glow_strength:.2f}  blur={blur_sigma:.1f}px)")
