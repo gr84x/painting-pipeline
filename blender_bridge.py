@@ -488,6 +488,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_color_field       = (scene.style.period == Period.COLOR_FIELD)
     is_synthetist        = (scene.style.period == Period.SYNTHETIST)
     is_mannerist         = (scene.style.period == Period.MANNERIST)
+    is_surrealist        = (scene.style.period == Period.SURREALIST)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
@@ -789,6 +790,67 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.glaze((0.25, 0.18, 0.45), opacity=0.08)
         # Moderate crackle — 16th-century Spanish oil on canvas
         p.finish(vignette=0.55, crackle=True)
+
+    elif is_surrealist:
+        # ── Surrealist / Folk Retablo pipeline (Frida Kahlo technique) ─────────
+        # Kahlo's paintings are rooted in the Mexican retablo/ex-voto tradition:
+        # flat zones of intense saturated colour separated by heavy dark contour
+        # outlines.  No chiaroscuro, no sfumato — the retablo craftsman paints
+        # objects as symbolic inventory, not as volumetric forms in space.
+        #
+        # Pipeline:
+        #   1. Warm ochre-amber ground — Kahlo worked on Masonite or metal sheet
+        #      prepared with a warm ground that glows through flat colour areas.
+        #   2. Standard underpainting + block_in to establish figure masses.
+        #   3. build_form (minimal — retablo figures are lightly modelled at most
+        #      3 tonal values).
+        #   4. folk_retablo_pass() — the signature Kahlo technique:
+        #      (a) posterize canvas to flat colour zones,
+        #      (b) boost saturation toward volcanic-earth palette,
+        #      (c) boundary_vibration: apply simultaneous warm/cool contrast at
+        #          zone edges — the perceptual 'hum' of her figure-ground,
+        #      (d) draw heavy dark contour outlines at all zone boundaries.
+        #   5. impasto_texture_pass() — Kahlo used visible loaded-brush strokes
+        #      (not spatula) in foliage and costume areas; the impasto pass gives
+        #      surface relief.
+        #   6. Minimal warm glaze; no crackle (panel support does not crackle).
+        kahlo_style = _ART_CATALOG.get("frida_kahlo")
+        ground_col  = kahlo_style.ground_color if kahlo_style else (0.72, 0.58, 0.32)
+
+        # Warm ochre-amber ground — the colour Kahlo prepared her Masonite panels
+        p.tone_ground(ground_col, texture_strength=0.08)
+
+        # Establish form masses before the flat zone pass flattens everything
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.4), n_strokes=130)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=250)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=500)
+
+        # Core Kahlo/retablo technique: flat zones + saturation boost +
+        # boundary vibration + dark contour lines
+        p.folk_retablo_pass(
+            ref,
+            n_levels           = 4,
+            saturation_boost   = 1.55,
+            outline_thickness  = max(2.0, float(sp["stroke_size_face"]) * 0.35),
+            outline_color      = (0.05, 0.03, 0.02),
+            outline_opacity    = 0.88,
+            boundary_vibration = True,
+            vibration_width    = 1.8,
+            vibration_opacity  = 0.28,
+        )
+
+        # Impasto texture pass — visible loaded-brush ridges in foliage/drapery
+        p.impasto_texture_pass(
+            light_angle      = 315.0,   # upper-left light (Kahlo's standard)
+            ridge_height     = 0.40,
+            highlight_opacity= 0.30,
+            shadow_opacity   = 0.22,
+        )
+
+        # Minimal warm earth glaze — the warm ground tones the overall palette
+        p.glaze((0.68, 0.48, 0.18), opacity=0.05)
+        # No crackle — Masonite/metal panel; light vignette to frame the picture
+        p.finish(vignette=0.25, crackle=False)
 
     elif is_synthetist:
         # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────

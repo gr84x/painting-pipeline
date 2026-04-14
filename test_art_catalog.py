@@ -26,8 +26,8 @@ from scene_schema import Period, Style, Medium, PaletteHint
 
 EXPECTED_ARTISTS = [
     "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
-    "el_greco", "gauguin", "goya", "hilma_af_klint", "hokusai", "klimt",
-    "leonardo", "manet", "monet", "rembrandt", "rothko", "sargent",
+    "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
+    "klimt", "leonardo", "manet", "monet", "rembrandt", "rothko", "sargent",
     "seurat", "turner", "van_gogh", "velazquez", "vermeer",
 ]
 
@@ -151,7 +151,7 @@ EXPECTED_PERIODS = [
     "RENAISSANCE", "BAROQUE", "IMPRESSIONIST", "EXPRESSIONIST",
     "POINTILLIST", "ROMANTIC", "ART_NOUVEAU", "UKIYO_E",
     "PROTO_EXPRESSIONIST", "REALIST", "VIENNESE_EXPRESSIONIST",
-    "COLOR_FIELD", "SYNTHETIST", "MANNERIST",
+    "COLOR_FIELD", "SYNTHETIST", "MANNERIST", "SURREALIST",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -231,3 +231,78 @@ def test_caspar_david_friedrich_famous_works_not_empty():
     titles = [w[0] for w in s.famous_works]
     assert any("Wanderer" in t for t in titles), (
         "Friedrich's famous works should include Wanderer above the Sea of Fog")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Frida Kahlo — session 13 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_frida_kahlo_in_catalog():
+    """Frida Kahlo (session 13) must be present in CATALOG."""
+    assert "frida_kahlo" in CATALOG
+
+
+def test_frida_kahlo_movement():
+    s = get_style("frida_kahlo")
+    # Movement should reference Mexican or Surrealist context
+    assert ("Mexican" in s.movement or "Naïve" in s.movement
+            or "Folk" in s.movement or "Surreal" in s.movement)
+
+
+def test_frida_kahlo_palette_length():
+    s = get_style("frida_kahlo")
+    assert len(s.palette) >= 5, "Kahlo palette should have at least 5 key colours"
+
+
+def test_frida_kahlo_palette_values_in_range():
+    """All Kahlo palette RGB values must be in [0, 1]."""
+    s = get_style("frida_kahlo")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Kahlo palette {rgb}")
+
+
+def test_frida_kahlo_wet_blend_low():
+    """Kahlo's retablo technique is flat — wet_blend must be very low."""
+    s = get_style("frida_kahlo")
+    assert s.wet_blend <= 0.15, (
+        f"Kahlo wet_blend should be low (flat zones), got {s.wet_blend}")
+
+
+def test_frida_kahlo_edge_softness_low():
+    """Kahlo uses hard dark outlines — edge_softness must be very low."""
+    s = get_style("frida_kahlo")
+    assert s.edge_softness <= 0.20, (
+        f"Kahlo edge_softness should be low (hard outlines), got {s.edge_softness}")
+
+
+def test_frida_kahlo_no_crackle():
+    """Kahlo worked on Masonite/metal — crackle should be False."""
+    s = get_style("frida_kahlo")
+    assert not s.crackle, "Kahlo panels do not crackle like oil on canvas"
+
+
+def test_frida_kahlo_famous_works_not_empty():
+    s = get_style("frida_kahlo")
+    assert len(s.famous_works) >= 3, "Kahlo should have at least 3 famous works"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Frida" in t or "Column" in t or "Thorn" in t
+               for t in titles), (
+        "Kahlo famous works should include at least one well-known self-portrait")
+
+
+def test_surrealist_period_present():
+    """Session 13: SURREALIST must exist in Period enum."""
+    assert hasattr(Period, "SURREALIST"), "Period.SURREALIST not found"
+    assert Period.SURREALIST in list(Period)
+
+
+def test_surrealist_stroke_params_low_wet_blend():
+    """SURREALIST should have very low wet_blend for flat retablo zones."""
+    style = Style(medium=Medium.OIL, period=Period.SURREALIST,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.15, (
+        f"SURREALIST wet_blend should be very low, got {p['wet_blend']}")
