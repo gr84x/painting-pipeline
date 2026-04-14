@@ -25,10 +25,10 @@ from scene_schema import Period, Style, Medium, PaletteHint
 # ──────────────────────────────────────────────────────────────────────────────
 
 EXPECTED_ARTISTS = [
-    "caravaggio", "cezanne", "egon_schiele", "el_greco", "gauguin",
-    "goya", "hilma_af_klint", "hokusai", "klimt", "leonardo", "manet",
-    "monet", "rembrandt", "rothko", "sargent", "seurat", "turner",
-    "van_gogh", "velazquez", "vermeer",
+    "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
+    "el_greco", "gauguin", "goya", "hilma_af_klint", "hokusai", "klimt",
+    "leonardo", "manet", "monet", "rembrandt", "rothko", "sargent",
+    "seurat", "turner", "van_gogh", "velazquez", "vermeer",
 ]
 
 
@@ -193,3 +193,41 @@ def test_mannerist_stroke_params_values():
     p = style.stroke_params
     assert p["wet_blend"] <= 0.30, "Mannerist wet_blend should be low for jewel-zone clarity"
     assert p["stroke_size_face"] >= 6
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Caspar David Friedrich — session 12 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_caspar_david_friedrich_in_catalog():
+    """Friedrich (session 12) must be present in CATALOG."""
+    assert "caspar_david_friedrich" in CATALOG
+
+
+def test_caspar_david_friedrich_movement():
+    s = get_style("caspar_david_friedrich")
+    assert "Romanti" in s.movement or "romanti" in s.movement.lower()
+
+
+def test_caspar_david_friedrich_palette_length():
+    s = get_style("caspar_david_friedrich")
+    assert len(s.palette) >= 5, "Friedrich palette should have at least 5 key colours"
+
+
+def test_caspar_david_friedrich_palette_values_in_range():
+    """All Friedrich palette RGB values must be in [0, 1]."""
+    s = get_style("caspar_david_friedrich")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Friedrich palette {rgb}")
+
+
+def test_caspar_david_friedrich_famous_works_not_empty():
+    s = get_style("caspar_david_friedrich")
+    assert len(s.famous_works) >= 3, "Friedrich should have at least 3 famous works"
+    # The Wanderer is the canonical entry
+    titles = [w[0] for w in s.famous_works]
+    assert any("Wanderer" in t for t in titles), (
+        "Friedrich's famous works should include Wanderer above the Sea of Fog")

@@ -1010,6 +1010,84 @@ CATALOG: Dict[str, ArtStyle] = {
             "Ground: warm cream-ochre. No wet blending; no sfumato."
         ),
     ),
+
+    # ── Caspar David Friedrich ─────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Friedrich is the supreme master of the *Romantische Landschaft* — the
+    # landscape as psychological state.  Where earlier landscapists described
+    # nature, Friedrich used it to make the viewer feel the experience of
+    # standing small before something incomprehensibly vast.
+    #
+    # His defining compositional device is the *Rückenfigur* (back-turned
+    # figure): a lone traveller or monk seen from behind, gazing out at the
+    # infinite sea, mountains, fog, or moonlit plain.  We cannot see the
+    # figure's expression; we are invited to inhabit their stillness instead.
+    #
+    # His technique applies *Luftperspektive* (aerial perspective) with
+    # extraordinary rigour: foreground elements are dark silhouettes with full
+    # chroma; middle-distance forms are desaturated grey-green; the far horizon
+    # dissolves to pale cerulean or golden-amber mist.  Each distance zone is
+    # painted in a coherent atmospheric register, never mixed.
+    #
+    # Key works:
+    #   Wanderer above the Sea of Fog (1818) — the definitive Rückenfigur
+    #   Monk by the Sea (1808–1810)           — nothing but sea, sky, one figure
+    #   The Sea of Ice (1823–1824)            — romantic sublime at its extreme
+    #   Two Men Contemplating the Moon (1819) — intimate, nocturnal, companionate
+    #   The Stages of Life (1835)             — allegorical ships + figures
+    #
+    # Pipeline key: atmospheric_depth_pass() — applies progressive aerial
+    # perspective to background zone, making distant elements bluer, lighter,
+    # and less saturated the further they recede into the sky.
+    "caspar_david_friedrich": ArtStyle(
+        artist="Caspar David Friedrich",
+        movement="German Romanticism",
+        nationality="German",
+        period="1795–1840",
+        palette=[
+            (0.72, 0.82, 0.92),   # pale cerulean sky — the infinite vault
+            (0.88, 0.84, 0.62),   # warm golden horizon — amber mist at dusk
+            (0.10, 0.10, 0.08),   # near-black silhouette — foreground pine/rock
+            (0.52, 0.56, 0.48),   # cool grey-green midground — desaturated hills
+            (0.78, 0.74, 0.60),   # warm mist tone — atmospheric middle distance
+            (0.36, 0.42, 0.52),   # blue-grey atmospheric haze — far recession
+            (0.22, 0.20, 0.16),   # dark earth foreground — frozen soil/stone
+        ],
+        ground_color=(0.18, 0.16, 0.12),    # dark earth — dramatic foreground
+        stroke_size=11,
+        wet_blend=0.52,                      # moderate: sky blends; silhouettes do not
+        edge_softness=0.68,                  # soft horizon; crisp near silhouettes
+        jitter=0.022,
+        glazing=(0.72, 0.68, 0.50),          # warm amber — late-afternoon horizon glow
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Aerial perspective applied with systematic rigour: foreground is dark, "
+            "saturated, and sharp-edged; middle distance desaturates and softens; "
+            "far horizon dissolves to luminous pale cerulean or amber mist. "
+            "Rückenfigur: lone silhouette figure seen from behind, scale dwarfed by nature. "
+            "Emotional through restraint — the figure's inaccessibility creates the sublime. "
+            "Tonal key is cool and low: dark earth, grey-green hills, pale infinite sky. "
+            "Surfaces are smoothly blended — no visible brushwork; the atmosphere IS the paint. "
+            "Symmetrical compositions with a single dominant vertical axis (cliff, figure, tree). "
+            "Moonlight and dusk are preferred: the transitional light of threshold states."
+        ),
+        famous_works=[
+            ("Wanderer above the Sea of Fog", "1818"),
+            ("Monk by the Sea", "1808–1810"),
+            ("The Sea of Ice", "1823–1824"),
+            ("Two Men Contemplating the Moon", "1819–1820"),
+            ("The Stages of Life", "1835"),
+        ],
+        inspiration=(
+            "Use atmospheric_depth_pass(): apply progressive aerial perspective to "
+            "the background zone — desaturate and cool pixels progressively with "
+            "their distance from the foreground (y-depth in the frame). "
+            "Foreground silhouettes remain dark and saturated; sky dissolves to "
+            "pale blue-grey. Warm amber glaze on the horizon band; cool blue "
+            "glaze on the zenith."
+        ),
+    ),
 }
 
 

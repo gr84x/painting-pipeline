@@ -216,3 +216,79 @@ def test_watercolor_flag_set_by_medium():
     flags = _routing_flags(Period.IMPRESSIONIST, medium=Medium.WATERCOLOR)
     assert flags["is_watercolor"] is True
     assert flags["is_mannerist"]  is False
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# atmospheric_depth_pass — session 12 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_atmospheric_depth_pass_exists():
+    """Painter must have atmospheric_depth_pass() method after session 12."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "atmospheric_depth_pass"), (
+        "atmospheric_depth_pass not found on Painter")
+    assert callable(getattr(Painter, "atmospheric_depth_pass"))
+
+
+def test_atmospheric_depth_pass_no_error():
+    """atmospheric_depth_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.32), texture_strength=0.06)
+    # Should not raise
+    p.atmospheric_depth_pass(
+        haze_color   = (0.72, 0.78, 0.88),
+        desaturation = 0.60,
+        lightening   = 0.45,
+        depth_gamma  = 1.6,
+    )
+
+
+def test_atmospheric_depth_pass_affects_top_more_than_bottom():
+    """
+    Top rows (y ≈ 0, distant sky) should be more blended toward haze than
+    bottom rows (y ≈ H-1, foreground).  Paint a warm-red canvas and check
+    that the top row is cooler (higher blue channel) after the pass.
+    """
+    from PIL import Image as _Img
+    p = _make_small_painter(64, 64)
+
+    # Fill canvas with warm red pixels so any cool-haze effect is detectable.
+    warm_red = (0.85, 0.30, 0.10)
+    p.tone_ground(warm_red, texture_strength=0.00)
+
+    # Haze colour is cool blue — if applied at top the blue channel must rise.
+    haze = (0.40, 0.60, 0.90)
+    p.atmospheric_depth_pass(haze_color=haze, desaturation=0.50, lightening=0.60,
+                              depth_gamma=1.0, background_only=False)
+
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA: channel 0 = B, channel 1 = G, channel 2 = R
+    top_blue    = float(buf[0,  :, 0].mean())   # top row — B channel
+    bottom_blue = float(buf[63, :, 0].mean())   # bottom row — B channel
+
+    assert top_blue > bottom_blue, (
+        f"Top row should be bluer (more haze) than bottom row after "
+        f"atmospheric_depth_pass, but top_blue={top_blue:.1f} "
+        f"<= bottom_blue={bottom_blue:.1f}")
+
+
+def test_atmospheric_depth_pass_background_only_preserves_figure():
+    """
+    With background_only=True and a figure mask set to the full canvas,
+    the pass should leave the canvas unchanged (all pixels are 'figure').
+    """
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.45, 0.28), texture_strength=0.04)
+
+    # Set figure mask = all ones (everything is figure)
+    p._figure_mask = np.ones((64, 64), dtype=np.float32)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.atmospheric_depth_pass(background_only=True)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    np.testing.assert_array_equal(before, after,
+        err_msg="atmospheric_depth_pass with all-figure mask should not modify canvas")
