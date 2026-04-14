@@ -194,6 +194,7 @@ class Period(Enum):
     SURREALIST    = auto()   # Kahlo — flat folk-art zones, intense saturated palette, dark contour outlines
     ABSTRACT_EXPRESSIONIST = auto()  # Kandinsky — geometric resonance, synesthetic colour theory, floating primitives
     VENETIAN_RENAISSANCE = auto()  # Titian — rich colourism, warm glazing, gestural impasto, luminous depth
+    FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -456,6 +457,14 @@ class Style:
             # Moderate-high edge_softness: edges soften through glazing, but Titian
             # is firmer than Leonardo's pure sfumato — forms are readable.
             Period.VENETIAN_RENAISSANCE: dict(stroke_size_face=12, stroke_size_bg=30, wet_blend=0.72, edge_softness=0.62),
+            # Fauvist (Matisse): bold flat colour zones, zero modelling, maximum
+            # saturation.  stroke_size_face is the loaded-brush zone fill width —
+            # medium (colours are placed in decisive broad patches).  stroke_size_bg
+            # is the background fill size — larger (backgrounds are as assertive as
+            # the figure in Fauvist painting).  Very low wet_blend: zones do not bleed
+            # into each other — flat is the point.  Very low edge_softness: coloured
+            # contour lines separate zones cleanly, no sfumato.
+            Period.FAUVIST:       dict(stroke_size_face=10, stroke_size_bg=22, wet_blend=0.05, edge_softness=0.08),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

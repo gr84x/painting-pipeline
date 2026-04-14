@@ -6,8 +6,9 @@ Covers:
   - Each ArtStyle has structurally valid data (palette colours in [0, 1], etc.)
   - El Greco entry is correct (session 11 addition)
   - Kandinsky entry is correct (session 14 addition)
+  - Matisse entry is correct (session 16 addition)
   - get_style() and list_artists() behave correctly
-  - Period enum contains all expected values including ABSTRACT_EXPRESSIONIST (session 14)
+  - Period enum contains all expected values including FAUVIST (session 16)
   - Style.stroke_params returns valid dicts for every Period value
 """
 
@@ -29,8 +30,8 @@ EXPECTED_ARTISTS = [
     "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "kandinsky",
-    "klimt", "leonardo", "manet", "monet", "rembrandt", "rothko", "sargent",
-    "seurat", "titian", "turner", "van_gogh", "velazquez", "vermeer",
+    "klimt", "leonardo", "manet", "matisse", "monet", "rembrandt", "rothko",
+    "sargent", "seurat", "titian", "turner", "van_gogh", "velazquez", "vermeer",
 ]
 
 
@@ -521,3 +522,120 @@ def test_venetian_renaissance_stroke_params_moderate_edge_softness():
     assert 0.45 <= p["edge_softness"] <= 0.80, (
         f"VENETIAN_RENAISSANCE edge_softness should be moderate (0.45–0.80); "
         f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Henri Matisse / Fauvism — session 16
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_matisse_in_catalog():
+    """Matisse (session 16) must be in the catalog."""
+    assert "matisse" in CATALOG
+
+
+def test_matisse_movement():
+    s = get_style("matisse")
+    assert "fauv" in s.movement.lower() or "fauvist" in s.movement.lower() or "Fauv" in s.movement
+
+
+def test_matisse_nationality():
+    s = get_style("matisse")
+    assert "french" in s.nationality.lower()
+
+
+def test_matisse_palette_length():
+    s = get_style("matisse")
+    assert len(s.palette) >= 6
+
+
+def test_matisse_palette_values_in_range():
+    """All Matisse palette RGB values must be in [0, 1]."""
+    s = get_style("matisse")
+    for i, col in enumerate(s.palette):
+        for ch in col:
+            assert 0.0 <= ch <= 1.0, (
+                f"Matisse palette colour {i} channel out of range: {ch}")
+
+
+def test_matisse_low_wet_blend():
+    """Matisse worked in flat, direct strokes — wet_blend must be very low."""
+    s = get_style("matisse")
+    assert s.wet_blend <= 0.12, (
+        f"Matisse wet_blend should be very low (flat Fauvist technique); "
+        f"got {s.wet_blend}")
+
+
+def test_matisse_low_edge_softness():
+    """Matisse used bold coloured outlines — edge_softness must be very low."""
+    s = get_style("matisse")
+    assert s.edge_softness <= 0.20, (
+        f"Matisse edge_softness should be very low (bold outlines); "
+        f"got {s.edge_softness}")
+
+
+def test_matisse_no_crackle():
+    """Matisse worked on modern canvas — crackle should be False."""
+    s = get_style("matisse")
+    assert not s.crackle, "Matisse crackle should be False (modern canvas)"
+
+
+def test_matisse_no_glazing():
+    """Matisse applied colour directly without oil glazes — glazing should be None."""
+    s = get_style("matisse")
+    assert s.glazing is None, "Matisse glazing should be None (no oil glazing in Fauvism)"
+
+
+def test_matisse_ground_is_pale():
+    """Matisse ground should be pale cream — he let the canvas read through."""
+    s = get_style("matisse")
+    avg = sum(s.ground_color) / 3.0
+    assert avg >= 0.70, (
+        f"Matisse ground should be pale cream (avg channel ≥ 0.70); got {avg:.2f}")
+
+
+def test_matisse_famous_works_include_dance():
+    """Matisse's famous works should include The Dance."""
+    s = get_style("matisse")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Dance" in t or "dance" in t for t in titles), (
+        "Matisse famous works should include The Dance")
+
+
+def test_matisse_inspiration_references_fauvist_mosaic():
+    """Matisse inspiration text should reference fauvist_mosaic_pass."""
+    s = get_style("matisse")
+    assert "fauvist_mosaic" in s.inspiration.lower().replace(" ", "_"), (
+        "Matisse inspiration should reference fauvist_mosaic_pass()")
+
+
+def test_fauvist_period_present():
+    """FAUVIST must exist in Period enum (session 16)."""
+    assert hasattr(Period, "FAUVIST"), "Period.FAUVIST not found"
+    assert Period.FAUVIST in list(Period)
+
+
+def test_fauvist_stroke_params_low_wet_blend():
+    """FAUVIST should have very low wet_blend — flat zones, no colour bleed."""
+    style = Style(medium=Medium.OIL, period=Period.FAUVIST,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.10, (
+        f"FAUVIST wet_blend should be very low; got {p['wet_blend']}")
+
+
+def test_fauvist_stroke_params_low_edge_softness():
+    """FAUVIST should have very low edge_softness — coloured contour lines, no sfumato."""
+    style = Style(medium=Medium.OIL, period=Period.FAUVIST,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.15, (
+        f"FAUVIST edge_softness should be very low; got {p['edge_softness']}")
+
+
+def test_fauvist_stroke_params_all_keys_present():
+    """FAUVIST stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.FAUVIST,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"FAUVIST stroke_params missing key: {key!r}"

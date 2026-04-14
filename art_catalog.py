@@ -1351,6 +1351,73 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Henri Matisse ─────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Matisse was the supreme leader of Fauvism (Les Fauves — "the wild beasts"),
+    # the first great revolt against naturalistic colour in European painting.
+    # Where Impressionism observed light and transcribed its effects faithfully,
+    # Fauvism discarded that mandate entirely: colour was pure emotional energy,
+    # applied straight from the tube with maximum saturation, with no obligation
+    # to represent the actual hue of the subject.  A face could be green.  A
+    # shadow could be hot orange.  The sky could be flat vermilion.  Matisse
+    # declared: "I cannot slavishly copy nature.  I must interpret it, and submit
+    # it to the spirit of the picture."  The result was explosive, joyful, and
+    # absolutely flat — no shadows, no modelling, no chiaroscuro.  Just pure colour
+    # zones separated by bold outlines and placed for maximum chromatic intensity.
+    # His palette evolved through Fauvism into the extraordinary cut-paper work of
+    # his final decade: *Jazz* (1947), *The Snail* (1953) — colour alone, no line.
+    "matisse": ArtStyle(
+        artist="Henri Matisse",
+        movement="Fauvism / Post-Impressionism / Decorative Modernism",
+        nationality="French",
+        period="1896–1954",
+        palette=[
+            (0.92, 0.18, 0.12),   # cadmium red — pure, hot, unmixed
+            (0.96, 0.72, 0.04),   # cadmium yellow — solar, maximum saturation
+            (0.08, 0.52, 0.72),   # cerulean blue — cool foil to the warm zones
+            (0.12, 0.68, 0.28),   # viridian green — jungle, nature, anti-naturalistic
+            (0.88, 0.45, 0.08),   # cadmium orange — sunlit planes
+            (0.75, 0.10, 0.55),   # violet-rose — shadow as pure colour, not grey
+            (0.96, 0.94, 0.80),   # pale cream — the ground reading through, or light
+        ],
+        ground_color=(0.96, 0.94, 0.80),    # pale canvas — Matisse let light show through
+        stroke_size=10,
+        wet_blend=0.06,                      # nearly no blending — flat, direct, decisive
+        edge_softness=0.10,                  # bold outlines; no sfumato
+        jitter=0.025,
+        glazing=None,                        # no glazing — colour is applied direct and final
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Fauvist mosaic technique: colour zones laid flat and unmixed, "
+            "at maximum saturation.  No shadow modelling — shadow areas receive "
+            "a COMPLEMENTARY hot colour (orange shadow beside blue form, purple "
+            "shadow beside yellow) rather than a darkened or desaturated version "
+            "of the local colour.  Outlines (contours) are drawn in pure colour "
+            "(often deep red, green, or blue) rather than neutral black. "
+            "Forms are simplified to their essential silhouette — detail "
+            "suppressed to allow colour to assert itself.  Backgrounds are as "
+            "flat and saturated as the figure.  Matisse saw colour not as a "
+            "descriptive tool but as an architectural structure: each zone "
+            "must balance its neighbours across the whole canvas like a chord."
+        ),
+        famous_works=[
+            ("Woman with a Hat", "1905"),
+            ("The Joy of Life (Bonheur de Vivre)", "1905–1906"),
+            ("The Dance", "1910"),
+            ("Red Room (Harmony in Red)", "1908"),
+            ("Blue Nude II", "1952"),   # late cut-paper period
+        ],
+        inspiration=(
+            "Use fauvist_mosaic_pass(): quantize reference to N bold zones, "
+            "replace each zone's hue with a pure Fauvist colour from the palette, "
+            "suppress luminance modelling (flatten to mid-value), apply bold "
+            "coloured contour outlines (not black).  Shadow zones → complementary "
+            "hot colour, not grey.  Zero sfumato, zero glazing, maximum saturation."
+        ),
+    ),
+
 }
 
 

@@ -4755,3 +4755,392 @@ class Painter:
 
         print(f"  Subsurface glow complete  "
               f"(peak alpha={glow_strength:.2f}  blur={blur_sigma:.1f}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Fauvist mosaic pass — Henri Matisse / Les Fauves (session 16)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def fauvist_mosaic_pass(self,
+                            reference:         Union[np.ndarray, Image.Image],
+                            n_zones:           int   = 8,
+                            saturation_boost:  float = 1.70,
+                            lum_flatten:       float = 0.55,
+                            contour_thickness: float = 2.5,
+                            contour_opacity:   float = 0.92,
+                            n_zone_strokes:    int   = 0,
+                            complement_shadow: bool  = True,
+                            shadow_threshold:  float = 0.38):
+        """
+        Fauvist mosaic technique — inspired by Henri Matisse and Les Fauves.
+
+        Fauvism (1905–1908) was the first European movement to declare that
+        colour need not represent reality.  Matisse placed pure cadmium red
+        where there was a green shadow, pure cerulean blue where there was a
+        brown wall — not because he mis-observed, but because the emotional
+        truth of the colour chord mattered more than accurate hue transcription.
+        The result is a flat, tile-like mosaic of saturated zones, separated
+        by coloured (not black) contour lines.
+
+        This pass implements the three stages of Matisse's Fauvist technique:
+
+          Stage 1 — Hue liberation:
+            Quantize the reference image to N colour zones using PIL palette
+            reduction.  For each zone, extract the dominant hue, then REPLACE
+            it with the nearest hue from the Fauvist palette (pure primaries and
+            secondaries at maximum saturation).  The palette is not neutral —
+            every zone is forced toward full chromatic intensity.
+
+          Stage 2 — Luminance suppression:
+            Matisse flattened chiaroscuro: forms are indicated by hue contrast,
+            not by light/shadow gradients.  The luminance channel is compressed
+            toward mid-value by `lum_flatten` (0 = no suppression, 1 = all
+            zones at uniform mid-grey value).  Shadow areas are particularly
+            affected: instead of darkening toward brown/black, they receive
+            the COMPLEMENTARY colour (orange for blue zones, green for red
+            zones), making the shadow zone as vivid as the lit zone.
+
+          Stage 3 — Coloured contour lines:
+            Sobel-detect zone boundaries, then draw contour strokes in a
+            saturated colour (not black) — Matisse used vermilion, deep green,
+            and ultramarine as his contour colours.  The coloured outline is
+            what gives Fauvist works their stained-glass quality.
+
+        Parameters
+        ----------
+        reference         : PIL Image or ndarray reference for colour sampling.
+        n_zones           : Number of flat colour zones (6–12 typical).
+        saturation_boost  : HSV saturation multiplier applied to every zone
+                           colour before painting.  1.60–1.90 gives vivid Fauvist
+                           saturation; values above 2.0 clip excessively.
+        lum_flatten       : Fraction by which luminance variation is suppressed
+                           toward mid-value (0.50).  0 = no flattening (natural
+                           contrast retained); 0.55 = moderate Fauvist flatness;
+                           1.0 = all zones at exactly v=0.50.
+        contour_thickness : Width of coloured contour strokes in pixels.
+        contour_opacity   : Opacity of contour strokes (0–1).
+        n_zone_strokes    : Loaded-brush strokes to apply per zone for texture.
+                           0 = auto-compute from canvas area.
+        complement_shadow : If True, shadow zones receive their complementary
+                           hue rather than a darkened version of the local hue.
+                           This is the defining Fauvist technique.
+        shadow_threshold  : Reference luminance below which a pixel is
+                           classified as a shadow zone (0–1).
+        """
+        print(f"Fauvist mosaic pass  (zones={n_zones}  sat_boost={saturation_boost:.2f}"
+              f"  lum_flatten={lum_flatten:.2f})…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # ── Stage 1: Hue quantization and liberation ──────────────────────────
+        # Convert reference to PIL and quantize to N zones using median-cut.
+        ref_pil   = Image.fromarray(ref[:, :, :3])
+        quantized = ref_pil.quantize(colors=n_zones, method=Image.Quantize.MEDIANCUT)
+        zone_idx  = np.array(quantized, dtype=np.int32)   # (H, W) zone indices
+
+        # Matisse Fauvist palette — pure, maximum-saturation hues.
+        # These are the raw pigments he squeezed directly from tube onto canvas.
+        fauvist_hues = [
+            0.00,   # cadmium red
+            0.08,   # cadmium orange
+            0.15,   # cadmium yellow
+            0.38,   # viridian green
+            0.57,   # cerulean / cobalt blue
+            0.75,   # ultramarine blue-violet
+            0.85,   # violet-rose / magenta
+            0.92,   # rose madder
+        ]
+
+        # For each zone, determine representative hue from reference,
+        # then assign the nearest Fauvist hue at maximum saturation.
+        n_z = n_zones
+        zone_colors = {}
+        for z in range(n_z):
+            mask = zone_idx == z
+            if mask.sum() < 1:
+                zone_colors[z] = (0.60, 0.20, 0.15)  # fallback red
+                continue
+            # Mean reference colour for this zone
+            mean_rgb = rarr[mask].mean(axis=0)
+            mean_h, mean_s, mean_v = colorsys.rgb_to_hsv(*mean_rgb)
+
+            # Apply luminance suppression toward 0.50
+            suppressed_v = mean_v + (0.50 - mean_v) * lum_flatten
+
+            # Complement shadow: if this zone is in shadow, rotate hue by 180°
+            is_shadow_zone = mean_v < shadow_threshold
+            if complement_shadow and is_shadow_zone:
+                target_hue = (mean_h + 0.5) % 1.0
+            else:
+                # Snap to nearest Fauvist hue
+                dists = [min(abs(mean_h - fh), 1.0 - abs(mean_h - fh))
+                         for fh in fauvist_hues]
+                target_hue = fauvist_hues[int(np.argmin(dists))]
+
+            # Apply saturation boost (cap at 1.0)
+            target_sat = min(1.0, max(0.35, mean_s) * saturation_boost)
+            zone_colors[z] = colorsys.hsv_to_rgb(target_hue, target_sat,
+                                                  suppressed_v)
+
+        # ── Stage 2: Flat zone fill via loaded-brush strokes ──────────────────
+        # Matisse covered each zone in confident flat loaded-brush patches.
+        # Stroke count auto-scales with canvas size if n_zone_strokes == 0.
+        total_strokes = n_zone_strokes if n_zone_strokes > 0 else max(
+            1200, int(w * h / 480))
+        strokes_per_zone = max(80, total_strokes // max(1, n_z))
+
+        print(f"  Zone fill  ({n_z} zones  ~{strokes_per_zone} strokes each)…")
+
+        tip_flat  = BrushTip(BrushTip.FLAT, bristle_noise=0.05)
+        base_size = max(6, int(min(w, h) / 65))   # ~1.5% of smaller dimension
+
+        for z in range(n_z):
+            mask = (zone_idx == z).astype(np.float32)
+            if mask.sum() < 4:
+                continue
+
+            # Combine zone mask with figure mask for figure zones
+            region = mask
+            if self._figure_mask is not None:
+                region = region  # allow both figure and background zones
+
+            # Error map: paint where reference zone colour differs most from canvas
+            cbuf = np.frombuffer(self.canvas.surface.get_data(),
+                                 dtype=np.uint8).reshape(h, w, 4).copy()
+            carr = cbuf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+            zt   = np.array(zone_colors[z], dtype=np.float32)
+            err  = np.mean(np.abs(carr - zt[np.newaxis, np.newaxis, :]), axis=2)
+            prob = (err * mask)
+            total_p = prob.sum()
+            if total_p < 1e-9:
+                continue
+            prob = prob / total_p
+
+            positions = self.rng.choice(
+                h * w, size=strokes_per_zone, p=prob.flatten(), replace=True)
+
+            zc = zone_colors[z]
+            for pos in positions:
+                py, px = int(pos // w), int(pos % w)
+                margin = max(base_size + 2, 4)
+                px = int(np.clip(px, margin, w - margin))
+                py = int(np.clip(py, margin, h - margin))
+
+                # Short confident flat strokes — Matisse's direct loaded-brush mark
+                stroke_size = float(base_size) * self._rng_py.uniform(0.7, 1.8)
+                angle = self._rng_py.uniform(0, math.pi)
+                L     = stroke_size * self._rng_py.uniform(1.2, 3.0)
+                pts   = stroke_path((float(px), float(py)), angle, L,
+                                    curve=0.0, n=max(2, int(L / 4)))
+                ws    = [stroke_size] * len(pts)
+                self.canvas.apply_stroke(
+                    pts, ws, zc, tip_flat,
+                    opacity=0.88, wet_blend=0.04,
+                    jitter_amt=0.018, rng=self._rng_py,
+                    region_mask=region,
+                )
+
+        # ── Stage 3: Coloured contour lines ───────────────────────────────────
+        # Detect zone boundaries via Sobel on the quantized zone index map.
+        # Draw coloured (not black) contour strokes — the stained-glass signature.
+        print(f"  Coloured contour lines  (thickness={contour_thickness:.1f}px)…")
+
+        # Boundary map from zone index discontinuities
+        zf   = zone_idx.astype(np.float32)
+        bx   = ndimage.sobel(zf, axis=1).astype(np.float32)
+        by   = ndimage.sobel(zf, axis=0).astype(np.float32)
+        bmag = np.sqrt(bx ** 2 + by ** 2)
+        if bmag.max() > 1e-9:
+            bmag /= bmag.max()
+
+        # Contour angle map (perpendicular to gradient = along the boundary)
+        bangles = np.arctan2(by, bx) + math.pi / 2.0
+
+        # Contour colour: rich ultramarine blue-green — Matisse's preferred outline
+        contour_color = (0.06, 0.28, 0.55)   # deep ultramarine
+
+        # Place contour strokes along high-magnitude boundary pixels
+        boundary_prob = (bmag ** 1.5).flatten()
+        bp_total = boundary_prob.sum()
+        if bp_total > 1e-9:
+            boundary_prob /= bp_total
+            n_contour = max(500, int(w * h / 700))
+            positions = self.rng.choice(h * w, size=n_contour,
+                                        p=boundary_prob, replace=True)
+            tip_c = BrushTip(BrushTip.FLAT, bristle_noise=0.0)
+            margin = max(3, int(contour_thickness * 2))
+
+            for pos in positions:
+                py, px = int(pos // w), int(pos % w)
+                px = max(margin, min(w - margin, px))
+                py = max(margin, min(h - margin, py))
+                a  = float(bangles[py, px])
+                L  = self._rng_py.uniform(6.0, 18.0)
+                start = (px - math.cos(a) * L * 0.5,
+                         py - math.sin(a) * L * 0.5)
+                n_pts = max(3, int(L / 4))
+                pts   = stroke_path(start, a, L, curve=0.0, n=n_pts)
+                ws    = [contour_thickness] * len(pts)
+                self.canvas.apply_stroke(
+                    pts, ws, contour_color, tip_c,
+                    opacity=contour_opacity, wet_blend=0.0,
+                    jitter_amt=0.006, rng=self._rng_py,
+                )
+
+        print(f"  Fauvist mosaic complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Chroma zone pass — tonal chroma management (session 16 random improvement)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def chroma_zone_pass(self,
+                         light_suppress:  float = 0.55,
+                         shadow_suppress: float = 0.40,
+                         midtone_boost:   float = 1.20,
+                         light_thresh:    float = 0.72,
+                         shadow_thresh:   float = 0.30):
+        """
+        Tonal chroma management — inspired by Vermeer's luminance-saturation control.
+
+        The Old Masters — Vermeer especially — understood that chromatic intensity
+        (saturation) should vary across the luminance range in a specific, non-obvious
+        way:
+
+          • Highest lights → warm white, nearly neutral (low saturation).  Pure
+            white light bleaches colour; the highest highlight on a red dress is
+            almost white, not red.
+
+          • Deep shadows → cool neutral (low saturation).  Pigment in the deepest
+            shadows is absorbed by darkness; a saturated blue-black is less
+            convincing than a near-neutral dark grey with a faint cool cast.
+
+          • Mid-tones → maximum saturation.  This is where colour lives.  The
+            'local colour' of a surface — its true red, blue, or green — is most
+            legible in the mid-tone zone, where it is neither bleached by light
+            nor absorbed by shadow.
+
+        This pass reads the current canvas buffer, performs per-pixel HSV analysis,
+        and applies three targeted adjustments:
+
+          1. **Light zone suppression**: pixels above `light_thresh` luminance have
+             their saturation multiplied by `light_suppress` (< 1.0), driving
+             highlights toward warm white.
+
+          2. **Shadow zone suppression**: pixels below `shadow_thresh` luminance have
+             their saturation multiplied by `shadow_suppress` (< 1.0), driving
+             deep shadows toward cool neutral.
+
+          3. **Mid-tone boost**: pixels between the two thresholds have their
+             saturation multiplied by `midtone_boost` (> 1.0), enriching the
+             zone where colour is most expressive.
+
+        All changes are vectorised via numpy and written back in a single Cairo
+        surface operation — no stroke-by-stroke overhead.
+
+        This pass should be called AFTER the main painting passes and BEFORE the
+        final glaze and finish(), so that colour temperature of the glaze is applied
+        on top of correctly managed saturation zones.
+
+        Parameters
+        ----------
+        light_suppress  : Saturation multiplier for highlight pixels (< 1.0).
+                         0.40–0.65 gives the warm-neutral highlight typical of
+                         Vermeer and Dutch masters.
+        shadow_suppress : Saturation multiplier for shadow pixels (< 1.0).
+                         0.30–0.55 gives cool near-neutral darks.
+        midtone_boost   : Saturation multiplier for mid-tone pixels (> 1.0).
+                         1.15–1.35 enriches the local-colour zone without clipping.
+        light_thresh    : Luminance threshold above which pixels are 'highlight'
+                         zone (0–1).  0.68–0.75 is appropriate for oil painting.
+        shadow_thresh   : Luminance threshold below which pixels are 'shadow'
+                         zone (0–1).  0.25–0.35 is appropriate for oil painting.
+        """
+        print(f"Chroma zone pass  (light_suppress={light_suppress:.2f}"
+              f"  shadow_suppress={shadow_suppress:.2f}"
+              f"  midtone_boost={midtone_boost:.2f})…")
+
+        h, w = self.h, self.w
+        ctx  = self.canvas.ctx
+
+        # Read current canvas (Cairo BGRA layout)
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        # Extract RGB float in [0, 1]
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+
+        # Vectorised RGB → HSV
+        # Luminance (value in HSV = max of RGB channels)
+        v_ch = np.maximum(np.maximum(r_ch, g_ch), b_ch)
+        mn   = np.minimum(np.minimum(r_ch, g_ch), b_ch)
+        span = v_ch - mn
+
+        # Saturation = span / v  (0 where v is 0)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            s_ch = np.where(v_ch > 1e-9, span / v_ch, 0.0)
+
+        # Hue (0–1 range)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            h_ch = np.zeros_like(v_ch)
+            # Red is max
+            m = (v_ch == r_ch) & (span > 1e-9)
+            h_ch[m] = ((g_ch[m] - b_ch[m]) / span[m]) % 6.0
+            # Green is max
+            m = (v_ch == g_ch) & (span > 1e-9)
+            h_ch[m] = (b_ch[m] - r_ch[m]) / span[m] + 2.0
+            # Blue is max
+            m = (v_ch == b_ch) & (span > 1e-9)
+            h_ch[m] = (r_ch[m] - g_ch[m]) / span[m] + 4.0
+        h_ch = (h_ch / 6.0) % 1.0   # normalise to [0, 1]
+
+        # ── Apply tonal chroma adjustments ───────────────────────────────────
+        lum = v_ch  # use V channel as luminance proxy
+
+        # Light zone: bleach toward neutral warm white
+        light_mask   = lum >= light_thresh
+        s_ch[light_mask] = np.clip(s_ch[light_mask] * light_suppress, 0.0, 1.0)
+
+        # Shadow zone: cool near-neutral darks
+        shadow_mask  = lum <= shadow_thresh
+        s_ch[shadow_mask] = np.clip(s_ch[shadow_mask] * shadow_suppress, 0.0, 1.0)
+
+        # Mid-tone zone: enrich local colour
+        mid_mask = (~light_mask) & (~shadow_mask)
+        s_ch[mid_mask] = np.clip(s_ch[mid_mask] * midtone_boost, 0.0, 1.0)
+
+        # ── Vectorised HSV → RGB ─────────────────────────────────────────────
+        # Uses the standard HSV→RGB sector formula, fully vectorised.
+        h6   = h_ch * 6.0
+        i    = np.floor(h6).astype(np.int32) % 6
+        f    = h6 - np.floor(h6)
+        p    = v_ch * (1.0 - s_ch)
+        q    = v_ch * (1.0 - f * s_ch)
+        t    = v_ch * (1.0 - (1.0 - f) * s_ch)
+
+        r_out = np.select(
+            [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5],
+            [v_ch,   q,      p,      p,      t,      v_ch],  0.0)
+        g_out = np.select(
+            [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5],
+            [t,      v_ch,   v_ch,   q,      p,      p],     0.0)
+        b_out = np.select(
+            [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5],
+            [p,      p,      t,      v_ch,   v_ch,   q],     0.0)
+
+        # Clamp and write back to Cairo BGRA buffer
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)  # R → BGRA[2]
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)  # G → BGRA[1]
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)  # B → BGRA[0]
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        print(f"  Chroma zone pass complete  "
+              f"(light zone: {light_mask.sum()} px  "
+              f"shadow zone: {shadow_mask.sum()} px  "
+              f"mid-tone: {mid_mask.sum()} px)")

@@ -170,6 +170,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_abstract_expressionist":  period == Period.ABSTRACT_EXPRESSIONIST,
         "is_romantic":                period == Period.ROMANTIC,
         "is_venetian":                period == Period.VENETIAN_RENAISSANCE,
+        "is_fauvist":                 period == Period.FAUVIST,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -645,3 +646,125 @@ def test_venetian_mutually_exclusive_with_renaissance():
     assert     flags_v["is_venetian"]
     assert not flags_v.get("is_renaissance_soft", False)
     assert not flags_r["is_venetian"]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# fauvist_mosaic_pass + chroma_zone_pass — session 16
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_fauvist_mosaic_pass_exists():
+    """Painter must have fauvist_mosaic_pass() method (session 16)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "fauvist_mosaic_pass"), (
+        "fauvist_mosaic_pass not found on Painter")
+    assert callable(getattr(Painter, "fauvist_mosaic_pass"))
+
+
+def test_chroma_zone_pass_exists():
+    """Painter must have chroma_zone_pass() method (session 16 random improvement)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "chroma_zone_pass"), (
+        "chroma_zone_pass not found on Painter")
+    assert callable(getattr(Painter, "chroma_zone_pass"))
+
+
+def test_fauvist_mosaic_pass_no_error():
+    """fauvist_mosaic_pass() runs without error on a small synthetic canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.96, 0.94, 0.80), texture_strength=0.03)
+    p.fauvist_mosaic_pass(ref, n_zones=4, saturation_boost=1.60, lum_flatten=0.50)
+
+
+def test_fauvist_mosaic_pass_modifies_canvas():
+    """fauvist_mosaic_pass() must visibly alter the canvas pixels."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.96, 0.94, 0.80), texture_strength=0.03)
+
+    # Read canvas before
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    p.fauvist_mosaic_pass(ref, n_zones=4, saturation_boost=1.60,
+                          lum_flatten=0.50, complement_shadow=True)
+
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "fauvist_mosaic_pass did not modify the canvas")
+
+
+def test_chroma_zone_pass_no_error():
+    """chroma_zone_pass() runs without error on a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.08)
+    p.block_in(ref, stroke_size=12, n_strokes=40)
+    # Should complete without exception
+    p.chroma_zone_pass(light_suppress=0.55, shadow_suppress=0.40,
+                       midtone_boost=1.20)
+
+
+def test_chroma_zone_pass_modifies_canvas():
+    """chroma_zone_pass() must alter the canvas pixels."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    # Use a colourful reference so saturation suppression is detectable
+    from PIL import Image
+    colourful = Image.fromarray(
+        (np.array([[[200, 30, 30]] * 64] * 64, dtype=np.uint8)), "RGB")
+    p.tone_ground((0.78, 0.15, 0.12), texture_strength=0.05)
+    p.block_in(colourful, stroke_size=10, n_strokes=60)
+
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chroma_zone_pass(light_suppress=0.40, shadow_suppress=0.30,
+                       midtone_boost=1.30)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "chroma_zone_pass did not modify the canvas")
+
+
+def test_chroma_zone_pass_pixels_stay_in_range():
+    """chroma_zone_pass() must not produce out-of-range pixel values."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.08)
+    p.block_in(ref, stroke_size=12, n_strokes=40)
+    p.chroma_zone_pass(light_suppress=0.55, shadow_suppress=0.40,
+                       midtone_boost=1.20)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_fauvist_flag_set_for_fauvist_period():
+    """is_fauvist routing flag must be True for Period.FAUVIST."""
+    flags = _routing_flags(Period.FAUVIST)
+    assert flags["is_fauvist"] is True
+
+
+def test_fauvist_flag_not_set_for_other_periods():
+    """is_fauvist must be False for all periods except FAUVIST."""
+    for period in Period:
+        if period == Period.FAUVIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_fauvist"], (
+            f"is_fauvist should be False for {period.name}")
+
+
+def test_fauvist_mutually_exclusive_with_synthetist():
+    """FAUVIST and SYNTHETIST are distinct periods — both flat but different pipelines."""
+    flags_f = _routing_flags(Period.FAUVIST)
+    flags_s = _routing_flags(Period.SYNTHETIST)
+    assert     flags_f["is_fauvist"]
+    assert not flags_f["is_synthetist"]
+    assert     flags_s["is_synthetist"]
+    assert not flags_s["is_fauvist"]

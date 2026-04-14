@@ -492,6 +492,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_abstract_expressionist = (scene.style.period == Period.ABSTRACT_EXPRESSIONIST)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     is_venetian          = (scene.style.period == Period.VENETIAN_RENAISSANCE)
+    is_fauvist           = (scene.style.period == Period.FAUVIST)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -956,6 +957,66 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.glaze((0.72, 0.38, 0.18), opacity=0.07)
         # Strong vignette (Titian often used dark edges), aged crackle appropriate
         p.finish(vignette=0.50, crackle=True)
+
+    elif is_fauvist:
+        # ── Fauvist pipeline (Henri Matisse / Les Fauves technique) ──────────
+        # Matisse worked on pale-primed or unprimed canvas, letting the cream
+        # ground show through flat colour zones.  The defining visual strategy
+        # is the complete rejection of chiaroscuro: forms are described by HUE
+        # contrast, not by light-to-shadow gradients.  Shadows receive a
+        # complementary hot colour (orange shadow for blue zones, purple for
+        # yellow) — never a grey or darkened version of the local hue.
+        # Coloured outlines (ultramarine, vermilion, viridian) replace neutral
+        # black contours.
+        #
+        # Pipeline:
+        #   1. Pale cream ground — lets colour radiate; very low texture.
+        #   2. Light underpainting only — enough to orient composition before
+        #      the flat zones obliterate all modelling.
+        #   3. fauvist_mosaic_pass() — the signature Matisse technique:
+        #      (a) hue quantization + Fauvist palette snap,
+        #      (b) luminance suppression toward mid-value,
+        #      (c) complementary shadow hues,
+        #      (d) coloured (ultramarine) contour outlines.
+        #   4. chroma_zone_pass() — applied at reduced strength; even within
+        #      Fauvism the highest lights lose colour and shadows cool slightly.
+        #   5. No glaze — colour is raw, direct, final.
+        #   6. Very light vignette; no crackle (modern canvas).
+        matisse_style = _ART_CATALOG.get("matisse")
+        ground_col    = matisse_style.ground_color if matisse_style else (0.96, 0.94, 0.80)
+
+        # Pale cream ground — Matisse's luminous starting surface
+        p.tone_ground(ground_col, texture_strength=0.03)
+
+        # Minimal underpainting: just enough to establish compositional masses
+        # before the flat colour zones take over
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.8), n_strokes=90)
+
+        # Core Matisse technique: hue liberation + flat zones + coloured contours
+        p.fauvist_mosaic_pass(
+            ref,
+            n_zones           = 9,
+            saturation_boost  = 1.75,
+            lum_flatten       = 0.52,
+            contour_thickness = max(2.0, float(sp["stroke_size_face"]) * 0.28),
+            contour_opacity   = 0.92,
+            complement_shadow = True,
+            shadow_threshold  = 0.36,
+        )
+
+        # Chroma zone pass at reduced strength — even Fauvism has residual
+        # tonal structure: lights are cooler-white, deep darks go near-neutral
+        p.chroma_zone_pass(
+            light_suppress  = 0.68,   # gentler suppression — Fauvist lights stay vivid
+            shadow_suppress = 0.50,
+            midtone_boost   = 1.15,
+            light_thresh    = 0.78,
+            shadow_thresh   = 0.24,
+        )
+
+        # No glaze — Matisse's colour is direct and final, not mediated by varnish.
+        # Very light vignette; no crackle (modern canvas).
+        p.finish(vignette=0.12, crackle=False)
 
     elif is_synthetist:
         # ── Synthetist / Cloisonnist pipeline (Paul Gauguin technique) ───────
