@@ -2533,17 +2533,24 @@ class Painter:
             # Composite: only where edge_mask is active
             alpha = edge_mask * veil_opacity            # (H, W) float
 
-            # Build an RGBA surface for this veil
+            # Build an ARGB32 Cairo surface for this veil.
+            # IMPORTANT: Cairo's FORMAT_ARGB32 uses PREMULTIPLIED alpha.
+            # Each channel must be multiplied by alpha before storing, or Cairo
+            # will composite the raw (full-brightness) RGB values as if they were
+            # already premultiplied, producing severe over-brightening at edges.
+            alpha_3ch = alpha[:, :, np.newaxis]          # (H, W, 1) for broadcast
+            premul_rgb = blurred * alpha_3ch              # (H, W, 3) premultiplied
+
             veil_rgba = np.zeros((h, w, 4), dtype=np.uint8)
-            veil_rgba[:, :, 0] = np.clip(blurred[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B (BGRA)
-            veil_rgba[:, :, 1] = np.clip(blurred[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G
-            veil_rgba[:, :, 2] = np.clip(blurred[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R
-            veil_rgba[:, :, 3] = np.clip(alpha * 255, 0, 255).astype(np.uint8)              # A
+            veil_rgba[:, :, 0] = np.clip(premul_rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B premul
+            veil_rgba[:, :, 1] = np.clip(premul_rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G premul
+            veil_rgba[:, :, 2] = np.clip(premul_rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R premul
+            veil_rgba[:, :, 3] = np.clip(alpha * 255, 0, 255).astype(np.uint8)                 # A
 
             veil_surf = cairo.ImageSurface.create_for_data(
                 bytearray(veil_rgba.tobytes()), cairo.FORMAT_ARGB32, w, h)
             ctx.set_source_surface(veil_surf, 0, 0)
-            ctx.paint_with_alpha(1.0)   # alpha is already encoded per-pixel
+            ctx.paint()   # alpha is premultiplied into R/G/B
 
         print(f"  Sfumato complete ({n_veils} veils accumulated).")
 
