@@ -1169,6 +1169,95 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Wassily Kandinsky ──────────────────────────────────────────────────────
+    #
+    # Kandinsky (1866–1944) is the artist most widely credited with painting the
+    # first fully non-representational work — "Composition V" (1911) — and with
+    # providing the theoretical underpinning for abstract art in his treatise
+    # "Concerning the Spiritual in Art" (1911).  A synesthete, he perceived sound
+    # as colour and colour as sound; each pigment carried an emotional and acoustic
+    # resonance that he encoded in his composition theory:
+    #
+    #   • Yellow — sharp, trumpet-like, restless, advancing toward the viewer
+    #   • Blue   — receding, heavenly, deep, organ / cello register
+    #   • Red    — powerful, earthbound, drumbeat warmth
+    #   • White  — the silence before sound; a canvas waiting to speak
+    #   • Black  — the silence after sound; the extinguishing of all resonance
+    #
+    # His career divides into three phases:
+    #   1. Lyrical (1900–1913): loose, organic, swirling forms derived from
+    #      Russian folk art and Wagner — "Improvisation" and early "Composition"
+    #      series.  Forms are suggestive of landscape and horsemen but dissolving.
+    #   2. Bauhaus / Analytic (1922–1933): precise geometric abstraction —
+    #      circles, triangles, lines on ordered grounds. Kandinsky taught the
+    #      Bauhaus colour theory course; his late German work is cool, rational,
+    #      mathematically arranged. "Composition VIII" (1923) is the archetype.
+    #   3. Biomorphic Paris (1933–1944): organic, quasi-biological shapes floating
+    #      against flat pastel grounds — "Composition X" (1939), "Sky Blue" (1940).
+    #
+    # Technically he worked in oil on canvas and gouache on paper.  His grounds
+    # were often a neutral off-white — he wanted colour to radiate from the surface
+    # unaffected by a warm or dark tone.  Paint application was controlled; no
+    # impasto.  His Bauhaus works have an almost enamel surface quality.
+    #
+    # The defining element of the pipeline inspiration: the *geometric resonance
+    # pass* — scatter floating geometric primitives (circles, triangles, radiating
+    # lines) across the canvas, each coloured by Kandinsky's synesthetic theory.
+    # The result gives any painting an abstract, musical, internally vibrating
+    # quality, as if the formal subject is being dissolved into pure sensation.
+    "kandinsky": ArtStyle(
+        artist="Wassily Kandinsky",
+        movement="Der Blaue Reiter / Bauhaus Abstract / Abstract Expressionism",
+        nationality="Russian-German",
+        period="1900–1944",
+        palette=[
+            (0.95, 0.84, 0.12),   # cadmium yellow — advancing, trumpet-sharp
+            (0.08, 0.18, 0.68),   # ultramarine blue — receding, cello-deep
+            (0.82, 0.16, 0.12),   # vermilion red — drumbeat warmth
+            (0.06, 0.06, 0.06),   # near-black — extinguished resonance
+            (0.94, 0.94, 0.90),   # ivory white — silence before sound
+            (0.10, 0.52, 0.28),   # emerald green — neutral, static rest
+            (0.55, 0.22, 0.70),   # violet — quiet, wavering, uncertain
+        ],
+        ground_color=(0.92, 0.91, 0.87),    # off-white — colour radiates cleanly
+        stroke_size=8,
+        wet_blend=0.10,                      # geometric forms have crisp edges
+        edge_softness=0.15,                  # hard geometry; circles have clean arcs
+        jitter=0.018,                        # pure pigment; minimal variation
+        glazing=None,                        # colour is direct; no unifying glaze
+        crackle=False,                       # modern canvas; no aged crackle
+        chromatic_split=False,
+        technique=(
+            "Synesthetic geometric abstraction.  Each colour carries an emotional "
+            "and acoustic resonance — yellow advances like a trumpet, blue recedes "
+            "like a cello, red pulses like a drum.  Bauhaus phase: precise circles, "
+            "triangles, and radiating lines on ordered off-white grounds.  Lyrical "
+            "phase: organic swirling forms derived from folk imagery, dissolving into "
+            "pure sensation.  No representational subject — composition is built from "
+            "colour weight, tension-line, and geometric counterpoint.  Flat, controlled "
+            "paint application; no impasto; enamel-quality surface.  'Colour is the "
+            "keyboard, the eye is the hammer, the soul is the string.'"
+        ),
+        famous_works=[
+            ("Composition VII", "1913"),
+            ("Yellow-Red-Blue", "1925"),
+            ("Several Circles", "1926"),
+            ("Composition VIII", "1923"),
+            ("Improvisation 28 (Second Version)", "1912"),
+            ("Sky Blue", "1940"),
+        ],
+        inspiration=(
+            "Use geometric_resonance_pass(): scatter floating geometric primitives "
+            "(circles, triangles, radiating tension lines) across the canvas. "
+            "Colour each primitive by Kandinsky's synesthetic theory: yellow → "
+            "advancing triangles; blue → receding circles; red → stable squares; "
+            "black → sharp tension lines.  Apply at very low opacity so the "
+            "underlying painting reads through — the result gives any composition "
+            "an internally vibrating, musical quality."
+        ),
+    ),
+
 }
 
 

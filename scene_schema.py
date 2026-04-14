@@ -192,6 +192,7 @@ class Period(Enum):
     SYNTHETIST    = auto()   # Gauguin — flat colour zones, dark cloisonné contour lines, tropical palette
     MANNERIST     = auto()   # El Greco — elongated figures, jewel-tone palette, inner-lit silver flesh
     SURREALIST    = auto()   # Kahlo — flat folk-art zones, intense saturated palette, dark contour outlines
+    ABSTRACT_EXPRESSIONIST = auto()  # Kandinsky — geometric resonance, synesthetic colour theory, floating primitives
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -439,6 +440,13 @@ class Style:
             # Near-zero wet_blend: Kahlo's zones do not bleed; paint is dry and flat.
             # Very low edge_softness: hard dark outlines, no sfumato.
             Period.SURREALIST:    dict(stroke_size_face=8,  stroke_size_bg=18, wet_blend=0.08, edge_softness=0.12),
+            # Abstract Expressionist (Kandinsky): geometric forms demand crisp boundaries
+            # and minimal blending.  stroke_size_face is the primary geometric primitive
+            # size — medium (shapes are legible, not microscopic).  stroke_size_bg is
+            # the background fill stroke — larger for broad colour-ground sweeps.
+            # Very low wet_blend: geometric edges must stay hard.
+            # Low edge_softness: no sfumato; circles and triangles have clean arcs.
+            Period.ABSTRACT_EXPRESSIONIST: dict(stroke_size_face=10, stroke_size_bg=22, wet_blend=0.08, edge_softness=0.12),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

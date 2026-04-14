@@ -167,6 +167,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_synthetist":              period == Period.SYNTHETIST,
         "is_mannerist":               period == Period.MANNERIST,
         "is_surrealist":              period == Period.SURREALIST,
+        "is_abstract_expressionist":  period == Period.ABSTRACT_EXPRESSIONIST,
         "is_romantic":                period == Period.ROMANTIC,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
@@ -401,3 +402,110 @@ def test_surrealist_and_mannerist_mutually_exclusive():
     flags_m = _routing_flags(Period.MANNERIST)
     assert flags_s["is_surrealist"] and not flags_s["is_mannerist"]
     assert flags_m["is_mannerist"]  and not flags_m["is_surrealist"]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 14: geometric_resonance_pass + ABSTRACT_EXPRESSIONIST routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_geometric_resonance_pass_exists():
+    """Session 14: Painter must have geometric_resonance_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "geometric_resonance_pass"), (
+        "geometric_resonance_pass not found on Painter")
+    assert callable(getattr(Painter, "geometric_resonance_pass"))
+
+
+def test_geometric_resonance_pass_no_error():
+    """geometric_resonance_pass() runs without error on a plain toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.91, 0.87), texture_strength=0.03)
+    # Should not raise
+    p.geometric_resonance_pass(
+        ref,
+        n_circles     = 4,
+        n_triangles   = 3,
+        n_lines       = 6,
+        shape_opacity = 0.20,
+    )
+
+
+def test_geometric_resonance_pass_modifies_canvas():
+    """geometric_resonance_pass() with shape_opacity > 0 must modify the canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.91, 0.87), texture_strength=0.03)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    p.geometric_resonance_pass(
+        ref,
+        n_circles     = 6,
+        n_triangles   = 5,
+        n_lines       = 8,
+        shape_opacity = 0.30,
+        seed          = 7,
+    )
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    diff = np.abs(after - before).max()
+    assert diff > 0, (
+        "geometric_resonance_pass with shape_opacity=0.30 should modify the canvas; "
+        f"max pixel diff = {diff:.1f}")
+
+
+def test_abstract_expressionist_flag_set():
+    """ABSTRACT_EXPRESSIONIST period must set is_abstract_expressionist=True."""
+    flags = _routing_flags(Period.ABSTRACT_EXPRESSIONIST)
+    assert flags["is_abstract_expressionist"] is True
+
+
+def test_abstract_expressionist_flag_not_set_for_other_periods():
+    """is_abstract_expressionist must be False for all periods except ABSTRACT_EXPRESSIONIST."""
+    for period in Period:
+        if period == Period.ABSTRACT_EXPRESSIONIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_abstract_expressionist"], (
+            f"is_abstract_expressionist should be False for {period.name}")
+
+
+def test_abstract_expressionist_mutually_exclusive_with_surrealist():
+    """ABSTRACT_EXPRESSIONIST and SURREALIST are different periods."""
+    flags_ae = _routing_flags(Period.ABSTRACT_EXPRESSIONIST)
+    flags_s  = _routing_flags(Period.SURREALIST)
+    assert     flags_ae["is_abstract_expressionist"]
+    assert not flags_ae["is_surrealist"]
+    assert     flags_s["is_surrealist"]
+    assert not flags_s["is_abstract_expressionist"]
+
+
+def test_sfumato_veil_pass_chroma_dampen_accepted():
+    """sfumato_veil_pass() must accept the new chroma_dampen parameter without error."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.05)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    # Should not raise — chroma_dampen is a new improvement in session 14
+    p.sfumato_veil_pass(
+        ref,
+        n_veils       = 2,
+        blur_radius   = 4.0,
+        warmth        = 0.30,
+        veil_opacity  = 0.06,
+        chroma_dampen = 0.20,
+    )
+
+
+def test_sfumato_veil_pass_chroma_dampen_zero_same_as_default():
+    """sfumato_veil_pass with chroma_dampen=0 must be valid (backward compat)."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.05)
+    # Must not raise with explicit chroma_dampen=0
+    p.sfumato_veil_pass(
+        ref,
+        n_veils       = 2,
+        blur_radius   = 4.0,
+        chroma_dampen = 0.0,
+    )

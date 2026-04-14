@@ -2386,12 +2386,13 @@ class Painter:
                                              region_mask=None)  # allow crossing boundary
 
     def sfumato_veil_pass(self,
-                          reference:    Union[np.ndarray, Image.Image],
-                          n_veils:      int   = 7,
-                          blur_radius:  float = 12.0,
-                          warmth:       float = 0.35,
-                          veil_opacity: float = 0.08,
-                          edge_only:    bool  = True):
+                          reference:     Union[np.ndarray, Image.Image],
+                          n_veils:       int   = 7,
+                          blur_radius:   float = 12.0,
+                          warmth:        float = 0.35,
+                          veil_opacity:  float = 0.08,
+                          edge_only:     bool  = True,
+                          chroma_dampen: float = 0.18):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2431,11 +2432,18 @@ class Painter:
         warmth       : Warm tint strength (0 = neutral, 1 = full amber glaze).
                        Leonardo used a warm amber sfumato that shifts flesh
                        tones toward golden ochre at the edges.
-        veil_opacity : Alpha per veil layer.  Keep very low (0.04–0.12) —
-                       the veils accumulate across n_veils layers.
-        edge_only    : If True (default), veils are masked to the gradient
-                       edge zone only — form interiors are not hazed, matching
-                       Leonardo's selective sfumato. If False, applies globally.
+        veil_opacity  : Alpha per veil layer.  Keep very low (0.04–0.12) —
+                        the veils accumulate across n_veils layers.
+        edge_only     : If True (default), veils are masked to the gradient
+                        edge zone only — form interiors are not hazed, matching
+                        Leonardo's selective sfumato. If False, applies globally.
+        chroma_dampen : Chromatic desaturation at the edge zone (0 = no dampening,
+                        1 = full greyscale).  Leonardo's sfumato zones are not
+                        merely blurred — they are also slightly desaturated, as if
+                        seen through thin warm smoke.  A value of 0.15–0.25 gives
+                        the subtle grey-amber edge quality visible under X-ray at
+                        the mouth corners of the Mona Lisa.  Applied per-veil so
+                        outer veils are more desaturated than inner ones.
 
         Notes
         -----
@@ -2444,10 +2452,13 @@ class Painter:
         Leonardo never resolved these areas; the ambiguity is the technique.
 
         X-ray and infrared reflectography reveal up to 30 distinct glaze
-        layers in the sfumato zones, each individually invisible.
+        layers in the sfumato zones, each individually invisible.  The zones
+        are also slightly desaturated relative to adjacent flesh areas — a
+        quality missed by blur-only approximations.  chroma_dampen replicates
+        this.
         """
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
-              f"  warmth={warmth:.2f})…")
+              f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f})…")
 
         ref  = self._prep(reference)
         rarr = ref[:, :, :3].astype(np.float32) / 255.0
@@ -2499,6 +2510,19 @@ class Painter:
             for c in range(3):
                 veil_ref[:, :, c] = (rarr[:, :, c] * (1.0 - veil_warmth)
                                      + amber[c] * veil_warmth)
+
+            # Chromatic dampening — outer veils are progressively desaturated so
+            # the edge zone acquires a warm grey-amber quality (Leonardo's edges
+            # under X-ray).  Desaturate by blending toward luminance-grey before
+            # blurring so the effect is spatially coherent, not just an HSV shift.
+            if chroma_dampen > 0.0:
+                dampen_t = chroma_dampen * t   # ramps from 0 at first veil to full
+                lum_veil = (0.299 * veil_ref[:, :, 0]
+                            + 0.587 * veil_ref[:, :, 1]
+                            + 0.114 * veil_ref[:, :, 2])
+                for c in range(3):
+                    veil_ref[:, :, c] = (veil_ref[:, :, c] * (1.0 - dampen_t)
+                                         + lum_veil * dampen_t)
 
             # Gaussian blur to create the smoke effect
             blurred = np.stack([
@@ -4230,3 +4254,168 @@ class Painter:
 
         print(f"  Folk retablo pass complete  "
               f"({h}×{w}, {n_levels} levels, vib={'on' if boundary_vibration else 'off'})")
+
+    def geometric_resonance_pass(self,
+                                 reference:      Union[np.ndarray, Image.Image],
+                                 n_circles:      int   = 12,
+                                 n_triangles:    int   = 8,
+                                 n_lines:        int   = 18,
+                                 shape_opacity:  float = 0.18,
+                                 min_radius:     float = 0.04,
+                                 max_radius:     float = 0.18,
+                                 line_thickness: float = 2.0,
+                                 seed:           int   = 42):
+        """
+        Geometric Resonance Pass — inspired by Wassily Kandinsky.
+
+        Kandinsky believed each geometric form carried an intrinsic emotional
+        and acoustic resonance that could be used to compose a painting the way
+        a musician composes a symphony.  In "Concerning the Spiritual in Art"
+        (1911) and in his Bauhaus colour theory course he mapped:
+
+          • Yellow / triangle  — sharp, advancing, trumpet-like energy
+          • Blue   / circle    — receding, heavenly, cello-deep resonance
+          • Red    / square    — earthbound, stable, drumbeat warmth
+          • Black  / line      — tension, boundary, the silence after sound
+
+        This pass scatters floating geometric primitives across the canvas:
+
+          1. Circles in cool-blue resonance zones  (Kandinsky's "cosmic" form)
+          2. Triangles in warm-yellow/orange zones  (his "active" pointing form)
+          3. Radiating tension lines from focal points  (his "musical notations")
+
+        Each primitive samples a harmonically-related colour from the region
+        beneath it, then applies it at low opacity — the underlying painting
+        remains legible.  The effect gives any composition an internally
+        vibrating, musical quality as if solid form is dissolving into sensation.
+
+        Parameters
+        ----------
+        reference     : PIL Image or ndarray used for colour sampling.
+        n_circles     : Number of floating circles to overlay.
+        n_triangles   : Number of floating triangles to overlay.
+        n_lines       : Number of radiating tension lines to overlay.
+        shape_opacity : Base alpha for each geometric primitive (0.05–0.35).
+                        Keep low so underlying painting reads through.
+        min_radius    : Smallest circle/triangle radius as fraction of canvas W.
+        max_radius    : Largest circle/triangle radius as fraction of canvas W.
+        line_thickness: Stroke width for tension lines, in pixels.
+        seed          : Random seed for reproducible placement.
+        """
+        print(f"Geometric resonance pass  (circles={n_circles}, tri={n_triangles}, "
+              f"lines={n_lines}, opacity={shape_opacity:.2f})…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = rarr.shape[:2]
+        ctx  = self.canvas.ctx
+        rng  = random.Random(seed)
+
+        def _sample_region_color(cx: float, cy: float, radius: float) -> Color:
+            """Sample the mean RGB of a disc region in the reference."""
+            x0 = max(0, int(cx - radius))
+            x1 = min(w, int(cx + radius) + 1)
+            y0 = max(0, int(cy - radius))
+            y1 = min(h, int(cy + radius) + 1)
+            patch = rarr[y0:y1, x0:x1]
+            if patch.size == 0:
+                return (0.5, 0.5, 0.5)
+            return (float(patch[:, :, 0].mean()),
+                    float(patch[:, :, 1].mean()),
+                    float(patch[:, :, 2].mean()))
+
+        def _resonance_color(base: Color) -> Color:
+            """
+            Map a sampled base colour to its Kandinsky resonance complement.
+
+            Cool blue zones → circle drawn in luminous warm yellow (advancing)
+            Warm yellow zones → triangle drawn in deep ultramarine (contrasting)
+            Neutral/grey zones → drawn in pure saturated version of dominant hue
+            All colours are slightly over-saturated to read through the painting.
+            """
+            import colorsys as _cs
+            h_hsv, s_hsv, v_hsv = _cs.rgb_to_hsv(*base)
+            # Boost saturation so the resonance colour sings above the ground
+            s_boosted = min(1.0, s_hsv * 1.6 + 0.2)
+            # Rotate hue toward warm complement: cool hues → warm, warm → cool
+            # (hue rotation is 0.5 = 180° = complementary)
+            hue_complement = (h_hsv + 0.5) % 1.0
+            r, g, b = _cs.hsv_to_rgb(hue_complement, s_boosted, min(1.0, v_hsv + 0.1))
+            return (r, g, b)
+
+        def _set_resonance_source(base: Color):
+            r, g, b = _resonance_color(base)
+            ctx.set_source_rgba(r, g, b, shape_opacity)
+
+        # ── 1. Floating circles  (Kandinsky: cosmic / blue / receding) ─────────
+        for _ in range(n_circles):
+            cx = rng.uniform(0.0, float(w))
+            cy = rng.uniform(0.0, float(h))
+            r  = rng.uniform(min_radius * w, max_radius * w)
+            base = _sample_region_color(cx, cy, r * 0.5)
+
+            # Unfilled circle ring — resonance at the boundary only
+            _set_resonance_source(base)
+            ctx.set_line_width(max(1.0, r * 0.06))
+            ctx.arc(cx, cy, r, 0, 2 * math.pi)
+            ctx.stroke()
+
+            # Optionally add a very faint interior fill for larger circles
+            if r > min_radius * w * 2.5:
+                r2, g2, b2 = _resonance_color(base)
+                ctx.set_source_rgba(r2, g2, b2, shape_opacity * 0.25)
+                ctx.arc(cx, cy, r, 0, 2 * math.pi)
+                ctx.fill()
+
+        # ── 2. Floating triangles  (Kandinsky: active / yellow / advancing) ───
+        for _ in range(n_triangles):
+            cx  = rng.uniform(0.05 * w, 0.95 * w)
+            cy  = rng.uniform(0.05 * h, 0.95 * h)
+            r   = rng.uniform(min_radius * w, max_radius * w * 0.80)
+            # Random rotation so triangles point in varied directions
+            angle_offset = rng.uniform(0, 2 * math.pi)
+            base = _sample_region_color(cx, cy, r * 0.5)
+
+            # Compute equilateral triangle vertices
+            verts = []
+            for k in range(3):
+                a = angle_offset + k * (2 * math.pi / 3)
+                verts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+
+            _set_resonance_source(base)
+            ctx.set_line_width(max(1.0, r * 0.05))
+            ctx.move_to(*verts[0])
+            ctx.line_to(*verts[1])
+            ctx.line_to(*verts[2])
+            ctx.close_path()
+            ctx.stroke()
+
+        # ── 3. Radiating tension lines  (Kandinsky: the musical notation) ─────
+        # Lines radiate outward from N focal points distributed across the canvas.
+        # Each line samples the colour of the region it crosses and draws its
+        # resonance complement, creating chromatic tension along its length.
+        n_foci = max(2, n_lines // 5)
+        foci   = [(rng.uniform(0.2 * w, 0.8 * w),
+                   rng.uniform(0.2 * h, 0.8 * h))
+                  for _ in range(n_foci)]
+
+        lines_per_focus = max(1, n_lines // n_foci)
+        for fx, fy in foci:
+            for _ in range(lines_per_focus):
+                angle    = rng.uniform(0, 2 * math.pi)
+                length   = rng.uniform(0.06 * w, 0.35 * w)
+                x2       = fx + length * math.cos(angle)
+                y2       = fy + length * math.sin(angle)
+                mid_x    = (fx + x2) / 2.0
+                mid_y    = (fy + y2) / 2.0
+                base     = _sample_region_color(mid_x, mid_y, line_thickness * 3)
+
+                r_c, g_c, b_c = _resonance_color(base)
+                ctx.set_source_rgba(r_c, g_c, b_c, shape_opacity * 0.75)
+                ctx.set_line_width(line_thickness)
+                ctx.move_to(fx, fy)
+                ctx.line_to(x2, y2)
+                ctx.stroke()
+
+        print(f"  Geometric resonance complete  "
+              f"({n_circles} circles, {n_triangles} triangles, {n_lines} lines)")
