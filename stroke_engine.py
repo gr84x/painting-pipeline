@@ -2427,6 +2427,268 @@ class Painter:
 
         print(f"  Sfumato complete ({n_veils} veils accumulated).")
 
+    def angular_contour_pass(self,
+                             reference:           Union[np.ndarray, Image.Image],
+                             n_flat_strokes:      int   = 800,
+                             flat_stroke_size:    float = 10.0,
+                             n_contour_strokes:   int   = 1600,
+                             contour_thickness:   float = 2.8,
+                             contour_color:       Color = (0.12, 0.07, 0.04),
+                             flesh_desaturation:  float = 0.40,
+                             flesh_green_shift:   float = 0.12,
+                             accent_color:        Color = (0.70, 0.12, 0.04),
+                             accent_prob:         float = 0.06):
+        """
+        Viennese Expressionist contour pass — inspired by Egon Schiele.
+
+        Schiele's drawings and gouaches are immediately recognisable by their
+        violent, fractured contour line.  He drew with a reed pen or fine brush
+        and pressed hard at joints, knuckles, and collar-bones where the anatomy
+        is most exposed — the line swells, then almost vanishes between significant
+        points.  The interior of the figure is filled with flat, barely-modelled
+        patches of pale, slightly sickly flesh (often pulled toward yellow-green
+        rather than warm pink), against a near-bare paper void.
+
+        This pass has three sub-stages:
+
+          Stage 1 — Flat interior fill:
+            The figure interior is painted with short, flat, low-wet-blend strokes
+            in slightly desaturated, greenish-shifted flesh tones.  Two brightness
+            zones: lighter (lit surfaces) and darker (shadowed planes).  Very little
+            wet blending — patches stay distinct, like gouache on dry paper.
+
+          Stage 2 — Angular contour lines:
+            Sobel edge detection locates all structural boundaries (silhouette,
+            limb separations, form edges).  Short (10–30px) line segments are
+            placed along these edges, each deliberately offset in angle from its
+            neighbour by a small random amount.  This creates the fractured,
+            re-starting quality of Schiele's mark — the line breaks, skips, then
+            re-attacks.  At points of high edge magnitude (strong boundaries, joints)
+            strokes are wider and more opaque.  At low-magnitude edges the line
+            thins and fades.
+
+          Stage 3 — Sparse blood-red accent:
+            A small number of strokes in a warm blood-red or deep sienna accent are
+            placed at the highest-gradient edge points — replicating Schiele's
+            precise use of a single vivid accent to intensify the most psychologically
+            loaded part of the composition (usually a hand, face, or collar).
+
+        Parameters
+        ----------
+        reference           : PIL Image or ndarray.
+        n_flat_strokes      : Number of interior flat-fill strokes.
+        flat_stroke_size    : Width of the flat interior fill strokes in pixels.
+        n_contour_strokes   : Number of angular contour line segments.
+        contour_thickness   : Base width of contour lines in pixels.
+                              Actual width varies ±50% per stroke to simulate
+                              pressure variation on the reed pen.
+        contour_color       : Near-black warm ink colour used for contour lines.
+                              Schiele's lines were warm dark sienna-black, not a
+                              neutral grey or cold blue-black.
+        flesh_desaturation  : Fraction [0–1] by which the reference colour is
+                              pulled toward grey before placing interior strokes.
+                              0.30–0.50 gives the characteristically pallid look.
+        flesh_green_shift   : Amount by which the flesh mid-tones are shifted
+                              toward green (Schiele's jaundiced shadow planes).
+                              Applied only to mid-luminance pixels (0.35–0.65 lum).
+        accent_color        : Blood-red or hot sienna used for accent strokes.
+        accent_prob         : Probability that a high-edge-strength contour stroke
+                              is placed in the accent colour rather than near-black.
+                              Keep very low (0.04–0.08) — Schiele's restraint is key.
+
+        Notes
+        -----
+        Schiele died of Spanish flu in 1918, aged 28.  His entire known output
+        spans only eleven years (1907–1918), yet he produced around 3,000 works
+        on paper and 330 oil paintings.  The contour line was his primary instrument
+        — even his oils read as drawings with colour added.
+
+        Famous works to study:
+          *Self-Portrait with Physalis* (1912) — pure angular contour + pale fill.
+          *Death and the Maiden* (1915) — two figures dissolving into each other;
+            the contour line becomes an embrace and a fracture simultaneously.
+          *Seated Couple* (1915) — two figures locked together; limb boundaries
+            drawn with multiple overlapping angular short strokes.
+        """
+        print(f"Angular contour pass  ({n_flat_strokes} fill  {n_contour_strokes} contour"
+              f"  thick={contour_thickness:.1f}px)…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # ── Luminance map (used throughout) ───────────────────────────────────
+        lum = (0.299 * rarr[:, :, 0] +
+               0.587 * rarr[:, :, 1] +
+               0.114 * rarr[:, :, 2]).astype(np.float32)
+
+        # ── Stage 1: Flat interior fill ───────────────────────────────────────
+        # Schiele's interiors are flat, dry, barely blended.  Split into two
+        # tonal zones: lit (lum ≥ 0.45) and shadowed (lum < 0.45).  Each zone
+        # gets flat strokes with desaturated, slightly green-shifted colour.
+        print("  Stage 1: flat interior fill…")
+
+        # Desaturation helper: pull colour toward grey, then optionally green-shift
+        def _schiele_flesh(col: tuple, pix_lum: float) -> tuple:
+            """Apply Schiele's characteristic flesh treatment to a sampled colour."""
+            r, g, b = col
+            # Desaturate: lerp toward luminance grey
+            grey = pix_lum
+            r = r * (1.0 - flesh_desaturation) + grey * flesh_desaturation
+            g = g * (1.0 - flesh_desaturation) + grey * flesh_desaturation
+            b = b * (1.0 - flesh_desaturation) + grey * flesh_desaturation
+            # Green shift in mid-tones (the sickly shadow planes)
+            if 0.30 < pix_lum < 0.65:
+                g = min(1.0, g + flesh_green_shift * (1.0 - abs(pix_lum - 0.475) / 0.175))
+                r = max(0.0, r - flesh_green_shift * 0.35)
+            return (r, g, b)
+
+        tip_flat = BrushTip(BrushTip.FLAT, bristle_noise=0.03)
+        region = self._figure_mask
+
+        # Build sampling distribution: error-weighted within figure mask
+        cbuf = np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=np.uint8).reshape(h, w, 4).copy()
+        carr = cbuf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+        err  = np.mean(np.abs(carr - rarr), axis=2).astype(np.float32)
+        err  = ndimage.gaussian_filter(err, sigma=flat_stroke_size * 0.4)
+        if region is not None:
+            err = err * region
+        err_total = err.flatten().sum()
+        if err_total < 1e-9:
+            prob_flat = (region.flatten() if region is not None
+                         else np.ones(h * w, dtype=np.float32) / (h * w))
+        else:
+            prob_flat = err.flatten() / err_total
+
+        positions = self.rng.choice(h * w, size=n_flat_strokes, p=prob_flat, replace=True)
+        angles_bg = flow_field(rarr)   # follow colour contours for flat patches
+
+        for pos in positions:
+            py, px = int(pos // w), int(pos % w)
+            margin = max(5, int(flat_stroke_size * 1.5))
+            px = int(np.clip(px, margin, w - margin))
+            py = int(np.clip(py, margin, h - margin))
+
+            col = tuple(float(rarr[py, px, c]) for c in range(3))
+            col = _schiele_flesh(col, float(lum[py, px]))
+            col = jitter(col, 0.022, self._rng_py)
+
+            # Flat strokes follow the image gradient (contours), with wide
+            # confident sweeps rather than following form curvature.
+            a = float(angles_bg[py, px]) + self._rng_py.uniform(-0.35, 0.35)
+            L = flat_stroke_size * self._rng_py.uniform(2.0, 4.5)
+            start = (px - math.cos(a) * L * 0.5,
+                     py - math.sin(a) * L * 0.5)
+            pts = stroke_path(start, a, L, curve=0.0,
+                               n=max(3, int(L / 6)))
+            ws = [flat_stroke_size * self._rng_py.uniform(0.7, 1.3)] * len(pts)
+
+            self.canvas.apply_stroke(
+                pts, ws, col, tip_flat,
+                opacity=0.76,
+                wet_blend=0.04,       # near-dry — no blending between patches
+                jitter_amt=0.018,
+                rng=self._rng_py,
+                region_mask=region,
+            )
+
+        # ── Stage 2: Angular contour lines ────────────────────────────────────
+        # Detect edges in the reference to locate figure silhouettes, limb
+        # separations, and major form boundaries.  Place short, angular line
+        # segments along these boundaries.
+        print("  Stage 2: angular contour lines…")
+
+        gx = ndimage.sobel(lum, axis=1).astype(np.float32)
+        gy = ndimage.sobel(lum, axis=0).astype(np.float32)
+        edge_mag = np.sqrt(gx ** 2 + gy ** 2).astype(np.float32)
+        if edge_mag.max() > 1e-9:
+            edge_mag /= edge_mag.max()
+
+        # Lightly smooth so contour strokes cluster around edges without
+        # pixel-level jitter
+        edge_mag_smooth = ndimage.gaussian_filter(edge_mag, sigma=contour_thickness * 0.5)
+
+        # Sample heavily from strong edges + a small uniform base so even
+        # soft inner-form edges receive some line work
+        if region is not None:
+            edge_weight = edge_mag_smooth * region + region * 0.08
+        else:
+            edge_weight = edge_mag_smooth + 0.04
+        edge_total = edge_weight.flatten().sum()
+        if edge_total < 1e-9:
+            return
+        edge_prob = edge_weight.flatten() / edge_total
+
+        # Contour direction: tangent to the edge gradient (along the edge)
+        contour_angles_map = np.arctan2(gx, -gy).astype(np.float32)
+        contour_angles_map = ndimage.gaussian_filter(contour_angles_map, sigma=1.5)
+
+        positions_c = self.rng.choice(h * w, size=n_contour_strokes,
+                                       p=edge_prob, replace=True)
+
+        tip_round = BrushTip(BrushTip.ROUND, bristle_noise=0.01)
+        margin_c = max(3, int(contour_thickness * 2))
+
+        for pos in positions_c:
+            py, px = int(pos // w), int(pos % w)
+            px = int(np.clip(px, margin_c, w - margin_c))
+            py = int(np.clip(py, margin_c, h - margin_c))
+
+            local_edge = float(edge_mag[py, px])
+
+            # Schiele accent: rare blood-red at very strong boundary points
+            if (local_edge > 0.55 and
+                    self._rng_py.random() < accent_prob * local_edge * 2.0):
+                stroke_col = jitter(accent_color, 0.015, self._rng_py)
+            else:
+                stroke_col = jitter(contour_color, 0.02, self._rng_py)
+
+            # Angular break: the contour direction is the gradient tangent, but
+            # Schiele's line re-starts at a slightly different angle rather than
+            # flowing smoothly.  Add a per-stroke angular deviation sampled from
+            # a bimodal distribution: usually small (±0.15 rad), occasionally
+            # larger (±0.55 rad) to simulate a genuine break and re-attack.
+            if self._rng_py.random() < 0.18:
+                angle_jitter = self._rng_py.choice([-1, 1]) * self._rng_py.uniform(0.35, 0.65)
+            else:
+                angle_jitter = self._rng_py.uniform(-0.14, 0.14)
+            a = float(contour_angles_map[py, px]) + angle_jitter
+
+            # Line length scales with local edge strength: strong edges → longer
+            # strokes (Schiele pressed hardest at joints and silhouette).
+            L_min = contour_thickness * 3.5
+            L_max = contour_thickness * 9.0
+            L = L_min + (L_max - L_min) * min(1.0, local_edge * 1.4)
+            L *= self._rng_py.uniform(0.7, 1.3)
+
+            start = (px - math.cos(a) * L * 0.5,
+                     py - math.sin(a) * L * 0.5)
+            pts = stroke_path(start, a, L, curve=0.0,
+                               n=max(2, int(L / 5)))
+
+            # Pressure variation: strong at joints (high edge mag), faint between.
+            thickness_here = (contour_thickness
+                              * self._rng_py.uniform(0.55, 1.50)
+                              * (0.6 + 0.8 * local_edge))
+            ws = [thickness_here] * len(pts)
+
+            # Opacity also scales with edge strength — Schiele's line disappears
+            # on soft form transitions, punches through on silhouette/joint edges.
+            opacity_here = 0.55 + 0.40 * min(1.0, local_edge * 1.5)
+
+            self.canvas.apply_stroke(
+                pts, ws, stroke_col, tip_round,
+                opacity=opacity_here,
+                wet_blend=0.0,   # dry — ink on paper does not blend
+                jitter_amt=0.008,
+                rng=self._rng_py,
+                region_mask=None,  # contour lines cross the figure/bg boundary
+            )
+
+        print(f"  Angular contour complete ({n_flat_strokes} fill  "
+              f"{n_contour_strokes} contour lines).")
+
     def glaze(self, color: Color, opacity: float = 0.10):
         """
         Step 6 — Final glaze.

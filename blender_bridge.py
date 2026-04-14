@@ -484,6 +484,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_watercolor        = (scene.style.medium == Medium.WATERCOLOR)
     is_proto_expressionist = (scene.style.period == Period.PROTO_EXPRESSIONIST)
     is_realist           = (scene.style.period == Period.REALIST)
+    is_viennese_expressionist = (scene.style.period == Period.VIENNESE_EXPRESSIONIST)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
@@ -623,6 +624,42 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.glaze((0.55, 0.50, 0.38), opacity=0.04)
         # Moderate vignette; no crackle (modern technique)
         p.finish(vignette=0.35, crackle=False)
+
+    elif is_viennese_expressionist:
+        # ── Viennese Expressionist pipeline (Egon Schiele technique) ─────────
+        # Schiele worked on paper, not oil canvas.  His figures exist in near-void,
+        # painted with flat, barely-modelled pallid flesh against blank paper.
+        # The contour line is the primary instrument; colour is secondary.
+        #
+        # Pipeline:
+        #   1. Off-white paper ground — no texture (smooth paper, not linen).
+        #   2. angular_contour_pass() — flat interior fill (desaturated, greenish
+        #      flesh) + fractured angular contour lines + sparse blood-red accent.
+        #   3. Minimal finish: very light vignette to preserve the paper void;
+        #      no glaze, no crackle.
+        schiele_style = _ART_CATALOG.get("egon_schiele")
+        ground_col    = schiele_style.ground_color if schiele_style else (0.94, 0.91, 0.85)
+
+        # Off-white paper ground — very fine texture, almost none
+        p.tone_ground(ground_col, texture_strength=0.012)
+
+        # angular_contour_pass() handles the entire figure rendering in one step.
+        p.angular_contour_pass(
+            ref,
+            n_flat_strokes     = 900,
+            flat_stroke_size   = float(sp["stroke_size_face"]) * 3.5,
+            n_contour_strokes  = 1800,
+            contour_thickness  = float(sp["stroke_size_face"]),
+            contour_color      = (0.12, 0.07, 0.04),
+            flesh_desaturation = 0.38,
+            flesh_green_shift  = 0.10,
+            accent_color       = (0.70, 0.12, 0.04),
+            accent_prob        = 0.06,
+        )
+
+        # No glaze, no crackle — Schiele's works on paper do not have oil varnish.
+        # Very light vignette to evoke the feel of a paper sheet edge.
+        p.finish(vignette=0.12, crackle=False)
 
     elif is_pointillist:
         # ── Pointillist / divisionist pipeline (Seurat technique) ────────────

@@ -14,6 +14,7 @@ Usage:
 """
 
 import math
+import colorsys
 import subprocess
 import os
 import io
@@ -98,6 +99,85 @@ class Palette:
         """Parse '#RRGGBB' or 'RRGGBB'."""
         h = h.lstrip('#')
         return tuple(int(h[i:i+2], 16) / 255 for i in (0, 2, 4))
+
+    @staticmethod
+    def harmony(base: Color, scheme: str = "complementary",
+                value_spread: float = 0.0) -> List[Color]:
+        """
+        Generate a harmonious palette from a base colour using colour-wheel theory.
+
+        Painters from Delacroix to Bonnard built their palettes on relationships
+        between hues rather than picking colours independently.  This method
+        applies the standard schemes from the colour wheel to a base hue,
+        preserving saturation and value so the returned colours form a true
+        family rather than an arbitrary collection.
+
+        Parameters
+        ----------
+        base         : (R, G, B) base colour in [0, 1].
+        scheme       : One of:
+                         'complementary'       — base + hue opposite (2 colours)
+                         'analogous'           — base ± 30° and ± 60° (5 colours)
+                         'triadic'             — base, +120°, +240° (3 colours)
+                         'split_complementary' — base, +150°, +210° (3 colours)
+                         'tetradic'            — base, +90°, +180°, +270° (4 colours)
+                         'double_split'        — base ± 30° + complement ± 30°
+                                                 (4 colours; also called 'rectangle')
+        value_spread : Optional value variation applied across the returned colours.
+                       0.0 = all colours have identical value (V in HSV).
+                       0.10 = each step shifts value by ±10%, spreading the palette
+                       from slightly darker to slightly lighter around the base value.
+                       Useful for ensuring the palette has tonal variety as well as
+                       hue variety.
+
+        Returns
+        -------
+        List of (R, G, B) colour tuples in [0, 1].  The base colour is always
+        the first element.
+
+        Examples
+        --------
+        >>> Palette.harmony((0.72, 0.28, 0.10), 'triadic')
+        [(0.72, 0.28, 0.10), (0.10, 0.72, 0.28), (0.28, 0.10, 0.72)]
+
+        >>> Palette.harmony((0.85, 0.65, 0.30), 'analogous')
+        # 5 colours at 0°, ±30°, ±60° from the warm amber base
+        """
+        scheme = scheme.lower().replace("-", "_").replace(" ", "_")
+
+        # Hue offsets (in [0, 1] fractions of the full hue circle) for each scheme
+        _SCHEMES: dict = {
+            "complementary":       [0.0, 0.5],
+            "analogous":           [0.0, -1/12, 1/12, -1/6, 1/6],
+            "triadic":             [0.0, 1/3, 2/3],
+            "split_complementary": [0.0, 5/12, 7/12],
+            "tetradic":            [0.0, 1/4, 1/2, 3/4],
+            "double_split":        [0.0, -1/12, 1/12, 5/12, 7/12],
+        }
+        if scheme not in _SCHEMES:
+            raise ValueError(
+                f"Unknown harmony scheme {scheme!r}. "
+                f"Available: {', '.join(sorted(_SCHEMES))}"
+            )
+        offsets = _SCHEMES[scheme]
+
+        h_base, s_base, v_base = colorsys.rgb_to_hsv(*base)
+        n = len(offsets)
+
+        result = []
+        for i, offset in enumerate(offsets):
+            h_new = (h_base + offset) % 1.0
+            # Value spread: spread values from slightly darker to slightly lighter
+            # across the colour family, centred on the base value.
+            if value_spread > 0.0 and n > 1:
+                t = i / (n - 1)               # 0 at first, 1 at last colour
+                v_delta = value_spread * (t - 0.5)
+            else:
+                v_delta = 0.0
+            v_new = max(0.0, min(1.0, v_base + v_delta))
+            result.append(colorsys.hsv_to_rgb(h_new, s_base, v_new))
+
+        return result
 
     @staticmethod
     def gradient_stops(colors: List[Color], steps: int) -> List[Color]:

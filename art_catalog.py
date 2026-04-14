@@ -731,6 +731,58 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Egon Schiele ──────────────────────────────────────────────────────────
+    "egon_schiele": ArtStyle(
+        artist="Egon Schiele",
+        movement="Viennese Expressionism / Vienna Secession",
+        nationality="Austrian",
+        period="1907–1918",
+        palette=[
+            (0.90, 0.80, 0.72),   # pale pinkish-white flesh — anemic, barely warm
+            (0.68, 0.72, 0.52),   # sickly greenish flesh — shadowed under-planes
+            (0.75, 0.58, 0.35),   # ochre mid-tone — interior body mass
+            (0.55, 0.22, 0.08),   # warm dark sienna-red — his characteristic hot contour
+            (0.12, 0.07, 0.04),   # near-black — primary contour line colour
+            (0.72, 0.12, 0.04),   # blood red — rare accent mark, surgical restraint
+            (0.38, 0.18, 0.10),   # deep burnt umber — limb shadow boundary
+        ],
+        ground_color=(0.94, 0.91, 0.85),    # off-white paper — Schiele worked on paper not canvas
+        stroke_size=3,
+        wet_blend=0.04,                      # almost no wet blending — contour drawing is dry
+        edge_softness=0.04,                  # hard angular edges — no sfumato
+        jitter=0.020,
+        glazing=None,                        # no oil glaze — mostly gouache/watercolour on paper
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Angular, fractured contour lines dominate — the line itself is the primary "
+            "medium. Contours re-start and overlap, pressed hard at critical joints "
+            "(knuckles, elbows, collarbones) and feathering to near-nothing between. "
+            "Figure interiors are flat, barely-modelled patches of pale, slightly sickly "
+            "flesh tone — often greenish or yellowish rather than warm pink, giving "
+            "figures a gaunt, cadaverous look. Backgrounds are minimal or absent: "
+            "the figure exists in void, unanchored by landscape or interior. "
+            "Poses are twisted, contorted, psychologically raw — limbs at extreme "
+            "angles that no academic painter would permit. Schiele's line expresses "
+            "the anguish of the body, not its ideal beauty."
+        ),
+        famous_works=[
+            ("Self-Portrait with Physalis", "1912"),
+            ("The Embrace (Lovers II)", "1917"),
+            ("Death and the Maiden", "1915"),
+            ("Seated Couple", "1915"),
+            ("Reclining Female Nude", "1914"),
+        ],
+        inspiration=(
+            "Use angular_contour_pass(): detect figure edges with Sobel, then lay "
+            "short (10–25px) angular, fractured dark line segments along those edges. "
+            "Each segment slightly deviates in direction to create the re-starting "
+            "quality. Interior fill: flat, muted, slightly desaturated pale flesh "
+            "(pull toward green-ochre, not warm pink). Background remains near-bare "
+            "paper — just a flat warm-white void."
+        ),
+    ),
+
     # ── Katsushika Hokusai ────────────────────────────────────────────────────
     "hokusai": ArtStyle(
         artist="Katsushika Hokusai",
