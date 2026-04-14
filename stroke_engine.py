@@ -6066,3 +6066,186 @@ class Painter:
 
         n_bloomed = int((hi_wt > 0.01).sum())
         print(f"  Highlight bloom pass complete  (bloom_source={n_bloomed}px)")
+
+
+    def scumble_pass(self,
+                     opacity:        float = 0.18,
+                     drag_distance:  int   = 14,
+                     n_drags:        int   = 420,
+                     dry_factor:     float = 0.72,
+                     angle_jitter:   float = 0.45,
+                     figure_only:    bool  = False):
+        """
+        Dry-brush scumbling: semi-opaque paint dragged sideways over a dry surface.
+
+        Scumbling is the counterpart of glazing.  Where glazing applies a
+        transparent dark layer to deepen shadows (working from dark to light),
+        scumbling drags a lighter, semi-opaque colour across a darker dry surface
+        (working from dark toward light).  It is the technique that gives the
+        chalky, slightly broken surface quality distinctive of:
+
+          - Rembrandt's face passages: warm ivory dragged over darker flesh
+          - Vuillard's Intimiste canvases: matte distemper dragged over board
+          - Hals and Sargent's spontaneous dry-brush drapery marks
+          - The granular mid-tones of Baroque costume painting
+
+        Physics model
+        -------------
+        A loaded but dry brush touches the raised texture peaks of the canvas
+        and skips the valleys.  The result is a broken field: the drag direction
+        is visible, and the underlying colour shows through in gaps.  Because the
+        paint is thick and dry (not wet-on-wet), the drag does not blend -- it
+        deposits as a hatched, semi-transparent mark.
+
+        Implementation
+        --------------
+        1. Read the current canvas into a float32 RGB buffer.
+        2. For each of n_drags scumble strokes:
+           a. Choose a random origin and direction (with angle_jitter variation
+              around a dominant near-horizontal direction -- scumbling is usually
+              a sideways arm movement).
+           b. Sample the canvas colour along the drag path; compute a lightened
+              version (mix toward white/cream to simulate the dry lighter pigment).
+           c. Weight the deposit by the linen-texture elevation at each pixel:
+              deposit only where the texture is above its median (peaks only).
+              This creates the characteristic broken, granular quality.
+           d. Apply at reduced opacity (dry_factor x opacity) so the underlying
+              paint shows through the gaps.
+        3. Write the modified buffer back to the Cairo surface.
+
+        Parameters
+        ----------
+        opacity       : Global blend weight of the scumble layer.  0.10-0.20 =
+                        subtle chalky patina; 0.25-0.35 = pronounced dry-brush.
+        drag_distance : Length of each scumble drag stroke in pixels.  Short
+                        (8-12px) = fine chalk-dust texture; longer (20-30px) =
+                        visible directional marks.
+        n_drags       : Number of individual drag strokes.  400-600 gives even
+                        coverage; 800+ creates a strong directional texture.
+        dry_factor    : How dry the paint is -- controls how strongly the texture
+                        elevation gates the deposit.  1.0 = deposits only on peaks
+                        (most broken / granular); 0.5 = deposits more evenly.
+        angle_jitter  : Variation in drag angle (radians).  0.3 = mostly horizontal
+                        with slight variation; 1.2 = multi-directional hatching.
+        figure_only   : If True and a figure mask is loaded, restrict scumbling
+                        to the figure region only.
+
+        Usage examples
+        --------------
+        Vuillard matte chalky surface::
+            scumble_pass(opacity=0.14, n_drags=600, dry_factor=0.85, drag_distance=10)
+        Baroque portrait flesh::
+            scumble_pass(opacity=0.10, n_drags=300, dry_factor=0.65, drag_distance=18,
+                         figure_only=True)
+        Sargent spontaneous drapery::
+            scumble_pass(opacity=0.22, n_drags=480, drag_distance=22, dry_factor=0.55,
+                         angle_jitter=0.80)
+        """
+        print(f"Scumble pass  (opacity={opacity:.2f}  drags={n_drags}"
+              f"  drag_dist={drag_distance}px  dry={dry_factor:.2f})...")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        # Read current canvas
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # Linen texture as deposit gate
+        if hasattr(self.canvas, 'texture') and self.canvas.texture is not None:
+            tex = self.canvas.texture
+        else:
+            tex = make_linen_texture(w, h)
+
+        tex_median = float(np.median(tex))
+        tex_norm = np.clip((tex - tex_median) / max(tex.max() - tex_median, 1e-6),
+                           0.0, 1.0)
+
+        # Figure mask gating
+        if figure_only and self._figure_mask is not None:
+            region = self._figure_mask
+        else:
+            region = np.ones((h, w), dtype=np.float32)
+
+        # Scumble accumulation buffers
+        acc_r = np.zeros((h, w), dtype=np.float32)
+        acc_g = np.zeros((h, w), dtype=np.float32)
+        acc_b = np.zeros((h, w), dtype=np.float32)
+        acc_w = np.zeros((h, w), dtype=np.float32)
+
+        rng = self.rng
+
+        for _ in range(n_drags):
+            ox = int(rng.uniform(0, w))
+            oy = int(rng.uniform(0, h))
+
+            # Near-horizontal drag with angle_jitter spread
+            angle = float(rng.uniform(-angle_jitter, angle_jitter))
+
+            cos_a, sin_a = math.cos(angle), math.sin(angle)
+
+            # Sample canvas colour at origin; scumble lightens toward warm cream
+            cr = float(np.clip(r_ch[oy, ox], 0.0, 1.0))
+            cg = float(np.clip(g_ch[oy, ox], 0.0, 1.0))
+            cb = float(np.clip(b_ch[oy, ox], 0.0, 1.0))
+
+            cream_r, cream_g, cream_b = 0.94, 0.89, 0.78
+            scumble_r = cr * 0.62 + cream_r * 0.38
+            scumble_g = cg * 0.62 + cream_g * 0.38
+            scumble_b = cb * 0.62 + cream_b * 0.38
+
+            for s in range(drag_distance):
+                px = int(ox + s * cos_a)
+                py = int(oy + s * sin_a)
+
+                if px < 0 or px >= w or py < 0 or py >= h:
+                    break
+
+                # Bell taper: full weight in middle, fades at both ends
+                t = s / max(drag_distance - 1, 1)
+                taper = math.sin(t * math.pi)
+
+                # Texture gate: deposit strength rises with texture elevation
+                tex_gate = tex_norm[py, px] ** dry_factor
+
+                reg = float(region[py, px])
+                if reg < 0.01:
+                    continue
+
+                wt = taper * tex_gate * reg * opacity
+                if wt < 1e-6:
+                    continue
+
+                acc_r[py, px] += scumble_r * wt
+                acc_g[py, px] += scumble_g * wt
+                acc_b[py, px] += scumble_b * wt
+                acc_w[py, px] += wt
+
+        # Composite scumble over current canvas
+        wt_clamp = np.clip(acc_w, 0.0, 1.0)
+        safe_w = np.where(acc_w > 1e-6, acc_w, 1.0)
+
+        mean_r = acc_r / safe_w
+        mean_g = acc_g / safe_w
+        mean_b = acc_b / safe_w
+
+        r_out = np.clip(r_ch * (1.0 - wt_clamp) + mean_r * wt_clamp, 0.0, 1.0)
+        g_out = np.clip(g_ch * (1.0 - wt_clamp) + mean_g * wt_clamp, 0.0, 1.0)
+        b_out = np.clip(b_ch * (1.0 - wt_clamp) + mean_b * wt_clamp, 0.0, 1.0)
+
+        # Write back to Cairo surface
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_active = int((acc_w > 0.01).sum())
+        print(f"  Scumble pass complete  (active_pixels={n_active})")

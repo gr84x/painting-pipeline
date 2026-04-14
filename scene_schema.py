@@ -197,6 +197,7 @@ class Period(Enum):
     FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
     PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
     EARLY_NETHERLANDISH = auto()  # Jan van Eyck — stacked transparent oil glazes, chalk-white gesso, Flemish micro-detail
+    NABIS         = auto()   # Vuillard — flat muted intimiste zones, scumbled surfaces, figures absorbed into patterned grounds
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -481,6 +482,14 @@ class Style:
             # but each glaze layer must stay distinct.  Moderate edge_softness: Flemish edges
             # are present and precise, softened only by the outermost translucent glaze film.
             Period.EARLY_NETHERLANDISH: dict(stroke_size_face=4, stroke_size_bg=14, wet_blend=0.55, edge_softness=0.45),
+            # Nabis / Intimisme (Vuillard): short dense marks cover every surface equally —
+            # figures do not stand out from their background but dissolve into it.
+            # stroke_size_face is small-medium (intimate surface requires close marks).
+            # stroke_size_bg matches: the patterned background is as important as the figure
+            # and receives the same treatment.  Low wet_blend: muted chalky zones stay flat.
+            # Low-moderate edge_softness: edges are present but softened by the uniform
+            # mark density rather than blending — forms lose definition in the pattern.
+            Period.NABIS:         dict(stroke_size_face=7,  stroke_size_bg=9,  wet_blend=0.12, edge_softness=0.28),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

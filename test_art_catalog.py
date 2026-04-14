@@ -35,6 +35,7 @@ EXPECTED_ARTISTS = [
     "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "rembrandt",
     "rothko", "sargent", "seurat", "titian", "turner", "van_gogh", "velazquez",
     "vermeer",
+    "vuillard",
 ]
 
 
@@ -160,6 +161,7 @@ EXPECTED_PERIODS = [
     "COLOR_FIELD", "SYNTHETIST", "MANNERIST", "SURREALIST",
     "ABSTRACT_EXPRESSIONIST", "VENETIAN_RENAISSANCE",
     "FAUVIST", "PRIMITIVIST", "EARLY_NETHERLANDISH",
+    "NABIS",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -1029,3 +1031,87 @@ def test_early_netherlandish_stroke_params_all_keys_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"EARLY_NETHERLANDISH stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Edouard Vuillard — Nabis / Intimiste addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_vuillard_in_catalog():
+    """Vuillard must be present in CATALOG."""
+    assert "vuillard" in CATALOG
+
+
+def test_vuillard_movement():
+    s = get_style("vuillard")
+    assert ("Nabi" in s.movement or "Intimis" in s.movement
+            or "Post-Impressionist" in s.movement)
+
+
+def test_vuillard_palette_length():
+    s = get_style("vuillard")
+    assert len(s.palette) >= 6, "Vuillard palette should have at least 6 key colours"
+
+
+def test_vuillard_palette_values_in_range():
+    """All Vuillard palette RGB values must be in [0, 1]."""
+    s = get_style("vuillard")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Vuillard palette {rgb}")
+
+
+def test_vuillard_wet_blend_low():
+    """Vuillard's chalky matte technique is flat -- wet_blend must be low."""
+    s = get_style("vuillard")
+    assert s.wet_blend <= 0.20, (
+        f"Vuillard wet_blend should be low (chalky flat zones), got {s.wet_blend}")
+
+
+def test_vuillard_no_glaze():
+    """Vuillard's Intimiste surfaces are matte -- no unifying glaze."""
+    s = get_style("vuillard")
+    assert s.glazing is None, "Vuillard should have no glaze (matte distemper surface)"
+
+
+def test_vuillard_no_crackle():
+    """Vuillard worked on cardboard and paper -- crackle should be False."""
+    s = get_style("vuillard")
+    assert s.crackle is False, "Vuillard crackle should be False (cardboard/paper support)"
+
+
+def test_vuillard_famous_works_not_empty():
+    s = get_style("vuillard")
+    assert len(s.famous_works) >= 3, "Vuillard should have at least 3 famous works"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NABIS period -- stroke_params coverage
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_nabis_period_present():
+    """NABIS must exist in Period enum."""
+    assert hasattr(Period, "NABIS"), "Period.NABIS not found"
+    assert Period.NABIS in list(Period)
+
+
+def test_nabis_stroke_params_all_keys_present():
+    """NABIS stroke_params must contain all four required keys."""
+    style = Style(medium=Medium.OIL, period=Period.NABIS, palette=PaletteHint.MUTED)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"NABIS stroke_params missing key: {key!r}"
+
+
+def test_nabis_stroke_params_values():
+    """NABIS should have low wet_blend (chalky flat zones) and equal face/bg strokes."""
+    style = Style(medium=Medium.OIL, period=Period.NABIS, palette=PaletteHint.MUTED)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.20, (
+        f"NABIS wet_blend should be low for chalky flat zones; got {p['wet_blend']}")
+    # Face and background strokes should be similar (Intimisme dissolves figure into ground)
+    assert abs(p["stroke_size_face"] - p["stroke_size_bg"]) <= 4, (
+        f"NABIS face and bg stroke sizes should be close; "
+        f"face={p['stroke_size_face']} bg={p['stroke_size_bg']}")
