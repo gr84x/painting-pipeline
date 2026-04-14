@@ -44,10 +44,10 @@ scene = Scene(
     ),
     width  = 780,
     height = 1080,
-    title  = "mona_lisa_v21",
+    title  = "rembrandt_portrait_v2",
 )
 
-print("Starting v21 pipeline (focused_pass x figure_mask, tight face ellipse, selective highlights)...")
+print("Starting rembrandt_v2 pipeline (focused_pass x figure_mask, tight face ellipse, selective highlights)...")
 _out_dir = os.path.join(os.path.dirname(__file__), '..')
-out = scene_to_painting(scene, os.path.join(_out_dir, 'mona_lisa_v21.png'), verbose=True)
+out = scene_to_painting(scene, os.path.join(_out_dir, 'rembrandt_portrait_v2.png'), verbose=True)
 print("Done:", out)

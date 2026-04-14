@@ -1,5 +1,5 @@
 """
-run_mona_lisa.py — Full sfumato portrait in the style of Leonardo da Vinci.
+run_renaissance_portrait.py — Full sfumato portrait in the style of Leonardo da Vinci.
 
 Prompt summary
 --------------
@@ -156,14 +156,14 @@ scene = Scene(
     style       = style,
     width       = 780,
     height      = 1080,
-    title       = "mona_lisa_sfumato",
+    title       = "renaissance_portrait_sfumato",
 )
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     _out_dir = os.path.join(os.path.dirname(__file__), '..')
-    out_path = os.path.join(_out_dir, "mona_lisa_sfumato.png")
-    print("Starting Mona Lisa sfumato portrait pipeline…")
+    out_path = os.path.join(_out_dir, "renaissance_portrait_sfumato.png")
+    print("Starting Renaissance sfumato portrait pipeline…")
     print("  Subject  : Woman, enigmatic, veiled, three-quarter pose")
     print("  Style    : Period.RENAISSANCE, edge_softness=0.92, wet_blend=0.90")
     print("  Passes   : sfumato_veil_pass (9 veils, warm amber, edge-only)")
