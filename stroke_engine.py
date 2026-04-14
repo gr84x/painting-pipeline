@@ -1009,6 +1009,129 @@ class Painter:
                     region_mask=region,
                 )
 
+    def luminous_glow_pass(self,
+                           reference:    Union[np.ndarray, Image.Image],
+                           n_rings:      int   = 9,
+                           max_radius:   float = 0.55,
+                           core_color:   Color = (0.98, 0.94, 0.72),
+                           haze_color:   Color = (0.50, 0.62, 0.80),
+                           core_opacity: float = 0.22,
+                           haze_opacity: float = 0.10):
+        """
+        Atmospheric luminosity pass — inspired by J.M.W. Turner.
+
+        Turner's late work dissolves solid form into radiant light.  His vortex
+        compositions place the light source at the centre of a whirlpool of
+        colour: burning white-yellow at the core, fading through warm amber and
+        cool blue-grey to near-darkness at the periphery.
+
+        This pass locates the brightest region in the reference image (the
+        'sun' or primary light source) and overlays a series of concentric,
+        semi-transparent radial gradients — each ring slightly larger and
+        cooler than the last.  The accumulation creates the luminous aureole
+        that is impossible to achieve with a single flat brush stroke.
+
+        Unlike the stroke passes this is a post-processing compositing step:
+        it does NOT use the wetness map or figure mask, because atmospheric
+        light halos cross all boundaries (figure, background, edge).  Call it
+        LAST, just before any final vignette or crackle.
+
+        Parameters
+        ----------
+        reference    : PIL Image or ndarray — used only to locate the brightest
+                       pixel (the light source centre).
+        n_rings      : Number of glow rings to stack.  More rings = smoother
+                       aureole.  9–12 is a good range; too many reads as foggy.
+        max_radius   : Radius of the outermost ring as a fraction of the shorter
+                       canvas dimension (0.55 = half the canvas width).
+        core_color   : RGB of the innermost glow (hottest — near white-yellow).
+        haze_color   : RGB of the outermost ring (cool atmospheric blue-grey).
+        core_opacity : Alpha of the first (innermost) ring per layer.
+        haze_opacity : Alpha of the last (outermost) ring per layer.
+
+        Notes
+        -----
+        Turner frequently painted with a near-white cream ground and built up
+        transparent warm glazes from the centre outward.  The cool blue-grey at
+        the edges reflects his study of Goethe's colour theory: warm colours
+        advance (light), cool colours recede (shadow/atmosphere).
+
+        Famous works to study:
+          *Light and Colour (Goethe's Theory)* (1843) — purest vortex composition.
+          *Snow Storm — Steam-Boat* (1842) — ship dissolving in white tornado.
+          *The Fighting Temeraire* (1839) — sunset aureole across calm water.
+        """
+        print(f"Luminous glow pass  ({n_rings} rings  max_r={max_radius:.2f})…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # ── Locate brightest point (light source centre) ──────────────────────
+        # Luminance map: weight toward warm bright pixels (matches incandescent
+        # light sources which are warm rather than blue-white).
+        lum = (0.40 * rarr[:, :, 0] +   # boosted red weight — warm bias
+               0.50 * rarr[:, :, 1] +   # green
+               0.10 * rarr[:, :, 2])    # suppressed blue
+        lum = ndimage.gaussian_filter(lum, sigma=max(3.0, min(w, h) * 0.02))
+        flat_idx = int(np.argmax(lum))
+        src_y    = flat_idx // w
+        src_x    = flat_idx %  w
+
+        # ── Ring geometry ─────────────────────────────────────────────────────
+        short_side  = min(w, h)
+        outer_r     = max_radius * short_side
+
+        # Rings grow non-linearly (quadratic) so the core is dense and the halo
+        # thins out gracefully toward the edges — matching Turner's actual light.
+        ring_radii = [outer_r * ((i + 1) / n_rings) ** 1.6
+                      for i in range(n_rings)]
+
+        # ── Draw concentric radial gradients ─────────────────────────────────
+        for i, r in enumerate(ring_radii):
+            t = i / max(n_rings - 1, 1)           # 0.0 = innermost, 1.0 = outermost
+
+            # Colour: lerp from core (warm) to haze (cool)
+            rc = core_color[0] + (haze_color[0] - core_color[0]) * t
+            gc = core_color[1] + (haze_color[1] - core_color[1]) * t
+            bc = core_color[2] + (haze_color[2] - core_color[2]) * t
+
+            # Opacity: lerp between core and haze opacities, then halve for each
+            # successive ring so they don't simply overdrive brightness.
+            ring_opacity = core_opacity + (haze_opacity - core_opacity) * t
+            # Thin inner rings need higher opacity; outer rings accumulate via
+            # multiple layers so they're kept light individually.
+            ring_opacity *= max(0.30, 1.0 - t * 0.55)
+
+            # Inner edge fully transparent → outer edge at ring_opacity (annular).
+            # Using two concentric radial gradients stacked gives a true ring
+            # rather than a filled disk, which better matches Turner's swirling
+            # diffuse bands of colour.
+            inner_r = r * 0.0 if i == 0 else ring_radii[i - 1] * 0.65
+
+            grad = cairo.RadialGradient(
+                src_x, src_y, inner_r,
+                src_x, src_y, r,
+            )
+            grad.add_color_stop_rgba(0.0, rc, gc, bc, 0.0)            # centre → transparent
+            grad.add_color_stop_rgba(0.45, rc, gc, bc, ring_opacity)  # peak opacity
+            grad.add_color_stop_rgba(1.0, rc, gc, bc, 0.0)            # fade to transparent
+
+            self.canvas.ctx.rectangle(0, 0, w, h)
+            self.canvas.ctx.set_source(grad)
+            self.canvas.ctx.fill()
+
+        # ── Thin warm core bloom (Vermeer 'pearls' at the light source) ───────
+        # A final very small, very opaque bright dot at the exact light centre
+        # gives the pin-sharp 'sun disc' visible in Turner's works through haze.
+        bloom_r = max(3.0, short_side * 0.012)
+        bloom   = cairo.RadialGradient(src_x, src_y, 0, src_x, src_y, bloom_r)
+        bloom.add_color_stop_rgba(0.0, 1.0, 0.97, 0.88, 0.55)
+        bloom.add_color_stop_rgba(1.0, 1.0, 0.97, 0.88, 0.0)
+        self.canvas.ctx.arc(src_x, src_y, bloom_r, 0, 2 * math.pi)
+        self.canvas.ctx.set_source(bloom)
+        self.canvas.ctx.fill()
+
     def focused_pass(self,
                      reference:   Union[np.ndarray, Image.Image],
                      region_mask: np.ndarray,

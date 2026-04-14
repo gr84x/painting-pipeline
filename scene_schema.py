@@ -182,6 +182,8 @@ class Period(Enum):
     IMPRESSIONIST = auto()
     EXPRESSIONIST = auto()
     POINTILLIST   = auto()   # Seurat / divisionism — dots, no wet blending
+    ROMANTIC      = auto()   # Turner — luminous light vortex, dissolved edges
+    ART_NOUVEAU   = auto()   # Klimt — gold leaf, flat ornament, symbolic colour
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -373,6 +375,13 @@ class Style:
             # Pointillist: tiny dots, zero wet-blending, crisp optical colour mixing.
             # stroke_size_face/bg here describes dot radius for pointillist_pass().
             Period.POINTILLIST:   dict(stroke_size_face=4,  stroke_size_bg=5,  wet_blend=0.02, edge_softness=0.10),
+            # Romantic (Turner): very high wet blending and edge softness so forms
+            # dissolve into radiant atmospheric light.  luminous_glow_pass() is the
+            # key post-processing step for this period.
+            Period.ROMANTIC:      dict(stroke_size_face=14, stroke_size_bg=30, wet_blend=0.75, edge_softness=0.90),
+            # Art Nouveau (Klimt): moderate strokes; low wet blend to keep colour
+            # zones crisp; the decorative gold overlay is applied as a glaze pass.
+            Period.ART_NOUVEAU:   dict(stroke_size_face=6,  stroke_size_bg=20, wet_blend=0.15, edge_softness=0.40),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

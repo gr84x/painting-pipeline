@@ -379,6 +379,141 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── J.M.W. Turner ────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's atmospheric-light inspiration.
+    "turner": ArtStyle(
+        artist="Joseph Mallord William Turner",
+        movement="Romanticism / Proto-Impressionism",
+        nationality="British",
+        period="1796–1851",
+        palette=[
+            (0.98, 0.92, 0.60),   # incandescent white-yellow — sun core
+            (0.95, 0.72, 0.28),   # golden amber — atmospheric light aureole
+            (0.80, 0.58, 0.35),   # warm ochre — haze mid-tone
+            (0.48, 0.62, 0.78),   # cool cerulean — atmospheric recession
+            (0.32, 0.28, 0.48),   # blue-violet — deep shadow / storm
+            (0.88, 0.82, 0.70),   # luminous cream — diffused sky
+        ],
+        ground_color=(0.80, 0.75, 0.60),    # warm pale ground — light source centre
+        stroke_size=18,
+        wet_blend=0.75,                      # very high blending — colours bleed into each other
+        edge_softness=0.90,                  # near-total dissolution of form edges
+        jitter=0.045,
+        glazing=(0.95, 0.85, 0.55),          # brilliant warm glaze — sunlight flooding the surface
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Vortex composition: radiant light at centre dissolves all edges "
+            "outward into atmospheric haze. Extremely wet blending with swirling "
+            "concentric strokes sweeping away from the light source. Forms "
+            "dematerialise into colour and light — 'the sun is God' (his dying words). "
+            "Late works nearly abstract: water, sky, and mist fuse into a single "
+            "luminous field with no firm horizon. Warm yellows at the light vortex "
+            "shift to cool blue-violet at the periphery."
+        ),
+        famous_works=[
+            ("The Fighting Temeraire", "1839"),
+            ("Rain, Steam, and Speed", "1844"),
+            ("Snow Storm — Steam-Boat off a Harbour's Mouth", "1842"),
+            ("Light and Colour (Goethe's Theory)", "1843"),
+        ],
+        inspiration=(
+            "Use luminous_glow_pass(): place many overlapping radial soft gradients "
+            "centred on the brightest point (sun/lamp). Each ring: warm core → "
+            "cool haze periphery. Very high wet_blend + edge_softness so the figure "
+            "dissolves into the light. Stack warm glaze last."
+        ),
+    ),
+
+    # ── Gustav Klimt ─────────────────────────────────────────────────────────
+    "klimt": ArtStyle(
+        artist="Gustav Klimt",
+        movement="Art Nouveau / Symbolism / Vienna Secession",
+        nationality="Austrian",
+        period="1897–1918",
+        palette=[
+            (0.85, 0.70, 0.15),   # gold leaf — his signature metallic richness
+            (0.92, 0.82, 0.40),   # pale gold — highlights on gold areas
+            (0.45, 0.20, 0.10),   # deep sienna — figure flesh in shadow
+            (0.78, 0.58, 0.42),   # warm flesh — face and hands
+            (0.15, 0.25, 0.48),   # midnight blue — negative space
+            (0.68, 0.35, 0.55),   # mauve — floral pattern accents
+        ],
+        ground_color=(0.20, 0.16, 0.08),    # very dark ground — gold stands out
+        stroke_size=6,
+        wet_blend=0.15,
+        edge_softness=0.40,
+        jitter=0.025,
+        glazing=(0.88, 0.75, 0.20),          # golden metallic glaze — entire surface
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Flat gold-leaf mosaic pattern areas surrounding naturalistically "
+            "rendered flesh. The figure and robe fuse into a single gold field "
+            "decorated with geometric and floral patterns (spirals, rectangles, "
+            "eye motifs). Faces and hands painted with delicate, blended realism "
+            "in sharp contrast to the flat decorative surroundings. "
+            "Byzantine influence: gold background replaces three-dimensional space. "
+            "Strong black contour defines figure against abstract ornamental field."
+        ),
+        famous_works=[
+            ("The Kiss", "1907–1908"),
+            ("Portrait of Adele Bloch-Bauer I", "1907"),
+            ("Judith and the Head of Holofernes", "1901"),
+            ("The Tree of Life", "1905–1909"),
+        ],
+        inspiration=(
+            "Two-zone technique: face/hands — high wet_blend, detailed; "
+            "robe/background — flat gold, geometric pattern overlay. "
+            "Apply gold glaze at full canvas level. "
+            "Use thin dark contour strokes around the figure boundary."
+        ),
+    ),
+
+    # ── Paul Cézanne ──────────────────────────────────────────────────────────
+    "cezanne": ArtStyle(
+        artist="Paul Cézanne",
+        movement="Post-Impressionism / Proto-Cubism",
+        nationality="French",
+        period="1861–1906",
+        palette=[
+            (0.70, 0.58, 0.40),   # warm ochre — Mont Sainte-Victoire rock
+            (0.42, 0.55, 0.38),   # cool green — foliage planes
+            (0.68, 0.48, 0.32),   # sienna — earth and terracotta
+            (0.52, 0.60, 0.72),   # blue-grey — atmospheric distance
+            (0.80, 0.72, 0.55),   # cream highlight — still life
+            (0.30, 0.25, 0.18),   # dark umber — deep shadow planes
+        ],
+        ground_color=(0.60, 0.52, 0.38),    # warm mid-ground
+        stroke_size=10,
+        wet_blend=0.18,
+        edge_softness=0.35,
+        jitter=0.040,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Constructive, parallel 'passage' brushwork: small rectangular strokes "
+            "laid in systematic diagonal bands that build volume through colour "
+            "modulation rather than tonal blending. Forms reduced to geometric "
+            "essentials — cylinders, spheres, cones. Warm/cool colour modulation "
+            "replaces chiaroscuro: warm = convex / lit; cool = recessive / shadow. "
+            "Contours deliberately left unresolved ('passage') to fuse figure "
+            "and background. Influenced every Cubist and Modernist that followed."
+        ),
+        famous_works=[
+            ("Mont Sainte-Victoire series", "1882–1906"),
+            ("The Card Players", "1894–1895"),
+            ("The Large Bathers", "1898–1906"),
+            ("Still Life with Apples", "1895–1898"),
+        ],
+        inspiration=(
+            "Diagonal parallel stroke bands: angle ~35° or ~-35°, stroke_size medium, "
+            "wet_blend low. Cool palette for receding planes; warm for advancing. "
+            "Moderate curvature — strokes are nearly straight but grouped directionally."
+        ),
+    ),
+
     # ── Katsushika Hokusai ────────────────────────────────────────────────────
     "hokusai": ArtStyle(
         artist="Katsushika Hokusai",
