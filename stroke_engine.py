@@ -5789,3 +5789,280 @@ class Painter:
         n_deepened = int(shadow_side.sum())
         print(f"  Micro-detail pass complete  "
               f"(light_side={n_boosted}px  shadow_side={n_deepened}px)")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # chiaroscuro_focus_pass — Artemisia Gentileschi / Caravaggesque spotlight
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def chiaroscuro_focus_pass(self,
+                               light_center:      Tuple[float, float] = (0.35, 0.30),
+                               light_radius:      float = 0.38,
+                               falloff_sharpness: float = 2.5,
+                               shadow_strength:   float = 0.72,
+                               shadow_color:      Color = (0.28, 0.18, 0.08),
+                               light_warmth:      float = 0.12,
+                               light_boost:       float = 0.06,
+                               figure_only:       bool  = False):
+        """
+        Caravaggesque spotlight effect inspired by Artemisia Gentileschi.
+
+        Gentileschi used a tightly focused single light source to pool warm
+        ivory light in one zone while the rest of the composition fell into
+        deep, velvety warm shadow.  Unlike Rembrandt's rough impasto highlights,
+        her lit surfaces are smooth and seamless — built from careful blending
+        rather than thick paint application.
+
+        This pass simulates the directional falloff of her characteristic
+        single-candle or directed-window lighting:
+
+        1. Each pixel receives a light weight = exp(-d^p / r^p) where d is the
+           distance from light_center (in normalised canvas coords), p =
+           falloff_sharpness, and r = light_radius.  This creates a Gaussian-
+           like pool for p≈2 or a harder-edged lantern at p>3.
+        2. Shadow zone (weight < 0.5): progressively blend toward shadow_color.
+           The blend amount is proportional to (1 - weight)^1.5, keeping the
+           mid-tone transition smooth.
+        3. Light zone (weight > 0.5): apply a subtle warm shift (light_warmth)
+           and a small luminance boost (light_boost) to emphasise the pool.
+
+        Parameters
+        ----------
+        light_center      : (cx, cy) in normalised [0,1] canvas coordinates.
+                            (0,0) = top-left; (1,1) = bottom-right.
+                            Default (0.35, 0.30) — upper-left source, Gentileschi
+                            convention matching Caravaggio's typical arrangement.
+        light_radius      : Radius of the light pool in normalised coords.
+                            0.25 = very tight spot; 0.50 = broad soft fill.
+        falloff_sharpness : Exponent p of the falloff curve.  2.0 = Gaussian
+                            (soft); 3.5+ = lantern-like (hard edge).
+        shadow_strength   : Maximum darkening factor in the shadow zone.
+                            0.60 = moderate shadow; 0.85 = near-black void.
+        shadow_color      : Target colour in the deepest shadow zone.
+                            Warm umber default matches Gentileschi's dark grounds.
+        light_warmth      : Red-channel boost in the light zone.  Simulates the
+                            warm amber tint of candlelight / northern window.
+        light_boost       : Overall luminance boost in the lit zone.
+        figure_only       : If True and a figure mask is loaded, restrict shadow
+                            darkening to the figure; leave the background as-is.
+                            Default False — Gentileschi darkens backgrounds too.
+
+        Notes
+        -----
+        Call AFTER block_in() / build_form() and BEFORE the final glaze.
+        Combine with impasto_texture_pass() on the lit highlights for a more
+        Caravaggesque texture in the specular peaks, or omit for Gentileschi's
+        characteristic smooth luminosity.
+        """
+        print(f"Chiaroscuro focus pass  (center={light_center}  "
+              f"radius={light_radius:.2f}  strength={shadow_strength:.2f})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Build distance field from light_center ─────────────────────────────
+        cx_px = light_center[0] * w
+        cy_px = light_center[1] * h
+        # Normalised distance — use canvas diagonal as reference so radius is scale-invariant
+        diag = math.sqrt(w * w + h * h)
+
+        ys = np.arange(h, dtype=np.float32)
+        xs = np.arange(w, dtype=np.float32)
+        xx, yy = np.meshgrid(xs, ys)
+        dist_px = np.sqrt((xx - cx_px) ** 2 + (yy - cy_px) ** 2)
+        dist_n  = dist_px / diag   # normalised distance
+
+        # ── Light weight map ───────────────────────────────────────────────────
+        # Soft exponential falloff: weight = exp(-(d/r)^p)
+        p       = max(1.0, falloff_sharpness)
+        r_n     = max(1e-6, light_radius)
+        wt      = np.exp(- (dist_n / r_n) ** p)   # shape (h, w), range [0, 1]
+
+        # ── Shadow zone blend ─────────────────────────────────────────────────
+        # blend_amount: how much to push toward shadow_color (stronger away from light)
+        blend_amount = np.clip((1.0 - wt) ** 1.5 * shadow_strength, 0.0, 1.0)
+
+        sc_r, sc_g, sc_b = shadow_color
+        r_new = r_ch * (1.0 - blend_amount) + sc_r * blend_amount
+        g_new = g_ch * (1.0 - blend_amount) + sc_g * blend_amount
+        b_new = b_ch * (1.0 - blend_amount) + sc_b * blend_amount
+
+        # ── Light zone warm boost ──────────────────────────────────────────────
+        # Only applied where wt > 0.5 — the illuminated pool
+        lit_mask = wt > 0.5
+        lit_wt   = np.clip((wt - 0.5) * 2.0, 0.0, 1.0)   # 0→1 in the lit zone
+
+        r_new = np.clip(r_new + lit_mask * lit_wt * (light_warmth + light_boost), 0.0, 1.0)
+        g_new = np.clip(g_new + lit_mask * lit_wt * light_boost * 0.85,           0.0, 1.0)
+        b_new = np.clip(b_new + lit_mask * lit_wt * light_boost * 0.65,           0.0, 1.0)
+
+        # ── Apply figure mask restriction ──────────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            fm = self._figure_mask
+            r_new = r_ch * (1.0 - fm) + r_new * fm
+            g_new = g_ch * (1.0 - fm) + g_new * fm
+            b_new = b_ch * (1.0 - fm) + b_new * fm
+
+        # ── Write back ─────────────────────────────────────────────────────────
+        buf[:, :, 2] = np.clip(r_new * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_new * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_new * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_lit    = int(lit_mask.sum())
+        n_shadow = int((~lit_mask).sum())
+        print(f"  Chiaroscuro focus pass complete  "
+              f"(lit_zone={n_lit}px  shadow_zone={n_shadow}px)")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # highlight_bloom_pass — luminous glow around specular highlights
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def highlight_bloom_pass(self,
+                             threshold:     float = 0.78,
+                             bloom_sigma:   float = 8.0,
+                             bloom_opacity: float = 0.22,
+                             bloom_color:   Optional[Color] = None,
+                             multi_scale:   bool  = True,
+                             figure_only:   bool  = False):
+        """
+        Subtle photographic bloom around the brightest specular highlights.
+
+        In real optical systems — the human eye, early photographic lenses,
+        and oil-painted varnish surfaces — very bright highlights scatter light
+        into the surrounding area.  This creates a soft luminous halo, sometimes
+        called 'halation', where the specular peak bleeds into the adjacent mid-tone.
+
+        Classical portrait painters were aware of this effect: Leonardo described
+        how the eye cannot focus on extreme brightness without perceiving a soft
+        surrounding glow.  Gentileschi's smooth highlights on forehead and
+        cheekbones appear to radiate light rather than simply reflect it — partly
+        a painting convention and partly a faithful rendering of what the eye sees.
+
+        Implementation
+        --------------
+        1. Read the current canvas buffer and compute luminance.
+        2. Extract a highlight mask: pixels where luminance >= threshold.
+        3. Multiply the RGB of masked pixels by the mask weight to get the
+           'raw bloom source'.
+        4. Apply Gaussian blur at bloom_sigma (and optionally at 2× and 4× for a
+           multi-scale glow that has a tight inner core and a soft outer halo).
+        5. Blend the blurred bloom glow back onto the canvas using a soft-light
+           compositing formula: result = canvas + glow × bloom_opacity.
+        6. Apply optional bloom_color tint (default: slightly warmer than the
+           original highlight, simulating the warm chromatic aberration of light
+           scattering through oil or glass).
+
+        Parameters
+        ----------
+        threshold    : Luminance threshold above which a pixel contributes to the
+                       bloom source.  0.75–0.85 isolates only the specular peaks.
+        bloom_sigma  : Gaussian blur sigma for the bloom halo.  5–10 = tight,
+                       elegant; 15–25 = broader, more romantic glow.
+        bloom_opacity: Blend weight of the glow layer.  0.10–0.20 = subtle and
+                       photographic; 0.30+ = impressionistic light flare.
+        bloom_color  : Optional (R,G,B) tint applied to the glow layer.  None =
+                       use the native highlight colour (no tint).  A very slight
+                       warm tint (0.02, 0.0, -0.01) simulates candlelight.
+        multi_scale  : If True, add a tighter inner glow (sigma/2) at half opacity
+                       and a broader outer halo (sigma*2) at quarter opacity, giving
+                       the characteristic three-layer bloom of optical systems.
+        figure_only  : If True and a figure mask is loaded, restrict the bloom to
+                       the figure region only.
+
+        Notes
+        -----
+        Call AFTER all painting passes and BEFORE the final vignette / crackle.
+        This is the last image-enhancement step before finishing, so it should
+        see the near-final colour values.  Keep bloom_opacity low (0.12–0.22) for
+        realism; higher values become painterly or impressionistic.
+        """
+        print(f"Highlight bloom pass  (threshold={threshold:.2f}  "
+              f"sigma={bloom_sigma:.1f}  opacity={bloom_opacity:.2f})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+
+        # ── Build highlight source mask ────────────────────────────────────────
+        # Weight ramps smoothly from 0 at threshold to 1 at pure white.
+        hi_wt = np.clip((lum - threshold) / max(1.0 - threshold, 1e-6), 0.0, 1.0)
+
+        if figure_only and self._figure_mask is not None:
+            hi_wt = hi_wt * self._figure_mask
+
+        # ── Bloom source: highlight-coloured, weighted ─────────────────────────
+        bloom_r = r_ch * hi_wt
+        bloom_g = g_ch * hi_wt
+        bloom_b = b_ch * hi_wt
+
+        # ── Blur the bloom source — optionally at multiple scales ──────────────
+        sigma = max(0.5, bloom_sigma)
+
+        def _blur_channel(ch: np.ndarray, s: float) -> np.ndarray:
+            return ndimage.gaussian_filter(ch, sigma=s)
+
+        glow_r = _blur_channel(bloom_r, sigma)
+        glow_g = _blur_channel(bloom_g, sigma)
+        glow_b = _blur_channel(bloom_b, sigma)
+
+        if multi_scale:
+            # Inner tight glow (sigma/2) at 50% weight
+            ir = _blur_channel(bloom_r, sigma * 0.5)
+            ig = _blur_channel(bloom_g, sigma * 0.5)
+            ib = _blur_channel(bloom_b, sigma * 0.5)
+            glow_r = glow_r + ir * 0.50
+            glow_g = glow_g + ig * 0.50
+            glow_b = glow_b + ib * 0.50
+            # Outer broad halo (sigma*2) at 25% weight
+            or_ = _blur_channel(bloom_r, sigma * 2.0)
+            og  = _blur_channel(bloom_g, sigma * 2.0)
+            ob  = _blur_channel(bloom_b, sigma * 2.0)
+            glow_r = glow_r + or_ * 0.25
+            glow_g = glow_g + og  * 0.25
+            glow_b = glow_b + ob  * 0.25
+
+        # ── Apply optional colour tint ─────────────────────────────────────────
+        if bloom_color is not None:
+            bc_r, bc_g, bc_b = bloom_color
+            # Tint the glow layer: blend toward tint color weighted by glow intensity
+            glow_lum = (glow_r + glow_g + glow_b) / 3.0
+            glow_r = glow_r * (1.0 - 0.35) + bc_r * glow_lum * 0.35
+            glow_g = glow_g * (1.0 - 0.35) + bc_g * glow_lum * 0.35
+            glow_b = glow_b * (1.0 - 0.35) + bc_b * glow_lum * 0.35
+
+        # ── Composite: additive blend clamped ─────────────────────────────────
+        r_out = np.clip(r_ch + glow_r * bloom_opacity, 0.0, 1.0)
+        g_out = np.clip(g_ch + glow_g * bloom_opacity, 0.0, 1.0)
+        b_out = np.clip(b_ch + glow_b * bloom_opacity, 0.0, 1.0)
+
+        # ── Write back ─────────────────────────────────────────────────────────
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_bloomed = int((hi_wt > 0.01).sum())
+        print(f"  Highlight bloom pass complete  (bloom_source={n_bloomed}px)")

@@ -1559,6 +1559,63 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Artemisia Gentileschi ──────────────────────────────────────────────────
+    "artemisia_gentileschi": ArtStyle(
+        artist="Artemisia Gentileschi",
+        movement="Italian Baroque / Caravaggesque",
+        nationality="Italian",
+        period="1593–1656",
+        palette=[
+            (0.88, 0.74, 0.55),   # warm ivory highlight flesh
+            (0.72, 0.55, 0.35),   # mid-tone amber flesh
+            (0.42, 0.28, 0.14),   # deep warm umber shadow
+            (0.08, 0.06, 0.04),   # near-black velvety background void
+            (0.62, 0.10, 0.12),   # deep crimson drapery
+            (0.14, 0.20, 0.45),   # blue-black deep drapery
+            (0.72, 0.58, 0.18),   # golden amber fabric highlight
+            (0.52, 0.22, 0.08),   # burnt sienna transitional shadow
+        ],
+        ground_color=(0.20, 0.14, 0.08),    # dark warm brown ground (alla prima)
+        stroke_size=7,
+        wet_blend=0.18,                      # moderate — smooth flesh but decisive drapery
+        edge_softness=0.55,                  # moderately soft — light melts into shadow
+        jitter=0.025,
+        glazing=(0.55, 0.38, 0.14),          # warm amber deepening glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Caravaggesque chiaroscuro refined into luminous, seamless flesh.  "
+            "Unlike Caravaggio's rough impasto, Gentileschi's lit surfaces are "
+            "smooth and seamless — built from thin, carefully blended layers of "
+            "lead white and warm flesh pigment.  A single directed light source "
+            "illuminates a tight pool of the composition; the rest falls into deep, "
+            "velvety warm shadow.  The falloff from light to dark is smooth but "
+            "decisive — a Gaussian spotlight with warm amber tones in the light "
+            "and deep Vandyke brown in the shadow.  Drapery is painted in rich "
+            "jewel tones: crimson lake, blue-black, gold — with bold impasto "
+            "highlights on fabric ridges.  The shadow side retains just enough "
+            "detail to read form without competing with the illuminated zone."
+        ),
+        famous_works=[
+            ("Judith Slaying Holofernes", "c. 1614–1620"),
+            ("Self-Portrait as the Allegory of Painting", "c. 1638–1639"),
+            ("Susanna and the Elders", "1610"),
+            ("Lucretia", "c. 1621"),
+            ("Cleopatra", "c. 1621"),
+            ("Esther Before Ahasuerus", "c. 1628–1635"),
+        ],
+        inspiration=(
+            "Use chiaroscuro_focus_pass() to create Gentileschi's directed spotlight: "
+            "a warm ivory pool of light surrounded by deep warm shadow.  "
+            "tone_ground() should use a very dark warm brown (near-black umber). "
+            "block_in() and build_form() with moderate wet_blend for smooth flesh. "
+            "highlight_bloom_pass() adds the subtle luminous quality of her "
+            "specular highlights without rough impasto texture.  "
+            "Palette: ivory flesh, burnt sienna mid-tones, Vandyke brown shadows, "
+            "deep crimson and blue-black drapery, gold fabric highlights."
+        ),
+    ),
+
 }
 
 
