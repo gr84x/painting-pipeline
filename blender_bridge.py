@@ -448,7 +448,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     from stroke_engine import (Painter, ellipse_mask, spherical_flow,
                                flow_field, anatomy_flow_field, ellipse_mask)
     from figure_builder import compute_landmarks
-    from scene_schema import PoseDetail, Period
+    from scene_schema import PoseDetail, Period, Medium
 
     # Step 1: Blender reference render (also writes _mask.png and _normals.png alongside)
     ref_path     = output_path.replace(".png", "_ref.png")
@@ -478,10 +478,39 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         if verbose:
             print("  [warn] No figure mask found — painting without region separation")
 
-    is_pointillist = (scene.style.period == Period.POINTILLIST)
-    is_ukiyo_e     = (scene.style.period == Period.UKIYO_E)
+    is_pointillist  = (scene.style.period == Period.POINTILLIST)
+    is_ukiyo_e      = (scene.style.period == Period.UKIYO_E)
+    is_watercolor   = (scene.style.medium == Medium.WATERCOLOR)
 
-    if is_ukiyo_e:
+    if is_watercolor:
+        # ── Watercolour pipeline (Sargent technique) ─────────────────────────
+        # Cream paper ground — watercolour is painted on white/cream paper, not
+        # linen.  The ground texture is much finer than oil canvas, and very
+        # important: texture_strength is very low (paper surface).
+        p.tone_ground((0.96, 0.94, 0.90), texture_strength=0.015)
+
+        # Three-stage watercolour process:
+        # 1. Wet-into-wet washes (broad, diluted, soft edges)
+        # 2. Sargent drag (dry-brush sparkle on sunlit surfaces)
+        # 3. Dark accent strokes (crisp loaded-brush darks placed last)
+        # Paper-threshold: leave anything brighter than 0.80 lum as bare paper.
+        p.watercolor_wash_pass(
+            ref,
+            n_washes         = 8,
+            wash_opacity     = float(sp["wet_blend"]) * 0.45,
+            drag_strokes     = 200,
+            drag_size        = float(sp["stroke_size_bg"]),
+            dark_strokes     = 400,
+            dark_opacity     = 0.72,
+            paper_threshold  = 0.80,
+            bloom_prob       = 0.22,
+        )
+
+        # No oil glaze or crackle — watercolours don't varnish.
+        # Light vignette only to frame the paper edges.
+        p.finish(vignette=0.18, crackle=False)
+
+    elif is_ukiyo_e:
         # ── Ukiyo-e / woodblock print pipeline (Hokusai technique) ───────────
         # Rice paper ground — pale cream, almost no texture (ukiyo-e used
         # smooth washi paper, not woven linen).

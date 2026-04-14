@@ -1483,6 +1483,300 @@ class Painter:
                 region_mask=self._figure_mask,
             )
 
+    def watercolor_wash_pass(self,
+                             reference:      Union[np.ndarray, Image.Image],
+                             n_washes:       int   = 6,
+                             wash_opacity:   float = 0.28,
+                             drag_strokes:   int   = 180,
+                             drag_size:      float = 22.0,
+                             dark_strokes:   int   = 320,
+                             dark_opacity:   float = 0.72,
+                             paper_threshold: float = 0.82,
+                             bloom_prob:     float = 0.18):
+        """
+        Transparent watercolour technique — inspired by John Singer Sargent.
+
+        Watercolour is fundamentally different from oil: pigment is suspended
+        in water and behaves according to the moisture state of the paper.
+        There is no white paint — the highest lights are bare paper.  This
+        pass replicates the four stages of Sargent's watercolour method:
+
+          Stage 1 — Wet-into-wet foundation washes:
+            Large, nearly-transparent sweeps of diluted pigment applied to
+            pre-wetted paper.  Colours bleed and merge at their boundaries,
+            producing the soft lost-edge quality of sky, water, and shadow
+            masses.  Simulated via very large strokes with high wet_blend and
+            low opacity.
+
+          Stage 2 — 'Sargent drag' (dry-brush sparkle):
+            A heavily-loaded flat brush dragged rapidly across the PEAKS of
+            dry rough-surface paper.  The brush skips the hollows, leaving
+            channels of bare cream paper that read as sparkling water,
+            sunlit foliage, or sunlit stucco.
+            Simulated by short, high-opacity flat strokes placed ONLY in
+            mid-luminance areas (avoiding the very darkest shadows and the
+            reserved bright lights), with a broken-edge quality from
+            high bristle_noise in the BrushTip.
+
+          Stage 3 — Hard-edge blooms:
+            When a second wet stroke meets the drying edge of an earlier
+            wash a backrun forms: the advancing waterfront pushes pigment
+            outward, creating a hard 'cauliflower' edge.  Simulated by
+            occasionally placing a narrow dark fringe stroke just outside
+            a wash boundary (detected from the reference gradient).
+
+          Stage 4 — Dark accent strokes (charged loaded brush):
+            The final crisp darks are the last marks placed — a fully-loaded
+            brush on dry paper leaves clean, transparent, high-intensity
+            colour.  These are the marks that define shadow edges, figure
+            outlines, and the deepest recesses.
+
+        Paper preservation:
+            Any pixel whose reference luminance exceeds *paper_threshold* is
+            left as bare cream paper — NO pigment is placed there.  This is
+            the most important rule of watercolour: you cannot paint light
+            back once it is covered, so the artist plans and protects the
+            white areas from the start.
+
+        Parameters
+        ----------
+        reference        : PIL Image or ndarray — the target reference.
+        n_washes         : Number of large wet-into-wet wash strokes.
+                           6–10 is typical; more reads as overworked.
+        wash_opacity     : Alpha of each wash stroke (keep low: 0.18–0.35).
+        drag_strokes     : Number of 'Sargent drag' dry-brush strokes.
+        drag_size        : Width of each drag stroke in pixels.
+        dark_strokes     : Number of final dark-accent strokes.
+        dark_opacity     : Opacity of dark accent strokes (0.55–0.85).
+        paper_threshold  : Luminance above which pixels are left as bare paper.
+        bloom_prob       : Probability (0–1) that a wash boundary gets a hard
+                          bloom fringe stroke (cauliflower effect).
+
+        Notes
+        -----
+        Sargent famously said that a watercolour should be finished before the
+        first wash dries — speed is everything.  His *Muddy Alligators* (1917)
+        and *Santa Maria della Salute* (1904) show a 'Sargent drag' sky
+        applied in a single confident pass.
+
+        Famous works to study:
+          *Muddy Alligators* (1917) — wet-into-wet + loaded dark strokes.
+          *Santa Maria della Salute* (1904) — 'drag' sky, hard blooms on water.
+          *Boat Deck, Meteor* (1902) — reserve whites + dark accent calligraphy.
+        """
+        print(f"Watercolour wash pass  ({n_washes} washes  {drag_strokes} drag  "
+              f"{dark_strokes} darks)…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # ── Luminance map: used throughout for paper-preservation gating ─────────
+        lum = (0.299 * rarr[:, :, 0] +
+               0.587 * rarr[:, :, 1] +
+               0.114 * rarr[:, :, 2])                        # (H, W) in [0, 1]
+
+        # Paper-preservation mask: 0.0 where we must leave bare paper, 1.0 elsewhere.
+        # Applied to stroke probability so no pigment lands on the lightest areas.
+        paper_mask = (lum < paper_threshold).astype(np.float32)
+        paper_mask = ndimage.gaussian_filter(paper_mask, sigma=3.5)  # feather the edge
+        paper_mask = np.clip(paper_mask, 0.0, 1.0)
+
+        # Also respect the figure mask if one is loaded.
+        effective_mask = paper_mask
+        if self._figure_mask is not None:
+            effective_mask = paper_mask * self._figure_mask
+
+        # ── Gradient for bloom detection ─────────────────────────────────────────
+        gx = ndimage.sobel(lum, axis=1).astype(np.float32)
+        gy = ndimage.sobel(lum, axis=0).astype(np.float32)
+        grad_mag = np.sqrt(gx ** 2 + gy ** 2)
+        if grad_mag.max() > 1e-9:
+            grad_mag /= grad_mag.max()
+
+        # ── Stage 1: Wet-into-wet foundation washes ──────────────────────────────
+        # Large, very transparent, high-blending strokes that lay in the broad
+        # colour and tonal masses.  The wetness allows colours to flow together
+        # at their boundaries — this is the 'lost edge' quality of watercolour.
+        print("  Stage 1: wet-into-wet washes…")
+        tip_filbert = BrushTip(BrushTip.FILBERT, bristle_noise=0.04)
+
+        # Sample from mid-dark regions (avoid bare-paper zones).
+        wash_weight = (1.0 - lum) * effective_mask
+        wash_total  = wash_weight.sum()
+        if wash_total > 1e-9:
+            wash_weight /= wash_total
+            wash_positions = self.rng.choice(h * w, size=n_washes,
+                                             p=wash_weight.flatten(), replace=True)
+        else:
+            wash_positions = self.rng.integers(0, h * w, size=n_washes)
+
+        wash_stroke_size = min(w, h) * 0.18    # ~18% of the shorter canvas dimension
+
+        for pos in wash_positions:
+            py, px = int(pos // w), int(pos % w)
+            margin = max(20, int(wash_stroke_size))
+            px = int(np.clip(px, margin, w - margin))
+            py = int(np.clip(py, margin, h - margin))
+
+            # Colour: sample a patch and take the mean — washes are flat tones.
+            pw = max(4, int(wash_stroke_size * 0.3))
+            patch = rarr[max(0, py-pw):py+pw+1, max(0, px-pw):px+pw+1, :]
+            col   = tuple(float(np.mean(patch[:, :, c])) for c in range(3))
+            # Dilute toward white (water lightens pigment in wash state).
+            col = tuple(min(1.0, v * 0.85 + 0.15) for v in col)
+            col = jitter(col, 0.04, self._rng_py)
+
+            a      = self._rng_py.uniform(0, 2 * math.pi)
+            length = wash_stroke_size * self._rng_py.uniform(1.8, 3.5)
+            start  = (px - math.cos(a) * length * 0.5,
+                      py - math.sin(a) * length * 0.5)
+            pts    = stroke_path(start, a, length,
+                                 curve=self._rng_py.uniform(-0.08, 0.08),
+                                 n=max(5, int(length / 14)))
+            ws     = [wash_stroke_size * self._rng_py.uniform(1.0, 2.2)] * len(pts)
+
+            self.canvas.apply_stroke(
+                pts, ws, col, tip_filbert,
+                opacity=wash_opacity,
+                wet_blend=0.68,          # very high: washes bleed into each other
+                jitter_amt=0.025,
+                rng=self._rng_py,
+                region_mask=effective_mask,
+            )
+
+            # ── Hard bloom (backrun / cauliflower edge) ───────────────────────
+            # Occasionally add a narrow fringe of concentrated pigment along the
+            # leading edge of the wash — this is the hard water-mark that forms
+            # when a wet stroke dries.  Its colour is a darker, slightly shifted
+            # version of the wash colour.
+            if self._rng_py.random() < bloom_prob and len(pts) >= 2:
+                # Bloom colour: darker, slightly cooler than the parent wash.
+                b_col = tuple(max(0.0, v - self._rng_py.uniform(0.08, 0.18))
+                              for v in col)
+                # Bloom trace runs along the wash boundary: pick the last quarter
+                # of the stroke path as the 'leading edge' and draw a thin line.
+                split    = max(1, len(pts) * 3 // 4)
+                b_pts    = pts[split:]
+                b_ws     = [max(1.5, ws[0] * 0.12)] * len(b_pts)
+                if len(b_pts) >= 2:
+                    self.canvas.apply_stroke(
+                        b_pts, b_ws, b_col,
+                        BrushTip(BrushTip.FLAT, bristle_noise=0.0),
+                        opacity=min(0.85, dark_opacity * 0.70),
+                        wet_blend=0.0,       # hard bloom = no wet blending
+                        jitter_amt=0.012,
+                        rng=self._rng_py,
+                        region_mask=effective_mask,
+                    )
+
+        # ── Stage 2: Sargent drag (dry-brush sparkle pass) ───────────────────────
+        # A loaded flat brush drawn rapidly across the PEAKS of rough dry paper.
+        # The bristles skip the hollow valleys of the paper grain, leaving thin
+        # channels of bare cream paper that become sparkling light on water, etc.
+        # We simulate this with short, fast flat-brush strokes using high bristle_noise
+        # placed only in mid-luminance areas (not in the protected lights or the
+        # deepest darks).
+        print("  Stage 2: Sargent drag…")
+        drag_tip = BrushTip(BrushTip.FLAT, bristle_noise=0.18)   # high bristle noise → broken coverage
+
+        # Mid-luminance target: 0.35 ≤ lum < paper_threshold.
+        # This is where sunlit texture is: not the deepest shadows, not the paper-white lights.
+        drag_mask = ((lum >= 0.32) & (lum < paper_threshold)).astype(np.float32)
+        if self._figure_mask is not None:
+            drag_mask = drag_mask * self._figure_mask
+        drag_weight = drag_mask * (lum - 0.32)     # favour brighter end of the range
+        drag_total  = drag_weight.sum()
+
+        if drag_total > 1e-9:
+            drag_weight /= drag_total
+            drag_positions = self.rng.choice(h * w, size=drag_strokes,
+                                              p=drag_weight.flatten(), replace=True)
+
+            for pos in drag_positions:
+                py, px = int(pos // w), int(pos % w)
+                margin = max(4, int(drag_size))
+                px = int(np.clip(px, margin, w - margin))
+                py = int(np.clip(py, margin, h - margin))
+
+                # Sample lightened reference colour — drag picks up light pigment.
+                col = tuple(float(rarr[py, px, c]) for c in range(3))
+                col = tuple(min(1.0, v * 1.12) for v in col)   # slightly lighter
+                col = jitter(col, 0.03, self._rng_py)
+
+                # Direction: predominantly horizontal or a gentle diagonal —
+                # Sargent worked with confident directional strokes, not random.
+                base_angle = self._rng_py.choice([0.0, math.pi / 8, -math.pi / 8,
+                                                   math.pi / 6, math.pi * 0.9])
+                a      = base_angle + self._rng_py.uniform(-0.12, 0.12)
+                length = drag_size * self._rng_py.uniform(2.5, 5.0)   # long confident stroke
+                start  = (px - math.cos(a) * length * 0.5,
+                          py - math.sin(a) * length * 0.5)
+                pts    = stroke_path(start, a, length, curve=0.0,
+                                     n=max(4, int(length / 8)))
+                ws     = [drag_size * self._rng_py.uniform(0.8, 1.4)] * len(pts)
+
+                self.canvas.apply_stroke(
+                    pts, ws, col, drag_tip,
+                    opacity=0.55,       # moderate — drag is not fully opaque
+                    wet_blend=0.04,     # nearly dry surface — almost no blending
+                    jitter_amt=0.025,
+                    rng=self._rng_py,
+                    region_mask=effective_mask,
+                )
+
+        # ── Stage 3: Dark accent strokes (loaded charged brush on dry paper) ─────
+        # The final crisp darks are placed last on completely dry paper.  A
+        # fully-loaded brush on dry paper gives transparent, luminous, clean
+        # dark marks — much more vivid than overworking wet-into-wet.
+        # These define shadow edges, cast shadows, and the deepest recesses.
+        print("  Stage 3: dark accent strokes…")
+        tip_round = BrushTip(BrushTip.ROUND, bristle_noise=0.02)
+
+        dark_weight = (1.0 - lum) ** 2.5          # strongly prefer the darkest areas
+        dark_weight *= effective_mask
+        dark_weight += grad_mag * effective_mask * 0.4   # and value edges
+        dark_weight  = dark_weight.flatten()
+        dark_total   = dark_weight.sum()
+
+        if dark_total > 1e-9:
+            dark_weight /= dark_total
+            dark_positions = self.rng.choice(h * w, size=dark_strokes,
+                                              p=dark_weight, replace=True)
+
+            angles = flow_field(rarr)   # strokes follow the colour contour
+            dark_size = max(3.0, drag_size * 0.30)   # smaller, crisper than washes
+
+            for pos in dark_positions:
+                py, px = int(pos // w), int(pos % w)
+                margin = max(4, int(dark_size * 2))
+                px = int(np.clip(px, margin, w - margin))
+                py = int(np.clip(py, margin, h - margin))
+
+                col = tuple(float(rarr[py, px, c]) for c in range(3))
+                # Darken the sampled colour — loaded pigment on dry paper is deep
+                # and transparent.  The colour is rich, not muddy: multiply lightly.
+                col = tuple(max(0.0, v * 0.75) for v in col)
+                col = jitter(col, 0.02, self._rng_py)
+
+                a      = float(angles[py, px]) + self._rng_py.uniform(-0.25, 0.25)
+                length = dark_size * self._rng_py.uniform(2.0, 5.0)
+                start  = (px - math.cos(a) * length * 0.5,
+                          py - math.sin(a) * length * 0.5)
+                pts    = stroke_path(start, a, length,
+                                     curve=self._rng_py.uniform(-0.08, 0.08),
+                                     n=max(3, int(length / 5)))
+                ws     = [dark_size * self._rng_py.uniform(0.6, 1.2)] * len(pts)
+
+                self.canvas.apply_stroke(
+                    pts, ws, col, tip_round,
+                    opacity=dark_opacity,
+                    wet_blend=0.03,     # dry surface — no blending
+                    jitter_amt=0.018,
+                    rng=self._rng_py,
+                    region_mask=effective_mask,
+                )
+
     def focused_pass(self,
                      reference:   Union[np.ndarray, Image.Image],
                      region_mask: np.ndarray,

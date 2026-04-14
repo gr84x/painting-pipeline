@@ -564,6 +564,59 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── John Singer Sargent ───────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Sargent was the consummate virtuoso of both oil alla prima and transparent
+    # watercolour.  His watercolours are the subject of this session's new
+    # rendering pass: wet washes, hard-edge blooms, pigment granulation, and
+    # the economy of saving bare paper for the brightest lights.
+    "sargent": ArtStyle(
+        artist="John Singer Sargent",
+        movement="American Realism / Impressionism / Watercolour Virtuosity",
+        nationality="American/British",
+        period="1874–1925",
+        palette=[
+            (0.88, 0.82, 0.68),   # warm cream — sunlit stucco / flesh highlight
+            (0.72, 0.62, 0.45),   # golden ochre — warm mid-tone flesh
+            (0.42, 0.52, 0.65),   # cool shadow blue — the shadow side of everything
+            (0.25, 0.38, 0.28),   # deep viridian — foliage, water shadow
+            (0.85, 0.70, 0.50),   # warm sienna — sunlit fabric, earth
+            (0.20, 0.18, 0.22),   # near-black — anchor darks, very restrained
+        ],
+        ground_color=(0.95, 0.93, 0.88),    # bare cream watercolour paper (or pale primed canvas)
+        stroke_size=14,
+        wet_blend=0.55,                      # moderate — confident but not overworked
+        edge_softness=0.45,                  # crisp wet-edge blooms + soft interior washes
+        jitter=0.035,
+        glazing=None,                        # watercolours don't use oil glazes
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Virtuosic alla prima — both oil and watercolour.  Watercolour technique: "
+            "wet-in-wet initial washes for soft sky/background tones; hard-edge 'blooms' "
+            "where a charged wet stroke meets a drying wash.  Pigment granulates in the "
+            "hollows of rough paper.  Lights are SAVED PAPER — no white paint. "
+            "The 'Sargent drag': a loaded flat brush drawn rapidly across dry rough-surface "
+            "paper picks up peaks, leaving channels of bare cream between the strokes — "
+            "creates sparkling light on water, foliage, and sunlit walls in a single pass. "
+            "Oil work: broad confident strokes; no reworking.  A face in three marks. "
+            "Cool blue-grey shadows oppose warm cream-yellow lights everywhere."
+        ),
+        famous_works=[
+            ("Carnation, Lily, Lily, Rose", "1885–1886"),
+            ("Madame X (Portrait of Madame Pierre Gautreau)", "1884"),
+            ("El Jaleo", "1882"),
+            ("Muddy Alligators", "1917"),           # watercolour masterpiece
+            ("Santa Maria della Salute", "1904"),   # watercolour — 'Sargent drag' sky
+        ],
+        inspiration=(
+            "Use watercolor_wash_pass(): wet-into-wet washes for background, "
+            "'Sargent drag' for sunlit surfaces, hard blooms at wet wash edges. "
+            "Lights = bare paper (never painted white). "
+            "Cool blue shadows, warm cream-yellow lights — always opposite temperature."
+        ),
+    ),
+
     # ── Katsushika Hokusai ────────────────────────────────────────────────────
     "hokusai": ArtStyle(
         artist="Katsushika Hokusai",
