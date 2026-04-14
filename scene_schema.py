@@ -191,6 +191,7 @@ class Period(Enum):
     COLOR_FIELD   = auto()   # Rothko — luminous horizontal bands, optical vibration, absorbing void
     SYNTHETIST    = auto()   # Gauguin — flat colour zones, dark cloisonné contour lines, tropical palette
     MANNERIST     = auto()   # El Greco — elongated figures, jewel-tone palette, inner-lit silver flesh
+    SURREALIST    = auto()   # Kahlo — flat folk-art zones, intense saturated palette, dark contour outlines
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -431,6 +432,13 @@ class Style:
             # jewel-like, not blurred.  Low-moderate edge_softness: edges are present
             # but softened by the inner glow that characterises his flesh areas.
             Period.MANNERIST:     dict(stroke_size_face=8,  stroke_size_bg=35, wet_blend=0.18, edge_softness=0.30),
+            # Surrealist / Naïve Folk (Kahlo): flat saturated zones with no blending.
+            # stroke_size_face is the loaded-brush stroke width — moderate; covers forms
+            # in the deliberate naive style.  stroke_size_bg is smaller — background
+            # objects (foliage, symbolic flora) need tighter control than a void ground.
+            # Near-zero wet_blend: Kahlo's zones do not bleed; paint is dry and flat.
+            # Very low edge_softness: hard dark outlines, no sfumato.
+            Period.SURREALIST:    dict(stroke_size_face=8,  stroke_size_bg=18, wet_blend=0.08, edge_softness=0.12),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -166,6 +166,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_color_field":             period == Period.COLOR_FIELD,
         "is_synthetist":              period == Period.SYNTHETIST,
         "is_mannerist":               period == Period.MANNERIST,
+        "is_surrealist":              period == Period.SURREALIST,
         "is_romantic":                period == Period.ROMANTIC,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
@@ -292,3 +293,111 @@ def test_atmospheric_depth_pass_background_only_preserves_figure():
 
     np.testing.assert_array_equal(before, after,
         err_msg="atmospheric_depth_pass with all-figure mask should not modify canvas")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# folk_retablo_pass — session 13 addition (Frida Kahlo / Surrealist technique)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_folk_retablo_pass_exists():
+    """Painter must have folk_retablo_pass() method after session 13."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "folk_retablo_pass"), (
+        "folk_retablo_pass not found on Painter")
+    assert callable(getattr(Painter, "folk_retablo_pass"))
+
+
+def test_folk_retablo_pass_no_error():
+    """folk_retablo_pass() runs without error on a plain toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.72, 0.58, 0.32), texture_strength=0.08)
+    # Should not raise
+    p.folk_retablo_pass(ref, n_levels=4, saturation_boost=1.50,
+                        boundary_vibration=True)
+
+
+def test_folk_retablo_pass_no_error_vibration_off():
+    """folk_retablo_pass() runs without error when boundary_vibration is disabled."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.72, 0.58, 0.32), texture_strength=0.08)
+    p.folk_retablo_pass(ref, n_levels=3, saturation_boost=1.30,
+                        boundary_vibration=False)
+
+
+def test_folk_retablo_pass_modifies_canvas():
+    """folk_retablo_pass() with saturation boost must change a toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+
+    # Paint some colourful strokes so the pass has colour to posterize / boost
+    p.tone_ground((0.50, 0.22, 0.12), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.folk_retablo_pass(ref, n_levels=4, saturation_boost=1.55,
+                        outline_thickness=2.0, boundary_vibration=True)
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    diff = np.abs(after - before).max()
+    assert diff > 0, "folk_retablo_pass should modify a non-uniform canvas"
+
+
+def test_folk_retablo_pass_outline_darkens_edges():
+    """
+    With a vivid two-colour canvas, the contour outlines should produce pixels
+    darker than both input zones near the boundary.
+    """
+    from PIL import Image as _PILImg
+    p = _make_small_painter(64, 64)
+
+    # Paint left half warm red, right half cool blue to create a strong edge
+    p.tone_ground((0.80, 0.20, 0.10), texture_strength=0.0)
+    arr = np.zeros((64, 64, 3), dtype=np.uint8)
+    arr[:, :32, :] = [200, 50, 30]    # left: warm red
+    arr[:, 32:, :] = [30, 60, 180]    # right: cool blue
+    ref = _PILImg.fromarray(arr, "RGB")
+
+    p.folk_retablo_pass(ref, n_levels=2, saturation_boost=1.0,
+                        outline_thickness=3.0, outline_opacity=0.95,
+                        boundary_vibration=False)
+
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    # Cairo BGRA: channel 0=B, 1=G, 2=R
+    # The centre column (where the boundary is) should be darkened by the outline
+    centre_col = buf[:, 31, :]   # column just left of boundary
+    # Mean brightness = (R+G+B)/3
+    mean_brightness = (centre_col[:, 0].astype(float) +
+                       centre_col[:, 1].astype(float) +
+                       centre_col[:, 2].astype(float)) / 3.0
+    # Outline is near-black, so mean should be substantially below 255
+    assert mean_brightness.mean() < 200, (
+        "Boundary column should be darkened by the retablo outline stroke, "
+        f"but mean brightness is {mean_brightness.mean():.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SURREALIST period routing flags
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_surrealist_flag_set_for_surrealist_period():
+    flags = _routing_flags(Period.SURREALIST)
+    assert flags["is_surrealist"] is True
+
+
+def test_surrealist_flag_not_set_for_other_periods():
+    for period in Period:
+        if period == Period.SURREALIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_surrealist"], (
+            f"is_surrealist should be False for {period.name}")
+
+
+def test_surrealist_and_mannerist_mutually_exclusive():
+    flags_s = _routing_flags(Period.SURREALIST)
+    flags_m = _routing_flags(Period.MANNERIST)
+    assert flags_s["is_surrealist"] and not flags_s["is_mannerist"]
+    assert flags_m["is_mannerist"]  and not flags_m["is_surrealist"]

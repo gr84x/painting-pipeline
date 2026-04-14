@@ -4000,3 +4000,233 @@ class Painter:
 
         print(f"  Atmospheric depth complete  "
               f"({h}×{w} canvas, gamma={depth_gamma:.1f})")
+
+    def folk_retablo_pass(
+            self,
+            ref,
+            n_levels:             int   = 4,
+            saturation_boost:     float = 1.55,
+            outline_thickness:    float = 2.5,
+            outline_color:        Color = (0.05, 0.03, 0.02),
+            outline_opacity:      float = 0.88,
+            boundary_vibration:   bool  = True,
+            vibration_width:      float = 1.8,
+            vibration_opacity:    float = 0.28,
+    ) -> None:
+        """
+        Folk retablo / ex-voto painting pass.
+
+        Inspired by Frida Kahlo's technique — itself rooted in the Mexican
+        retablo tradition of small devotional paintings on metal or masonite —
+        this pass transforms the current canvas into a flat, zone-based,
+        high-saturation rendering with heavy dark contour outlines at every
+        colour boundary.
+
+        Three-stage process
+        -------------------
+        **Stage 1 — Posterization and saturation boost.**
+        Converts the canvas to HSV colour space and quantizes the Value channel
+        into ``n_levels`` discrete levels.  The Saturation channel is multiplied
+        by ``saturation_boost`` so every colour moves toward its maximum
+        intensity.  This models Kahlo's preference for volcanic earth reds,
+        deep jungle greens, and Aztec turquoise — none of which are naturalistic;
+        all are emotionally driven.
+
+        **Stage 2 — Boundary vibration (simultaneous contrast).**
+        This is the key artistic improvement in this session: at every detected
+        zone boundary the pass applies a thin warm/cool opposing accent stripe.
+        On the side of the boundary closer to a warm tone (R > B), a cool blue-
+        grey veil is applied; on the cool side, a warm amber veil is applied.
+        This replicates the perceptual "hum" of Kahlo's figure-ground
+        relationships — her jungle-green backgrounds read as more vivid because
+        the warm figure edge pushes them cooler, and the skin reads as warmer
+        because the cool foliage edge pushes it warmer.  Simultaneous contrast
+        was first theorised by Chevreul (1839) and used systematically by Seurat,
+        but Kahlo applied it intuitively in every work regardless of period.
+
+        **Stage 3 — Contour outlines.**
+        Sobel edge detection on the posterized result identifies all zone
+        boundaries.  A thick dark (near-black umber) line is composited over
+        every strong boundary at ``outline_opacity``.  This directly models the
+        retablo craftsman's final step of reinforcing every object boundary with
+        a loaded dark-paint contour.
+
+        Parameters
+        ----------
+        ref               : PIL Image reference for local colour sampling.
+        n_levels          : Posterization levels (3 = flat folk, 5 = more tonal).
+        saturation_boost  : HSV saturation multiplier (> 1.0 intensifies colour).
+                            Kahlo's palette is typically 1.4–1.7× natural saturation.
+        outline_thickness : Pixel width of the dark contour strokes.
+        outline_color     : RGB colour of the contour lines (near-black umber).
+        outline_opacity   : Compositing opacity for the contour overlay (0–1).
+        boundary_vibration: Enable simultaneous-contrast warm/cool accent stripes.
+        vibration_width   : Width of the accent stripe on each side of a boundary.
+        vibration_opacity : Opacity of the vibration stripe (subtle — 0.20–0.35).
+
+        Notes
+        -----
+        This pass should run AFTER the standard form-building passes
+        (underpainting, block_in, build_form) so it has fully rendered subject
+        matter to posterize, and BEFORE place_lights() or any final glaze so the
+        impasto highlights land on top of the flat zones.
+
+        The ``boundary_vibration`` parameter implements the "random aspect
+        improvement" for this session: simultaneous colour contrast at zone
+        edges is a general technique that applies to any period with hard colour
+        boundaries, including SYNTHETIST, REALIST, and UKIYO_E, but is most
+        critical for SURREALIST / folk-art rendering.
+        """
+        print(f"Folk retablo pass  (levels={n_levels}  sat_boost={saturation_boost:.2f}"
+              f"  outline_t={outline_thickness:.1f}  vibration={boundary_vibration})…")
+
+        from PIL import Image as _PILImage
+        import colorsys as _cs
+
+        w, h = self.canvas.w, self.canvas.h
+
+        # ── Read current canvas buffer ──────────────────────────────────────────
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        # Cairo BGRA → float RGB (H, W, 3)
+        rgb = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        # ── Stage 1: Posterize + saturation boost ──────────────────────────────
+        # Vectorised HSV conversion via scipy/colorsys is slow for large arrays;
+        # use a direct numpy approximation instead.
+
+        # RGB → HSV (all in [0, 1])
+        r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+        v = np.maximum(np.maximum(r, g), b)                      # Value
+        s_denom = np.where(v > 1e-6, v, 1e-6)
+        s = (v - np.minimum(np.minimum(r, g), b)) / s_denom      # Saturation
+
+        # Hue (0–6 scale; undefined for achromatic pixels)
+        delta = v - np.minimum(np.minimum(r, g), b)
+        safe_delta = np.where(delta > 1e-6, delta, 1e-6)
+        hue = np.where(
+            v == r, (g - b) / safe_delta % 6.0,
+            np.where(v == g, (b - r) / safe_delta + 2.0,
+                     (r - g) / safe_delta + 4.0)
+        )
+        hue = hue / 6.0   # normalise to [0, 1]
+
+        # Posterize Value to n_levels discrete steps
+        v_steps  = np.round(v * (n_levels - 1)) / (n_levels - 1)
+
+        # Boost saturation; clip to [0, 1]
+        s_boosted = np.clip(s * saturation_boost, 0.0, 1.0)
+
+        # HSV → RGB reconstruction
+        h6  = hue * 6.0
+        hi  = np.floor(h6).astype(np.int32) % 6
+        f   = h6 - np.floor(h6)
+        p   = v_steps * (1.0 - s_boosted)
+        q   = v_steps * (1.0 - s_boosted * f)
+        t   = v_steps * (1.0 - s_boosted * (1.0 - f))
+
+        r2 = np.select([hi == 0, hi == 1, hi == 2, hi == 3, hi == 4, hi == 5],
+                       [v_steps, q,       p,       p,       t,       v_steps])
+        g2 = np.select([hi == 0, hi == 1, hi == 2, hi == 3, hi == 4, hi == 5],
+                       [t,       v_steps, v_steps, q,       p,       p])
+        b2 = np.select([hi == 0, hi == 1, hi == 2, hi == 3, hi == 4, hi == 5],
+                       [p,       p,       t,       v_steps, v_steps, q])
+
+        rgb_post = np.stack([r2, g2, b2], axis=-1).astype(np.float32)
+        rgb_post = np.clip(rgb_post, 0.0, 1.0)
+
+        # ── Stage 2: Boundary vibration (simultaneous contrast) ────────────────
+        # Detect zone boundaries on the posterized Value image.  Sobel gives a
+        # gradient magnitude at every pixel; high magnitude = zone boundary.
+        from scipy.ndimage import sobel as _sobel, uniform_filter as _uf
+        v_map = v_steps.astype(np.float32)
+        gx = _sobel(v_map, axis=1)
+        gy = _sobel(v_map, axis=0)
+        grad_mag = np.hypot(gx, gy)
+
+        # Normalise gradient magnitude to [0, 1]
+        g_max = grad_mag.max()
+        if g_max > 1e-6:
+            grad_norm = grad_mag / g_max
+        else:
+            grad_norm = grad_mag
+
+        if boundary_vibration:
+            # Determine warmth of each pixel: R-dominance means warm, B-dominance cool.
+            warmth = rgb_post[:, :, 0] - rgb_post[:, :, 2]   # (H, W): + = warm, - = cool
+
+            # Boundary zone: use a dilated version of the gradient so the accent
+            # stripe has the specified pixel width.
+            vib_w = max(1, int(round(vibration_width)))
+            boundary_zone = _uf(grad_norm, size=vib_w * 2 + 1)
+            boundary_zone = np.clip(boundary_zone / (boundary_zone.max() + 1e-6),
+                                    0.0, 1.0)
+
+            # Warm-side accent: cool blue-grey tint
+            warm_accent  = np.array([0.60, 0.68, 0.85], dtype=np.float32)
+            # Cool-side accent: warm amber tint
+            cool_accent  = np.array([0.90, 0.68, 0.38], dtype=np.float32)
+
+            # Select which accent applies at each pixel
+            is_warm = (warmth > 0.0)[:, :, np.newaxis]
+            accent  = np.where(is_warm, warm_accent, cool_accent)
+
+            vib_weight = (boundary_zone * vibration_opacity)[:, :, np.newaxis]
+            rgb_post   = rgb_post * (1.0 - vib_weight) + accent * vib_weight
+            rgb_post   = np.clip(rgb_post, 0.0, 1.0)
+
+        # ── Stage 3: Dark contour outlines ─────────────────────────────────────
+        # Threshold the gradient at a moderate level to find only the strongest
+        # zone boundaries.  Dilate to outline_thickness pixels, then composite
+        # the dark outline_color at outline_opacity.
+        outline_threshold = 0.30
+        outline_mask = (grad_norm > outline_threshold).astype(np.float32)
+
+        # Grow the outline to the requested thickness via uniform filter
+        ot = max(1, int(round(outline_thickness)))
+        outline_grown = _uf(outline_mask, size=ot * 2 + 1)
+        outline_grown = np.clip(outline_grown / (outline_grown.max() + 1e-6),
+                                0.0, 1.0)
+
+        or_, og_, ob_ = outline_color
+        outline_rgb = np.array([or_, og_, ob_], dtype=np.float32)
+        ol_weight   = (outline_grown * outline_opacity)[:, :, np.newaxis]
+        rgb_final   = rgb_post * (1.0 - ol_weight) + outline_rgb * ol_weight
+        rgb_final   = np.clip(rgb_final, 0.0, 1.0)
+
+        # ── Write back to Cairo surface ─────────────────────────────────────────
+        out = np.zeros((h, w, 4), dtype=np.uint8)
+        out[:, :, 0] = (rgb_final[:, :, 2] * 255).astype(np.uint8)   # B
+        out[:, :, 1] = (rgb_final[:, :, 1] * 255).astype(np.uint8)   # G
+        out[:, :, 2] = (rgb_final[:, :, 0] * 255).astype(np.uint8)   # R
+        out[:, :, 3] = buf[:, :, 3]                                    # A preserve
+
+        out_bytes = bytearray(out.tobytes())
+        retablo_surf = cairo.ImageSurface.create_for_data(
+            out_bytes, cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(retablo_surf, 0, 0)
+        self.canvas.ctx.paint()
+
+        # Final pass: place a handful of loaded thick strokes along the main
+        # figure contours in the outline colour to reinforce the retablo outline.
+        rng = random.Random(77)
+        n_contour = int(outline_thickness * 200)
+        for _ in range(n_contour):
+            yw = rng.randint(0, h - 1)
+            xw = rng.randint(0, w - 1)
+            # Sample gradient at this point — only draw where there is a strong edge
+            if rng.random() > float(grad_norm[yw, xw]):
+                continue
+            length = outline_thickness * 3.0
+            angle  = math.atan2(float(gy[yw, xw] + 1e-9),
+                                 float(gx[yw, xw] + 1e-9)) + math.pi / 2.0
+            x2 = xw + length * math.cos(angle)
+            y2 = yw + length * math.sin(angle)
+            self.canvas.ctx.set_source_rgba(or_, og_, ob_, outline_opacity * 0.60)
+            self.canvas.ctx.set_line_width(outline_thickness * 0.7)
+            self.canvas.ctx.move_to(float(xw), float(yw))
+            self.canvas.ctx.line_to(float(x2), float(y2))
+            self.canvas.ctx.stroke()
+
+        print(f"  Folk retablo pass complete  "
+              f"({h}×{w}, {n_levels} levels, vib={'on' if boundary_vibration else 'off'})")

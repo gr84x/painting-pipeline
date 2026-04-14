@@ -1088,6 +1088,87 @@ CATALOG: Dict[str, ArtStyle] = {
             "glaze on the zenith."
         ),
     ),
+    # ── Frida Kahlo ───────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Frida Kahlo (1907–1954) was a Mexican painter whose work defies easy
+    # categorisation — she rejected the Surrealist label André Breton applied to
+    # her ("I never painted dreams. I painted my own reality"), but her imagery
+    # draws from folk medicine, Aztec mythology, Catholic iconography, and psychic
+    # autobiography with an intensity that has no Western parallel.
+    #
+    # Her technique is rooted in the retablo/ex-voto tradition — small devotional
+    # paintings on metal sheet or masonite commissioned by common people to thank
+    # a saint for miraculous intervention.  The retablo style is characterised by:
+    #   1. Flat, simplified forms with minimal shading — no chiaroscuro modelling
+    #   2. Intense, anti-naturalistic colour — volcanic earth reds, turquoise,
+    #      hot magenta, deep jungle greens
+    #   3. Heavy dark contour outlines that define every object as a discrete zone
+    #   4. Decorative symbolic objects — Tehuana dress, hummingbirds, spider
+    #      monkeys, exotic flora, Aztec artefacts — treated with equal weight to
+    #      the subject's face
+    #   5. Bilateral, near-symmetrical composition with the figure centered and
+    #      objects arranged ceremonially
+    #
+    # Kahlo painted almost exclusively on a small scale (most works < 50×40 cm),
+    # working in oil on Masonite board.  She used house-painting brushes for large
+    # areas and fine sable for detail — the same mix a retablo craftsman would use.
+    # There is no sfumato, no atmospheric depth, no conventional modelling: the
+    # painting operates as pure symbolic inventory.
+    #
+    # Her palette is among the most distinctive in twentieth-century painting.  In
+    # 'Self-Portrait with Thorn Necklace and Hummingbird' (1940) the background
+    # foliage is a near-uniform deep emerald; the face is modelled in only three
+    # values of warm ivory-ochre; the necklace blood spots are cadmium red against
+    # deep umber skin.  Colour creates emotional temperature, not spatial recession.
+    "frida_kahlo": ArtStyle(
+        artist="Frida Kahlo",
+        movement="Mexican Modernism / Naïve Surrealism / Retablo Folk Art",
+        nationality="Mexican",
+        period="1925–1954",
+        palette=[
+            (0.80, 0.22, 0.12),   # cadmium red — blood, passion, pain
+            (0.14, 0.42, 0.25),   # deep jungle green — dense foliage
+            (0.82, 0.60, 0.12),   # golden ochre — warm flesh highlight
+            (0.68, 0.16, 0.42),   # hot magenta — Tehuana dress / hibiscus
+            (0.12, 0.38, 0.60),   # cerulean blue — sky zones, ribbon
+            (0.10, 0.07, 0.05),   # near-black umber — outline / shadow core
+            (0.90, 0.82, 0.65),   # warm ivory — face highlight
+        ],
+        ground_color=(0.72, 0.58, 0.32),    # warm ochre-amber — masonite preparation
+        stroke_size=7,
+        wet_blend=0.06,                      # flat loaded zones, not blended
+        edge_softness=0.10,                  # hard dark outlines; no sfumato
+        jitter=0.030,
+        glazing=None,                        # no unifying varnish glaze — paint is raw
+        crackle=False,                       # masonite / metal panel does not crackle
+        chromatic_split=False,
+        technique=(
+            "Retablo / ex-voto folk technique: forms reduced to flat saturated zones "
+            "separated by heavy dark contour outlines.  No chiaroscuro modelling — "
+            "three tonal values at most per form.  Colour is anti-naturalistic and "
+            "emotionally driven: jungle greens, volcanic reds, Aztec turquoise. "
+            "Composition is bilateral and iconic — the figure centered, symbolic objects "
+            "arranged with ceremonial equality.  Fine sable detail strokes for hair, "
+            "embroidery, and flora.  Tiny scale; paint applied thinly and precisely. "
+            "Simultaneous contrast at every zone boundary — warm figure edge against "
+            "cool background creates perceptual vibration."
+        ),
+        famous_works=[
+            ("The Two Fridas", "1939"),
+            ("Self-Portrait with Thorn Necklace and Hummingbird", "1940"),
+            ("The Broken Column", "1944"),
+            ("Without Hope", "1945"),
+            ("Self-Portrait with Monkey", "1938"),
+        ],
+        inspiration=(
+            "Use folk_retablo_pass(): posterize canvas to flat zones, boost saturation "
+            "toward Kahlo's volcanic palette, apply heavy dark outline contours along all "
+            "zone boundaries.  Enable boundary_vibration=True for simultaneous warm/cool "
+            "contrast at every edge — this is the perceptual 'hum' of her figure-ground "
+            "relationships.  No sfumato, no atmospheric depth, no wet blending."
+        ),
+    ),
+
 }
 
 
