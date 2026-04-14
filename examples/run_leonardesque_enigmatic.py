@@ -402,130 +402,143 @@ def paint(out_path: str = None) -> str:
 
     p = Painter(W_r, H_r)
 
-    # ── 1. Leonardo's warm ochre ground ───────────────────────────────────────
-    # A yellow-ochre / raw umber tone warms the lights from below and gives the
-    # shadows their amber quality even before any strokes are placed.
-    print("\nStep 1 — Toning ground (warm ochre)…")
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 1 — Ground and grisaille
+    # Resolve the full value composition in a neutral colour before any chromatic
+    # decisions are made. Two passes: the first establishes the broad light/dark
+    # rhythm; the second refines it so the composition is genuinely resolved.
+    # The grisaille must dry completely before colour goes on top — wet umber
+    # under wet colour produces a brown fog across the whole painting.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    print("\nPhase 1 — Ground and grisaille")
     p.tone_ground((0.54, 0.45, 0.26), texture_strength=0.055)
-
-    # ── 2. Underpainting — dead-colour value structure ────────────────────────
-    # Loose, desaturated, value-only. Leonardo's *verdaccio* equivalent.
-    print("Step 2 — Underpainting (verdaccio value structure)…")
+    print("  Underpainting pass 1 — broad value rhythm…")
     p.underpainting(ref, stroke_size=56, n_strokes=260)
+    print("  Underpainting pass 2 — refining grisaille…")
+    p.underpainting(ref, stroke_size=32, n_strokes=380)
+    print("  Drying grisaille…")
+    p.canvas.dry(amount=0.85)
 
-    # ── 3. Block-in: broad → medium → tight ──────────────────────────────────
-    print("Step 3 — Block in (broad)…")
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 2 — Colour block-in and compositional correction
+    # Broad colour masses, then an error-map-driven pass that identifies where
+    # the block-in diverged most from the reference and corrects it — the
+    # pipeline's equivalent of a painter stepping back and re-stating a passage.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    print("\nPhase 2 — Colour block-in")
+    print("  Block in (broad)…")
     p.block_in(ref, stroke_size=40, n_strokes=480)
-
-    print("Step 3 — Block in (medium)…")
+    print("  Block in (medium)…")
     p.block_in(ref, stroke_size=24, n_strokes=650)
 
-    print("Step 3 — Block in (tight)…")
-    p.block_in(ref, stroke_size=14, n_strokes=750)
-
-    # Save the raw block-in so the painting's architectural skeleton is visible
-    # if the user wants to inspect intermediate stages.
-    base_path = os.path.join(os.path.dirname(__file__), '..', 'leonardesque_base.png')
-    p.save(base_path)
-    print(f"  Base block-in saved: {base_path}")
-
-    # ── 4. Build form ─────────────────────────────────────────────────────────
-    print("Step 4 — Build form (primary modelling)…")
-    p.build_form(ref, stroke_size=9, n_strokes=900)
-
-    print("Step 4 — Build form (fine)…")
-    p.build_form(ref, stroke_size=5, n_strokes=650)
-
-    # ── 5. Atmospheric depth (aerial perspective) ─────────────────────────────
-    # Applied before face detail is refined so the background recession is
-    # established first and the figure reads against it naturally.
-    # Cool blue-grey haze: matches the cool grey-blue of the distant landscape.
-    print("Step 5 — Atmospheric depth pass (sfumato aerial perspective)…")
-    p.atmospheric_depth_pass(
-        haze_color      = (0.72, 0.77, 0.86),   # cool dusty blue-grey
-        desaturation    = 0.68,
-        lightening      = 0.52,
-        depth_gamma     = 1.8,                   # effect concentrates near horizon
-        background_only = True,                  # landscape only; leave figure
-    )
-
-    # ── 6. Place lights ───────────────────────────────────────────────────────
-    print("Step 6 — Place lights (specular highlights)…")
-    p.place_lights(ref, stroke_size=5, n_strokes=580)
-
-    # ── 7. Warm-cool boundary vibration ──────────────────────────────────────
-    # Micro-pushes warm/cool tones at every colour boundary — gives the
-    # face-to-background edge the "inhabited" quality of hand-painted transitions.
-    print("Step 8 — Warm-cool boundary pass…")
-    p.warm_cool_boundary_pass(
-        strength    = 0.12,
-        edge_thresh = 0.07,
-        blur_sigma  = 1.6,
-    )
-
-    # ── 9. Subsurface scattering glow ────────────────────────────────────────
-    # Warm vermilion-orange at the silhouette — haemoglobin scattering through
-    # the thin skin at the figure edge. Applied before sfumato so the glow is
-    # unified under the sfumato veil layers.
-    print("Step 9 — Subsurface glow (translucent skin edge)…")
-    p.subsurface_glow_pass(
-        ref,
-        glow_color    = (0.88, 0.40, 0.22),     # warm vermilion-orange
-        glow_strength = 0.14,
-        blur_sigma    = 9.0,
-        edge_falloff  = 0.60,
-    )
-
-    # ── 10. Sfumato veil pass ─────────────────────────────────────────────────
-    # Reduced to 6 veils and a tighter blur radius so the face features
-    # survive. edge_only=True applies the smoky haze only at gradient
-    # transitions (silhouette, hair-face boundary) — not over the features.
-    print("Step 10 — Sfumato veil pass (6 veils, chroma_dampen=0.20)…")
-    p.sfumato_veil_pass(
-        ref,
-        n_veils       = 6,
-        blur_radius   = 7.0,
-        warmth        = 0.28,
-        veil_opacity  = 0.042,
-        edge_only     = True,
-        chroma_dampen = 0.20,
-    )
-
-    # ── 11. Glazed panel pass ─────────────────────────────────────────────────
-    print("Step 11 — Glazed panel pass (7 transparent layers)…")
-    p.glazed_panel_pass(
-        ref,
-        n_glaze_layers    = 7,
-        glaze_opacity     = 0.055,
-        shadow_warmth     = 0.28,
-        highlight_cool    = 0.12,
-        shadow_thresh     = 0.36,
-        highlight_thresh  = 0.74,
-        panel_bloom       = 0.06,
-    )
-
-    # ── 12. Final amber unifying glaze ───────────────────────────────────────
-    print("Step 12 — Final amber glaze…")
-    p.glaze((0.62, 0.44, 0.14), opacity=0.050)
-
-    # ── 13. Focused pass — face detail, painted last ──────────────────────────
-    # All broad atmospheric work (sfumato, glazing) is complete. Fine feature
-    # strokes placed now cannot be overwritten by anything.
-    print("Step 13 — Focused pass (face detail, last)…")
-    face_mask = _make_face_ellipse_mask(H_r, W_r)
+    # Partial dry before compositional correction: settled enough that the error
+    # map is readable, still damp enough that correction strokes blend in.
+    p.canvas.dry(amount=0.60)
+    print("  Compositional correction (error-map, 12px)…")
     p.focused_pass(
         ref,
-        region_mask = face_mask,
-        stroke_size = 4,
-        n_strokes   = 900,
-        opacity     = 0.80,
-        wet_blend   = 0.06,
-        jitter_amt  = 0.015,
-        curvature   = 0.05,
+        region_mask = np.ones((H_r, W_r), dtype=np.float32),
+        stroke_size = 12,
+        n_strokes   = 420,
+        opacity     = 0.72,
+        wet_blend   = 0.22,
+        jitter_amt  = 0.030,
+        curvature   = 0.08,
     )
 
-    # ── 14. Finish: vignette + aged crackle varnish ───────────────────────────
-    print("Step 14 — Finish (vignette + crackle varnish)…")
+    base_path = os.path.join(os.path.dirname(__file__), '..', 'leonardesque_base.png')
+    p.save(base_path)
+    print(f"  Block-in checkpoint: {base_path}")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 3 — Form building
+    # Progressively smaller strokes model the half-tones. Partial dry first so
+    # form strokes don't drag the colour masses; full dry before glazing so the
+    # glaze layers stay optically clean and transparent.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    print("\nPhase 3 — Build form")
+    p.canvas.dry(amount=0.65)
+    print("  Build form (primary)…")
+    p.build_form(ref, stroke_size=9, n_strokes=900)
+    print("  Build form (fine)…")
+    p.build_form(ref, stroke_size=5, n_strokes=650)
+    print("  Drying before glazing phases…")
+    p.canvas.dry(amount=0.85)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 4 — Atmospheric depth
+    # Background aerial perspective before any sfumato work — establishes the
+    # landscape recession as a fixed context the figure reads against.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    print("\nPhase 4 — Atmospheric depth")
+    p.atmospheric_depth_pass(
+        haze_color      = (0.72, 0.77, 0.86),
+        desaturation    = 0.68,
+        lightening      = 0.52,
+        depth_gamma     = 1.8,
+        background_only = True,
+    )
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 5 — Sfumato in three sessions
+    # Leonardo built sfumato over weeks in many imperceptible glaze sessions,
+    # each one drying before the next. Three sessions with decreasing blur
+    # radius: outer atmospheric haze → transition zone → inner edge dissolution.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    print("\nPhase 5 — Sfumato (three sessions)")
+    print("  Session 1 — outer atmospheric haze (blur=12.0)…")
+    p.sfumato_veil_pass(ref, n_veils=3, blur_radius=12.0, warmth=0.30,
+                        veil_opacity=0.040, edge_only=True, chroma_dampen=0.18)
+    p.canvas.dry(amount=0.65)
+
+    print("  Session 2 — transition zone (blur=7.5)…")
+    p.sfumato_veil_pass(ref, n_veils=3, blur_radius=7.5, warmth=0.26,
+                        veil_opacity=0.038, edge_only=True, chroma_dampen=0.20)
+    p.canvas.dry(amount=0.60)
+
+    print("  Session 3 — inner edge dissolution (blur=4.5)…")
+    p.sfumato_veil_pass(ref, n_veils=2, blur_radius=4.5, warmth=0.22,
+                        veil_opacity=0.035, edge_only=True, chroma_dampen=0.22)
+    p.canvas.dry(amount=0.70)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 6 — Glazing
+    # All preparatory work complete; glazing over dry paint so layers stay
+    # transparent. Warm-cool boundary and subsurface glow are final adjustments
+    # before the glazed_panel_pass lays down the primary luminosity.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    print("\nPhase 6 — Glazing")
+    p.warm_cool_boundary_pass(strength=0.12, edge_thresh=0.07, blur_sigma=1.6)
+    p.subsurface_glow_pass(ref, glow_color=(0.88, 0.40, 0.22),
+                           glow_strength=0.14, blur_sigma=9.0, edge_falloff=0.60)
+    print("  Glazed panel pass (7 layers)…")
+    p.glazed_panel_pass(ref, n_glaze_layers=7, glaze_opacity=0.055,
+                        shadow_warmth=0.28, highlight_cool=0.12,
+                        shadow_thresh=0.36, highlight_thresh=0.74, panel_bloom=0.06)
+    p.canvas.dry(amount=0.60)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 7 — Lights, detail, finish
+    # Brightest highlights placed after all glazing so no transparent pass can
+    # dull them. Fine feature detail absolutely last. Finish seals the surface.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    print("\nPhase 7 — Lights, detail, finish")
+    print("  Place lights (post-glazing)…")
+    p.place_lights(ref, stroke_size=5, n_strokes=580)
+    print("  Final amber glaze…")
+    p.glaze((0.62, 0.44, 0.14), opacity=0.050)
+    print("  Focused pass — face detail (last)…")
+    face_mask = _make_face_ellipse_mask(H_r, W_r)
+    p.focused_pass(ref, region_mask=face_mask, stroke_size=4, n_strokes=900,
+                   opacity=0.80, wet_blend=0.06, jitter_amt=0.015, curvature=0.05)
+    print("  Finish (vignette + crackle)…")
     p.finish(vignette=0.48, crackle=True)
 
     p.save(out_path)
