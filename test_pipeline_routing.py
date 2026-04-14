@@ -1067,3 +1067,197 @@ def test_early_netherlandish_mutually_exclusive_with_venetian():
     assert not flags_e["is_venetian"]
     assert     flags_v["is_venetian"]
     assert not flags_v["is_early_netherlandish"]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# chiaroscuro_focus_pass — Artemisia Gentileschi / Caravaggesque (current session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_chiaroscuro_focus_pass_exists():
+    """Painter must have chiaroscuro_focus_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "chiaroscuro_focus_pass"), (
+        "chiaroscuro_focus_pass not found on Painter")
+    assert callable(getattr(Painter, "chiaroscuro_focus_pass"))
+
+
+def test_chiaroscuro_focus_pass_no_error():
+    """chiaroscuro_focus_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.06)
+    # Should not raise
+    p.chiaroscuro_focus_pass(
+        light_center      = (0.35, 0.30),
+        light_radius      = 0.38,
+        shadow_strength   = 0.72,
+    )
+
+
+def test_chiaroscuro_focus_pass_darkens_corners():
+    """
+    With a central light and high shadow_strength, the canvas corners should
+    be significantly darker than the centre after the pass.
+    """
+    p = _make_small_painter(64, 64)
+    # Tone with a mid-grey so brightness changes are detectable
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.00)
+
+    p.chiaroscuro_focus_pass(
+        light_center    = (0.5, 0.5),   # light exactly at centre
+        light_radius    = 0.20,
+        shadow_strength = 0.80,
+    )
+
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA: channel 2 = R
+    centre_r = float(buf[30:34, 30:34, 2].mean())
+    corner_r = float(buf[:8, :8, 2].mean())
+
+    assert centre_r > corner_r, (
+        f"Centre should be brighter than corner after chiaroscuro_focus_pass; "
+        f"centre_R={centre_r:.1f}  corner_R={corner_r:.1f}")
+
+
+def test_chiaroscuro_focus_pass_modifies_canvas():
+    """chiaroscuro_focus_pass() must change pixel values on a non-trivial canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.45, 0.32), texture_strength=0.06)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.chiaroscuro_focus_pass(light_center=(0.35, 0.30), shadow_strength=0.65)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    assert not np.array_equal(before, after), (
+        "chiaroscuro_focus_pass should modify canvas pixels")
+
+
+def test_chiaroscuro_focus_pass_pixels_in_range():
+    """chiaroscuro_focus_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.45, 0.32), texture_strength=0.06)
+    p.chiaroscuro_focus_pass(shadow_strength=0.80, light_boost=0.08)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_chiaroscuro_focus_pass_no_error_with_figure_mask():
+    """chiaroscuro_focus_pass() with figure_only=True and a mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.06)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.chiaroscuro_focus_pass(
+        light_center  = (0.35, 0.30),
+        shadow_strength = 0.70,
+        figure_only   = True,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# highlight_bloom_pass — specular highlight glow (current session random improvement)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_highlight_bloom_pass_exists():
+    """Painter must have highlight_bloom_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "highlight_bloom_pass"), (
+        "highlight_bloom_pass not found on Painter")
+    assert callable(getattr(Painter, "highlight_bloom_pass"))
+
+
+def test_highlight_bloom_pass_no_error_default():
+    """highlight_bloom_pass() runs without error with default parameters."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    # Should not raise
+    p.highlight_bloom_pass()
+
+
+def test_highlight_bloom_pass_no_error_multi_scale_false():
+    """highlight_bloom_pass() with multi_scale=False runs without error."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.highlight_bloom_pass(multi_scale=False)
+
+
+def test_highlight_bloom_pass_modifies_bright_canvas():
+    """highlight_bloom_pass() must change pixel values on a canvas with bright highlights."""
+    from PIL import Image as _PILImg
+    p = _make_small_painter(64, 64)
+
+    # Reference with a bright white zone — these pixels exceed the bloom threshold
+    arr = np.zeros((64, 64, 3), dtype=np.uint8)
+    arr[20:44, 20:44, :] = 240   # near-white square that exceeds threshold
+    ref = _PILImg.fromarray(arr, "RGB")
+
+    p.tone_ground((0.10, 0.08, 0.06), texture_strength=0.04)
+    p.block_in(ref, stroke_size=10, n_strokes=40)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.highlight_bloom_pass(threshold=0.70, bloom_sigma=4.0, bloom_opacity=0.35)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    assert not np.array_equal(before, after), (
+        "highlight_bloom_pass should modify pixels around bright highlights")
+
+
+def test_highlight_bloom_pass_zero_opacity_is_near_noop():
+    """highlight_bloom_pass() with bloom_opacity=0 should not modify the canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.84, 0.78), texture_strength=0.04)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.highlight_bloom_pass(bloom_opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    np.testing.assert_array_equal(before, after,
+        err_msg="highlight_bloom_pass with bloom_opacity=0 should be a no-op")
+
+
+def test_highlight_bloom_pass_pixels_in_range():
+    """highlight_bloom_pass() must not produce out-of-range pixel values."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.highlight_bloom_pass(threshold=0.50, bloom_sigma=5.0, bloom_opacity=0.40)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_highlight_bloom_pass_no_error_with_bloom_color():
+    """highlight_bloom_pass() with an explicit bloom_color tint should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    # Warm amber tint — candlelight bloom
+    p.highlight_bloom_pass(bloom_color=(0.98, 0.92, 0.72), bloom_opacity=0.18)
+
+
+def test_highlight_bloom_pass_no_error_figure_only():
+    """highlight_bloom_pass() with figure_only=True and a mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.highlight_bloom_pass(figure_only=True, bloom_opacity=0.20)

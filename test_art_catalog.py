@@ -27,8 +27,10 @@ from scene_schema import Period, Style, Medium, PaletteHint
 # ──────────────────────────────────────────────────────────────────────────────
 
 EXPECTED_ARTISTS = [
+    "artemisia_gentileschi",
     "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
+    "jan_van_eyck",
     "kandinsky",
     "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "rembrandt",
     "rothko", "sargent", "seurat", "titian", "turner", "van_gogh", "velazquez",
@@ -157,7 +159,7 @@ EXPECTED_PERIODS = [
     "PROTO_EXPRESSIONIST", "REALIST", "VIENNESE_EXPRESSIONIST",
     "COLOR_FIELD", "SYNTHETIST", "MANNERIST", "SURREALIST",
     "ABSTRACT_EXPRESSIONIST", "VENETIAN_RENAISSANCE",
-    "FAUVIST", "PRIMITIVIST",
+    "FAUVIST", "PRIMITIVIST", "EARLY_NETHERLANDISH",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -862,6 +864,117 @@ def test_jan_van_eyck_inspiration_references_glazed_panel():
     s = get_style("jan_van_eyck")
     assert "glazed_panel" in s.inspiration.lower().replace(" ", "_"), (
         "jan_van_eyck inspiration should reference glazed_panel_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Artemisia Gentileschi — current session addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_artemisia_gentileschi_in_catalog():
+    """Artemisia Gentileschi must be present in CATALOG."""
+    assert "artemisia_gentileschi" in CATALOG, (
+        "artemisia_gentileschi not found in CATALOG")
+
+
+def test_artemisia_gentileschi_style_retrieval():
+    """get_style('artemisia_gentileschi') must return an ArtStyle without raising."""
+    s = get_style("artemisia_gentileschi")
+    assert s is not None
+
+
+def test_artemisia_gentileschi_movement():
+    """Movement must reference Baroque."""
+    s = get_style("artemisia_gentileschi")
+    assert "baroque" in s.movement.lower() or "Baroque" in s.movement, (
+        f"Expected Baroque in movement, got {s.movement!r}")
+
+
+def test_artemisia_gentileschi_nationality():
+    """Gentileschi was Italian."""
+    s = get_style("artemisia_gentileschi")
+    assert "italian" in s.nationality.lower(), (
+        f"Expected Italian nationality, got {s.nationality!r}")
+
+
+def test_artemisia_gentileschi_palette_length():
+    """Palette should have at least 6 entries covering flesh, shadow, and drapery."""
+    s = get_style("artemisia_gentileschi")
+    assert len(s.palette) >= 6, (
+        f"Gentileschi palette should have at least 6 entries, got {len(s.palette)}")
+
+
+def test_artemisia_gentileschi_palette_values_in_range():
+    """All Gentileschi palette RGB values must be in [0, 1]."""
+    s = get_style("artemisia_gentileschi")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Gentileschi palette {rgb}")
+
+
+def test_artemisia_gentileschi_dark_ground():
+    """Gentileschi worked alla prima on a dark warm brown ground."""
+    s = get_style("artemisia_gentileschi")
+    mean_ground = sum(s.ground_color) / 3
+    assert mean_ground < 0.35, (
+        f"Gentileschi ground should be dark (mean < 0.35), got {mean_ground:.3f}")
+
+
+def test_artemisia_gentileschi_has_glazing():
+    """Gentileschi used warm amber oil glazes — glazing should not be None."""
+    s = get_style("artemisia_gentileschi")
+    assert s.glazing is not None, "Gentileschi should have a warm glazing colour"
+
+
+def test_artemisia_gentileschi_glazing_warm():
+    """Glazing should be warm amber (R > G > B)."""
+    s = get_style("artemisia_gentileschi")
+    r, g, b = s.glazing
+    assert r >= g, (
+        f"Gentileschi glaze should be warm (R ≥ G), got ({r:.2f},{g:.2f},{b:.2f})")
+
+
+def test_artemisia_gentileschi_crackle_true():
+    """17th-century oil on canvas — crackle must be True."""
+    s = get_style("artemisia_gentileschi")
+    assert s.crackle, "Gentileschi's aged canvas should have crackle=True"
+
+
+def test_artemisia_gentileschi_famous_works_include_judith():
+    """Judith Slaying Holofernes must be in Gentileschi's famous works."""
+    s = get_style("artemisia_gentileschi")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Judith" in t for t in titles), (
+        "Gentileschi famous works should include Judith Slaying Holofernes")
+
+
+def test_artemisia_gentileschi_famous_works_count():
+    """Gentileschi should have at least 4 famous works documented."""
+    s = get_style("artemisia_gentileschi")
+    assert len(s.famous_works) >= 4, (
+        f"Gentileschi should have at least 4 famous works, got {len(s.famous_works)}")
+
+
+def test_artemisia_gentileschi_inspiration_references_chiaroscuro_focus():
+    """Inspiration text must reference chiaroscuro_focus_pass."""
+    s = get_style("artemisia_gentileschi")
+    assert "chiaroscuro_focus" in s.inspiration.lower().replace(" ", "_"), (
+        "Gentileschi inspiration should reference chiaroscuro_focus_pass()")
+
+
+def test_artemisia_gentileschi_moderate_wet_blend():
+    """Gentileschi's smooth flesh requires moderate wet_blend (not too high, not zero)."""
+    s = get_style("artemisia_gentileschi")
+    assert 0.10 <= s.wet_blend <= 0.40, (
+        f"Gentileschi wet_blend should be moderate; got {s.wet_blend}")
+
+
+def test_artemisia_gentileschi_moderate_edge_softness():
+    """Light melts into shadow — edge_softness should be moderate (0.40–0.75)."""
+    s = get_style("artemisia_gentileschi")
+    assert 0.40 <= s.edge_softness <= 0.75, (
+        f"Gentileschi edge_softness should be moderate; got {s.edge_softness}")
 
 
 def test_jan_van_eyck_inspiration_references_micro_detail():
