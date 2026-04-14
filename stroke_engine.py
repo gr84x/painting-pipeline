@@ -3526,3 +3526,328 @@ class Painter:
         # Dampen wetness after color field — the vast washes add significant wet
         # surface; let them dry partially before any subsequent stroke passes.
         self.canvas.wetness *= 0.30
+
+    # ── El Greco Mannerist technique ──────────────────────────────────────────
+
+    def elongation_distortion_pass(
+            self,
+            reference:          Union[np.ndarray, Image.Image],
+            elongation_factor:  float = 0.15,
+            figure_mask:        Optional[np.ndarray] = None,
+            jewel_boost:        float = 1.30,
+            inner_glow_radius:  float = 14.0,
+            inner_glow_opacity: float = 0.22,
+            glow_color:         Color = (0.88, 0.86, 0.80),
+    ) -> None:
+        """
+        El Greco Mannerist elongation pass.
+
+        Three-stage technique inspired by Domenikos Theotokopoulos (El Greco):
+
+        Stage 1 — Figure elongation
+            Reads the current canvas buffer.  In the figure region (defined by
+            figure_mask or the whole canvas if None), compresses source rows
+            over a larger destination range to vertically stretch forms.  The
+            elongation is soft-weighted at top and bottom so faces and feet
+            don't warp — only the torso and limbs receive maximum stretch.
+            This mimics El Greco's characteristic spiritual lengthening where
+            figures seem to aspire upward beyond anatomical possibility.
+
+        Stage 2 — Jewel-tone saturation boost
+            Converts the canvas buffer to HSV, multiplies saturation by
+            `jewel_boost`, and writes back.  El Greco's palette is famous for
+            its jewel-like intensity: vermilion, cerulean, lemon, viridian —
+            colours that vibrate rather than harmonise.
+
+        Stage 3 — Inner-glow on pale flesh
+            Identifies canvas pixels whose luminance exceeds 0.72 (the pale
+            silver-grey flesh zones that El Greco made self-luminous).  Applies
+            a Gaussian soft bright halo radiating outward from those pixels,
+            composited at `inner_glow_opacity`.  This creates the uncanny
+            inner-lit quality unique to his flesh rendering.
+
+        Parameters
+        ----------
+        reference       : reference image (PIL or ndarray) — used for luminance
+                          masking of the inner-glow stage.
+        elongation_factor : fractional vertical stretch to apply to the figure
+                            region (0.15 = 15% taller, El Greco's typical range).
+        figure_mask     : (H, W) float32 mask — 1.0 inside figure, 0.0 outside.
+                          If None the whole canvas is treated as figure.
+        jewel_boost     : HSV saturation multiplier (> 1 = more saturated).
+        inner_glow_radius  : Gaussian blur sigma in pixels for glow spread.
+        inner_glow_opacity : opacity at which the glow layer is composited.
+        glow_color      : warm silver-grey colour of the inner glow.
+        """
+        from PIL import ImageFilter as _IF
+
+        w, h = self.canvas.w, self.canvas.h
+
+        # ── Stage 1: Figure elongation ────────────────────────────────────────
+        # Read current canvas as BGRA uint8 array
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+
+        if figure_mask is not None:
+            # Determine the vertical extent of the figure region
+            mask_rows = figure_mask.max(axis=1)   # (H,) — row is in figure if > 0.5
+            fig_rows  = np.where(mask_rows > 0.5)[0]
+            if len(fig_rows) >= 4:
+                y_top    = int(fig_rows[0])
+                y_bottom = int(fig_rows[-1])
+                fig_height = y_bottom - y_top
+
+                # Source height we will compress into [y_top, y_bottom]:
+                # We read from the figure region at a contracted sample spacing
+                # so that the same content covers more pixels = elongation.
+                src_height = max(1, round(fig_height / (1.0 + elongation_factor)))
+                src_y_top  = y_top + (fig_height - src_height) // 2
+
+                stretched = buf.copy()
+                # Soft weight for elongation: zero at very top/bottom 15% of
+                # figure, rising to 1.0 in the middle 70%.
+                for dst_y in range(y_top, y_bottom + 1):
+                    t = (dst_y - y_top) / max(fig_height, 1)
+                    # Linear ramp in / ramp out at 15% top and bottom
+                    blend = min(t / 0.15, 1.0, (1.0 - t) / 0.15)
+
+                    # Source row: lerp between original row and the stretched row
+                    src_t   = (dst_y - y_top) / max(fig_height, 1)
+                    src_row = src_y_top + int(src_t * src_height)
+                    src_row = max(0, min(h - 1, src_row))
+
+                    # Blend the stretched row in according to mask weight and
+                    # distance from figure centre.
+                    row_mask = (figure_mask[dst_y, :] * blend)[:, np.newaxis]  # (W, 1)
+                    stretched[dst_y] = (
+                        buf[src_row] * row_mask + buf[dst_y] * (1.0 - row_mask)
+                    ).astype(np.uint8)
+
+                buf = stretched
+        # else: no mask — elongation is subtle across the whole image by
+        # slightly stretching the vertical centre portion.  Apply at half weight.
+        else:
+            centre_start = h // 5
+            centre_end   = h - h // 5
+            region_h     = centre_end - centre_start
+            src_h        = max(1, round(region_h / (1.0 + elongation_factor * 0.5)))
+            src_start    = centre_start + (region_h - src_h) // 2
+            stretched    = buf.copy()
+            for dst_y in range(centre_start, centre_end):
+                t       = (dst_y - centre_start) / max(region_h, 1)
+                blend   = min(t / 0.20, 1.0, (1.0 - t) / 0.20) * 0.55
+                src_t   = t
+                src_row = src_start + int(src_t * src_h)
+                src_row = max(0, min(h - 1, src_row))
+                stretched[dst_y] = (
+                    buf[src_row] * blend + buf[dst_y] * (1.0 - blend)
+                ).astype(np.uint8)
+            buf = stretched
+
+        # Write stretched buffer back to canvas
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"  Elongation applied  (factor={elongation_factor:.0%})")
+
+        # ── Stage 2: Jewel-tone saturation boost ──────────────────────────────
+        # Read canvas back (may have been modified by stage 1 write)
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        rgb = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0  # BGRA→RGB
+
+        # Vectorised HSV saturation boost
+        # Reshape to (H*W, 3) for colorsys-style computation
+        flat = rgb.reshape(-1, 3)
+        maxc = flat.max(axis=1)
+        minc = flat.min(axis=1)
+        span = maxc - minc  # saturation numerator
+
+        # Boost saturation while keeping hue and value identical
+        # For pixels already nearly grey (span < 0.02) — skip; no hue to boost.
+        boosted = flat.copy()
+        mask_sat = span > 0.02
+        if mask_sat.any():
+            # Compute scale factor: new_sat = min(1, old_sat * jewel_boost)
+            # old_sat = span / maxc  (HSV definition)
+            # new_span = old_sat * jewel_boost * maxc = span * jewel_boost
+            # Clamp so no channel exceeds maxc.
+            scale = np.where(mask_sat, np.minimum(jewel_boost, maxc / (span + 1e-8)), 1.0)
+            # Grey point of the pixel: midpoint between min and max
+            grey = ((flat - minc[:, None]) * scale[:, None] + minc[:, None])
+            boosted[mask_sat] = np.clip(grey[mask_sat], 0, 1)
+
+        rgb_boosted = boosted.reshape(h, w, 3)
+
+        # Write back to canvas buffer
+        buf[:, :, 2] = np.clip(rgb_boosted[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R
+        buf[:, :, 1] = np.clip(rgb_boosted[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G
+        buf[:, :, 0] = np.clip(rgb_boosted[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B
+
+        tmp2 = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(tmp2, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"  Jewel saturation boost applied  (×{jewel_boost:.2f})")
+
+        # ── Stage 3: Inner glow on pale flesh zones ───────────────────────────
+        # El Greco's flesh is silver-grey and appears self-luminous — not lit from
+        # outside but radiating from within.  We simulate this by:
+        #   1. Find canvas pixels where luminance > 0.72 (the pale silver zones)
+        #   2. Build a grey-scale "seed" map from those pixels
+        #   3. Gaussian-blur it to spread the glow outward
+        #   4. Composite the glow at inner_glow_opacity using glow_color
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        rgb_f = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        lum = 0.2126 * rgb_f[:, :, 0] + 0.7152 * rgb_f[:, :, 1] + 0.0722 * rgb_f[:, :, 2]
+        pale_seed = np.clip((lum - 0.72) / 0.28, 0.0, 1.0).astype(np.float32)
+
+        if pale_seed.max() > 0.01 and inner_glow_radius > 0.5 and inner_glow_opacity > 0.0:
+            # Blur the seed to spread glow
+            glow_map = ndimage.gaussian_filter(pale_seed, sigma=inner_glow_radius)
+            glow_map = np.clip(glow_map / (glow_map.max() + 1e-8), 0.0, 1.0)
+
+            gr, gg, gb = glow_color
+            ctx = self.canvas.ctx
+            for row_y in range(h):
+                row_max = float(glow_map[row_y].max())
+                if row_max < 0.005:
+                    continue
+                # Per-pixel would be too slow; use a per-row composite with the
+                # row's average glow value as alpha — adequate for a soft glow.
+                row_alpha = inner_glow_opacity * row_max
+                ctx.set_source_rgba(gr, gg, gb, row_alpha)
+                ctx.rectangle(0.0, float(row_y), float(w), 1.0)
+                ctx.fill()
+
+        print(f"  Inner glow applied  (radius={inner_glow_radius:.1f}px, "
+              f"opacity={inner_glow_opacity:.0%})")
+
+    # ── Impasto texture pass — physical thick-paint ridge simulation ──────────
+
+    def impasto_texture_pass(
+            self,
+            light_angle:   float = 315.0,
+            ridge_height:  float = 0.55,
+            blur_sigma:    float = 1.4,
+            highlight_opacity: float = 0.28,
+            shadow_opacity:    float = 0.22,
+    ) -> None:
+        """
+        Simulate the physical texture of thick impasto oil paint.
+
+        Rembrandt, Van Gogh, and Velázquez all applied paint so thickly in
+        their lit areas that the dried ridges of paint cast real shadows and
+        catch directional light — giving the surface a three-dimensional,
+        sculptural quality that photographs cannot fully capture.
+
+        This pass approximates that texture by:
+
+        Stage 1 — Local gradient detection
+            Computes the Sobel gradient of the canvas luminance to identify
+            stroke ridges.  Strong gradient = paint ridge boundary.
+
+        Stage 2 — Directional ridge highlight
+            Along the upwind side of each ridge (relative to `light_angle`),
+            adds a thin bright white-cream highlight strip.  Real impasto ridges
+            catch the light on their upper face.
+
+        Stage 3 — Directional ridge shadow
+            Along the downwind side of each ridge, adds a thin dark shadow
+            strip.  Real ridges cast a micro-shadow on the canvas below.
+
+        The combination of adjacent highlight + shadow creates the visual
+        illusion of a three-dimensional paint surface without requiring a
+        full normal map or 3D geometry.
+
+        Parameters
+        ----------
+        light_angle     : direction light arrives from, in degrees clockwise
+                          from north (0° = from top, 315° = upper-left,
+                          the traditional studio north-light convention).
+        ridge_height    : controls how pronounced the ridge effect is.
+                          0 = off; 1 = very strong raised impasto.
+        blur_sigma      : Gaussian blur applied to the gradient before
+                          thresholding — wider sigma = softer, broader ridges.
+        highlight_opacity : opacity of the bright ridge highlight.
+        shadow_opacity    : opacity of the dark ridge shadow.
+        """
+        if ridge_height < 0.01:
+            return
+
+        w, h = self.canvas.w, self.canvas.h
+
+        # ── Stage 1: Compute luminance gradient ───────────────────────────────
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        rgb = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+        lum = (0.2126 * rgb[:, :, 0] +
+               0.7152 * rgb[:, :, 1] +
+               0.0722 * rgb[:, :, 2])
+
+        # Sobel x and y gradients
+        gx = ndimage.sobel(lum, axis=1)
+        gy = ndimage.sobel(lum, axis=0)
+
+        if blur_sigma > 0.1:
+            gx = ndimage.gaussian_filter(gx, sigma=blur_sigma)
+            gy = ndimage.gaussian_filter(gy, sigma=blur_sigma)
+
+        # Gradient magnitude — proxy for ridge height
+        gmag = np.sqrt(gx ** 2 + gy ** 2)
+        if gmag.max() < 1e-6:
+            return   # uniform canvas — no ridges to enhance
+
+        gmag = (gmag / gmag.max()).astype(np.float32)
+
+        # ── Stage 2–3: Directional highlight and shadow ───────────────────────
+        # Convert light_angle to a unit direction vector (light_dx, light_dy)
+        # 0° = from top = (0, -1), 90° = from right = (1, 0), etc.
+        angle_rad = math.radians(light_angle)
+        # Light arrives FROM this direction; the highlight is on the surface
+        # perpendicular facing INTO the light.
+        # gy: gradient in Y (positive = brighter below), gx: gradient in X
+        # Ridge faces light if dot(gradient_dir, light_dir) > 0
+        light_dx = math.sin(angle_rad)    # component pointing right
+        light_dy = -math.cos(angle_rad)   # component pointing down (image coords)
+
+        # Normalise gradient direction map
+        gnorm = gmag + 1e-8
+        gdx = gx / gnorm
+        gdy = gy / gnorm
+
+        # Directional component: positive = facing light, negative = shadow
+        directional = gdx * light_dx + gdy * light_dy  # in [-1, 1]
+
+        highlight_map = np.clip( directional, 0.0, 1.0) * gmag * ridge_height
+        shadow_map    = np.clip(-directional, 0.0, 1.0) * gmag * ridge_height
+
+        ctx = self.canvas.ctx
+
+        # Highlight: warm creamy white
+        for row_y in range(h):
+            row_max = float(highlight_map[row_y].max())
+            if row_max < 0.005:
+                continue
+            row_alpha = highlight_opacity * row_max
+            ctx.set_source_rgba(0.98, 0.96, 0.90, row_alpha)
+            ctx.rectangle(0.0, float(row_y), float(w), 1.0)
+            ctx.fill()
+
+        # Shadow: cool dark (slightly blue-black to suggest indirect skylight)
+        for row_y in range(h):
+            row_max = float(shadow_map[row_y].max())
+            if row_max < 0.005:
+                continue
+            row_alpha = shadow_opacity * row_max
+            ctx.set_source_rgba(0.05, 0.06, 0.10, row_alpha)
+            ctx.rectangle(0.0, float(row_y), float(w), 1.0)
+            ctx.fill()
+
+        print(f"  Impasto texture pass complete  "
+              f"(angle={light_angle:.0f}°, ridge_height={ridge_height:.2f})")

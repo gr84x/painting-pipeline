@@ -190,6 +190,7 @@ class Period(Enum):
     VIENNESE_EXPRESSIONIST = auto()  # Schiele — angular contour, flat muted void, psychological rawness
     COLOR_FIELD   = auto()   # Rothko — luminous horizontal bands, optical vibration, absorbing void
     SYNTHETIST    = auto()   # Gauguin — flat colour zones, dark cloisonné contour lines, tropical palette
+    MANNERIST     = auto()   # El Greco — elongated figures, jewel-tone palette, inner-lit silver flesh
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -422,6 +423,14 @@ class Style:
             # Very low wet_blend: Synthetism demands crisp, non-blended zones.
             # Very low edge_softness: the cloisonné line is hard, not sfumatoed.
             Period.SYNTHETIST:    dict(stroke_size_face=10, stroke_size_bg=20, wet_blend=0.06, edge_softness=0.10),
+            # Mannerist (El Greco): moderate stroke size with decisive drapery marks.
+            # stroke_size_face is the figure detail stroke — slightly larger than
+            # Renaissance to match El Greco's bold, sculptural paint application.
+            # stroke_size_bg is the dark void background stroke — very large (near-black
+            # ground needs few strokes).  Low wet_blend: colour zones are distinct and
+            # jewel-like, not blurred.  Low-moderate edge_softness: edges are present
+            # but softened by the inner glow that characterises his flesh areas.
+            Period.MANNERIST:     dict(stroke_size_face=8,  stroke_size_bg=35, wet_blend=0.18, edge_softness=0.30),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
