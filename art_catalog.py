@@ -783,6 +783,52 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Mark Rothko ───────────────────────────────────────────────────────────
+    "rothko": ArtStyle(
+        artist="Mark Rothko",
+        movement="Abstract Expressionism / Color Field",
+        nationality="American (Latvian-born)",
+        period="1950–1970",
+        palette=[
+            (0.72, 0.15, 0.08),   # deep cadmium red — his most iconic field
+            (0.55, 0.08, 0.04),   # maroon — shadowed band beneath
+            (0.88, 0.45, 0.12),   # warm orange — glowing upper band
+            (0.18, 0.08, 0.06),   # near-black — compressed lower void
+            (0.80, 0.62, 0.30),   # ochre gold — the luminous halo between bands
+            (0.45, 0.18, 0.22),   # plum — cooler variant band
+        ],
+        ground_color=(0.14, 0.06, 0.04),   # very dark sienna — the absorbing depth
+        stroke_size=40,
+        wet_blend=0.72,           # very high — paint washes melt into each other
+        edge_softness=0.90,       # bands have no hard edge — they breathe
+        jitter=0.025,
+        glazing=None,             # no final glaze — the layers ARE the surface
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Color Field — large horizontal bands of thinly-applied paint layered "
+            "over each other in many washes. No brushwork visible; no hard edges. "
+            "Bands appear to float or vibrate against each other through simultaneous "
+            "contrast. Dark absorbing background makes light bands seem self-luminous. "
+            "Rothko applied up to 20 thin washes per band using a wide brush and "
+            "rabbit-skin glue sizing to control paint absorption into unprimed canvas."
+        ),
+        famous_works=[
+            ("No. 61 (Rust and Blue)", "1953"),
+            ("Orange, Red, Yellow", "1961"),
+            ("Black on Maroon", "1958"),
+            ("No. 14", "1960"),
+            ("Seagram Murals (Harvard series)", "1962"),
+        ],
+        inspiration=(
+            "color_field_pass() — analyze reference for vertical color distribution, "
+            "map to 3–5 softly-edged horizontal bands, build each with many thin "
+            "transparent washes to achieve luminous optical depth. The figure, if "
+            "present, is not erased but subordinated — it becomes a warmth within "
+            "the field rather than a defined form."
+        ),
+    ),
+
     # ── Katsushika Hokusai ────────────────────────────────────────────────────
     "hokusai": ArtStyle(
         artist="Katsushika Hokusai",

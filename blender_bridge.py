@@ -485,6 +485,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_proto_expressionist = (scene.style.period == Period.PROTO_EXPRESSIONIST)
     is_realist           = (scene.style.period == Period.REALIST)
     is_viennese_expressionist = (scene.style.period == Period.VIENNESE_EXPRESSIONIST)
+    is_color_field       = (scene.style.period == Period.COLOR_FIELD)
     is_romantic          = (scene.style.period == Period.ROMANTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
@@ -525,12 +526,65 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # Heavy vignette crushes edges further into void; no crackle — plaster not canvas.
         p.finish(vignette=0.75, crackle=False)
 
+    elif is_color_field:
+        # ── Color Field pipeline (Mark Rothko technique) ──────────────────────
+        # Rothko painted on unprimed or lightly sized raw canvas.  He used
+        # rabbit-skin glue sizing to control how paint absorbed into the surface,
+        # and worked in acrylic from the mid-1960s — but the visual language is
+        # identical: vast horizontal bands of colour built up from many thin
+        # semi-transparent washes over a very dark absorbing ground.
+        #
+        # Pipeline:
+        #   1. Very dark warm ground — the absorbing void that makes light bands
+        #      appear self-luminous by simultaneous contrast.
+        #   2. Standard oil underpainting + block_in so a figure reading persists
+        #      beneath the color field washes.
+        #   3. color_field_pass() — the signature Rothko technique: horizontal
+        #      bands analysed from reference, each built with many transparent
+        #      washes with chromatic vibration at the boundaries.  figure_preserve
+        #      blends the underpainting back so the figure is sensed but not named.
+        #   4. Minimal finish — no crackle (modern canvas sizing), very light
+        #      vignette.
+        rothko_style = _ART_CATALOG.get("rothko")
+        ground_col   = rothko_style.ground_color if rothko_style else (0.12, 0.06, 0.04)
+
+        # Dark absorbing void ground — this is what makes Rothko's light bands
+        # seem to glow.  Very low texture_strength: raw canvas has minimal tooth.
+        p.tone_ground(ground_col, texture_strength=0.04)
+
+        # Underpainting and block_in preserve the figure anatomy beneath the
+        # color field so the form reads as "a warmth within the field."
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.5), n_strokes=140)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=260)
+
+        # Core Rothko technique: luminous horizontal bands with optical depth
+        p.color_field_pass(
+            ref,
+            n_bands              = 3,
+            n_washes             = 15,
+            wash_opacity         = float(sp["wet_blend"]) * 0.26,
+            edge_blur_sigma      = H * 0.04,   # ~4% of canvas height
+            figure_preserve      = 0.62,
+            chromatic_vibration  = 0.04,
+            band_hue_drift       = 0.016,
+        )
+
+        # Place lights last — in Rothko's paintings the brightest zone emerges
+        # from the upper band where it catches the studio's skylight.
+        p.place_lights(ref, stroke_size=sp["stroke_size_bg"], n_strokes=200)
+
+        # No glaze (Rothko did not varnish — the raw color surface IS the work).
+        # Very gentle vignette: the absorbing dark ground already edges the canvas.
+        p.finish(vignette=0.22, crackle=False)
+
     elif is_watercolor:
         # ── Watercolour pipeline (Sargent technique) ─────────────────────────
-        # Cream paper ground — watercolour is painted on white/cream paper, not
-        # linen.  The ground texture is much finer than oil canvas, and very
-        # important: texture_strength is very low (paper surface).
-        p.tone_ground((0.96, 0.94, 0.90), texture_strength=0.015)
+        # Cold-press watercolor paper ground — replaces the default linen
+        # texture with authentic cold-press paper tooth: irregular grain,
+        # horizontal laid lines, and chain lines.  Highlight areas left as
+        # bare paper show through realistically.
+        p.set_substrate("cold_press")
+        p.tone_ground((0.96, 0.94, 0.90), texture_strength=0.022)
 
         # Three-stage watercolour process:
         # 1. Wet-into-wet washes (broad, diluted, soft edges)

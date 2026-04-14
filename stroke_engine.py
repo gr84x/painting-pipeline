@@ -115,6 +115,70 @@ def make_linen_texture(w: int, h: int) -> np.ndarray:
     return (0.72 + 0.28 * tex).astype(np.float32)
 
 
+def make_cold_press_texture(w: int, h: int) -> np.ndarray:
+    """
+    Returns a (H, W) float32 array in [0.68, 1.0] representing cold-press
+    watercolor paper texture.
+
+    Cold-press (NOT) watercolor paper has a distinct character compared to
+    woven linen canvas:
+
+    1. **Large irregular tooth** — the paper surface has a rough, random grain
+       formed by pressing the wet pulp sheet into a felt (the 'cold press').
+       Two scales: coarse bumps (2–5mm) and medium mid-grain.
+
+    2. **Horizontal laid lines** — the wire mesh of the papermaking mould
+       leaves faint horizontal parallel striations spaced ~1mm apart.
+       These are subtle but visible when paint pools in the valleys.
+
+    3. **Chain lines** — thicker vertical wires are spaced every ~25mm,
+       creating a barely perceptible vertical grid of slightly lower relief.
+
+    Unlike linen, the cold-press surface absorbs water non-uniformly —
+    higher areas resist first washes while low areas trap pigment.  This is
+    the source of the characteristic blooms and cauliflowers of watercolor.
+
+    The watercolor pipeline uses this texture in `tone_ground()` so the paper
+    surface shows through in the untouched highlight areas.
+    """
+    tex = np.zeros((h, w), dtype=np.float32)
+    inv_w, inv_h = 1.0 / w, 1.0 / h
+
+    # ── Stage 1: Coarse irregular grain ──────────────────────────────────────
+    # Two overlapping Perlin octave bands for paper bumps.
+    for y in range(h):
+        for x in range(w):
+            coarse = pnoise2(x * inv_w * 18, y * inv_h * 18,
+                             octaves=3, persistence=0.55)
+            medium = pnoise2(x * inv_w * 55, y * inv_h * 55,
+                             octaves=2, persistence=0.45)
+            tex[y, x] = coarse * 0.55 + medium * 0.45
+
+    # Normalise Perlin output to [0, 1]
+    lo, hi = tex.min(), tex.max()
+    tex = (tex - lo) / (hi - lo + 1e-8)
+
+    # ── Stage 2: Horizontal laid lines ────────────────────────────────────────
+    # Spaced ~1mm at 96 dpi ≈ every 3.8 pixels.  Subtle — only a 3% darkening
+    # in the laid-line valleys so they appear as faint ribbing under wash.
+    laid_period = max(3, round(h * 0.0035))          # ~0.35 % of canvas height
+    ys = np.arange(h)
+    laid = 0.03 * (0.5 - 0.5 * np.cos(2 * math.pi * ys / laid_period))
+    tex -= laid[:, np.newaxis]                        # slight dip in laid valleys
+
+    # ── Stage 3: Chain lines ──────────────────────────────────────────────────
+    # Much wider spacing (~25mm at 96 dpi ≈ every 94px) and very faint (1%).
+    chain_period = max(60, round(w * 0.12))
+    xs = np.arange(w)
+    chain = 0.01 * (0.5 - 0.5 * np.cos(2 * math.pi * xs / chain_period))
+    tex -= chain[np.newaxis, :]
+
+    # Re-normalise to [0.68, 1.0] — same range as linen texture
+    lo, hi = tex.min(), tex.max()
+    tex = (tex - lo) / (hi - lo + 1e-8)
+    return (0.68 + 0.32 * tex).astype(np.float32)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # BrushTip — normalised alpha mask for stamp-style edge texture
 # ─────────────────────────────────────────────────────────────────────────────
@@ -723,6 +787,38 @@ class Painter:
 
         # Decode from [0, 1] encoding to [-1, 1] world normals
         self._normal_map = arr * 2.0 - 1.0
+
+    def set_substrate(self, kind: str = "linen"):
+        """
+        Replace the canvas texture with the chosen substrate.
+
+        Parameters
+        ----------
+        kind : str
+            "linen"       — woven linen canvas (default; already set at init).
+            "cold_press"  — cold-press watercolor paper with laid lines, chain
+                            lines, and irregular paper tooth.  Use before the
+                            watercolor_wash_pass() to get authentic paper grain
+                            showing through untouched highlight areas.
+
+        Why this matters
+        ----------------
+        The canvas texture modulates every `tone_ground()` call so the physical
+        surface "shows through" the paint layer.  Linen weave on a watercolor
+        painting looks wrong — the texture grid is too regular and too coarse.
+        Cold-press paper has a distinctly different character: random coarse tooth
+        plus faint horizontal laid lines from the paper mould wire.  Switching
+        substrate before the watercolor passes ensures that the highlight areas
+        (where no pigment is placed) display authentic paper surface rather than
+        linen.
+        """
+        w, h = self.w, self.h
+        if kind == "cold_press":
+            print("  Stretching cold-press watercolor paper…")
+            self.canvas.texture = make_cold_press_texture(w, h)
+        else:
+            print("  Weaving linen texture…")
+            self.canvas.texture = make_linen_texture(w, h)
 
     def toon_contour_mask(self, light_dir, shadow_thresh=0.10, contour_thresh=0.25):
         """Compute toon shading masks from the loaded normal map.
@@ -2846,3 +2942,250 @@ class Painter:
                                      jitter_amt=jitter_amt,
                                      rng=self._rng_py,
                                      region_mask=region_mask_for_draw)
+
+    def color_field_pass(self,
+                         reference:              Union[np.ndarray, Image.Image],
+                         n_bands:                int   = 3,
+                         n_washes:               int   = 14,
+                         wash_opacity:           float = 0.16,
+                         edge_blur_sigma:        float = 0.0,
+                         figure_preserve:        float = 0.60,
+                         chromatic_vibration:    float = 0.035,
+                         band_hue_drift:         float = 0.018):
+        """
+        Color Field pass — inspired by Mark Rothko.
+
+        Rothko's mature paintings from the 1950s–60s consist of two or three
+        large horizontal rectangles of colour that appear to float against a
+        dark absorbing ground.  The rectangles have no hard edge — their
+        boundaries are built up over many (often 15–20) thin transparent washes
+        applied wet-into-wet, so the colour seems to emerge from within the
+        canvas rather than sitting on top of it.  The result is a luminous,
+        breathing quality that no single opaque stroke can achieve.
+
+        Key perceptual mechanisms Rothko exploited:
+
+          1. **Simultaneous contrast** — adjacent bands are chosen from opposite
+             ends of the warm/cool spectrum so each makes the other appear more
+             intense than it actually is.
+
+          2. **Dark absorbing void** — the ground and lower band are very dark,
+             making upper lighter bands appear self-luminous by comparison.
+
+          3. **Optical layering** — each wash is semi-transparent; the light
+             shifts wavelength as it passes through each layer, bounces off the
+             canvas, and passes back out through all the layers.  This creates
+             a depth and warmth that cannot be replicated by flat opaque paint.
+
+          4. **Chromatic vibration at the edge** — the boundary zone between two
+             bands contains both colours at once, creating a narrow fringe that
+             visually vibrates.  Rothko described this as "the breath of the
+             painting."
+
+        This pass:
+          Stage 1 — Analyse the reference image.  Divide it into `n_bands`
+                    horizontal strips and compute the mean colour of each strip,
+                    biased toward the dominant hue of that zone.
+
+          Stage 2 — Apply `n_washes` thin Cairo rectangle washes per band,
+                    each wash slightly shifting hue/value so the accumulated
+                    colour has depth and variation.  The band boundaries are
+                    feathered using a per-row opacity falloff (Gaussian profile).
+
+          Stage 3 — Chromatic vibration pass.  At each band boundary, composite
+                    an additional thin wash of the complementary colour mixed
+                    from both adjacent bands.  This brightens the boundary
+                    perceptually while remaining physically thin.
+
+          Stage 4 — If `figure_preserve` > 0, blend the painted color field with
+                    the underlying canvas (which holds the standard oil underpainting
+                    that blender_bridge runs before this pass), so the figure remains
+                    recognisable as a warmth or luminosity within the field rather
+                    than being completely erased.
+
+        Parameters
+        ----------
+        reference           : PIL Image or ndarray.
+        n_bands             : Number of horizontal color bands (Rothko typically
+                              used 2–4; 3 is canonical).
+        n_washes            : Washes applied per band.  More = more optical depth.
+                              12–18 is the practical sweet spot.
+        wash_opacity        : Opacity of each individual wash.  Cumulative effect
+                              of `n_washes` washes is approximately
+                              1 - (1 - wash_opacity)^n_washes.
+        edge_blur_sigma     : Additional Gaussian blur applied to each band mask
+                              beyond the intrinsic Gaussian falloff (pixels).
+                              0 = rely only on the Gaussian profile; values of
+                              20–60 create very soft dissolution.
+        figure_preserve     : How much of the pre-existing canvas (typically the
+                              oil underpainting) to blend back in [0–1].  0 = pure
+                              color field erases the figure; 1 = color field has no
+                              effect.  0.55–0.70 gives Rothko-like results where
+                              you sense a form within the field without defining it.
+        chromatic_vibration : Opacity of the boundary vibration wash.
+                              0.03–0.06 gives a subtle shimmer; 0 disables it.
+        band_hue_drift      : Per-wash hue rotation (HSV) applied cumulatively so
+                              successive washes shift the band's colour slightly.
+                              Models Rothko's deliberate hue shifts between layers.
+
+        Notes
+        -----
+        Mark Rothko (1903–1970) was born Marcus Rothkowitz in Dvinsk, Latvia.
+        He emigrated to the United States at age 10.  After years of surrealist
+        influence he arrived at his signature "Multiform" and then pure Color
+        Field style around 1950.  He rejected interpretation and said his
+        paintings were about "basic human emotions — tragedy, ecstasy, doom."
+        He insisted his works be hung close to the floor and experienced at
+        close range so the viewer is enveloped rather than distanced.
+
+        The Rothko Chapel in Houston (1971) contains 14 large paintings he
+        made for the space.  He died by suicide on 25 February 1970, at 66,
+        before the chapel opened.
+
+        Famous works:
+          *No. 61 (Rust and Blue)* (1953) — rust band over deep blue void.
+          *Orange, Red, Yellow* (1961) — sold for $86.9M in 2012; warm chromatic field.
+          *Black on Maroon* (1958) — Seagram mural; near-black dissolving geometry.
+        """
+        print(f"Color field pass  (n_bands={n_bands}  n_washes={n_washes}"
+              f"  opacity/wash={wash_opacity:.2f})…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # ── Stage 1: Sample dominant colour per horizontal strip ──────────────
+        # Each band covers an equal fraction of image height.  Mean colour is
+        # computed over all pixels in the strip (in float [0, 1] space).
+        band_colors: List[Color] = []
+        band_y_centers: List[float] = []
+        for b in range(n_bands):
+            y0 = int(b * h / n_bands)
+            y1 = int((b + 1) * h / n_bands)
+            strip = rarr[y0:y1, :, :]          # (strip_h, W, 3)
+            mean_col = strip.reshape(-1, 3).mean(axis=0)
+            band_colors.append((float(mean_col[0]),
+                                 float(mean_col[1]),
+                                 float(mean_col[2])))
+            band_y_centers.append((y0 + y1) * 0.5)
+
+        # ── Save pre-pass canvas snapshot for figure_preserve blending ────────
+        # Read the current canvas into a float array so we can blend it back in
+        # during Stage 4.  This captures whatever underpainting was run first.
+        if figure_preserve > 0.0:
+            pre_buf = np.frombuffer(self.canvas.surface.get_data(),
+                                    dtype=np.uint8).reshape(h, w, 4).copy()
+            # BGRA → RGB float
+            pre_rgb = pre_buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+        else:
+            pre_rgb = None
+
+        # ── Stage 2: Band washes ──────────────────────────────────────────────
+        # For each band, apply n_washes thin Cairo rectangle composites.
+        # Opacity is modulated by a Gaussian weight that peaks at the band
+        # centre and falls to ~5% at the adjacent band centres — creating the
+        # feathered dissolution that defines Rothko's edge language.
+        #
+        # band_sigma: standard deviation of the Gaussian in image pixels.
+        # For 3 bands across height H, each band is H/3 tall, so sigma ≈ H/6.
+        band_sigma = h / (n_bands * 2.2)   # Gaussian half-width ≈ one half-band
+
+        ys_all = np.arange(h, dtype=np.float32)
+
+        for b, (base_col, cy_b) in enumerate(zip(band_colors, band_y_centers)):
+            print(f"  Band {b+1}/{n_bands}: ({base_col[0]:.2f}, {base_col[1]:.2f},"
+                  f" {base_col[2]:.2f})  cy={cy_b:.0f}px…")
+
+            # Per-row Gaussian weight for this band
+            gauss_weights = np.exp(-0.5 * ((ys_all - cy_b) / band_sigma) ** 2)
+
+            if edge_blur_sigma > 0.0:
+                gauss_weights = ndimage.gaussian_filter1d(
+                    gauss_weights, sigma=edge_blur_sigma)
+            gauss_weights = np.clip(gauss_weights, 0.0, 1.0)
+
+            # Iterative hue-drift wash loop
+            h_hsv, s_hsv, v_hsv = colorsys.rgb_to_hsv(*base_col)
+            for wash_i in range(n_washes):
+                # Cumulative hue drift — each wash shifted slightly
+                h_drift = (h_hsv + wash_i * band_hue_drift) % 1.0
+                # Value alternates slightly: even washes slightly lighter,
+                # odd washes slightly darker — mimics the oscillation of a
+                # loaded brush vs. a drawing-back stroke.
+                v_drift = max(0.02, min(1.0,
+                    v_hsv + 0.015 * math.sin(wash_i * 1.47)))
+                wash_r, wash_g, wash_b = colorsys.hsv_to_rgb(h_drift, s_hsv, v_drift)
+                wash_r = float(np.clip(wash_r + self._rng_py.uniform(-0.005, 0.005), 0, 1))
+                wash_g = float(np.clip(wash_g + self._rng_py.uniform(-0.005, 0.005), 0, 1))
+                wash_b = float(np.clip(wash_b + self._rng_py.uniform(-0.005, 0.005), 0, 1))
+
+                # Draw a full-width rectangle at each row, with per-row alpha
+                # = wash_opacity * gauss_weight[y].  Cairo's set_source_rgba
+                # applies a single alpha; we vary by row by iterating over rows
+                # in chunks or per-pixel.  For efficiency we batch by rounding
+                # gauss_weights to 4-decimal precision and group consecutive rows.
+                ctx = self.canvas.ctx
+                for row_y in range(h):
+                    row_alpha = wash_opacity * float(gauss_weights[row_y])
+                    if row_alpha < 0.002:
+                        continue
+                    ctx.set_source_rgba(wash_r, wash_g, wash_b, row_alpha)
+                    ctx.rectangle(0.0, float(row_y), float(w), 1.0)
+                    ctx.fill()
+
+        # ── Stage 3: Chromatic vibration at band boundaries ───────────────────
+        # Between each pair of adjacent bands, compute a boundary colour as the
+        # mean of the two bands, then shift it toward the complement of whichever
+        # band dominates at the boundary.  Apply a narrow Gaussian wash.
+        if chromatic_vibration > 0.0:
+            print("  Chromatic vibration pass…")
+            boundary_sigma = band_sigma * 0.22   # very narrow fringe
+
+            for b in range(n_bands - 1):
+                by = (band_y_centers[b] + band_y_centers[b + 1]) * 0.5
+                col_a = band_colors[b]
+                col_b = band_colors[b + 1]
+                # Mean colour at the boundary
+                mid_col = ((col_a[0] + col_b[0]) * 0.5,
+                           (col_a[1] + col_b[1]) * 0.5,
+                           (col_a[2] + col_b[2]) * 0.5)
+                # Shift toward complement to create perceptual shimmer
+                comp_col = complement(mid_col)
+                vib_col  = mix_paint(mid_col, comp_col, 0.25)
+
+                vib_gauss = np.exp(-0.5 * ((ys_all - by) / boundary_sigma) ** 2)
+                vib_gauss = np.clip(vib_gauss, 0.0, 1.0)
+
+                ctx = self.canvas.ctx
+                for row_y in range(h):
+                    row_alpha = chromatic_vibration * float(vib_gauss[row_y])
+                    if row_alpha < 0.002:
+                        continue
+                    ctx.set_source_rgba(vib_col[0], vib_col[1], vib_col[2], row_alpha)
+                    ctx.rectangle(0.0, float(row_y), float(w), 1.0)
+                    ctx.fill()
+
+        # ── Stage 4: Figure preserve — blend pre-pass canvas back in ─────────
+        # Composite pre_rgb (the underpainting/reference pass canvas) at
+        # `figure_preserve` opacity over the color field.  This lets the figure
+        # remain recognisable as a luminous warmth within the field.
+        if pre_rgb is not None and figure_preserve > 0.0:
+            print(f"  Figure preserve blend  ({figure_preserve:.0%})…")
+            ctx = self.canvas.ctx
+
+            # Re-bake pre_rgb into a cairo surface and composite at figure_preserve
+            pre_arr = np.zeros((h, w, 4), dtype=np.uint8)
+            pre_arr[:, :, 2] = np.clip(pre_rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R→BGRA
+            pre_arr[:, :, 1] = np.clip(pre_rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)
+            pre_arr[:, :, 0] = np.clip(pre_rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)
+            pre_arr[:, :, 3] = 255
+
+            pre_surf = cairo.ImageSurface.create_for_data(
+                bytearray(pre_arr.tobytes()), cairo.FORMAT_ARGB32, w, h)
+
+            ctx.set_source_surface(pre_surf, 0, 0)
+            ctx.paint_with_alpha(figure_preserve)
+
+        # Dampen wetness after color field — the vast washes add significant wet
+        # surface; let them dry partially before any subsequent stroke passes.
+        self.canvas.wetness *= 0.30

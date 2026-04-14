@@ -188,6 +188,7 @@ class Period(Enum):
     PROTO_EXPRESSIONIST = auto()  # Goya — black void, crude urgency, darkness as subject
     REALIST       = auto()   # Manet — flat value planes, bold black, cool silver half-tones
     VIENNESE_EXPRESSIONIST = auto()  # Schiele — angular contour, flat muted void, psychological rawness
+    COLOR_FIELD   = auto()   # Rothko — luminous horizontal bands, optical vibration, absorbing void
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -408,6 +409,11 @@ class Style:
             # large strokes to stay flat and barely-coloured).
             # Nearly zero wet_blend and edge_softness — dry, brutal, no softening.
             Period.VIENNESE_EXPRESSIONIST: dict(stroke_size_face=3, stroke_size_bg=24, wet_blend=0.04, edge_softness=0.04),
+            # Color Field (Rothko): immense wash strokes; very high wet blend and edge
+            # softness so bands melt into each other.  stroke_size_face is the wash
+            # brush width — extremely wide (40–60px).  stroke_size_bg matches: the
+            # background absorbing void is painted with the same vast brush.
+            Period.COLOR_FIELD:   dict(stroke_size_face=42, stroke_size_bg=55, wet_blend=0.72, edge_softness=0.90),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
