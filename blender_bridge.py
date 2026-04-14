@@ -448,7 +448,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     from stroke_engine import (Painter, ellipse_mask, spherical_flow,
                                flow_field, ellipse_mask)
     from figure_builder import compute_landmarks
-    from scene_schema import PoseDetail
+    from scene_schema import PoseDetail, Period
 
     # Step 1: Blender reference render (also writes _mask.png and _normals.png alongside)
     ref_path     = output_path.replace(".png", "_ref.png")
@@ -478,63 +478,103 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         if verbose:
             print("  [warn] No figure mask found — painting without region separation")
 
-    p.tone_ground((0.22, 0.17, 0.10), texture_strength=0.10)
-    p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.4), n_strokes=180)
-    p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=320)
-    p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=800)
+    is_pointillist = (scene.style.period == Period.POINTILLIST)
 
-    # Face-focused passes: project the face center through the camera to get
-    # the correct pixel position for each scene configuration.
-    if scene.subjects:
-        subj = scene.subjects[0]
-        lm   = compute_landmarks(subj.pose.name,
-                                 getattr(subj, "pose_detail", PoseDetail()))
-        face_world = lm["head_ctr"]       # (x, y, z) in world space
-        # Vec3 wrapper for projection
-        class _P:
-            def __init__(self, t): self.x, self.y, self.z = t
-        face_pt = _P(face_world)
+    if is_pointillist:
+        # ── Pointillist / divisionist pipeline (Seurat technique) ────────────
+        # Pale canvas ground — dots are sparse enough that the ground shows
+        # through in highlight areas, creating the luminous haze of La Grande Jatte.
+        p.tone_ground((0.88, 0.84, 0.70), texture_strength=0.04)
 
-        cx, cy = _project_to_image(
-            (face_world[0], face_world[1], face_world[2]),
-            scene.camera.position,
-            scene.camera.target,
-            scene.camera.fov,
-            W, H,
+        # Light value underpainting to establish composition before dots are placed.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 2.0), n_strokes=80)
+
+        # Primary divisionist pass — fine dots with chromatic complement pairs.
+        p.pointillist_pass(
+            ref,
+            n_dots          = 8000,
+            dot_size        = float(sp["stroke_size_face"]),
+            chromatic_split = True,
+            split_ratio     = 0.32,
+            split_radius    = 2.2,
+        )
+        # Second pass at slightly larger dot size adds tonal variety —
+        # Seurat varied dot size in different zones.
+        p.pointillist_pass(
+            ref,
+            n_dots          = 4000,
+            dot_size        = float(sp["stroke_size_bg"]),
+            chromatic_split = True,
+            split_ratio     = 0.28,
+            split_radius    = 2.0,
         )
 
-        # Head radius in pixels: project a point offset by HR in world X
-        from figure_builder import R as RADII
-        HR = RADII["head"]
-        edge_x, _ = _project_to_image(
-            (face_world[0] + HR, face_world[1], face_world[2]),
-            scene.camera.position, scene.camera.target, scene.camera.fov, W, H,
-        )
-        rx = max(30, abs(edge_x - cx))
-        ry = int(rx * 1.35)   # heads are taller than wide
+        # Impasto highlight dots last — just as in conventional oil painting.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=300)
+        # No amber glaze — Seurat worked on fresh bright canvas.
+        # Gentle vignette only; no aged crackle.
+        p.finish(vignette=0.30, crackle=False)
 
-        print(f"  Face projected to ({cx}, {cy}), rx={rx}, ry={ry}")
+    else:
+        # ── Standard oil painting pipeline ───────────────────────────────────
+        p.tone_ground((0.22, 0.17, 0.10), texture_strength=0.10)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.4), n_strokes=180)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=320)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=800)
 
-        # Tighter face ellipse: was rx*1.25, ry*1.20 — that extended into hair.
-        # Now rx*1.0, ry*0.95 keeps the mask within the face geometry.
-        face_mask  = ellipse_mask(W, H, cx, cy, rx * 1.00, ry * 0.95, feather=0.28)
-        face_flow  = spherical_flow(W, H, cx, cy, rx, ry)
-        eyes_mask  = ellipse_mask(W, H, cx, cy - ry//4, rx * 0.80, ry * 0.50, feather=0.22)
-        lips_mask  = ellipse_mask(W, H, cx, cy + ry//2, rx * 0.50, ry * 0.28, feather=0.28)
+        # Face-focused passes: project the face center through the camera to get
+        # the correct pixel position for each scene configuration.
+        if scene.subjects:
+            subj = scene.subjects[0]
+            lm   = compute_landmarks(subj.pose.name,
+                                     getattr(subj, "pose_detail", PoseDetail()))
+            face_world = lm["head_ctr"]       # (x, y, z) in world space
+            # Vec3 wrapper for projection
+            class _P:
+                def __init__(self, t): self.x, self.y, self.z = t
+            face_pt = _P(face_world)
 
-        p.focused_pass(ref, face_mask,  stroke_size=int(sp["stroke_size_face"]*1.8),
-                       n_strokes=1200, opacity=0.80, wet_blend=sp["wet_blend"],
-                       form_angles=face_flow)
-        p.focused_pass(ref, eyes_mask,  stroke_size=sp["stroke_size_face"],
-                       n_strokes=800,  opacity=0.82, wet_blend=sp["wet_blend"]*0.6,
-                       form_angles=face_flow)
-        p.focused_pass(ref, lips_mask,  stroke_size=max(3, sp["stroke_size_face"]-2),
-                       n_strokes=500,  opacity=0.84, wet_blend=sp["wet_blend"]*0.6,
-                       form_angles=face_flow)
+            cx, cy = _project_to_image(
+                (face_world[0], face_world[1], face_world[2]),
+                scene.camera.position,
+                scene.camera.target,
+                scene.camera.fov,
+                W, H,
+            )
 
-    p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=500)
-    p.glaze((0.60, 0.42, 0.14), opacity=0.07)
-    p.finish(vignette=0.50, crackle=True)
+            # Head radius in pixels: project a point offset by HR in world X
+            from figure_builder import R as RADII
+            HR = RADII["head"]
+            edge_x, _ = _project_to_image(
+                (face_world[0] + HR, face_world[1], face_world[2]),
+                scene.camera.position, scene.camera.target, scene.camera.fov, W, H,
+            )
+            rx = max(30, abs(edge_x - cx))
+            ry = int(rx * 1.35)   # heads are taller than wide
+
+            print(f"  Face projected to ({cx}, {cy}), rx={rx}, ry={ry}")
+
+            # Tighter face ellipse: was rx*1.25, ry*1.20 — that extended into hair.
+            # Now rx*1.0, ry*0.95 keeps the mask within the face geometry.
+            face_mask  = ellipse_mask(W, H, cx, cy, rx * 1.00, ry * 0.95, feather=0.28)
+            face_flow  = spherical_flow(W, H, cx, cy, rx, ry)
+            eyes_mask  = ellipse_mask(W, H, cx, cy - ry//4, rx * 0.80, ry * 0.50, feather=0.22)
+            lips_mask  = ellipse_mask(W, H, cx, cy + ry//2, rx * 0.50, ry * 0.28, feather=0.28)
+
+            p.focused_pass(ref, face_mask,  stroke_size=int(sp["stroke_size_face"]*1.8),
+                           n_strokes=1200, opacity=0.80, wet_blend=sp["wet_blend"],
+                           form_angles=face_flow)
+            p.focused_pass(ref, eyes_mask,  stroke_size=sp["stroke_size_face"],
+                           n_strokes=800,  opacity=0.82, wet_blend=sp["wet_blend"]*0.6,
+                           form_angles=face_flow)
+            p.focused_pass(ref, lips_mask,  stroke_size=max(3, sp["stroke_size_face"]-2),
+                           n_strokes=500,  opacity=0.84, wet_blend=sp["wet_blend"]*0.6,
+                           form_angles=face_flow)
+
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=500)
+        p.glaze((0.60, 0.42, 0.14), opacity=0.07)
+        p.finish(vignette=0.50, crackle=True)
+
     p.save(output_path)
 
     return output_path

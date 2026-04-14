@@ -177,13 +177,14 @@ class Medium(Enum):
 
 
 class Period(Enum):
-    RENAISSANCE  = auto()
-    BAROQUE      = auto()
+    RENAISSANCE   = auto()
+    BAROQUE       = auto()
     IMPRESSIONIST = auto()
     EXPRESSIONIST = auto()
-    CONTEMPORARY = auto()
-    FANTASY_ART  = auto()
-    NONE         = auto()
+    POINTILLIST   = auto()   # Seurat / divisionism — dots, no wet blending
+    CONTEMPORARY  = auto()
+    FANTASY_ART   = auto()
+    NONE          = auto()
 
 
 class PaletteHint(Enum):
@@ -369,6 +370,9 @@ class Style:
             Period.BAROQUE:       dict(stroke_size_face=7,  stroke_size_bg=32, wet_blend=0.10, edge_softness=0.70),
             Period.IMPRESSIONIST: dict(stroke_size_face=10, stroke_size_bg=22, wet_blend=0.28, edge_softness=0.30),
             Period.EXPRESSIONIST: dict(stroke_size_face=14, stroke_size_bg=28, wet_blend=0.35, edge_softness=0.15),
+            # Pointillist: tiny dots, zero wet-blending, crisp optical colour mixing.
+            # stroke_size_face/bg here describes dot radius for pointillist_pass().
+            Period.POINTILLIST:   dict(stroke_size_face=4,  stroke_size_bg=5,  wet_blend=0.02, edge_softness=0.10),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

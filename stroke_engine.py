@@ -21,7 +21,7 @@ Workflow
   p.save("out.png")
 """
 
-import math, random
+import math, random, colorsys
 from typing import List, Tuple, Optional, Union
 
 import numpy as np
@@ -52,6 +52,22 @@ def jitter(c: Color, amount: float = 0.035, rng=None) -> Color:
     r = rng or random
     return tuple(max(0.0, min(1.0, c[i] + r.uniform(-amount, amount)))
                  for i in range(3))
+
+
+def complement(c: Color) -> Color:
+    """
+    Return the chromatic complement of a colour by rotating hue 180° in HSV.
+
+    Seurat's divisionism relies on simultaneous contrast: placing a colour
+    beside its complement makes both appear more vivid.  This gives the
+    luminous shimmer that physical pigment mixing cannot achieve.
+
+    Unlike a naive (1-r, 1-g, 1-b) inversion this preserves saturation and
+    value, so the complement dot is the same 'brightness' as the primary.
+    """
+    h, s, v = colorsys.rgb_to_hsv(*c)
+    h_comp = (h + 0.5) % 1.0
+    return colorsys.hsv_to_rgb(h_comp, s, v)
 
 
 def temp_shift(c: Color, warmth: float) -> Color:
@@ -867,6 +883,131 @@ class Painter:
                                      opacity=0.88, wet_blend=0.08,
                                      jitter_amt=0.02, rng=self._rng_py,
                                      region_mask=self._figure_mask)
+
+    def pointillist_pass(self,
+                         reference:       Union[np.ndarray, Image.Image],
+                         n_dots:          int   = 6000,
+                         dot_size:        float = 4.0,
+                         chromatic_split: bool  = True,
+                         split_ratio:     float = 0.30,
+                         split_radius:    float = 2.5):
+        """
+        Divisionist dot pass — Seurat / Signac pointillism technique.
+
+        Inspired by Georges Seurat's *A Sunday on La Grande Jatte* (1884–86)
+        and the discoveries of Hilma af Klint, who also explored pure-colour
+        fields and spiritual resonance in pigment placement.
+
+        Each placement samples the reference colour at that pixel and places a
+        small round dot.  When chromatic_split=True an additional tiny dot of
+        the **complementary colour** (hue-rotated 180°) is offset by
+        split_radius×dot_size pixels.  This mirrors Seurat's use of
+        simultaneous contrast (Chevreul's law): adjacent complementary dots
+        intensify each other optically in the viewer's eye, creating a
+        luminosity impossible with physically mixed paint.
+
+        Parameters
+        ----------
+        reference       : PIL Image or ndarray reference to sample colour from.
+        n_dots          : Total number of primary dots placed.
+        dot_size        : Radius of each dot in pixels.
+        chromatic_split : Enable the complementary-dot shimmer technique.
+        split_ratio     : Opacity of the complementary dot (0–1).
+                          0.25–0.40 gives subtle vibration; >0.50 is vivid.
+        split_radius    : Offset of complementary dot as a multiple of dot_size.
+                          Seurat kept dots very close (~1.5–3 radii apart).
+
+        Notes
+        -----
+        Unlike the brush-stroke passes this method does NOT use wet-on-wet
+        blending (wet_blend is forced to 0.0 per Seurat's dry-on-dry method).
+        The canvas should be toned first; any underpainting is visible between
+        the sparsely-placed dots, just as the gessoed linen showed through in
+        La Grande Jatte.
+        """
+        print(f"Pointillist pass  ({n_dots} dots  size={dot_size:.1f}px"
+              + (" + complement)" if chromatic_split else ")") + "…")
+
+        ref  = self._prep(reference)
+        rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        h, w = ref.shape[:2]
+
+        # Error-weighted sampling so dots concentrate where canvas diverges most
+        # from the reference (same principle as _place_strokes but adapted for dots).
+        cbuf = np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=np.uint8).reshape(h, w, 4).copy()
+        carr = cbuf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+        err  = np.mean(np.abs(carr - rarr), axis=2).astype(np.float32)
+        # Mild smoothing so dot placement isn't hyper-concentrated at single pixels.
+        err  = ndimage.gaussian_filter(err, sigma=dot_size * 0.6)
+
+        # Mask to figure only when available; else paint everywhere.
+        region = self._figure_mask
+        if region is not None:
+            err = err * region
+
+        err_flat = err.flatten()
+        total    = err_flat.sum()
+        if total < 1e-9:
+            # Fallback to uniform sampling if canvas already closely matches reference.
+            prob = np.ones(h * w, dtype=np.float32) / (h * w)
+            if region is not None:
+                prob *= region.flatten()
+                prob /= prob.sum() + 1e-9
+        else:
+            prob = err_flat / total
+
+        positions = self.rng.choice(h * w, size=n_dots, p=prob, replace=True)
+
+        tip_round = BrushTip(BrushTip.ROUND, bristle_noise=0.0)
+        margin = max(int(dot_size) + 1, 3)
+
+        for pos in positions:
+            py, px = int(pos // w), int(pos % w)
+            px = int(np.clip(px, margin, w - margin))
+            py = int(np.clip(py, margin, h - margin))
+
+            # Sample reference colour at this pixel.
+            primary = tuple(float(rarr[py, px, c]) for c in range(3))
+            primary = jitter(primary, 0.025, self._rng_py)
+
+            # Place a tiny round dot: two-point stroke (centre → centre + 1px).
+            # The degenerate stroke collapses to a circle thanks to round tip caps.
+            pts = [(float(px), float(py)), (float(px) + 0.5, float(py))]
+            ws  = [dot_size, dot_size]
+
+            self.canvas.apply_stroke(
+                pts, ws, primary, tip_round,
+                opacity=0.92, wet_blend=0.0,    # zero wet blending — Seurat's method
+                jitter_amt=0.018, rng=self._rng_py,
+                region_mask=region,
+            )
+
+            # ── Complementary dot (divisionist shimmer) ───────────────────────
+            if chromatic_split:
+                comp_col = complement(primary)
+                comp_col = jitter(comp_col, 0.02, self._rng_py)
+
+                # Offset in a random direction so the complement dot doesn't
+                # simply overlay the primary — Seurat kept them visually distinct.
+                angle = self._rng_py.uniform(0, 2 * math.pi)
+                offset = dot_size * split_radius
+                cx = int(np.clip(px + math.cos(angle) * offset, margin, w - margin))
+                cy = int(np.clip(py + math.sin(angle) * offset, margin, h - margin))
+
+                # Check region mask at complement position too.
+                if region is not None and region[cy, cx] < 0.5:
+                    continue
+
+                comp_pts = [(float(cx), float(cy)), (float(cx) + 0.5, float(cy))]
+                comp_ws  = [dot_size * 0.70, dot_size * 0.70]   # slightly smaller
+
+                self.canvas.apply_stroke(
+                    comp_pts, comp_ws, comp_col, tip_round,
+                    opacity=split_ratio, wet_blend=0.0,
+                    jitter_amt=0.015, rng=self._rng_py,
+                    region_mask=region,
+                )
 
     def focused_pass(self,
                      reference:   Union[np.ndarray, Image.Image],
