@@ -1417,3 +1417,48 @@ def test_baroque_stroke_params_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"BAROQUE stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# scumble_pass -- dry-brush drag/scumbling effect (Vuillard/Nabis session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_scumble_pass_exists():
+    """Painter must have scumble_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "scumble_pass"), "scumble_pass not found on Painter"
+    assert callable(getattr(Painter, "scumble_pass"))
+
+
+def test_scumble_pass_no_error():
+    """scumble_pass() runs without error on a small canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.54, 0.44), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.scumble_pass(opacity=0.18, n_drags=80, drag_distance=8)
+
+
+def test_scumble_pass_modifies_canvas():
+    """scumble_pass() with positive opacity must modify a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.45, 0.38, 0.22), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.scumble_pass(opacity=0.30, n_drags=160, drag_distance=10, dry_factor=0.60)
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    diff = np.abs(after - before).max()
+    assert diff > 0, "scumble_pass with opacity=0.30 should modify the canvas"
+
+
+def test_scumble_pass_figure_only_no_error():
+    """scumble_pass() with figure_only=True and a mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.scumble_pass(opacity=0.20, n_drags=80, drag_distance=8, figure_only=True)

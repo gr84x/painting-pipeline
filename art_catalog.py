@@ -1677,6 +1677,60 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Édouard Vuillard ──────────────────────────────────────────────────────
+    "vuillard": ArtStyle(
+        artist="Édouard Vuillard",
+        movement="Nabis / Post-Impressionist Intimisme",
+        nationality="French",
+        period="1890–1940",
+        palette=[
+            (0.72, 0.55, 0.46),   # dusty rose — characteristic Vuillard warm mid-tone
+            (0.42, 0.45, 0.32),   # muted olive green — foliage and fabric
+            (0.52, 0.30, 0.28),   # subdued burgundy / madder — textile shadows
+            (0.74, 0.67, 0.48),   # warm ochre — linen and skin in even light
+            (0.22, 0.22, 0.30),   # dark blue-grey — wall shadows and deep interior
+            (0.62, 0.52, 0.56),   # dusty mauve — wallpaper mid-ground
+            (0.36, 0.28, 0.18),   # deep warm brown — wooden furniture and outlines
+            (0.84, 0.79, 0.68),   # pale cream — highlight passages and table linen
+        ],
+        ground_color=(0.60, 0.54, 0.44),    # warm buff — mid-toned chalky ground
+        stroke_size=7,
+        wet_blend=0.12,                      # low — chalky matte surface, zones stay flat
+        edge_softness=0.28,                  # low-moderate — edges present but absorbed
+        jitter=0.055,                        # high — surface patterning is uniform chaos
+        glazing=None,                        # no unifying glaze — matte throughout
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Intimisme: flat chalky zones of muted colour applied in dense, uniform "
+            "short marks that cover figure and background with equal intensity. "
+            "Figures do not stand out from their setting but dissolve into it — "
+            "a woman's dress pattern merges with the wallpaper behind her. "
+            "Inspired by Japanese woodblock prints (flat colour, bold silhouette) "
+            "but translated into a scumbled, chalky oil-paint surface. "
+            "No strong tonal modelling — the picture plane is uniformly activated. "
+            "Light is diffuse, interior, and sourceless. Palette is muted and warm: "
+            "dusty roses, olive greens, subdued crimsons, warm ochres — never pure "
+            "primaries. The overall key is mid-value; no extreme lights or darks."
+        ),
+        famous_works=[
+            ("Mother and Sister of the Artist", "1893"),
+            ("The Suitor", "1893"),
+            ("Interior, Mother and Sister", "c. 1893"),
+            ("Luncheon", "c. 1901"),
+            ("The Artist's Paint Box and Moss Roses", "1898"),
+        ],
+        inspiration=(
+            "Use flat_plane_pass() with high jitter to scatter short marks uniformly "
+            "across both figure and background. background_pass() should use the same "
+            "stroke_size as the figure — the intimiste effect depends on equal treatment "
+            "of all surfaces. scumble_pass() (dry-brush drag) over the finished surface "
+            "replicates the chalky, slightly rough matte quality of Vuillard's distemper "
+            "and oil-on-cardboard technique. No final glaze — the surface must stay matte. "
+            "Palette: dusty rose, olive green, subdued burgundy, warm ochre, mauve."
+        ),
+    ),
+
 }
 
 
