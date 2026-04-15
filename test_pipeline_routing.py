@@ -2159,12 +2159,13 @@ def test_tonal_compression_pass_lifts_darks():
     p   = _make_small_painter(64, 64)
     p.tone_ground((0.02, 0.01, 0.01), texture_strength=0.0)
 
-    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    W_, H_ = 64, 64
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy().reshape(H_, W_, -1)
     min_before = before[:, :, :3].min()  # minimum across RGB channels
 
     p.tonal_compression_pass(shadow_lift=0.06, highlight_compress=1.0,
                               midtone_contrast=0.0)
-    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy().reshape(H_, W_, -1)
     min_after = after[:, :, :3].min()
 
     assert min_after >= min_before, (
@@ -2179,12 +2180,13 @@ def test_tonal_compression_pass_compresses_highlights():
     # Near-white canvas
     p.tone_ground((0.98, 0.97, 0.96), texture_strength=0.0)
 
-    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    W_, H_ = 64, 64
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy().reshape(H_, W_, -1)
     max_before = before[:, :, :3].max()
 
     p.tonal_compression_pass(shadow_lift=0.0, highlight_compress=0.90,
                               midtone_contrast=0.0)
-    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy().reshape(H_, W_, -1)
     max_after = after[:, :, :3].max()
 
     # Maximum should not exceed what we started with (compression never adds brightness)
