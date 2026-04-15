@@ -187,6 +187,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_symbolist":                  period == Period.SYMBOLIST,
         "is_florentine_renaissance":     period == Period.FLORENTINE_RENAISSANCE,
         "is_northern_renaissance":       period == Period.NORTHERN_RENAISSANCE,
+        "is_quattrocento":               period == Period.QUATTROCENTO,
         "is_renaissance_soft":           (period == Period.RENAISSANCE
                                           and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -4254,3 +4255,108 @@ def test_northern_renaissance_crisp_edges():
     assert sp["edge_softness"] <= 0.25, (
         f"NORTHERN_RENAISSANCE edge_softness should be ≤ 0.25 (engraving-crisp); "
         f"got {sp['edge_softness']:.3f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# hatching_pass — randomly selected artistic improvement for this session
+# Fra Angelico tempera-hatching technique
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_hatching_pass_exists():
+    """Painter must have hatching_pass() method after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hatching_pass"), (
+        "hatching_pass not found on Painter — Fra Angelico improvement not applied")
+    assert callable(getattr(Painter, "hatching_pass"))
+
+
+def test_hatching_pass_no_error_default_args():
+    """hatching_pass() runs without error with default arguments on a small canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.90, 0.85), texture_strength=0.04)
+    p.hatching_pass(ref, n_strokes=120)
+
+
+def test_hatching_pass_with_cross_hatch_disabled():
+    """hatching_pass() runs without error when cross_hatch=False."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.90, 0.85), texture_strength=0.04)
+    p.hatching_pass(ref, n_strokes=80, cross_hatch=False)
+
+
+def test_hatching_pass_modifies_canvas():
+    """hatching_pass() must modify the canvas pixel data (strokes are applied)."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.90, 0.85), texture_strength=0.04)
+
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.hatching_pass(ref, n_strokes=400,
+                    dark_color=(0.18, 0.12, 0.06),
+                    shadow_thresh=0.80)   # high threshold → strokes over uniform grey
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    diff = np.abs(after - before).max()
+    assert diff > 0, (
+        "hatching_pass() made no changes to canvas — strokes must be applied")
+
+
+def test_hatching_pass_angle_parameter_accepted():
+    """hatching_pass() should accept non-default angle parameters without error."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.90, 0.85), texture_strength=0.04)
+    p.hatching_pass(ref, n_strokes=100,
+                    angle_primary=30.0, angle_cross=-60.0,
+                    cross_hatch=True)
+
+
+def test_hatching_pass_large_canvas_no_error():
+    """hatching_pass() must complete without error on a moderate-size canvas."""
+    p   = _make_small_painter(128, 160)
+    ref = _solid_reference(128, 160)
+    p.tone_ground((0.92, 0.90, 0.85), texture_strength=0.04)
+    p.hatching_pass(ref, n_strokes=300, cross_hatch=True)
+
+
+# ── QUATTROCENTO routing ──────────────────────────────────────────────────────
+
+def test_quattrocento_routing_flag_set():
+    """is_quattrocento must be True exactly for QUATTROCENTO period."""
+    flags = _routing_flags(Period.QUATTROCENTO)
+    assert flags["is_quattrocento"], (
+        "is_quattrocento should be True for Period.QUATTROCENTO")
+
+
+def test_quattrocento_flag_not_set_for_other_periods():
+    """is_quattrocento must be False for all periods except QUATTROCENTO."""
+    for period in Period:
+        if period == Period.QUATTROCENTO:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_quattrocento"], (
+            f"is_quattrocento should be False for {period.name}")
+
+
+def test_quattrocento_stroke_params_valid():
+    """QUATTROCENTO stroke_params must have all required keys and valid ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.QUATTROCENTO,
+               palette=PaletteHint.COOL_GREY).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"QUATTROCENTO stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_quattrocento_mutually_exclusive_with_northern_renaissance():
+    """QUATTROCENTO and NORTHERN_RENAISSANCE must not both be True simultaneously."""
+    flags_q = _routing_flags(Period.QUATTROCENTO)
+    flags_n = _routing_flags(Period.NORTHERN_RENAISSANCE)
+    assert     flags_q["is_quattrocento"]
+    assert not flags_q["is_northern_renaissance"]
+    assert     flags_n["is_northern_renaissance"]
+    assert not flags_n["is_quattrocento"]

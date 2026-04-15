@@ -217,6 +217,7 @@ class Period(Enum):
     SYMBOLIST     = auto()           # Moreau — encrusted gold highlights, Byzantine mosaic texture, deep crimson shadow richness
     FLORENTINE_RENAISSANCE = auto()  # Botticelli — pale gesso ground, sinuous linear grace, tempera hatching, chrysographic gold filaments
     NORTHERN_RENAISSANCE = auto()    # Dürer — pale silver-white ground, cool engraving-precision, cross-hatch shadows, single-hair detail
+    QUATTROCENTO  = auto()           # Fra Angelico — chalk-white gesso, tempera hatching, pure lapis/vermilion, gold-leaf halos
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -675,6 +676,19 @@ class Style:
             # edge_softness=0.18: very crisp — Dürer's engraving background makes every
             # edge a drawn line, not the edge of a tonal gradient.  No sfumato haze.
             Period.NORTHERN_RENAISSANCE: dict(stroke_size_face=3, stroke_size_bg=16, wet_blend=0.20, edge_softness=0.18),
+            # Quattrocento (Fra Angelico): egg-tempera on chalk-white gesso panel.
+            # stroke_size_face=3: the finest hatching strokes — tempera requires the brush
+            # to be nearly dry, so each mark is a precise calligraphic hair-width stroke.
+            # Form is built by increasing hatch density, not by blending.
+            # stroke_size_bg=14: moderate — architectural niches and celestial backgrounds
+            # are also rendered with fine tempera marks, not loose washes; gold-leaf areas
+            # bypass the stroke system entirely (applied as a glaze pass).
+            # wet_blend=0.04: almost zero — egg tempera dries in seconds on gesso; each
+            # hatch layer must dry before the next is applied.  Form emerges from layering,
+            # never from wet-on-wet mixing.
+            # edge_softness=0.15: crisp, present outlines — the Gothic-influenced contour
+            # line defines every figure; no sfumato; edges are drawn, not tonal gradients.
+            Period.QUATTROCENTO:  dict(stroke_size_face=3, stroke_size_bg=14, wet_blend=0.04, edge_softness=0.15),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

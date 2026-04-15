@@ -3044,6 +3044,67 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Fra Angelico ──────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Fra Angelico (c. 1395–1455) — "Beato Angelico" — bridges the International
+    # Gothic and Early Renaissance.  His tempera technique on white gesso panels
+    # produces an unmatched luminous purity: mineral pigments (lapis lazuli,
+    # vermilion, lead white) remain undimmed by the warm amber varnishes that
+    # characterise later oil-based schools.  Gold leaf halos and sky-blue
+    # mandorlas glow with a supernatural intensity.  Forms are outlined with
+    # a confident, gentle contour; flesh is built up in thin, parallel
+    # hatching strokes rather than blended wet-on-wet.  The result is at once
+    # archaic (flat, icon-like gold zones) and surprisingly modern: the colour
+    # relationships are radically pure and the serene, otherworldly mood
+    # is achieved entirely through palette and composition.
+    "fra_angelico": ArtStyle(
+        artist="Fra Angelico (Guido di Pietro)",
+        movement="International Gothic / Quattrocento",
+        nationality="Italian",
+        period="c. 1418–1455",
+        palette=[
+            (0.94, 0.88, 0.68),   # lead-white highlight — pure gesso luminosity
+            (0.82, 0.65, 0.45),   # warm ivory flesh — tempera skin mid-tone
+            (0.48, 0.36, 0.22),   # raw sienna — flesh shadow hatching
+            (0.18, 0.38, 0.72),   # lapis lazuli blue — celestial robes / sky
+            (0.88, 0.22, 0.18),   # vermilion red — angels / robes
+            (0.85, 0.72, 0.12),   # gold leaf — halos / borders
+            (0.38, 0.55, 0.32),   # verdigris green — secondary drapery
+            (0.90, 0.85, 0.75),   # pale gesso ground — showing between strokes
+        ],
+        ground_color=(0.96, 0.94, 0.88),    # chalk-white gesso panel — brilliant, not warm
+        stroke_size=4,
+        wet_blend=0.05,                      # tempera dries almost instantly — no wet blending
+        edge_softness=0.22,                  # gentle contour edges, no sfumato
+        jitter=0.018,
+        glazing=None,                        # no unifying amber glaze — colours stay pure
+        crackle=True,                        # aged tempera panel crackle
+        chromatic_split=False,
+        technique=(
+            "Egg-tempera on chalk-white gesso panel.  Forms built up by fine parallel "
+            "hatching strokes (piani di colore) rather than wet blending.  Each stroke "
+            "is dragged over a dry previous layer, building tonal depth through hatching "
+            "density rather than impasto or sfumato.  Gold leaf applied on bole and "
+            "burnished to a mirror finish for halos and architectural ornament.  Colour "
+            "zones remain flat and pure — lapis remains deep blue without glaze warmth; "
+            "vermilion remains chromatic and undimmed.  The pale gesso ground acts as "
+            "its own source of light, glowing between the hatching strokes."
+        ),
+        famous_works=[
+            ("Annunciation (San Marco fresco)", "c. 1438–1447"),
+            ("Coronation of the Virgin (Uffizi)", "c. 1432"),
+            ("The Last Judgement", "c. 1432–1435"),
+            ("Madonna of Humility (Prado)", "c. 1433–1435"),
+        ],
+        inspiration=(
+            "Use white gesso ground (ground_color near white).  hatching_pass() for "
+            "building tonal form — fine parallel strokes at ~45° over dry layers.  "
+            "Zero wet_blend.  Preserve colour purity: no amber glaze.  "
+            "Gold highlight zones via place_lights() with (0.88, 0.72, 0.12) gold.  "
+            "Gentle contour outlines via thin dark hatch lines at figure edges."
+        ),
+    ),
+
 }
 
 
