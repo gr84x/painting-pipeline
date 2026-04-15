@@ -29,6 +29,7 @@ import cairo
 from PIL import Image, ImageFilter
 from scipy import ndimage
 from noise import pnoise2
+from art_utils import Composition
 
 Color = Tuple[float, float, float]
 
@@ -733,6 +734,10 @@ class Painter:
         # Normal map: (H, W, 3) float32 in [-1, 1], world-space normals.
         # Set via set_normal_map() before toon passes.
         self._normal_map: Optional[np.ndarray] = None
+        # Composition weight map: (H, W) float32 — relative stroke placement bias.
+        # Built via _build_composition_map() and stored here so _place_strokes()
+        # picks it up automatically without requiring every call site to pass it.
+        self._comp_map: Optional[np.ndarray] = None
 
     # ── Mask management ───────────────────────────────────────────────────────
 
@@ -3399,17 +3404,382 @@ class Painter:
         alph = ref[:, :, 3:4]
         return np.concatenate([rgb, alph], axis=2)
 
+    # ── Composition helpers ───────────────────────────────────────────────────
+
+    def _build_composition_map(self,
+                               focal_xy: tuple = None,
+                               strength: float = 0.6) -> np.ndarray:
+        """
+        Build a composition weight map with soft peaks at rule-of-thirds and
+        golden-ratio intersections, plus a focal point boost.
+
+        Returns a (H, W) float32 array where values > 1.0 attract strokes and
+        values < 1.0 repel them.  Mean is normalised to 1.0 so the map is a
+        relative bias, not an absolute scale.
+
+        Parameters
+        ----------
+        focal_xy : (x, y) normalised focal point.  If provided, an extra
+                   stronger Gaussian is added at that position.
+        strength : 0 = no bias (returns uniform 1.0); 1 = full bias.
+        """
+        w, h = self.w, self.h
+        cmap = np.ones((h, w), dtype=np.float32)
+
+        if strength < 1e-6:
+            return cmap
+
+        comp   = Composition(w, h)
+        thirds = comp.thirds()
+        golden = comp.golden()
+        sigma  = min(w, h) * 0.12
+
+        # Rule-of-thirds intersections: (x1,y1), (x1,y2), (x2,y1), (x2,y2)
+        thirds_pts = [
+            (thirds['x1'], thirds['y1']),
+            (thirds['x1'], thirds['y2']),
+            (thirds['x2'], thirds['y1']),
+            (thirds['x2'], thirds['y2']),
+        ]
+        # Golden-ratio intersection: single point
+        golden_pts = [(golden['x'], golden['y'])]
+
+        ys, xs = np.ogrid[:h, :w]
+
+        for px, py in thirds_pts + golden_pts:
+            bump = np.exp(-((xs - px) ** 2 + (ys - py) ** 2) / (2.0 * sigma ** 2))
+            cmap += bump.astype(np.float32)
+
+        # Optional focal-point boost — stronger, tighter Gaussian
+        if focal_xy is not None:
+            fx = focal_xy[0] * w
+            fy = focal_xy[1] * h
+            sigma_f = min(w, h) * 0.08
+            focal_bump = 1.5 * np.exp(
+                -((xs - fx) ** 2 + (ys - fy) ** 2) / (2.0 * sigma_f ** 2)
+            )
+            cmap += focal_bump.astype(np.float32)
+
+        # Lerp between uniform 1.0 and the biased map according to strength
+        cmap = 1.0 + (cmap - 1.0) * strength
+
+        # Normalise so the mean is 1.0 — preserves overall stroke density
+        mean = cmap.mean()
+        if mean > 1e-9:
+            cmap /= mean
+
+        # Clip: never suppress strokes entirely; never over-concentrate
+        cmap = np.clip(cmap, 0.5, 3.0)
+        return cmap.astype(np.float32)
+
+    def _derive_focal_xy(self) -> tuple:
+        """
+        Derive the focal point as normalised (x, y) from the figure mask.
+
+        Uses the centroid of the top 40% of the figure mask, which typically
+        captures the head and upper-chest region.  Falls back to (0.50, 0.35)
+        when no figure mask is loaded.
+        """
+        if self._figure_mask is None:
+            return (0.50, 0.35)
+
+        h, w = self._figure_mask.shape[:2]
+
+        # Resize mask to canvas dimensions if needed
+        if h != self.h or w != self.w:
+            from PIL import Image as _PILImg
+            m_img = _PILImg.fromarray((self._figure_mask * 255).astype(np.uint8))
+            m_img = m_img.resize((self.w, self.h), _PILImg.NEAREST)
+            mask = np.array(m_img, dtype=np.float32) / 255.0
+            h, w = self.h, self.w
+        else:
+            mask = self._figure_mask
+
+        # Crop to the top 40% of the canvas — head / upper-chest zone
+        crop_h = int(h * 0.40)
+        top_mask = mask[:crop_h, :]
+
+        ys_nz, xs_nz = np.nonzero(top_mask > 0.5)
+        if ys_nz.size == 0:
+            # No figure pixels in the top region — fall back to default
+            return (0.50, 0.35)
+
+        cx = float(xs_nz.mean()) / w
+        cy = float(ys_nz.mean()) / h
+        return (cx, cy)
+
+    # ── Atmospheric passes ────────────────────────────────────────────────────
+
+    def _atmosphere_fog_pass(self,
+                             atmosphere: float,
+                             fog_color:  tuple = (0.85, 0.88, 0.92)):
+        """
+        Apply atmospheric haze to background pixels only.
+
+        atmosphere : 0.0 = clear, 1.0 = heavy fog.
+        fog_color  : RGB (float) of the haze colour.  Default is a cool
+                     atmospheric blue-grey reminiscent of aerial perspective.
+
+        Only modifies pixels outside the figure mask.  If no mask is set,
+        the haze is applied uniformly (background-only behaviour is preserved
+        wherever a mask exists).
+        """
+        if atmosphere < 0.01:
+            return
+
+        print(f"  Atmosphere fog pass  (atmosphere={atmosphere:.2f}  "
+              f"fog={fog_color})")
+
+        h, w = self.h, self.w
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        # Cairo ARGB32 stores pixels as BGRA in memory
+        R = buf[:, :, 2].astype(np.float32) / 255.0
+        G = buf[:, :, 1].astype(np.float32) / 255.0
+        B = buf[:, :, 0].astype(np.float32) / 255.0
+
+        # Background mask: 1.0 where no figure, 0.0 over figure
+        if self._figure_mask is not None:
+            fig = self._figure_mask
+            if fig.shape != (h, w):
+                from PIL import Image as _PILImg
+                m_img = _PILImg.fromarray((fig * 255).astype(np.uint8))
+                fig = np.array(m_img.resize((w, h), _PILImg.NEAREST),
+                               dtype=np.float32) / 255.0
+            bg_mask = 1.0 - fig
+        else:
+            bg_mask = np.ones((h, w), dtype=np.float32)
+
+        # Blend coefficient: atmosphere * bg_mask, scaled to 0.7 max
+        t = np.clip(atmosphere * bg_mask * 0.7, 0.0, 1.0)
+
+        fr, fg, fb = fog_color
+
+        # Slight Gaussian blur in background only — depth-of-field haze
+        if atmosphere > 0.05:
+            sigma = atmosphere * 2.5
+            R_blurred = ndimage.gaussian_filter(R, sigma=sigma)
+            G_blurred = ndimage.gaussian_filter(G, sigma=sigma)
+            B_blurred = ndimage.gaussian_filter(B, sigma=sigma)
+            # Only use blurred values in background region
+            R = R + bg_mask * (R_blurred - R)
+            G = G + bg_mask * (G_blurred - G)
+            B = B + bg_mask * (B_blurred - B)
+
+        # Blend toward fog colour in background
+        R_out = R * (1.0 - t) + fr * t
+        G_out = G * (1.0 - t) + fg * t
+        B_out = B * (1.0 - t) + fb * t
+
+        # Write back (BGRA layout)
+        buf[:, :, 2] = np.clip(R_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(G_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(B_out * 255, 0, 255).astype(np.uint8)
+
+        surface_data = self.canvas.surface.get_data()
+        surface_buf  = np.frombuffer(surface_data, dtype=np.uint8).reshape(h, w, 4)
+        surface_buf[:] = buf
+
+    def background_environment_pass(self,
+                                     ref:         np.ndarray,
+                                     env_type:    str,
+                                     description: str   = "",
+                                     atmosphere:  float = 0.0):
+        """
+        Paint an environment-specific background behind the figure.
+
+        Strokes are placed only in the background region (outside the figure
+        mask).  If no figure mask is loaded the pass has no effect.
+
+        Parameters
+        ----------
+        ref         : Reference image array (H, W, 3/4 uint8).
+        env_type    : One of 'INTERIOR', 'EXTERIOR', 'LANDSCAPE', 'ABSTRACT'.
+        description : Optional scene description (not used by current branches
+                      but available for future narrative-driven colour sampling).
+        atmosphere  : 0.0 = clear, 1.0 = heavy fog.  Passed to
+                      _atmosphere_fog_pass() after painting.
+        """
+        if self._figure_mask is None:
+            return
+
+        print(f"  Background environment pass  (env_type={env_type}  "
+              f"atmosphere={atmosphere:.2f})")
+
+        ref_arr = self._prep(ref)
+        h, w    = self.h, self.w
+        bg_mask = 1.0 - self._figure_mask
+
+        rarr = ref_arr[:, :, :3].astype(np.float32) / 255.0
+
+        if env_type == "INTERIOR":
+            # Warm, enclosed space: architectural recession lines + floor gradient
+            # + ambient warm light on one side.
+
+            # Large atmospheric strokes in warm shadow tones
+            self._place_strokes(
+                ref_arr,
+                stroke_size  = 75,
+                n_strokes    = 40,
+                opacity      = 0.30,
+                wet_blend    = 0.10,
+                jitter_amt   = 0.025,
+                curvature    = 0.02,
+                tip          = BrushTip(BrushTip.FLAT),
+                stroke_mask  = bg_mask,
+            )
+
+            # Floor plane suggestion — horizontal gradient darkening at bottom third.
+            # We paint opaque dark strokes across the lower background region.
+            floor_mask = bg_mask.copy()
+            floor_y0 = int(h * 0.65)
+            floor_mask[:floor_y0, :] = 0.0   # only active below 65% height
+
+            buf = np.frombuffer(self.canvas.surface.get_data(),
+                                dtype=np.uint8).reshape(h, w, 4).copy()
+            for row in range(floor_y0, h):
+                # Darkening ramp: 0 at floor_y0, max at bottom
+                t_floor = (row - floor_y0) / max(1, h - floor_y0)
+                darken  = t_floor * 0.18
+                for ch, bgra_idx in ((0, 2), (1, 1), (2, 0)):
+                    col_arr = buf[row, :, bgra_idx].astype(np.float32) / 255.0
+                    col_arr = np.clip(col_arr * (1.0 - darken * bg_mask[row, :]),
+                                      0.0, 1.0)
+                    buf[row, :, bgra_idx] = (col_arr * 255).astype(np.uint8)
+            surface_data = self.canvas.surface.get_data()
+            surface_buf  = np.frombuffer(surface_data,
+                                         dtype=np.uint8).reshape(h, w, 4)
+            surface_buf[:] = buf
+
+            # Warm ambient light on left side — lighter strokes on the left
+            left_mask = bg_mask.copy()
+            left_mask[:, w//2:] = 0.0    # left half only
+            self._place_strokes(
+                ref_arr,
+                stroke_size  = 85,
+                n_strokes    = 20,
+                opacity      = 0.25,
+                wet_blend    = 0.12,
+                jitter_amt   = 0.020,
+                curvature    = 0.03,
+                tip          = BrushTip(BrushTip.FLAT),
+                stroke_mask  = left_mask,
+                override_color = (0.78, 0.64, 0.45),   # warm amber ambient
+            )
+
+        elif env_type in ("EXTERIOR", "LANDSCAPE"):
+            # Sky / horizon / ground three-zone treatment.
+
+            sky_mask    = bg_mask.copy()
+            horizon_mask = bg_mask.copy()
+            ground_mask  = bg_mask.copy()
+
+            sky_y1     = int(h * 0.45)
+            horizon_y0 = int(h * 0.40)
+            horizon_y1 = int(h * 0.55)
+            ground_y0  = int(h * 0.55)
+
+            sky_mask[sky_y1:, :]     = 0.0
+            horizon_mask[:horizon_y0, :] = 0.0
+            horizon_mask[horizon_y1:, :] = 0.0
+            ground_mask[:ground_y0, :]   = 0.0
+
+            # Sky: broad horizontal strokes, light airy tones
+            sky_color = (0.62, 0.76, 0.88)   # pale blue sky
+            self._place_strokes(
+                ref_arr,
+                stroke_size   = 90,
+                n_strokes     = 10,
+                opacity       = 0.35,
+                wet_blend     = 0.14,
+                jitter_amt    = 0.018,
+                curvature     = 0.01,
+                tip           = BrushTip(BrushTip.FLAT),
+                stroke_mask   = sky_mask,
+                override_color = sky_color,
+            )
+
+            # Horizon: atmospheric haze blending sky into ground
+            horizon_color = (0.72, 0.74, 0.70)   # neutral mid-tone haze
+            self._place_strokes(
+                ref_arr,
+                stroke_size   = 80,
+                n_strokes     = 6,
+                opacity       = 0.30,
+                wet_blend     = 0.16,
+                jitter_amt    = 0.020,
+                curvature     = 0.01,
+                tip           = BrushTip(BrushTip.FLAT),
+                stroke_mask   = horizon_mask,
+                override_color = horizon_color,
+            )
+
+            # Ground: darker, warmer strokes
+            ground_color = (0.42, 0.38, 0.28)   # earth tone
+            self._place_strokes(
+                ref_arr,
+                stroke_size   = 80,
+                n_strokes     = 8,
+                opacity       = 0.38,
+                wet_blend     = 0.12,
+                jitter_amt    = 0.022,
+                curvature     = 0.02,
+                tip           = BrushTip(BrushTip.FLAT),
+                stroke_mask   = ground_mask,
+                override_color = ground_color,
+            )
+
+            # LANDSCAPE only: atmospheric mid-tone suggesting distant hills
+            if env_type == "LANDSCAPE":
+                hill_mask = bg_mask.copy()
+                hill_y0 = int(h * 0.40)
+                hill_y1 = int(h * 0.50)
+                hill_mask[:hill_y0, :] = 0.0
+                hill_mask[hill_y1:, :] = 0.0
+                hill_color = (0.48, 0.56, 0.50)   # cool atmospheric hill green
+                self._place_strokes(
+                    ref_arr,
+                    stroke_size   = 70,
+                    n_strokes     = 5,
+                    opacity       = 0.40,
+                    wet_blend     = 0.14,
+                    jitter_amt    = 0.025,
+                    curvature     = 0.04,
+                    tip           = BrushTip(BrushTip.FLAT),
+                    stroke_mask   = hill_mask,
+                    override_color = hill_color,
+                )
+
+        else:
+            # ABSTRACT / fallback: large atmospheric strokes, no theme.
+            self._place_strokes(
+                ref_arr,
+                stroke_size = 60,
+                n_strokes   = 60,
+                opacity     = 0.40,
+                wet_blend   = 0.10,
+                jitter_amt  = 0.020,
+                curvature   = 0.04,
+                tip         = BrushTip(BrushTip.FLAT),
+                stroke_mask = bg_mask,
+            )
+
+        # Apply atmospheric fog on top of the painted background
+        if atmosphere > 0.01:
+            self._atmosphere_fog_pass(atmosphere)
+
     def _place_strokes(self,
-                       ref:            np.ndarray,
-                       stroke_size:    float,
-                       n_strokes:      int,
-                       opacity:        float,
-                       wet_blend:      float,
-                       jitter_amt:     float,
-                       curvature:      float,
-                       tip:            BrushTip,
-                       stroke_mask:    Optional[np.ndarray] = None,
-                       override_color: Optional[Color]      = None):
+                       ref:              np.ndarray,
+                       stroke_size:      float,
+                       n_strokes:        int,
+                       opacity:          float,
+                       wet_blend:        float,
+                       jitter_amt:       float,
+                       curvature:        float,
+                       tip:              BrushTip,
+                       stroke_mask:      Optional[np.ndarray] = None,
+                       override_color:   Optional[Color]      = None,
+                       composition_map:  Optional[np.ndarray] = None):
         """
         Core stroke placement loop.
         Positions are sampled from the error map (canvas vs reference)
@@ -3427,6 +3797,14 @@ class Painter:
         override_color — optional fixed RGB (float, float, float) in [0, 1].
             When set, ALL strokes use this colour instead of sampling from
             the reference.  Used by toon_paint() for flat cel-shading passes.
+
+        composition_map — optional (H, W) float32 weight array.  When
+            provided, multiplied into the error map after region masking so
+            stroke placement is biased toward compositionally significant areas
+            (rule-of-thirds / golden-ratio intersections, focal point).  A
+            value of 1.0 is neutral; values > 1.0 attract strokes; values
+            < 1.0 repel strokes.  If None and self._comp_map is set, that
+            stored map is used automatically.
         """
         rarr = ref[:, :, :3].astype(np.float32) / 255.0
         h, w = ref.shape[:2]
@@ -3451,6 +3829,12 @@ class Painter:
             err = err * eroded.astype(np.float32)
             # Also store the (un-eroded) mask for per-segment clipping
             region_mask_for_draw = stroke_mask.astype(np.float32)
+
+        # Composition map — bias stroke placement toward significant anchor areas.
+        # Falls back to self._comp_map if no per-call map is given.
+        _cmap = composition_map if composition_map is not None else self._comp_map
+        if _cmap is not None:
+            err = err * _cmap
 
         err_flat = err.flatten()
         total = err_flat.sum()
