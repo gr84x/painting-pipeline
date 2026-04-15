@@ -557,9 +557,10 @@ def scene_to_painting(
     is_neoclassical      = (scene.style.period == Period.NEOCLASSICAL)
     is_nordic_impressionist = (scene.style.period == Period.NORDIC_IMPRESSIONIST)
     is_impressionist_plein_air = (scene.style.period == Period.IMPRESSIONIST_PLEIN_AIR)
-    is_post_impressionist  = (scene.style.period == Period.POST_IMPRESSIONIST)
-    is_pre_raphaelite      = (scene.style.period == Period.PRE_RAPHAELITE)
-    is_symbolist           = (scene.style.period == Period.SYMBOLIST)
+    is_post_impressionist     = (scene.style.period == Period.POST_IMPRESSIONIST)
+    is_pre_raphaelite         = (scene.style.period == Period.PRE_RAPHAELITE)
+    is_symbolist              = (scene.style.period == Period.SYMBOLIST)
+    is_florentine_renaissance = (scene.style.period == Period.FLORENTINE_RENAISSANCE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2532,6 +2533,87 @@ def scene_to_painting(
             print(_feedback.summary())
         # Heavy vignette + crackle — Moreau's large mythological canvases are museum-aged.
         p.finish(vignette=0.42, crackle=True)
+
+    elif is_florentine_renaissance:
+        # ── Florentine Renaissance pipeline (Sandro Botticelli technique) ────
+        # Botticelli worked in egg tempera on brilliantly white gessoed poplar
+        # panels.  His defining qualities are:
+        #
+        #   1. Pale brilliant gesso ground — no dark imprimatura; the white ground
+        #      glows through every thin tempera wash, providing all highlights
+        #      automatically.  tone_ground() with near-white cream.
+        #   2. Fine underpainting — verdaccio (grey-green underpainting) is typical
+        #      of Florentine tempera.  underpainting() with desaturated values.
+        #   3. Patient form-building with very fine strokes — tempera marks are
+        #      the finest of any painting medium; build_form() with smallest marks.
+        #   4. botticelli_linear_grace_pass() — the defining technique:
+        #      parallel directional hatching along contour edges (building form
+        #      in the absence of wet blending), chrysographic gold filaments
+        #      through hair/fabric highlights, and a pale gesso luminosity lift.
+        #   5. tonal_envelope_pass() — portrait luminosity gradient that brightens
+        #      the composition center with warm amber light and slightly darkens
+        #      the periphery; simulates the final tonal management Renaissance
+        #      painters applied before varnishing.
+        #   6. Lights placed with warm ivory — Botticelli's lit passages glow
+        #      through the pale ground rather than sitting on top as impasto.
+        #   7. Light vignette + prominent crackle — 550-year-old gessoed panels
+        #      show extensive craquelure that runs through the entire paint film.
+        botticelli_style = _ART_CATALOG.get("botticelli")
+        ground_col = botticelli_style.ground_color if botticelli_style else (0.94, 0.91, 0.85)
+
+        # Pale gesso ground — the luminous underpinning of all Florentine tempera.
+        p.tone_ground(ground_col, texture_strength=0.03)
+
+        # Verdaccio underpainting — Florentine tradition: grey-green value structure.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.1), n_strokes=90)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=200)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_face"]),       n_strokes=750)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.tonal_compression_pass(shadow_lift=0.05, highlight_compress=0.95,
+                                         midtone_contrast=0.03)
+
+        # Core Botticelli technique: directional hatch marks + gold filaments.
+        p.botticelli_linear_grace_pass(
+            ref,
+            hatch_density   = 0.022,
+            hatch_length    = 12.0,
+            hatch_opacity   = 0.52,
+            gold_density    = 0.012,
+            gold_tint       = (0.88, 0.72, 0.24),
+            gold_opacity    = 0.68,
+            luminosity_lift = 0.06,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "botticelli_linear_grace_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.88, 0.80, 0.62), opacity=0.04)   # pale warm tint
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.04, highlight_compress=0.96,
+                                             midtone_contrast=0.02)
+
+        # Tonal envelope: warm portrait-center luminosity gradient.
+        p.tonal_envelope_pass(
+            center_x      = 0.50,
+            center_y      = 0.32,
+            radius        = 0.45,
+            lift_strength = 0.08,
+            lift_warmth   = 0.30,
+            edge_darken   = 0.06,
+            gamma         = 1.8,
+        )
+
+        # Final lights — warm ivory, not brilliant white (tempera does not use impasto).
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=180)
+
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Light vignette + prominent crackle — aged tempera panels.
+        p.finish(vignette=0.20, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

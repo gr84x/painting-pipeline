@@ -10361,3 +10361,342 @@ class Painter:
 
         print(f"    Moreau gilded pass complete  "
               f"(gold fragments placed: {n_scatter if eligible_indices.shape[0] > 0 else 0})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # botticelli_linear_grace_pass — Florentine Renaissance tempera technique
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def botticelli_linear_grace_pass(
+            self,
+            reference,
+            hatch_density:   float = 0.022,
+            hatch_length:    float = 12.0,
+            hatch_opacity:   float = 0.55,
+            gold_density:    float = 0.012,
+            gold_tint:       tuple = (0.88, 0.72, 0.24),
+            gold_opacity:    float = 0.70,
+            luminosity_lift: float = 0.06,
+    ):
+        """
+        Simulates Sandro Botticelli's Florentine tempera hatching technique.
+
+        Botticelli's tempera-on-gesso method is the structural opposite of
+        Leonardo's sfumato: form is built entirely through fine *parallel
+        hatching* strokes laid from the contour inward, and through
+        *chrysographic gold filaments* (fine shell-gold marks) scattered
+        through hair, drapery highlights, and botanical detail.  No wet
+        blending occurs — egg tempera dries in seconds.
+
+        This pass replicates three distinct aspects of his technique:
+
+        1. **Directional contour hatching** — Edge-gradient detection (Sobel)
+           identifies the contour zones where Botticelli drew his defining
+           lines.  Short parallel hatch-marks are drawn *along* the gradient
+           direction at detected edges, simulating the fine parallel strokes
+           he used to build tonal transitions in the absence of blending.
+           Hatch marks are slightly darker than the local pixel, replicating
+           the characteristic shadow-building of his tempera hatching.
+
+        2. **Chrysographic gold filaments** — A stochastic scatter of bright
+           gold-tinted marks in the upper-midtone to highlight luminance
+           band replicates the shell-gold filaments he applied to hair, fabric
+           folds, and botanical elements.  These are drawn as tiny horizontal
+           dashes rather than single points, distinguishing them from the
+           Moreau-style gold fragments (which are points).
+
+        3. **Luminosity lift** — A global brightness boost simulates the pale
+           white gesso ground showing through thin tempera washes.  Botticelli's
+           panels glow with an internal light absent from dark-ground oil painting.
+           The lift is applied as an additive blend toward white, strongest in the
+           midtone and highlight zones where paint is thinnest.
+
+        Parameters
+        ----------
+        reference      : PIL Image or ndarray — the reference to draw from.
+        hatch_density  : Fraction of edge-zone pixels receiving hatch marks.
+                         0.015–0.030: enough to read as fine hatching without
+                         covering the underlying paint.
+        hatch_length   : Length of each hatch mark in pixels (8–18).
+                         Botticelli's marks were short, precise, and directional.
+        hatch_opacity  : Opacity of hatch marks (0.35–0.70).
+                         High enough to read as deliberate marks; low enough to
+                         layer transparently like real tempera.
+        gold_density   : Fraction of eligible midtone/highlight pixels receiving
+                         a gold filament.  0.008–0.018 replicates the delicate
+                         chrysographic density of his hair and drapery treatment.
+        gold_tint      : RGB tuple for the chrysographic gold colour.
+                         (0.88, 0.72, 0.24) is warm shell gold — slightly darker
+                         and warmer than Moreau's burnished gold.
+        gold_opacity   : Opacity of gold filaments (0.55–0.80).
+        luminosity_lift: Global brightness additive for gesso-ground simulation.
+                         0.04–0.08 is sufficient — the lift is subtle, not bleaching.
+
+        Notes
+        -----
+        Inspired by: "Primavera" (c. 1477–82, Uffizi), "The Birth of Venus"
+        (c. 1485, Uffizi), "Portrait of a Young Man" (c. 1480, National Gallery).
+        Technical reference: Dunkerton, Foister, Gordon, Penny, "Giotto to
+        Dürer: Early Renaissance Painting in the National Gallery" (1991);
+        Skaug, "Punch Marks from Giotto to Fra Angelico" (1994).
+        This session's randomly selected artistic improvement — sinuous contour
+        hatching as a new pipeline primitive, enabling tempera and panel-painting
+        surface effects not achievable by wet-blend or glaze-based passes.
+        """
+        import numpy as _np
+        import cairo as _cairo
+        from PIL import Image as _Img
+        from scipy.ndimage import sobel as _sobel
+
+        print(f"  Botticelli linear grace pass  "
+              f"(hatch_density={hatch_density:.3f}  gold_density={gold_density:.3f}  "
+              f"lift={luminosity_lift:.2f})")
+
+        # ── Read reference and current canvas (BGRA) ─────────────────────────
+        ref = self._prep(reference)
+        rarr = ref[:, :, :3].astype(_np.float32) / 255.0   # (H, W, 3) RGB float
+
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # Perceptual luminance
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        new_R = R.copy()
+        new_G = G.copy()
+        new_B = B.copy()
+
+        # ── Zone 1: Directional contour hatching ─────────────────────────────
+        # Compute gradient magnitude and direction via Sobel on reference lum.
+        ref_lum = (0.299 * rarr[:, :, 0]
+                   + 0.587 * rarr[:, :, 1]
+                   + 0.114 * rarr[:, :, 2])
+        gx = _sobel(ref_lum, axis=1)
+        gy = _sobel(ref_lum, axis=0)
+        grad_mag = _np.sqrt(gx**2 + gy**2)
+        grad_mag /= (grad_mag.max() + 1e-8)
+
+        # Edge zone: pixels above a gradient threshold
+        edge_zone = grad_mag > 0.12
+        edge_pixels = _np.argwhere(edge_zone)
+
+        rng = _np.random.default_rng(seed=77)
+
+        if edge_pixels.shape[0] > 0:
+            n_hatch = max(1, int(edge_pixels.shape[0] * hatch_density))
+            chosen_idx = rng.choice(edge_pixels.shape[0], size=n_hatch, replace=False)
+            chosen = edge_pixels[chosen_idx]
+
+            # Half-hatch-length for centering each mark
+            hl = max(1, int(hatch_length / 2))
+
+            for ys, xs in chosen:
+                # Gradient direction at this point (tangent = perpendicular to gradient)
+                gx_v = float(gx[ys, xs])
+                gy_v = float(gy[ys, xs])
+                norm = (gx_v**2 + gy_v**2) ** 0.5 + 1e-8
+                # Tangent direction (parallel to contour edge)
+                tx = -gy_v / norm
+                ty =  gx_v / norm
+
+                # Local darker tint — slightly below canvas colour
+                local_r = float(new_R[ys, xs]) * 0.72
+                local_g = float(new_G[ys, xs]) * 0.72
+                local_b = float(new_B[ys, xs]) * 0.72
+
+                # Draw hatch segment centered on pixel
+                for step in range(-hl, hl + 1):
+                    px = int(round(xs + tx * step))
+                    py = int(round(ys + ty * step))
+                    if 0 <= px < self.w and 0 <= py < self.h:
+                        a = hatch_opacity
+                        new_R[py, px] = new_R[py, px] * (1 - a) + local_r * a
+                        new_G[py, px] = new_G[py, px] * (1 - a) + local_g * a
+                        new_B[py, px] = new_B[py, px] * (1 - a) + local_b * a
+
+        n_hatches = n_hatch if edge_pixels.shape[0] > 0 else 0
+
+        # ── Zone 2: Chrysographic gold filaments ─────────────────────────────
+        # Eligible: upper-midtone to highlight (0.45–0.88 luminance)
+        gold_eligible = (lum >= 0.45) & (lum <= 0.88)
+        gold_pixels = _np.argwhere(gold_eligible)
+
+        n_gold = 0
+        if gold_pixels.shape[0] > 0:
+            n_gold = max(1, int(gold_pixels.shape[0] * gold_density))
+            gold_chosen = rng.choice(gold_pixels.shape[0], size=n_gold, replace=False)
+            chosen_gold = gold_pixels[gold_chosen]
+
+            gr, gg, gb = float(gold_tint[0]), float(gold_tint[1]), float(gold_tint[2])
+            filament_len = 5   # short horizontal dash simulating a pen filament
+
+            for ys, xs in chosen_gold:
+                for dx in range(-filament_len // 2, filament_len // 2 + 1):
+                    px = xs + dx
+                    if 0 <= px < self.w:
+                        a = gold_opacity
+                        new_R[ys, px] = _np.clip(new_R[ys, px] * (1 - a) + gr * a, 0, 1)
+                        new_G[ys, px] = _np.clip(new_G[ys, px] * (1 - a) + gg * a, 0, 1)
+                        new_B[ys, px] = _np.clip(new_B[ys, px] * (1 - a) + gb * a, 0, 1)
+
+        # ── Zone 3: Luminosity lift (gesso-ground simulation) ─────────────────
+        # Additive brightness boost — strongest in midtone/highlight areas where
+        # the white gesso ground would show through thin tempera paint films.
+        lift_weight = _np.clip(lum, 0.0, 1.0)   # scale lift by existing luminance
+        new_R = _np.clip(new_R + luminosity_lift * lift_weight, 0.0, 1.0)
+        new_G = _np.clip(new_G + luminosity_lift * lift_weight, 0.0, 1.0)
+        new_B = _np.clip(new_B + luminosity_lift * lift_weight, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA) ──────────────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = _cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), _cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Botticelli pass complete  "
+              f"(hatch marks: {n_hatches}  gold filaments: {n_gold})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # tonal_envelope_pass — Portrait luminosity gradient improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def tonal_envelope_pass(
+            self,
+            center_x:     Optional[float] = None,
+            center_y:     Optional[float] = None,
+            radius:       Optional[float] = None,
+            lift_strength: float = 0.10,
+            lift_warmth:   float = 0.28,
+            edge_darken:   float = 0.08,
+            gamma:         float = 1.8,
+    ):
+        """
+        Tonal envelope — radial portrait luminosity gradient.
+
+        In traditional portraiture, master painters consciously managed the
+        *tonal envelope* of the composition: the overall luminance distribution
+        that guides the viewer's eye from the peripheral darkening at the
+        canvas edges inward to the brightest zone around the sitter's face.
+        This is distinct from the finish-pass vignette (which darkens edges
+        mechanically) in that it *brightens the portrait center with warmth*
+        rather than only darkening the corners, creating a three-dimensional
+        sense of light gathering at the face.
+
+        Leonardo, Raphael, and Botticelli all used this compositional
+        luminosity management, though it operates at the level of the full
+        composition rather than individual stroke placement.  The effect is
+        most visible in Leonardo's "Lady with an Ermine" and Raphael's
+        "Baldassare Castiglione" — both have a subtle inner glow around the
+        face that cannot be explained by the depicted light source alone; it
+        is a painterly fiction that makes the face appear self-luminous.
+
+        This pass is the session's random artistic improvement: a new
+        pipeline primitive for compositional luminosity management that
+        operates globally on the canvas after all stroke passes are complete,
+        simulating the final tonal adjustments that Renaissance masters made
+        to unify the composition before varnishing.
+
+        Implementation
+        --------------
+        1. Compute a radial weight map centered on (center_x, center_y)
+           with sigmoid falloff at `radius` pixels.
+        2. In the central zone: additive warm lift toward ivory (simulating
+           the face-glow effect of reflected candlelight or window light
+           gathering at the portrait center).
+        3. At the periphery: slight cool darkening (enhancing depth and
+           framing the figure without the mechanical look of a flat vignette).
+
+        Parameters
+        ----------
+        center_x    : Horizontal centre of the luminosity envelope, as a
+                      fraction of canvas width [0, 1].  Defaults to 0.50.
+        center_y    : Vertical centre, as a fraction of canvas height [0, 1].
+                      Defaults to 0.35 (typical portrait face position).
+        radius      : Radius of the bright zone as a fraction of the shorter
+                      canvas dimension.  Defaults to 0.42 — roughly the
+                      inscribed circle within which a half-length portrait's
+                      face and hands are contained.
+        lift_strength: Maximum additive luminance in the centre zone.
+                       0.06–0.14 gives a subtle perceptible glow without
+                       bleaching the face.
+        lift_warmth  : Fraction of the lift applied as a warm amber tint
+                       (boosting R > G > B) rather than neutral white.
+                       0.20–0.40: enough warmth to simulate the characteristic
+                       amber of Renaissance candle/window light.
+        edge_darken  : Maximum luminance subtraction at the canvas corners.
+                       0.04–0.12: subtle framing, not a heavy vignette.
+        gamma        : Exponent on the radial weight — higher values create a
+                       sharper boundary between the bright centre and dark
+                       periphery.  1.5–2.5 gives a natural-looking gradient.
+        """
+        import numpy as _np
+        import cairo as _cairo
+
+        cx = center_x if center_x is not None else 0.50
+        cy = center_y if center_y is not None else 0.35
+        r  = radius   if radius   is not None else 0.42
+
+        print(f"  Tonal envelope pass  "
+              f"(centre=({cx:.2f},{cy:.2f})  r={r:.2f}  "
+              f"lift={lift_strength:.2f}  edge_darken={edge_darken:.2f})")
+
+        # ── Read canvas BGRA ──────────────────────────────────────────────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build radial weight map ───────────────────────────────────────────
+        # w=1.0 at center, 0.0 at radius, negative (edge darkening) beyond.
+        y_idx = _np.arange(self.h, dtype=_np.float32)[:, None] / self.h
+        x_idx = _np.arange(self.w, dtype=_np.float32)[None, :] / self.w
+
+        short_side = min(self.w, self.h)
+        # Elliptical distance (portrait-aware: slightly wider than tall)
+        dx = (x_idx - cx) / (r * 1.15)
+        dy = (y_idx - cy) / r
+        dist = _np.sqrt(dx**2 + dy**2)
+
+        # Central bright zone: dist < 1 → positive weight toward lift_strength
+        bright_weight = _np.clip(1.0 - dist, 0.0, 1.0) ** gamma
+
+        # Edge dark zone: dist > 1 → negative weight toward edge_darken
+        dark_weight = _np.clip(dist - 1.0, 0.0, 1.0) ** (gamma * 0.7)
+
+        # ── Apply central luminosity lift ─────────────────────────────────────
+        # Warm ivory target: more red boost than green/blue.
+        warm_r = lift_strength * (1.0 + lift_warmth * 0.40)
+        warm_g = lift_strength * (1.0 - lift_warmth * 0.08)
+        warm_b = lift_strength * (1.0 - lift_warmth * 0.35)
+
+        new_R = _np.clip(R + bright_weight * warm_r, 0.0, 1.0)
+        new_G = _np.clip(G + bright_weight * warm_g, 0.0, 1.0)
+        new_B = _np.clip(B + bright_weight * warm_b, 0.0, 1.0)
+
+        # ── Apply peripheral darkening ────────────────────────────────────────
+        # Slight cool shift (blue channel preserved more than red) to give
+        # the corners an atmospheric depth rather than flat grey.
+        new_R = _np.clip(new_R - dark_weight * edge_darken * 1.10, 0.0, 1.0)
+        new_G = _np.clip(new_G - dark_weight * edge_darken * 0.95, 0.0, 1.0)
+        new_B = _np.clip(new_B - dark_weight * edge_darken * 0.70, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = _cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), _cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print("    Tonal envelope pass complete")

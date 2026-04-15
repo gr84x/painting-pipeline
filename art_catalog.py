@@ -2751,6 +2751,98 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Sandro Botticelli ─────────────────────────────────────────────────────
+    # Florentine painter (1445–1510), the supreme master of sinuous linear grace
+    # in the Early Italian Renaissance.  Botticelli worked almost exclusively in
+    # egg tempera on gessoed poplar panels — a medium that dries in seconds,
+    # permits no wet blending, and demands that form be built entirely through
+    # transparent hatching layers rather than tonal fusion.  His two great
+    # mythological panels — Primavera (c. 1477–82) and The Birth of Venus
+    # (c. 1485) — are unmatched in Western painting for their combination of
+    # breathtaking decorative beauty and profound melancholy.  Unlike his
+    # contemporary Leonardo, Botticelli never pursued mass, volume, or shadow:
+    # his figures are defined entirely by flowing contour lines of extraordinary
+    # calligraphic sensitivity.  The sinuous S-curve of Venus's body in the
+    # Primavera is drawn, not modelled; every fold of drapery, every strand of
+    # golden hair, every petal in the floral carpet beneath the Graces is
+    # individually rendered with the patience of a miniaturist and the nerve of
+    # a master draughtsman.  His palette is clear and brilliant — no sfumato,
+    # no atmospheric haze — built on the pale white gesso ground whose luminosity
+    # shows through thin tempera washes and makes each colour appear lit from
+    # within.  Gold is applied not as leaf but as fine chrysographic filaments
+    # (parallel strokes of shell gold) in hair, drapery, and botanical detail.
+    "botticelli": ArtStyle(
+        artist     = "Sandro Botticelli",
+        movement   = "Florentine Renaissance / Early Italian Renaissance",
+        nationality= "Italian",
+        period     = "1445–1510",
+        palette    = [
+            (0.95, 0.91, 0.83),   # pale ivory — the luminous gesso ground showing through
+            (0.88, 0.72, 0.50),   # warm flesh — Botticelli's characteristic ochre midtone
+            (0.30, 0.52, 0.60),   # cerulean blue — sky and ocean in Birth of Venus
+            (0.72, 0.18, 0.16),   # vermilion — Mars and Venus, drapery accents
+            (0.82, 0.68, 0.22),   # gold ochre — chrysographic filament highlights
+            (0.22, 0.42, 0.28),   # forest green — dense botanical foliage in Primavera
+            (0.88, 0.60, 0.62),   # rose-pink — drapery of the Graces
+            (0.20, 0.16, 0.10),   # dark umber — deepest shadow (never truly black in tempera)
+        ],
+        ground_color  = (0.94, 0.91, 0.85),   # brilliant pale gesso — tempera on white panel
+        stroke_size   = 4,                      # very fine — each mark a single hair of the brush
+        wet_blend     = 0.06,                   # minimal — egg tempera dries in seconds
+        edge_softness = 0.12,                   # very crisp — Gothic-linearity rules over mass
+        jitter        = 0.05,                   # slight — hatching shows controlled colour variation
+        glazing       = None,                   # no final glaze — tempera does not glaze like oil
+        crackle       = True,                   # 500-year-old gessoed panels crack extensively
+        chromatic_split = False,                # no optical mixing — tempera zones stay distinct
+        technique=(
+            "Botticelli's tempera technique is the antithesis of Leonardo's sfumato.  "
+            "Every form is defined by an unbroken flowing contour line drawn with a small "
+            "pointed brush loaded with slightly darker paint — the contour exists as a "
+            "literal drawn line, not as the edge of a tonal gradient.  Form is then built "
+            "inward from the contour using fine parallel hatching strokes (parallel to the "
+            "edge and progressively lighter toward the lit centre), never blended — tempera "
+            "dries before the brush can return for a second pass.  "
+            "Color is applied in pure, brilliant zones: Botticelli never mixed colours on "
+            "the panel — instead, he superimposed thin transparent washes of pure pigment "
+            "to build the mid-tones, while the pale gesso ground provides the highlights "
+            "automatically where paint is thinnest.  "
+            "Gold in his work is chrysographic — applied as fine parallel filaments of "
+            "shell gold (ground gold leaf) using a quill pen or very fine brush, rather "
+            "than as applied gold leaf.  Hair, drapery highlights, and botanical elements "
+            "all receive these fine gold filaments.  "
+            "His figures have an impossible, floating weightlessness — they seem to stand "
+            "on air rather than ground, their drapery blown by a wind that exists only in "
+            "the painting.  This is achieved compositionally: he foreshortens feet and "
+            "lowers the horizon line so figures appear to rise above the picture plane."
+        ),
+        famous_works=[
+            ("Primavera",                          "c. 1477–82"),
+            ("The Birth of Venus",                 "c. 1485"),
+            ("Mars and Venus",                     "c. 1483"),
+            ("Adoration of the Magi",              "c. 1476"),
+            ("Portrait of a Young Man",            "c. 1480"),
+            ("The Mystical Nativity",              "1500"),
+            ("Pallas and the Centaur",             "c. 1482"),
+            ("La Bella Simonetta (Simonetta Vespucci)", "c. 1476"),
+        ],
+        inspiration=(
+            "Use botticelli_linear_grace_pass() as the defining surface technique: "
+            "scatter fine parallel hatching marks along edge gradients (the tempera "
+            "hatching that builds form in the absence of wet blending), scatter "
+            "chrysographic gold filaments through upper-midtone zones (hair, fabric "
+            "highlights, botanical details), and apply a mild overall luminosity lift "
+            "that simulates the bright gesso ground glowing through thin tempera.  "
+            "tone_ground() with pale cream (0.94, 0.91, 0.85) — not a dark imprimatura "
+            "but the brilliant white gesso characteristic of tempera panel painting.  "
+            "underpainting() and block_in() with very fine strokes.  "
+            "build_form() with the smallest stroke_size — every mark is deliberate.  "
+            "botticelli_linear_grace_pass() applies the sinuous contour enhancement and "
+            "gold filament highlights.  "
+            "No final glaze — tempera surfaces are matte, not varnished to a high oil sheen.  "
+            "Crackle: prominent — 550-year-old gessoed panels show extensive craquelure."
+        ),
+    ),
+
     # ── Gustave Moreau ────────────────────────────────────────────────────────
     # French Symbolist painter (1826–1898).  Moreau is the founder of the
     # Symbolist movement in painting, and his mythological canvases are unlike

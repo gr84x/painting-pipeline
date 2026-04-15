@@ -31,6 +31,7 @@ EXPECTED_ARTISTS = [
     "artemisia_gentileschi",
     "berthe_morisot",
     "waterhouse",
+    "botticelli",
     "bouguereau",
     "bruegel",
     "caravaggio", "caspar_david_friedrich", "cezanne",
