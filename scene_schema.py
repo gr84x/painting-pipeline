@@ -202,6 +202,7 @@ class Period(Enum):
     LUMINISMO     = auto()   # Sorolla — maximum sunlight, warm/cool simultaneous contrast, dappled light pools
     HIGH_RENAISSANCE = auto()  # Raphael — luminous clarity, radiant warm midtones, idealized form, no heavy sfumato
     TENEBRIST     = auto()   # Zurbarán — near-black void, hyper-real white fabric, razor-sharp found edges
+    NEOCLASSICAL  = auto()   # Ingres — porcelain-smooth flesh, cool pearl highlights, precise classical line
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -520,6 +521,15 @@ class Style:
             # Low wet_blend: forms are precise and sculpted, not blended.
             # Low edge_softness: the razor-sharp fabric-to-void edge is the defining quality.
             Period.TENEBRIST:     dict(stroke_size_face=6,  stroke_size_bg=40, wet_blend=0.22, edge_softness=0.28),
+            # Neoclassical (Ingres): precise classical clarity — smaller strokes for
+            # the fine-detail flesh rendering that defines Ingres.  stroke_size_face
+            # is very small (5px) to allow the micro-blending of flesh tones that
+            # creates his porcelain surface.  stroke_size_bg moderate — architectural
+            # backgrounds are precisely drawn, not impressionistic.
+            # wet_blend=0.28: enough to blend flesh tones smoothly, not so much as
+            # to lose the deliberate precision of his form edges.
+            # edge_softness=0.35: classical edge quality — clear, legible, not sfumatoed.
+            Period.NEOCLASSICAL:  dict(stroke_size_face=5,  stroke_size_bg=22, wet_blend=0.28, edge_softness=0.35),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

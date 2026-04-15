@@ -32,6 +32,7 @@ EXPECTED_ARTISTS = [
     "delacroix",
     "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
+    "ingres",
     "jan_van_eyck",
     "kandinsky",
     "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "raphael",
@@ -168,6 +169,8 @@ EXPECTED_PERIODS = [
     "ART_DECO",
     "NABIS", "LUMINISMO",
     "HIGH_RENAISSANCE",
+    "TENEBRIST",
+    "NEOCLASSICAL",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -1690,4 +1693,126 @@ def test_tenebrist_large_bg_stroke():
     p = style.stroke_params
     assert p["stroke_size_bg"] >= 30, (
         f"TENEBRIST stroke_size_bg should be ≥ 30 (void background); got {p['stroke_size_bg']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 25: Ingres / NEOCLASSICAL addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_ingres_in_catalog():
+    """Session 25: Ingres must be in the art catalog."""
+    assert "ingres" in CATALOG, "ingres missing from CATALOG"
+
+
+def test_ingres_artist_field():
+    s = get_style("ingres")
+    assert "Ingres" in s.artist
+
+
+def test_ingres_movement():
+    s = get_style("ingres")
+    assert "Neoclassic" in s.movement or "Academic" in s.movement
+
+
+def test_ingres_palette_length():
+    s = get_style("ingres")
+    assert len(s.palette) >= 6, (
+        f"Ingres palette should have ≥ 6 colours; got {len(s.palette)}")
+
+
+def test_ingres_palette_values_in_range():
+    """All Ingres palette RGB values must be in [0, 1]."""
+    s = get_style("ingres")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Ingres palette {rgb}")
+
+
+def test_ingres_ground_color_valid():
+    s = get_style("ingres")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_ingres_ground_is_warm():
+    """Ingres used a warm ivory-buff ground — R should exceed B."""
+    s = get_style("ingres")
+    r, g, b = s.ground_color
+    assert r > b, f"Ingres ground should be warm (R > B); got R={r:.2f} B={b:.2f}"
+
+
+def test_ingres_edge_softness_moderate():
+    """Ingres: classical clarity — edge_softness should be moderate, not sfumatoed."""
+    s = get_style("ingres")
+    assert 0.20 <= s.edge_softness <= 0.55, (
+        f"Ingres edge_softness should be moderate; got {s.edge_softness}")
+
+
+def test_ingres_has_glazing():
+    """Ingres used a unifying warm ivory glaze."""
+    s = get_style("ingres")
+    assert s.glazing is not None, "Ingres should have a glazing colour set"
+
+
+def test_ingres_crackle_true():
+    s = get_style("ingres")
+    assert s.crackle is True, "Ingres crackle should be True (aged canvas)"
+
+
+def test_ingres_famous_works_non_empty():
+    s = get_style("ingres")
+    assert len(s.famous_works) >= 3, (
+        f"Ingres should have ≥ 3 famous works listed; got {len(s.famous_works)}")
+
+
+def test_ingres_period_dates():
+    """Ingres' active period should contain 1800."""
+    s = get_style("ingres")
+    assert "1800" in s.period or "180" in s.period, (
+        f"Ingres period dates should include 1800s; got {s.period!r}")
+
+
+def test_neoclassical_period_present():
+    """Session 25: NEOCLASSICAL must exist in Period enum."""
+    assert hasattr(Period, "NEOCLASSICAL"), "Period.NEOCLASSICAL not found"
+    assert Period.NEOCLASSICAL in list(Period)
+
+
+def test_neoclassical_stroke_params_all_keys():
+    """NEOCLASSICAL stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.NEOCLASSICAL,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"NEOCLASSICAL stroke_params missing key: {key!r}"
+
+
+def test_neoclassical_small_face_stroke():
+    """NEOCLASSICAL stroke_size_face should be small — fine flesh modelling."""
+    style = Style(medium=Medium.OIL, period=Period.NEOCLASSICAL,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 8, (
+        f"NEOCLASSICAL stroke_size_face should be small (fine detail); got {p['stroke_size_face']}")
+
+
+def test_neoclassical_moderate_wet_blend():
+    """NEOCLASSICAL wet_blend should be moderate — smooth flesh transitions."""
+    style = Style(medium=Medium.OIL, period=Period.NEOCLASSICAL,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.15 <= p["wet_blend"] <= 0.55, (
+        f"NEOCLASSICAL wet_blend should be moderate; got {p['wet_blend']}")
+
+
+def test_neoclassical_moderate_edge_softness():
+    """NEOCLASSICAL edge_softness should be moderate — classical clarity, not sfumato."""
+    style = Style(medium=Medium.OIL, period=Period.NEOCLASSICAL,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.20 <= p["edge_softness"] <= 0.55, (
+        f"NEOCLASSICAL edge_softness should be moderate; got {p['edge_softness']}")
 

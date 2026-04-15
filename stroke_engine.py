@@ -7576,3 +7576,276 @@ class Painter:
             bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
         self.canvas.ctx.set_source_surface(_tmp_lf, 0, 0)
         self.canvas.ctx.paint()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # porcelain_skin_pass — Ingres / Neoclassical smooth flesh technique
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def porcelain_skin_pass(self,
+                             smooth_strength:  float = 0.65,
+                             highlight_cool:   float = 0.08,
+                             blush_opacity:    float = 0.10,
+                             highlight_thresh: float = 0.75,
+                             blush_lo:         float = 0.42,
+                             blush_hi:         float = 0.68,
+                             smooth_sigma:     float = 2.5,
+                             figure_only:      bool  = True):
+        """
+        Ingres / Neoclassical porcelain skin technique.
+
+        Ingres was obsessed with an impossibly smooth, seamless skin surface —
+        often described as "ivory" or "porcelain" by contemporary critics.  He
+        achieved it through meticulous wet-into-wet blending of closely-valued
+        flesh tones until all trace of brushwork vanished.  Two chromatic
+        qualities define his flesh:
+
+        1. **Cool pearl highlight** — the highest-lum flesh zone receives a
+           barely perceptible shift toward silver-white (cool blue-white tint).
+           This creates the illusion of a smooth, translucent surface catching
+           diffuse light, unlike the warm-tinted highlights of most oil painters.
+
+        2. **Warm rose blush** — flesh midtones (moderate luminance) carry a
+           gentle rose warmth: a slight boost to the red channel that gives the
+           face life without making it look sun-burnt.
+
+        The pass also performs weighted Gaussian smoothing of the flesh zone to
+        suppress any residual brushstroke micro-texture, then restores shadow
+        edges at full contrast so the smooth flesh reads against a defined form.
+
+        Style-agnostic: benefits NEOCLASSICAL, ACADEMIC, and any portrait period
+        where the artist sought an idealised, polished skin surface.
+
+        Parameters
+        ----------
+        smooth_strength  : Blend weight for Gaussian smoothing in flesh zones
+                           (0 = no smoothing, 1 = full replacement with smooth).
+        highlight_cool   : Strength of the cool-pearl tint applied at bright
+                           flesh highlights (lum > highlight_thresh).
+        blush_opacity    : Intensity of the warm rose blush in flesh midtones.
+        highlight_thresh : Luminance threshold above which the cool tint is applied.
+        blush_lo / hi    : Luminance range for the rose blush zone.
+        smooth_sigma     : Gaussian blur sigma (pixels) for flesh smoothing.
+        figure_only      : Restrict all effects to the figure mask region.
+        """
+        import numpy as np
+        from scipy.ndimage import gaussian_filter
+        from PIL import Image as _PILImg
+
+        print(f"  Porcelain skin pass  "
+              f"(smooth={smooth_strength:.2f}  cool={highlight_cool:.2f}  "
+              f"blush={blush_opacity:.2f}  sigma={smooth_sigma:.1f})")
+
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(self.h, self.w, 4).copy()
+        # Cairo ARGB32 is stored BGRA
+        B_ps = buf[:, :, 0].astype(np.float32) / 255.0
+        G_ps = buf[:, :, 1].astype(np.float32) / 255.0
+        R_ps = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Luminance ────────────────────────────────────────────────────────
+        lum_ps = 0.299 * R_ps + 0.587 * G_ps + 0.114 * B_ps
+
+        # ── Flesh zone detection ──────────────────────────────────────────────
+        # Warm pixels (R noticeably exceeds B), mid-to-high luminance.
+        # The warmth criterion avoids smoothing blue/green drapery or dark hair.
+        flesh_mask = (
+            (R_ps > B_ps + 0.06) &
+            (lum_ps > 0.28) &
+            (lum_ps < 0.92)
+        ).astype(np.float32)
+
+        # Optionally restrict to figure region
+        if figure_only and self._figure_mask is not None:
+            fm = self._figure_mask
+            if fm.shape != (self.h, self.w):
+                fm = np.array(
+                    _PILImg.fromarray((fm * 255).astype(np.uint8)).resize(
+                        (self.w, self.h), _PILImg.BILINEAR)) / 255.0
+            flesh_mask = flesh_mask * fm
+
+        # ── Stage 1: Weighted Gaussian smoothing of flesh zones ───────────────
+        # Smooth the full canvas, then composite the smoothed version back onto
+        # the original canvas only in the flesh zone.  This removes brushstroke
+        # micro-texture from skin without touching drapery or background.
+        R_smooth = gaussian_filter(R_ps, sigma=smooth_sigma)
+        G_smooth = gaussian_filter(G_ps, sigma=smooth_sigma)
+        B_smooth = gaussian_filter(B_ps, sigma=smooth_sigma)
+
+        blend = flesh_mask * smooth_strength
+        R_out = R_ps * (1.0 - blend) + R_smooth * blend
+        G_out = G_ps * (1.0 - blend) + G_smooth * blend
+        B_out = B_ps * (1.0 - blend) + B_smooth * blend
+
+        # ── Stage 2: Cool pearl highlight tint ───────────────────────────────
+        # In the brightest flesh zone, shift toward silver-white (0.96, 0.96, 1.0).
+        # This is the defining Ingres quality: porcelain-cool on the highest light.
+        highlight_zone = flesh_mask * np.clip(
+            (lum_ps - highlight_thresh) / (1.0 - highlight_thresh + 1e-8),
+            0.0, 1.0
+        ) * highlight_cool
+        # Pearl tint is slightly cool: R and G stay, B lifts a little
+        R_out = np.clip(R_out - highlight_zone * 0.02, 0.0, 1.0)
+        G_out = np.clip(G_out - highlight_zone * 0.01, 0.0, 1.0)
+        B_out = np.clip(B_out + highlight_zone * 0.06, 0.0, 1.0)
+
+        # ── Stage 3: Rose blush in midtone flesh ─────────────────────────────
+        # A gentle warm-rose boost in the flesh midtone range gives the face
+        # the flushed, living warmth that separates an Ingres portrait from a
+        # cold academic study.  Blush_opacity ≤ 0.12 keeps it subtle.
+        blush_zone_wt = np.clip(
+            1.0 - 2.0 * np.abs(lum_ps - 0.5 * (blush_lo + blush_hi))
+            / (blush_hi - blush_lo + 1e-8),
+            0.0, 1.0
+        )
+        blush_zone = flesh_mask * blush_zone_wt * blush_opacity
+        R_out = np.clip(R_out + blush_zone * 0.045, 0.0, 1.0)
+        G_out = np.clip(G_out + blush_zone * 0.012, 0.0, 1.0)
+
+        # ── Write back ───────────────────────────────────────────────────────
+        buf[:, :, 0] = np.clip(B_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(G_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 2] = np.clip(R_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+        _tmp_ps = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(_tmp_ps, 0, 0)
+        self.canvas.ctx.paint()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # tonal_compression_pass — academic value range management
+    # Session-25 random artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def tonal_compression_pass(self,
+                                shadow_lift:        float = 0.04,
+                                highlight_compress: float = 0.96,
+                                midtone_contrast:   float = 0.06,
+                                midtone_lo:         float = 0.30,
+                                midtone_hi:         float = 0.70,
+                                figure_only:        bool  = False):
+        """
+        Academic tonal range management — compression toward a refined value structure.
+
+        Academic salon painters from David and Ingres through Bouguereau and
+        Gérôme carefully managed their tonal range to create what critics called
+        a "velvety" or "enamel-like" surface quality.  The key technique:
+
+        - **No crushed blacks** — the deepest darks are lifted very slightly off
+          pure black (a value of about 0.03–0.06 rather than 0.0).  This ensures
+          that form structure survives in shadow passages: you can read the contour
+          of a hand even in its darkest shadow.  Pure black loses information.
+
+        - **No blown highlights** — the brightest lights are held just below pure
+          white (about 0.94–0.97 rather than 1.0).  This avoids the "poster" look
+          of completely lost highlights and preserves delicate surface modelling on
+          forehead, collar, and satin drapery.
+
+        - **S-curve midtone contrast** — a subtle lift of contrast in the midtone
+          region (roughly 0.30–0.70 lum) creates a slight S-curve response that
+          makes the tonal transitions feel richer and more intentional.  The effect
+          is the same as dodging the light midtones and burning the dark midtones —
+          standard darkroom practice in the 20th-century analogue of academic
+          technique.
+
+        The result is the characteristic academic tonal quality: luminous but never
+        glaring, deep but never empty, with a feeling of controlled, considered
+        illumination across the entire canvas.
+
+        Parameters
+        ----------
+        shadow_lift        : Amount to lift the deepest shadows (0 = no change,
+                             0.06 = lift 0→0.06; typical: 0.03–0.06).
+        highlight_compress : Ceiling for highlights (1.0 = no compress,
+                             0.95 = compress down; typical: 0.93–0.97).
+        midtone_contrast   : Strength of the midtone S-curve lift (0 = none,
+                             0.08 = moderate; typical: 0.03–0.10).
+        midtone_lo / hi    : Luminance bounds of the midtone region for S-curve.
+        figure_only        : Restrict to figure mask region if True.
+        """
+        import numpy as np
+        from PIL import Image as _PILImg
+
+        print(f"  Tonal compression pass  "
+              f"(shadow_lift={shadow_lift:.3f}  "
+              f"hi_compress={highlight_compress:.3f}  "
+              f"midtone_contrast={midtone_contrast:.3f})")
+
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(self.h, self.w, 4).copy()
+        B_tc = buf[:, :, 0].astype(np.float32) / 255.0
+        G_tc = buf[:, :, 1].astype(np.float32) / 255.0
+        R_tc = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Compute per-channel luminance-like scaling ────────────────────────
+        # We apply the tonal mapping to each channel proportionally, preserving
+        # chroma (hue and saturation) while shifting the lightness curve.
+        lum_tc = 0.299 * R_tc + 0.587 * G_tc + 0.114 * B_tc
+        lum_safe = np.maximum(lum_tc, 1e-8)
+
+        # ── Stage 1: Shadow lift ──────────────────────────────────────────────
+        # Remap: lum_new = lum * (1 - shadow_lift) + shadow_lift
+        # Applied as a luminance scale so all channels shift equally.
+        lum_lifted = lum_tc * (1.0 - shadow_lift) + shadow_lift
+        scale_lift = lum_lifted / lum_safe
+        R_out = np.clip(R_tc * scale_lift, 0.0, 1.0)
+        G_out = np.clip(G_tc * scale_lift, 0.0, 1.0)
+        B_out = np.clip(B_tc * scale_lift, 0.0, 1.0)
+
+        # ── Stage 2: Highlight compression ───────────────────────────────────
+        # Remap: lum_new = min(lum, highlight_compress)
+        # Pixels brighter than the ceiling are proportionally scaled down.
+        lum_after_lift = 0.299 * R_out + 0.587 * G_out + 0.114 * B_out
+        lum_safe2 = np.maximum(lum_after_lift, 1e-8)
+        lum_compressed = np.minimum(lum_after_lift, highlight_compress)
+        scale_compress = lum_compressed / lum_safe2
+        R_out = np.clip(R_out * scale_compress, 0.0, 1.0)
+        G_out = np.clip(G_out * scale_compress, 0.0, 1.0)
+        B_out = np.clip(B_out * scale_compress, 0.0, 1.0)
+
+        # ── Stage 3: Midtone S-curve contrast ────────────────────────────────
+        # Build a smooth triangle-peak contrast boost: peaked at the midpoint
+        # of [midtone_lo, midtone_hi], falling to zero at the boundaries.
+        # Pixels in the lower half of the midtone range are darkened slightly;
+        # pixels in the upper half are brightened — the classic S-curve shape.
+        if midtone_contrast > 0.0:
+            lum_mid = 0.299 * R_out + 0.587 * G_out + 0.114 * B_out
+            mid_center = 0.5 * (midtone_lo + midtone_hi)
+            # Smooth triangle weight inside [midtone_lo, midtone_hi]
+            mid_wt = np.clip(
+                1.0 - np.abs(lum_mid - mid_center) / (0.5 * (midtone_hi - midtone_lo) + 1e-8),
+                0.0, 1.0
+            )
+            # S-curve direction: above center → lift, below center → deepen
+            s_direction = np.sign(lum_mid - mid_center)
+            # Magnitude: proportional to distance from center × window weight
+            s_boost = s_direction * np.abs(lum_mid - mid_center) / (mid_center + 1e-8) \
+                      * mid_wt * midtone_contrast
+
+            lum_safe3 = np.maximum(lum_mid, 1e-8)
+            lum_scurve = np.clip(lum_mid + s_boost, 0.0, 1.0)
+            scale_scurve = lum_scurve / lum_safe3
+            R_out = np.clip(R_out * scale_scurve, 0.0, 1.0)
+            G_out = np.clip(G_out * scale_scurve, 0.0, 1.0)
+            B_out = np.clip(B_out * scale_scurve, 0.0, 1.0)
+
+        # ── Apply figure_only masking if requested ────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            fm = self._figure_mask
+            from PIL import Image as _PILImg2
+            if fm.shape != (self.h, self.w):
+                fm = np.array(
+                    _PILImg2.fromarray((fm * 255).astype(np.uint8)).resize(
+                        (self.w, self.h), _PILImg2.BILINEAR)) / 255.0
+            R_out = R_tc * (1.0 - fm) + R_out * fm
+            G_out = G_tc * (1.0 - fm) + G_out * fm
+            B_out = B_tc * (1.0 - fm) + B_out * fm
+
+        # ── Write back ───────────────────────────────────────────────────────
+        buf[:, :, 0] = np.clip(B_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(G_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 2] = np.clip(R_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+        _tmp_tc = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(_tmp_tc, 0, 0)
+        self.canvas.ctx.paint()
