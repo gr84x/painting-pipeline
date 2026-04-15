@@ -28,6 +28,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 
 EXPECTED_ARTISTS = [
     "artemisia_gentileschi",
+    "bouguereau",
     "caravaggio", "caspar_david_friedrich", "cezanne",
     "chardin", "courbet",
     "delacroix",
@@ -176,6 +177,7 @@ EXPECTED_PERIODS = [
     "NOCTURNE",
     "FRENCH_NATURALIST",
     "SOCIAL_REALIST",
+    "ACADEMIC_REALIST",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -2200,5 +2202,143 @@ def test_social_realist_low_edge_softness():
     p = style.stroke_params
     assert p["edge_softness"] <= 0.40, (
         f"SOCIAL_REALIST edge_softness should be low (≤0.40); "
+        f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# William-Adolphe Bouguereau — French Academic Realism; academic_skin_pass()
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bouguereau_in_catalog():
+    """Bouguereau must be present in CATALOG."""
+    assert "bouguereau" in CATALOG
+
+
+def test_bouguereau_movement():
+    s = get_style("bouguereau")
+    assert "Academic" in s.movement or "academic" in s.movement.lower()
+
+
+def test_bouguereau_nationality():
+    s = get_style("bouguereau")
+    assert s.nationality == "French"
+
+
+def test_bouguereau_palette_length():
+    s = get_style("bouguereau")
+    assert len(s.palette) >= 5, "Bouguereau palette should have at least 5 key colours"
+
+
+def test_bouguereau_palette_values_in_range():
+    """All Bouguereau palette RGB values must be in [0, 1]."""
+    s = get_style("bouguereau")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Bouguereau palette {rgb}")
+
+
+def test_bouguereau_wet_blend_very_high():
+    """Bouguereau's porcelain technique requires very high wet_blend (≥ 0.80)."""
+    s = get_style("bouguereau")
+    assert s.wet_blend >= 0.80, (
+        f"Bouguereau wet_blend should be very high (≥0.80); got {s.wet_blend}")
+
+
+def test_bouguereau_edge_softness_high():
+    """Bouguereau's flesh has very soft edge transitions (edge_softness ≥ 0.70)."""
+    s = get_style("bouguereau")
+    assert s.edge_softness >= 0.70, (
+        f"Bouguereau edge_softness should be high (≥0.70); got {s.edge_softness}")
+
+
+def test_bouguereau_small_stroke_size():
+    """Bouguereau works with tiny brushes — stroke_size should be small (≤ 5)."""
+    s = get_style("bouguereau")
+    assert s.stroke_size <= 5, (
+        f"Bouguereau stroke_size should be small (≤5); got {s.stroke_size}")
+
+
+def test_bouguereau_no_chromatic_split():
+    """Bouguereau does not use divisionist chromatic splitting."""
+    s = get_style("bouguereau")
+    assert not s.chromatic_split, "Bouguereau chromatic_split should be False"
+
+
+def test_bouguereau_famous_works_not_empty():
+    """Bouguereau should have at least 4 famous works documented."""
+    s = get_style("bouguereau")
+    assert len(s.famous_works) >= 4, (
+        f"Bouguereau should have ≥4 famous works; got {len(s.famous_works)}")
+
+
+def test_bouguereau_famous_works_include_birth_of_venus():
+    """Bouguereau's most iconic work — The Birth of Venus — must be listed."""
+    s = get_style("bouguereau")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Venus" in t or "Birth" in t for t in titles), (
+        "Bouguereau famous works should include The Birth of Venus")
+
+
+def test_bouguereau_inspiration_references_academic_skin():
+    """Bouguereau's inspiration text should reference academic_skin_pass."""
+    s = get_style("bouguereau")
+    assert "academic_skin" in s.inspiration.lower().replace(" ", "_"), (
+        "Bouguereau inspiration should reference academic_skin_pass()")
+
+
+def test_bouguereau_low_jitter():
+    """Bouguereau's controlled technique should have very low jitter (< 0.02)."""
+    s = get_style("bouguereau")
+    assert s.jitter < 0.02, (
+        f"Bouguereau jitter should be very low (< 0.02); got {s.jitter}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.ACADEMIC_REALIST — Bouguereau period enum
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_academic_realist_period_present():
+    """ACADEMIC_REALIST must exist in the Period enum."""
+    assert hasattr(Period, "ACADEMIC_REALIST"), "Period.ACADEMIC_REALIST not found"
+    assert Period.ACADEMIC_REALIST in list(Period)
+
+
+def test_academic_realist_stroke_params_all_keys():
+    """ACADEMIC_REALIST stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.ACADEMIC_REALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"ACADEMIC_REALIST stroke_params missing key: {key!r}"
+
+
+def test_academic_realist_tiny_stroke_face():
+    """ACADEMIC_REALIST stroke_size_face must be tiny (≤ 4) — micro-blending marks."""
+    style = Style(medium=Medium.OIL, period=Period.ACADEMIC_REALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 4, (
+        f"ACADEMIC_REALIST stroke_size_face should be tiny (≤4); "
+        f"got {p['stroke_size_face']}")
+
+
+def test_academic_realist_very_high_wet_blend():
+    """ACADEMIC_REALIST wet_blend must be very high (≥ 0.80) — porcelain smoothness."""
+    style = Style(medium=Medium.OIL, period=Period.ACADEMIC_REALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.80, (
+        f"ACADEMIC_REALIST wet_blend should be very high (≥0.80); got {p['wet_blend']}")
+
+
+def test_academic_realist_high_edge_softness():
+    """ACADEMIC_REALIST edge_softness must be high (≥ 0.70) — imperceptible transitions."""
+    style = Style(medium=Medium.OIL, period=Period.ACADEMIC_REALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.70, (
+        f"ACADEMIC_REALIST edge_softness should be high (≥0.70); "
         f"got {p['edge_softness']}")
 
