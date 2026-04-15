@@ -499,6 +499,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_baroque           = (scene.style.period == Period.BAROQUE)
     is_high_renaissance  = (scene.style.period == Period.HIGH_RENAISSANCE)
     is_tenebrist         = (scene.style.period == Period.TENEBRIST)
+    is_neoclassical      = (scene.style.period == Period.NEOCLASSICAL)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -1511,6 +1512,70 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # amber tint.  The cold void ground is the dominant tone.
         # Heavy vignette: periphery is crushed further toward absolute darkness.
         p.finish(vignette=0.65, crackle=True)
+
+    elif is_neoclassical:
+        # ── Neoclassical pipeline (Ingres technique) ──────────────────────────
+        # Ingres built portraits through extraordinary refinement of flesh surfaces —
+        # the skin must appear porcelain-smooth, with no trace of brushstroke.
+        # Two technical goals dominate: (1) seamlessly smooth ivory-white flesh
+        # with a barely perceptible cool-pearl tint at the brightest highlights
+        # and a rose blush in the midtone zone, (2) precise, hard-edged drapery
+        # drawn before it was painted — line governs everything.
+        #
+        # Pipeline:
+        #   1. Warm ivory-buff ground — Ingres' characteristic light ochre
+        #      imprimatura that unifies the palette toward warmth.
+        #   2. Underpainting + block_in + build_form at moderate density.
+        #   3. porcelain_skin_pass() — the defining Ingres technique: smooth
+        #      flesh zones, cool pearl at highlights, rose blush in midtones.
+        #   4. tonal_compression_pass() — academic value range management:
+        #      lift deepest shadows, compress highlights, S-curve midtones.
+        #      Creates the "velvety" tonal structure of salon academic painting.
+        #   5. place_lights() — precise specular highlighting on forehead,
+        #      collar, satin drapery peaks.
+        #   6. Subtle warm ivory glaze — Ingres used a thin unifying tone.
+        #   7. Moderate vignette (0.30); crackle (aged canvas finish).
+        ingres_style = _ART_CATALOG.get("ingres")
+        ground_col   = ingres_style.ground_color if ingres_style else (0.75, 0.68, 0.52)
+
+        # Warm ivory-buff ground — light enough to unify toward an ivory key.
+        p.tone_ground(ground_col, texture_strength=0.035)
+
+        # Standard form-building sequence.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.4), n_strokes=160)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=320)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_face"] * 1.4), n_strokes=520)
+
+        # Core Ingres technique: porcelain-smooth flesh surface.
+        p.porcelain_skin_pass(
+            smooth_strength  = 0.60,
+            highlight_cool   = 0.07,
+            blush_opacity    = 0.10,
+            highlight_thresh = 0.74,
+            blush_lo         = 0.40,
+            blush_hi         = 0.68,
+            smooth_sigma     = 2.2,
+            figure_only      = True,
+        )
+
+        # Session-25 random artistic improvement: academic tonal range compression.
+        p.tonal_compression_pass(
+            shadow_lift        = 0.04,
+            highlight_compress = 0.96,
+            midtone_contrast   = 0.06,
+        )
+
+        # Precise specular highlighting on forehead, satin, collar.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=360)
+
+        # Subtle warm ivory unifying glaze — Ingres' characteristic golden-ivory tone.
+        if ingres_style and ingres_style.glazing:
+            p.glaze(ingres_style.glazing, opacity=0.06)
+        else:
+            p.glaze((0.80, 0.72, 0.55), opacity=0.06)
+
+        # Moderate vignette; aged crackle finish.
+        p.finish(vignette=0.30, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

@@ -176,6 +176,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_art_deco":                period == Period.ART_DECO,
         "is_high_renaissance":        period == Period.HIGH_RENAISSANCE,
         "is_tenebrist":               period == Period.TENEBRIST,
+        "is_neoclassical":            period == Period.NEOCLASSICAL,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -2043,3 +2044,197 @@ def test_tenebrist_stroke_params_valid():
     assert p["stroke_size_bg"] >= 30
     assert p["wet_blend"] <= 0.35
     assert p["edge_softness"] <= 0.40
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 25: porcelain_skin_pass, tonal_compression_pass, NEOCLASSICAL routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_porcelain_skin_pass_exists():
+    """Painter must have porcelain_skin_pass() method after session 25."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "porcelain_skin_pass"), (
+        "porcelain_skin_pass not found on Painter")
+    assert callable(getattr(Painter, "porcelain_skin_pass"))
+
+
+def test_tonal_compression_pass_exists():
+    """Painter must have tonal_compression_pass() method after session 25."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "tonal_compression_pass"), (
+        "tonal_compression_pass not found on Painter")
+    assert callable(getattr(Painter, "tonal_compression_pass"))
+
+
+def test_porcelain_skin_pass_no_error():
+    """porcelain_skin_pass() runs without error on a plain painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.75, 0.68, 0.52), texture_strength=0.04)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.porcelain_skin_pass(smooth_strength=0.50, figure_only=False)
+
+
+def test_porcelain_skin_pass_default_figure_only():
+    """porcelain_skin_pass with figure_only=True and no mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.75, 0.68, 0.52), texture_strength=0.04)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    # figure_only=True (default) with no mask set: should be a no-op without error
+    p.porcelain_skin_pass(figure_only=True)
+
+
+def test_porcelain_skin_pass_with_mask():
+    """porcelain_skin_pass() with a figure mask runs without error."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.75, 0.68, 0.52), texture_strength=0.04)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[12:52, 12:52] = 1.0
+    p._figure_mask = mask
+    p.porcelain_skin_pass(
+        smooth_strength  = 0.60,
+        highlight_cool   = 0.07,
+        blush_opacity    = 0.10,
+        highlight_thresh = 0.74,
+        blush_lo         = 0.40,
+        blush_hi         = 0.68,
+        smooth_sigma     = 2.2,
+        figure_only      = True,
+    )
+
+
+def test_porcelain_skin_pass_modifies_canvas():
+    """porcelain_skin_pass() with strong smooth_strength must alter a non-uniform canvas."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    # Paint a non-uniform warm canvas so flesh detection finds candidates
+    p.tone_ground((0.82, 0.72, 0.54), texture_strength=0.10)
+    p.block_in(ref, stroke_size=8, n_strokes=40)
+
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.porcelain_skin_pass(smooth_strength=0.90, figure_only=False)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    assert not np.array_equal(before, after), (
+        "porcelain_skin_pass with strong smooth_strength should modify the canvas")
+
+
+def test_tonal_compression_pass_no_error():
+    """tonal_compression_pass() runs without error on a plain canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.75, 0.68, 0.52), texture_strength=0.04)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.tonal_compression_pass(shadow_lift=0.04, highlight_compress=0.96,
+                              midtone_contrast=0.06)
+
+
+def test_tonal_compression_pass_zero_lift_no_shadow_change():
+    """tonal_compression_pass with shadow_lift=0 and no compress should barely change canvas."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.50, 0.42, 0.30), texture_strength=0.05)
+
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.tonal_compression_pass(shadow_lift=0.0, highlight_compress=1.0,
+                              midtone_contrast=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    # With all parameters at identity, changes should be near-zero
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff <= 2, (
+        f"tonal_compression_pass with identity params should not change canvas; diff={diff}")
+
+
+def test_tonal_compression_pass_lifts_darks():
+    """tonal_compression_pass with shadow_lift > 0 should raise minimum luminance."""
+    import numpy as np
+    # Build a canvas with near-black pixels
+    p   = _make_small_painter(64, 64)
+    p.tone_ground((0.02, 0.01, 0.01), texture_strength=0.0)
+
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    min_before = before[:, :, :3].min()  # minimum across RGB channels
+
+    p.tonal_compression_pass(shadow_lift=0.06, highlight_compress=1.0,
+                              midtone_contrast=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    min_after = after[:, :, :3].min()
+
+    assert min_after >= min_before, (
+        f"Shadow lift should not decrease minimum value; "
+        f"before={min_before} after={min_after}")
+
+
+def test_tonal_compression_pass_compresses_highlights():
+    """tonal_compression_pass with highlight_compress < 1.0 should reduce maximum luminance."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    # Near-white canvas
+    p.tone_ground((0.98, 0.97, 0.96), texture_strength=0.0)
+
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    max_before = before[:, :, :3].max()
+
+    p.tonal_compression_pass(shadow_lift=0.0, highlight_compress=0.90,
+                              midtone_contrast=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    max_after = after[:, :, :3].max()
+
+    # Maximum should not exceed what we started with (compression never adds brightness)
+    assert max_after <= max_before + 2, (
+        f"Highlight compression should not increase max brightness; "
+        f"before={max_before} after={max_after}")
+
+
+def test_tonal_compression_pass_figure_only_no_error():
+    """tonal_compression_pass with figure_only=True and no mask should not raise."""
+    import numpy as np
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.50, 0.42, 0.30), texture_strength=0.05)
+    p.block_in(ref, stroke_size=8, n_strokes=30)
+    # No mask set — figure_only=True should degrade gracefully
+    p.tonal_compression_pass(shadow_lift=0.04, figure_only=True)
+
+
+# ── NEOCLASSICAL routing flag tests ─────────────────────────────────────────
+
+def test_neoclassical_routing_flag():
+    flags = _routing_flags(Period.NEOCLASSICAL)
+    assert flags["is_neoclassical"], "is_neoclassical should be True for Period.NEOCLASSICAL"
+
+
+def test_neoclassical_routing_exclusive():
+    flags = _routing_flags(Period.NEOCLASSICAL)
+    others = {k: v for k, v in flags.items()
+              if k not in ("is_neoclassical", "is_watercolor",
+                           "is_romantic", "is_renaissance_soft") and v}
+    assert len(others) == 0, (
+        f"NEOCLASSICAL should only set is_neoclassical; also set: {others}")
+
+
+def test_neoclassical_flag_false_for_other_periods():
+    """is_neoclassical must be False for every period except NEOCLASSICAL."""
+    for period in Period:
+        if period == Period.NEOCLASSICAL:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_neoclassical"], (
+            f"is_neoclassical should be False for {period.name}")
+
+
+def test_neoclassical_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.NEOCLASSICAL,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 8,  "NEOCLASSICAL face stroke should be small"
+    assert p["stroke_size_bg"]   >= 14, "NEOCLASSICAL bg stroke should be present"
+    assert 0.15 <= p["wet_blend"] <= 0.55, "NEOCLASSICAL wet_blend should be moderate"
+    assert 0.20 <= p["edge_softness"] <= 0.55, "NEOCLASSICAL edge_softness moderate"

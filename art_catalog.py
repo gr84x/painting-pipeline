@@ -1912,6 +1912,65 @@ CATALOG: Dict[str, ArtStyle] = {
 
 
     # ── Francisco de Zurbarán ─────────────────────────────────────────────────
+    # ── Jean-Auguste-Dominique Ingres ─────────────────────────────────────────
+    "ingres": ArtStyle(
+        artist="Jean-Auguste-Dominique Ingres",
+        movement="French Neoclassicism / Academic Idealism",
+        nationality="French",
+        period="1800–1867",
+        palette=[
+            (0.95, 0.92, 0.86),   # luminous ivory-pearl highlight — Ingres' porcelain light
+            (0.86, 0.78, 0.64),   # warm cream flesh midtone
+            (0.72, 0.60, 0.44),   # warm amber lower midtone
+            (0.50, 0.38, 0.24),   # warm sienna half-shadow
+            (0.25, 0.18, 0.12),   # dark warm umber deep shadow
+            (0.06, 0.04, 0.10),   # blue-black drapery / background
+            (0.38, 0.52, 0.72),   # cerulean-blue turban / drapery accent
+            (0.92, 0.90, 0.88),   # cool silver-white satin fabric highlight
+        ],
+        ground_color=(0.75, 0.68, 0.52),    # warm light ochre-buff ground
+        stroke_size=5,
+        wet_blend=0.28,                      # deliberate but not dry — smooth transitions
+        edge_softness=0.35,                  # classical clarity: edges present but not harsh
+        jitter=0.022,
+        glazing=(0.80, 0.72, 0.55),          # subtle warm ivory unifying tone
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Ingres achieved a seamlessly smooth, porcelain-like skin surface — "
+            "often called 'cold' or 'ivory' by contemporaries — through obsessive "
+            "wet-into-wet blending of closely-valued flesh tones, leaving no trace "
+            "of brushwork.  Highlights receive a barely perceptible cool-pearl tint "
+            "(approaching silver-white) while flesh midtones carry a warm rose blush.  "
+            "Drapery is rendered with crisp, almost architectural precision — each fold "
+            "a deliberate linear decision, not a blended accident.  Contour lines are "
+            "the foundation: Ingres drew before he painted, and the drawing shows "
+            "through as a precise governing armature.  Shadows are transparent warm "
+            "umber, never heavy; they recede without drama, unlike Baroque chiaroscuro.  "
+            "Background tones are deep blue-black, giving the pale figure maximum "
+            "contrast, but the edge between figure and ground is often deliberately "
+            "merged — the drapery and background nearly match in value at the far edge "
+            "so the figure emerges only from its lit passages."
+        ),
+        famous_works=[
+            ("La Grande Odalisque", "1814"),
+            ("Madame Rivière", "1806"),
+            ("The Turkish Bath (Le Bain turc)", "1862"),
+            ("Princess de Broglie", "1853"),
+            ("Madame Moitessier", "1856"),
+            ("Oedipus and the Sphinx", "1808"),
+        ],
+        inspiration=(
+            "Use porcelain_skin_pass() to achieve Ingres' seamlessly smooth flesh: "
+            "bilateral smoothing in flesh zones suppresses brushstroke texture; "
+            "cool-pearl tint at highlights (lum > 0.74) and rose blush in midtones "
+            "(0.40 < lum < 0.68) recreate his characteristic porcelain-ivory quality.  "
+            "tonal_compression_pass() lifts the deepest shadows slightly and compresses "
+            "the brightest highlights — the academic value structure that gives Ingres "
+            "paintings their velvety, refined tonal range."
+        ),
+    ),
+
     "zurbaran": ArtStyle(
         artist="Francisco de Zurbarán",
         movement="Spanish Golden Age / Tenebrist Baroque",
