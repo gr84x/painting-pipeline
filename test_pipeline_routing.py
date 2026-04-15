@@ -182,11 +182,12 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_academic_realist":        period == Period.ACADEMIC_REALIST,
         "is_nordic_impressionist":    period == Period.NORDIC_IMPRESSIONIST,
         "is_impressionist_plein_air": period == Period.IMPRESSIONIST_PLEIN_AIR,
-        "is_post_impressionist":      period == Period.POST_IMPRESSIONIST,
-        "is_pre_raphaelite":          period == Period.PRE_RAPHAELITE,
-        "is_symbolist":               period == Period.SYMBOLIST,
-        "is_renaissance_soft":        (period == Period.RENAISSANCE
-                                       and sp.get("edge_softness", 0.0) >= 0.80),
+        "is_post_impressionist":         period == Period.POST_IMPRESSIONIST,
+        "is_pre_raphaelite":             period == Period.PRE_RAPHAELITE,
+        "is_symbolist":                  period == Period.SYMBOLIST,
+        "is_florentine_renaissance":     period == Period.FLORENTINE_RENAISSANCE,
+        "is_renaissance_soft":           (period == Period.RENAISSANCE
+                                          and sp.get("edge_softness", 0.0) >= 0.80),
     }
 
 
@@ -3750,3 +3751,263 @@ def test_symbolist_stroke_params_valid():
     assert sp["stroke_size_bg"]   > 0
     assert 0.0 <= sp["wet_blend"]     <= 1.0
     assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# botticelli_linear_grace_pass — Florentine Renaissance tempera technique
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_botticelli_linear_grace_pass_exists():
+    """Painter must have botticelli_linear_grace_pass() after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "botticelli_linear_grace_pass"), (
+        "botticelli_linear_grace_pass not found on Painter")
+    assert callable(getattr(Painter, "botticelli_linear_grace_pass"))
+
+
+def test_botticelli_linear_grace_pass_no_error():
+    """botticelli_linear_grace_pass() must complete without error on a plain canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    # Pale gesso ground mimicking Botticelli's panel preparation
+    p.tone_ground((0.94, 0.91, 0.85), texture_strength=0.03)
+    p.botticelli_linear_grace_pass(ref)
+
+
+def test_botticelli_linear_grace_pass_modifies_canvas():
+    """botticelli_linear_grace_pass() must modify a toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.90, 0.87, 0.80), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=15)
+
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.botticelli_linear_grace_pass(ref, luminosity_lift=0.08)
+    after  = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    assert np.abs(after - before).max() > 0, (
+        "botticelli_linear_grace_pass should modify the canvas")
+
+
+def test_botticelli_linear_grace_pass_luminosity_lift_brightens():
+    """
+    With luminosity_lift > 0, the mean luminance of the canvas should
+    increase after the pass (the gesso-ground simulation brightens midtones).
+    """
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    # Mid-grey ground — luminance ~0.50, within the lift zone
+    p.tone_ground((0.55, 0.52, 0.48), texture_strength=0.00)
+
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA: channel 2 = R, 1 = G, 0 = B
+    before_lum = (0.299 * before_buf[:, :, 2].astype(float)
+                  + 0.587 * before_buf[:, :, 1].astype(float)
+                  + 0.114 * before_buf[:, :, 0].astype(float)).mean()
+
+    p.botticelli_linear_grace_pass(
+        ref,
+        hatch_density   = 0.0,   # disable hatching to isolate luminosity lift
+        gold_density    = 0.0,   # disable gold to isolate luminosity lift
+        luminosity_lift = 0.12,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_lum = (0.299 * after_buf[:, :, 2].astype(float)
+                 + 0.587 * after_buf[:, :, 1].astype(float)
+                 + 0.114 * after_buf[:, :, 0].astype(float)).mean()
+
+    assert after_lum > before_lum, (
+        f"luminosity_lift=0.12 should increase mean luminance; "
+        f"before={before_lum:.2f}, after={after_lum:.2f}")
+
+
+def test_botticelli_linear_grace_pass_gold_raises_warm_channels():
+    """
+    With a high gold_density and a warm gold_tint, the pass should raise the
+    mean R channel more than the B channel (gold is warmer than the plain canvas).
+    """
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    # Neutral mid-tone — luminance ~0.55, within the gold window (0.45–0.88)
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.00)
+
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    before_r = float(before_buf[:, :, 2].mean())
+    before_b = float(before_buf[:, :, 0].mean())
+
+    p.botticelli_linear_grace_pass(
+        ref,
+        hatch_density   = 0.0,            # disable hatching
+        gold_density    = 0.50,           # high density to ensure visible effect
+        gold_tint       = (0.88, 0.72, 0.24),
+        gold_opacity    = 0.80,
+        luminosity_lift = 0.0,            # disable lift
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r = float(after_buf[:, :, 2].mean())
+    after_b = float(after_buf[:, :, 0].mean())
+
+    # Gold tint has R=0.88 >> B=0.24: R channel should rise more than B channel.
+    r_delta = after_r - before_r
+    b_delta = after_b - before_b
+    assert r_delta > b_delta, (
+        f"Gold scatter should raise R more than B; R_delta={r_delta:.2f}, B_delta={b_delta:.2f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# tonal_envelope_pass — Portrait luminosity gradient improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_tonal_envelope_pass_exists():
+    """Painter must have tonal_envelope_pass() after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "tonal_envelope_pass"), (
+        "tonal_envelope_pass not found on Painter")
+    assert callable(getattr(Painter, "tonal_envelope_pass"))
+
+
+def test_tonal_envelope_pass_no_error():
+    """tonal_envelope_pass() must complete without error on a plain canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.05)
+    p.tonal_envelope_pass()
+
+
+def test_tonal_envelope_pass_modifies_canvas():
+    """tonal_envelope_pass() must change the canvas when lift_strength > 0."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.04)
+
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.tonal_envelope_pass(lift_strength=0.12, edge_darken=0.08)
+    after  = np.array(p.canvas.to_pil(), dtype=np.float32)
+
+    assert np.abs(after - before).max() > 0, (
+        "tonal_envelope_pass should modify the canvas")
+
+
+def test_tonal_envelope_pass_centre_brighter_than_edges():
+    """
+    After tonal_envelope_pass, the central region of a uniform canvas should
+    be brighter than the corner regions (the radial lift should be stronger
+    at the portrait center than at the canvas edges).
+    """
+    p = _make_small_painter(64, 64)
+    # Uniform mid-grey canvas — uniform before the pass
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.00)
+
+    p.tonal_envelope_pass(
+        center_x      = 0.50,
+        center_y      = 0.50,
+        radius        = 0.30,
+        lift_strength = 0.15,
+        lift_warmth   = 0.20,
+        edge_darken   = 0.10,
+        gamma         = 2.0,
+    )
+
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA: channel 2=R, 1=G, 0=B
+    # Mean luminance of central 16×16 patch
+    centre_lum = (0.299 * buf[24:40, 24:40, 2].astype(float)
+                  + 0.587 * buf[24:40, 24:40, 1].astype(float)
+                  + 0.114 * buf[24:40, 24:40, 0].astype(float)).mean()
+    # Mean luminance of the four corner 8×8 patches
+    corners = [buf[:8, :8], buf[:8, 56:], buf[56:, :8], buf[56:, 56:]]
+    corner_lum = _np_mean_lum(corners)
+
+    assert centre_lum > corner_lum, (
+        f"Centre should be brighter than corners after tonal_envelope_pass; "
+        f"centre={centre_lum:.2f}, corners={corner_lum:.2f}")
+
+
+def _np_mean_lum(patches):
+    """Helper: mean perceptual luminance across a list of BGRA patch arrays."""
+    vals = []
+    for patch in patches:
+        lum = (0.299 * patch[:, :, 2].astype(float)
+               + 0.587 * patch[:, :, 1].astype(float)
+               + 0.114 * patch[:, :, 0].astype(float))
+        vals.append(lum.mean())
+    return sum(vals) / len(vals)
+
+
+def test_tonal_envelope_pass_zero_lift_zero_darken_no_op():
+    """tonal_envelope_pass with lift_strength=0 and edge_darken=0 must not modify canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.55, 0.45), texture_strength=0.03)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.tonal_envelope_pass(lift_strength=0.0, edge_darken=0.0)
+    after  = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4)
+
+    np.testing.assert_array_equal(before, after,
+        err_msg="tonal_envelope_pass with zero lift and darken must be a no-op")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FLORENTINE_RENAISSANCE period routing flags
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_florentine_renaissance_flag_set():
+    """FLORENTINE_RENAISSANCE period must set is_florentine_renaissance=True."""
+    flags = _routing_flags(Period.FLORENTINE_RENAISSANCE)
+    assert flags["is_florentine_renaissance"] is True
+
+
+def test_florentine_renaissance_flag_not_set_for_other_periods():
+    """is_florentine_renaissance must be False for all other periods."""
+    for period in Period:
+        if period == Period.FLORENTINE_RENAISSANCE:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_florentine_renaissance"], (
+            f"is_florentine_renaissance should be False for {period.name}")
+
+
+def test_florentine_renaissance_mutually_exclusive_with_symbolist():
+    """FLORENTINE_RENAISSANCE and SYMBOLIST must not both be True simultaneously."""
+    flags_f = _routing_flags(Period.FLORENTINE_RENAISSANCE)
+    flags_s = _routing_flags(Period.SYMBOLIST)
+    assert     flags_f["is_florentine_renaissance"]
+    assert not flags_f["is_symbolist"]
+    assert     flags_s["is_symbolist"]
+    assert not flags_s["is_florentine_renaissance"]
+
+
+def test_florentine_renaissance_stroke_params_valid():
+    """FLORENTINE_RENAISSANCE stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.FLORENTINE_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"FLORENTINE_RENAISSANCE stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_florentine_renaissance_has_minimum_wet_blend():
+    """FLORENTINE_RENAISSANCE wet_blend must be very low (tempera dries instantly)."""
+    sp = Style(medium=Medium.OIL, period=Period.FLORENTINE_RENAISSANCE).stroke_params
+    assert sp["wet_blend"] <= 0.10, (
+        f"FLORENTINE_RENAISSANCE wet_blend should be ≤ 0.10 (tempera), "
+        f"got {sp['wet_blend']:.3f}")
+
+
+def test_florentine_renaissance_has_crisp_edges():
+    """FLORENTINE_RENAISSANCE edge_softness must be very low (Gothic linear contour)."""
+    sp = Style(medium=Medium.OIL, period=Period.FLORENTINE_RENAISSANCE).stroke_params
+    assert sp["edge_softness"] <= 0.20, (
+        f"FLORENTINE_RENAISSANCE edge_softness should be ≤ 0.20 (crisp tempera line), "
+        f"got {sp['edge_softness']:.3f}")

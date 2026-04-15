@@ -215,6 +215,7 @@ class Period(Enum):
     POST_IMPRESSIONIST = auto()      # Degas — crosshatched pastel over monotype, blue-grey tonality, warm orange lights
     PRE_RAPHAELITE = auto()          # Waterhouse — jewel palette, wet white ground luminosity, fine Pre-Raphaelite detail
     SYMBOLIST     = auto()           # Moreau — encrusted gold highlights, Byzantine mosaic texture, deep crimson shadow richness
+    FLORENTINE_RENAISSANCE = auto()  # Botticelli — pale gesso ground, sinuous linear grace, tempera hatching, chrysographic gold filaments
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -652,6 +653,17 @@ class Style:
             # draughtsman first, and his forms have clear sculptural definition even through
             # the richness of surface.
             Period.SYMBOLIST:     dict(stroke_size_face=4,  stroke_size_bg=20, wet_blend=0.25, edge_softness=0.20),
+            # Florentine Renaissance (Botticelli): egg tempera on white gessoed panel.
+            # stroke_size_face=4: very fine marks — tempera hatching is built from
+            # individual parallel hairs of the brush, finer than any oil technique.
+            # stroke_size_bg=18: moderate — botanical and landscape backgrounds are
+            # also painted with fine deliberate tempera marks, not loose washes.
+            # wet_blend=0.06: near-zero — egg tempera dries in seconds; form is built
+            # through transparent layering, never wet-on-wet blending.
+            # edge_softness=0.12: very crisp — the flowing Gothic-influenced contour
+            # line defines every figure; there is no sfumato, no atmospheric softening;
+            # the edge is a drawn line, not the edge of a tonal gradient.
+            Period.FLORENTINE_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.06, edge_softness=0.12),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
