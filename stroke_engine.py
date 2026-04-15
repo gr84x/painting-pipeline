@@ -11025,3 +11025,198 @@ class Painter:
 
         print(f"    Selective focus pass complete  "
               f"(blur sigma={max_blur_radius:.1f}  desat={desaturation:.2f})")
+
+    def hatching_pass(
+            self,
+            reference:       "Union[np.ndarray, Image.Image]",
+            n_strokes:       int   = 2400,
+            stroke_size:     int   = 3,
+            angle_primary:   float = 45.0,
+            angle_cross:     float = -45.0,
+            cross_hatch:     bool  = True,
+            shadow_thresh:   float = 0.45,
+            dark_color:      Color = (0.28, 0.20, 0.12),
+            light_color:     Color = (0.92, 0.88, 0.75),
+            opacity_shadow:  float = 0.52,
+            opacity_light:   float = 0.18,
+            hatch_length:    float = 12.0,
+            spacing_jitter:  float = 0.35,
+    ):
+        """
+        Tempera hatching pass — inspired by Fra Angelico's Quattrocento technique.
+
+        Egg-tempera dries almost instantly on the chalk-white gesso panel, which
+        means the wet-into-wet blending exploited by oil painters is unavailable.
+        Instead, Renaissance tempera painters built tonal form through *hatching*:
+        extremely fine parallel strokes laid over a dry previous layer at a
+        consistent angle.  Shadow regions received dense overlapping hatch layers;
+        lit areas were left relatively sparse so the brilliant gesso ground
+        could shine through between the strokes.
+
+        This pass simulates that technique by scattering short, thin, directional
+        line strokes across the canvas in two ways:
+
+        1. **Shadow hatching** — In pixels darker than ``shadow_thresh`` the pass
+           lays down strokes of ``dark_color`` at ``angle_primary`` (default 45°).
+           Stroke density is proportional to darkness: fully shadowed regions
+           receive the most strokes; mid-tones receive fewer; fully lit areas
+           receive none.  This builds tonal depth through *accumulation*, not
+           blending.
+
+        2. **Cross-hatching** — When ``cross_hatch=True`` a second pass of strokes
+           at ``angle_cross`` (default −45°, perpendicular to the first) is applied
+           in the deepest shadow regions (lum < shadow_thresh × 0.55).  The
+           diagonal cross-pattern replicates the "piani di colore" layering that
+           Fra Angelico, Botticelli, and Perugino used to model the deepest shadow
+           passages in flesh and drapery.
+
+        3. **Light accent strokes** — In bright highlight pixels (lum > 0.82) a
+           sparse scatter of slightly lighter strokes in ``light_color`` at the
+           primary angle indicates the gesso ground asserting itself between hatch
+           layers — the distinctive luminous quality of tempera that oil painting
+           cannot replicate.
+
+        The technique is relevant to any early tempera pipeline (Fra Angelico,
+        Botticelli, Piero della Francesca, Ghirlandaio) and also to the chalk /
+        silverpoint underdrawing stage used before oil painting in Dürer's and
+        Holbein's Northern Renaissance technique.
+
+        Parameters
+        ----------
+        reference       : Tonal reference — used to read pixel luminance for
+                          stroke placement and density decisions.
+        n_strokes       : Total number of hatch strokes to scatter.  2000–4000
+                          is typical for a portrait; increase for denser shadow.
+        stroke_size     : Stroke width in pixels.  2–4px for tempera fidelity;
+                          broader strokes shift toward chalk or silverpoint feel.
+        angle_primary   : Angle of primary hatch strokes in degrees.  45° is the
+                          canonical Fra Angelico angle derived from his San Marco
+                          frescoes; 30° or 60° are period-appropriate alternatives.
+        angle_cross     : Angle of the cross-hatch layer (only used when
+                          cross_hatch=True).  −45° is perpendicular to 45°.
+        cross_hatch     : Whether to add the second diagonal layer in deep shadows.
+        shadow_thresh   : Luminance threshold below which hatch strokes are placed.
+                          0.45 puts the hatching in the shadow half of the tonal
+                          range; increase toward 0.65 for softer, broader coverage.
+        dark_color      : Hatch stroke colour for shadow region strokes.
+                          Fra Angelico used raw sienna (0.28, 0.20, 0.12) for flesh
+                          shadows and a cool grey-brown for drapery.
+        light_color     : Hatch stroke colour for highlight accent strokes.
+                          Pure lead-white (0.92, 0.88, 0.75) for gesso showing through.
+        opacity_shadow  : Base opacity of shadow hatch strokes (0–1).
+        opacity_light   : Opacity of light accent strokes (0–1).
+        hatch_length    : Length of each hatch stroke in pixels.  8–16px for
+                          tempera; longer strokes (~20px) read more like chalk.
+        spacing_jitter  : Fraction of hatch_length added as random positional noise.
+                          0.30–0.45: slight irregularity avoids mechanical regularity.
+
+        Notes
+        -----
+        Randomly selected artistic improvement for this session — a composable
+        tempera-hatching primitive that benefits any pre-oil pipeline (Quattrocento
+        tempera, silverpoint underdrawing, chalk cartoon).  Distinct from
+        ``build_form()`` (which uses free-flowing paint strokes following the image
+        gradient) and ``angular_contour_pass()`` (which draws expressive contour
+        outlines at figure boundaries): hatching_pass builds *interior tonal form*
+        through systematic parallel marks, as Renaissance masters did on gesso.
+        """
+        import math as _math
+        import random as _random
+        import numpy as _np
+        import cairo as _cairo
+
+        print(f"  Hatching pass  (n={n_strokes}  angle={angle_primary:.0f}°  "
+              f"cross={cross_hatch}  shadow_thresh={shadow_thresh:.2f})…")
+
+        ref = self._prep(reference)
+        h, w = self.h, self.w
+        rng = _random.Random(7)   # deterministic seed
+
+        # Pre-compute luminance map from reference for placement decisions.
+        # _prep() returns a uint8 array (0–255); normalise to [0, 1] so that
+        # shadow_thresh and light thresholds compare in the same scale.
+        ref_f = ref[:, :, :3].astype(_np.float32) / 255.0
+        lum = (0.299 * ref_f[:, :, 0]
+             + 0.587 * ref_f[:, :, 1]
+             + 0.114 * ref_f[:, :, 2])   # (H, W) float32 in [0, 1]
+
+        def _draw_hatch(angle_deg: float, color: Color, opacity: float,
+                        lum_min: float, lum_max: float, count: int):
+            """
+            Scatter ``count`` hatch strokes in pixels with luminance in
+            [lum_min, lum_max].  Each stroke is a short, thin line at
+            ``angle_deg`` degrees, placed randomly within qualifying pixels.
+            """
+            rad = _math.radians(angle_deg)
+            cos_a = _math.cos(rad)
+            sin_a = _math.sin(rad)
+
+            # Build a list of candidate pixel indices in the lum band
+            mask = (lum >= lum_min) & (lum <= lum_max)
+            ys, xs = _np.where(mask)
+            if len(ys) == 0:
+                return
+
+            ctx = self.canvas.ctx
+            ctx.save()
+
+            r_c, g_c, b_c = color
+
+            for _ in range(count):
+                # Sample a candidate pixel biased to the lum band
+                idx = rng.randrange(len(ys))
+                cy  = float(ys[idx]) + rng.uniform(-spacing_jitter * hatch_length,
+                                                    spacing_jitter * hatch_length)
+                cx  = float(xs[idx]) + rng.uniform(-spacing_jitter * hatch_length,
+                                                    spacing_jitter * hatch_length)
+
+                half = hatch_length * 0.5
+                x0 = cx - cos_a * half
+                y0 = cy - sin_a * half
+                x1 = cx + cos_a * half
+                y1 = cy + sin_a * half
+
+                # Stroke-density scaling: darker → more opaque hatch strokes
+                if lum_min < shadow_thresh:
+                    # Map pixel luminance to opacity boost: darker = higher density
+                    pix_lum = float(lum[
+                        max(0, min(h - 1, int(cy))),
+                        max(0, min(w - 1, int(cx)))
+                    ])
+                    density = _np.clip(1.0 - pix_lum / (shadow_thresh + 1e-6),
+                                       0.0, 1.0)
+                    eff_opacity = opacity * (0.35 + 0.65 * float(density))
+                else:
+                    eff_opacity = opacity
+
+                ctx.set_source_rgba(r_c, g_c, b_c, eff_opacity)
+                ctx.set_line_width(stroke_size)
+                ctx.set_line_cap(_cairo.LINE_CAP_ROUND)
+                ctx.move_to(x0, y0)
+                ctx.line_to(x1, y1)
+                ctx.stroke()
+
+            ctx.restore()
+
+        # ── Primary shadow hatching ───────────────────────────────────────────
+        # Hatch density scales inversely with luminance within the shadow zone.
+        # Darkest pixels get ~70% of total strokes; lighter shadow pixels get less.
+        shadow_count = n_strokes
+        _draw_hatch(angle_primary, dark_color, opacity_shadow,
+                    0.0, shadow_thresh, shadow_count)
+
+        # ── Cross-hatching in deepest shadows ────────────────────────────────
+        if cross_hatch:
+            deep_thresh = shadow_thresh * 0.55
+            cross_count = n_strokes // 3
+            _draw_hatch(angle_cross, dark_color, opacity_shadow * 0.75,
+                        0.0, deep_thresh, cross_count)
+
+        # ── Light accent strokes — gesso ground showing through ──────────────
+        light_count = max(1, n_strokes // 8)
+        _draw_hatch(angle_primary, light_color, opacity_light,
+                    0.82, 1.0, light_count)
+
+        print(f"    Hatching pass complete  "
+              f"(shadow={shadow_count}  cross={n_strokes // 3 if cross_hatch else 0}  "
+              f"light={light_count})")

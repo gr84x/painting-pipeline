@@ -39,7 +39,7 @@ EXPECTED_ARTISTS = [
     "degas",
     "delacroix",
     "egon_schiele",
-    "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
+    "el_greco", "fra_angelico", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "georges_de_la_tour",
     "ingres",
     "jan_van_eyck",
@@ -190,6 +190,7 @@ EXPECTED_PERIODS = [
     "IMPRESSIONIST_INTIMISTE",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
     "PRE_RAPHAELITE",
+    "QUATTROCENTO",
 ]
 
 
@@ -3513,4 +3514,147 @@ def test_northern_renaissance_crisper_than_venetian():
     assert sp_north["edge_softness"] < sp_ven["edge_softness"], (
         "NORTHERN_RENAISSANCE edge_softness must be lower than VENETIAN_RENAISSANCE "
         "(Dürer's engraving-influenced precision is crisper than Titian's rich glazed softness)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Fra Angelico (Quattrocento) — randomly selected artist for this session
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_fra_angelico_in_catalog():
+    """Fra Angelico (this session's randomly selected artist) must appear in CATALOG."""
+    assert "fra_angelico" in CATALOG, "fra_angelico missing from CATALOG"
+
+
+def test_fra_angelico_movement():
+    """Fra Angelico's movement must reference International Gothic or Quattrocento."""
+    s = get_style("fra_angelico")
+    assert ("Gothic" in s.movement or "Quattrocento" in s.movement
+            or "Renaissance" in s.movement), (
+        f"fra_angelico movement unexpected: {s.movement!r}")
+
+
+def test_fra_angelico_nationality():
+    s = get_style("fra_angelico")
+    assert s.nationality == "Italian"
+
+
+def test_fra_angelico_palette_length():
+    s = get_style("fra_angelico")
+    assert len(s.palette) >= 6, (
+        "Fra Angelico palette should have ≥ 6 entries (lead white, flesh, "
+        "sienna shadow, lapis blue, vermilion, gold leaf)")
+
+
+def test_fra_angelico_palette_values_in_range():
+    """All Fra Angelico palette RGB values must be in [0, 1]."""
+    s = get_style("fra_angelico")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in fra_angelico palette {rgb}")
+
+
+def test_fra_angelico_ground_color_pale():
+    """Fra Angelico worked on chalk-white gesso — ground_color must be very pale."""
+    s = get_style("fra_angelico")
+    avg_brightness = sum(s.ground_color) / 3.0
+    assert avg_brightness >= 0.80, (
+        f"fra_angelico ground_color should be near-white (gesso panel); "
+        f"average brightness = {avg_brightness:.3f}")
+
+
+def test_fra_angelico_wet_blend_near_zero():
+    """Egg tempera dries almost instantly — wet_blend must be very low."""
+    s = get_style("fra_angelico")
+    assert s.wet_blend <= 0.10, (
+        f"fra_angelico wet_blend should be ≤ 0.10 (tempera dries instantly); "
+        f"got {s.wet_blend}")
+
+
+def test_fra_angelico_edge_softness_crisp():
+    """Fra Angelico uses clear Gothic-influenced contour lines — edge_softness must be low."""
+    s = get_style("fra_angelico")
+    assert s.edge_softness <= 0.30, (
+        f"fra_angelico edge_softness should be ≤ 0.30 (no sfumato, clear contour); "
+        f"got {s.edge_softness}")
+
+
+def test_fra_angelico_no_glazing():
+    """Tempera technique predates warm amber oil glazing — glazing should be None."""
+    s = get_style("fra_angelico")
+    assert s.glazing is None, (
+        f"fra_angelico glazing should be None (no unifying oil glaze); "
+        f"got {s.glazing!r}")
+
+
+def test_fra_angelico_crackle():
+    """Aged tempera panels crackle — crackle should be True."""
+    s = get_style("fra_angelico")
+    assert s.crackle is True, "fra_angelico crackle should be True (aged panel)"
+
+
+def test_fra_angelico_famous_works():
+    s = get_style("fra_angelico")
+    assert len(s.famous_works) >= 3, "Fra Angelico must have ≥ 3 famous works listed"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Annunciation" in t or "annunciation" in t.lower()
+               for t in titles), (
+        "Fra Angelico's famous works must include the Annunciation "
+        "(his most canonical work, San Marco c.1438)")
+
+
+def test_fra_angelico_stroke_size_fine():
+    """Tempera hatching uses the finest brush strokes — stroke_size must be very small."""
+    s = get_style("fra_angelico")
+    assert s.stroke_size <= 5, (
+        f"fra_angelico stroke_size should be ≤ 5 (fine tempera hatch); "
+        f"got {s.stroke_size}")
+
+
+# ── QUATTROCENTO period ─────────────────────────────────────────────────────────
+
+def test_quattrocento_period_in_enum():
+    """QUATTROCENTO must be a valid Period enum member after this session."""
+    assert hasattr(Period, "QUATTROCENTO"), (
+        "Period.QUATTROCENTO missing from scene_schema")
+    assert isinstance(Period.QUATTROCENTO, Period)
+
+
+def test_quattrocento_stroke_params_present():
+    """QUATTROCENTO must have stroke_params covering all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.QUATTROCENTO).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"QUATTROCENTO stroke_params missing key: {key!r}"
+
+
+def test_quattrocento_wet_blend_near_zero():
+    """QUATTROCENTO wet_blend must be very low — tempera dries instantly."""
+    sp = Style(medium=Medium.OIL, period=Period.QUATTROCENTO).stroke_params
+    assert sp["wet_blend"] <= 0.10, (
+        f"QUATTROCENTO wet_blend should be ≤ 0.10; got {sp['wet_blend']:.3f}")
+
+
+def test_quattrocento_edge_softness_crisp():
+    """QUATTROCENTO edge_softness must be low — clear Gothic contour, no sfumato."""
+    sp = Style(medium=Medium.OIL, period=Period.QUATTROCENTO).stroke_params
+    assert sp["edge_softness"] <= 0.25, (
+        f"QUATTROCENTO edge_softness should be ≤ 0.25; got {sp['edge_softness']:.3f}")
+
+
+def test_quattrocento_stroke_size_face_fine():
+    """QUATTROCENTO stroke_size_face must be very fine — single-hair tempera marks."""
+    sp = Style(medium=Medium.OIL, period=Period.QUATTROCENTO).stroke_params
+    assert sp["stroke_size_face"] <= 5, (
+        f"QUATTROCENTO stroke_size_face should be ≤ 5 (hair-width tempera marks); "
+        f"got {sp['stroke_size_face']}")
+
+
+def test_quattrocento_crisper_than_high_renaissance():
+    """QUATTROCENTO edge_softness must be lower than HIGH_RENAISSANCE (no sfumato at all)."""
+    sp_quat = Style(medium=Medium.OIL, period=Period.QUATTROCENTO).stroke_params
+    sp_high = Style(medium=Medium.OIL, period=Period.HIGH_RENAISSANCE).stroke_params
+    assert sp_quat["edge_softness"] < sp_high["edge_softness"], (
+        "QUATTROCENTO edge_softness must be crisper than HIGH_RENAISSANCE "
+        "(Fra Angelico's contour lines precede the soft modelling of Raphael)")
 
