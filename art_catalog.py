@@ -2315,6 +2315,115 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Pieter Bruegel the Elder ──────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Pieter Bruegel the Elder (c. 1525–1569) is the supreme master of the
+    # Flemish panoramic landscape and the peasant genre scene.  He is remarkable
+    # for inventing a new compositional format: the *high-horizon panorama* — the
+    # viewer placed on an elevated vantage, looking out across a vast seasonal
+    # landscape that fills three-quarters of the canvas.  His figures are small
+    # relative to the land they inhabit, yet meticulously individualised: each
+    # posture, each costume, each face is particularised within a densely
+    # populated scene that reads as a whole before it resolves into its parts.
+    #
+    # Bruegel's technical innovations:
+    #
+    #   1. AERIAL PERSPECTIVE AS SYSTEM — he is the first Northern European
+    #      painter to apply Leonardo's atmospheric recession theory rigorously
+    #      and consistently.  Foreground: saturated warm earth tones.  Middle
+    #      ground: cooler, less saturated, greens beginning to grey.  Far
+    #      distance: desaturated cool blue-grey, edges lost in haze.  The
+    #      transition is incremental and reads over the full depth range.
+    #
+    #   2. SEASONAL LIGHT — each of the six "Seasons" panels (*Hunters in the
+    #      Snow*, *The Harvesters*, *Gloomy Day*, etc.) is lit by a precise
+    #      seasonal light quality.  Winter: flat grey overcast, no shadows,
+    #      palette reduced to near-monochrome black-grey-ochre.  Summer: warm
+    #      golden harvest light from the upper left, long horizontal shadows.
+    #      This is not generic landscape light but *meteorological* light.
+    #
+    #   3. HIGH-HORIZON COMPOSITION — the horizon line is typically in the upper
+    #      quarter of the canvas, forcing the viewer's gaze to sweep across a
+    #      vast panoramic terrain before reaching the sky.  Diagonal paths and
+    #      rivers lead the eye from foreground corners into the deep distance.
+    #
+    #   4. EARTHY NATURALISM — the palette avoids Flemish jewel-tones (no
+    #      lapis, no vermilion except sparingly).  Earth pigments dominate:
+    #      raw umber, burnt sienna, yellow ochre, verdigris green, lead white,
+    #      ivory black.  The effect is warm but fundamentally terrestrial —
+    #      the colour of dirt, bark, snow, and stubble.
+    #
+    #   5. FLAT COLOUR ZONES FOR FIGURES — individual figures are rendered in
+    #      relatively flat, posterised zones of colour with minimal tonal
+    #      modelling.  The environment receives more tonal nuance than the
+    #      figures; this reverses the Renaissance priority and is distinctly
+    #      Northern.  Faces are ruddy, coarse, individualised.
+    #
+    # Pipeline key: bruegel_panorama_pass() — applies progressive aerial
+    # perspective desaturation and blue-grey haze as a function of the
+    # pixel's distance from the foreground base of the canvas, formalising
+    # Bruegel's systematic atmospheric recession into a single composable pass.
+    "bruegel": ArtStyle(
+        artist="Pieter Bruegel the Elder",
+        movement="Flemish Renaissance / Northern Panoramic Realism",
+        nationality="Flemish (Netherlandish)",
+        period="c. 1550–1569",
+        palette=[
+            (0.62, 0.48, 0.28),   # warm yellow-ochre — foreground earth, straw, skin
+            (0.32, 0.38, 0.20),   # dark olive green — near-ground foliage and scrub
+            (0.20, 0.16, 0.10),   # dark raw umber — tree trunks, deep shadow
+            (0.48, 0.52, 0.40),   # mid-value grey-green — middle-distance field
+            (0.62, 0.66, 0.72),   # cool blue-grey — far atmospheric haze
+            (0.85, 0.88, 0.92),   # pale sky blue-white — zenith sky
+            (0.78, 0.72, 0.55),   # warm pale buff — lit snow / harvest stubble
+            (0.28, 0.22, 0.14),   # deep umber — darkest foreground shadow
+        ],
+        ground_color=(0.52, 0.44, 0.28),    # warm ochre-brown imprimatura
+        stroke_size=6,
+        wet_blend=0.28,                      # moderate — forms are clear, not blended
+        edge_softness=0.50,                  # medium — figures are clear; distances dissolve
+        jitter=0.03,
+        glazing=(0.62, 0.55, 0.35),          # warm amber unifying glaze — binds earthy tones
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "High-horizon panoramic composition with systematic aerial perspective. "
+            "Foreground: warm saturated earth tones — ochre, burnt sienna, dark umber — "
+            "with clear figure outlines and detailed individual characterisation. "
+            "Middle ground: progressively cooler and less saturated; greens become grey-green; "
+            "figures become silhouettes with minimal detail. "
+            "Far distance: desaturated cool blue-grey; edges dissolve into atmospheric haze; "
+            "only mass and horizon line remain legible. "
+            "Seasonal light is precise and meteorological — not generic 'golden hour' but "
+            "the specific quality of winter overcast or summer noon or autumn afternoon. "
+            "Figure palette: flat earthy zones with ruddy flesh and minimal modelling — "
+            "the land is more tonally nuanced than the peasants who inhabit it. "
+            "Diagonal paths and rivers lead the eye from the foreground corners deep into "
+            "the receding landscape, creating the sensation of vast inhabited space."
+        ),
+        famous_works=[
+            ("Hunters in the Snow (Winter)", "1565"),
+            ("The Harvesters (Summer)", "1565"),
+            ("The Peasant Wedding", "c. 1567"),
+            ("The Tower of Babel", "1563"),
+            ("Landscape with the Fall of Icarus", "c. 1555"),
+            ("The Blind Leading the Blind", "1568"),
+            ("Gloomy Day (February)", "1565"),
+        ],
+        inspiration=(
+            "Use bruegel_panorama_pass() as the primary depth-rendering pass: "
+            "apply progressive desaturation and cool blue-grey haze as a function of "
+            "vertical position (depth proxy) — full warm saturation at the canvas bottom "
+            "fading to cool desaturated haze at the horizon line.  The foreground zone "
+            "(bottom 25%) retains full palette chroma; mid-ground (25–60%) receives a "
+            "cool temperature shift and -20% saturation; far-ground (60–100% up) receives "
+            "full desaturation and blue-grey overlay at 40–60% opacity.  "
+            "tone_ground() with warm ochre-brown.  Individual figures: flat_plane_pass() "
+            "with earthy poster zones.  Winter scenes: reduce jitter to near-zero and "
+            "shift palette to near-monochrome grey-white-black."
+        ),
+    ),
+
 }
 
 

@@ -29,6 +29,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 EXPECTED_ARTISTS = [
     "artemisia_gentileschi",
     "bouguereau",
+    "bruegel",
     "caravaggio", "caspar_david_friedrich", "cezanne",
     "chardin", "courbet",
     "delacroix",
@@ -2438,4 +2439,88 @@ def test_impressionist_intimiste_moderate_wet_blend():
                      palette=PaletteHint.WARM_EARTH).stroke_params
     assert impressionist["wet_blend"] <= intimiste["wet_blend"] <= academic["wet_blend"], (
         "IMPRESSIONIST_INTIMISTE wet_blend should be between IMPRESSIONIST and ACADEMIC_REALIST")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pieter Bruegel the Elder — this session's randomly selected artist
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bruegel_in_catalog():
+    """Pieter Bruegel the Elder (this session's random artist) must be in CATALOG."""
+    assert "bruegel" in CATALOG, "Missing artist: 'bruegel'"
+
+
+def test_bruegel_movement():
+    """Bruegel's movement must reference Flemish and/or Northern tradition."""
+    s = get_style("bruegel")
+    assert "Flemish" in s.movement or "Northern" in s.movement, (
+        f"Unexpected Bruegel movement: {s.movement!r}")
+
+
+def test_bruegel_palette_length():
+    """Bruegel must have at least 6 palette entries to cover the panoramic depth zones."""
+    s = get_style("bruegel")
+    assert len(s.palette) >= 6, (
+        f"Bruegel palette has only {len(s.palette)} entries; expected ≥ 6")
+
+
+def test_bruegel_palette_values_in_range():
+    """All Bruegel palette RGB values must be in [0, 1]."""
+    s = get_style("bruegel")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Out-of-range channel {ch} in Bruegel palette {rgb}")
+
+
+def test_bruegel_ground_color_valid():
+    """Bruegel's ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("bruegel")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_bruegel_has_famous_works():
+    """Bruegel entry must include at least 4 famous works."""
+    s = get_style("bruegel")
+    assert len(s.famous_works) >= 4, (
+        f"Bruegel famous_works has only {len(s.famous_works)} entries; expected ≥ 4")
+
+
+def test_bruegel_hunters_in_snow_referenced():
+    """'Hunters in the Snow' — the canonical Bruegel panorama — must be listed."""
+    s = get_style("bruegel")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Hunters" in t for t in titles), (
+        "Bruegel famous_works must include 'Hunters in the Snow'")
+
+
+def test_flemish_panoramic_period_exists():
+    """FLEMISH_PANORAMIC must exist in Period enum (this session's addition)."""
+    assert hasattr(Period, "FLEMISH_PANORAMIC"), (
+        "Period.FLEMISH_PANORAMIC not found")
+    assert Period.FLEMISH_PANORAMIC in list(Period)
+
+
+def test_flemish_panoramic_stroke_params_valid():
+    """FLEMISH_PANORAMIC stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.FLEMISH_PANORAMIC,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"FLEMISH_PANORAMIC stroke_params missing key: {key!r}"
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_flemish_panoramic_bg_larger_than_face():
+    """FLEMISH_PANORAMIC stroke_size_bg must be larger than stroke_size_face (landscape priority)."""
+    p = Style(medium=Medium.OIL, period=Period.FLEMISH_PANORAMIC,
+              palette=PaletteHint.WARM_EARTH).stroke_params
+    assert p["stroke_size_bg"] > p["stroke_size_face"], (
+        "FLEMISH_PANORAMIC bg stroke must be larger than face stroke (landscape-first)")
 

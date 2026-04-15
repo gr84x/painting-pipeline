@@ -208,6 +208,7 @@ class Period(Enum):
     SOCIAL_REALIST = auto()    # Courbet — palette knife planes, dark earthy ground, unidealized impasto
     ACADEMIC_REALIST = auto()  # Bouguereau — porcelain-smooth flesh, imperceptible blending, warm golden glazing
     IMPRESSIONIST_INTIMISTE = auto()  # Cassatt — north-window light, warm/cool shadow contrast, domestic intimacy
+    FLEMISH_PANORAMIC = auto()        # Bruegel — high-horizon landscape, systematic aerial perspective, earthy palette
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -577,6 +578,15 @@ class Style:
             # edge_softness=0.42: north light creates soft but present edges — no sfumato
             # haze, but no Baroque razor-edge either.  Edges read across the room.
             Period.IMPRESSIONIST_INTIMISTE: dict(stroke_size_face=9, stroke_size_bg=18, wet_blend=0.38, edge_softness=0.42),
+            # Flemish Panoramic (Bruegel): high-horizon landscape with systematic aerial
+            # perspective.  stroke_size_face is moderate — individual figure marks are
+            # small relative to the broad landscape.  stroke_size_bg is large — vast
+            # landscape areas are painted with broad sweeping strokes.
+            # Moderate wet_blend (0.28): forms are clear and present, not blended into
+            # atmospheric haze (bruegel_panorama_pass() adds the haze as a separate step).
+            # Moderate edge_softness (0.50): foreground figures have clear edges; the
+            # atmospheric haze is added as a composable pass, not baked into the stroke.
+            Period.FLEMISH_PANORAMIC: dict(stroke_size_face=6, stroke_size_bg=28, wet_blend=0.28, edge_softness=0.50),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

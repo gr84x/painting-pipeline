@@ -9234,3 +9234,125 @@ class Painter:
         self.canvas.ctx.paint()
 
         print(f"    North-light diffusion complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # bruegel_panorama_pass — Flemish aerial perspective
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def bruegel_panorama_pass(
+        self,
+        *,
+        haze_color:        Tuple[float, float, float] = (0.72, 0.78, 0.88),
+        horizon_fraction:  float = 0.65,
+        near_fraction:     float = 0.25,
+        haze_opacity:      float = 0.55,
+        desaturation:      float = 0.70,
+        lightening:        float = 0.30,
+        blend_mode:        str   = "normal",
+    ) -> None:
+        """
+        Systematic aerial-perspective haze inspired by Pieter Bruegel the Elder.
+
+        Bruegel was the first Northern European painter to apply Leonardo's
+        atmospheric recession theory consistently across a whole canvas.  The
+        result is a three-zone depth system that gives his panoramic landscapes
+        their sensation of vast inhabited space:
+
+          Foreground  (bottom near_fraction of the canvas)
+              Warm, fully saturated earth tones — no haze applied.
+
+          Middle-ground  (between near_fraction and horizon_fraction)
+              Gradual cool temperature shift; moderate desaturation; faint
+              blue-grey overlay blended in at rising opacity.
+
+          Far-ground  (top, above horizon_fraction from bottom)
+              Full desaturation toward near-monochrome; maximum blue-grey
+              haze overlay at haze_opacity; atmospheric lightening lifts darks.
+
+        Parameters
+        ----------
+        haze_color       : (R, G, B) in [0, 1] — atmospheric haze colour.
+                           Bruegel's distance is cool blue-grey; winter scenes
+                           use a paler, greyer variant.
+        horizon_fraction : fraction of canvas height (from bottom) where the far
+                           haze reaches full strength.  Default 0.65 places the
+                           horizon in the upper third — Bruegel's high vantage.
+        near_fraction    : fraction of canvas height (from bottom) that is
+                           pure foreground — no haze applied here.  Default 0.25.
+        haze_opacity     : maximum opacity of the haze overlay at full distance.
+        desaturation     : fraction by which to desaturate at full depth (0 = none,
+                           1 = full greyscale).
+        lightening       : fraction by which to lighten dark pixels at full depth,
+                           simulating the luminous pale horizon sky bleeding into
+                           far-distance land masses.
+        blend_mode       : 'normal' (alpha composite) or 'screen' (lighter effect).
+
+        Notes
+        -----
+        The pass reads the current canvas pixel buffer, computes per-pixel
+        depth weight from vertical position, then writes the modified buffer
+        back to the cairo surface.  It is composable: apply after tone_ground()
+        and build_form() passes but before final glaze.
+        """
+        import numpy as _np
+
+        buf = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((self.h, self.w, 4)).copy()
+
+        # BGRA → float RGB
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── Depth weight: 0.0 at foreground base, 1.0 at far horizon ──────────
+        # y=0 is the top of the canvas (far distance in a high-horizon scene).
+        # Bruegel's foreground is at the bottom (y_norm = 1); far at top (0).
+        y_norm = _np.arange(self.h, dtype=_np.float32)[:, _np.newaxis] / self.h
+        # y_norm: 0 = top (far), 1 = bottom (near)
+        near_start  = 1.0 - near_fraction        # depth starts above this y_norm
+        horiz_start = 1.0 - horizon_fraction      # full haze at and above this y_norm
+
+        # depth_w = 0 in foreground, ramps linearly to 1 at horizon and beyond
+        depth_w = _np.clip(
+            (near_start - y_norm) / (near_start - horiz_start + 1e-9), 0.0, 1.0
+        )
+        depth_w = depth_w * _np.ones((self.h, self.w), dtype=_np.float32)
+
+        # ── Desaturation toward grey ───────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+        desat_amount = depth_w * desaturation
+        R = R + (lum - R) * desat_amount
+        G = G + (lum - G) * desat_amount
+        B = B + (lum - B) * desat_amount
+
+        # ── Atmospheric lightening — lifts dark values at distance ────────────
+        lighten_amount = depth_w * lightening
+        R = R + (1.0 - R) * lighten_amount * (1.0 - R)
+        G = G + (1.0 - G) * lighten_amount * (1.0 - G)
+        B = B + (1.0 - B) * lighten_amount * (1.0 - B)
+
+        # ── Haze colour overlay ───────────────────────────────────────────────
+        hr, hg, hb = haze_color
+        alpha = depth_w * haze_opacity
+        if blend_mode == "screen":
+            R = 1.0 - (1.0 - R) * (1.0 - hr * alpha)
+            G = 1.0 - (1.0 - G) * (1.0 - hg * alpha)
+            B = 1.0 - (1.0 - B) * (1.0 - hb * alpha)
+        else:
+            R = R + (hr - R) * alpha
+            G = G + (hg - G) * alpha
+            B = B + (hb - B) * alpha
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 2] = _np.clip(R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Bruegel panorama pass complete (haze={haze_color})")

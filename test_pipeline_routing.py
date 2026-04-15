@@ -2692,3 +2692,113 @@ def test_impressionist_intimiste_stroke_params_valid():
     assert p["stroke_size_bg"]   > 0
     assert 0.0 <= p["wet_blend"]      <= 1.0
     assert 0.0 <= p["edge_softness"]  <= 1.0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# bruegel_panorama_pass — this session's new artistic improvement
+# Inspired by Pieter Bruegel the Elder's systematic aerial-perspective system
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bruegel_panorama_pass_exists():
+    """Painter must have bruegel_panorama_pass() method after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bruegel_panorama_pass"), (
+        "bruegel_panorama_pass not found on Painter")
+    assert callable(getattr(Painter, "bruegel_panorama_pass"))
+
+
+def test_bruegel_panorama_pass_no_error():
+    """bruegel_panorama_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.44, 0.28), texture_strength=0.06)
+    # Should not raise
+    p.bruegel_panorama_pass(
+        haze_color       = (0.72, 0.78, 0.88),
+        horizon_fraction = 0.65,
+        near_fraction    = 0.25,
+        haze_opacity     = 0.55,
+        desaturation     = 0.70,
+        lightening       = 0.30,
+    )
+
+
+def test_bruegel_panorama_pass_top_rows_bluer_than_bottom():
+    """
+    Top rows (far distance) should be more blue-haze-shifted than bottom rows
+    (foreground).  Paint a warm canvas, apply the pass with a blue haze, and
+    confirm the top row has a higher blue channel than the bottom row.
+    """
+    p = _make_small_painter(64, 64)
+    # Warm orange foreground — any blue haze effect will be detectable
+    p.tone_ground((0.82, 0.42, 0.12), texture_strength=0.00)
+
+    p.bruegel_panorama_pass(
+        haze_color       = (0.40, 0.60, 0.90),   # blue haze
+        horizon_fraction = 0.60,
+        near_fraction    = 0.20,
+        haze_opacity     = 0.70,
+        desaturation     = 0.80,
+        lightening       = 0.40,
+    )
+
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA: channel 0 = B, channel 1 = G, channel 2 = R
+    top_blue    = float(buf[0,  :, 0].mean())   # top row (far distance) — B channel
+    bottom_blue = float(buf[63, :, 0].mean())   # bottom row (foreground) — B channel
+
+    assert top_blue > bottom_blue, (
+        f"Top row (far distance) should be bluer after bruegel_panorama_pass, "
+        f"but top_blue={top_blue:.1f} <= bottom_blue={bottom_blue:.1f}")
+
+
+def test_bruegel_panorama_pass_foreground_unchanged():
+    """
+    Bottom rows (pure foreground, within near_fraction) should be minimally
+    affected by the haze — the haze weight is 0 there.
+    """
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.48, 0.28), texture_strength=0.00)
+
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    # Only the bottom quarter is 'pure foreground' with near_fraction=0.25
+    p.bruegel_panorama_pass(
+        haze_color       = (0.40, 0.60, 0.90),
+        near_fraction    = 0.30,   # bottom 30% is pure foreground
+        horizon_fraction = 0.70,
+        haze_opacity     = 0.80,
+        desaturation     = 0.90,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # The very bottom row should be unchanged (depth_w = 0 there)
+    bottom_row_diff = np.abs(
+        after_buf[63, :, :3].astype(np.int32) - before_buf[63, :, :3].astype(np.int32)
+    ).max()
+    assert bottom_row_diff == 0, (
+        f"Bottom row (pure foreground) should be unchanged after bruegel_panorama_pass, "
+        f"but max pixel diff = {bottom_row_diff}")
+
+
+def test_bruegel_panorama_pass_screen_blend_no_error():
+    """bruegel_panorama_pass() with blend_mode='screen' runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.44, 0.28), texture_strength=0.04)
+    p.bruegel_panorama_pass(
+        haze_color  = (0.72, 0.78, 0.88),
+        haze_opacity= 0.40,
+        blend_mode  = "screen",
+    )
+
+
+def test_flemish_panoramic_period_routing():
+    """FLEMISH_PANORAMIC period must produce valid stroke_params."""
+    sp = Style(medium=Medium.OIL, period=Period.FLEMISH_PANORAMIC).stroke_params
+    assert sp["stroke_size_bg"] > sp["stroke_size_face"], (
+        "FLEMISH_PANORAMIC bg stroke should exceed face stroke (landscape > figure)")
+    assert 0.0 <= sp["wet_blend"] <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
