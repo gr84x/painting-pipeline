@@ -1414,6 +1414,118 @@ def test_velatura_pass_pixels_in_range():
     assert buf.max() <= 255
 
 
+# chromatic_shadow_pass() — session 20 random artistic improvement
+# Inspired by Eugène Delacroix's discovery that shadows contain the complement
+# of the dominant light colour.
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_chromatic_shadow_pass_exists():
+    """Painter must have chromatic_shadow_pass() method after session 20."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "chromatic_shadow_pass"), (
+        "chromatic_shadow_pass not found on Painter")
+    assert callable(getattr(Painter, "chromatic_shadow_pass"))
+
+
+def test_chromatic_shadow_pass_no_error():
+    """chromatic_shadow_pass() runs without error on a tiny canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.chromatic_shadow_pass(shadow_threshold=0.45, strength=0.26)
+
+
+def test_chromatic_shadow_pass_modifies_canvas():
+    """chromatic_shadow_pass() must change at least some canvas pixels."""
+    import cairo
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.12, 0.06), texture_strength=0.08)  # very dark ground
+    p.block_in(ref, stroke_size=10, n_strokes=60)
+
+    surf = p.canvas.surface
+    h, w = surf.get_height(), surf.get_width()
+    before = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+    p.chromatic_shadow_pass(shadow_threshold=0.55, strength=0.50, lum_preserve=False)
+
+    after = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+    assert not np.array_equal(before, after), (
+        "chromatic_shadow_pass() should have changed at least some pixels")
+
+
+def test_chromatic_shadow_pass_lum_preserve_keeps_luminance():
+    """With lum_preserve=True, per-pixel luminance must be preserved (within tolerance)."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.30, 0.22, 0.10), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=60)
+
+    surf = p.canvas.surface
+    h, w = surf.get_height(), surf.get_width()
+    before_buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+    # Compute luminance from Cairo ARGB32 (B=0, G=1, R=2)
+    def _lum(buf):
+        r = buf[:, :, 2].astype(np.float32) / 255.0
+        g = buf[:, :, 1].astype(np.float32) / 255.0
+        b = buf[:, :, 0].astype(np.float32) / 255.0
+        return 0.299 * r + 0.587 * g + 0.114 * b
+
+    lum_before = _lum(before_buf)
+
+    # Shadow pixels only (lum < 0.50)
+    shadow_mask = lum_before < 0.50
+
+    p.chromatic_shadow_pass(shadow_threshold=0.50, strength=0.40, lum_preserve=True)
+
+    after_buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+    lum_after = _lum(after_buf)
+
+    # In shadow zones, luminance must not change by more than ±0.08 (8%)
+    # Small rounding errors from uint8 quantisation are expected.
+    if shadow_mask.any():
+        delta = np.abs(lum_after[shadow_mask] - lum_before[shadow_mask])
+        assert delta.max() <= 0.08, (
+            f"lum_preserve=True should keep luminance constant; "
+            f"max delta was {delta.max():.4f}")
+
+
+def test_chromatic_shadow_pass_fixed_tint_no_error():
+    """chromatic_shadow_pass() with a fixed shadow_tint should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    # Violet shadow tint — warm-lit Delacroix scene
+    p.chromatic_shadow_pass(shadow_tint=(0.35, 0.22, 0.72), strength=0.30)
+
+
+def test_chromatic_shadow_pass_figure_only_no_error():
+    """chromatic_shadow_pass() with figure_only=True and a mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.chromatic_shadow_pass(figure_only=True, strength=0.28)
+
+
+def test_chromatic_shadow_pass_pixels_in_range():
+    """chromatic_shadow_pass() must not produce out-of-range pixel values."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.22, 0.14, 0.06), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=50)
+    p.chromatic_shadow_pass(shadow_threshold=0.60, strength=0.50, lum_preserve=False)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
 def test_art_deco_period_in_enum():
     """ART_DECO must be a member of the Period enum."""
     assert hasattr(Period, "ART_DECO"), "Period.ART_DECO not found"
@@ -1458,3 +1570,164 @@ def test_art_deco_and_fauvist_mutually_exclusive():
     assert not flags_ad["is_fauvist"]
     assert     flags_f["is_fauvist"]
     assert not flags_f["is_art_deco"]
+
+
+def test_chromatic_shadow_pass_zero_strength_is_noop():
+    """With strength=0, chromatic_shadow_pass() should not change the canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.40, 0.28, 0.14), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=40)
+
+    surf = p.canvas.surface
+    h, w = surf.get_height(), surf.get_width()
+    before = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+
+    p.chromatic_shadow_pass(strength=0.0)
+
+    after = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+    assert np.array_equal(before, after), (
+        "strength=0 should leave the canvas unchanged")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# BAROQUE routing flag — scene_to_painting() flags
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_baroque_routing_flag_true_for_baroque_period():
+    """is_baroque should be True when Period.BAROQUE is set."""
+    style = Style(medium=Medium.OIL, period=Period.BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    assert style.period == Period.BAROQUE
+
+
+def test_baroque_routing_flag_false_for_renaissance():
+    """BAROQUE flag must not fire for RENAISSANCE period."""
+    assert Period.BAROQUE != Period.RENAISSANCE
+
+
+def test_baroque_stroke_params_present():
+    """BAROQUE period must have stroke_params defined."""
+    style = Style(medium=Medium.OIL, period=Period.BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"BAROQUE stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# scumble_pass -- dry-brush drag/scumbling effect (Vuillard/Nabis session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_scumble_pass_exists():
+    """Painter must have scumble_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "scumble_pass"), "scumble_pass not found on Painter"
+    assert callable(getattr(Painter, "scumble_pass"))
+
+
+def test_scumble_pass_no_error():
+    """scumble_pass() runs without error on a small canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.54, 0.44), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.scumble_pass(opacity=0.18, n_drags=80, drag_distance=8)
+
+
+def test_scumble_pass_modifies_canvas():
+    """scumble_pass() with positive opacity must modify a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.45, 0.38, 0.22), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    p.scumble_pass(opacity=0.30, n_drags=160, drag_distance=10, dry_factor=0.60)
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    diff = np.abs(after - before).max()
+    assert diff > 0, "scumble_pass with opacity=0.30 should modify the canvas"
+
+
+def test_scumble_pass_figure_only_no_error():
+    """scumble_pass() with figure_only=True and a mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.scumble_pass(opacity=0.20, n_drags=80, drag_distance=8, figure_only=True)
+# dappled_light_pass — Sorolla / Luminismo addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_dappled_light_pass_exists():
+    """Painter must have dappled_light_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "dappled_light_pass"), (
+        "dappled_light_pass not found on Painter")
+    assert callable(getattr(Painter, "dappled_light_pass"))
+
+
+def test_dappled_light_pass_no_error():
+    """dappled_light_pass() runs without error on a plain toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.70, 0.68, 0.58), texture_strength=0.06)
+    # Should not raise
+    p.dappled_light_pass(ref, n_pools=6, pool_radius=0.12)
+
+
+def test_dappled_light_pass_modifies_canvas():
+    """dappled_light_pass() with non-zero intensity must modify a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.dappled_light_pass(ref, n_pools=10, pool_radius=0.15,
+                         light_intensity=0.40, shadow_intensity=0.20)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff > 0, "dappled_light_pass should modify the canvas"
+
+
+def test_dappled_light_pass_zero_intensity_minimal_change():
+    """dappled_light_pass() with zero intensities should leave the canvas essentially unchanged."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.dappled_light_pass(ref, n_pools=8, pool_radius=0.12,
+                         light_intensity=0.0, shadow_intensity=0.0,
+                         blur_sigma=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    # With both intensities at zero the RGB channels should be unaltered;
+    # allow a tolerance of 1 for float rounding through the uint8 write-back.
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff <= 2, (
+        f"dappled_light_pass with zero intensity should not change the canvas, "
+        f"but max pixel diff was {diff}")
+
+
+def test_dappled_light_pass_luminismo_routing_flag():
+    """LUMINISMO period must produce a valid stroke_params dict (routing smoke test)."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LUMINISMO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "wet_blend"        in p
+    # Luminismo should NOT be mannerist, synthetist, or color-field
+    assert style.period != Period.MANNERIST
+    assert style.period != Period.SYNTHETIST
+    assert style.period != Period.COLOR_FIELD

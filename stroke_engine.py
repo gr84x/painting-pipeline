@@ -3153,6 +3153,191 @@ class Painter:
 
         print("  Granulation complete.")
 
+    def dappled_light_pass(
+            self,
+            reference:          "Union[np.ndarray, Image.Image]",
+            n_pools:            int   = 38,
+            pool_radius:        float = 0.065,
+            light_color:        Color = (1.00, 0.97, 0.82),
+            shadow_color:       Color = (0.62, 0.58, 0.80),
+            light_intensity:    float = 0.28,
+            shadow_intensity:   float = 0.14,
+            scatter_jitter:     float = 0.18,
+            lum_gate:           float = 0.30,
+            blur_sigma:         float = 3.5,
+    ):
+        """
+        Dappled light pass — inspired by Joaquín Sorolla's luminismo.
+
+        Sorolla's outdoor paintings are defined by broken pools of Mediterranean
+        sunlight scattered across figures, fabric, and water.  Direct sunlight
+        filters through leaves (or reflects off water) to create irregular,
+        overlapping patches of warm brilliance surrounded by cool violet shadow.
+
+        This pass simulates that effect entirely in the painted pixel buffer:
+
+        1. **Pool placement** — ``n_pools`` elliptical masks are placed pseudo-
+           randomly across the canvas, biased toward mid-luminance areas (the
+           brightly-lit regions where the effect is most readable).
+
+        2. **Warm light dabs** — inside each pool the canvas is nudged toward
+           ``light_color`` (warm golden-white) proportional to ``light_intensity``.
+           The shift is strongest at the pool centre and falls off with a Gaussian
+           envelope, so each patch is softer at its perimeter — imitating the
+           penumbral edge of filtered sunlight.
+
+        3. **Cool violet shadow fringe** — immediately outside each pool the
+           complement effect kicks in: the shadow side is shifted toward
+           ``shadow_color`` (cool violet / blue) at ``shadow_intensity``.
+           This simultaneous contrast is the defining Sorolla move: warm light
+           makes the adjacent shadow *cooler and more violet* by comparison.
+
+        4. **Specular impasto dot** — at each pool's brightest point a single
+           very bright near-white dab (radius ≈ pool_radius × 0.12) marks the
+           direct specular highlight.  In Sorolla's technique these dots are
+           painted last with a heavily loaded brush.
+
+        The pass works in float32 pixel space for accuracy, then writes back to
+        the Cairo ARGB32 surface — exactly like ``pigment_granulation_pass``.
+
+        Parameters
+        ----------
+        reference        : Reference image for luminance-biased placement.
+        n_pools          : Number of light pools to scatter.
+        pool_radius      : Pool radius as a fraction of canvas width (0.03–0.12).
+        light_color      : Warm sunlight colour to push into pool centres.
+        shadow_color     : Cool shadow/violet colour for pool fringes.
+        light_intensity  : Maximum lightening strength inside each pool (0–1).
+        shadow_intensity : Maximum shadow fringe shift (0–1).
+        scatter_jitter   : Fraction of canvas added as uniform random noise to
+                           pool positions beyond the luminance-biased grid.
+        lum_gate         : Only place pools over pixels above this luminance —
+                           avoids scattering light into already-dark shadow areas.
+        blur_sigma       : Gaussian sigma (px) for pool envelope softening.
+        """
+        print(f"Dappled light pass  (n_pools={n_pools}  "
+              f"radius={pool_radius:.3f}  intensity={light_intensity:.2f})…")
+
+        ref = self._prep(reference)
+        h, w = self.h, self.w
+        rng  = random.Random(42)           # deterministic within a painting session
+
+        # ── Read current canvas ───────────────────────────────────────────────
+        buf  = np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=np.uint8).reshape(h, w, 4).copy()
+        carr = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0   # BGR→RGB
+
+        # ── Reference luminance for placement bias ────────────────────────────
+        ref_lum = (0.299 * ref[:, :, 0] +
+                   0.587 * ref[:, :, 1] +
+                   0.114 * ref[:, :, 2])
+
+        # Build a candidate set: pixels above lum_gate
+        bright_ys, bright_xs = np.where(ref_lum > lum_gate)
+        if bright_ys.size == 0:
+            bright_ys, bright_xs = np.where(ref_lum >= 0)   # fallback: anywhere
+
+        # Pixel radius
+        radius_px = max(6, int(pool_radius * w))
+
+        # Accumulator for light and shadow shifts — summed, then applied once
+        light_acc  = np.zeros((h, w), dtype=np.float32)   # +lightening
+        shadow_acc = np.zeros((h, w), dtype=np.float32)   # +shadow fringe
+
+        ys_f = np.arange(h, dtype=np.float32)
+        xs_f = np.arange(w, dtype=np.float32)
+
+        for _ in range(n_pools):
+            # Sample a candidate pixel, biased toward bright areas
+            idx = rng.randrange(len(bright_ys))
+            cy  = int(bright_ys[idx] + rng.uniform(-scatter_jitter * h,
+                                                     scatter_jitter * h))
+            cx  = int(bright_xs[idx] + rng.uniform(-scatter_jitter * w,
+                                                     scatter_jitter * w))
+            cy  = max(0, min(h - 1, cy))
+            cx  = max(0, min(w - 1, cx))
+
+            # Elliptical Gaussian pool envelope (slight aspect-ratio variation)
+            rx  = radius_px * rng.uniform(0.75, 1.25)
+            ry  = radius_px * rng.uniform(0.75, 1.25)
+
+            # Distance grid — vectorised
+            dy  = (ys_f[:, np.newaxis] - cy) / max(ry, 1)
+            dx  = (xs_f[np.newaxis, :] - cx) / max(rx, 1)
+            d2  = dx * dx + dy * dy
+
+            # Gaussian core: peaks at the pool centre (d2=0)
+            gauss  = np.exp(-d2 * 1.8).astype(np.float32)
+
+            # Shadow fringe: annular region just outside the core
+            fringe = np.exp(-((d2 - 1.0) ** 2) * 2.5).astype(np.float32)
+            fringe = np.where(d2 > 0.6, fringe, 0.0).astype(np.float32)
+
+            light_acc  += gauss  * rng.uniform(0.65, 1.0)
+            shadow_acc += fringe * rng.uniform(0.50, 1.0)
+
+        # Normalise accumulators so overlapping pools don't over-saturate
+        max_l = light_acc.max()
+        max_s = shadow_acc.max()
+        if max_l > 0:
+            light_acc  /= max_l
+        if max_s > 0:
+            shadow_acc /= max_s
+
+        # Optional Gaussian blur to soften pool boundaries
+        if blur_sigma > 0:
+            light_acc  = ndimage.gaussian_filter(light_acc,  sigma=blur_sigma)
+            shadow_acc = ndimage.gaussian_filter(shadow_acc, sigma=blur_sigma)
+
+        light_acc  = light_acc.clip(0, 1)
+        shadow_acc = shadow_acc.clip(0, 1)
+
+        # ── Warm light shift ──────────────────────────────────────────────────
+        lc = np.array(light_color,  dtype=np.float32)
+        sc = np.array(shadow_color, dtype=np.float32)
+
+        out = carr.copy()
+        for c in range(3):
+            # Blend each pixel toward light_color proportional to pool presence
+            out[:, :, c] = (carr[:, :, c]
+                            + (lc[c] - carr[:, :, c]) * light_acc  * light_intensity
+                            + (sc[c] - carr[:, :, c]) * shadow_acc * shadow_intensity)
+        out = out.clip(0.0, 1.0)
+
+        # ── Specular impasto dot at each pool centre ──────────────────────────
+        # A single very bright near-white dab at the pool core — the small
+        # loaded-brush impasto mark that catches the eye in Sorolla's work.
+        # Only placed when light is actually being applied (intensity > 0).
+        if light_intensity > 0:
+            spec_r = max(2, int(radius_px * 0.12))
+            spec_c = np.array([1.00, 0.98, 0.90], dtype=np.float32)
+            ys_g, xs_g = np.ogrid[:h, :w]
+            for _ in range(min(n_pools, 12)):   # only the first 12 pools get specular dots
+                idx = rng.randrange(len(bright_ys))
+                cy  = int(bright_ys[idx])
+                cx  = int(bright_xs[idx])
+                dg  = (ys_g - cy) ** 2 + (xs_g - cx) ** 2
+                within = dg <= spec_r ** 2
+                for c in range(3):
+                    out[:, :, c] = np.where(within,
+                                            out[:, :, c] * 0.25 + spec_c[c] * 0.75,
+                                            out[:, :, c])
+
+        out = out.clip(0.0, 1.0)
+
+        # ── Write back to Cairo surface ───────────────────────────────────────
+        buf[:, :, 2] = np.clip(out[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R→G2
+        buf[:, :, 1] = np.clip(out[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G→G1
+        buf[:, :, 0] = np.clip(out[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B→G0
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print("  Dappled light complete.")
+
     def glaze(self, color: Color, opacity: float = 0.10):
         """
         Step 6 — Final glaze.
@@ -6383,3 +6568,518 @@ class Painter:
         n_midtone_px = int((mid_mask > 0.05).sum())
         print(f"  Velatura pass complete  (midtone_zone={n_midtone_px}px  "
               f"lo={midtone_lo:.2f}  hi={midtone_hi:.2f})")
+
+    def chromatic_shadow_pass(self,
+                              shadow_threshold: float = 0.42,
+                              strength:         float = 0.22,
+                              shadow_tint:      Optional[Color] = None,
+                              lum_preserve:     bool  = True,
+                              figure_only:      bool  = False):
+        """
+        Chromatic shadow pass — inspired by Eugène Delacroix's key colour discovery.
+
+        Delacroix's journal records his pivotal observation: shadows are not simply
+        dark versions of the lit colour — they contain the chromatic COMPLEMENT of
+        the dominant light.  Under warm (yellowish) light, shadows trend toward
+        violet-blue; under cool (bluish) studio light, shadows trend toward warm
+        amber-orange.  This is the foundational insight that separates Delacroix
+        from the academic tradition and anticipates Impressionism by 30 years.
+
+        This pass identifies shadow zones (luminance < shadow_threshold) and adds a
+        subtle complementary tint to each pixel in proportion to its darkness.  The
+        luminance is optionally preserved (hue/chroma shift only, not brightness) so
+        the pass cannot lighten or darken the painting — only enrich the colour depth
+        of shadow passages.
+
+        Implementation
+        --------------
+        1. Read the current canvas buffer as float32 RGB.
+        2. Compute per-pixel luminance.
+        3. Build a shadow weight: shadow_wt = max(0, (threshold − lum) / threshold)^1.5
+           — ramps from 0 at the threshold boundary to maximum at luminance = 0.
+        4. Compute the per-pixel complement colour:
+               complement = (1 − r, 1 − g, 1 − b)   [spectral complement]
+           If shadow_tint is provided, use that as the fixed tint colour instead.
+        5. Blend toward the complement by shadow_wt × strength × 0.5:
+               r_out = r + blend × (tint_r − r)
+        6. If lum_preserve: rescale each output pixel to match the original luminance,
+           keeping all brightness intact — only hue and saturation shift.
+        7. Apply optional figure_only masking.
+
+        Parameters
+        ----------
+        shadow_threshold : Luminance below which a pixel is 'in shadow'.
+                          0.42 captures the lower half of the tonal range.
+                          Lower (0.30) → stronger effect; higher (0.55) → includes
+                          mid-tones.
+        strength         : Maximum blend fraction toward the complement colour.
+                          0.15–0.25 = subtle, photographic (Impressionist level).
+                          0.30–0.45 = strong, expressive (late Delacroix).
+        shadow_tint      : Optional fixed (R,G,B) shadow tint.  Use when the dominant
+                          light colour is known, e.g. (0.30, 0.25, 0.70) for violet
+                          shadows under warm candlelight.  None = per-pixel complement.
+        lum_preserve     : If True (default), rescale each shadow pixel to its
+                          original luminance after blending (chrominance-only shift).
+                          If False, the complement blend may lighten dark pixels.
+        figure_only      : If True and a figure mask is loaded, restrict the chromatic
+                          shift to the figure region only.
+
+        Notes
+        -----
+        Call AFTER block_in() and build_form() but BEFORE the final glaze, so the
+        chromatic shift is gently softened by the glaze layer on top.
+
+        Delacroix used this empirically; Chevreul formulated it as the law of
+        simultaneous contrast (1839); Seurat operationalised it as Divisionism;
+        Monet made it the entire subject of his serial paintings (Haystacks,
+        Rouen Cathedral series).
+        """
+        print(f"Chromatic shadow pass  (threshold={shadow_threshold:.2f}  "
+              f"strength={strength:.2f}  lum_preserve={lum_preserve})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        # Cairo FORMAT_ARGB32 byte order: index 0=B, 1=G, 2=R, 3=A
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+
+        # ── Shadow weight: strongest in deepest darks, fades to 0 at threshold ──
+        # Power 1.5 concentrates the effect in the true shadow zones and avoids
+        # contaminating the mid-tone range where the effect would look muddy.
+        shadow_wt = np.clip(
+            (shadow_threshold - lum) / max(shadow_threshold, 1e-6), 0.0, 1.0
+        ) ** 1.5
+
+        # ── Optional figure mask ──────────────────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            shadow_wt = shadow_wt * self._figure_mask
+
+        # ── Target tint per pixel ─────────────────────────────────────────────
+        if shadow_tint is not None:
+            # Fixed shadow tint: the painter knows the dominant light colour
+            tint_r = np.full_like(r_ch, float(shadow_tint[0]))
+            tint_g = np.full_like(g_ch, float(shadow_tint[1]))
+            tint_b = np.full_like(b_ch, float(shadow_tint[2]))
+        else:
+            # Per-pixel spectral complement: each shadow pixel drifts toward
+            # its chromatic opposite.  Warm shadow pixels → cooler tint;
+            # cool shadow pixels → warmer tint.  Exactly Delacroix's observation.
+            tint_r = 1.0 - r_ch
+            tint_g = 1.0 - g_ch
+            tint_b = 1.0 - b_ch
+
+        # ── Blend toward tint in proportion to shadow weight ──────────────────
+        # Factor of 0.5 dampens the blend to a gentle chromatic enrichment rather
+        # than a jarring hue inversion.  Delacroix's effect is felt, not seen.
+        blend = shadow_wt * strength * 0.5
+        r_out = r_ch + blend * (tint_r - r_ch)
+        g_out = g_ch + blend * (tint_g - g_ch)
+        b_out = b_ch + blend * (tint_b - b_ch)
+
+        # ── Luminance preservation ────────────────────────────────────────────
+        # Rescale each pixel so the output luminance matches the input.
+        # This ensures chromatic_shadow_pass is a pure hue/saturation adjustment —
+        # it cannot brighten or darken the painting, only enrich shadow colour.
+        if lum_preserve:
+            out_lum = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+            # Where the shadow_wt is near-zero, scale ≈ 1.0 (no change).
+            # Clamp scale to [0.5, 2.0] to prevent numerical explosion near black.
+            scale = np.where(
+                out_lum > 1e-6,
+                np.clip(lum / (out_lum + 1e-8), 0.5, 2.0),
+                1.0
+            )
+            r_out = np.clip(r_out * scale, 0.0, 1.0)
+            g_out = np.clip(g_out * scale, 0.0, 1.0)
+            b_out = np.clip(b_out * scale, 0.0, 1.0)
+        else:
+            r_out = np.clip(r_out, 0.0, 1.0)
+            g_out = np.clip(g_out, 0.0, 1.0)
+            b_out = np.clip(b_out, 0.0, 1.0)
+
+        # ── Write back to canvas surface ──────────────────────────────────────
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_shadow = int((shadow_wt > 0.01).sum())
+        print(f"  Chromatic shadow pass complete  (shadow_pixels={n_shadow})")
+
+    def scumble_pass(self,
+                     opacity:        float = 0.18,
+                     drag_distance:  int   = 14,
+                     n_drags:        int   = 420,
+                     dry_factor:     float = 0.72,
+                     angle_jitter:   float = 0.45,
+                     figure_only:    bool  = False):
+        """
+        Dry-brush scumbling: semi-opaque paint dragged sideways over a dry surface.
+
+        Scumbling is the counterpart of glazing.  Where glazing applies a
+        transparent dark layer to deepen shadows (working from dark to light),
+        scumbling drags a lighter, semi-opaque colour across a darker dry surface
+        (working from dark toward light).  It is the technique that gives the
+        chalky, slightly broken surface quality distinctive of:
+
+          - Rembrandt's face passages: warm ivory dragged over darker flesh
+          - Vuillard's Intimiste canvases: matte distemper dragged over board
+          - Hals and Sargent's spontaneous dry-brush drapery marks
+          - The granular mid-tones of Baroque costume painting
+
+        Physics model
+        -------------
+        A loaded but dry brush touches the raised texture peaks of the canvas
+        and skips the valleys.  The result is a broken field: the drag direction
+        is visible, and the underlying colour shows through in gaps.  Because the
+        paint is thick and dry (not wet-on-wet), the drag does not blend -- it
+        deposits as a hatched, semi-transparent mark.
+
+        Implementation
+        --------------
+        1. Read the current canvas into a float32 RGB buffer.
+        2. For each of n_drags scumble strokes:
+           a. Choose a random origin and direction (with angle_jitter variation
+              around a dominant near-horizontal direction -- scumbling is usually
+              a sideways arm movement).
+           b. Sample the canvas colour along the drag path; compute a lightened
+              version (mix toward white/cream to simulate the dry lighter pigment).
+           c. Weight the deposit by the linen-texture elevation at each pixel:
+              deposit only where the texture is above its median (peaks only).
+              This creates the characteristic broken, granular quality.
+           d. Apply at reduced opacity (dry_factor x opacity) so the underlying
+              paint shows through the gaps.
+        3. Write the modified buffer back to the Cairo surface.
+
+        Parameters
+        ----------
+        opacity       : Global blend weight of the scumble layer.  0.10-0.20 =
+                        subtle chalky patina; 0.25-0.35 = pronounced dry-brush.
+        drag_distance : Length of each scumble drag stroke in pixels.  Short
+                        (8-12px) = fine chalk-dust texture; longer (20-30px) =
+                        visible directional marks.
+        n_drags       : Number of individual drag strokes.  400-600 gives even
+                        coverage; 800+ creates a strong directional texture.
+        dry_factor    : How dry the paint is -- controls how strongly the texture
+                        elevation gates the deposit.  1.0 = deposits only on peaks
+                        (most broken / granular); 0.5 = deposits more evenly.
+        angle_jitter  : Variation in drag angle (radians).  0.3 = mostly horizontal
+                        with slight variation; 1.2 = multi-directional hatching.
+        figure_only   : If True and a figure mask is loaded, restrict scumbling
+                        to the figure region only.
+
+        Usage examples
+        --------------
+        Vuillard matte chalky surface::
+            scumble_pass(opacity=0.14, n_drags=600, dry_factor=0.85, drag_distance=10)
+        Baroque portrait flesh::
+            scumble_pass(opacity=0.10, n_drags=300, dry_factor=0.65, drag_distance=18,
+                         figure_only=True)
+        Sargent spontaneous drapery::
+            scumble_pass(opacity=0.22, n_drags=480, drag_distance=22, dry_factor=0.55,
+                         angle_jitter=0.80)
+        """
+        print(f"Scumble pass  (opacity={opacity:.2f}  drags={n_drags}"
+              f"  drag_dist={drag_distance}px  dry={dry_factor:.2f})...")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        # Read current canvas
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # Linen texture as deposit gate
+        if hasattr(self.canvas, 'texture') and self.canvas.texture is not None:
+            tex = self.canvas.texture
+        else:
+            tex = make_linen_texture(w, h)
+
+        tex_median = float(np.median(tex))
+        tex_norm = np.clip((tex - tex_median) / max(tex.max() - tex_median, 1e-6),
+                           0.0, 1.0)
+
+        # Figure mask gating
+        if figure_only and self._figure_mask is not None:
+            region = self._figure_mask
+        else:
+            region = np.ones((h, w), dtype=np.float32)
+
+        # Scumble accumulation buffers
+        acc_r = np.zeros((h, w), dtype=np.float32)
+        acc_g = np.zeros((h, w), dtype=np.float32)
+        acc_b = np.zeros((h, w), dtype=np.float32)
+        acc_w = np.zeros((h, w), dtype=np.float32)
+
+        rng = self.rng
+
+        for _ in range(n_drags):
+            ox = int(rng.uniform(0, w))
+            oy = int(rng.uniform(0, h))
+
+            # Near-horizontal drag with angle_jitter spread
+            angle = float(rng.uniform(-angle_jitter, angle_jitter))
+
+            cos_a, sin_a = math.cos(angle), math.sin(angle)
+
+            # Sample canvas colour at origin; scumble lightens toward warm cream
+            cr = float(np.clip(r_ch[oy, ox], 0.0, 1.0))
+            cg = float(np.clip(g_ch[oy, ox], 0.0, 1.0))
+            cb = float(np.clip(b_ch[oy, ox], 0.0, 1.0))
+
+            cream_r, cream_g, cream_b = 0.94, 0.89, 0.78
+            scumble_r = cr * 0.62 + cream_r * 0.38
+            scumble_g = cg * 0.62 + cream_g * 0.38
+            scumble_b = cb * 0.62 + cream_b * 0.38
+
+            for s in range(drag_distance):
+                px = int(ox + s * cos_a)
+                py = int(oy + s * sin_a)
+
+                if px < 0 or px >= w or py < 0 or py >= h:
+                    break
+
+                # Bell taper: full weight in middle, fades at both ends
+                t = s / max(drag_distance - 1, 1)
+                taper = math.sin(t * math.pi)
+
+                # Texture gate: deposit strength rises with texture elevation
+                tex_gate = tex_norm[py, px] ** dry_factor
+
+                reg = float(region[py, px])
+                if reg < 0.01:
+                    continue
+
+                wt = taper * tex_gate * reg * opacity
+                if wt < 1e-6:
+                    continue
+
+                acc_r[py, px] += scumble_r * wt
+                acc_g[py, px] += scumble_g * wt
+                acc_b[py, px] += scumble_b * wt
+                acc_w[py, px] += wt
+
+        # Composite scumble over current canvas
+        wt_clamp = np.clip(acc_w, 0.0, 1.0)
+        safe_w = np.where(acc_w > 1e-6, acc_w, 1.0)
+
+        mean_r = acc_r / safe_w
+        mean_g = acc_g / safe_w
+        mean_b = acc_b / safe_w
+
+        r_out = np.clip(r_ch * (1.0 - wt_clamp) + mean_r * wt_clamp, 0.0, 1.0)
+        g_out = np.clip(g_ch * (1.0 - wt_clamp) + mean_g * wt_clamp, 0.0, 1.0)
+        b_out = np.clip(b_ch * (1.0 - wt_clamp) + mean_b * wt_clamp, 0.0, 1.0)
+
+        # Write back to Cairo surface
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_active = int((acc_w > 0.01).sum())
+        print(f"  Scumble pass complete  (active_pixels={n_active})")
+
+    def intimiste_pattern_pass(
+        self,
+        palette:         List[Color],
+        tile_size:       int   = 28,
+        n_motif_strokes: int   = 600,
+        opacity:         float = 0.32,
+        pattern_type:    str   = "diamond",
+        figure_only:     bool  = False,
+        rng_seed:        Optional[int] = None,
+    ):
+        """
+        Vuillard-inspired Intimiste pattern pass — seeds background regions
+        with a soft repeating textile motif so figure and environment share
+        the same pictorial plane.
+
+        Édouard Vuillard's hallmark is the dissolution of boundary between
+        person and setting: a woman's blouse echoes the wallpaper behind
+        her; a tablecloth merges with the floor.  This creates the sensation
+        that figure and ground are woven from the same fabric — literally,
+        since he often painted on cardboard laid on a patterned surface and
+        let the support colour read through.
+
+        This pass replicates that effect by stamping small repeating
+        textile-motif strokes (diamond lattice, floral rosette, or fine
+        cross-hatch) across the background, using colours drawn from the
+        same palette as the figure.  The strokes are rendered at low opacity
+        so the underlying paint is visible through them, creating the warm,
+        layered richness of aged fabric rather than wallpaper paste.
+
+        Implementation
+        --------------
+        1. Read the current canvas buffer and compute luminance.
+        2. Build a background mask: use figure_mask if available, otherwise
+           threshold low-chroma pixels as background.
+        3. Generate tile anchor positions across the canvas in a regular grid
+           offset slightly by Perlin noise (the irregularity of handmade
+           textiles vs mechanical printing).
+        4. For each anchor in the background mask, stamp a small motif stroke
+           in a randomly selected palette colour at the given opacity.
+        5. Composite using alpha blending so the underlying paint shows through.
+
+        Pattern types
+        -------------
+        'diamond'  : Diagonal lattice — repeating ◆ grid, warm and domestic.
+                     Most characteristic of late-19th-century French wallpaper.
+        'rosette'  : Small floral blossoms — circle with radial petals.
+                     Evokes the dense floral fabrics in Vuillard's interiors.
+        'crosshatch': Fine parallel cross-hatching — fabric weave texture.
+                     Subtler; reads as cloth rather than wallpaper.
+
+        Parameters
+        ----------
+        palette          : List of (R,G,B) colours to draw from.  Pass the
+                           artist's ArtStyle.palette for authentic palette harmony.
+        tile_size        : Spacing in pixels between motif anchors.  Smaller =
+                           denser, more wallpaper-like.  Larger = looser textile.
+        n_motif_strokes  : Total number of individual motif marks to stamp.
+                           600–1200 for a full 800×1000 canvas.
+        opacity          : Blend weight of each motif stroke.  0.20–0.35 = warm
+                           textile shimmer; 0.50+ = dominant pattern.
+        pattern_type     : One of 'diamond', 'rosette', 'crosshatch'.
+        figure_only      : If True, apply pattern to figure region instead of
+                           background (unusual but useful for costume detailing).
+        rng_seed         : Optional seed for reproducibility.
+
+        Notes
+        -----
+        Call AFTER block_in() / build_form() but BEFORE glaze() and vignette().
+        The pass adds warmth and pictorial flatness — calling it after glazing
+        risks competing with the unifying glaze tone.
+        """
+        print(f"Intimiste pattern pass  (type={pattern_type!r}  "
+              f"tile_size={tile_size}  opacity={opacity:.2f}  "
+              f"strokes={n_motif_strokes})…")
+
+        rng = random.Random(rng_seed)
+        np_rng = np.random.default_rng(rng_seed)
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Build background mask ─────────────────────────────────────────────
+        if self._figure_mask is not None and not figure_only:
+            # Background is where figure mask is near zero
+            bg_mask = (1.0 - self._figure_mask).astype(np.float32)
+            # Feather the transition zone slightly
+            bg_mask = ndimage.gaussian_filter(bg_mask, sigma=6.0)
+            bg_mask = np.clip(bg_mask, 0.0, 1.0)
+        elif self._figure_mask is not None and figure_only:
+            bg_mask = self._figure_mask.astype(np.float32)
+        else:
+            # No figure mask — use chroma saturation as a proxy:
+            # Low-saturation areas are likely background
+            lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+            # Treat pixels within 15% of mean luminance as background
+            mean_lum = float(lum.mean())
+            bg_mask = np.where(np.abs(lum - mean_lum) < 0.15, 1.0, 0.4).astype(np.float32)
+
+        # ── Build candidate anchor grid with Perlin jitter ────────────────────
+        anchors = []
+        inv_w, inv_h = 1.0 / max(w, 1), 1.0 / max(h, 1)
+        for gy in range(tile_size // 2, h, tile_size):
+            for gx in range(tile_size // 2, w, tile_size):
+                # Perlin noise jitter so the grid reads as hand-woven, not printed
+                jit_x = pnoise2(gx * inv_w * 8.0, gy * inv_h * 8.0, octaves=2) * tile_size * 0.4
+                jit_y = pnoise2(gx * inv_w * 8.0 + 100, gy * inv_h * 8.0 + 100, octaves=2) * tile_size * 0.4
+                ax = int(gx + jit_x)
+                ay = int(gy + jit_y)
+                if 0 <= ax < w and 0 <= ay < h:
+                    weight = float(bg_mask[ay, ax])
+                    if weight > 0.1:
+                        anchors.append((ax, ay, weight))
+
+        if not anchors:
+            print("  Intimiste pattern pass: no background anchors found — skipping.")
+            return
+
+        # Normalise weights to a probability distribution
+        weights = np.array([a[2] for a in anchors], dtype=np.float64)
+        weights /= weights.sum()
+
+        chosen_idx = np_rng.choice(len(anchors), size=min(n_motif_strokes, len(anchors)),
+                                   replace=True, p=weights)
+
+        # ── Stamp motifs via cairo ────────────────────────────────────────────
+        ctx = self.canvas.ctx
+        ctx.save()
+
+        for idx in chosen_idx:
+            ax, ay, wt = anchors[idx]
+            col = rng.choice(palette)
+            cr, cg, cb = jitter(col, amount=0.04, rng=rng)
+            alpha_base = opacity * (0.7 + 0.3 * wt)     # weaker near figure edges
+            # Add a tiny per-mark size variation for the handmade textile feel
+            s_factor = 0.7 + rng.uniform(0, 0.6)
+            s = max(2, int(tile_size * 0.28 * s_factor))
+
+            ctx.set_source_rgba(cr, cg, cb, alpha_base)
+
+            if pattern_type == "diamond":
+                # Rotated square (◆) — classic 19th-century French wallpaper motif
+                ctx.move_to(ax,     ay - s)   # top
+                ctx.line_to(ax + s, ay)       # right
+                ctx.line_to(ax,     ay + s)   # bottom
+                ctx.line_to(ax - s, ay)       # left
+                ctx.close_path()
+                ctx.set_line_width(max(1.0, s * 0.18))
+                ctx.stroke()
+
+            elif pattern_type == "rosette":
+                # Small floral blossoms — circle with 6 tiny petal dabs
+                petal_r = max(1.0, s * 0.30)
+                for petal in range(6):
+                    angle = math.pi / 3 * petal
+                    px = ax + math.cos(angle) * s * 0.55
+                    py = ay + math.sin(angle) * s * 0.55
+                    ctx.arc(px, py, petal_r, 0, 2 * math.pi)
+                    ctx.fill()
+                # Centre dot
+                ctx.arc(ax, ay, max(1.0, s * 0.18), 0, 2 * math.pi)
+                ctx.fill()
+
+            else:  # crosshatch
+                # Fine crossed lines — fabric weave texture
+                lw = max(0.8, s * 0.12)
+                ctx.set_line_width(lw)
+                half = s * 0.6
+                ctx.move_to(ax - half, ay)
+                ctx.line_to(ax + half, ay)
+                ctx.stroke()
+                ctx.move_to(ax, ay - half)
+                ctx.line_to(ax, ay + half)
+                ctx.stroke()
+
+        ctx.restore()
+
+        n_painted = len(chosen_idx)
+        print(f"  Intimiste pattern pass complete  ({n_painted} motif marks, "
+              f"type={pattern_type!r})")

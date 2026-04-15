@@ -28,13 +28,16 @@ from scene_schema import Period, Style, Medium, PaletteHint
 
 EXPECTED_ARTISTS = [
     "artemisia_gentileschi",
-    "caravaggio", "caspar_david_friedrich", "cezanne", "egon_schiele",
+    "caravaggio", "caspar_david_friedrich", "cezanne",
+    "delacroix",
+    "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "jan_van_eyck",
     "kandinsky",
     "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "rembrandt",
-    "rothko", "sargent", "seurat", "tamara_de_lempicka", "titian", "turner",
+    "rothko", "sargent", "seurat", "sorolla", "tamara_de_lempicka", "titian", "turner",
     "van_gogh", "velazquez", "vermeer",
+    "vuillard",
 ]
 
 
@@ -161,6 +164,7 @@ EXPECTED_PERIODS = [
     "ABSTRACT_EXPRESSIONIST", "VENETIAN_RENAISSANCE",
     "FAUVIST", "PRIMITIVIST", "EARLY_NETHERLANDISH",
     "ART_DECO",
+    "NABIS", "LUMINISMO",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -1136,3 +1140,319 @@ def test_art_deco_stroke_params_low_wet_blend():
     p = style.stroke_params
     assert p["wet_blend"] <= 0.12, (
         f"ART_DECO wet_blend should be very low (lacquered Art Deco); got {p['wet_blend']}")
+
+
+# Eugène Delacroix — session 20 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_delacroix_in_catalog():
+    """Delacroix (session 20) must be present in CATALOG."""
+    assert "delacroix" in CATALOG
+
+
+def test_delacroix_artist_name():
+    s = get_style("delacroix")
+    assert "Delacroix" in s.artist
+
+
+def test_delacroix_movement_contains_romanticism():
+    """Delacroix's movement must reference French Romanticism or Colorism."""
+    s = get_style("delacroix")
+    movement_lower = s.movement.lower()
+    assert "romant" in movement_lower or "coloris" in movement_lower or "colour" in movement_lower
+
+
+def test_delacroix_palette_length():
+    """Delacroix catalog entry must have at least 6 palette colours."""
+    s = get_style("delacroix")
+    assert len(s.palette) >= 6
+
+
+def test_delacroix_palette_values_in_range():
+    """All Delacroix palette RGB values must be in [0, 1]."""
+    s = get_style("delacroix")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Delacroix palette {rgb}")
+
+
+def test_delacroix_ground_color_valid():
+    s = get_style("delacroix")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_delacroix_ground_color_is_dark_warm():
+    """Delacroix painted on a warm dark umber ground."""
+    s = get_style("delacroix")
+    r, g, b = s.ground_color
+    # Warm: red channel dominates over blue
+    assert r > b, "Delacroix ground should be warmer (R > B)"
+    # Dark: luminance below 0.60
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.60, f"Delacroix ground should be relatively dark; lum={lum:.3f}"
+
+
+def test_delacroix_wet_blend_moderate():
+    """Delacroix's alla prima wet_blend should be moderate (vigorous wet-into-wet)."""
+    s = get_style("delacroix")
+    assert 0.20 <= s.wet_blend <= 0.55, (
+        f"Delacroix wet_blend expected moderate; got {s.wet_blend}")
+
+
+def test_delacroix_has_glazing():
+    """Delacroix used a warm amber final glaze to unify the surface."""
+    s = get_style("delacroix")
+    assert s.glazing is not None
+    assert len(s.glazing) == 3
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_delacroix_crackle_true():
+    """Delacroix's 19th-century oil canvases show craquelure — crackle should be True."""
+    s = get_style("delacroix")
+    assert s.crackle is True
+
+
+def test_delacroix_famous_works_present():
+    """Delacroix catalog entry must include his major paintings."""
+    s = get_style("delacroix")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Liberty" in t for t in titles), "Missing 'Liberty Leading the People'"
+    assert any("Sardanapalus" in t or "Sardanapale" in t for t in titles), (
+        "Missing 'Death of Sardanapalus'")
+
+
+def test_delacroix_in_expected_artists_list():
+    """EXPECTED_ARTISTS list must include delacroix."""
+    assert "delacroix" in EXPECTED_ARTISTS
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Edouard Vuillard — Nabis / Intimiste addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_vuillard_in_catalog():
+    """Vuillard must be present in CATALOG."""
+    assert "vuillard" in CATALOG, "vuillard not found in CATALOG"
+
+
+def test_vuillard_style_retrieval():
+    """get_style('vuillard') must return an ArtStyle without raising."""
+    s = get_style("vuillard")
+    assert s is not None
+
+
+def test_vuillard_movement():
+    """Vuillard's movement must reference Nabis or Post-Impressionism."""
+    s = get_style("vuillard")
+    assert ("Nabi" in s.movement or "Intimis" in s.movement
+            or "Post-Impressionist" in s.movement)
+
+
+def test_vuillard_nationality():
+    """Vuillard was French."""
+    s = get_style("vuillard")
+    assert "french" in s.nationality.lower(), (
+        f"Vuillard nationality should be French; got {s.nationality!r}")
+
+
+def test_vuillard_palette_length():
+    """Palette should have at least 6 entries covering tapestry-like domestic tones."""
+    s = get_style("vuillard")
+    assert len(s.palette) >= 6, "Vuillard palette should have at least 6 key colours"
+
+
+def test_vuillard_palette_values_in_range():
+    """All Vuillard palette RGB values must be in [0, 1]."""
+    s = get_style("vuillard")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Vuillard palette {rgb}")
+
+
+def test_vuillard_palette_has_warm_dusty_rose():
+    """Vuillard palette must include a warm dusty rose/pink."""
+    s = get_style("vuillard")
+    has_rose = any(r > 0.60 and b > 0.35 and r > g for r, g, b in s.palette)
+    assert has_rose, "Vuillard palette should include a warm dusty rose or pink"
+
+
+def test_vuillard_palette_has_olive_green():
+    """Vuillard palette must include a muted olive or green."""
+    s = get_style("vuillard")
+    has_green = any(g > 0.35 and g >= r and g > b for r, g, b in s.palette)
+    assert has_green, "Vuillard palette should include a muted olive or green"
+
+
+def test_vuillard_ground_warm():
+    """Vuillard warm buff ground should have R > B."""
+    s = get_style("vuillard")
+    r, g, b = s.ground_color
+    assert r > b, f"Vuillard ground should be warm (R > B), got R={r:.2f} B={b:.2f}"
+
+
+def test_vuillard_wet_blend_low():
+    """Vuillard's chalky matte technique is flat -- wet_blend must be low."""
+    s = get_style("vuillard")
+    assert s.wet_blend <= 0.30, (
+        f"Vuillard wet_blend should be low (chalky flat zones), got {s.wet_blend}")
+
+
+def test_vuillard_no_glaze():
+    """Vuillard Intimiste surfaces are matte -- no unifying glaze."""
+    s = get_style("vuillard")
+    assert s.glazing is None, "Vuillard should have no glaze (matte distemper surface)"
+
+
+def test_vuillard_no_crackle():
+    """Vuillard worked on cardboard and paper -- crackle should be False."""
+    s = get_style("vuillard")
+    assert s.crackle is False, "Vuillard crackle should be False (cardboard/paper support)"
+
+
+def test_vuillard_famous_works_not_empty():
+    s = get_style("vuillard")
+    assert len(s.famous_works) >= 3, "Vuillard should have at least 3 famous works"
+
+
+def test_vuillard_famous_works_include_intimiste():
+    """Vuillard famous works should include an intimate interior scene."""
+    s = get_style("vuillard")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Mother" in t or "Interior" in t or "Suitor" in t or "Lunch" in t
+               for t in titles), (
+        "Vuillard famous works should include a domestic interior scene")
+
+
+def test_vuillard_inspiration_references_intimiste_pattern():
+    """Inspiration text must reference intimiste_pattern_pass."""
+    s = get_style("vuillard")
+    assert "intimiste_pattern" in s.inspiration.lower().replace(" ", "_"), (
+        "Vuillard inspiration should reference intimiste_pattern_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NABIS period -- stroke_params coverage
+
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_nabis_period_present():
+    """NABIS must exist in Period enum."""
+    assert hasattr(Period, "NABIS"), "Period.NABIS not found"
+    assert Period.NABIS in list(Period)
+
+
+def test_nabis_stroke_params_all_keys_present():
+    """NABIS stroke_params must contain all four required keys."""
+    style = Style(medium=Medium.OIL, period=Period.NABIS, palette=PaletteHint.MUTED)
+
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"NABIS stroke_params missing key: {key!r}"
+
+
+def test_nabis_stroke_params_values():
+    """NABIS should have low wet_blend (chalky flat zones) and equal face/bg strokes."""
+    style = Style(medium=Medium.OIL, period=Period.NABIS, palette=PaletteHint.MUTED)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.20, (
+        f"NABIS wet_blend should be low for chalky flat zones; got {p['wet_blend']}")
+    # Face and background strokes should be similar (Intimisme dissolves figure into ground)
+    assert abs(p["stroke_size_face"] - p["stroke_size_bg"]) <= 4, (
+        f"NABIS face and bg stroke sizes should be close; "
+        f"face={p['stroke_size_face']} bg={p['stroke_size_bg']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Sorolla / LUMINISMO — Luminismo addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_sorolla_in_catalog():
+    """Sorolla must be present in CATALOG."""
+    assert "sorolla" in CATALOG
+
+
+def test_sorolla_movement():
+    s = get_style("sorolla")
+    assert "Luminismo" in s.movement or "luminismo" in s.movement.lower()
+
+
+def test_sorolla_palette_length():
+    s = get_style("sorolla")
+    assert len(s.palette) >= 6, "Sorolla palette must include at least 6 colours"
+
+
+def test_sorolla_palette_values_in_range():
+    """All Sorolla palette RGB values must be in [0, 1]."""
+    s = get_style("sorolla")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Sorolla palette {rgb}")
+
+
+def test_sorolla_ground_color_valid():
+    s = get_style("sorolla")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_sorolla_has_no_glazing():
+    """Sorolla uses no unifying glaze — brilliance is the point."""
+    s = get_style("sorolla")
+    assert s.glazing is None, "Sorolla should have no unifying glaze"
+
+
+def test_sorolla_famous_works_not_empty():
+    s = get_style("sorolla")
+    assert len(s.famous_works) >= 3, "Sorolla should have at least 3 famous works"
+
+
+def test_sorolla_high_jitter():
+    """Sorolla's vibrant optical mix requires higher jitter than most styles."""
+    s = get_style("sorolla")
+    assert s.jitter >= 0.04, (
+        f"Sorolla jitter should be >= 0.04 for vibrant optical mixing; got {s.jitter}")
+
+
+def test_sorolla_get_style_by_key():
+    s = get_style("sorolla")
+    assert "Sorolla" in s.artist
+
+
+def test_luminismo_period_present():
+    """LUMINISMO must exist in Period enum."""
+    assert hasattr(Period, "LUMINISMO"), "Period.LUMINISMO not found"
+    assert Period.LUMINISMO in list(Period)
+
+
+def test_luminismo_stroke_params_values():
+    """LUMINISMO should have moderate wet_blend (lively but not muddy) and moderate edge_softness."""
+    style = Style(medium=Medium.OIL, period=Period.LUMINISMO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    # Moderate wet_blend: outdoor strokes are fluid but not muddied
+    assert 0.25 <= p["wet_blend"] <= 0.55, (
+        f"LUMINISMO wet_blend should be moderate; got {p['wet_blend']}")
+    # Moderate edge_softness: Mediterranean forms are clear, not sfumatoed
+    assert 0.25 <= p["edge_softness"] <= 0.65, (
+        f"LUMINISMO edge_softness should be moderate; got {p['edge_softness']}")
+
+
+def test_luminismo_stroke_params_all_keys_present():
+    """LUMINISMO stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.LUMINISMO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"LUMINISMO stroke_params missing key: {key!r}"
+

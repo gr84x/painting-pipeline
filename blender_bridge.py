@@ -496,6 +496,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_primitivist       = (scene.style.period == Period.PRIMITIVIST)
     is_early_netherlandish = (scene.style.period == Period.EARLY_NETHERLANDISH)
     is_art_deco          = (scene.style.period == Period.ART_DECO)
+    is_baroque           = (scene.style.period == Period.BAROQUE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -1206,6 +1207,63 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # Very light vignette to frame the canvas edge — Gauguin's pictures
         # are often edge-to-edge with colour, so keep this gentle.
         p.finish(vignette=0.20, crackle=False)
+
+    elif is_baroque:
+        # ── Baroque pipeline (Delacroix / Caravaggio colorist technique) ─────
+        # The Baroque period spans Caravaggio's dramatic chiaroscuro (c. 1600)
+        # through Delacroix's revolutionary colourism (c. 1830).  What unifies
+        # these painters is the use of a warm dark ground, strong directional
+        # light against deep shadow, and — crucially for Delacroix — the
+        # discovery that shadows are not dark versions of the lit colour but
+        # contain its chromatic complement.
+        #
+        # Pipeline:
+        #   1. Warm dark umber ground — traditional Baroque preparation that
+        #      reads through thin paint zones and unifies the dark side.
+        #   2. Standard underpainting + block_in to establish masses; build_form
+        #      for the half-tones before the colouristic passes begin.
+        #   3. chromatic_shadow_pass() — Delacroix's coloured shadow technique:
+        #      shadow zones receive a per-pixel complementary colour tint,
+        #      enriching shadow passages without changing their luminance.
+        #      This is the session-20 random artistic improvement.
+        #   4. place_lights() — Baroque impasto highlights on a dark ground read
+        #      with maximum contrast.
+        #   5. Warm amber glaze + moderate vignette + crackle (old-master canvas).
+        delacroix_style = _ART_CATALOG.get("delacroix")
+        ground_col      = delacroix_style.ground_color if delacroix_style else (0.42, 0.30, 0.18)
+
+        # Warm dark umber ground — the Baroque convention from Caravaggio through
+        # Delacroix.  Moderate texture_strength: woven canvas reads through.
+        p.tone_ground(ground_col, texture_strength=0.08)
+
+        # Dense underpainting + block_in to establish compositional masses and
+        # value structure before the chromatic passes begin.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.4), n_strokes=160)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=300)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=650)
+
+        # Delacroix chromatic shadow pass: each shadow pixel drifts toward the
+        # spectral complement of its local colour.  Warm shadow pixels → cooler;
+        # cool shadow pixels → warmer.  Luminance is strictly preserved so the
+        # tonal structure of the underpainting is not disturbed.
+        p.chromatic_shadow_pass(
+            shadow_threshold = 0.45,
+            strength         = 0.26,
+            shadow_tint      = None,   # per-pixel complement (most faithful to Delacroix)
+            lum_preserve     = True,
+            figure_only      = False,  # coloured shadows in background too
+        )
+
+        # Impasto light placement — Baroque painters put their brightest, most
+        # loaded strokes on a very dark ground for maximum contrast.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=500)
+
+        # Warm amber unifying glaze — Baroque old-master tonality
+        glaze_col = delacroix_style.glazing if delacroix_style else (0.62, 0.35, 0.12)
+        p.glaze(glaze_col, opacity=0.07)
+        # Strong vignette (Baroque painters often darkened canvas edges);
+        # crackle=True for authentic old-master ageing.
+        p.finish(vignette=0.55, crackle=True)
 
     elif is_pointillist:
         # ── Pointillist / divisionist pipeline (Seurat technique) ────────────

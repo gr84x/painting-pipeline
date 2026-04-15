@@ -1559,6 +1559,67 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Eugène Delacroix ─────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Delacroix is the fulcrum between Romantic grandeur and the chromatic
+    # revolution that produced Impressionism.  His pivotal discovery — recorded
+    # obsessively in his journal — was that SHADOWS CONTAIN THE COMPLEMENT of
+    # the dominant light colour.  Under warm yellow candlelight the shadow side
+    # of a face must contain violet; in clear daylight shadows lean blue-violet,
+    # not grey-brown.  This is the empirical origin of Chevreul's simultaneous-
+    # contrast law and the foundation on which Monet, Renoir, and Seurat built
+    # their entire enterprise.  Without Delacroix there is no Impressionism.
+    "delacroix": ArtStyle(
+        artist="Eugène Delacroix",
+        movement="French Romanticism / Colorism",
+        nationality="French",
+        period="1816–1863",
+        palette=[
+            (0.82, 0.28, 0.12),   # vermilion red — theatrical fire, blood, urgency
+            (0.22, 0.30, 0.75),   # cobalt blue — sky, armour, shadow complement
+            (0.78, 0.62, 0.18),   # cadmium yellow-gold — sunlight, armour, crown
+            (0.25, 0.42, 0.22),   # viridian — foliage, distant landscape
+            (0.80, 0.55, 0.38),   # warm sienna — flesh, sandy earth
+            (0.45, 0.28, 0.62),   # violet — shadow complement to warm light
+            (0.22, 0.12, 0.08),   # dark umber — deep shadow, defining darks
+        ],
+        ground_color=(0.42, 0.30, 0.18),    # warm brown ground — building on Rubens' method
+        stroke_size=10,
+        wet_blend=0.32,                      # alla prima with vigorous wet-into-wet
+        edge_softness=0.45,                  # edges present but gestural, not precise
+        jitter=0.055,                        # energetic colour variation stroke to stroke
+        glazing=(0.62, 0.35, 0.12),          # warm amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "The defining innovation: colored shadows.  Warm light → shadow is "
+            "cool violet/blue; cool light → shadow is warm amber/orange.  This "
+            "chromatic opposition (not tonal darkening) makes Delacroix's paintings "
+            "vibrate with optical energy absent from academic predecessors.  Vigorous, "
+            "gestural brushwork — strokes larger and more expressive than the Old "
+            "Masters; heavy influence of Rubens in rhetorical grandeur and warm umber "
+            "grounds.  Diagonal compositional thrust: figures rise from lower-left to "
+            "upper-right, creating momentum and upheaval (Liberty Leading the People, "
+            "Death of Sardanapalus).  Historical and literary subjects as vehicles for "
+            "colour drama over historical accuracy."
+        ),
+        famous_works=[
+            ("Liberty Leading the People", "1830"),
+            ("The Death of Sardanapalus", "1827"),
+            ("Women of Algiers in Their Apartment", "1834"),
+            ("The Massacre at Chios", "1824"),
+            ("Jacob Wrestling with the Angel", "1861"),
+            ("The Tiger Hunt", "1854"),
+        ],
+        inspiration=(
+            "Use chromatic_shadow_pass(): identify shadow zones (lum < 0.45) and "
+            "add a subtle complementary colour tint — violet/blue in warm-lit shadows, "
+            "amber/orange in cool-lit shadows.  Combine with vigorous wet_blend alla "
+            "prima strokes.  Preserve luminance so only chrominance shifts.  "
+            "The result gives shadows depth and warmth that grey shadow mixing cannot."
+        ),
+    ),
+
     # ── Artemisia Gentileschi ──────────────────────────────────────────────────
     "artemisia_gentileschi": ArtStyle(
         artist="Artemisia Gentileschi",
@@ -1670,6 +1731,114 @@ CATALOG: Dict[str, ArtStyle] = {
             "build_form to establish the cubist-influenced form language before the "
             "facet pass flattens and polishes each zone.  No glaze — the surface is "
             "lacquered and final.  Low crackle: these are 1920s–1940s paintings."
+        ),
+    ),
+
+    # ── Édouard Vuillard ──────────────────────────────────────────────────────
+    "vuillard": ArtStyle(
+        artist="Édouard Vuillard",
+        movement="Nabis / Post-Impressionist Intimisme",
+        nationality="French",
+        period="1890–1940",
+        palette=[
+            (0.72, 0.55, 0.46),   # dusty rose — characteristic Vuillard warm mid-tone
+            (0.42, 0.45, 0.32),   # muted olive green — foliage and fabric
+            (0.52, 0.30, 0.28),   # subdued burgundy / madder — textile shadows
+            (0.74, 0.67, 0.48),   # warm ochre — linen and skin in even light
+            (0.22, 0.22, 0.30),   # dark blue-grey — wall shadows and deep interior
+            (0.62, 0.52, 0.56),   # dusty mauve — wallpaper mid-ground
+            (0.36, 0.28, 0.18),   # deep warm brown — wooden furniture and outlines
+            (0.84, 0.79, 0.68),   # pale cream — highlight passages and table linen
+        ],
+        ground_color=(0.60, 0.54, 0.44),    # warm buff — mid-toned chalky ground
+        stroke_size=7,
+        wet_blend=0.12,                      # low — chalky matte surface, zones stay flat
+        edge_softness=0.28,                  # low-moderate — edges present but absorbed
+        jitter=0.055,                        # high — surface patterning is uniform chaos
+        glazing=None,                        # no unifying glaze — matte throughout
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Intimisme: flat chalky zones of muted colour applied in dense, uniform "
+            "short marks that cover figure and background with equal intensity. "
+            "Figures do not stand out from their setting but dissolve into it — "
+            "a woman's dress pattern merges with the wallpaper behind her. "
+            "Inspired by Japanese woodblock prints (flat colour, bold silhouette) "
+            "but translated into a scumbled, chalky oil-paint surface. "
+            "No strong tonal modelling — the picture plane is uniformly activated. "
+            "Light is diffuse, interior, and sourceless. Palette is muted and warm: "
+            "dusty roses, olive greens, subdued crimsons, warm ochres — never pure "
+            "primaries. The overall key is mid-value; no extreme lights or darks."
+        ),
+        famous_works=[
+            ("Mother and Sister of the Artist", "1893"),
+            ("The Suitor", "1893"),
+            ("Interior, Mother and Sister", "c. 1893"),
+            ("Luncheon", "c. 1901"),
+            ("The Artist's Paint Box and Moss Roses", "1898"),
+        ],
+        inspiration=(
+            "Use flat_plane_pass() with high jitter to scatter short marks uniformly "
+            "across both figure and background. background_pass() should use the same "
+            "stroke_size as the figure — the intimiste effect depends on equal treatment "
+            "of all surfaces. scumble_pass() (dry-brush drag) over the finished surface "
+            "replicates the chalky, slightly rough matte quality of Vuillard's distemper "
+            "and oil-on-cardboard technique. intimiste_pattern_pass() can further seed "
+            "the background with repeating textile motifs for wallpaper depth. "
+            "No final glaze — the surface must stay matte. "
+            "Palette: dusty rose, olive green, subdued burgundy, warm ochre, mauve."
+        ),
+    ),
+
+    # ── Joaquín Sorolla ───────────────────────────────────────────────────────
+    "sorolla": ArtStyle(
+        artist="Joaquín Sorolla y Bastida",
+        movement="Spanish Luminismo / Impressionism",
+        nationality="Spanish",
+        period="1890–1923",
+        palette=[
+            (0.98, 0.96, 0.88),   # brilliant white sunlight (titanium white / lead white)
+            (0.94, 0.82, 0.52),   # warm golden sunlit flesh
+            (0.60, 0.78, 0.92),   # Mediterranean sea blue
+            (0.35, 0.62, 0.78),   # deep water blue-cyan
+            (0.88, 0.92, 0.72),   # sun-bleached sand / dry grass
+            (0.72, 0.55, 0.35),   # warm shadow flesh — violet-tinged brown
+            (0.62, 0.70, 0.52),   # dappled shade — cool olive green
+            (0.92, 0.88, 0.96),   # cool violet reflected light in shadows
+        ],
+        ground_color=(0.70, 0.68, 0.58),    # warm buff / primed linen in direct sun
+        stroke_size=10,
+        wet_blend=0.38,                      # fluid but not fully blended — lively
+        edge_softness=0.45,                  # soft but readable edges; no sfumato
+        jitter=0.055,                        # high colour variation — vibrant optical mix
+        glazing=None,                        # no unifying glaze — brilliance is the point
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Luminismo — the Spanish outdoor Impressionism of maximum sunlight. "
+            "Sorolla built intense illumination through simultaneous contrast: "
+            "warm white or golden highlights against cool violet and blue shadows. "
+            "Characteristic dappled light pools scatter across figure, fabric, and "
+            "water as broken, high-key strokes. Wet-into-wet for the broad passages; "
+            "decisive loaded-brush impasto dabs for the brightest specular points. "
+            "The shadow side of flesh is never brown — it is violet-tinted cool, "
+            "in Impressionist opposition to the warm direct light."
+        ),
+        famous_works=[
+            ("Sewing the Sail", "1896"),
+            ("Sorolla's Children on the Beach", "1909"),
+            ("Walk on the Beach", "1909"),
+            ("The Beach at Valencia by Morning Light", "1908"),
+            ("Sad Inheritance!", "1899"),
+            ("Louis Comfort Tiffany", "1911"),
+        ],
+        inspiration=(
+            "Use dappled_light_pass() to scatter the signature broken pools of "
+            "Mediterranean sunlight across the canvas. Warm-cool simultaneous "
+            "contrast is the core move: wherever the sunlit key hits (warm golden), "
+            "the adjacent shadow answers in cool violet. High jitter and moderately "
+            "low wet_blend keeps strokes lively and optically mixed rather than "
+            "muddied. Final highlights are impasto-bright white with a yellow cast."
         ),
     ),
 
