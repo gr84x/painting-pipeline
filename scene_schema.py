@@ -209,6 +209,7 @@ class Period(Enum):
     ACADEMIC_REALIST = auto()  # Bouguereau — porcelain-smooth flesh, imperceptible blending, warm golden glazing
     IMPRESSIONIST_INTIMISTE = auto()  # Cassatt — north-window light, warm/cool shadow contrast, domestic intimacy
     FLEMISH_PANORAMIC = auto()        # Bruegel — high-horizon landscape, systematic aerial perspective, earthy palette
+    NORDIC_IMPRESSIONIST = auto()     # Zorn — warm Zorn palette, confident calligraphic marks, wet-into-wet portraiture
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -587,6 +588,17 @@ class Style:
             # Moderate edge_softness (0.50): foreground figures have clear edges; the
             # atmospheric haze is added as a composable pass, not baked into the stroke.
             Period.FLEMISH_PANORAMIC: dict(stroke_size_face=6, stroke_size_bg=28, wet_blend=0.28, edge_softness=0.50),
+            # Nordic Impressionist (Zorn): confident large-brush portraiture on a toned ground.
+            # stroke_size_face is medium-large (10px) — Zorn's calligraphic marks were decisive
+            # and broader than finicking Academic or Renaissance touches.  stroke_size_bg is
+            # large (28px) for the bold background washes typical of his portrait settings.
+            # wet_blend=0.62: strong enough to blend flesh tones fluidly in wet-into-wet
+            # passages without losing the individuality of each stroke — Zorn's marks dissolve
+            # at their edges but remain legible at their centres.
+            # edge_softness=0.42: decisive edges that have a natural wet-paint softness —
+            # not the sfumato of Leonardo or the razor-edge of Tenebrist; the boundary is
+            # present but yielding, as if the paint was still moist.
+            Period.NORDIC_IMPRESSIONIST: dict(stroke_size_face=10, stroke_size_bg=28, wet_blend=0.62, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

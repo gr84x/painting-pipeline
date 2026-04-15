@@ -8985,14 +8985,18 @@ class Painter:
         import numpy as _np
 
         rng   = random.Random(rng_seed)
-        ref   = self._prep(reference)           # → float32 (H, W, 3) in [0, 1]
+        ref   = self._prep(reference)           # → uint8 (H, W, 4)
         h, w  = self.h, self.w
 
-        # ── Resize reference to canvas if necessary ───────────────────────────
+        # ── Normalize to float32 [0, 1] and resize if necessary ──────────────
+        # _prep() returns uint8 (H, W, 4); we always need float32 (H, W, 3)
+        # in [0, 1] for luminance computation and skin detection thresholds.
         if ref.shape[:2] != (h, w):
             from PIL import Image as _PILImg
-            ref_img = _PILImg.fromarray((ref * 255).astype(_np.uint8), "RGB")
-            ref = _np.array(ref_img.resize((w, h), _PILImg.BILINEAR)) / 255.0
+            ref_img = _PILImg.fromarray(ref[:, :, :3].astype(_np.uint8), "RGB")
+            ref = _np.array(ref_img.resize((w, h), _PILImg.BILINEAR)).astype(_np.float32) / 255.0
+        else:
+            ref = ref[:, :, :3].astype(_np.float32) / 255.0
 
         # ── Build skin mask: warm-hue + mid-luminance pixels ─────────────────
         # Luminance (perceptual): 0.299 R + 0.587 G + 0.114 B
@@ -9071,6 +9075,7 @@ class Painter:
                     pts     = pts,
                     widths  = widths,
                     color   = (r_s, g_s, b_s),
+                    tip     = BrushTip(BrushTip.FILBERT),
                     opacity = opacity,
                     wet_blend = wet_blend,
                 )
@@ -9356,3 +9361,158 @@ class Painter:
         self.canvas.ctx.paint()
 
         print(f"    Bruegel panorama pass complete (haze={haze_color})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # zorn_tricolor_pass — Anders Zorn's warm limited-palette skin technique
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def zorn_tricolor_pass(
+            self,
+            ochre_warmth:       float = 0.08,
+            vermillion_accent:  float = 0.12,
+            shadow_warmth:      float = 0.06,
+            midtone_low:        float = 0.28,
+            midtone_high:       float = 0.75,
+            blend_opacity:      float = 0.40,
+    ):
+        """
+        Simulates Anders Zorn's characteristic warm limited-palette skin technique.
+
+        Zorn famously restricted himself to four pigments: yellow ochre, ivory black,
+        vermillion, and lead white.  Because there is no blue, green, or purple in this
+        set, all flesh rendering must be achieved through warm mixtures — the entire tonal
+        range of skin is negotiated between ochre-light, ochre-dark, and vermillion accent.
+        The result is a distinctive warmth that permeates every value: highlights are
+        cream-ochre rather than cool silver; midtones are pure warm yellow-brown; shadows
+        glow with warm ivory-black rather than receding into cool grey.
+
+        This pass imposes that quality on the current canvas by shifting three tonal zones:
+
+        1. **Shadow zone** (luminance < ``midtone_low``): a gentle warm brown cast is
+           applied — replicating the warmth of ivory black as opposed to the cool blue-grey
+           of lamp black or carbon black.  Dark areas gain a subtle amber-brown undertone
+           without lightening.
+
+        2. **Midtone zone** (``midtone_low`` ≤ lum ≤ ``midtone_high``): the largest tonal
+           zone is shifted toward Zorn's yellow ochre (0.82, 0.62, 0.18).  The strength is
+           proportional to how close each pixel is to the mid-point of the range, so the
+           effect peaks at the exact midtone and fades smoothly toward both the light and
+           shadow boundaries.  This gives skin its characteristic warm amber quality at
+           the form-turning transitions.
+
+        3. **Warm-accent zone** (pixels where red channel dominates and saturation is
+           high): the vermillion accent boost increases the saturation of already-warm
+           reddish pixels — targeting the lips, cheekbone flush, ear helices, and nostril
+           wings where Zorn typically placed his brightest red.  This is achieved by a
+           small positive red-channel bias that does NOT lighten the pixel overall.
+
+        All three effects are modulated by ``blend_opacity`` so the pass can be called
+        multiple times at low opacity to build the effect gradually, mirroring Zorn's
+        actual layering practice.
+
+        The pass is tonal-structure-neutral: luminance is preserved throughout, so
+        the tonal hierarchy established by ``build_form()`` is not disrupted — only the
+        chromatic quality of each tonal zone is shifted.
+
+        Call AFTER ``build_form()`` and BEFORE ``place_lights()``.  Follow with the
+        warm amber ``glaze()`` at opacity 0.05–0.08 to unify the palette.
+
+        Parameters
+        ----------
+        ochre_warmth       : Blend weight for the midtone ochre shift.
+                             0.06–0.10 gives a subtle Zorn quality; 0.15+ is more pronounced.
+        vermillion_accent  : Saturation boost for warm-red skin accents.
+                             0.08–0.14 targets lips and cheeks without bleeding into neutrals.
+        shadow_warmth      : Warm brown cast applied to dark areas.
+                             0.04–0.08 replicates ivory black's warmth without lightening.
+        midtone_low        : Lower luminance boundary of the midtone zone.
+                             0.25–0.35 typical for flesh midtones.
+        midtone_high       : Upper luminance boundary of the midtone zone.
+                             0.70–0.80 typical (excludes near-white specular highlights).
+        blend_opacity      : Global opacity of the pass.  0.35–0.50 for a single confident
+                             pass; 0.20–0.30 when stacking multiple calls.
+
+        Notes
+        -----
+        Inspired by: "Omnibus" (1895), "Hugo Lindqvist" (1895), "Dagmar" (1911).
+        This session's random artistic improvement — the Zorn palette limitation as a
+        computational painting pass.
+        """
+        import numpy as _np
+
+        print(f"  Zorn tricolor pass  "
+              f"(ochre={ochre_warmth:.2f}  vermillion={vermillion_accent:.2f}  "
+              f"shadow={shadow_warmth:.2f}  opacity={blend_opacity:.2f})")
+
+        # ── Read current canvas ARGB32 (BGRA byte order in pycairo) ──────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Perceptual luminance ──────────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        # ── Zone 1: Shadow warm cast — ivory-black warmth ────────────────────
+        # Pixels below midtone_low receive a warm brown cast toward
+        # (0.38, 0.28, 0.14) — the colour of ochre+ivory-black shadow.
+        # The effect is strongest at lum=0 and fades linearly to zero at midtone_low.
+        ivory_warm_r, ivory_warm_g, ivory_warm_b = 0.38, 0.28, 0.14
+        shadow_t = _np.clip(1.0 - lum / (midtone_low + 1e-6), 0.0, 1.0)
+        shadow_alpha = shadow_t * shadow_warmth * blend_opacity
+
+        new_R = R + (ivory_warm_r - R) * shadow_alpha
+        new_G = G + (ivory_warm_g - G) * shadow_alpha
+        new_B = B + (ivory_warm_b - B) * shadow_alpha
+
+        # ── Zone 2: Midtone ochre shift ───────────────────────────────────────
+        # Pixels in [midtone_low, midtone_high] shift toward Zorn's yellow ochre
+        # (0.82, 0.62, 0.18).  The effect is bell-shaped: maximum at the midpoint,
+        # zero at both boundaries.
+        ochre_r, ochre_g, ochre_b = 0.82, 0.62, 0.18
+        mid_center = (midtone_low + midtone_high) * 0.5
+        mid_half   = (midtone_high - midtone_low) * 0.5 + 1e-6
+        # Raised cosine bell: 1 at the midpoint, 0 at the boundaries
+        in_range   = ((lum >= midtone_low) & (lum <= midtone_high)).astype(_np.float32)
+        bell       = (1.0 - _np.cos(_np.pi * (lum - midtone_low) / (midtone_high - midtone_low + 1e-6))) * 0.5
+        mid_alpha  = bell * in_range * ochre_warmth * blend_opacity
+
+        new_R = new_R + (ochre_r - new_R) * mid_alpha
+        new_G = new_G + (ochre_g - new_G) * mid_alpha
+        new_B = new_B + (ochre_b - new_B) * mid_alpha
+
+        # ── Zone 3: Vermillion accent — warm-red saturation boost ────────────
+        # Pixels where red dominates significantly over blue AND green
+        # (i.e. already reddish skin accents) receive a small red channel boost.
+        # This does not lighten the pixel — only the hue shifts warmer.
+        warm_red_mask = (
+            (R > G + 0.08) &
+            (R > B + 0.14) &
+            (lum >= midtone_low * 0.8) &
+            (lum <= midtone_high)
+        ).astype(_np.float32)
+        # Boost red, desaturate blue slightly to keep luminance stable
+        red_boost   = warm_red_mask * vermillion_accent * blend_opacity
+        new_R = _np.clip(new_R + red_boost * 0.5, 0.0, 1.0)
+        new_B = _np.clip(new_B - red_boost * 0.2, 0.0, 1.0)
+
+        # ── Luminance preservation: tonal structure must not be altered ───────
+        new_lum = 0.299 * new_R + 0.587 * new_G + 0.114 * new_B
+        safe    = _np.where(new_lum > 1e-6, lum / new_lum, 1.0)
+        new_R   = _np.clip(new_R * safe, 0.0, 1.0)
+        new_G   = _np.clip(new_G * safe, 0.0, 1.0)
+        new_B   = _np.clip(new_B * safe, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Zorn tricolor pass complete")

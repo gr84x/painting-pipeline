@@ -27,6 +27,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 # ──────────────────────────────────────────────────────────────────────────────
 
 EXPECTED_ARTISTS = [
+    "anders_zorn",
     "artemisia_gentileschi",
     "bouguereau",
     "bruegel",
@@ -2523,4 +2524,120 @@ def test_flemish_panoramic_bg_larger_than_face():
               palette=PaletteHint.WARM_EARTH).stroke_params
     assert p["stroke_size_bg"] > p["stroke_size_face"], (
         "FLEMISH_PANORAMIC bg stroke must be larger than face stroke (landscape-first)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Anders Zorn — this session's random artist discovery
+# Nordic Impressionism / Zorn palette (yellow ochre, ivory black, vermillion, white)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_anders_zorn_in_catalog():
+    """Anders Zorn must appear in CATALOG after this session."""
+    assert "anders_zorn" in CATALOG
+
+
+def test_anders_zorn_movement():
+    s = get_style("anders_zorn")
+    assert "Nordic" in s.movement or "Impressi" in s.movement, (
+        f"Expected Nordic/Impressionist movement, got {s.movement!r}")
+
+
+def test_anders_zorn_nationality():
+    s = get_style("anders_zorn")
+    assert "Swedish" in s.nationality, (
+        f"Expected Swedish nationality, got {s.nationality!r}")
+
+
+def test_anders_zorn_palette_length():
+    s = get_style("anders_zorn")
+    assert len(s.palette) >= 4, (
+        f"Zorn palette must have at least 4 entries (ochre, black, vermillion, white); "
+        f"got {len(s.palette)}")
+
+
+def test_anders_zorn_palette_values_in_range():
+    """All Zorn palette RGB values must be floats in [0, 1]."""
+    s = get_style("anders_zorn")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Out-of-range channel {ch} in Anders Zorn palette {rgb}")
+
+
+def test_anders_zorn_ground_color_warm():
+    """Zorn's ground should have a warm bias (R channel ≥ B channel)."""
+    s = get_style("anders_zorn")
+    r, g, b = s.ground_color
+    assert r >= b, (
+        f"Zorn ground should be warm-biased but R={r:.2f} < B={b:.2f}")
+
+
+def test_anders_zorn_wet_blend_moderate_high():
+    """Zorn's wet_blend should be moderately high (≥ 0.50) — he worked wet-into-wet."""
+    s = get_style("anders_zorn")
+    assert s.wet_blend >= 0.50, (
+        f"Zorn wet_blend should be ≥ 0.50 (wet-into-wet portrait work); got {s.wet_blend}")
+
+
+def test_anders_zorn_no_chromatic_split():
+    """Zorn used no chromatic splitting — he worked with warm mixtures only."""
+    s = get_style("anders_zorn")
+    assert not s.chromatic_split, "anders_zorn should not use chromatic_split"
+
+
+def test_anders_zorn_famous_works_not_empty():
+    s = get_style("anders_zorn")
+    assert len(s.famous_works) >= 4, (
+        f"Zorn famous_works has only {len(s.famous_works)} entries; expected ≥ 4")
+
+
+def test_anders_zorn_omnibus_referenced():
+    """'Omnibus' (1895) — Zorn's most celebrated portrait — must be listed."""
+    s = get_style("anders_zorn")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Omnibus" in t for t in titles), (
+        "anders_zorn famous_works must include 'Omnibus'")
+
+
+def test_anders_zorn_inspiration_references_tricolor():
+    """The Zorn catalog entry must reference the zorn_tricolor_pass."""
+    s = get_style("anders_zorn")
+    assert "zorn_tricolor_pass" in s.inspiration, (
+        "anders_zorn inspiration must reference zorn_tricolor_pass()")
+
+
+def test_anders_zorn_low_jitter():
+    """Zorn's jitter should be low — he relied on palette precision, not accident."""
+    s = get_style("anders_zorn")
+    assert s.jitter <= 0.06, (
+        f"anders_zorn jitter should be ≤ 0.06; got {s.jitter}")
+
+
+def test_nordic_impressionist_period_exists():
+    """NORDIC_IMPRESSIONIST must exist in Period enum after this session."""
+    assert hasattr(Period, "NORDIC_IMPRESSIONIST"), (
+        "Period.NORDIC_IMPRESSIONIST not found")
+    assert Period.NORDIC_IMPRESSIONIST in list(Period)
+
+
+def test_nordic_impressionist_stroke_params_valid():
+    """NORDIC_IMPRESSIONIST stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.NORDIC_IMPRESSIONIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"NORDIC_IMPRESSIONIST stroke_params missing key: {key!r}"
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"]   > 0
+    assert 0.0 <= p["wet_blend"]     <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_nordic_impressionist_wet_blend_moderate_high():
+    """NORDIC_IMPRESSIONIST wet_blend should reflect Zorn's confident wet-into-wet work."""
+    p = Style(medium=Medium.OIL, period=Period.NORDIC_IMPRESSIONIST,
+              palette=PaletteHint.WARM_EARTH).stroke_params
+    assert p["wet_blend"] >= 0.50, (
+        f"NORDIC_IMPRESSIONIST wet_blend should be ≥ 0.50; got {p['wet_blend']}")
 

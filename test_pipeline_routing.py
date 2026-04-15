@@ -2802,3 +2802,121 @@ def test_flemish_panoramic_period_routing():
         "FLEMISH_PANORAMIC bg stroke should exceed face stroke (landscape > figure)")
     assert 0.0 <= sp["wet_blend"] <= 1.0
     assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# zorn_tricolor_pass — this session's random artistic improvement
+# Inspired by Anders Zorn's warm limited-palette skin technique
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_zorn_tricolor_pass_exists():
+    """Painter must have zorn_tricolor_pass() method after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "zorn_tricolor_pass"), (
+        "zorn_tricolor_pass not found on Painter")
+    assert callable(getattr(Painter, "zorn_tricolor_pass"))
+
+
+def test_zorn_tricolor_pass_no_error():
+    """zorn_tricolor_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.46, 0.34), texture_strength=0.04)
+    # Should not raise
+    p.zorn_tricolor_pass(
+        ochre_warmth      = 0.09,
+        vermillion_accent = 0.12,
+        shadow_warmth     = 0.06,
+        blend_opacity     = 0.40,
+    )
+
+
+def test_zorn_tricolor_pass_modifies_canvas():
+    """zorn_tricolor_pass() with non-zero strengths should modify the canvas."""
+    p = _make_small_painter(64, 64)
+    # Warm ochre-biased tone — lots of midtone pixels for the pass to target
+    p.tone_ground((0.72, 0.55, 0.28), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32).copy()
+    p.zorn_tricolor_pass(
+        ochre_warmth      = 0.12,
+        vermillion_accent = 0.15,
+        shadow_warmth     = 0.08,
+        blend_opacity     = 0.50,
+    )
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    diff = np.abs(after - before).max()
+    assert diff > 0, (
+        "zorn_tricolor_pass with non-zero strengths should modify the canvas")
+
+
+def test_zorn_tricolor_pass_zero_opacity_no_op():
+    """zorn_tricolor_pass with blend_opacity=0.0 should leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.28), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.zorn_tricolor_pass(blend_opacity=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="zorn_tricolor_pass with blend_opacity=0 should be a no-op")
+
+
+def test_zorn_tricolor_pass_warms_midtones():
+    """
+    A cool-grey midtone canvas should become warmer (higher R/G ratio) after
+    zorn_tricolor_pass with a high ochre_warmth value.
+    """
+    p = _make_small_painter(64, 64)
+    # Cool neutral grey — midtone luminance, equal R/G/B
+    # Use a colour with lum ≈ 0.50 to land squarely in the midtone zone
+    cool_grey = (0.50, 0.50, 0.50)
+    p.tone_ground(cool_grey, texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA layout: channel 2 = R, channel 1 = G, channel 0 = B
+    before_r = float(before_buf[:, :, 2].mean())
+    before_b = float(before_buf[:, :, 0].mean())
+
+    p.zorn_tricolor_pass(
+        ochre_warmth      = 0.18,   # strong ochre shift
+        vermillion_accent = 0.00,   # disable to isolate the ochre effect
+        shadow_warmth     = 0.00,   # disable
+        midtone_low       = 0.30,
+        midtone_high      = 0.70,
+        blend_opacity     = 0.60,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r = float(after_buf[:, :, 2].mean())
+    after_b = float(after_buf[:, :, 0].mean())
+
+    # After ochre shift, red should increase and blue should decrease
+    assert after_r > before_r, (
+        f"Midtone ochre shift should increase R channel: "
+        f"before={before_r:.1f}, after={after_r:.1f}")
+    assert after_b < before_b or after_b <= before_b + 1, (
+        f"Midtone ochre shift should not increase B channel: "
+        f"before={before_b:.1f}, after={after_b:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NORDIC_IMPRESSIONIST period routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_nordic_impressionist_stroke_params_valid():
+    """NORDIC_IMPRESSIONIST stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.NORDIC_IMPRESSIONIST,
+                  palette=PaletteHint.WARM_EARTH)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"NORDIC_IMPRESSIONIST stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_nordic_impressionist_wet_blend_moderate():
+    """NORDIC_IMPRESSIONIST wet_blend must be ≥ 0.50 to reflect wet-into-wet painting."""
+    sp = Style(medium=Medium.OIL, period=Period.NORDIC_IMPRESSIONIST).stroke_params
+    assert sp["wet_blend"] >= 0.50, (
+        f"NORDIC_IMPRESSIONIST wet_blend should be ≥ 0.50; got {sp['wet_blend']}")

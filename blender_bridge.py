@@ -555,6 +555,7 @@ def scene_to_painting(
     is_high_renaissance  = (scene.style.period == Period.HIGH_RENAISSANCE)
     is_tenebrist         = (scene.style.period == Period.TENEBRIST)
     is_neoclassical      = (scene.style.period == Period.NEOCLASSICAL)
+    is_nordic_impressionist = (scene.style.period == Period.NORDIC_IMPRESSIONIST)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2137,6 +2138,86 @@ def scene_to_painting(
             print(_feedback.summary())
         # Moderate vignette; aged crackle finish.
         p.finish(vignette=0.30, crackle=True)
+
+    elif is_nordic_impressionist:
+        # ── Nordic Impressionist pipeline (Anders Zorn technique) ─────────────
+        # Zorn built his portraits with a famous four-pigment restriction: yellow
+        # ochre, ivory black, vermillion, and lead white.  The result is a
+        # characteristic warmth — all tones from near-white to near-black pass
+        # through an ochre filter; there are no cool blue or green passages
+        # anywhere in the flesh.
+        #
+        # Pipeline:
+        #   1. Warm neutral grey-brown ground (toned with ochre+black mixture).
+        #   2. Underpainting + block_in with broad, loaded strokes.
+        #   3. build_form with confident medium-large marks (no micro-blending).
+        #   4. zorn_tricolor_pass() — the defining technique: shifts midtones
+        #      toward ochre, adds vermillion accent to warm skin areas, warms
+        #      shadow zones to replicate ivory black.
+        #   5. place_lights() — decisive pure-white or cream-white specular
+        #      marks; Zorn's highlights are confident, not soft-glow.
+        #   6. Warm amber glaze — unifies the limited palette.
+        #   7. edge_lost_and_found_pass — Zorn's wet-paint edges lose definition
+        #      in background passages but sharpen at focal points.
+        #   8. Light vignette (0.35); crackle (period finish).
+        zorn_style = _ART_CATALOG.get("anders_zorn")
+        ground_col = zorn_style.ground_color if zorn_style else (0.52, 0.46, 0.34)
+
+        # Warm neutral grey-brown — Zorn typically toned his linen with a grey-brown
+        # wash before beginning, unifying the palette from the start.
+        p.tone_ground(ground_col, texture_strength=0.05)
+
+        # Standard form sequence — large confident strokes from block_in onward;
+        # no under-mixed priming (Zorn often went straight to toned canvas).
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.3), n_strokes=140)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=280)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_face"] * 1.3), n_strokes=600)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.82, 0.62, 0.18), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.04)
+
+        # Core Zorn technique: warm limited-palette skin rendering.
+        p.zorn_tricolor_pass(
+            ochre_warmth       = 0.09,
+            vermillion_accent  = 0.13,
+            shadow_warmth      = 0.06,
+            midtone_low        = 0.28,
+            midtone_high       = 0.76,
+            blend_opacity      = 0.42,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "zorn_tricolor_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.82, 0.62, 0.18), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
+        # Decisive specular highlights — Zorn's lights are confident, not sfumatoed.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=420)
+
+        # Warm amber unifying glaze — ties the ochre-black-vermillion palette.
+        if zorn_style and zorn_style.glazing:
+            p.glaze(zorn_style.glazing, opacity=0.06)
+        else:
+            p.glaze((0.82, 0.64, 0.36), opacity=0.06)
+
+        # Lost-and-found edges: background softens, face stays sharp.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.30,
+            found_sharpness = 0.55,
+            lost_blur       = 1.8,
+            strength        = 0.32,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.35, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
