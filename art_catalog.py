@@ -2424,6 +2424,72 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Anders Zorn ───────────────────────────────────────────────────────────
+    "anders_zorn": ArtStyle(
+        artist="Anders Zorn",
+        movement="Nordic Impressionism",
+        nationality="Swedish",
+        period="1882–1920",
+        palette=[
+            (0.82, 0.62, 0.18),   # yellow ochre — the warm midtone anchor
+            (0.10, 0.08, 0.06),   # ivory black — warm near-black, never cool grey
+            (0.88, 0.24, 0.12),   # vermillion — accent warmth at lips/cheeks/ears
+            (0.96, 0.92, 0.84),   # lead white — slightly warm, not brilliant blue-white
+            (0.92, 0.76, 0.52),   # warm flesh light  (white + ochre + trace vermillion)
+            (0.72, 0.54, 0.28),   # mid flesh (ochre dominant, no red)
+            (0.38, 0.28, 0.14),   # warm shadow (ochre + ivory black)
+        ],
+        ground_color=(0.52, 0.46, 0.34),    # warm neutral grey-brown (toned canvas)
+        stroke_size=8,
+        wet_blend=0.62,                      # confident wet-into-wet; strokes stay readable
+        edge_softness=0.42,                  # decisive edges softened by wet paint
+        jitter=0.04,
+        glazing=(0.82, 0.64, 0.36),          # warm amber unifier — ochre-tinted varnish
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Zorn worked with a famously restricted palette of only four pigments: "
+            "yellow ochre, ivory black, vermillion, and lead white.  This 'Zorn palette' "
+            "forces all flesh rendering through warm mixtures — there are no cool blues or "
+            "greens in his skin, only ochres, warm greys, and accented vermillion. "
+            "His mark-making is confident and calligraphic: large-format brushes loaded "
+            "with paint, each stroke placed with deliberate economy.  He rarely reworked a "
+            "passage — his instinct was to place a stroke correctly once and leave it alone. "
+            "Water was his signature subject: wet reflections demanded he work quickly in "
+            "wet-into-wet passages, pulling long ochre highlights across dark mirror surfaces. "
+            "In portraiture he exploited the tonal range of ochre+black to create an "
+            "extraordinary illusion of form with minimal means.  Highlights are pure white "
+            "or white+ochre; midtones are ochre alone; shadows are ochre+black in varying "
+            "proportions, never descending into cool grey.  The warmth of ivory black (as "
+            "opposed to lamp black or blue-black) is essential: his shadows glow rather "
+            "than recede."
+        ),
+        famous_works=[
+            ("Omnibus", "1895"),
+            ("Hugo Lindqvist", "1895"),
+            ("Midsummer Dance", "1897"),
+            ("Dagmar", "1911"),
+            ("The Waltz", "1891"),
+            ("My Model and My Boat", "1886"),
+            ("In the Dardanelles", "1886"),
+        ],
+        inspiration=(
+            "Use zorn_tricolor_pass() as the primary skin-rendering pass: "
+            "shift all midtone flesh areas toward warm ochre (0.82, 0.62, 0.18); "
+            "add a vermillion accent saturation boost to the warmest red/pink pixels "
+            "(lips, cheekbones, ear helices); apply a warm brown cast to dark regions "
+            "to replicate ivory black's warmth.  "
+            "tone_ground() with warm neutral grey (0.52, 0.46, 0.34).  "
+            "block_in() with large confident strokes (stroke_size_bg=32).  "
+            "build_form() with the limited palette — sample from the ochre/black/white "
+            "triplet rather than a full colour wheel.  "
+            "place_lights() at high opacity — Zorn's specular highlights are decisive "
+            "pure-white marks, not soft glow.  "
+            "Final glaze: warm amber at opacity 0.06 to unify the warm palette."
+        ),
+    ),
+
 }
 
 
