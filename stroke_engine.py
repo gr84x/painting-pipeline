@@ -10177,3 +10177,187 @@ class Painter:
         self.canvas.ctx.paint()
 
         print(f"    Waterhouse jewel pass complete")
+
+    # moreau_gilded_pass — Symbolist encrusted gold-point surface technique
+    #
+    # This is this session's random artistic improvement: stochastic gold-point
+    # scattering to simulate Gustave Moreau's distinctive "encrusted" surface
+    # quality.  Unlike every prior pass, which modifies pixel values globally
+    # or within luminance bands, this pass uses a STOCHASTIC POINT-SCATTER
+    # strategy: a population of small, bright gold fragments is placed at
+    # randomly sampled positions within the target luminance range, blending
+    # into the underlying colour.  This creates a mosaic-like, irregular texture
+    # that reads as "encrusted" — paint laid on as jewel fragments rather than
+    # brushed as continuous tone.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def moreau_gilded_pass(
+            self,
+            gold_density:       float = 0.018,
+            gold_low:           float = 0.42,
+            gold_high:          float = 0.88,
+            crimson_shadow:     float = 0.12,
+            shadow_threshold:   float = 0.28,
+            gold_tint:          tuple = (0.92, 0.76, 0.22),
+            blend_opacity:      float = 0.52,
+    ):
+        """
+        Simulates Gustave Moreau's Symbolist encrusted-gold surface technique.
+
+        Moreau's mythological canvases are unlike any other 19th-century oil
+        paintings in their surface quality: they accumulate thousands of tiny
+        touches of gold and jewel-coloured paint until the canvas surface reads
+        as a Byzantine reliquary rather than a stretched linen support.  His
+        method draws on medieval manuscript illumination and Byzantine mosaic
+        as much as on the Western oil painting tradition.
+
+        This pass replicates three distinct aspects of that technique:
+
+        1. **Stochastic gold-point scattering** — The defining Moreau effect.
+           A proportion (``gold_density``) of pixels within the midtone-to-
+           highlight luminance window (``gold_low``–``gold_high``) are randomly
+           selected and tinted toward the gold colour (``gold_tint``).  The
+           random selection creates an irregular, fragmented appearance: each
+           "gold fragment" is a single pixel or small cluster, simulating a
+           tiny brushstroke of gold paint laid individually on the surface.
+           This stochastic approach is the core innovation of this pass and
+           distinguishes it from all prior passes in the pipeline, which modify
+           pixels deterministically (globally, by luminance band, or via
+           convolution).  Stochastic pixel sampling produces the irregular,
+           hand-placed quality of Moreau's encrusted technique; it cannot be
+           replicated by a smooth per-pixel function.
+
+        2. **Crimson shadow enrichment** — Moreau's darks are never dead black.
+           The dark warm umber-crimson ground glows through thin shadow passages,
+           giving his interiors a ruby warmth.  Pixels below ``shadow_threshold``
+           are shifted toward a deep warm crimson, preventing the void
+           backgrounds from reading as neutral or cool.
+
+        3. **Warm gold atmospheric tint** — A gentle overall warm gold tint
+           is blended across the full image at low opacity, simulating the
+           characteristic amber-gold tonality of his varnished surfaces.  This
+           is the atmospheric unifier of his palette and gives his paintings
+           the feeling of being viewed through warm amber glass.
+
+        Parameters
+        ----------
+        gold_density   : Fraction of eligible pixels receiving a gold touch.
+                         0.010–0.025 replicates Moreau's density — enough to
+                         read as "scattered" not "uniform"; above 0.035 the
+                         effect starts to look like a solid gold overlay.
+        gold_low       : Lower luminance boundary for gold scattering.
+                         0.38–0.46 — gold fragments live in the upper-midtone
+                         range where thin glaze over dark ground would catch
+                         light without being the full highlight.
+        gold_high      : Upper luminance boundary (0.82–0.92) — gold fragments
+                         extend into the highlights but not the absolute peak
+                         brightness, which Moreau reserved for near-white ivory.
+        crimson_shadow : Strength of the warm crimson push in deep shadows.
+                         0.08–0.16 — enough to warm the darks without making
+                         them look like red paint (the ground glows through, it
+                         does not dominate).
+        shadow_threshold: Luminance below which shadow enrichment is applied.
+                         0.22–0.32 — deep shadows only; midtones unaffected.
+        gold_tint      : RGB tuple for the gold scatter colour (values 0–1).
+                         (0.92, 0.76, 0.22) is burnished gold; (0.90, 0.82, 0.38)
+                         is pale gold leaf; (0.88, 0.62, 0.12) is deep amber.
+        blend_opacity  : Global blend weight for all three effects combined.
+                         0.45–0.60 for a full-strength Moreau surface;
+                         0.25–0.35 as a supplementary pass over another style.
+
+        Notes
+        -----
+        Inspired by: "Salome Dancing Before Herod" (1876, Musée Gustave Moreau),
+        "Jupiter and Semele" (1895, Musée Gustave Moreau), "The Apparition"
+        (1876, Musée d'Orsay).
+        Primary reference: Julius Kaplan, "The Art of Gustave Moreau: Theory,
+        Style, and Content" (1982); Geneviève Lacambre, Musée Moreau catalogue.
+        This session's random artistic improvement — stochastic pixel-scatter
+        as a new pipeline primitive, enabling encrusted and mosaic surface
+        effects not achievable by deterministic per-pixel transforms.
+        """
+        import numpy as _np
+
+        print(f"  Moreau gilded pass  "
+              f"(gold_density={gold_density:.3f}  crimson_shadow={crimson_shadow:.2f}  "
+              f"blend_opacity={blend_opacity:.2f})")
+
+        # ── Read current canvas ARGB32 (BGRA byte order in pycairo) ──────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Perceptual luminance ──────────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        new_R = R.copy()
+        new_G = G.copy()
+        new_B = B.copy()
+
+        # ── Zone 1: Stochastic gold-point scattering ─────────────────────────
+        # Identify pixels in the eligible luminance window.
+        eligible = (lum >= gold_low) & (lum <= gold_high)
+        eligible_indices = _np.argwhere(eligible)
+
+        if eligible_indices.shape[0] > 0:
+            # Sample a random subset of eligible pixels.
+            rng = _np.random.default_rng(seed=42)   # deterministic seed for reproducibility
+            n_total   = eligible_indices.shape[0]
+            n_scatter = max(1, int(n_total * gold_density))
+            chosen = rng.choice(n_total, size=n_scatter, replace=False)
+            ys = eligible_indices[chosen, 0]
+            xs = eligible_indices[chosen, 1]
+
+            # Gold tint RGB components
+            gt_r, gt_g, gt_b = float(gold_tint[0]), float(gold_tint[1]), float(gold_tint[2])
+
+            # Blend each chosen pixel toward the gold tint at full blend_opacity.
+            # (Each fragment is an individual "touch" — full-strength application
+            # at that point, not a smooth global transition.)
+            new_R[ys, xs] = _np.clip(
+                new_R[ys, xs] * (1.0 - blend_opacity) + gt_r * blend_opacity, 0.0, 1.0)
+            new_G[ys, xs] = _np.clip(
+                new_G[ys, xs] * (1.0 - blend_opacity) + gt_g * blend_opacity, 0.0, 1.0)
+            new_B[ys, xs] = _np.clip(
+                new_B[ys, xs] * (1.0 - blend_opacity) + gt_b * blend_opacity, 0.0, 1.0)
+
+        # ── Zone 2: Crimson shadow enrichment ────────────────────────────────
+        # Warm the darkest pixels toward deep crimson — the ground glows through.
+        # Target: (0.48, 0.10, 0.06) — deep warm crimson-ruby.
+        cr_r, cr_g, cr_b = 0.48, 0.10, 0.06
+        shadow_t = _np.clip(
+            1.0 - (lum / (shadow_threshold + 1e-6)),
+            0.0, 1.0,
+        )
+        shadow_t = shadow_t * shadow_t   # quadratic: strongest at absolute zero
+        shadow_alpha = shadow_t * crimson_shadow * blend_opacity
+
+        new_R = _np.clip(new_R + (cr_r - new_R) * shadow_alpha, 0.0, 1.0)
+        new_G = _np.clip(new_G + (cr_g - new_G) * shadow_alpha, 0.0, 1.0)
+        new_B = _np.clip(new_B + (cr_b - new_B) * shadow_alpha, 0.0, 1.0)
+
+        # ── Zone 3: Warm gold atmospheric overall tint ───────────────────────
+        # A gentle warm-gold atmospheric veil at very low opacity — simulates
+        # the amber-varnish quality of Moreau's finished surfaces.
+        # Applied as a global blend toward the gold tint at reduced strength.
+        atm_strength = blend_opacity * 0.12   # 12 % of blend_opacity → subtle
+        new_R = _np.clip(new_R + (float(gold_tint[0]) - new_R) * atm_strength, 0.0, 1.0)
+        new_G = _np.clip(new_G + (float(gold_tint[1]) - new_G) * atm_strength, 0.0, 1.0)
+        new_B = _np.clip(new_B + (float(gold_tint[2]) - new_B) * atm_strength, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        import cairo as _cairo
+        tmp = _cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), _cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Moreau gilded pass complete  "
+              f"(gold fragments placed: {n_scatter if eligible_indices.shape[0] > 0 else 0})")

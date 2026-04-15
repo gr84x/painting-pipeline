@@ -559,6 +559,7 @@ def scene_to_painting(
     is_impressionist_plein_air = (scene.style.period == Period.IMPRESSIONIST_PLEIN_AIR)
     is_post_impressionist  = (scene.style.period == Period.POST_IMPRESSIONIST)
     is_pre_raphaelite      = (scene.style.period == Period.PRE_RAPHAELITE)
+    is_symbolist           = (scene.style.period == Period.SYMBOLIST)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2450,6 +2451,87 @@ def scene_to_painting(
             print(_feedback.summary())
         # Light vignette only; no crackle — Waterhouse is modern enough not to age.
         p.finish(vignette=0.22, crackle=False)
+
+    elif is_symbolist:
+        # ── Symbolist pipeline (Gustave Moreau technique) ────────────────────
+        # Moreau built his mythological paintings as encrusted, jewel-like objects —
+        # dense accumulations of tiny, patient brushstrokes laid over a dark warm
+        # ground, building up to surfaces that resemble Byzantine mosaics or
+        # medieval reliquaries.  The pipeline reflects his characteristic approach:
+        #
+        #   1. Dark warm crimson-brown ground — the underpinning colour shows through
+        #      in passages of thin paint, unifying the surface with a deep ruby glow.
+        #   2. Underpainting with translucent ochre-umber passages — establishing the
+        #      form beneath the richly encrusted surface.
+        #   3. Block-in with fine strokes — Moreau was a draughtsman before a colourist.
+        #   4. build_form() — extensive, patient form-building, fine marks.
+        #   5. venetian_glaze_pass() — deep warm glazing unifies the dark ground.
+        #   6. moreau_gilded_pass() — the defining technique: scattered gold-point
+        #      highlights simulate encrusted gilt fragments across the surface.
+        #   7. dark_void_pass() — Moreau's backgrounds often dissolve into near-black
+        #      mythological void with only emergent detail.
+        #   8. place_lights() with warm amber-gold highlights — not white, never cold.
+        #   9. Heavy crackle vignette — Moreau's large canvases are heavily aged.
+        moreau_style = _ART_CATALOG.get("gustave_moreau")
+        ground_col = moreau_style.ground_color if moreau_style else (0.18, 0.08, 0.05)
+
+        # Dark crimson-brown ground — the warm underpinning jewel tone.
+        p.tone_ground(ground_col, texture_strength=0.08)
+
+        # Fine patient form-building — Moreau drew obsessively before painting.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.2), n_strokes=120)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=240)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_face"] * 1.1), n_strokes=620)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.tonal_compression_pass(shadow_lift=0.04, highlight_compress=0.96,
+                                         midtone_contrast=0.04)
+
+        # Deep warm Venetian glaze — unifies the dark ground with midtone richness.
+        p.venetian_glaze_pass(
+            glaze_color   = (0.78, 0.38, 0.12),
+            glaze_opacity = 0.10,
+            n_layers      = 3,
+        )
+
+        # Core Moreau technique: encrusted gold-point highlights.
+        p.moreau_gilded_pass(
+            gold_density       = 0.018,
+            gold_low           = 0.42,
+            gold_high          = 0.88,
+            crimson_shadow     = 0.12,
+            shadow_threshold   = 0.28,
+            gold_tint          = (0.92, 0.76, 0.22),
+            blend_opacity      = 0.52,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "moreau_gilded_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.58, 0.24, 0.08), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97,
+                                             midtone_contrast=0.03)
+
+        # Dark void: dissolve background into near-black mythological depths.
+        p.dark_void_pass(void_strength=0.35, figure_only=True)
+
+        # Warm amber-gold highlights — Moreau's lit passages glow like burnished metal.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=280)
+
+        # Deep warm crimson unifying glaze.
+        if moreau_style and moreau_style.glazing:
+            p.glaze(moreau_style.glazing, opacity=0.06)
+        else:
+            p.glaze((0.62, 0.28, 0.10), opacity=0.06)
+
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Heavy vignette + crackle — Moreau's large mythological canvases are museum-aged.
+        p.finish(vignette=0.42, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

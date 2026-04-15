@@ -50,6 +50,7 @@ EXPECTED_ARTISTS = [
     "rothko", "sargent", "seurat", "sorolla", "tamara_de_lempicka", "titian", "turner",
     "van_gogh", "velazquez", "vermeer",
     "vuillard",
+    "gustave_moreau",
     "zurbaran",
 ]
 
@@ -3195,4 +3196,146 @@ def test_pre_raphaelite_wet_blend_lower_than_academic():
     assert sp_pr["wet_blend"] < sp_ac["wet_blend"], (
         "PRE_RAPHAELITE wet_blend must be lower than ACADEMIC_REALIST "
         "(Pre-Raphaelite ground technique is wet but not the hyper-smooth Academic blend)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Gustave Moreau / SYMBOLIST — session 32 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_gustave_moreau_in_catalog():
+    """gustave_moreau must be present in CATALOG after session 32."""
+    assert "gustave_moreau" in CATALOG
+
+
+def test_gustave_moreau_movement():
+    s = get_style("gustave_moreau")
+    assert "symbolism" in s.movement.lower() or "symbol" in s.movement.lower(), (
+        f"gustave_moreau movement should reference Symbolism; got {s.movement!r}")
+
+
+def test_gustave_moreau_nationality():
+    s = get_style("gustave_moreau")
+    assert s.nationality == "French", (
+        f"gustave_moreau nationality should be 'French'; got {s.nationality!r}")
+
+
+def test_gustave_moreau_palette_length():
+    s = get_style("gustave_moreau")
+    assert len(s.palette) >= 5, (
+        f"gustave_moreau palette should have ≥ 5 colours; got {len(s.palette)}")
+
+
+def test_gustave_moreau_palette_values_in_range():
+    """All palette RGB values for gustave_moreau must be in [0, 1]."""
+    s = get_style("gustave_moreau")
+    for i, color in enumerate(s.palette):
+        for j, channel in enumerate(color):
+            assert 0.0 <= channel <= 1.0, (
+                f"gustave_moreau palette[{i}][{j}] = {channel} is outside [0, 1]")
+
+
+def test_gustave_moreau_ground_dark():
+    """gustave_moreau ground_color should be dark — warm umber-crimson underpinning."""
+    s = get_style("gustave_moreau")
+    lum = 0.299 * s.ground_color[0] + 0.587 * s.ground_color[1] + 0.114 * s.ground_color[2]
+    assert lum < 0.40, (
+        f"gustave_moreau ground_color should be dark (lum < 0.40); got lum={lum:.3f}")
+
+
+def test_gustave_moreau_palette_has_gold():
+    """gustave_moreau palette must contain a gold/warm-yellow entry (R > G > B)."""
+    s = get_style("gustave_moreau")
+    gold = any(r > 0.60 and r > g and g > b for r, g, b in s.palette)
+    assert gold, "gustave_moreau palette must contain a gold/amber entry (R > G > B)"
+
+
+def test_gustave_moreau_palette_has_crimson():
+    """gustave_moreau palette must contain a deep crimson (R dominant, low luminance)."""
+    s = get_style("gustave_moreau")
+    crimson = any(r > 0.40 and r > 2.5 * g and r > 2.5 * b for r, g, b in s.palette)
+    assert crimson, "gustave_moreau palette must contain a deep crimson entry"
+
+
+def test_gustave_moreau_has_crackle():
+    """gustave_moreau crackle should be True — museum-aged large canvases."""
+    s = get_style("gustave_moreau")
+    assert s.crackle, "gustave_moreau crackle should be True (museum-aged large canvases)"
+
+
+def test_gustave_moreau_has_warm_glaze():
+    """gustave_moreau glazing should be a warm crimson tone, not None."""
+    s = get_style("gustave_moreau")
+    assert s.glazing is not None, "gustave_moreau glazing should be set (warm crimson unifier)"
+    r, g, b = s.glazing
+    assert r > g and r > b, (
+        "gustave_moreau glazing should be warm (R dominant); "
+        f"got R={r:.2f} G={g:.2f} B={b:.2f}")
+
+
+def test_gustave_moreau_famous_works_not_empty():
+    s = get_style("gustave_moreau")
+    assert len(s.famous_works) >= 4, (
+        f"gustave_moreau famous_works should have ≥ 4 entries; "
+        f"got {len(s.famous_works)}")
+
+
+def test_gustave_moreau_salome_referenced():
+    """gustave_moreau famous_works must include Salome — his most iconic work."""
+    s = get_style("gustave_moreau")
+    titles = [title for title, _ in s.famous_works]
+    assert any("salome" in t.lower() for t in titles), (
+        "gustave_moreau famous_works must include a Salome painting")
+
+
+def test_gustave_moreau_inspiration_references_pass():
+    """The Moreau catalog entry must reference moreau_gilded_pass."""
+    s = get_style("gustave_moreau")
+    assert "moreau_gilded_pass" in s.inspiration, (
+        "gustave_moreau inspiration must reference moreau_gilded_pass()")
+
+
+def test_gustave_moreau_stroke_size_fine():
+    """gustave_moreau stroke_size should be very fine — miniaturist precision."""
+    s = get_style("gustave_moreau")
+    assert s.stroke_size <= 6, (
+        f"gustave_moreau stroke_size should be ≤ 6 (fine encrusted marks); "
+        f"got {s.stroke_size}")
+
+
+def test_gustave_moreau_low_edge_softness():
+    """gustave_moreau edge_softness should be relatively low — crisp draughtsman edges."""
+    s = get_style("gustave_moreau")
+    assert s.edge_softness <= 0.35, (
+        f"gustave_moreau edge_softness should be ≤ 0.35 (crisp contours); "
+        f"got {s.edge_softness}")
+
+
+# ── SYMBOLIST period stroke_params ────────────────────────────────────────────
+
+def test_symbolist_period_in_enum():
+    """SYMBOLIST must be a valid Period enum member after session 32."""
+    assert hasattr(Period, "SYMBOLIST"), "Period.SYMBOLIST missing from scene_schema"
+    assert isinstance(Period.SYMBOLIST, Period)
+
+
+def test_symbolist_stroke_params_present():
+    """SYMBOLIST must have a stroke_params entry covering all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.SYMBOLIST).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"SYMBOLIST stroke_params missing key: {key!r}"
+
+
+def test_symbolist_stroke_size_face_fine():
+    """SYMBOLIST stroke_size_face should be very fine — Moreau's miniaturist precision."""
+    sp = Style(medium=Medium.OIL, period=Period.SYMBOLIST).stroke_params
+    assert sp["stroke_size_face"] <= 6, (
+        f"SYMBOLIST stroke_size_face should be ≤ 6 (fine encrusted marks); "
+        f"got {sp['stroke_size_face']}")
+
+
+def test_symbolist_edge_softness_low():
+    """SYMBOLIST edge_softness should be low — Moreau was a draughtsman first."""
+    sp = Style(medium=Medium.OIL, period=Period.SYMBOLIST).stroke_params
+    assert sp["edge_softness"] <= 0.35, (
+        f"SYMBOLIST edge_softness should be ≤ 0.35; got {sp['edge_softness']}")
 
