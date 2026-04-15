@@ -9083,3 +9083,154 @@ class Painter:
 
         print(f"    Academic skin complete  "
               f"(total_strokes={total_placed}  passes={n_passes})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # north_light_diffusion_pass — Mary Cassatt's north-window indoor daylight
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def north_light_diffusion_pass(
+            self,
+            light_side:            str   = "left",
+            cool_highlight_color:  Color = (0.72, 0.80, 0.92),
+            warm_shadow_color:     Color = (0.88, 0.70, 0.42),
+            cool_strength:         float = 0.10,
+            warm_strength:         float = 0.08,
+            gradient_sharpness:    float = 2.0,
+            blend_opacity:         float = 0.30,
+    ):
+        """
+        Simulates Mary Cassatt's characteristic north-window indoor daylight.
+
+        Unlike the dramatic single-source chiaroscuro of Baroque painting or the
+        outdoor broken-colour sunlight of Impressionism, Cassatt's indoor north-
+        window light has three qualities that distinguish it:
+
+        1. **Diffused and even**: the sky is the light source, not the sun.
+           There is no hard terminator between light and shadow — the transition
+           is gradual and soft across the whole form.
+
+        2. **Cool on the lit side**: indirect sky light is perceptually cooler
+           (blue-grey) than daylight.  The lit side of flesh and fabric carries
+           a cool, silvery quality rather than the warm golden tone of sunlight.
+
+        3. **Warm in the shadow**: interior shadows receive reflected warm light
+           bouncing from walls, floors, and warm-coloured furniture.  Cassatt's
+           shadow areas are never cold or dead — they glow with amber warmth.
+
+        Implementation
+        --------------
+        A smooth horizontal (or vertical) gradient divides the canvas into a
+        lit half and a shadow half.  The gradient uses a raised-cosine profile
+        so the transition is natural rather than mechanical:
+
+          - Lit pixels receive a cool blue-grey tint (``cool_highlight_color``)
+            blended at ``cool_strength``.
+          - Shadow pixels receive a warm amber tint (``warm_shadow_color``)
+            blended at ``warm_strength``.
+          - In the transition zone both influences are present, weighted by the
+            gradient: no hard edge anywhere on the canvas.
+
+        Luminance is preserved throughout: only the chromatic quality of the
+        surface changes, not its tonal structure.
+
+        Call AFTER ``build_form()`` and BEFORE ``place_lights()`` or the final
+        glaze.  The pass complements ``reflected_light_pass()`` — they can be
+        used together, with this pass setting the broad cool/warm temperature
+        split and ``reflected_light_pass()`` adding fine shadow chromatics.
+
+        Parameters
+        ----------
+        light_side            : Which side the north window is on.
+                                "left", "right", "top", or "bottom".
+        cool_highlight_color  : (R,G,B) for the lit-side cool tint.
+                                Default: pale blue-grey (north sky quality).
+        warm_shadow_color     : (R,G,B) for the shadow-side warm tint.
+                                Default: warm amber (wall/floor bounce).
+        cool_strength         : Blend weight for the cool highlight tint.
+                                0.06–0.12 = subtle Cassatt quality; 0.20+ = very blue.
+        warm_strength         : Blend weight for the warm shadow tint.
+                                Slightly weaker than cool by default — the warm
+                                bounce is gentler than the sky's influence on the lit.
+        gradient_sharpness    : Controls how quickly the gradient transitions.
+                                1.0 = linear; 2.0 = S-curve; 3.0+ = more abrupt.
+                                Cassatt's diffused north light suits 1.8–2.5.
+        blend_opacity         : Global opacity of the entire pass.  Allows the
+                                pass to be stacked multiple times at low opacity
+                                for a more gradual build (Cassatt's pastel technique).
+
+        Notes
+        -----
+        Inspired by: "In the Loge" (1878), "The Child's Bath" (1893),
+        "Little Girl in a Blue Armchair" (1878).
+        Validated as this session's random artistic improvement pass.
+        """
+        import numpy as _np
+
+        print(f"  North-light diffusion pass  "
+              f"(side={light_side}  cool={cool_strength:.2f}  "
+              f"warm={warm_strength:.2f}  opacity={blend_opacity:.2f})")
+
+        # ── Read current canvas ARGB32 (BGRA byte order in pycairo) ──────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        # ── Build the light-to-shadow gradient (0 = full shadow, 1 = full lit) ─
+        # Raised cosine profile: smooth S-curve between 0 and 1.
+        h, w = self.h, self.w
+        if light_side == "left":
+            axis = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[_np.newaxis, :]
+        elif light_side == "right":
+            axis = _np.linspace(1.0, 0.0, w, dtype=_np.float32)[_np.newaxis, :]
+        elif light_side == "top":
+            axis = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, _np.newaxis]
+        else:   # "bottom"
+            axis = _np.linspace(1.0, 0.0, h, dtype=_np.float32)[:, _np.newaxis]
+
+        # Smooth S-curve via raised cosine raised to gradient_sharpness power
+        # Value = 1.0 at the lit side; 0.0 at the shadow side.
+        lit_weight  = (0.5 - 0.5 * _np.cos(_np.pi * axis)) ** gradient_sharpness
+        shad_weight = 1.0 - lit_weight   # complement
+
+        # Broadcast to (H, W) — both arrays are already (1, W) or (H, 1)
+        # _np broadcasting handles the expansion automatically.
+        lit_weight  = lit_weight  * _np.ones((h, w), dtype=_np.float32)
+        shad_weight = shad_weight * _np.ones((h, w), dtype=_np.float32)
+
+        # ── Apply cool tint on the lit side ───────────────────────────────────
+        cr, cg, cb = cool_highlight_color
+        cool_alpha  = lit_weight * cool_strength * blend_opacity
+        new_R = R + (cr - R) * cool_alpha
+        new_G = G + (cg - G) * cool_alpha
+        new_B = B + (cb - B) * cool_alpha
+
+        # ── Apply warm tint on the shadow side ────────────────────────────────
+        wr, wg, wb = warm_shadow_color
+        warm_alpha  = shad_weight * warm_strength * blend_opacity
+        new_R = new_R + (wr - new_R) * warm_alpha
+        new_G = new_G + (wg - new_G) * warm_alpha
+        new_B = new_B + (wb - new_B) * warm_alpha
+
+        # ── Luminance preservation — chromatic shift only, tonal structure kept ─
+        new_lum = 0.299 * new_R + 0.587 * new_G + 0.114 * new_B
+        safe    = _np.where(new_lum > 1e-6, lum / new_lum, 1.0)
+        new_R   = _np.clip(new_R * safe, 0.0, 1.0)
+        new_G   = _np.clip(new_G * safe, 0.0, 1.0)
+        new_B   = _np.clip(new_B * safe, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    North-light diffusion complete")

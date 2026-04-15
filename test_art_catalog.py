@@ -38,7 +38,8 @@ EXPECTED_ARTISTS = [
     "ingres",
     "jan_van_eyck",
     "kandinsky",
-    "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "raphael",
+    "klimt", "leonardo", "manet", "mary_cassatt", "matisse", "modigliani", "monet",
+    "raphael",
     "rembrandt",
     "rothko", "sargent", "seurat", "sorolla", "tamara_de_lempicka", "titian", "turner",
     "van_gogh", "velazquez", "vermeer",
@@ -178,6 +179,7 @@ EXPECTED_PERIODS = [
     "FRENCH_NATURALIST",
     "SOCIAL_REALIST",
     "ACADEMIC_REALIST",
+    "IMPRESSIONIST_INTIMISTE",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -2341,4 +2343,99 @@ def test_academic_realist_high_edge_softness():
     assert p["edge_softness"] >= 0.70, (
         f"ACADEMIC_REALIST edge_softness should be high (≥0.70); "
         f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Mary Cassatt — this session's randomly discovered artist
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_mary_cassatt_in_catalog():
+    """Mary Cassatt must be present in CATALOG (this session's addition)."""
+    assert "mary_cassatt" in CATALOG
+
+
+def test_mary_cassatt_movement():
+    s = get_style("mary_cassatt")
+    assert ("Impression" in s.movement or "impression" in s.movement.lower()
+            or "Intimisme" in s.movement or "American" in s.movement)
+
+
+def test_mary_cassatt_palette_length():
+    s = get_style("mary_cassatt")
+    assert len(s.palette) >= 5, "Cassatt palette should have at least 5 key colours"
+
+
+def test_mary_cassatt_palette_values_in_range():
+    """All Cassatt palette RGB values must be in [0, 1]."""
+    s = get_style("mary_cassatt")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Cassatt palette {rgb}")
+
+
+def test_mary_cassatt_ground_color_valid():
+    s = get_style("mary_cassatt")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_mary_cassatt_famous_works():
+    s = get_style("mary_cassatt")
+    assert len(s.famous_works) >= 3, "Cassatt should have at least 3 famous works"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Bath" in t or "Loge" in t or "Armchair" in t for t in titles), (
+        "Cassatt famous works should include at least one canonical work "
+        "(The Child's Bath, In the Loge, or Little Girl in a Blue Armchair)")
+
+
+def test_mary_cassatt_stroke_params_moderate_wet_blend():
+    """Cassatt should use moderate wet_blend — not broken Impressionism, not Academic."""
+    s = get_style("mary_cassatt")
+    assert 0.10 < s.wet_blend < 0.70, (
+        f"Cassatt wet_blend should be moderate (0.10–0.70); got {s.wet_blend}")
+
+
+def test_mary_cassatt_no_chromatic_split():
+    """Cassatt does not use Divisionist dot splitting."""
+    s = get_style("mary_cassatt")
+    assert not s.chromatic_split, "Cassatt should not have chromatic_split=True"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# IMPRESSIONIST_INTIMISTE period — this session's addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_impressionist_intimiste_period_present():
+    """IMPRESSIONIST_INTIMISTE must exist in Period enum (this session's addition)."""
+    assert hasattr(Period, "IMPRESSIONIST_INTIMISTE"), (
+        "Period.IMPRESSIONIST_INTIMISTE not found")
+    assert Period.IMPRESSIONIST_INTIMISTE in list(Period)
+
+
+def test_impressionist_intimiste_stroke_params():
+    """IMPRESSIONIST_INTIMISTE stroke_params must have all required keys and valid values."""
+    style = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_INTIMISTE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"IMPRESSIONIST_INTIMISTE stroke_params missing key: {key!r}"
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_impressionist_intimiste_moderate_wet_blend():
+    """IMPRESSIONIST_INTIMISTE wet_blend should be between IMPRESSIONIST and ACADEMIC_REALIST."""
+    intimiste = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_INTIMISTE,
+                      palette=PaletteHint.WARM_EARTH).stroke_params
+    impressionist = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST,
+                          palette=PaletteHint.WARM_EARTH).stroke_params
+    academic = Style(medium=Medium.OIL, period=Period.ACADEMIC_REALIST,
+                     palette=PaletteHint.WARM_EARTH).stroke_params
+    assert impressionist["wet_blend"] <= intimiste["wet_blend"] <= academic["wet_blend"], (
+        "IMPRESSIONIST_INTIMISTE wet_blend should be between IMPRESSIONIST and ACADEMIC_REALIST")
 
