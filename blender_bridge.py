@@ -470,11 +470,23 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
 
     if Path(mask_path).exists():
         p.set_figure_mask(mask_path)
+        # Build composition weight map immediately after the figure mask is known
+        # so _place_strokes() automatically biases stroke placement toward
+        # rule-of-thirds / golden-ratio intersections and the focal point.
+        p._comp_map = p._build_composition_map(focal_xy=p._derive_focal_xy())
         # Seal background first — copies reference bg pixels to canvas so no
         # figure stroke can ever contaminate the dark background area
         p.seal_background(ref)
-        # A few large atmospheric strokes in background region for texture
-        p.background_pass(ref, n_strokes=50, stroke_size=60)
+        # Environment-specific background pass — replaces the generic
+        # background_pass() with a period-agnostic environment treatment that
+        # respects env_type (INTERIOR / EXTERIOR / LANDSCAPE / ABSTRACT) and
+        # applies atmospheric fog according to scene.environment.atmosphere.
+        p.background_environment_pass(
+            ref,
+            env_type    = scene.environment.type.name,
+            description = scene.environment.description,
+            atmosphere  = scene.environment.atmosphere,
+        )
     else:
         if verbose:
             print("  [warn] No figure mask found — painting without region separation")
@@ -536,6 +548,15 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # A single final very dark glaze — Goya's world is never quite black,
         # it is a dark warm amber-brown at the deepest shadows.
         p.glaze((0.18, 0.10, 0.04), opacity=0.12)
+        # Edge lost-and-found: pull focus toward the emerging figure forms.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Heavy vignette crushes edges further into void; no crackle — plaster not canvas.
         p.finish(vignette=0.75, crackle=False)
 
@@ -587,6 +608,15 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.place_lights(ref, stroke_size=sp["stroke_size_bg"], n_strokes=200)
 
         # No glaze (Rothko did not varnish — the raw color surface IS the work).
+        # Edge lost-and-found: subtle focal pull within the colour field.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Very gentle vignette: the absorbing dark ground already edges the canvas.
         p.finish(vignette=0.22, crackle=False)
 
@@ -630,6 +660,15 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         )
 
         # No oil glaze or crackle — watercolours don't varnish.
+        # Edge lost-and-found: soft focal emphasis appropriate to watercolour.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Light vignette only to frame the paper edges.
         p.finish(vignette=0.18, crackle=False)
 
@@ -656,6 +695,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
 
         # No glaze — ukiyo-e pigment is transparent watercolour; the cream
         # paper reads through flat colour areas.
+        # Edge lost-and-found: crisp contour lines are already the focal technique;
+        # use a moderate found_radius to reinforce the print's centre of interest.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Very gentle vignette only; no crackle (prints don't age like oil varnish).
         p.finish(vignette=0.12, crackle=False)
 
@@ -702,6 +751,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
 
         # Very subtle warm glaze — Manet did not varnish elaborately
         p.glaze((0.55, 0.50, 0.38), opacity=0.04)
+        # Edge lost-and-found: Manet's flat planes benefit from focal sharpening
+        # that directs the eye without reintroducing chiaroscuro modelling.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Moderate vignette; no crackle (modern technique)
         p.finish(vignette=0.35, crackle=False)
 
@@ -738,6 +797,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         )
 
         # No glaze, no crackle — Schiele's works on paper do not have oil varnish.
+        # Edge lost-and-found: the angular contour pass already sharpens edges;
+        # apply a gentle focal pass to pull attention toward the face.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Very light vignette to evoke the feel of a paper sheet edge.
         p.finish(vignette=0.12, crackle=False)
 
@@ -798,6 +867,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # Cool violet unifying glaze — his flesh shadows always have a blue-violet
         # quality from the Venice / Byzantine influence
         p.glaze((0.25, 0.18, 0.45), opacity=0.08)
+        # Edge lost-and-found: El Greco's jewel colours benefit from focal
+        # sharpening at the face; peripheral elongated limbs can stay soft.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Moderate crackle — 16th-century Spanish oil on canvas
         p.finish(vignette=0.55, crackle=True)
 
@@ -859,6 +938,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
 
         # Minimal warm earth glaze — the warm ground tones the overall palette
         p.glaze((0.68, 0.48, 0.18), opacity=0.05)
+        # Edge lost-and-found: Kahlo's retablo figures benefit from focal
+        # sharpening at face and costume detail zones.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # No crackle — Masonite/metal panel; light vignette to frame the picture
         p.finish(vignette=0.25, crackle=False)
 
@@ -911,6 +1000,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         )
 
         # No glaze — Kandinsky's colour is direct and unmediated by varnish.
+        # Edge lost-and-found: within an abstract composition the focal point
+        # anchors the eye in the resonant geometric field.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Very light vignette only; no crackle.
         p.finish(vignette=0.15, crackle=False)
 
@@ -962,6 +1061,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
 
         # Warm Venetian red-amber unifying glaze
         p.glaze((0.72, 0.38, 0.18), opacity=0.07)
+        # Edge lost-and-found: Titian's warm glazes soften edges naturally;
+        # the focal pass reinstates crisp found edges at the face centre.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Strong vignette (Titian often used dark edges), aged crackle appropriate
         p.finish(vignette=0.50, crackle=True)
 
@@ -1022,6 +1131,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         )
 
         # No glaze — Matisse's colour is direct and final, not mediated by varnish.
+        # Edge lost-and-found: Fauvist coloured outlines are crisp; a gentle
+        # focal pass sharpens the face centre without reintroducing tonal modelling.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Very light vignette; no crackle (modern canvas).
         p.finish(vignette=0.12, crackle=False)
 
@@ -1085,6 +1204,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         )
 
         # No formal glaze — Modigliani's colour is direct and final.
+        # Edge lost-and-found: the oval mask pass creates strong silhouette edges;
+        # focal pass reinforces the face centre against the flat background.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Light vignette; no crackle (early 20th century, no extreme ageing yet).
         p.finish(vignette=0.20, crackle=False)
 
@@ -1160,6 +1289,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         van_eyck_glaze = van_eyck_style.glazing if van_eyck_style else (0.75, 0.58, 0.28)
         p.glaze(van_eyck_glaze, opacity=0.06)
 
+        # Edge lost-and-found: van Eyck's hyper-precise detail merits tighter
+        # focal sharpening than most periods — found_sharpness raised slightly.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Moderate vignette; crackle=True — 15th-century oak panel craquelure
         p.finish(vignette=0.35, crackle=True)
 
@@ -1207,6 +1346,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         )
 
         # No glaze (raw colour is the work), no crackle.
+        # Edge lost-and-found: cloisonné thick outlines already define zones;
+        # focal pass adds directional hierarchy without softening the leading.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Very light vignette to frame the canvas edge — Gauguin's pictures
         # are often edge-to-edge with colour, so keep this gentle.
         p.finish(vignette=0.20, crackle=False)
@@ -1264,6 +1413,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # Warm amber unifying glaze — Baroque old-master tonality
         glaze_col = delacroix_style.glazing if delacroix_style else (0.62, 0.35, 0.12)
         p.glaze(glaze_col, opacity=0.07)
+        # Edge lost-and-found: Baroque chiaroscuro calls for crisp found edges
+        # at the face / hands in direct light, soft lost edges merging into void.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Strong vignette (Baroque painters often darkened canvas edges);
         # crackle=True for authentic old-master ageing.
         p.finish(vignette=0.55, crackle=True)
@@ -1300,6 +1459,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # Impasto highlight dots last — just as in conventional oil painting.
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=300)
         # No amber glaze — Seurat worked on fresh bright canvas.
+        # Edge lost-and-found: within a divisionist dot field the focal pass
+        # organises perceptual hierarchy without disturbing the chromatic dots.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Gentle vignette only; no aged crackle.
         p.finish(vignette=0.30, crackle=False)
 
@@ -1373,6 +1542,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=320)
 
         # No unifying glaze — de Lempicka's surface is final and lacquered.
+        # Edge lost-and-found: the lacquered surface quality benefits from
+        # focal sharpening at the face; peripheral metallic zones stay soft.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Very light vignette; no crackle (1920s–1940s modern canvas).
         p.finish(vignette=0.22, crackle=False)
 
@@ -1450,6 +1629,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # from amber-tinted varnish.  Moderate opacity: luminous, not heavy.
         glaze_col = raphael_style.glazing if raphael_style else (0.68, 0.55, 0.30)
         p.glaze(glaze_col, opacity=0.06)
+        # Edge lost-and-found: Raphael's rounded penumbra edges are a defining
+        # quality — the focal pass sharpens the face zone and softens periphery.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Moderate vignette — classical framing; crackle for old-master patina.
         p.finish(vignette=0.42, crackle=True)
 
@@ -1496,8 +1685,9 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         )
 
         # Edge lost-and-found pass: crisp face/fabric edges, soft peripheral edges.
+        # focal_xy derived from the figure mask so it tracks the actual head position.
         p.edge_lost_and_found_pass(
-            focal_xy        = (0.50, 0.28),
+            focal_xy        = p._derive_focal_xy(),
             found_radius    = 0.26,
             found_sharpness = 0.55,
             lost_blur       = 2.0,
@@ -1574,6 +1764,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         else:
             p.glaze((0.80, 0.72, 0.55), opacity=0.06)
 
+        # Edge lost-and-found: Ingres' porcelain flesh needs focal sharpening at
+        # the face; drapery edges are already hard-drawn and stay crisp.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         # Moderate vignette; aged crackle finish.
         p.finish(vignette=0.30, crackle=True)
 
@@ -1680,6 +1880,16 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             )
 
         p.glaze((0.60, 0.42, 0.14), opacity=0.07)
+        # Edge lost-and-found: standard pipeline covers Renaissance, Romantic, and
+        # other periods — focal pass provides consistent compositional hierarchy.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.45,
+            lost_blur       = 1.6,
+            strength        = 0.30,
+            figure_only     = False,
+        )
         p.finish(vignette=0.50, crackle=True)
 
     p.save(output_path)
