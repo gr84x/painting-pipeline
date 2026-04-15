@@ -204,6 +204,7 @@ class Period(Enum):
     TENEBRIST     = auto()   # Zurbarán — near-black void, hyper-real white fabric, razor-sharp found edges
     NEOCLASSICAL  = auto()   # Ingres — porcelain-smooth flesh, cool pearl highlights, precise classical line
     NOCTURNE      = auto()   # La Tour — single candle, warm amber radial glow, near-black void, simplified serene forms
+    FRENCH_NATURALIST = auto()  # Chardin — granular powdery surface, warm grey palette, soft domestic intimacy
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -541,6 +542,13 @@ class Style:
             # edge_softness=0.45: soft penumbra around lit forms, but clear legible
             # geometry — neither sfumato haze nor Tenebrist knife-edge.
             Period.NOCTURNE:      dict(stroke_size_face=7,  stroke_size_bg=45, wet_blend=0.55, edge_softness=0.45),
+            # French Naturalist (Chardin): granular powdery surface built from small
+            # overlapping dry-brush marks.  stroke_size_face is small (5px) — each mark
+            # is a careful directional stamp.  stroke_size_bg is moderate — domestic
+            # backgrounds are as intimately worked as the subjects.
+            # Low wet_blend: marks stay distinct, creating the optical granularity.
+            # Moderate edge_softness: edges dissolve softly without sfumato haze.
+            Period.FRENCH_NATURALIST: dict(stroke_size_face=5, stroke_size_bg=14, wet_blend=0.22, edge_softness=0.65),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

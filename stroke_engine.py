@@ -7998,3 +7998,338 @@ class Painter:
             bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
         self.canvas.ctx.set_source_surface(_tmp_cl, 0, 0)
         self.canvas.ctx.paint()
+
+    def verdaccio_pass(
+            self,
+            strength:        float = 0.18,
+            shadow_thresh:   float = 0.42,
+            shadow_width:    float = 0.28,
+            green_shift:     float = 0.55,
+            figure_only:     bool  = True,
+    ):
+        """
+        Verdaccio underpainting pass — Renaissance shadow-cooling technique.
+
+        Verdaccio (Italian: *greenish-grey*) is the cool grey-green underpaint
+        used by Leonardo, Raphael, and the Flemish masters beneath flesh tones.
+        It is a mixture of terre verte (green earth), ivory black, and white,
+        applied as the value-construction layer over which warm flesh glazes are
+        later laid.  Where the flesh glazes are thinner — in the shadows — the
+        cool grey-green shows through, creating the characteristic luminous cool
+        cast of Renaissance shadow flesh.  This is why Mona Lisa's shadow side
+        reads as cool blue-green rather than the warm ochre of the lit side.
+
+        This pass simulates the optical result of a verdaccio ground that was
+        never fully covered by subsequent flesh:
+
+        * **Shadow identification** — a luminance map of the current canvas
+          identifies pixels below ``shadow_thresh``.  A smooth ramp of width
+          ``shadow_width`` transitions from full effect (deep shadow) to zero
+          effect (highlight).
+
+        * **Hue rotation toward verdaccio** — in-shadow pixels have their hue
+          gently rotated toward the cool grey-green of terre verte (HSV hue
+          ≈ 0.30–0.38).  The ``green_shift`` parameter controls the fraction of
+          hue rotation applied (0 = no shift; 1 = full verdaccio tint).
+          Saturation is mildly boosted in mid-shadow to match the slight
+          colouration of actual terre verte (which is more green than grey).
+
+        * **Chroma desaturation in deep shadow** — where luminance drops below
+          ``shadow_thresh × 0.55``, saturation is gently reduced.  This prevents
+          the verdaccio from looking artificially green in the deepest shadows
+          where the underpaint would actually be near-black.
+
+        * **Figure-only masking** — when ``figure_only=True`` (default), the
+          effect is restricted to the figure mask so the background landscape
+          is not affected.
+
+        Placement in the pipeline
+        -------------------------
+        Call AFTER ``build_form()`` and ``atmospheric_depth_pass()`` but BEFORE
+        the first ``sfumato_veil_pass()`` and any glazing.  The verdaccio sits
+        below the glaze layers; the subsequent warm amber glaze re-warms the
+        highlights while the cool verdaccio persists in the shadow half.
+
+        Parameters
+        ----------
+        strength       : Overall blend weight toward the verdaccio tint (0–1).
+                         0.12–0.22 is the typical visible range — beyond 0.30
+                         the green becomes too obvious against warm flesh glazes.
+        shadow_thresh  : Luminance (0–1) below which the verdaccio is applied.
+                         0.38–0.46 targets shadow flesh without touching mid-tones.
+        shadow_width   : Width of the smooth transition ramp from shadow to light.
+                         Wider ramp = gentler transition; narrower = hard edge.
+        green_shift    : Fraction of hue rotated toward terre-verte green (0–1).
+                         0.40–0.65 is historically accurate; above 0.75 reads
+                         as obvious green paint rather than subtle cool shadow.
+        figure_only    : Apply only to the figure region if True (recommended).
+        """
+        print(f"  Verdaccio pass  "
+              f"(strength={strength:.2f}  shadow_thresh={shadow_thresh:.2f}  "
+              f"green_shift={green_shift:.2f}  figure_only={figure_only})")
+
+        import colorsys as _cs
+        import numpy as _np
+
+        h, w = self.h, self.w
+
+        # ── Read current canvas into float32 RGB ──────────────────────────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(), dtype=_np.uint8)
+        buf = buf.reshape((h, w, 4)).copy()
+
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── Luminance map (perceptual weights) ────────────────────────────────
+        lum = 0.2126 * R + 0.7152 * G + 0.0722 * B
+
+        # Shadow mask: smooth ramp from 1.0 (deep shadow) to 0.0 (highlight)
+        # Ramp: 1.0 for lum ≤ (shadow_thresh - shadow_width/2)
+        #        linear fall-off to 0.0 at lum = shadow_thresh + shadow_width/2
+        lo = shadow_thresh - shadow_width * 0.5
+        hi = shadow_thresh + shadow_width * 0.5
+        shadow_mask = _np.clip((hi - lum) / (hi - lo + 1e-8), 0.0, 1.0)
+
+        # ── Apply figure-only masking ─────────────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            from PIL import Image as _PILImg
+            fm = self._figure_mask
+            if fm.shape != (h, w):
+                fm = _np.array(
+                    _PILImg.fromarray((fm * 255).astype(_np.uint8)).resize(
+                        (w, h), _PILImg.BILINEAR)) / 255.0
+            shadow_mask = shadow_mask * fm
+
+        # ── Per-pixel hue rotation toward terre verte ─────────────────────────
+        # Terre verte HSV hue ≈ 0.33 (greenish-grey).
+        # We vectorise by processing unique quantised hue buckets for speed.
+        TARGET_HUE = 0.33
+        TARGET_SAT_BOOST = 0.08   # slight saturation increase in mid-shadow
+
+        R_out = R.copy()
+        G_out = G.copy()
+        B_out = B.copy()
+
+        # Flatten for vectorised HSV conversion
+        r_flat = R.ravel()
+        g_flat = G.ravel()
+        b_flat = B.ravel()
+        mask_flat = shadow_mask.ravel()
+        lum_flat  = lum.ravel()
+
+        r_new = r_flat.copy()
+        g_new = g_flat.copy()
+        b_new = b_flat.copy()
+
+        # Only process pixels where shadow_mask > 0.005 (skip highlights)
+        active = mask_flat > 0.005
+        if active.any():
+            ra = r_flat[active]
+            ga = g_flat[active]
+            ba = b_flat[active]
+            ma = mask_flat[active]
+            la = lum_flat[active]
+
+            # Convert to HSV in vectorised fashion via a small loop over blocks
+            block_size = 4096
+            n = ra.shape[0]
+            h_arr = _np.zeros(n, dtype=_np.float32)
+            s_arr = _np.zeros(n, dtype=_np.float32)
+            v_arr = _np.zeros(n, dtype=_np.float32)
+
+            for start in range(0, n, block_size):
+                end = min(start + block_size, n)
+                for i in range(start, end):
+                    hh, ss, vv = _cs.rgb_to_hsv(float(ra[i]), float(ga[i]), float(ba[i]))
+                    h_arr[i] = hh
+                    s_arr[i] = ss
+                    v_arr[i] = vv
+
+            # Hue rotation toward TARGET_HUE
+            # The rotation is weighted by green_shift * shadow_mask
+            hue_blend = green_shift * ma
+            # Shortest-path hue interpolation
+            dh = TARGET_HUE - h_arr
+            # Wrap to [-0.5, 0.5]
+            dh = (dh + 0.5) % 1.0 - 0.5
+            h_new = h_arr + dh * hue_blend
+
+            # Saturation: slight boost in mid-shadow, slight cut in deep shadow
+            deep_shadow = _np.clip((shadow_thresh * 0.55 - la) /
+                                   (shadow_thresh * 0.55 + 1e-8), 0.0, 1.0)
+            mid_shadow  = ma * (1.0 - deep_shadow)
+            s_new = _np.clip(s_arr + TARGET_SAT_BOOST * mid_shadow * green_shift
+                             - 0.10 * deep_shadow * ma, 0.0, 1.0)
+
+            # Convert back to RGB
+            r_a_new = _np.zeros(n, dtype=_np.float32)
+            g_a_new = _np.zeros(n, dtype=_np.float32)
+            b_a_new = _np.zeros(n, dtype=_np.float32)
+
+            for start in range(0, n, block_size):
+                end = min(start + block_size, n)
+                for i in range(start, end):
+                    rr, gg, bb = _cs.hsv_to_rgb(float(h_new[i] % 1.0),
+                                                 float(s_new[i]), float(v_arr[i]))
+                    r_a_new[i] = rr
+                    g_a_new[i] = gg
+                    b_a_new[i] = bb
+
+            # Blend: verdaccio weighted by strength × shadow_mask
+            blend_w = strength * ma
+            r_new[active] = ra * (1.0 - blend_w) + r_a_new * blend_w
+            g_new[active] = ga * (1.0 - blend_w) + g_a_new * blend_w
+            b_new[active] = ba * (1.0 - blend_w) + b_a_new * blend_w
+
+        R_out = r_new.reshape(h, w)
+        G_out = g_new.reshape(h, w)
+        B_out = b_new.reshape(h, w)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(R_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(G_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(B_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+        _tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(_tmp, 0, 0)
+        self.canvas.ctx.paint()
+        n_active = int(active.sum()) if active.any() else 0
+        print(f"    Verdaccio complete  (shadow_pixels={n_active})")
+
+    def dry_granulation_pass(
+            self,
+            palette:      List[Color],
+            n_marks:      int   = 1800,
+            mark_size:    float = 4.5,
+            opacity:      float = 0.18,
+            hue_spread:   float = 0.04,
+            value_spread: float = 0.06,
+            figure_only:  bool  = False,
+            rng_seed:     Optional[int] = None,
+    ):
+        """
+        Dry granulation pass — inspired by Jean-Baptiste-Siméon Chardin's
+        powdery, granular surface technique.
+
+        Chardin built his surfaces through tiny overlapping dry-brush marks of
+        subtly varied related colours — what Diderot described as 'pastel without
+        a stylus'.  Rather than wet-blending pigments into a smooth gradient, he
+        juxtaposed closely related hues (ochre-grey, blue-grey, rose-grey) in the
+        same shadow passage, relying on optical mixing at viewing distance to
+        resolve them into a unified, luminous tone.
+
+        This pass simulates that granular optical surface by stamping small
+        directional marks sampled from a provided palette — each mark varied
+        slightly in hue and value from its neighbours.  The effect is additive
+        optical mixing: no single mark dominates, but their aggregate creates
+        the characteristic Chardin texture — simultaneously powdery and rich.
+
+        Implementation
+        --------------
+        1. Build a luminance map of the current canvas.
+        2. For each of ``n_marks`` sampled positions (uniform random over the
+           canvas or figure region):
+           a. Sample a base colour from ``palette``.
+           b. Apply small random hue perturbation (±``hue_spread``) and value
+              perturbation (±``value_spread``) in HSV space.
+           c. Stamp a small rectangular mark (``mark_size`` × ``mark_size`` px)
+              rotated by a random angle drawn from a Gaussian (mean=0, σ=35°)
+              to simulate the natural directional variation of dry-brush marks.
+           d. Composite the mark at ``opacity`` using standard alpha blending.
+        3. The mark density is uniform across the canvas — Chardin's hallmark
+           is that every passage (shadows, highlights, background) receives the
+           same intimate attention.
+
+        Parameters
+        ----------
+        palette       : List of (R,G,B) base colours to sample from.  Use
+                        the artist's ``ArtStyle.palette`` for authentic harmony.
+                        Chardin's palette should include warm greys, ochres, and
+                        soft whites — avoid saturated colours.
+        n_marks       : Number of individual dry-brush marks to stamp.
+                        1500–2500 for a full 780×1080 canvas; fewer = coarser grain.
+        mark_size     : Width of each stamp mark in pixels (height = 1.8 × width
+                        to simulate the elongated brush mark).  3–6px is typical.
+        opacity       : Composite weight of each mark.  0.12–0.22 preserves the
+                        underlying paint; 0.30+ begins to overpower it.
+        hue_spread    : Maximum ±hue variation from the base colour (HSV units).
+                        0.03–0.06 creates varied-but-related marks; above 0.10
+                        reads as random colour noise rather than optical mixing.
+        value_spread  : Maximum ±value variation.  0.04–0.08 gives the powdery
+                        light–dark variation within a single tone zone.
+        figure_only   : If True, restrict marks to the figure mask.
+        rng_seed      : Optional seed for reproducibility.
+        """
+        print(f"  Dry granulation pass  "
+              f"(marks={n_marks}  mark_size={mark_size:.1f}  "
+              f"opacity={opacity:.2f}  figure_only={figure_only})")
+
+        import colorsys as _cs
+        import numpy as _np
+
+        rng = random.Random(rng_seed)
+        h, w = self.h, self.w
+
+        # ── Build candidate pixel pool ────────────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            from PIL import Image as _PILImg
+            fm = self._figure_mask
+            if fm.shape != (h, w):
+                fm = _np.array(
+                    _PILImg.fromarray((fm * 255).astype(_np.uint8)).resize(
+                        (w, h), _PILImg.BILINEAR)) / 255.0
+            ys, xs = _np.where(fm > 0.15)
+        else:
+            ys, xs = _np.mgrid[0:h:1, 0:w:1]
+            ys = ys.ravel()
+            xs = xs.ravel()
+
+        n_candidates = len(ys)
+        if n_candidates == 0:
+            print("    No active pixels — skipping dry granulation")
+            return
+
+        mh = int(mark_size * 1.8)
+        mw = int(mark_size)
+
+        n_placed = 0
+        for _ in range(n_marks):
+            # Random position from candidate pool
+            idx = rng.randint(0, n_candidates - 1)
+            cy = int(ys[idx])
+            cx = int(xs[idx])
+
+            # Sample and perturb colour
+            base = rng.choice(palette)
+            bh, bs, bv = _cs.rgb_to_hsv(*base)
+            bh = (bh + rng.uniform(-hue_spread, hue_spread)) % 1.0
+            bv = max(0.0, min(1.0, bv + rng.uniform(-value_spread, value_spread)))
+            cr, cg, cb = _cs.hsv_to_rgb(bh, bs, bv)
+
+            # Random rotation angle (Gaussian, σ=35°)
+            # Use rng.gauss; clamp to ±80°
+            angle = max(-80.0, min(80.0, rng.gauss(0, 35.0)))
+            angle_r = math.radians(angle)
+            cos_a = math.cos(angle_r)
+            sin_a = math.sin(angle_r)
+
+            # Rasterise rotated rectangle mark
+            half_h = mh / 2.0
+            half_w = mw / 2.0
+            for ry in range(-int(half_h) - 1, int(half_h) + 2):
+                for rx in range(-int(half_w) - 1, int(half_w) + 2):
+                    # Inverse rotate to check if inside unrotated rectangle
+                    local_x =  rx * cos_a + ry * sin_a
+                    local_y = -rx * sin_a + ry * cos_a
+                    if abs(local_x) <= half_w and abs(local_y) <= half_h:
+                        px = cx + rx
+                        py = cy + ry
+                        if 0 <= px < w and 0 <= py < h:
+                            self.canvas.ctx.set_source_rgba(cr, cg, cb, opacity)
+                            self.canvas.ctx.rectangle(px, py, 1, 1)
+                            self.canvas.ctx.fill()
+            n_placed += 1
+
+        print(f"    Dry granulation complete  (marks_placed={n_placed})")
