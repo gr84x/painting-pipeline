@@ -1,0 +1,20 @@
+# painting-pipeline — Python dependencies
+#
+# Core dependencies (required)
+pycairo
+numpy
+Pillow
+scipy
+noise
+
+# Optional: Stable Diffusion reference generation (sd_bridge.py)
+# The pipeline works without these — SD refinement is silently skipped.
+# diffusers>=0.21.0
+# accelerate>=0.20.0
+# torch>=2.0.0
+
+# Optional: Aesthetic scoring (aesthetic_scorer.py)
+# The pipeline works without these — scorer returns neutral 5.0 sentinel.
+# pip install git+https://github.com/openai/CLIP.git
+# or: transformers>=4.30.0 (includes CLIP)
+# huggingface_hub>=0.16.0   (for weight download)
