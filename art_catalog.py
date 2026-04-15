@@ -2022,6 +2022,58 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
     # ── Georges de La Tour ─────────────────────────────────────────────────────
+    # ── Jean-Baptiste-Siméon Chardin ──────────────────────────────────────────
+    "chardin": ArtStyle(
+        artist="Jean-Baptiste-Siméon Chardin",
+        movement="French Naturalism / Rococo",
+        nationality="French",
+        period="1699–1779",
+        palette=[
+            (0.86, 0.78, 0.62),   # warm creamy white — bread, cloth, white faience
+            (0.72, 0.64, 0.50),   # warm mid-grey — pewter and linen shadow
+            (0.58, 0.50, 0.36),   # deep warm taupe — ceramic shadow, earthenware
+            (0.80, 0.68, 0.44),   # golden ochre — copper, brass, warm wood
+            (0.45, 0.40, 0.32),   # slate grey-brown — cast shadow on table
+            (0.70, 0.56, 0.40),   # warm flesh — boy's face, child subjects
+            (0.35, 0.32, 0.26),   # cool mid-shadow — blue-grey penumbra
+        ],
+        ground_color=(0.42, 0.38, 0.28),    # mid warm grey — toile or oak panel
+        stroke_size=5,
+        wet_blend=0.22,                      # broken surface — marks stay distinct but soft
+        edge_softness=0.65,                  # edges dissolve softly; no hard contours
+        jitter=0.038,
+        glazing=(0.68, 0.60, 0.42),          # warm unifying amber-grey glaze
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Chardin's surfaces are built through small, directional dry-brush marks "
+            "of subtly varied related colours overlapping in thin layers — creating a "
+            "granular, powdery optical texture Diderot called 'pastel without a stylus'. "
+            "He works from dark to light: a warm toned ground, then shadow masses, then "
+            "progressive lighter passages, each in varied hues (the grey is never one "
+            "grey — it is ochre-grey, blue-grey, and pink-grey placed adjacently). "
+            "His edges are consistently soft; forms dissolve at their boundaries into "
+            "the warm air of the domestic interior. No impasto peaks, no virtuoso marks — "
+            "the surface is uniformly worked, intimate, and absolutely resolved."
+        ),
+        famous_works=[
+            ("The Ray (La Raie)", "1728"),
+            ("The House of Cards", "c. 1736–1737"),
+            ("Boy with a Spinning Top", "c. 1738"),
+            ("The Young Schoolmistress", "c. 1736–1740"),
+            ("Grace Before a Meal (Le Bénédicité)", "1740"),
+            ("The Copper Drinking Fountain", "c. 1733–1734"),
+        ],
+        inspiration=(
+            "Use dry_granulation_pass() to simulate Chardin's distinctive powdery surface: "
+            "stamp tiny directional marks of varied related hues at low opacity over form-built "
+            "passages.  The palette should mix warm ochre-grey, blue-grey, and pink-grey in "
+            "the same shadow region — optical mixing, not physical blending.  Follow with a "
+            "light warm amber glaze to unify the granular surface into Chardin's characteristic "
+            "soft domestic atmosphere."
+        ),
+    ),
+
     "georges_de_la_tour": ArtStyle(
         artist="Georges de La Tour",
         movement="French Baroque / Nocturne",

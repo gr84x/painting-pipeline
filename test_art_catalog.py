@@ -29,6 +29,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 EXPECTED_ARTISTS = [
     "artemisia_gentileschi",
     "caravaggio", "caspar_david_friedrich", "cezanne",
+    "chardin",
     "delacroix",
     "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
@@ -173,6 +174,7 @@ EXPECTED_PERIODS = [
     "TENEBRIST",
     "NEOCLASSICAL",
     "NOCTURNE",
+    "FRENCH_NATURALIST",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -1942,4 +1944,138 @@ def test_nocturne_moderate_edge_softness():
     p = style.stroke_params
     assert 0.25 <= p["edge_softness"] <= 0.65, (
         f"NOCTURNE edge_softness should be moderate; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Jean-Baptiste-Siméon Chardin — current session addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_chardin_in_catalog():
+    """Chardin must be present in CATALOG."""
+    assert "chardin" in CATALOG, "chardin not found in CATALOG"
+
+
+def test_chardin_movement():
+    """Chardin's movement must reference French Naturalism or Rococo."""
+    s = get_style("chardin")
+    m = s.movement.lower()
+    assert "french" in m or "naturalism" in m or "rococo" in m, (
+        f"Chardin movement should reference French Naturalism or Rococo; got: {s.movement!r}")
+
+
+def test_chardin_nationality():
+    """Chardin was French."""
+    s = get_style("chardin")
+    assert "french" in s.nationality.lower(), (
+        f"Chardin nationality should be French; got: {s.nationality!r}")
+
+
+def test_chardin_palette_length():
+    """Chardin's palette should have at least 6 key colours (greys, ochres, warm whites)."""
+    s = get_style("chardin")
+    assert len(s.palette) >= 6, (
+        f"Chardin palette should have ≥6 key colours; got {len(s.palette)}")
+
+
+def test_chardin_palette_values_in_range():
+    """All Chardin palette RGB values must be in [0, 1]."""
+    s = get_style("chardin")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Chardin palette {rgb}")
+
+
+def test_chardin_edge_softness_moderate():
+    """Chardin's edges dissolve softly — edge_softness should be moderate (≥ 0.55)."""
+    s = get_style("chardin")
+    assert s.edge_softness >= 0.55, (
+        f"Chardin edge_softness should be moderate for soft boundary dissolution; "
+        f"got {s.edge_softness}")
+
+
+def test_chardin_wet_blend_low():
+    """Chardin built surfaces from distinct dry marks — wet_blend must be low (≤ 0.30)."""
+    s = get_style("chardin")
+    assert s.wet_blend <= 0.30, (
+        f"Chardin wet_blend should be low (dry marks stay distinct); got {s.wet_blend}")
+
+
+def test_chardin_no_chromatic_split():
+    """Chardin does not use divisionist chromatic splitting."""
+    s = get_style("chardin")
+    assert not s.chromatic_split, "Chardin chromatic_split should be False"
+
+
+def test_chardin_famous_works_not_empty():
+    """Chardin should have at least 4 famous works documented."""
+    s = get_style("chardin")
+    assert len(s.famous_works) >= 4, (
+        f"Chardin should have ≥4 famous works; got {len(s.famous_works)}")
+
+
+def test_chardin_famous_works_include_known_painting():
+    """Chardin's famous works should include at least one well-known piece."""
+    s = get_style("chardin")
+    titles = [w[0] for w in s.famous_works]
+    assert any(
+        "Ray" in t or "Raie" in t or "Top" in t or "Cards" in t or "Schoolmistress" in t
+        for t in titles
+    ), ("Chardin famous works should include at least one well-known still life or genre piece")
+
+
+def test_chardin_inspiration_references_dry_granulation():
+    """Chardin's inspiration text should reference dry_granulation_pass."""
+    s = get_style("chardin")
+    assert "dry_granulation" in s.inspiration.lower().replace(" ", "_"), (
+        "Chardin inspiration should reference dry_granulation_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.FRENCH_NATURALIST — Chardin period enum
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_french_naturalist_period_present():
+    """FRENCH_NATURALIST must exist in the Period enum."""
+    assert hasattr(Period, "FRENCH_NATURALIST"), "Period.FRENCH_NATURALIST not found"
+    assert Period.FRENCH_NATURALIST in list(Period)
+
+
+def test_french_naturalist_stroke_params_all_keys():
+    """FRENCH_NATURALIST stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_NATURALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"FRENCH_NATURALIST stroke_params missing key: {key!r}"
+
+
+def test_french_naturalist_small_stroke_face():
+    """FRENCH_NATURALIST stroke_size_face should be small (≤ 7) for granular marks."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_NATURALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 7, (
+        f"FRENCH_NATURALIST stroke_size_face should be small (≤7); "
+        f"got {p['stroke_size_face']}")
+
+
+def test_french_naturalist_low_wet_blend():
+    """FRENCH_NATURALIST wet_blend should be low — dry marks stay distinct."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_NATURALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.30, (
+        f"FRENCH_NATURALIST wet_blend should be low; got {p['wet_blend']}")
+
+
+def test_french_naturalist_moderate_edge_softness():
+    """FRENCH_NATURALIST edge_softness should be moderate (≥ 0.50) — soft boundary dissolution."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_NATURALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.50, (
+        f"FRENCH_NATURALIST edge_softness should be moderate (≥0.50); "
+        f"got {p['edge_softness']}")
 
