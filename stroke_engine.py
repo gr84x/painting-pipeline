@@ -6581,3 +6581,188 @@ class Painter:
 
         n_active = int((acc_w > 0.01).sum())
         print(f"  Scumble pass complete  (active_pixels={n_active})")
+
+    def intimiste_pattern_pass(
+        self,
+        palette:         List[Color],
+        tile_size:       int   = 28,
+        n_motif_strokes: int   = 600,
+        opacity:         float = 0.32,
+        pattern_type:    str   = "diamond",
+        figure_only:     bool  = False,
+        rng_seed:        Optional[int] = None,
+    ):
+        """
+        Vuillard-inspired Intimiste pattern pass — seeds background regions
+        with a soft repeating textile motif so figure and environment share
+        the same pictorial plane.
+
+        Édouard Vuillard's hallmark is the dissolution of boundary between
+        person and setting: a woman's blouse echoes the wallpaper behind
+        her; a tablecloth merges with the floor.  This creates the sensation
+        that figure and ground are woven from the same fabric — literally,
+        since he often painted on cardboard laid on a patterned surface and
+        let the support colour read through.
+
+        This pass replicates that effect by stamping small repeating
+        textile-motif strokes (diamond lattice, floral rosette, or fine
+        cross-hatch) across the background, using colours drawn from the
+        same palette as the figure.  The strokes are rendered at low opacity
+        so the underlying paint is visible through them, creating the warm,
+        layered richness of aged fabric rather than wallpaper paste.
+
+        Implementation
+        --------------
+        1. Read the current canvas buffer and compute luminance.
+        2. Build a background mask: use figure_mask if available, otherwise
+           threshold low-chroma pixels as background.
+        3. Generate tile anchor positions across the canvas in a regular grid
+           offset slightly by Perlin noise (the irregularity of handmade
+           textiles vs mechanical printing).
+        4. For each anchor in the background mask, stamp a small motif stroke
+           in a randomly selected palette colour at the given opacity.
+        5. Composite using alpha blending so the underlying paint shows through.
+
+        Pattern types
+        -------------
+        'diamond'  : Diagonal lattice — repeating ◆ grid, warm and domestic.
+                     Most characteristic of late-19th-century French wallpaper.
+        'rosette'  : Small floral blossoms — circle with radial petals.
+                     Evokes the dense floral fabrics in Vuillard's interiors.
+        'crosshatch': Fine parallel cross-hatching — fabric weave texture.
+                     Subtler; reads as cloth rather than wallpaper.
+
+        Parameters
+        ----------
+        palette          : List of (R,G,B) colours to draw from.  Pass the
+                           artist's ArtStyle.palette for authentic palette harmony.
+        tile_size        : Spacing in pixels between motif anchors.  Smaller =
+                           denser, more wallpaper-like.  Larger = looser textile.
+        n_motif_strokes  : Total number of individual motif marks to stamp.
+                           600–1200 for a full 800×1000 canvas.
+        opacity          : Blend weight of each motif stroke.  0.20–0.35 = warm
+                           textile shimmer; 0.50+ = dominant pattern.
+        pattern_type     : One of 'diamond', 'rosette', 'crosshatch'.
+        figure_only      : If True, apply pattern to figure region instead of
+                           background (unusual but useful for costume detailing).
+        rng_seed         : Optional seed for reproducibility.
+
+        Notes
+        -----
+        Call AFTER block_in() / build_form() but BEFORE glaze() and vignette().
+        The pass adds warmth and pictorial flatness — calling it after glazing
+        risks competing with the unifying glaze tone.
+        """
+        print(f"Intimiste pattern pass  (type={pattern_type!r}  "
+              f"tile_size={tile_size}  opacity={opacity:.2f}  "
+              f"strokes={n_motif_strokes})…")
+
+        rng = random.Random(rng_seed)
+        np_rng = np.random.default_rng(rng_seed)
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Build background mask ─────────────────────────────────────────────
+        if self._figure_mask is not None and not figure_only:
+            # Background is where figure mask is near zero
+            bg_mask = (1.0 - self._figure_mask).astype(np.float32)
+            # Feather the transition zone slightly
+            bg_mask = ndimage.gaussian_filter(bg_mask, sigma=6.0)
+            bg_mask = np.clip(bg_mask, 0.0, 1.0)
+        elif self._figure_mask is not None and figure_only:
+            bg_mask = self._figure_mask.astype(np.float32)
+        else:
+            # No figure mask — use chroma saturation as a proxy:
+            # Low-saturation areas are likely background
+            lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+            # Treat pixels within 15% of mean luminance as background
+            mean_lum = float(lum.mean())
+            bg_mask = np.where(np.abs(lum - mean_lum) < 0.15, 1.0, 0.4).astype(np.float32)
+
+        # ── Build candidate anchor grid with Perlin jitter ────────────────────
+        anchors = []
+        inv_w, inv_h = 1.0 / max(w, 1), 1.0 / max(h, 1)
+        for gy in range(tile_size // 2, h, tile_size):
+            for gx in range(tile_size // 2, w, tile_size):
+                # Perlin noise jitter so the grid reads as hand-woven, not printed
+                jit_x = pnoise2(gx * inv_w * 8.0, gy * inv_h * 8.0, octaves=2) * tile_size * 0.4
+                jit_y = pnoise2(gx * inv_w * 8.0 + 100, gy * inv_h * 8.0 + 100, octaves=2) * tile_size * 0.4
+                ax = int(gx + jit_x)
+                ay = int(gy + jit_y)
+                if 0 <= ax < w and 0 <= ay < h:
+                    weight = float(bg_mask[ay, ax])
+                    if weight > 0.1:
+                        anchors.append((ax, ay, weight))
+
+        if not anchors:
+            print("  Intimiste pattern pass: no background anchors found — skipping.")
+            return
+
+        # Normalise weights to a probability distribution
+        weights = np.array([a[2] for a in anchors], dtype=np.float64)
+        weights /= weights.sum()
+
+        chosen_idx = np_rng.choice(len(anchors), size=min(n_motif_strokes, len(anchors)),
+                                   replace=True, p=weights)
+
+        # ── Stamp motifs via cairo ────────────────────────────────────────────
+        ctx = self.canvas.ctx
+        ctx.save()
+
+        for idx in chosen_idx:
+            ax, ay, wt = anchors[idx]
+            col = rng.choice(palette)
+            cr, cg, cb = jitter(col, amount=0.04, rng=rng)
+            alpha_base = opacity * (0.7 + 0.3 * wt)     # weaker near figure edges
+            # Add a tiny per-mark size variation for the handmade textile feel
+            s_factor = 0.7 + rng.uniform(0, 0.6)
+            s = max(2, int(tile_size * 0.28 * s_factor))
+
+            ctx.set_source_rgba(cr, cg, cb, alpha_base)
+
+            if pattern_type == "diamond":
+                # Rotated square (◆) — classic 19th-century French wallpaper motif
+                ctx.move_to(ax,     ay - s)   # top
+                ctx.line_to(ax + s, ay)       # right
+                ctx.line_to(ax,     ay + s)   # bottom
+                ctx.line_to(ax - s, ay)       # left
+                ctx.close_path()
+                ctx.set_line_width(max(1.0, s * 0.18))
+                ctx.stroke()
+
+            elif pattern_type == "rosette":
+                # Small floral blossoms — circle with 6 tiny petal dabs
+                petal_r = max(1.0, s * 0.30)
+                for petal in range(6):
+                    angle = math.pi / 3 * petal
+                    px = ax + math.cos(angle) * s * 0.55
+                    py = ay + math.sin(angle) * s * 0.55
+                    ctx.arc(px, py, petal_r, 0, 2 * math.pi)
+                    ctx.fill()
+                # Centre dot
+                ctx.arc(ax, ay, max(1.0, s * 0.18), 0, 2 * math.pi)
+                ctx.fill()
+
+            else:  # crosshatch
+                # Fine crossed lines — fabric weave texture
+                lw = max(0.8, s * 0.12)
+                ctx.set_line_width(lw)
+                half = s * 0.6
+                ctx.move_to(ax - half, ay)
+                ctx.line_to(ax + half, ay)
+                ctx.stroke()
+                ctx.move_to(ax, ay - half)
+                ctx.line_to(ax, ay + half)
+                ctx.stroke()
+
+        ctx.restore()
+
+        n_painted = len(chosen_idx)
+        print(f"  Intimiste pattern pass complete  ({n_painted} motif marks, "
+              f"type={pattern_type!r})")

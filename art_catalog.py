@@ -1726,7 +1726,9 @@ CATALOG: Dict[str, ArtStyle] = {
             "stroke_size as the figure — the intimiste effect depends on equal treatment "
             "of all surfaces. scumble_pass() (dry-brush drag) over the finished surface "
             "replicates the chalky, slightly rough matte quality of Vuillard's distemper "
-            "and oil-on-cardboard technique. No final glaze — the surface must stay matte. "
+            "and oil-on-cardboard technique. intimiste_pattern_pass() can further seed "
+            "the background with repeating textile motifs for wallpaper depth. "
+            "No final glaze — the surface must stay matte. "
             "Palette: dusty rose, olive green, subdued burgundy, warm ochre, mauve."
         ),
     ),

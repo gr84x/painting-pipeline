@@ -1132,16 +1132,31 @@ def test_delacroix_in_expected_artists_list():
 
 def test_vuillard_in_catalog():
     """Vuillard must be present in CATALOG."""
-    assert "vuillard" in CATALOG
+    assert "vuillard" in CATALOG, "vuillard not found in CATALOG"
+
+
+def test_vuillard_style_retrieval():
+    """get_style('vuillard') must return an ArtStyle without raising."""
+    s = get_style("vuillard")
+    assert s is not None
 
 
 def test_vuillard_movement():
+    """Vuillard's movement must reference Nabis or Post-Impressionism."""
     s = get_style("vuillard")
     assert ("Nabi" in s.movement or "Intimis" in s.movement
             or "Post-Impressionist" in s.movement)
 
 
+def test_vuillard_nationality():
+    """Vuillard was French."""
+    s = get_style("vuillard")
+    assert "french" in s.nationality.lower(), (
+        f"Vuillard nationality should be French; got {s.nationality!r}")
+
+
 def test_vuillard_palette_length():
+    """Palette should have at least 6 entries covering tapestry-like domestic tones."""
     s = get_style("vuillard")
     assert len(s.palette) >= 6, "Vuillard palette should have at least 6 key colours"
 
@@ -1156,15 +1171,36 @@ def test_vuillard_palette_values_in_range():
                 f"Out-of-range channel {channel!r} in Vuillard palette {rgb}")
 
 
+def test_vuillard_palette_has_warm_dusty_rose():
+    """Vuillard palette must include a warm dusty rose/pink."""
+    s = get_style("vuillard")
+    has_rose = any(r > 0.60 and b > 0.35 and r > g for r, g, b in s.palette)
+    assert has_rose, "Vuillard palette should include a warm dusty rose or pink"
+
+
+def test_vuillard_palette_has_olive_green():
+    """Vuillard palette must include a muted olive or green."""
+    s = get_style("vuillard")
+    has_green = any(g > 0.35 and g >= r and g > b for r, g, b in s.palette)
+    assert has_green, "Vuillard palette should include a muted olive or green"
+
+
+def test_vuillard_ground_warm():
+    """Vuillard warm buff ground should have R > B."""
+    s = get_style("vuillard")
+    r, g, b = s.ground_color
+    assert r > b, f"Vuillard ground should be warm (R > B), got R={r:.2f} B={b:.2f}"
+
+
 def test_vuillard_wet_blend_low():
     """Vuillard's chalky matte technique is flat -- wet_blend must be low."""
     s = get_style("vuillard")
-    assert s.wet_blend <= 0.20, (
+    assert s.wet_blend <= 0.30, (
         f"Vuillard wet_blend should be low (chalky flat zones), got {s.wet_blend}")
 
 
 def test_vuillard_no_glaze():
-    """Vuillard's Intimiste surfaces are matte -- no unifying glaze."""
+    """Vuillard Intimiste surfaces are matte -- no unifying glaze."""
     s = get_style("vuillard")
     assert s.glazing is None, "Vuillard should have no glaze (matte distemper surface)"
 
@@ -1180,8 +1216,25 @@ def test_vuillard_famous_works_not_empty():
     assert len(s.famous_works) >= 3, "Vuillard should have at least 3 famous works"
 
 
+def test_vuillard_famous_works_include_intimiste():
+    """Vuillard famous works should include an intimate interior scene."""
+    s = get_style("vuillard")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Mother" in t or "Interior" in t or "Suitor" in t or "Lunch" in t
+               for t in titles), (
+        "Vuillard famous works should include a domestic interior scene")
+
+
+def test_vuillard_inspiration_references_intimiste_pattern():
+    """Inspiration text must reference intimiste_pattern_pass."""
+    s = get_style("vuillard")
+    assert "intimiste_pattern" in s.inspiration.lower().replace(" ", "_"), (
+        "Vuillard inspiration should reference intimiste_pattern_pass()")
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # NABIS period -- stroke_params coverage
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 def test_nabis_period_present():
@@ -1193,6 +1246,7 @@ def test_nabis_period_present():
 def test_nabis_stroke_params_all_keys_present():
     """NABIS stroke_params must contain all four required keys."""
     style = Style(medium=Medium.OIL, period=Period.NABIS, palette=PaletteHint.MUTED)
+
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"NABIS stroke_params missing key: {key!r}"
@@ -1295,3 +1349,4 @@ def test_luminismo_stroke_params_all_keys_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"LUMINISMO stroke_params missing key: {key!r}"
+

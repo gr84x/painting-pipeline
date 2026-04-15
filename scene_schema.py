@@ -197,7 +197,7 @@ class Period(Enum):
     FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
     PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
     EARLY_NETHERLANDISH = auto()  # Jan van Eyck — stacked transparent oil glazes, chalk-white gesso, Flemish micro-detail
-    NABIS         = auto()   # Vuillard — flat muted intimiste zones, scumbled surfaces, figures absorbed into patterned grounds
+    NABIS         = auto()   # Vuillard / Bonnard — intimate pattern-ground fusion, flat muted zones, figures absorbed into patterned grounds
     LUMINISMO     = auto()   # Sorolla — maximum sunlight, warm/cool simultaneous contrast, dappled light pools
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
@@ -486,10 +486,10 @@ class Style:
             # Nabis / Intimisme (Vuillard): short dense marks cover every surface equally —
             # figures do not stand out from their background but dissolve into it.
             # stroke_size_face is small-medium (intimate surface requires close marks).
-            # stroke_size_bg matches: the patterned background is as important as the figure
-            # and receives the same treatment.  Low wet_blend: muted chalky zones stay flat.
-            # Low-moderate edge_softness: edges are present but softened by the uniform
-            # mark density rather than blending — forms lose definition in the pattern.
+            # stroke_size_bg is also small — the patterned background receives the same
+            # close-mark treatment as the figure.  Low wet_blend: muted chalky zones stay
+            # flat.  Low-moderate edge_softness: edges softened by uniform mark density
+            # rather than blending — forms lose definition in the pattern.
             Period.NABIS:         dict(stroke_size_face=7,  stroke_size_bg=9,  wet_blend=0.12, edge_softness=0.28),
             # Luminismo (Sorolla): bold outdoor Impressionism — maximum sunlight,
             # warm/cool simultaneous contrast.  stroke_size_face is moderate (loaded
