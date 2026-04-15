@@ -495,6 +495,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_fauvist           = (scene.style.period == Period.FAUVIST)
     is_primitivist       = (scene.style.period == Period.PRIMITIVIST)
     is_early_netherlandish = (scene.style.period == Period.EARLY_NETHERLANDISH)
+    is_art_deco          = (scene.style.period == Period.ART_DECO)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -1240,6 +1241,79 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # No amber glaze — Seurat worked on fresh bright canvas.
         # Gentle vignette only; no aged crackle.
         p.finish(vignette=0.30, crackle=False)
+
+    elif is_art_deco:
+        # ── Art Deco pipeline (Tamara de Lempicka technique) ─────────────────
+        # De Lempicka painted glamorous portraits on warm buff grounds with a
+        # polished, lacquered surface quality derived from Ingres' smoothness
+        # and Léger's Cubist geometry.  Each form is described by smooth, clearly
+        # bounded tonal facets separated by sharp metallic edge transitions.
+        # The palette is bold and limited: rich carmine, steel blue, warm ivory
+        # flesh, and cool metallic greys.  No visible brushwork — the surface
+        # appears enamelled, almost industrial.
+        #
+        # Pipeline:
+        #   1. Warm neutral buff ground — de Lempicka worked on warm-toned
+        #      prepared canvas.  Low texture_strength: surfaces are smooth,
+        #      not canvas-textured.
+        #   2. Underpainting + block_in to establish the cubist-influenced
+        #      form language (geometric shadows, flat planes).
+        #   3. build_form() at moderate stroke — enough tonal structure for the
+        #      facet pass to find boundaries.
+        #   4. art_deco_facet_pass() — the signature technique: smooth intra-zone
+        #      polish, metallic sheen at zone boundaries, saturation boost in
+        #      shadow zones.
+        #   5. velatura_pass() — session 22 random artistic improvement: selective
+        #      warm midtone enrichment using the Italian Old Master velatura glaze
+        #      technique.  Applied to the figure only, preserving luminance.
+        #   6. place_lights() last — bright impasto-like highlights in direct light.
+        #   7. No unifying glaze — de Lempicka's colour is final and lacquered.
+        #   8. Light vignette; no crackle (1920s–1940s modern canvas).
+        lempicka_style = _ART_CATALOG.get("tamara_de_lempicka")
+        ground_col     = lempicka_style.ground_color if lempicka_style else (0.55, 0.50, 0.42)
+
+        # Warm buff ground — de Lempicka's prepared surface glows through thin
+        # paint passages and gives the flesh its warm undertone
+        p.tone_ground(ground_col, texture_strength=0.04)
+
+        # Establish the cubist-influenced form language before faceting
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.4), n_strokes=140)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=280)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=550)
+
+        # Core de Lempicka technique: smooth tonal facets + metallic boundary sheen
+        p.art_deco_facet_pass(
+            ref,
+            n_zones           = 5,
+            smooth_sigma      = max(2.0, float(sp["stroke_size_face"]) * 0.42),
+            boundary_contrast = 0.32,
+            metallic_sheen    = 0.24,
+            saturation_boost  = 1.22,
+            sheen_color       = (0.90, 0.88, 0.86),   # cool silver-cream
+            figure_only       = False,
+        )
+
+        # Velatura — warm midtone enrichment: the random artistic improvement for
+        # session 22.  Applied figure-only at low opacity to avoid warming the
+        # architectural background zones.
+        p.velatura_pass(
+            midtone_tint    = (0.72, 0.58, 0.38),   # warm amber flesh midtone
+            shadow_tint     = (0.38, 0.28, 0.16),   # warm umber shadow enrichment
+            midtone_opacity = 0.08,
+            shadow_opacity  = 0.05,
+            midtone_lo      = 0.25,
+            midtone_hi      = 0.70,
+            lum_preserve    = True,
+            figure_only     = True,
+        )
+
+        # Bright impasto highlights placed last — de Lempicka's specular peaks
+        # are clean cool-white, never warm (the metallic surface reflects cool sky)
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=320)
+
+        # No unifying glaze — de Lempicka's surface is final and lacquered.
+        # Very light vignette; no crackle (1920s–1940s modern canvas).
+        p.finish(vignette=0.22, crackle=False)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

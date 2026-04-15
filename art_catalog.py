@@ -1616,6 +1616,63 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Tamara de Lempicka ────────────────────────────────────────────────────
+    "tamara_de_lempicka": ArtStyle(
+        artist="Tamara de Lempicka",
+        movement="Art Deco / Figurative Modernism",
+        nationality="Polish-French",
+        period="1920–1956",
+        palette=[
+            (0.92, 0.82, 0.68),   # warm ivory highlight flesh
+            (0.82, 0.62, 0.44),   # mid-tone amber flesh
+            (0.52, 0.36, 0.24),   # warm shadow flesh
+            (0.14, 0.18, 0.38),   # deep steel-blue drapery
+            (0.72, 0.18, 0.22),   # bold carmine red
+            (0.88, 0.80, 0.55),   # warm gold-cream
+            (0.38, 0.42, 0.48),   # cool metallic grey
+            (0.08, 0.06, 0.08),   # near-black deep shadow
+        ],
+        ground_color=(0.55, 0.50, 0.42),    # warm neutral buff ground
+        stroke_size=8,
+        wet_blend=0.06,                      # low — polished surfaces, no visible brushwork
+        edge_softness=0.08,                  # very crisp edges — the Art Deco hard line
+        jitter=0.015,
+        glazing=None,                        # no unifying glaze — colour is direct and lacquered
+        crackle=False,                       # modern canvas; not aged yet
+        chromatic_split=False,
+        technique=(
+            "Smooth cubist-influenced figurative painting with a lacquered, metallic "
+            "surface quality.  De Lempicka painted in discrete, clearly bounded planes — "
+            "influenced by Ingres' smoothness and Léger's Cubist geometry.  Each flesh "
+            "zone is rendered as a separate smooth facet, creating the sense of a figure "
+            "carved from polished metal or enamel.  Highlights are cool silver-cream; "
+            "shadows are deep and warm.  Contour edges are sharp and decisive, often "
+            "reinforced with a slightly darker boundary tone.  The palette is rich, "
+            "saturated, and limited: bold carmine reds, deep steel-blue drapery, warm "
+            "ivory flesh, and metallic cool greys.  Backgrounds are simplified, "
+            "geometric architectural forms — chrome, glass, and steel.  The overall "
+            "effect is simultaneously glamorous, cool, and slightly unsettling: flesh "
+            "rendered with mechanical precision."
+        ),
+        famous_works=[
+            ("Auto Portrait (Tamara in the Green Bugatti)", "1929"),
+            ("Young Lady with Gloves", "1930"),
+            ("The Musician", "1929"),
+            ("Kizette on the Balcony", "1927"),
+            ("La Belle Rafaela", "1927"),
+            ("Donna Reclinata", "1946"),
+        ],
+        inspiration=(
+            "Use art_deco_facet_pass() to create de Lempicka's signature polished "
+            "geometric facets: smooth flesh planes with metallic boundary sheen, "
+            "suppressed micro-texture within zones, boosted contrast at zone edges. "
+            "tone_ground() with warm neutral buff.  underpainting + block_in + "
+            "build_form to establish the cubist-influenced form language before the "
+            "facet pass flattens and polishes each zone.  No glaze — the surface is "
+            "lacquered and final.  Low crackle: these are 1920s–1940s paintings."
+        ),
+    ),
+
 }
 
 
