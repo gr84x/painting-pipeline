@@ -179,6 +179,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_neoclassical":            period == Period.NEOCLASSICAL,
         "is_nocturne":                period == Period.NOCTURNE,
         "is_social_realist":          period == Period.SOCIAL_REALIST,
+        "is_academic_realist":        period == Period.ACADEMIC_REALIST,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -2512,3 +2513,103 @@ def test_social_realist_stroke_params_valid():
     assert p["stroke_size_bg"]   >= 20, "SOCIAL_REALIST bg stroke should be large"
     assert p["wet_blend"]        <= 0.30, "SOCIAL_REALIST wet_blend should be low (crisp planes)"
     assert p["edge_softness"]    <= 0.40, "SOCIAL_REALIST edge_softness should be low (knife edges)"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ACADEMIC_REALIST (Bouguereau) — academic_skin_pass + routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_academic_skin_pass_exists():
+    """Painter must have academic_skin_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "academic_skin_pass"), (
+        "academic_skin_pass not found on Painter")
+
+
+def test_academic_skin_pass_no_error():
+    """academic_skin_pass() must run without error on a tiny warm canvas."""
+    p = _make_small_painter(64, 64)
+    # Tone with a warm flesh colour so the skin detector finds candidates
+    p.tone_ground((0.85, 0.68, 0.52))
+    ref = _solid_reference(64, 64)
+    p.academic_skin_pass(ref, n_passes=2, strokes_per_pass=20, rng_seed=1)
+
+
+def test_academic_skin_pass_modifies_canvas():
+    """academic_skin_pass() must alter at least one pixel on a warm flesh canvas."""
+    import numpy as np
+    from PIL import Image
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.85, 0.68, 0.52))
+    # Capture pre-pass state
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    ref = Image.fromarray(
+        (np.ones((64, 64, 3), dtype=np.uint8)
+         * np.array([200, 160, 120], dtype=np.uint8)), "RGB")
+    p.academic_skin_pass(ref, n_passes=2, strokes_per_pass=40, rng_seed=42)
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    assert not np.allclose(before, after), (
+        "academic_skin_pass should modify at least one pixel on a warm flesh canvas")
+
+
+def test_academic_skin_pass_no_skin_detected_no_crash():
+    """academic_skin_pass() must not crash when no skin pixels are detected."""
+    p = _make_small_painter(64, 64)
+    # Use a cool blue ground — no warm flesh pixels
+    p.tone_ground((0.20, 0.30, 0.65))
+    ref = _solid_reference(64, 64)
+    # Should print a warning and return gracefully, not raise
+    p.academic_skin_pass(ref, n_passes=2, strokes_per_pass=20, rng_seed=7)
+
+
+def test_academic_skin_pass_pixels_in_range():
+    """academic_skin_pass() must not produce out-of-range [0, 1] pixel values."""
+    import numpy as np
+    from PIL import Image
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.82, 0.65, 0.48))
+    ref = Image.fromarray(
+        (np.ones((64, 64, 3), dtype=np.uint8)
+         * np.array([195, 155, 115], dtype=np.uint8)), "RGB")
+    p.academic_skin_pass(ref, n_passes=3, strokes_per_pass=60, rng_seed=99)
+    arr = np.array(p.canvas.to_pil(), dtype=np.float32) / 255.0
+    assert arr.min() >= 0.0, f"Pixel below 0.0: {arr.min()}"
+    assert arr.max() <= 1.0, f"Pixel above 1.0: {arr.max()}"
+
+
+def test_academic_realist_routing_flag():
+    """is_academic_realist should be True for Period.ACADEMIC_REALIST."""
+    flags = _routing_flags(Period.ACADEMIC_REALIST)
+    assert flags["is_academic_realist"], (
+        "is_academic_realist should be True for Period.ACADEMIC_REALIST")
+
+
+def test_academic_realist_routing_exclusive():
+    """ACADEMIC_REALIST should only set is_academic_realist among the period flags."""
+    flags = _routing_flags(Period.ACADEMIC_REALIST)
+    others = {k: v for k, v in flags.items()
+              if k not in ("is_academic_realist", "is_watercolor",
+                           "is_romantic", "is_renaissance_soft") and v}
+    assert len(others) == 0, (
+        f"ACADEMIC_REALIST should only set is_academic_realist; also set: {others}")
+
+
+def test_academic_realist_flag_false_for_other_periods():
+    """is_academic_realist must be False for every period except ACADEMIC_REALIST."""
+    for period in Period:
+        if period == Period.ACADEMIC_REALIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_academic_realist"], (
+            f"is_academic_realist should be False for {period.name}")
+
+
+def test_academic_realist_stroke_params_valid():
+    """ACADEMIC_REALIST stroke_params should encode Bouguereau's porcelain technique."""
+    style = Style(medium=Medium.OIL, period=Period.ACADEMIC_REALIST,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 4,  "ACADEMIC_REALIST face stroke should be tiny (≤4)"
+    assert p["stroke_size_bg"]   >= 12, "ACADEMIC_REALIST bg stroke should be moderate (≥12)"
+    assert p["wet_blend"]        >= 0.80, "ACADEMIC_REALIST wet_blend must be very high (≥0.80)"
+    assert p["edge_softness"]    >= 0.70, "ACADEMIC_REALIST edge_softness must be high (≥0.70)"

@@ -8508,3 +8508,194 @@ class Painter:
             n_placed += 1
 
         print(f"    Palette knife complete  (strokes_placed={n_placed})")
+
+    # academic_skin_pass — Bouguereau porcelain-smooth flesh technique
+    # ─────────────────────────────────────────────────────────────────────────
+    def academic_skin_pass(
+            self,
+            reference:      Union[np.ndarray, Image.Image],
+            n_passes:       int   = 4,
+            strokes_per_pass: int = 600,
+            stroke_size:    float = 3.5,
+            wet_blend:      float = 0.88,
+            opacity:        float = 0.38,
+            skin_thresh_low: float = 0.38,
+            skin_thresh_high: float = 0.88,
+            jitter_amt:     float = 0.008,
+            rng_seed:       Optional[int] = None,
+    ):
+        """
+        Academic skin pass — inspired by William-Adolphe Bouguereau's porcelain-smooth
+        flesh technique.
+
+        Bouguereau built his characteristically seamless flesh through many sessions of
+        imperceptibly fine brushwork.  Each session laid down tiny, carefully graduated
+        strokes that were immediately blended with a dry soft brush before the paint set.
+        After multiple sessions — each at a slightly different stroke angle — all trace of
+        individual marks was erased, leaving a surface of extraordinary smoothness that
+        critics described as "wax" or "porcelain."
+
+        This pass simulates that quality:
+
+        1. **Skin detection**: only skin-toned pixels in the reference are targeted —
+           regions where luminance is in the mid-to-high range and the hue is in the
+           warm flesh band (red-orange-yellow).  This keeps the pass from touching
+           hair, clothing, or the background.
+
+        2. **Multi-pass micro-blending**: ``n_passes`` passes of tiny strokes are applied.
+           Each pass uses a slightly different angle offset so the directionality of no
+           single pass dominates.  Within each pass, strokes are placed with very high
+           ``wet_blend`` (default 0.88) so each mark is nearly fully blended with the
+           paint already on the canvas beneath it — the stroke deposits colour without
+           leaving a discrete edge.
+
+        3. **Graduated colour sampling**: the colour for each stroke is sampled from the
+           reference at the stroke's anchor point, then perturbed by a tiny jitter
+           (default ±0.008).  At this jitter level the perceptual variation is below the
+           threshold of the human eye but above zero, preventing the mechanical
+           uniformity of a flat digital fill.
+
+        4. **Angle variation per pass**: each of the ``n_passes`` passes rotates the
+           stroke angle distribution by ``180° / n_passes``.  The cumulative effect is
+           that strokes cross each other at many angles, producing the isotropic surface
+           quality of true Academic blending — no single brush direction can be seen.
+
+        Call this pass AFTER ``build_form()`` and BEFORE ``place_lights()``.
+        The pass concentrates on the figure area (if a figure mask is set) and within
+        that area on skin-toned regions detected from the reference.  Follow with
+        ``glazed_panel_pass()`` at low opacity to add Bouguereau's characteristic warm
+        golden depth without disturbing the smooth surface.
+
+        Parameters
+        ----------
+        reference        : The colour reference image — used both to detect skin regions
+                           and to sample stroke colours.
+        n_passes         : Number of blending passes.  Each adds a further layer of
+                           imperceptible smoothing.  4–6 passes approximate a single
+                           Bouguereau glazing session; 8–12 approach his full multi-day
+                           technique.
+        strokes_per_pass : Number of strokes per pass.  600–1000 covers a 780×1080 face
+                           region with dense micro-marks.
+        stroke_size      : Stroke radius in pixels.  2–4px gives Bouguereau's finest
+                           filbert-tip quality.  Values above 6 produce a visible, more
+                           Sargent-like mark.
+        wet_blend        : Blending strength.  0.85–0.92 for true porcelain smoothness.
+                           Values below 0.70 leave a visible brushstroke texture.
+        opacity          : Per-stroke opacity.  0.30–0.45 allows many passes to build up
+                           without any single pass dominating the surface.
+        skin_thresh_low  : Minimum luminance for a pixel to be considered skin.  Default
+                           0.38 excludes deep shadow regions (which do not benefit from
+                           the smooth blending pass).
+        skin_thresh_high : Maximum luminance for a pixel to be considered skin.  Default
+                           0.88 excludes specular highlights (which should remain crisp
+                           after ``place_lights()``).
+        jitter_amt       : Per-stroke colour jitter.  0.005–0.012 is the sweet spot for
+                           organic variation below the threshold of perception.
+        rng_seed         : Optional seed for reproducibility.
+        """
+        print(f"  Academic skin pass  "
+              f"(n_passes={n_passes}  strokes/pass={strokes_per_pass}  "
+              f"size={stroke_size:.1f}  wet_blend={wet_blend:.2f})")
+
+        import colorsys as _cs
+        import numpy as _np
+
+        rng   = random.Random(rng_seed)
+        ref   = self._prep(reference)           # → float32 (H, W, 3) in [0, 1]
+        h, w  = self.h, self.w
+
+        # ── Resize reference to canvas if necessary ───────────────────────────
+        if ref.shape[:2] != (h, w):
+            from PIL import Image as _PILImg
+            ref_img = _PILImg.fromarray((ref * 255).astype(_np.uint8), "RGB")
+            ref = _np.array(ref_img.resize((w, h), _PILImg.BILINEAR)) / 255.0
+
+        # ── Build skin mask: warm-hue + mid-luminance pixels ─────────────────
+        # Luminance (perceptual): 0.299 R + 0.587 G + 0.114 B
+        lum = (0.299 * ref[:, :, 0] +
+               0.587 * ref[:, :, 1] +
+               0.114 * ref[:, :, 2])
+
+        # Warm skin hue: red channel dominant, green secondary, blue minimal.
+        # This detects orange-yellow-red flesh without picking up foliage or sky.
+        warm_hue = (ref[:, :, 0] > ref[:, :, 2] + 0.06) & \
+                   (ref[:, :, 0] > ref[:, :, 1] - 0.10)
+
+        skin_mask = (
+            warm_hue &
+            (lum >= skin_thresh_low) &
+            (lum <= skin_thresh_high)
+        )
+
+        # Intersect with figure mask if available
+        if self._figure_mask is not None:
+            fm = self._figure_mask
+            if fm.shape != (h, w):
+                from PIL import Image as _PILImg
+                fm = _np.array(
+                    _PILImg.fromarray((fm * 255).astype(_np.uint8)).resize(
+                        (w, h), _PILImg.BILINEAR)) / 255.0
+            skin_mask = skin_mask & (fm > 0.15)
+
+        ys, xs = _np.where(skin_mask)
+        n_candidates = len(ys)
+        if n_candidates == 0:
+            print("    No skin pixels detected — skipping academic_skin_pass")
+            return
+
+        print(f"    Skin region: {n_candidates} pixels  "
+              f"({100.0 * n_candidates / (h * w):.1f}% of canvas)")
+
+        total_placed = 0
+
+        for pass_idx in range(n_passes):
+            # Each pass rotates the angle distribution to erase directionality
+            angle_offset = pass_idx * (180.0 / n_passes)
+            pass_placed  = 0
+
+            for _ in range(strokes_per_pass):
+                idx = rng.randint(0, n_candidates - 1)
+                cy  = int(ys[idx])
+                cx  = int(xs[idx])
+
+                # Sample colour from reference at this location
+                r_s = float(ref[cy, cx, 0])
+                g_s = float(ref[cy, cx, 1])
+                b_s = float(ref[cy, cx, 2])
+                # Tiny perceptual jitter — organic but sub-threshold
+                r_s = max(0.0, min(1.0, r_s + rng.uniform(-jitter_amt, jitter_amt)))
+                g_s = max(0.0, min(1.0, g_s + rng.uniform(-jitter_amt, jitter_amt)))
+                b_s = max(0.0, min(1.0, b_s + rng.uniform(-jitter_amt, jitter_amt)))
+
+                # Stroke angle: small spread around the per-pass base angle
+                angle_deg = angle_offset + rng.uniform(-22.0, 22.0)
+                angle_r   = math.radians(angle_deg)
+
+                # Stroke length: short — these are micro-blending marks, not form strokes
+                length = rng.uniform(stroke_size * 1.8, stroke_size * 4.5)
+
+                # Place the stroke using the canvas's apply_stroke infrastructure
+                # Build a two-point path along the stroke direction
+                dx = math.cos(angle_r) * length * 0.5
+                dy = math.sin(angle_r) * length * 0.5
+                pts = [(cx - dx, cy - dy), (cx + dx, cy + dy)]
+
+                n_pts = len(pts)
+                widths = [stroke_size * 0.9, stroke_size * 0.9]  # uniform width — filbert flat
+
+                self.canvas.apply_stroke(
+                    pts     = pts,
+                    widths  = widths,
+                    color   = (r_s, g_s, b_s),
+                    opacity = opacity,
+                    wet_blend = wet_blend,
+                )
+                pass_placed += 1
+
+            total_placed += pass_placed
+            # Partial dry between passes: settles slightly but stays workable.
+            # This prevents consecutive passes from becoming a single merged wash.
+            self.canvas.dry(amount=0.18)
+
+        print(f"    Academic skin complete  "
+              f"(total_strokes={total_placed}  passes={n_passes})")

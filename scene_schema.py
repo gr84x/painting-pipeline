@@ -206,6 +206,7 @@ class Period(Enum):
     NOCTURNE      = auto()   # La Tour — single candle, warm amber radial glow, near-black void, simplified serene forms
     FRENCH_NATURALIST = auto()  # Chardin — granular powdery surface, warm grey palette, soft domestic intimacy
     SOCIAL_REALIST = auto()    # Courbet — palette knife planes, dark earthy ground, unidealized impasto
+    ACADEMIC_REALIST = auto()  # Bouguereau — porcelain-smooth flesh, imperceptible blending, warm golden glazing
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -555,6 +556,17 @@ class Style:
             # Very low wet_blend: each plane stays separate, no gradient merging.
             # Low edge_softness: clean knife-drag boundaries between tonal planes.
             Period.SOCIAL_REALIST: dict(stroke_size_face=14, stroke_size_bg=35, wet_blend=0.18, edge_softness=0.25),
+            # Academic Realist (Bouguereau): the opposite extreme from Courbet — almost
+            # invisible brushwork, porcelain-smooth flesh achieved through imperceptible
+            # micro-blending.  stroke_size_face is tiny (3px) — each mark is a single
+            # carefully placed filbert-hair stroke that is immediately blended away.
+            # stroke_size_bg is moderate — Academic painting has precise, well-resolved
+            # backgrounds even if the figure steals all the attention.
+            # Very high wet_blend (0.88): the defining quality — no stroke ever dries
+            # before it is blended into its neighbour.  High edge_softness (0.82): edges
+            # on the figure are as smooth as the flesh itself — no crisp Academic line
+            # separates the figure from the background; the boundary dissolves gradually.
+            Period.ACADEMIC_REALIST: dict(stroke_size_face=3, stroke_size_bg=18, wet_blend=0.88, edge_softness=0.82),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

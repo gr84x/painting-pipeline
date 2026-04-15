@@ -2175,6 +2175,66 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── William-Adolphe Bouguereau ─────────────────────────────────────────────
+    "bouguereau": ArtStyle(
+        artist="William-Adolphe Bouguereau",
+        movement="French Academic Realism",
+        nationality="French",
+        period="1848–1905",
+        palette=[
+            (0.95, 0.84, 0.70),   # warm ivory highlight — the luminous lit flesh
+            (0.85, 0.68, 0.52),   # warm mid-flesh — raw sienna tinted skin
+            (0.72, 0.55, 0.40),   # golden shadow flesh — ochre-brown transition
+            (0.52, 0.38, 0.28),   # deep warm shadow — raw umber
+            (0.82, 0.74, 0.68),   # cool reflected light — pearlescent under-chin bounce
+            (0.38, 0.42, 0.52),   # cool deep shadow — blue-grey in the deepest recesses
+            (0.70, 0.60, 0.44),   # mid-flesh unifier — neutral warm mid-tone
+        ],
+        ground_color=(0.72, 0.62, 0.48),    # warm cream ground — toned panel
+        stroke_size=3,
+        wet_blend=0.88,                      # near-maximum blending — seamless, no visible marks
+        edge_softness=0.80,                  # very soft transitions — porcelain continuity
+        jitter=0.008,                        # minimal jitter — controlled, deliberate pigment
+        glazing=(0.76, 0.62, 0.42),          # warm golden glaze — Academic warmth over all flesh
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Academic smooth technique — flesh built through imperceptible layers of "
+            "carefully graduated colour, each passage blended into its neighbour until "
+            "no mark or boundary is visible. Bouguereau worked from a warm cream ground, "
+            "establishing the shadow masses first in transparent warm umber, then building "
+            "the lit passages in progressive lighter tones of warm ivory, blending each "
+            "addition with a soft dry brush before the paint had begun to set. The cool "
+            "reflected lights under the chin and in the deep recesses are added last as "
+            "thin, transparent cooler passages that counterbalance the warm highlights. "
+            "The result is a surface that appears almost fresco-like in its smoothness — "
+            "the paint has no physical texture; the only relief is the gentle three-"
+            "dimensional modelling of the form itself. Critics at the time described his "
+            "flesh as looking like 'porcelain or wax' — a quality he achieved through "
+            "patience, extremely fine brushes, and a willingness to work the same passage "
+            "for days until every trace of the brush had been erased."
+        ),
+        famous_works=[
+            ("The Birth of Venus", "1879"),
+            ("Nymphs and Satyr", "1873"),
+            ("Young Girl Defending Herself Against Eros", "1880"),
+            ("La Vague (The Wave)", "1896"),
+            ("The Knitting Girl", "1869"),
+            ("Maternal Admiration", "1869"),
+            ("Pietà", "1876"),
+        ],
+        inspiration=(
+            "Use academic_skin_pass() as the primary figure-refining pass after build_form(): "
+            "tiny strokes (2–4px) with very high wet_blend (0.85–0.92) applied in the "
+            "skin zones, building up seamlessly smooth flesh through multiple thin passes. "
+            "Each pass follows the surface curvature at a slightly different angle to erase "
+            "any visible directionality.  Follow with glazed_panel_pass() at very low opacity "
+            "(3–4 layers, glaze_opacity=0.025) to add the characteristic warm golden depth "
+            "without disturbing the smooth surface.  The goal is zero visible brushwork — "
+            "only the gentle tonal transitions of perfectly modelled form."
+        ),
+    ),
+
 }
 
 
