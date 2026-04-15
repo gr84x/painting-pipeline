@@ -203,6 +203,7 @@ class Period(Enum):
     HIGH_RENAISSANCE = auto()  # Raphael — luminous clarity, radiant warm midtones, idealized form, no heavy sfumato
     TENEBRIST     = auto()   # Zurbarán — near-black void, hyper-real white fabric, razor-sharp found edges
     NEOCLASSICAL  = auto()   # Ingres — porcelain-smooth flesh, cool pearl highlights, precise classical line
+    NOCTURNE      = auto()   # La Tour — single candle, warm amber radial glow, near-black void, simplified serene forms
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -530,6 +531,16 @@ class Style:
             # to lose the deliberate precision of his form edges.
             # edge_softness=0.35: classical edge quality — clear, legible, not sfumatoed.
             Period.NEOCLASSICAL:  dict(stroke_size_face=5,  stroke_size_bg=22, wet_blend=0.28, edge_softness=0.35),
+            # Nocturne (La Tour): single candlelight source — forms are simplified and
+            # smooth; the transition from warm light to absolute darkness is gradual.
+            # stroke_size_face is medium-small (smooth geometric forms need careful
+            # blending).  stroke_size_bg is very large — the void background is a flat
+            # near-black wash requiring few, sweeping dark strokes.
+            # wet_blend=0.55: enough for the tender gradients of candlelit flesh but
+            # not so heavy as to lose the clarity of La Tour's simplified geometry.
+            # edge_softness=0.45: soft penumbra around lit forms, but clear legible
+            # geometry — neither sfumato haze nor Tenebrist knife-edge.
+            Period.NOCTURNE:      dict(stroke_size_face=7,  stroke_size_bg=45, wet_blend=0.55, edge_softness=0.45),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

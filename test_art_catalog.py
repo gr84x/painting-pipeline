@@ -32,6 +32,7 @@ EXPECTED_ARTISTS = [
     "delacroix",
     "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
+    "georges_de_la_tour",
     "ingres",
     "jan_van_eyck",
     "kandinsky",
@@ -171,6 +172,7 @@ EXPECTED_PERIODS = [
     "HIGH_RENAISSANCE",
     "TENEBRIST",
     "NEOCLASSICAL",
+    "NOCTURNE",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -1815,4 +1817,129 @@ def test_neoclassical_moderate_edge_softness():
     p = style.stroke_params
     assert 0.20 <= p["edge_softness"] <= 0.55, (
         f"NEOCLASSICAL edge_softness should be moderate; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Georges de La Tour — nocturne candlelight addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_georges_de_la_tour_in_catalog():
+    """Georges de La Tour must be present in CATALOG."""
+    assert "georges_de_la_tour" in CATALOG, "georges_de_la_tour not found in CATALOG"
+
+
+def test_georges_de_la_tour_movement():
+    """La Tour's movement must reference Baroque or Nocturne."""
+    s = get_style("georges_de_la_tour")
+    assert ("Baroque" in s.movement or "Nocturne" in s.movement
+            or "nocturne" in s.movement.lower()), (
+        f"La Tour movement should reference Baroque/Nocturne; got {s.movement!r}")
+
+
+def test_georges_de_la_tour_nationality():
+    s = get_style("georges_de_la_tour")
+    assert "French" in s.nationality, (
+        f"La Tour should be French; got {s.nationality!r}")
+
+
+def test_georges_de_la_tour_palette_length():
+    s = get_style("georges_de_la_tour")
+    assert len(s.palette) >= 5, "La Tour palette should have at least 5 key colours"
+
+
+def test_georges_de_la_tour_palette_values_in_range():
+    """All La Tour palette RGB values must be in [0, 1]."""
+    s = get_style("georges_de_la_tour")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in La Tour palette {rgb}")
+
+
+def test_georges_de_la_tour_ground_dark():
+    """La Tour's ground should be near-black — nocturnal starting point."""
+    s = get_style("georges_de_la_tour")
+    avg_ground = sum(s.ground_color) / 3
+    assert avg_ground <= 0.15, (
+        f"La Tour ground_color should be very dark; got avg={avg_ground:.3f}")
+
+
+def test_georges_de_la_tour_glazing_warm():
+    """La Tour's unifying glaze should be warm amber — candlelight tint."""
+    s = get_style("georges_de_la_tour")
+    assert s.glazing is not None, "La Tour should have a warm amber glaze"
+    r, g, b = s.glazing
+    assert r > g > b, (
+        f"La Tour glazing should be warm amber (R > G > B); got ({r:.2f},{g:.2f},{b:.2f})")
+
+
+def test_georges_de_la_tour_wet_blend_moderate():
+    """La Tour's wet_blend should be moderate — smooth but not sfumato-heavy."""
+    s = get_style("georges_de_la_tour")
+    assert 0.35 <= s.wet_blend <= 0.75, (
+        f"La Tour wet_blend should be moderate; got {s.wet_blend}")
+
+
+def test_georges_de_la_tour_technique_mentions_candle():
+    """La Tour's technique description must mention the candle light source."""
+    s = get_style("georges_de_la_tour")
+    text = s.technique.lower()
+    assert "candle" in text or "nocturne" in text or "candlelight" in text, (
+        f"La Tour technique should mention candlelight; got: {s.technique[:80]!r}")
+
+
+def test_georges_de_la_tour_famous_works():
+    s = get_style("georges_de_la_tour")
+    assert len(s.famous_works) >= 3, "La Tour should have at least 3 famous works"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Magdalene" in t or "Newborn" in t or "Joseph" in t
+               for t in titles), (
+        "La Tour's famous works should include at least one canonical nocturne")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.NOCTURNE — La Tour nocturne period enum
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_nocturne_period_present():
+    """NOCTURNE must exist in the Period enum."""
+    assert hasattr(Period, "NOCTURNE"), "Period.NOCTURNE not found"
+    assert Period.NOCTURNE in list(Period)
+
+
+def test_nocturne_stroke_params_all_keys():
+    """NOCTURNE stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.NOCTURNE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"NOCTURNE stroke_params missing key: {key!r}"
+
+
+def test_nocturne_large_bg_stroke():
+    """NOCTURNE stroke_size_bg should be large — the void background needs sweeping dark strokes."""
+    style = Style(medium=Medium.OIL, period=Period.NOCTURNE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_bg"] >= 35, (
+        f"NOCTURNE stroke_size_bg should be large (void background); got {p['stroke_size_bg']}")
+
+
+def test_nocturne_moderate_wet_blend():
+    """NOCTURNE wet_blend should be moderate — smooth candlelit gradients."""
+    style = Style(medium=Medium.OIL, period=Period.NOCTURNE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert 0.35 <= p["wet_blend"] <= 0.75, (
+        f"NOCTURNE wet_blend should be moderate; got {p['wet_blend']}")
+
+
+def test_nocturne_moderate_edge_softness():
+    """NOCTURNE edge_softness should be moderate — soft penumbra, not sfumato."""
+    style = Style(medium=Medium.OIL, period=Period.NOCTURNE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert 0.25 <= p["edge_softness"] <= 0.65, (
+        f"NOCTURNE edge_softness should be moderate; got {p['edge_softness']}")
 

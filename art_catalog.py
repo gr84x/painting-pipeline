@@ -2021,6 +2021,58 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Georges de La Tour ─────────────────────────────────────────────────────
+    "georges_de_la_tour": ArtStyle(
+        artist="Georges de La Tour",
+        movement="French Baroque / Nocturne",
+        nationality="French",
+        period="1593–1652",
+        palette=[
+            (0.92, 0.68, 0.22),   # warm amber candle-core — the defining light tone
+            (0.82, 0.52, 0.14),   # deep amber-orange — mid-illuminated flesh
+            (0.78, 0.65, 0.42),   # warm ivory — directly lit flesh
+            (0.58, 0.30, 0.08),   # dark amber-rust — flesh in shadow
+            (0.22, 0.12, 0.04),   # deep warm brown — receding shadow
+            (0.06, 0.04, 0.02),   # near-black void — the surrounding darkness
+            (0.68, 0.48, 0.22),   # warm ochre — mid-tone transitional flesh
+        ],
+        ground_color=(0.06, 0.04, 0.02),    # near-black warm brown ground
+        stroke_size=7,
+        wet_blend=0.55,                      # smooth blending — forms are simplified and rounded
+        edge_softness=0.45,                  # soft penumbra around lit forms, but clear geometry
+        jitter=0.018,
+        glazing=(0.75, 0.45, 0.12),          # warm amber unifying glaze — the candlelight tint
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Nocturne candlelight — a single concealed candle as the sole light source, "
+            "casting warm amber radiance onto simplified, almost geometrically pure forms. "
+            "La Tour strips away all superfluous detail; drapery becomes smooth cylinders, "
+            "faces are serene oval masks. The transition from warm amber light to absolute "
+            "darkness is gradual and luminous — not Caravaggio's sudden chiaroscuro cut, "
+            "but a long, tender gradient. The void beyond the candlelight is absolute, "
+            "near-black, with no reflected light or ambient fill. Flesh tones shift from "
+            "warm ivory in direct light through deep amber-rust in shadow to near-black at "
+            "the extreme. The result is meditative, still, and intimate."
+        ),
+        famous_works=[
+            ("The Penitent Magdalene", "c. 1640"),
+            ("The Newborn (La Nativité)", "c. 1648"),
+            ("St. Joseph the Carpenter", "c. 1640"),
+            ("The Fortune Teller", "c. 1630–1640"),
+            ("Job Mocked by His Wife", "c. 1625–1650"),
+            ("The Dream of St. Joseph", "c. 1640"),
+        ],
+        inspiration=(
+            "Use candlelight_pass() to simulate La Tour's defining nocturne quality: "
+            "place a warm amber radial gradient from the candle position, "
+            "crushing the periphery toward near-black while pushing flesh tones to warm "
+            "amber-ivory in the illuminated zone.  The falloff should be gradual and "
+            "luminous — not a sharp cutoff.  Follow with a heavy warm amber glaze "
+            "to unify all lit surfaces into the characteristic candlelit tonality."
+        ),
+    ),
+
 }
 
 

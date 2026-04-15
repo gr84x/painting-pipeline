@@ -7849,3 +7849,152 @@ class Painter:
             bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
         self.canvas.ctx.set_source_surface(_tmp_tc, 0, 0)
         self.canvas.ctx.paint()
+
+    def candlelight_pass(
+            self,
+            candle_x:       float = 0.50,
+            candle_y:       float = 0.55,
+            radius:         float = 0.55,
+            candle_color:   Color = (0.92, 0.62, 0.18),
+            dark_color:     Color = (0.04, 0.02, 0.01),
+            warmth_peak:    float = 0.55,
+            void_crush:     float = 0.88,
+            falloff_power:  float = 2.2,
+            figure_only:    bool  = False,
+    ):
+        """
+        Candlelight pass — inspired by Georges de La Tour's nocturnal paintings.
+
+        La Tour's defining achievement is the single concealed candle as sole light
+        source.  His nocturnes are built on three interlocking principles:
+
+        1. **Warm radial gradient** — a concentrated amber-orange glow emanates from
+           the candle position, falling off gradually across the picture plane.  Unlike
+           Caravaggio's sudden chiaroscuro cut, La Tour's light transition is long and
+           tender — warmth persists into the mid-shadow before the void takes over.
+
+        2. **Absolute void** — beyond the light's reach the canvas approaches
+           near-black.  There is no reflected ambient light, no secondary source,
+           no horizon.  The darkness is total and meditative.
+
+        3. **Warm colour push** — all lit surfaces are shifted toward the candle
+           color (amber-orange).  La Tour's flesh in candlelight is not ivory-white
+           but a deep warm amber-rust, and his drapery loses its local colour in
+           favour of the universal amber tint.
+
+        This pass simulates all three effects in pixel space:
+
+        * **Radial distance mask** — for each pixel, normalised distance from
+          (candle_x, candle_y) is computed in canvas-diagonal units and raised to
+          ``falloff_power`` to create the characteristic La Tour gradient shape
+          (power > 2 keeps the bright core tight; power < 2 spreads light wider).
+
+        * **Warmth blend** — in the bright zone (distance < radius × 0.6) the
+          canvas RGB is nudged toward ``candle_color`` by ``warmth_peak × (1-t)``
+          where ``t`` is the normalised distance.  This warms lit flesh and cloth.
+
+        * **Void crush** — in the shadow zone (distance > radius × 0.5) the canvas
+          is blended toward ``dark_color`` (near-black) by ``void_crush × t``.
+          The transition is smooth: both effects overlap in the mid-shadow band,
+          creating La Tour's characteristic amber-to-black gradient.
+
+        The pass respects the figure mask if ``figure_only=True``, restricting the
+        effect to the painted figure — useful if the background has already been
+        taken to near-black by a preceding dark_void_pass or vignette.
+
+        Parameters
+        ----------
+        candle_x, candle_y : Normalised canvas position (0-1) of the candle.
+                             (0.5, 0.5) is dead centre.  La Tour often places the
+                             candle slightly below centre (0.5, 0.55–0.65).
+        radius             : Light falloff radius as a fraction of the canvas
+                             diagonal.  0.45–0.65 gives a realistic candlelit pool.
+        candle_color       : RGB colour of the warm candlelight (amber-orange).
+        dark_color         : RGB colour of the absolute void darkness (near-black).
+        warmth_peak        : Maximum warm colour push in the bright zone (0–1).
+                             0.40–0.65 is typical; lower = cooler candle.
+        void_crush         : Maximum darkness push in the shadow zone (0–1).
+                             0.75–0.95 produces La Tour's near-black void.
+        falloff_power      : Exponent controlling the shape of the radial falloff.
+                             2.0 = quadratic (wide, soft); 3.0 = cubic (tighter core).
+        figure_only        : Restrict effect to the figure mask if True.
+        """
+        print(f"  Candlelight pass  "
+              f"(candle=({candle_x:.2f},{candle_y:.2f})  "
+              f"radius={radius:.2f}  "
+              f"warmth={warmth_peak:.2f}  void_crush={void_crush:.2f})")
+
+        import numpy as np
+
+        h, w = self.h, self.w
+
+        # ── Build normalised distance map from candle position ────────────────
+        # Distance is measured in canvas-diagonal units so the radius parameter
+        # is resolution-independent.
+        diag = math.sqrt(w * w + h * h)
+        ys = np.arange(h, dtype=np.float32) / h          # 0 … 1 top→bottom
+        xs = np.arange(w, dtype=np.float32) / w          # 0 … 1 left→right
+        xg, yg = np.meshgrid(xs, ys)                     # (h, w)
+        dx = (xg - candle_x) * w / diag
+        dy = (yg - candle_y) * h / diag
+        dist_raw = np.sqrt(dx * dx + dy * dy)            # 0 … ~1, candle=0
+
+        # Normalise so radius maps to 1.0
+        dist_norm = np.clip(dist_raw / max(radius, 1e-6), 0.0, 1.0)
+
+        # Apply falloff power — tighter bright core, longer shadow tail
+        t = dist_norm ** falloff_power                   # 0=candle, 1=void
+
+        # ── Read current canvas into float32 RGB ─────────────────────────────
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(h, w, 4).copy()
+        # Cairo ARGB32: channel order in memory is B G R A
+        R = buf[:, :, 2].astype(np.float32) / 255.0
+        G = buf[:, :, 1].astype(np.float32) / 255.0
+        B = buf[:, :, 0].astype(np.float32) / 255.0
+
+        # ── Stage 1: Warm colour push toward candle_color ────────────────────
+        # The warmth blend is strongest at t=0 (candle) and zero at t=1 (void).
+        # We use a smooth curve: warmth_weight = warmth_peak * (1 - t)^2
+        # so the warm push falls off quadratically — a slow, tender gradient.
+        warmth_weight = warmth_peak * np.clip((1.0 - t) ** 2, 0.0, 1.0)
+        cr, cg, cb = candle_color
+        R_out = R + (cr - R) * warmth_weight
+        G_out = G + (cg - G) * warmth_weight
+        B_out = B + (cb - B) * warmth_weight
+
+        # ── Stage 2: Void crush toward dark_color ────────────────────────────
+        # The darkness blend is zero at t=0 and void_crush at t=1.
+        # We use a smooth curve: crush_weight = void_crush * t^2
+        # so the void creeps in gradually — the mid-shadow band stays warm.
+        crush_weight = void_crush * np.clip(t ** 2, 0.0, 1.0)
+        dr, dg, db = dark_color
+        R_out = R_out + (dr - R_out) * crush_weight
+        G_out = G_out + (dg - G_out) * crush_weight
+        B_out = B_out + (db - B_out) * crush_weight
+
+        R_out = np.clip(R_out, 0.0, 1.0)
+        G_out = np.clip(G_out, 0.0, 1.0)
+        B_out = np.clip(B_out, 0.0, 1.0)
+
+        # ── Apply figure_only masking if requested ────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            from PIL import Image as _PILImg
+            fm = self._figure_mask
+            if fm.shape != (h, w):
+                fm = np.array(
+                    _PILImg.fromarray((fm * 255).astype(np.uint8)).resize(
+                        (w, h), _PILImg.BILINEAR)) / 255.0
+            R_out = R * (1.0 - fm) + R_out * fm
+            G_out = G * (1.0 - fm) + G_out * fm
+            B_out = B * (1.0 - fm) + B_out * fm
+
+        # ── Write back to Cairo surface ───────────────────────────────────────
+        buf[:, :, 2] = np.clip(R_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(G_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(B_out * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+        _tmp_cl = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(_tmp_cl, 0, 0)
+        self.canvas.ctx.paint()
