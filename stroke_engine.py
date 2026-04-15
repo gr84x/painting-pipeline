@@ -7355,3 +7355,224 @@ class Painter:
             bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
         self.canvas.ctx.set_source_surface(tmp, 0, 0)
         self.canvas.ctx.paint()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # luminous_fabric_pass — Zurbarán hyper-real white cloth technique
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def luminous_fabric_pass(self,
+                             reference,
+                             white_lum_threshold: float = 0.62,
+                             white_sat_threshold:  float = 0.22,
+                             fold_contrast:        float = 0.55,
+                             void_darken:          float = 0.72,
+                             found_edge_strength:  float = 0.60,
+                             figure_only:          bool  = False):
+        """
+        Zurbarán hyper-real white fabric technique.
+
+        Zurbarán's defining achievement was the sculptural rendering of white
+        cloth — monk habits, linen tunics, altar cloths — emerging from near-
+        absolute darkness with almost photographic precision.  Every fold of
+        white fabric is a self-contained study in value: brilliant lit peak,
+        warm ochre mid-shadow, deep umber at the fold recess.  The edge between
+        white cloth and void background is the sharpest, most *found* edge in
+        17th-century painting.
+
+        Three operations:
+        1. **Fabric fold micro-contrast** — Fine Sobel within white/ivory zones
+           brightens lit fold sides and darkens shadow sides.
+        2. **Void deepening** — Background zones are darkened toward absolute black.
+        3. **Found-edge sharpening** — Contrast at the fabric-void boundary is
+           steepened to produce Zurbarán's razor-sharp silhouettes.
+
+        Parameters
+        ----------
+        reference          : PIL Image — scene reference for fabric detection.
+        white_lum_threshold: Luminance above which a pixel is potentially fabric.
+        white_sat_threshold: HSV saturation below which a bright pixel is cloth.
+        fold_contrast      : Strength of fold micro-contrast enhancement (0–1).
+        void_darken        : Blend weight toward pure black for background zones.
+        found_edge_strength: Strength of fabric-void boundary contrast boost.
+        figure_only        : Restrict fabric detection to figure region if True.
+        """
+        import numpy as np
+        from PIL import Image as _PILImg
+        from scipy.ndimage import gaussian_filter, sobel as _sobel
+
+        print(f"  Luminous fabric pass  "
+              f"(fold_contrast={fold_contrast:.2f}  "
+              f"void_darken={void_darken:.2f}  "
+              f"found_edge={found_edge_strength:.2f})")
+
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(self.h, self.w, 4).copy()
+        B_c = buf[:, :, 0].astype(np.float32) / 255.0
+        G_c = buf[:, :, 1].astype(np.float32) / 255.0
+        R_c = buf[:, :, 2].astype(np.float32) / 255.0
+        lum_c = 0.299 * R_c + 0.587 * G_c + 0.114 * B_c
+
+        # Build fabric and void masks from reference
+        ref_np = np.array(reference.convert("RGB"), dtype=np.float32) / 255.0
+        ref_r, ref_g, ref_b = ref_np[:, :, 0], ref_np[:, :, 1], ref_np[:, :, 2]
+        ref_lum = 0.299 * ref_r + 0.587 * ref_g + 0.114 * ref_b
+        cmax = np.maximum(np.maximum(ref_r, ref_g), ref_b)
+        cmin = np.minimum(np.minimum(ref_r, ref_g), ref_b)
+        ref_sat = np.where(cmax > 1e-6, (cmax - cmin) / (cmax + 1e-9), 0.0)
+        fabric_mask = (
+            (ref_lum >= white_lum_threshold) & (ref_sat <= white_sat_threshold)
+        ).astype(np.float32)
+        if figure_only and self._figure_mask is not None:
+            fm = self._figure_mask
+            if fm.shape != (self.h, self.w):
+                fm = np.array(
+                    _PILImg.fromarray((fm * 255).astype(np.uint8)).resize(
+                        (self.w, self.h), _PILImg.BILINEAR)) / 255.0
+            fabric_mask = fabric_mask * fm
+        void_mask = (ref_lum < 0.30).astype(np.float32)
+
+        # Fold micro-contrast: Sobel on canvas luminance, apply within fabric zone
+        smooth_lum = gaussian_filter(lum_c, sigma=0.8)
+        gx = _sobel(smooth_lum, axis=1)
+        gy = _sobel(smooth_lum, axis=0)
+        edge_mag   = np.sqrt(gx ** 2 + gy ** 2)
+        edge_norm  = np.clip(edge_mag / (edge_mag.max() + 1e-8), 0.0, 1.0)
+        grad_sign  = np.sign(gx + gy)
+        fold_delta = grad_sign * edge_norm * fold_contrast * 0.18 * fabric_mask
+        new_R = np.clip(R_c + fold_delta,        0.0, 1.0)
+        new_G = np.clip(G_c + fold_delta * 0.88, 0.0, 1.0)
+        new_B = np.clip(B_c + fold_delta * 0.62, 0.0, 1.0)
+
+        # Void deepening
+        vd_alpha = void_mask * void_darken
+        new_R = new_R * (1.0 - vd_alpha)
+        new_G = new_G * (1.0 - vd_alpha)
+        new_B = new_B * (1.0 - vd_alpha)
+
+        # Found-edge sharpening at fabric-void boundary
+        boundary_fabric = gaussian_filter(fabric_mask, sigma=1.5)
+        boundary_void   = gaussian_filter(void_mask,   sigma=1.5)
+        boundary_zone   = np.minimum(boundary_fabric, boundary_void)
+        fabric_side = boundary_zone * (fabric_mask > 0.5).astype(float)
+        void_side   = boundary_zone * (void_mask   > 0.5).astype(float)
+        boost = found_edge_strength * 0.12
+        new_R = np.clip(new_R + fabric_side * boost - void_side * boost * 1.5, 0.0, 1.0)
+        new_G = np.clip(new_G + fabric_side * boost - void_side * boost * 1.5, 0.0, 1.0)
+        new_B = np.clip(new_B + fabric_side * boost - void_side * boost * 1.5, 0.0, 1.0)
+
+        buf[:, :, 0] = np.clip(new_B * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(new_G * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 2] = np.clip(new_R * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+        _tmp_fab = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(_tmp_fab, 0, 0)
+        self.canvas.ctx.paint()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # edge_lost_and_found_pass — classical edge quality control (session-24 random)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def edge_lost_and_found_pass(self,
+                                  focal_xy:        tuple = (0.50, 0.30),
+                                  found_radius:    float = 0.28,
+                                  found_sharpness: float = 0.50,
+                                  lost_blur:       float = 1.8,
+                                  strength:        float = 0.35,
+                                  figure_only:     bool  = False):
+        """
+        Classical edge quality control — "lost and found" edges.
+
+        Every skilled portrait painter distinguishes two edge types:
+
+        - **Found edges** — sharp, crisp, advance visually.  At the focal point:
+          the lit side of the face, the highest-contrast detail the eye goes to
+          first.
+        - **Lost edges** — soft, dissolved, recede.  At the turning of a form
+          into shadow, in peripheral areas, in atmospheric distance.
+
+        Without this distinction all edges appear equally important and the
+        painting reads as flat and mechanical.  This pass:
+
+        1. Computes a cosine-falloff "found weight" from the focal point.
+        2. Applies unsharp masking to the found zone.
+        3. Applies Gaussian softening to the lost zone.
+        4. Blends the result into the canvas at ``strength``.
+
+        Useful for any portrait period.  Validated as the session-24 random
+        artistic improvement.
+
+        Parameters
+        ----------
+        focal_xy       : (x, y) normalised focal point (0,0=top-left).
+                         Default (0.50, 0.30) = upper-centre portrait face.
+        found_radius   : Normalised radius within which edges are sharpened.
+        found_sharpness: Unsharp mask strength in found zone (0–1).
+        lost_blur      : Gaussian sigma (pixels) for lost zone softening.
+        strength       : Overall blend weight (0 = no effect, 1 = full).
+        figure_only    : Restrict found-zone sharpening to figure if True.
+        """
+        import numpy as np
+        from PIL import Image as _PILImg
+        from scipy.ndimage import gaussian_filter
+
+        print(f"  Edge lost-and-found pass  "
+              f"(focal={focal_xy}  found_r={found_radius:.2f}  "
+              f"sharpness={found_sharpness:.2f}  lost_blur={lost_blur:.1f}  "
+              f"strength={strength:.2f})")
+
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(self.h, self.w, 4).copy()
+        B_lf = buf[:, :, 0].astype(np.float32) / 255.0
+        G_lf = buf[:, :, 1].astype(np.float32) / 255.0
+        R_lf = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # Radial found-weight: cosine falloff from focal point
+        fx, fy = focal_xy
+        ys, xs = np.ogrid[:self.h, :self.w]
+        dist_norm = np.sqrt(
+            ((xs / self.w) - fx) ** 2 + ((ys / self.h) - fy) ** 2
+        ) / (found_radius + 1e-9)
+        found_wt = np.clip(
+            0.5 * (1.0 + np.cos(np.pi * np.minimum(dist_norm, 1.0))),
+            0.0, 1.0).astype(np.float32)
+        lost_wt = 1.0 - found_wt
+
+        if figure_only and self._figure_mask is not None:
+            fm = self._figure_mask
+            if fm.shape != (self.h, self.w):
+                fm = np.array(
+                    _PILImg.fromarray((fm * 255).astype(np.uint8)).resize(
+                        (self.w, self.h), _PILImg.BILINEAR)) / 255.0
+            found_wt = found_wt * fm
+
+        # Unsharp mask for found zone
+        um_sigma = max(0.8, lost_blur * 0.45)
+        R_blur = gaussian_filter(R_lf, sigma=um_sigma)
+        G_blur = gaussian_filter(G_lf, sigma=um_sigma)
+        B_blur = gaussian_filter(B_lf, sigma=um_sigma)
+        sharp_R = np.clip(R_lf + found_sharpness * found_wt * (R_lf - R_blur), 0.0, 1.0)
+        sharp_G = np.clip(G_lf + found_sharpness * found_wt * (G_lf - G_blur), 0.0, 1.0)
+        sharp_B = np.clip(B_lf + found_sharpness * found_wt * (B_lf - B_blur), 0.0, 1.0)
+
+        # Gaussian softening for lost zone
+        R_soft = gaussian_filter(sharp_R, sigma=lost_blur)
+        G_soft = gaussian_filter(sharp_G, sigma=lost_blur)
+        B_soft = gaussian_filter(sharp_B, sigma=lost_blur)
+        result_R = sharp_R * (1.0 - lost_wt) + R_soft * lost_wt
+        result_G = sharp_G * (1.0 - lost_wt) + G_soft * lost_wt
+        result_B = sharp_B * (1.0 - lost_wt) + B_soft * lost_wt
+
+        # Blend result into canvas
+        final_R = np.clip(R_lf * (1.0 - strength) + result_R * strength, 0.0, 1.0)
+        final_G = np.clip(G_lf * (1.0 - strength) + result_G * strength, 0.0, 1.0)
+        final_B = np.clip(B_lf * (1.0 - strength) + result_B * strength, 0.0, 1.0)
+
+        buf[:, :, 0] = np.clip(final_B * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(final_G * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 2] = np.clip(final_R * 255.0, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+        _tmp_lf = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(_tmp_lf, 0, 0)
+        self.canvas.ctx.paint()

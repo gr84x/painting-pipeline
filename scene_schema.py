@@ -201,6 +201,7 @@ class Period(Enum):
     NABIS         = auto()   # Vuillard / Bonnard — intimate pattern-ground fusion, flat muted zones, figures absorbed into patterned grounds
     LUMINISMO     = auto()   # Sorolla — maximum sunlight, warm/cool simultaneous contrast, dappled light pools
     HIGH_RENAISSANCE = auto()  # Raphael — luminous clarity, radiant warm midtones, idealized form, no heavy sfumato
+    TENEBRIST     = auto()   # Zurbarán — near-black void, hyper-real white fabric, razor-sharp found edges
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -513,6 +514,12 @@ class Style:
             # wet_blend=0.35: softer than Baroque but far less blended than Leonardo.
             # edge_softness=0.58: clear, legible forms with soft penumbra (not sfumato).
             Period.HIGH_RENAISSANCE: dict(stroke_size_face=7, stroke_size_bg=26, wet_blend=0.35, edge_softness=0.58),
+            # Tenebrist (Zurbarán): near-black void with hyper-real white fabric.
+            # stroke_size_face is small — fabric folds and flesh require fine marks.
+            # stroke_size_bg is large — the void background needs few, vast, dark strokes.
+            # Low wet_blend: forms are precise and sculpted, not blended.
+            # Low edge_softness: the razor-sharp fabric-to-void edge is the defining quality.
+            Period.TENEBRIST:     dict(stroke_size_face=6,  stroke_size_bg=40, wet_blend=0.22, edge_softness=0.28),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

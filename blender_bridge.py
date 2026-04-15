@@ -498,6 +498,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_art_deco          = (scene.style.period == Period.ART_DECO)
     is_baroque           = (scene.style.period == Period.BAROQUE)
     is_high_renaissance  = (scene.style.period == Period.HIGH_RENAISSANCE)
+    is_tenebrist         = (scene.style.period == Period.TENEBRIST)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -1450,6 +1451,66 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.glaze(glaze_col, opacity=0.06)
         # Moderate vignette — classical framing; crackle for old-master patina.
         p.finish(vignette=0.42, crackle=True)
+
+    elif is_tenebrist:
+        # ── Tenebrist pipeline (Zurbarán technique) ───────────────────────────
+        # Zurbarán's paintings have two subjects: brilliant white cloth and
+        # near-absolute void.  Everything between these poles — flesh, drapery,
+        # still-life objects — is rendered with crystalline, almost photographic
+        # precision.  The defining quality is the razor-sharp silhouette where
+        # brilliant fabric meets the void background.
+        #
+        # Pipeline:
+        #   1. Near-black void ground — darker than Rembrandt's; Zurbarán's
+        #      backgrounds are essentially black, not warm dark brown.
+        #   2. Underpainting + block_in + build_form at standard density.
+        #   3. luminous_fabric_pass() — identify white/ivory cloth zones from
+        #      reference; enhance fold micro-contrast; deepen background void;
+        #      sharpen fabric-void boundary.
+        #   4. edge_lost_and_found_pass() — crisp found edges on face and fabric
+        #      focal points; soft lost edges everywhere else.
+        #   5. place_lights() — minimal, focused specular on fabric peaks.
+        #   6. No glaze — monastic austerity: no warm unifying tint.
+        #   7. Heavy vignette (0.65) crushes periphery toward void; crackle.
+        zurbaran_style = _ART_CATALOG.get("zurbaran")
+        ground_col = zurbaran_style.ground_color if zurbaran_style else (0.10, 0.07, 0.04)
+
+        # Near-black void ground — truly dark, almost nothing visible.
+        p.tone_ground(ground_col, texture_strength=0.08)
+
+        # Full form-building sequence at moderate density.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.5), n_strokes=130)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=260)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.50),  n_strokes=650)
+
+        # Luminous fabric pass: enhance white cloth, deepen void, sharpen edge.
+        p.luminous_fabric_pass(
+            ref,
+            white_lum_threshold = 0.60,
+            white_sat_threshold  = 0.24,
+            fold_contrast        = 0.58,
+            void_darken          = 0.70,
+            found_edge_strength  = 0.65,
+            figure_only          = False,
+        )
+
+        # Edge lost-and-found pass: crisp face/fabric edges, soft peripheral edges.
+        p.edge_lost_and_found_pass(
+            focal_xy        = (0.50, 0.28),
+            found_radius    = 0.26,
+            found_sharpness = 0.55,
+            lost_blur       = 2.0,
+            strength        = 0.38,
+            figure_only     = False,
+        )
+
+        # Minimal light placement — Zurbarán's lighting is present but restrained.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=380)
+
+        # No warm glaze — the monastic severity of Zurbarán requires no unifying
+        # amber tint.  The cold void ground is the dominant tone.
+        # Heavy vignette: periphery is crushed further toward absolute darkness.
+        p.finish(vignette=0.65, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
