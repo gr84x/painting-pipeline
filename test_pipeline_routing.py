@@ -178,6 +178,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_tenebrist":               period == Period.TENEBRIST,
         "is_neoclassical":            period == Period.NEOCLASSICAL,
         "is_nocturne":                period == Period.NOCTURNE,
+        "is_social_realist":          period == Period.SOCIAL_REALIST,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -2401,3 +2402,113 @@ def test_nocturne_stroke_params_valid():
     assert p["stroke_size_bg"]   >= 35, "NOCTURNE bg stroke should be large (void)"
     assert 0.35 <= p["wet_blend"] <= 0.75, "NOCTURNE wet_blend should be moderate"
     assert 0.25 <= p["edge_softness"] <= 0.65, "NOCTURNE edge_softness moderate"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SOCIAL_REALIST (Courbet) — palette_knife_pass + routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_palette_knife_pass_exists():
+    """palette_knife_pass must exist as a method on Painter."""
+    p = _make_small_painter()
+    assert hasattr(p, "palette_knife_pass"), "Painter.palette_knife_pass not found"
+    assert callable(getattr(p, "palette_knife_pass"))
+
+
+def test_palette_knife_pass_no_error():
+    """palette_knife_pass runs without raising on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.09, 0.05))
+    palette = [
+        (0.72, 0.60, 0.42),
+        (0.38, 0.28, 0.16),
+        (0.08, 0.06, 0.04),
+    ]
+    p.palette_knife_pass(palette=palette, n_strokes=30, rng_seed=42)
+
+
+def test_palette_knife_pass_no_error_figure_only():
+    """palette_knife_pass(figure_only=True) must not raise with a figure mask."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.09, 0.05))
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[10:55, 10:55] = 1.0
+    p.set_figure_mask(mask)
+    palette = [(0.72, 0.60, 0.42), (0.38, 0.28, 0.16)]
+    p.palette_knife_pass(palette=palette, n_strokes=20, figure_only=True, rng_seed=7)
+
+
+def test_palette_knife_pass_modifies_canvas():
+    """palette_knife_pass must change at least some pixels on the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.09, 0.05))
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy().reshape(64, 64, 4)
+    palette = [(0.82, 0.72, 0.52), (0.55, 0.48, 0.30)]
+    p.palette_knife_pass(palette=palette, n_strokes=50, rng_seed=99)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "palette_knife_pass should modify the canvas")
+
+
+def test_palette_knife_pass_pixels_in_range():
+    """All pixel values must remain in [0, 255] after palette_knife_pass."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.09, 0.05))
+    palette = [(0.72, 0.60, 0.42), (0.08, 0.06, 0.04), (0.82, 0.72, 0.52)]
+    p.palette_knife_pass(palette=palette, n_strokes=80, rng_seed=13)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0,   "Pixel value below 0 after palette_knife_pass"
+    assert buf.max() <= 255, "Pixel value above 255 after palette_knife_pass"
+
+
+def test_palette_knife_pass_empty_figure_mask_no_crash():
+    """palette_knife_pass with figure_only=True and empty mask should skip gracefully."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.09, 0.05))
+    mask = np.zeros((64, 64), dtype=np.float32)   # all zeros — no figure pixels
+    p.set_figure_mask(mask)
+    palette = [(0.72, 0.60, 0.42)]
+    p.palette_knife_pass(palette=palette, n_strokes=20, figure_only=True, rng_seed=1)
+
+
+def test_social_realist_routing_flag():
+    """is_social_realist should be True for Period.SOCIAL_REALIST."""
+    flags = _routing_flags(Period.SOCIAL_REALIST)
+    assert flags["is_social_realist"], (
+        "is_social_realist should be True for Period.SOCIAL_REALIST")
+
+
+def test_social_realist_routing_exclusive():
+    """SOCIAL_REALIST should only set is_social_realist among the period flags."""
+    flags = _routing_flags(Period.SOCIAL_REALIST)
+    others = {k: v for k, v in flags.items()
+              if k not in ("is_social_realist", "is_watercolor",
+                           "is_romantic", "is_renaissance_soft") and v}
+    assert len(others) == 0, (
+        f"SOCIAL_REALIST should only set is_social_realist; also set: {others}")
+
+
+def test_social_realist_flag_false_for_other_periods():
+    """is_social_realist must be False for every period except SOCIAL_REALIST."""
+    for period in Period:
+        if period == Period.SOCIAL_REALIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_social_realist"], (
+            f"is_social_realist should be False for {period.name}")
+
+
+def test_social_realist_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.SOCIAL_REALIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] >= 10, "SOCIAL_REALIST face stroke should be large (knife planes)"
+    assert p["stroke_size_bg"]   >= 20, "SOCIAL_REALIST bg stroke should be large"
+    assert p["wet_blend"]        <= 0.30, "SOCIAL_REALIST wet_blend should be low (crisp planes)"
+    assert p["edge_softness"]    <= 0.40, "SOCIAL_REALIST edge_softness should be low (knife edges)"

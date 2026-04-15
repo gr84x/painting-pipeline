@@ -2074,6 +2074,56 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Gustave Courbet ───────────────────────────────────────────────────────
+    "courbet": ArtStyle(
+        artist="Gustave Courbet",
+        movement="French Realism",
+        nationality="French",
+        period="1848–1877",
+        palette=[
+            (0.72, 0.60, 0.42),   # warm flesh — raw sienna mid-tone
+            (0.38, 0.28, 0.16),   # deep umber shadow — dark Vandyke brown
+            (0.08, 0.06, 0.04),   # near-black void — Courbet's characteristic dark ground
+            (0.55, 0.48, 0.30),   # warm ochre — natural fabric, straw, earth
+            (0.28, 0.32, 0.20),   # dark olive green — shadow foliage, coat cloth
+            (0.82, 0.72, 0.52),   # warm ivory highlight — lit flesh, limestone
+            (0.44, 0.36, 0.24),   # muted mid-brown — stone, bark, working-class fabric
+        ],
+        ground_color=(0.12, 0.09, 0.05),    # very dark warm brown ground — bituminous base
+        stroke_size=14,
+        wet_blend=0.18,                      # palette knife: flat planes, edges stay crisp
+        edge_softness=0.25,                  # clean edges — knife drag leaves hard boundaries
+        jitter=0.04,
+        glazing=(0.55, 0.38, 0.15),          # deep amber-brown unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Palette knife realism — thick impasto applied with flexible steel knives "
+            "rather than brushes. Each knife stroke deposits a flat, smooth plane of "
+            "paint with a clean edge and a ridge of raised pigment along its boundary. "
+            "Courbet builds form through adjacent planes of different tone rather than "
+            "blended gradients. Dark earthy ground (often black-brown bituminous base) "
+            "shows through gaps, creating atmospheric depth. The surface has directional "
+            "texture — the drag mark of the knife — visible across the entire canvas. "
+            "Unlike academic illusionism, forms are rendered with uncompromising material "
+            "honesty: stone looks like stone, flesh like flesh, fabric like fabric."
+        ),
+        famous_works=[
+            ("The Stone Breakers", "1849"),
+            ("Burial at Ornans", "1849–1850"),
+            ("The Artist's Studio", "1854–1855"),
+            ("The Origin of the World", "1866"),
+            ("Woman with a Parrot", "1866"),
+            ("The Wave", "c. 1869–1870"),
+        ],
+        inspiration=(
+            "Use palette_knife_pass() as the primary form-building pass: flat planes of "
+            "muted earth colour with knife-drag texture. Dark ground visible in gaps. "
+            "Low wet_blend, moderate edge_softness — the knife leaves clean boundaries "
+            "between planes. Follow with a deep amber-brown glaze to unify the dark tonal range."
+        ),
+    ),
+
     "georges_de_la_tour": ArtStyle(
         artist="Georges de La Tour",
         movement="French Baroque / Nocturne",

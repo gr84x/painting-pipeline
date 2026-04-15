@@ -205,6 +205,7 @@ class Period(Enum):
     NEOCLASSICAL  = auto()   # Ingres — porcelain-smooth flesh, cool pearl highlights, precise classical line
     NOCTURNE      = auto()   # La Tour — single candle, warm amber radial glow, near-black void, simplified serene forms
     FRENCH_NATURALIST = auto()  # Chardin — granular powdery surface, warm grey palette, soft domestic intimacy
+    SOCIAL_REALIST = auto()    # Courbet — palette knife planes, dark earthy ground, unidealized impasto
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -549,6 +550,11 @@ class Style:
             # Low wet_blend: marks stay distinct, creating the optical granularity.
             # Moderate edge_softness: edges dissolve softly without sfumato haze.
             Period.FRENCH_NATURALIST: dict(stroke_size_face=5, stroke_size_bg=14, wet_blend=0.22, edge_softness=0.65),
+            # Social Realist (Courbet): palette knife deposits flat planes with crisp edges.
+            # Large stroke_size_face — the knife covers broad areas in a single pass.
+            # Very low wet_blend: each plane stays separate, no gradient merging.
+            # Low edge_softness: clean knife-drag boundaries between tonal planes.
+            Period.SOCIAL_REALIST: dict(stroke_size_face=14, stroke_size_bg=35, wet_blend=0.18, edge_softness=0.25),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
