@@ -211,6 +211,7 @@ class Period(Enum):
     FLEMISH_PANORAMIC = auto()        # Bruegel — high-horizon landscape, systematic aerial perspective, earthy palette
     NORDIC_IMPRESSIONIST = auto()     # Zorn — warm Zorn palette, confident calligraphic marks, wet-into-wet portraiture
     IMPRESSIONIST_PLEIN_AIR = auto()  # Morisot — feathery high-key brushwork, colorful violet shadows, luminous atmosphere
+    POST_IMPRESSIONIST = auto()      # Degas — crosshatched pastel over monotype, blue-grey tonality, warm orange lights
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -607,6 +608,15 @@ class Style:
             # edge_softness=0.25: crisp-ish — Morisot's strokes have legible direction and boundary,
             # unlike sfumato; edges are yielding but present.
             Period.IMPRESSIONIST_PLEIN_AIR: dict(stroke_size_face=9, stroke_size_bg=20, wet_blend=0.35, edge_softness=0.25),
+            # Post-Impressionist (Degas): pastel-hatching over a dark monotype base.
+            # stroke_size_face=7: fine directional marks — Degas' pastel hatching was precise
+            # and calligraphic, not broad washes.  stroke_size_bg=18: moderate background marks;
+            # his backgrounds are often dissolved into tonal washes that frame the figure.
+            # wet_blend=0.22: pastel behaves drier than oil — marks sit alongside each other
+            # rather than blending, producing optical colour mixing from a distance.
+            # edge_softness=0.35: edges are softened by pastel layering but never fully lost;
+            # Degas retained structural drawing clarity beneath the colouristic surface.
+            Period.POST_IMPRESSIONIST: dict(stroke_size_face=7, stroke_size_bg=18, wet_blend=0.22, edge_softness=0.35),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

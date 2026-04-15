@@ -3061,3 +3061,143 @@ def test_impressionist_plein_air_edge_softness_lower_than_renaissance():
     sp_ren   = Style(medium=Medium.OIL, period=Period.RENAISSANCE).stroke_params
     assert sp_plein["edge_softness"] < sp_ren["edge_softness"], (
         "IMPRESSIONIST_PLEIN_AIR edge_softness must be lower than RENAISSANCE sfumato")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Degas pastel pass (session 29)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_degas_pastel_pass_exists():
+    """Painter must have degas_pastel_pass() method after session 29."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "degas_pastel_pass"), (
+        "degas_pastel_pass not found on Painter")
+    assert callable(getattr(Painter, "degas_pastel_pass"))
+
+
+def test_degas_pastel_pass_no_error():
+    """degas_pastel_pass() must run without raising on a synthetic canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.38), texture_strength=0.00)
+    p.degas_pastel_pass()  # default parameters — must not raise
+
+
+def test_degas_pastel_pass_modifies_canvas():
+    """degas_pastel_pass() at high opacity must change at least one pixel on a flat canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.38), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil(), dtype=np.int32)
+
+    p.degas_pastel_pass(
+        shadow_strength = 0.50,
+        light_strength  = 0.50,
+        pastel_grain    = 0.10,
+        blend_opacity   = 0.80,
+    )
+
+    after = np.array(p.canvas.to_pil(), dtype=np.int32)
+    assert (after != before).any(), "degas_pastel_pass() should modify canvas pixels"
+
+
+def test_degas_pastel_pass_zero_opacity_no_op():
+    """degas_pastel_pass() at blend_opacity=0 should leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.38), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil(), dtype=np.int32)
+
+    p.degas_pastel_pass(
+        shadow_strength = 0.50,
+        light_strength  = 0.50,
+        pastel_grain    = 0.00,  # also disable grain — both should be zero
+        blend_opacity   = 0.00,
+    )
+
+    after = np.array(p.canvas.to_pil(), dtype=np.int32)
+    assert (after == before).all(), (
+        "degas_pastel_pass(blend_opacity=0, grain=0) should be a no-op")
+
+
+def test_degas_pastel_pass_cools_dark_shadows():
+    """
+    A dark warm canvas should have more blue after degas_pastel_pass —
+    because the shadow zone is shifted toward blue-grey (B > R for shadow_grey).
+    """
+    p = _make_small_painter(64, 64)
+    # Very dark warm canvas — all pixels fall in the shadow zone
+    p.tone_ground((0.22, 0.16, 0.10), texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA layout: channel 0 = B, channel 2 = R
+    before_b = float(before_buf[:, :, 0].mean())
+
+    p.degas_pastel_pass(
+        shadow_grey     = (0.30, 0.30, 0.42),  # strongly blue-shifted
+        shadow_strength = 0.50,
+        pastel_grain    = 0.00,
+        blend_opacity   = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_b = float(after_buf[:, :, 0].mean())
+
+    assert after_b > before_b, (
+        f"Shadow cooldown should increase B channel on a dark warm canvas: "
+        f"before={before_b:.1f}, after={after_b:.1f}")
+
+
+def test_degas_pastel_pass_warms_bright_highlights():
+    """
+    A very bright cool canvas should become warmer (higher R channel) after
+    degas_pastel_pass — because the highlight zone is shifted toward amber-orange.
+    """
+    p = _make_small_painter(64, 64)
+    # Very bright cool canvas — all pixels fall in the highlight zone
+    p.tone_ground((0.80, 0.82, 0.90), texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA layout: channel 2 = R
+    before_r = float(before_buf[:, :, 2].mean())
+
+    p.degas_pastel_pass(
+        light_amber     = (0.88, 0.72, 0.54),  # warm amber-orange target
+        light_threshold = 0.60,                 # lower threshold to catch all pixels
+        light_strength  = 0.50,
+        shadow_strength = 0.00,
+        pastel_grain    = 0.00,
+        blend_opacity   = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r = float(after_buf[:, :, 2].mean())
+
+    assert after_r > before_r, (
+        f"Highlight warmup should increase R channel on a bright cool canvas: "
+        f"before={before_r:.1f}, after={after_r:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST_IMPRESSIONIST period routing (session 29)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_post_impressionist_stroke_params_valid():
+    """POST_IMPRESSIONIST stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.POST_IMPRESSIONIST,
+                  palette=PaletteHint.COOL_GREY)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"POST_IMPRESSIONIST stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_post_impressionist_wet_blend_lower_than_nordic_impressionist():
+    """POST_IMPRESSIONIST wet_blend must be lower than NORDIC_IMPRESSIONIST (dry pastel vs wet oil)."""
+    sp_post  = Style(medium=Medium.OIL, period=Period.POST_IMPRESSIONIST).stroke_params
+    sp_nord  = Style(medium=Medium.OIL, period=Period.NORDIC_IMPRESSIONIST).stroke_params
+    assert sp_post["wet_blend"] < sp_nord["wet_blend"], (
+        "POST_IMPRESSIONIST wet_blend must be lower than NORDIC_IMPRESSIONIST "
+        "(pastel marks sit drier than Zorn's wet-into-wet oil technique)")

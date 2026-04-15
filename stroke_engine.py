@@ -9659,3 +9659,158 @@ class Painter:
         self.canvas.ctx.paint()
 
         print(f"    Morisot plein-air pass complete")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Degas pastel pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def degas_pastel_pass(
+            self,
+            shadow_grey:        Color = (0.30, 0.30, 0.42),  # deep blue-grey shadow target
+            light_amber:        Color = (0.88, 0.72, 0.54),  # warm amber-orange highlight target
+            shadow_threshold:   float = 0.40,                 # lum below = shadow zone
+            light_threshold:    float = 0.68,                 # lum above = light zone
+            shadow_strength:    float = 0.22,                 # shadow cooldown blend weight
+            light_strength:     float = 0.18,                 # highlight warmup blend weight
+            pastel_grain:       float = 0.04,                 # fine-grain pastel surface noise
+            blend_opacity:      float = 0.50,
+    ):
+        """
+        Simulates Edgar Degas' characteristic pastel-over-monotype technique.
+
+        Degas built his pastels on a dark monotype ground — an oil-ink print pulled from
+        a plate, leaving a tonal image with strong dark passages.  Onto that base he
+        applied successive layers of pastel in directional hatching, each layer at a
+        different angle, creating a surface where colours optically mix rather than
+        physically blend.  The result is simultaneously structural (the monotype
+        drawing holds the form) and colouristic (the pastel strokes create vibrating
+        simultaneous contrast).
+
+        This pass models that duality through three simultaneous operations:
+
+        1. **Shadow cooldown** (luminance < ``shadow_threshold``):
+           Dark areas are shifted toward ``shadow_grey`` — a deep blue-grey that
+           replicates the cooled, inky darkness of the monotype ground showing through
+           sparse pastel coverage.  The blend is luminance-weighted: the darkest pixels
+           receive the strongest shift; the transition out of shadow is smooth.
+
+        2. **Highlight warmup** (luminance > ``light_threshold``):
+           Bright areas receive a warm amber-orange bias.  Degas' lit flesh in his ballet
+           pictures is never a clean white but a warm, slightly dusty amber — the warmth
+           of stage gaslight filtered through pale skin and gauze.
+
+        3. **Pastel grain** (applied globally at low weight):
+           A fine per-pixel luminance noise is added to simulate the physical texture of
+           pastel pigment sitting in the tooth of the paper without fully filling it.
+           Unlike photographic film grain (which is additive), pastel grain is
+           bidirectional — some pixels lighten slightly, others darken — giving the
+           surface a characteristic soft granularity rather than a smooth photographic
+           finish.
+
+        Together these three corrections shift any base painting toward Degas' cool-dark,
+        warm-light, grain-surfaced aesthetic without altering the fundamental tonal
+        structure established by ``build_form()``.
+
+        Call AFTER ``build_form()`` and BEFORE ``place_lights()``.  The pass pairs well
+        with ``dry_granulation_pass()`` for additional surface texture depth.
+
+        Parameters
+        ----------
+        shadow_grey       : RGB target for the shadow zone.
+                            Default (0.30, 0.30, 0.42) is a deep indigo-blue-grey.
+                            Shift toward (0.22, 0.22, 0.30) for deeper, denser shadows.
+        light_amber       : RGB target for the highlight zone.
+                            Default (0.88, 0.72, 0.54) is a warm amber-orange.
+                            Shift toward (0.96, 0.80, 0.60) for warmer stage-light effect.
+        shadow_threshold  : Luminance boundary below which shadow cooldown engages.
+                            0.36–0.44 covers deep shadow without touching midtones.
+        light_threshold   : Luminance boundary above which highlight warmup engages.
+                            0.64–0.72 covers highlights without touching midtones.
+        shadow_strength   : Blend weight for the shadow-to-grey shift.
+                            0.18–0.28 gives visible cool shadow without deadening the form.
+        light_strength    : Blend weight for the highlight-to-amber shift.
+                            0.14–0.24 gives warm highlights without over-saturating.
+        pastel_grain      : Amplitude of the bidirectional per-pixel luminance noise.
+                            0.03–0.06 gives Degas' characteristic soft-tooth surface.
+                            0.0 disables grain entirely.
+        blend_opacity     : Global opacity of the entire pass.  0.45–0.60 for a single
+                            confident pass; 0.25–0.35 when stacking multiple calls.
+
+        Notes
+        -----
+        Inspired by: "The Dance Class" (1874), "L'Absinthe" (1876),
+        "Woman Bathing in a Shallow Tub" (1886), "Dancers in Blue" (1890).
+        This session's new artist addition — Degas' pastel-over-monotype approach
+        as a computational painting pass.
+        """
+        import numpy as _np
+
+        print(f"  Degas pastel pass  "
+              f"(shadow={shadow_strength:.2f}  light={light_strength:.2f}  "
+              f"grain={pastel_grain:.3f}  opacity={blend_opacity:.2f})")
+
+        # ── Read current canvas ARGB32 (BGRA byte order in pycairo) ──────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Perceptual luminance ──────────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        # ── Zone 1: Shadow cooldown toward blue-grey ─────────────────────────
+        # Pixels darker than shadow_threshold shift toward shadow_grey.
+        # Blend weight is highest at the darkest pixels and fades smoothly to zero
+        # at the threshold boundary — no hard seam between shadow and midtone.
+        sg_r, sg_g, sg_b = shadow_grey
+        shadow_t = _np.clip(1.0 - lum / (shadow_threshold + 1e-6), 0.0, 1.0)
+        # Smoothstep: prevents hard tonal boundary at the shadow/midtone transition
+        shadow_t = shadow_t * shadow_t * (3.0 - 2.0 * shadow_t)
+        shadow_alpha = shadow_t * shadow_strength * blend_opacity
+
+        new_R = R + (sg_r - R) * shadow_alpha
+        new_G = G + (sg_g - G) * shadow_alpha
+        new_B = B + (sg_b - B) * shadow_alpha
+
+        # ── Zone 2: Highlight warmup toward amber-orange ─────────────────────
+        # Bright pixels (lum > light_threshold) blend toward light_amber.
+        # Quadratic ease — strongest effect at peak luminance, fades toward threshold.
+        la_r, la_g, la_b = light_amber
+        light_t = _np.clip(
+            (lum - light_threshold) / (1.0 - light_threshold + 1e-6),
+            0.0, 1.0,
+        )
+        light_t = light_t * light_t  # quadratic: effect strongest at peak brightness
+        light_alpha = light_t * light_strength * blend_opacity
+
+        new_R = _np.clip(new_R + (la_r - new_R) * light_alpha, 0.0, 1.0)
+        new_G = _np.clip(new_G + (la_g - new_G) * light_alpha, 0.0, 1.0)
+        new_B = _np.clip(new_B + (la_b - new_B) * light_alpha, 0.0, 1.0)
+
+        # ── Zone 3: Pastel grain — bidirectional luminance noise ──────────────
+        # Simulates the physical texture of dry pastel pigment resting in the paper
+        # tooth.  Unlike additive film grain, pastel grain is bidirectional: some
+        # micro-areas receive more pigment (darker), some less (lighter).  The result
+        # is a soft granularity rather than a smooth photographic surface.
+        if pastel_grain > 0.0:
+            rng = _np.random.default_rng(seed=42)  # deterministic for reproducibility
+            grain = rng.uniform(-pastel_grain, pastel_grain,
+                                size=(self.h, self.w)).astype(_np.float32)
+            grain_alpha = blend_opacity * 0.60  # grain is applied at reduced opacity
+            new_R = _np.clip(new_R + grain * grain_alpha, 0.0, 1.0)
+            new_G = _np.clip(new_G + grain * grain_alpha, 0.0, 1.0)
+            new_B = _np.clip(new_B + grain * grain_alpha, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Degas pastel pass complete")

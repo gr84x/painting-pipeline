@@ -34,6 +34,7 @@ EXPECTED_ARTISTS = [
     "bruegel",
     "caravaggio", "caspar_david_friedrich", "cezanne",
     "chardin", "courbet",
+    "degas",
     "delacroix",
     "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
@@ -2764,4 +2765,123 @@ def test_impressionist_plein_air_edge_softness_low():
     sp_sfum  = Style(medium=Medium.OIL, period=Period.RENAISSANCE).stroke_params
     assert sp_plein["edge_softness"] < sp_sfum["edge_softness"], (
         "IMPRESSIONIST_PLEIN_AIR edge_softness should be lower than RENAISSANCE sfumato")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Degas — catalog entry (session 29)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_degas_in_catalog():
+    """degas must be present in CATALOG after session 29."""
+    assert "degas" in CATALOG
+
+
+def test_degas_movement():
+    s = get_style("degas")
+    assert "Impressionism" in s.movement or "Post" in s.movement, (
+        f"degas movement should reference Impressionism or Post-Impressionism; got {s.movement!r}")
+
+
+def test_degas_nationality():
+    s = get_style("degas")
+    assert s.nationality == "French", (
+        f"degas nationality should be 'French'; got {s.nationality!r}")
+
+
+def test_degas_palette_length():
+    s = get_style("degas")
+    assert len(s.palette) >= 5, (
+        f"degas palette should have ≥ 5 colours; got {len(s.palette)}")
+
+
+def test_degas_palette_values_in_range():
+    """All Degas palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("degas")
+    for i, color in enumerate(s.palette):
+        for j, channel in enumerate(color):
+            assert 0.0 <= channel <= 1.0, (
+                f"degas palette[{i}][{j}] = {channel} is outside [0, 1]")
+
+
+def test_degas_ground_is_dark():
+    """Degas' monotype ground should be dark (mean luminance < 0.45)."""
+    s = get_style("degas")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.45, (
+        f"degas ground_color should be dark (lum < 0.45); got lum={lum:.3f}")
+
+
+def test_degas_has_blue_grey_in_palette():
+    """Degas' palette must contain at least one cool blue-grey entry (B > R and B > G)."""
+    s = get_style("degas")
+    cool = [(r, g, b) for r, g, b in s.palette if b > r and b > g]
+    assert cool, "degas palette must contain a cool blue-grey entry (B > R and B > G)"
+
+
+def test_degas_no_crackle():
+    s = get_style("degas")
+    assert not s.crackle, "degas crackle should be False (pastel has no aged-crackle)"
+
+
+def test_degas_no_unifying_glaze():
+    s = get_style("degas")
+    assert s.glazing is None, "degas glazing should be None (pastels are unvarnished)"
+
+
+def test_degas_famous_works_not_empty():
+    s = get_style("degas")
+    assert len(s.famous_works) >= 5, (
+        f"degas famous_works should have ≥ 5 entries; got {len(s.famous_works)}")
+
+
+def test_degas_dance_class_referenced():
+    """The Dance Class must appear in degas famous_works."""
+    s = get_style("degas")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Dance Class" in t for t in titles), (
+        "degas famous_works must include 'The Dance Class'")
+
+
+def test_degas_inspiration_references_pass():
+    s = get_style("degas")
+    assert "degas_pastel_pass()" in s.inspiration, (
+        "degas inspiration must reference degas_pastel_pass()")
+
+
+def test_degas_wet_blend_low():
+    """Degas' wet_blend should be low — pastel hatching is dry, not wet-blended."""
+    s = get_style("degas")
+    assert s.wet_blend <= 0.30, (
+        f"degas wet_blend should be ≤ 0.30 (dry pastel); got {s.wet_blend}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST_IMPRESSIONIST period (scene_schema, session 29)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_post_impressionist_period_exists():
+    """POST_IMPRESSIONIST must exist in the Period enum after session 29."""
+    assert hasattr(Period, "POST_IMPRESSIONIST"), (
+        "Period.POST_IMPRESSIONIST not found — add it to scene_schema.py")
+
+
+def test_post_impressionist_stroke_params_valid():
+    """POST_IMPRESSIONIST stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.POST_IMPRESSIONIST,
+                  palette=PaletteHint.COOL_GREY)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"POST_IMPRESSIONIST stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_post_impressionist_wet_blend_low():
+    """POST_IMPRESSIONIST wet_blend should be low — pastel technique is dry."""
+    sp = Style(medium=Medium.OIL, period=Period.POST_IMPRESSIONIST).stroke_params
+    assert sp["wet_blend"] <= 0.30, (
+        f"POST_IMPRESSIONIST wet_blend should be ≤ 0.30; got {sp['wet_blend']}")
 
