@@ -29,7 +29,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 EXPECTED_ARTISTS = [
     "artemisia_gentileschi",
     "caravaggio", "caspar_david_friedrich", "cezanne",
-    "chardin",
+    "chardin", "courbet",
     "delacroix",
     "egon_schiele",
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
@@ -175,6 +175,7 @@ EXPECTED_PERIODS = [
     "NEOCLASSICAL",
     "NOCTURNE",
     "FRENCH_NATURALIST",
+    "SOCIAL_REALIST",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -2077,5 +2078,127 @@ def test_french_naturalist_moderate_edge_softness():
     p = style.stroke_params
     assert p["edge_softness"] >= 0.50, (
         f"FRENCH_NATURALIST edge_softness should be moderate (≥0.50); "
+        f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Gustave Courbet — new addition: French Realism / palette knife technique
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_courbet_in_catalog():
+    """Courbet must be present in CATALOG."""
+    assert "courbet" in CATALOG
+
+
+def test_courbet_movement():
+    s = get_style("courbet")
+    assert "Reali" in s.movement or "reali" in s.movement.lower()
+
+
+def test_courbet_palette_length():
+    s = get_style("courbet")
+    assert len(s.palette) >= 5, "Courbet palette should have at least 5 key colours"
+
+
+def test_courbet_palette_values_in_range():
+    """All Courbet palette RGB values must be in [0, 1]."""
+    s = get_style("courbet")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Courbet palette {rgb}")
+
+
+def test_courbet_ground_color_dark():
+    """Courbet's ground_color should be dark (all channels < 0.25) — bituminous base."""
+    s = get_style("courbet")
+    for ch in s.ground_color:
+        assert ch < 0.25, (
+            f"Courbet ground_color channel {ch:.3f} should be dark (< 0.25)")
+
+
+def test_courbet_wet_blend_low():
+    """Courbet's palette knife technique leaves flat planes — wet_blend must be low."""
+    s = get_style("courbet")
+    assert s.wet_blend <= 0.30, (
+        f"Courbet wet_blend should be low (flat knife planes); got {s.wet_blend}")
+
+
+def test_courbet_edge_softness_low():
+    """Palette knife leaves crisp edges — edge_softness must be low."""
+    s = get_style("courbet")
+    assert s.edge_softness <= 0.40, (
+        f"Courbet edge_softness should be low (knife hard edges); got {s.edge_softness}")
+
+
+def test_courbet_large_stroke_size():
+    """Courbet's knife covers broad areas — stroke_size should be large (≥ 10)."""
+    s = get_style("courbet")
+    assert s.stroke_size >= 10, (
+        f"Courbet stroke_size should be large (palette knife); got {s.stroke_size}")
+
+
+def test_courbet_famous_works_not_empty():
+    s = get_style("courbet")
+    assert len(s.famous_works) >= 3, "Courbet should have at least 3 famous works"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Stone" in t or "Burial" in t or "Origin" in t or "Studio" in t
+               for t in titles), (
+        "Courbet famous works should include at least one iconic work")
+
+
+def test_courbet_inspiration_references_palette_knife():
+    """Courbet's inspiration text should reference palette_knife_pass."""
+    s = get_style("courbet")
+    assert "palette_knife" in s.inspiration.lower().replace(" ", "_"), (
+        "Courbet inspiration should reference palette_knife_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.SOCIAL_REALIST — Courbet period enum
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_social_realist_period_present():
+    """SOCIAL_REALIST must exist in the Period enum."""
+    assert hasattr(Period, "SOCIAL_REALIST"), "Period.SOCIAL_REALIST not found"
+    assert Period.SOCIAL_REALIST in list(Period)
+
+
+def test_social_realist_stroke_params_all_keys():
+    """SOCIAL_REALIST stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.SOCIAL_REALIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"SOCIAL_REALIST stroke_params missing key: {key!r}"
+
+
+def test_social_realist_large_stroke_face():
+    """SOCIAL_REALIST stroke_size_face should be large (≥ 10) — palette knife planes."""
+    style = Style(medium=Medium.OIL, period=Period.SOCIAL_REALIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] >= 10, (
+        f"SOCIAL_REALIST stroke_size_face should be large (≥10); "
+        f"got {p['stroke_size_face']}")
+
+
+def test_social_realist_low_wet_blend():
+    """SOCIAL_REALIST wet_blend should be low — knife planes don't blend."""
+    style = Style(medium=Medium.OIL, period=Period.SOCIAL_REALIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.30, (
+        f"SOCIAL_REALIST wet_blend should be low; got {p['wet_blend']}")
+
+
+def test_social_realist_low_edge_softness():
+    """SOCIAL_REALIST edge_softness should be low — knife leaves crisp plane boundaries."""
+    style = Style(medium=Medium.OIL, period=Period.SOCIAL_REALIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.40, (
+        f"SOCIAL_REALIST edge_softness should be low (≤0.40); "
         f"got {p['edge_softness']}")
 

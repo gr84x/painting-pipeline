@@ -8333,3 +8333,178 @@ class Painter:
             n_placed += 1
 
         print(f"    Dry granulation complete  (marks_placed={n_placed})")
+
+    def palette_knife_pass(
+            self,
+            palette:        List[Color],
+            n_strokes:      int   = 600,
+            min_length:     float = 18.0,
+            max_length:     float = 60.0,
+            thickness:      float = 8.0,
+            opacity:        float = 0.72,
+            edge_ridge:     float = 0.18,
+            angle_spread:   float = 45.0,
+            value_contrast: float = 0.18,
+            figure_only:    bool  = False,
+            rng_seed:       Optional[int] = None,
+    ):
+        """
+        Palette knife pass — inspired by Gustave Courbet's thick impasto technique.
+
+        Courbet frequently applied paint with flexible steel palette knives rather
+        than brushes, producing a distinctive surface character:
+
+        1. **Flat colour planes** — the knife deposits a uniform layer of paint
+           in a single directional stroke.  Within each stroke the colour is nearly
+           constant (unlike a brush stroke whose opacity tapers at both ends).
+
+        2. **Clean hard edges** — the knife's straight steel edge leaves a crisp
+           boundary along the sides of each stroke, unlike the feathered edge of a
+           bristle brush.  Tonal transitions between planes are abrupt.
+
+        3. **Edge ridges** — paint accumulates in a thin ridge at the terminus and
+           sides of each knife stroke, creating a subtle 3D relief.  This is
+           simulated here by painting a narrow darker-value border around each stroke.
+
+        4. **Directional drag texture** — the knife moves in a single direction,
+           leaving a faint linear grain along the stroke axis.
+
+        This pass operates over the existing canvas state, building the mid-tone and
+        shadow passages characteristic of Courbet's dark-ground realism.  Call it
+        after ``tone_ground()`` and ``underpainting()`` but before ``place_lights()``.
+
+        Implementation
+        --------------
+        For each stroke:
+        1. Choose a random position (within the figure mask if ``figure_only``).
+        2. Sample a colour from ``palette`` and shift its value by ±``value_contrast``
+           (simulating the tonal variation between adjacent knife planes).
+        3. Draw a filled rectangle of size ``length × thickness`` at a random angle
+           drawn uniformly from ±``angle_spread`` degrees.
+        4. Optionally draw a thin darker border (``edge_ridge`` opacity) around the
+           rectangle to simulate the paint ridge.
+
+        Parameters
+        ----------
+        palette        : List of (R,G,B) base colours to sample from.  Use the
+                         artist's ``ArtStyle.palette`` for authentic harmony.
+                         Courbet's palette should be dark earth tones.
+        n_strokes      : Number of knife strokes.  400–800 for a full 780×1080
+                         canvas gives the characteristic Courbet plane density.
+        min_length     : Minimum stroke length in pixels.
+        max_length     : Maximum stroke length in pixels.
+        thickness      : Knife width in pixels (height of the stroke rectangle).
+        opacity        : Fill opacity of each stroke.  0.65–0.80 keeps underlying
+                         ground visible in the gaps between strokes.
+        edge_ridge     : Opacity of the edge-ridge border.  0.10–0.25 gives a
+                         subtle physical relief suggestion without overdoing it.
+        angle_spread   : ±degrees from horizontal for stroke direction.  45° gives
+                         the varied-but-mostly-horizontal feel of Courbet's large
+                         outdoor compositions.
+        value_contrast : ±value shift applied to each stroke's base colour in HSV.
+                         0.12–0.22 creates the tonal plane separation that defines
+                         Courbet's form-building without palette-knife flatness.
+        figure_only    : If True, restrict strokes to the figure mask region.
+        rng_seed       : Optional seed for reproducibility.
+        """
+        print(f"  Palette knife pass  "
+              f"(strokes={n_strokes}  thickness={thickness:.1f}  "
+              f"opacity={opacity:.2f}  figure_only={figure_only})")
+
+        import colorsys as _cs
+        import numpy as _np
+
+        rng = random.Random(rng_seed)
+        h, w = self.h, self.w
+
+        # ── Build candidate pixel pool ────────────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            from PIL import Image as _PILImg
+            fm = self._figure_mask
+            if fm.shape != (h, w):
+                fm = _np.array(
+                    _PILImg.fromarray((fm * 255).astype(_np.uint8)).resize(
+                        (w, h), _PILImg.BILINEAR)) / 255.0
+            ys, xs = _np.where(fm > 0.15)
+        else:
+            ys, xs = _np.mgrid[0:h:1, 0:w:1]
+            ys = ys.ravel()
+            xs = xs.ravel()
+
+        n_candidates = len(ys)
+        if n_candidates == 0:
+            print("    No active pixels — skipping palette knife pass")
+            return
+
+        half_t = thickness / 2.0
+        n_placed = 0
+
+        for _ in range(n_strokes):
+            # Random anchor position
+            idx = rng.randint(0, n_candidates - 1)
+            cy = int(ys[idx])
+            cx = int(xs[idx])
+
+            # Stroke geometry: length and angle
+            length = rng.uniform(min_length, max_length)
+            angle_deg = rng.uniform(-angle_spread, angle_spread)
+            angle_r = math.radians(angle_deg)
+            cos_a = math.cos(angle_r)
+            sin_a = math.sin(angle_r)
+
+            half_l = length / 2.0
+
+            # Sample and perturb colour (value shift for tonal plane separation)
+            base = rng.choice(palette)
+            bh, bs, bv = _cs.rgb_to_hsv(*base)
+            bv = max(0.0, min(1.0, bv + rng.uniform(-value_contrast, value_contrast)))
+            cr, cg, cb = _cs.hsv_to_rgb(bh, bs, bv)
+
+            # ── Draw filled knife stroke (rotated rectangle) ──────────────────
+            # Scan bounding box of the rotated rectangle
+            corners_l = [-half_l, half_l, half_l, -half_l]
+            corners_t = [-half_t, -half_t, half_t, half_t]
+            px_corners = [cx + cl * cos_a - ct * sin_a for cl, ct in zip(corners_l, corners_t)]
+            py_corners = [cy + cl * sin_a + ct * cos_a for cl, ct in zip(corners_l, corners_t)]
+
+            bx0 = max(0, int(min(px_corners)) - 1)
+            bx1 = min(w - 1, int(max(px_corners)) + 2)
+            by0 = max(0, int(min(py_corners)) - 1)
+            by1 = min(h - 1, int(max(py_corners)) + 2)
+
+            self.canvas.ctx.set_source_rgba(cr, cg, cb, opacity)
+            for py in range(by0, by1 + 1):
+                for px in range(bx0, bx1 + 1):
+                    # Transform to stroke-local coordinates (inverse rotate)
+                    dx = px - cx
+                    dy = py - cy
+                    local_l =  dx * cos_a + dy * sin_a
+                    local_t = -dx * sin_a + dy * cos_a
+                    if abs(local_l) <= half_l and abs(local_t) <= half_t:
+                        self.canvas.ctx.rectangle(px, py, 1, 1)
+            self.canvas.ctx.fill()
+
+            # ── Edge ridge: thin darker border around the knife stroke ────────
+            if edge_ridge > 0.0:
+                ridge_r = max(0.0, cr - 0.15)
+                ridge_g = max(0.0, cg - 0.15)
+                ridge_b = max(0.0, cb - 0.15)
+                self.canvas.ctx.set_source_rgba(ridge_r, ridge_g, ridge_b, edge_ridge)
+                ridge_margin = 1.5
+                for py in range(by0, by1 + 1):
+                    for px in range(bx0, bx1 + 1):
+                        dx = px - cx
+                        dy = py - cy
+                        local_l =  dx * cos_a + dy * sin_a
+                        local_t = -dx * sin_a + dy * cos_a
+                        in_outer = (abs(local_l) <= half_l + ridge_margin and
+                                    abs(local_t) <= half_t + ridge_margin)
+                        in_inner = (abs(local_l) <= half_l - 0.5 and
+                                    abs(local_t) <= half_t - 0.5)
+                        if in_outer and not in_inner:
+                            self.canvas.ctx.rectangle(px, py, 1, 1)
+                self.canvas.ctx.fill()
+
+            n_placed += 1
+
+        print(f"    Palette knife complete  (strokes_placed={n_placed})")
