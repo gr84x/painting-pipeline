@@ -17,6 +17,13 @@ import sys
 import textwrap
 from pathlib import Path
 
+try:
+    from sd_bridge import SDRefGenerator, sd_refine_reference
+    from aesthetic_scorer import AestheticScorer, AestheticFeedbackLoop
+    _PIPELINE_EXTRAS_AVAILABLE = True
+except ImportError:
+    _PIPELINE_EXTRAS_AVAILABLE = False
+
 # Adjust if Blender is installed elsewhere
 BLENDER_PATHS = [
     r"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe",
@@ -438,7 +445,16 @@ def _project_to_image(world_pt, cam_pos, cam_target, fov_deg, W, H):
     return max(0, min(W-1, u)), max(0, min(H-1, v))
 
 
-def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
+def scene_to_painting(
+    scene,
+    output_path: str,
+    verbose: bool = False,
+    use_sd: bool = False,
+    sd_strength: float = 0.30,
+    sd_seed: int = None,
+    use_aesthetic_scorer: bool = False,
+    aesthetic_target: float = 7.0,
+) -> str:
     """
     Full pipeline: Scene → Blender render → stroke engine → painting PNG.
     Returns path to the final painting.
@@ -461,6 +477,19 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     sp = scene.style.stroke_params
     ref = Image.open(ref_path).convert("RGB")
     W, H = ref.size
+
+    # Optional SD reference refinement — runs before any stroke pass.
+    # Converts ref to numpy, refines aesthetically via img2img at low strength,
+    # then converts back to PIL so all downstream passes remain unchanged.
+    if use_sd and _PIPELINE_EXTRAS_AVAILABLE:
+        import numpy as _np
+        _sd = SDRefGenerator()
+        _prompt, _neg = _sd.build_prompt(scene)
+        ref = _sd.refine(_np.array(ref), _prompt, _neg,
+                         strength=sd_strength,
+                         seed=sd_seed)
+        ref = Image.fromarray(ref)
+        print(f"  SD refinement applied (strength={sd_strength})")
 
     p = Painter(W, H)
 
@@ -490,6 +519,20 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     else:
         if verbose:
             print("  [warn] No figure mask found — painting without region separation")
+
+    # Optional aesthetic feedback loop — scores the canvas after key passes and
+    # applies remediation glazes when quality drifts below baseline.
+    if use_aesthetic_scorer and _PIPELINE_EXTRAS_AVAILABLE:
+        import numpy as _np
+        _scorer = AestheticScorer()
+        _feedback = AestheticFeedbackLoop(
+            _scorer,
+            baseline_score=_scorer.score(_np.array(ref)),
+            target_score=aesthetic_target,
+        )
+    else:
+        _scorer = None
+        _feedback = None
 
     is_pointillist       = (scene.style.period == Period.POINTILLIST)
     is_ukiyo_e           = (scene.style.period == Period.UKIYO_E)
@@ -533,6 +576,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # A single coarse block-in to establish figure masses before the void pass.
         p.block_in(ref, stroke_size=int(sp["stroke_size_bg"]), n_strokes=120)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "block_in")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Dark void pass: voids background, adds crude figure strokes, void encroachment
         p.dark_void_pass(
             ref,
@@ -544,6 +593,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             accent_prob   = 0.07,
             void_depth    = 0.75,
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "dark_void_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # A single final very dark glaze — Goya's world is never quite black,
         # it is a dark warm amber-brown at the deepest shadows.
@@ -557,6 +614,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Heavy vignette crushes edges further into void; no crackle — plaster not canvas.
         p.finish(vignette=0.75, crackle=False)
 
@@ -591,6 +650,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.5), n_strokes=140)
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=260)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "block_in")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Rothko technique: luminous horizontal bands with optical depth
         p.color_field_pass(
             ref,
@@ -602,6 +667,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             chromatic_vibration  = 0.04,
             band_hue_drift       = 0.016,
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "color_field_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # Place lights last — in Rothko's paintings the brightest zone emerges
         # from the upper band where it catches the studio's skylight.
@@ -617,6 +690,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Very gentle vignette: the absorbing dark ground already edges the canvas.
         p.finish(vignette=0.22, crackle=False)
 
@@ -646,6 +721,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             bloom_prob       = 0.22,
         )
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "watercolor_wash_pass")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Pigment granulation pass — physically-based paper-tooth modulation.
         # Certain watercolour pigments (ultramarine, burnt sienna, cobalt) have
         # large particles that settle into paper hollows as the wash dries,
@@ -659,6 +740,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             tex_mean  = 0.84,   # midpoint of cold-press texture [0.68, 1.0]
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "pigment_granulation_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # No oil glaze or crackle — watercolours don't varnish.
         # Edge lost-and-found: soft focal emphasis appropriate to watercolour.
         p.edge_lost_and_found_pass(
@@ -669,6 +758,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Light vignette only to frame the paper edges.
         p.finish(vignette=0.18, crackle=False)
 
@@ -693,6 +784,18 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             ink_color         = (0.06, 0.04, 0.10),
         )
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "woodblock_pass")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+            _feedback.checkpoint(p, "woodblock_pass_final")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # No glaze — ukiyo-e pigment is transparent watercolour; the cream
         # paper reads through flat colour areas.
         # Edge lost-and-found: crisp contour lines are already the focal technique;
@@ -705,6 +808,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Very gentle vignette only; no crackle (prints don't age like oil varnish).
         p.finish(vignette=0.12, crackle=False)
 
@@ -732,6 +837,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # Light composition pass to establish masses before flat planes
         p.block_in(ref, stroke_size=int(sp["stroke_size_bg"]), n_strokes=180)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "block_in")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Manet technique: flat tonal planes + dark boundary strokes
         p.flat_plane_pass(
             ref,
@@ -745,6 +856,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             black_color       = (0.06, 0.05, 0.06),
             wet_blend         = sp["wet_blend"],
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "flat_plane_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # Impasto light placement — Manet's highest highlights are loaded and direct
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=350)
@@ -761,6 +880,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Moderate vignette; no crackle (modern technique)
         p.finish(vignette=0.35, crackle=False)
 
@@ -796,6 +917,18 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             accent_prob        = 0.06,
         )
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "angular_contour_pass")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+            _feedback.checkpoint(p, "angular_contour_pass_final")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # No glaze, no crackle — Schiele's works on paper do not have oil varnish.
         # Edge lost-and-found: the angular contour pass already sharpens edges;
         # apply a gentle focal pass to pull attention toward the face.
@@ -807,6 +940,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Very light vignette to evoke the feel of a paper sheet edge.
         p.finish(vignette=0.12, crackle=False)
 
@@ -839,6 +974,13 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.5), n_strokes=160)
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=300)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=700)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         p.place_lights(ref, stroke_size=sp["stroke_size_face"],             n_strokes=450)
 
         # Core El Greco technique: elongation + jewel boost + inner glow
@@ -852,6 +994,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             inner_glow_opacity = 0.20,        # subtle — it is an inner quality, not a halo
             glow_color         = (0.88, 0.86, 0.78),   # silver-grey warm
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "elongation_distortion_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # Soft sfumato veil over edge zones — El Greco's Venetian training
         # kept gentle sfumato on face edges even in his most extreme late work.
@@ -877,6 +1027,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Moderate crackle — 16th-century Spanish oil on canvas
         p.finish(vignette=0.55, crackle=True)
 
@@ -914,6 +1066,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=250)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=500)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Kahlo/retablo technique: flat zones + saturation boost +
         # boundary vibration + dark contour lines
         p.folk_retablo_pass(
@@ -927,6 +1085,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             vibration_width    = 1.8,
             vibration_opacity  = 0.28,
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "folk_retablo_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # Impasto texture pass — visible loaded-brush ridges in foliage/drapery
         p.impasto_texture_pass(
@@ -948,6 +1114,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # No crackle — Masonite/metal panel; light vignette to frame the picture
         p.finish(vignette=0.25, crackle=False)
 
@@ -984,6 +1152,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=240)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=380)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Kandinsky technique: geometric resonance overlay
         # Kandinsky's Bauhaus phase (1922–1933) used precise, controlled geometry;
         # his lyrical phase used organic swirling forms.  The pass unifies both
@@ -999,6 +1173,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             line_thickness = max(1.5, float(sp["stroke_size_face"]) * 0.18),
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "geometric_resonance_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # No glaze — Kandinsky's colour is direct and unmediated by varnish.
         # Edge lost-and-found: within an abstract composition the focal point
         # anchors the eye in the resonant geometric field.
@@ -1010,6 +1192,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Very light vignette only; no crackle.
         p.finish(vignette=0.15, crackle=False)
 
@@ -1037,6 +1221,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=360)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=700)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Venetian technique: warm shadow glazing + gestural mid-tones
         # + loaded impasto highlights
         p.venetian_glaze_pass(
@@ -1059,6 +1249,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             edge_falloff  = 0.60,
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "venetian_glaze_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # Warm Venetian red-amber unifying glaze
         p.glaze((0.72, 0.38, 0.18), opacity=0.07)
         # Edge lost-and-found: Titian's warm glazes soften edges naturally;
@@ -1071,6 +1269,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Strong vignette (Titian often used dark edges), aged crackle appropriate
         p.finish(vignette=0.50, crackle=True)
 
@@ -1108,6 +1308,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # before the flat colour zones take over
         p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.8), n_strokes=90)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "underpainting")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Matisse technique: hue liberation + flat zones + coloured contours
         p.fauvist_mosaic_pass(
             ref,
@@ -1130,6 +1336,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             shadow_thresh   = 0.24,
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "fauvist_mosaic_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # No glaze — Matisse's colour is direct and final, not mediated by varnish.
         # Edge lost-and-found: Fauvist coloured outlines are crisp; a gentle
         # focal pass sharpens the face centre without reintroducing tonal modelling.
@@ -1141,6 +1355,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Very light vignette; no crackle (modern canvas).
         p.finish(vignette=0.12, crackle=False)
 
@@ -1183,6 +1399,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=240)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=350)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Modigliani technique: mask face, elongate neck, draw oval contour
         p.oval_mask_pass(
             ref,
@@ -1203,6 +1425,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             blur_sigma  = 1.8,
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "oval_mask_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # No formal glaze — Modigliani's colour is direct and final.
         # Edge lost-and-found: the oval mask pass creates strong silhouette edges;
         # focal pass reinforces the face centre against the flat background.
@@ -1214,6 +1444,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Light vignette; no crackle (early 20th century, no extreme ageing yet).
         p.finish(vignette=0.20, crackle=False)
 
@@ -1258,6 +1490,13 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.8), n_strokes=180)
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=340)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=820)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         p.place_lights(ref, stroke_size=sp["stroke_size_face"],             n_strokes=550)
 
         # Core van Eyck technique: transparent oil glaze layers on white gesso
@@ -1284,6 +1523,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             figure_only   = True,
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "glazed_panel_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # Warm amber final varnish glaze — linseed + walnut oil yellow naturally
         # over time; even fresh van Eyck panels had a warm amber tonality
         van_eyck_glaze = van_eyck_style.glazing if van_eyck_style else (0.75, 0.58, 0.28)
@@ -1299,6 +1546,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Moderate vignette; crackle=True — 15th-century oak panel craquelure
         p.finish(vignette=0.35, crackle=True)
 
@@ -1332,6 +1581,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # before the flat colour zones take over completely
         p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.6), n_strokes=100)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "underpainting")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Gauguin technique: flat colour zones + cloisonné leading
         p.cloisonne_pass(
             ref,
@@ -1345,6 +1600,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             n_zone_strokes    = int(W * H / 520),      # scale with canvas size
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "cloisonne_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # No glaze (raw colour is the work), no crackle.
         # Edge lost-and-found: cloisonné thick outlines already define zones;
         # focal pass adds directional hierarchy without softening the leading.
@@ -1356,6 +1619,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Very light vignette to frame the canvas edge — Gauguin's pictures
         # are often edge-to-edge with colour, so keep this gentle.
         p.finish(vignette=0.20, crackle=False)
@@ -1394,6 +1659,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=300)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.55),  n_strokes=650)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Delacroix chromatic shadow pass: each shadow pixel drifts toward the
         # spectral complement of its local colour.  Warm shadow pixels → cooler;
         # cool shadow pixels → warmer.  Luminance is strictly preserved so the
@@ -1405,6 +1676,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             lum_preserve     = True,
             figure_only      = False,  # coloured shadows in background too
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "chromatic_shadow_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # Impasto light placement — Baroque painters put their brightest, most
         # loaded strokes on a very dark ground for maximum contrast.
@@ -1423,6 +1702,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Strong vignette (Baroque painters often darkened canvas edges);
         # crackle=True for authentic old-master ageing.
         p.finish(vignette=0.55, crackle=True)
@@ -1435,6 +1716,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
 
         # Light value underpainting to establish composition before dots are placed.
         p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 2.0), n_strokes=80)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "underpainting")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
 
         # Primary divisionist pass — fine dots with chromatic complement pairs.
         p.pointillist_pass(
@@ -1456,6 +1743,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             split_radius    = 2.0,
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "pointillist_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # Impasto highlight dots last — just as in conventional oil painting.
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=300)
         # No amber glaze — Seurat worked on fresh bright canvas.
@@ -1469,6 +1764,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Gentle vignette only; no aged crackle.
         p.finish(vignette=0.30, crackle=False)
 
@@ -1511,6 +1808,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=280)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=550)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core de Lempicka technique: smooth tonal facets + metallic boundary sheen
         p.art_deco_facet_pass(
             ref,
@@ -1537,6 +1840,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             figure_only     = True,
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "art_deco_facet_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # Bright impasto highlights placed last — de Lempicka's specular peaks
         # are clean cool-white, never warm (the metallic surface reflects cool sky)
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=320)
@@ -1552,6 +1863,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Very light vignette; no crackle (1920s–1940s modern canvas).
         p.finish(vignette=0.22, crackle=False)
 
@@ -1596,6 +1909,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=280)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.52),  n_strokes=700)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Reflected light pass: enrich shadow passages with classical warm/cool
         # bounce — warm amber from the ground plane below, cool blue from sky above.
         # Applied before radiance_bloom so the bloom can spread over enriched shadows.
@@ -1622,6 +1941,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             figure_only   = True,
         )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "radiance_bloom_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         # Light placement — Raphael's highlights are warm ivory, not harsh white.
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=480)
 
@@ -1639,6 +1966,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Moderate vignette — classical framing; crackle for old-master patina.
         p.finish(vignette=0.42, crackle=True)
 
@@ -1673,6 +2002,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=260)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.50),  n_strokes=650)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Luminous fabric pass: enhance white cloth, deepen void, sharpen edge.
         p.luminous_fabric_pass(
             ref,
@@ -1683,6 +2018,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             found_edge_strength  = 0.65,
             figure_only          = False,
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "luminous_fabric_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # Edge lost-and-found pass: crisp face/fabric edges, soft peripheral edges.
         # focal_xy derived from the figure mask so it tracks the actual head position.
@@ -1700,6 +2043,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
 
         # No warm glaze — the monastic severity of Zurbarán requires no unifying
         # amber tint.  The cold void ground is the dominant tone.
+        if _feedback is not None:
+            print(_feedback.summary())
         # Heavy vignette: periphery is crushed further toward absolute darkness.
         p.finish(vignette=0.65, crackle=True)
 
@@ -1736,6 +2081,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=320)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_face"] * 1.4), n_strokes=520)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         # Core Ingres technique: porcelain-smooth flesh surface.
         p.porcelain_skin_pass(
             smooth_strength  = 0.60,
@@ -1754,6 +2105,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             highlight_compress = 0.96,
             midtone_contrast   = 0.06,
         )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "porcelain_skin_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
 
         # Precise specular highlighting on forehead, satin, collar.
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=360)
@@ -1774,6 +2133,8 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         # Moderate vignette; aged crackle finish.
         p.finish(vignette=0.30, crackle=True)
 
@@ -1783,6 +2144,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.4), n_strokes=180)
         p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=320)
         p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.5),   n_strokes=800)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
 
         # Face-focused passes: project the face center through the camera to get
         # the correct pixel position for each scene configuration.
@@ -1844,6 +2211,12 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
                            n_strokes=500,  opacity=0.84, wet_blend=sp["wet_blend"]*0.6,
                            form_angles=face_flow)
 
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "focused_pass")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97, midtone_contrast=0.04)
+
         p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=500)
 
         # ── Sfumato veil pass for Leonardo-style Renaissance rendering ────────
@@ -1879,6 +2252,14 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
                 haze_opacity = 0.10,
             )
 
+        if _feedback is not None:
+            _feedback.checkpoint(p, "special_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.55, 0.50, 0.38), opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98, midtone_contrast=0.03)
+
         p.glaze((0.60, 0.42, 0.14), opacity=0.07)
         # Edge lost-and-found: standard pipeline covers Renaissance, Romantic, and
         # other periods — focal pass provides consistent compositional hierarchy.
@@ -1890,8 +2271,20 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
             strength        = 0.30,
             figure_only     = False,
         )
+        if _feedback is not None:
+            print(_feedback.summary())
         p.finish(vignette=0.50, crackle=True)
 
     p.save(output_path)
 
     return output_path
+
+
+def scene_to_painting_sd(scene, output_path, strength: float = 0.30, seed: int = None, **kwargs):
+    """Convenience wrapper: runs the full pipeline with SD refinement + aesthetic scoring enabled."""
+    return scene_to_painting(
+        scene, output_path,
+        use_sd=True, sd_strength=strength, sd_seed=seed,
+        use_aesthetic_scorer=True,
+        **kwargs,
+    )
