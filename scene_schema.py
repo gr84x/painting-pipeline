@@ -214,6 +214,7 @@ class Period(Enum):
     IMPRESSIONIST_PLEIN_AIR = auto()  # Morisot — feathery high-key brushwork, colorful violet shadows, luminous atmosphere
     POST_IMPRESSIONIST = auto()      # Degas — crosshatched pastel over monotype, blue-grey tonality, warm orange lights
     PRE_RAPHAELITE = auto()          # Waterhouse — jewel palette, wet white ground luminosity, fine Pre-Raphaelite detail
+    SYMBOLIST     = auto()           # Moreau — encrusted gold highlights, Byzantine mosaic texture, deep crimson shadow richness
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -639,6 +640,18 @@ class Style:
             # edge_softness=0.28: edges are present and legible — Pre-Raphaelite precision —
             # but yielding at the focal periphery through the scumbling technique.
             Period.PRE_RAPHAELITE: dict(stroke_size_face=5, stroke_size_bg=16, wet_blend=0.30, edge_softness=0.28),
+            # Symbolist (Moreau): Moreau built up his surfaces with extremely fine, patient
+            # touches — many small strokes encrusting the canvas surface like jewels set in
+            # a reliquary.  stroke_size_face=4: the smallest marks, because his mythological
+            # figures are painted with near-miniaturist precision in faces and drapery.
+            # stroke_size_bg=20: architectural and landscape backgrounds receive richer,
+            # more gestural treatment — looming mythological architecture, dark abyssal spaces.
+            # wet_blend=0.25: moderate blending, but Moreau preserved the identity of each
+            # touch; paint does not fully melt together, it stacks and accumulates.
+            # edge_softness=0.20: edges are relatively crisp and linear — Moreau was a
+            # draughtsman first, and his forms have clear sculptural definition even through
+            # the richness of surface.
+            Period.SYMBOLIST:     dict(stroke_size_face=4,  stroke_size_bg=20, wet_blend=0.25, edge_softness=0.20),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

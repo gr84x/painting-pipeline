@@ -2751,6 +2751,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Gustave Moreau ────────────────────────────────────────────────────────
+    # French Symbolist painter (1826–1898).  Moreau is the founder of the
+    # Symbolist movement in painting, and his mythological canvases are unlike
+    # anything else in Western art: dense, jewelled surfaces that accumulate
+    # layer upon layer of small, patient brushstrokes until the canvas resembles
+    # a Byzantine reliquary rather than an oil painting.  His work bridges the
+    # academic tradition (he was trained at the École des Beaux-Arts) with a
+    # visionary personal mythology drawn from Greek legend, the Bible, and his
+    # own obsessive interior world.  He was the teacher of Matisse, Rouault,
+    # and Marquet, and his studio-turned-museum (the Musée Gustave Moreau in
+    # Paris) preserves thousands of works in his characteristic layered style.
+    #
+    # Palette signature: deep crimson, burnished gold, emerald green, sapphire
+    # blue, warm umber flesh — the palette of enamel and precious stone rather
+    # than paint.  His grounds are dark warm umber-crimson, allowing the deep
+    # base colour to glow through thin passages of glaze and giving his shadows
+    # an internal fire absent from academic contemporaries.
+    "gustave_moreau": ArtStyle(
+        artist     = "Gustave Moreau",
+        movement   = "Symbolism / Academic Idealism",
+        nationality= "French",
+        period     = "1826–1898",
+        palette    = [
+            (0.62, 0.14, 0.08),   # deep crimson — Moreau's defining shadow/accent hue
+            (0.82, 0.62, 0.08),   # burnished gold — encrusted highlight fragments
+            (0.10, 0.34, 0.28),   # deep emerald green — jewelled drapery and water
+            (0.12, 0.22, 0.52),   # sapphire blue — mythological sky and water shadow
+            (0.72, 0.52, 0.32),   # warm umber flesh — figure midtone
+            (0.88, 0.74, 0.42),   # pale gold — upper highlight register
+            (0.14, 0.08, 0.06),   # near-black umber — deep void background
+        ],
+        ground_color  = (0.18, 0.08, 0.05),   # dark warm crimson-umber ground
+        stroke_size   = 4,                      # very fine — miniaturist precision
+        wet_blend     = 0.25,                   # moderate: strokes stack, don't dissolve
+        edge_softness = 0.20,                   # relatively crisp — draughtsman's precision
+        jitter        = 0.04,                   # low jitter — controlled, patient marks
+        glazing       = (0.62, 0.28, 0.10),    # deep warm crimson glaze — his warm unifier
+        crackle       = True,                   # museum-aged large canvases crack prominently
+        chromatic_split = False,                # no optical mixing — glazed accumulation
+        technique=(
+            "Moreau built his mythological paintings through obsessive accumulation: "
+            "thousands of tiny, patient marks laid over a dark warm crimson-umber ground "
+            "until the surface achieves the density and texture of encrusted enamel or "
+            "Byzantine mosaic.  His technique fuses academic draughtsmanship (he drew "
+            "incessantly — the Musée Moreau holds over ten thousand drawings) with a "
+            "colourist approach drawn from Delacroix and the Venetian masters.  The dark "
+            "warm ground is never fully covered: it glows through passages of thin glaze "
+            "and becomes the shadow colour, giving his interiors a deep ruby warmth that "
+            "academic contemporaries could not achieve with opaque darks.  Gold is "
+            "literally scattered across his surfaces — tiny touches of yellow-gold paint "
+            "applied as encrusted fragments, simulating the effect of gold leaf in "
+            "medieval manuscript illumination.  His palette is the palette of precious "
+            "stone: crimson, sapphire, emerald, burnished gold — never the pastel tints "
+            "of the Impressionists.  Backgrounds dissolve into near-black mythological "
+            "void from which architectural or natural details emerge like visions.  His "
+            "great paintings include Salome Dancing Before Herod (1876), The Apparition "
+            "(1876), Jupiter and Semele (1895), and Galatea (1880)."
+        ),
+        famous_works=[
+            ("Salome Dancing Before Herod",      "1876"),
+            ("The Apparition",                   "1876"),
+            ("Jupiter and Semele",               "1895"),
+            ("Galatea",                          "1880"),
+            ("Oedipus and the Sphinx",           "1864"),
+            ("The Unicorns",                     "1885"),
+            ("Hercules and the Lernaean Hydra",  "1876"),
+        ],
+        inspiration=(
+            "Use moreau_gilded_pass() as the primary surface technique: scatter "
+            "burnished gold fragments across upper-midtone and highlight zones, "
+            "and enrich deep shadows with a warm crimson glow that prevents "
+            "the darks from reading as dead black.  "
+            "tone_ground() with dark crimson-umber (0.18, 0.08, 0.05) — the warm "
+            "underpinning that glows through all thin passages.  "
+            "underpainting() and block_in() with moderate-to-fine marks.  "
+            "venetian_glaze_pass() with warm amber-crimson (0.78, 0.38, 0.12) "
+            "to unify the dark ground with the midtone passage.  "
+            "moreau_gilded_pass() to apply stochastic gold-point fragments — "
+            "the defining Moreau surface quality.  "
+            "dark_void_pass() on background only to dissolve into mythological abyss.  "
+            "place_lights() with warm amber-gold highlights (0.88, 0.74, 0.42).  "
+            "Final glaze (0.62, 0.28, 0.10) crimson — his characteristic warm unifier.  "
+            "Heavy crackle vignette — Moreau's large canvases are heavily museum-aged."
+        ),
+    ),
+
 }
 
 

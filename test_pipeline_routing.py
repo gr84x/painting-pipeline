@@ -184,6 +184,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_impressionist_plein_air": period == Period.IMPRESSIONIST_PLEIN_AIR,
         "is_post_impressionist":      period == Period.POST_IMPRESSIONIST,
         "is_pre_raphaelite":          period == Period.PRE_RAPHAELITE,
+        "is_symbolist":               period == Period.SYMBOLIST,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -3581,6 +3582,170 @@ def test_pre_raphaelite_stroke_params_valid():
     sp = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in sp, f"PRE_RAPHAELITE stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# moreau_gilded_pass — session 32 addition (random artistic improvement)
+# ──────────────────────────────────────────────────────────────────────────────
+# This session's random artistic improvement: stochastic gold-point scattering.
+# Unlike all prior passes (which modify pixels deterministically by luminance
+# band or via convolution), moreau_gilded_pass uses random pixel sampling to
+# place individual gold-tinted "fragments" across the canvas — simulating
+# Moreau's encrusted Byzantine-mosaic surface technique.
+
+def test_moreau_gilded_pass_exists():
+    """Painter must have moreau_gilded_pass() method after session 32."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "moreau_gilded_pass"), (
+        "moreau_gilded_pass not found on Painter")
+    assert callable(getattr(Painter, "moreau_gilded_pass"))
+
+
+def test_moreau_gilded_pass_no_error():
+    """moreau_gilded_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.18, 0.08, 0.05), texture_strength=0.0)
+    p.moreau_gilded_pass()
+
+
+def test_moreau_gilded_pass_modifies_canvas():
+    """moreau_gilded_pass() with non-zero parameters must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    # Mid-tone canvas — pixels fall within gold scattering range
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.0)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    p.moreau_gilded_pass(
+        gold_density   = 0.30,   # very high density so modification is detectable
+        blend_opacity  = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert not np.array_equal(before_buf, after_buf), (
+        "moreau_gilded_pass with high gold_density should modify the canvas")
+
+
+def test_moreau_gilded_pass_zero_opacity_minimal_change():
+    """moreau_gilded_pass with blend_opacity=0.0 should leave the canvas nearly unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.0)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    p.moreau_gilded_pass(blend_opacity=0.0)
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    # With opacity=0 all three zones collapse to no-op (gold scatter alpha=0,
+    # shadow_alpha=0, atm_strength=0), so the canvas should be unchanged.
+    assert np.array_equal(before_buf, after_buf), (
+        "moreau_gilded_pass with blend_opacity=0.0 should leave the canvas unchanged")
+
+
+def test_moreau_gilded_pass_warms_shadows():
+    """
+    moreau_gilded_pass shadow enrichment should shift deep-shadow pixels
+    toward warm crimson (raise R channel relative to B).
+    """
+    p = _make_small_painter(64, 64)
+    # Very dark cool canvas — all pixels fall in the shadow zone
+    p.tone_ground((0.08, 0.10, 0.14), texture_strength=0.0)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA: channel 2 = R, channel 0 = B
+    before_r_minus_b = float(
+        (before_buf[:, :, 2].astype(float) - before_buf[:, :, 0].astype(float)).mean())
+
+    p.moreau_gilded_pass(
+        gold_density       = 0.0,      # disable gold scatter — test shadow only
+        crimson_shadow     = 0.50,     # strong crimson push
+        shadow_threshold   = 0.50,     # high threshold to catch these dark pixels
+        blend_opacity      = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r_minus_b = float(
+        (after_buf[:, :, 2].astype(float) - after_buf[:, :, 0].astype(float)).mean())
+
+    assert after_r_minus_b > before_r_minus_b, (
+        f"moreau_gilded_pass shadow enrichment should raise R relative to B on a cool-dark "
+        f"canvas: before R-B={before_r_minus_b:.2f}, after R-B={after_r_minus_b:.2f}")
+
+
+def test_moreau_gilded_pass_gold_raises_r_channel():
+    """
+    On a mid-tone canvas, moreau_gilded_pass gold scattering with a warm gold_tint
+    should raise the mean R channel value (gold is R > G > B).
+    """
+    p = _make_small_painter(64, 64)
+    # Neutral mid-grey — luminance ~0.50, within the gold window
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    before_r = float(before_buf[:, :, 2].mean())   # Cairo BGRA: channel 2 = R
+
+    p.moreau_gilded_pass(
+        gold_density   = 0.50,          # 50% of pixels get gold touch
+        gold_low       = 0.40,
+        gold_high      = 0.70,
+        gold_tint      = (0.92, 0.76, 0.22),
+        crimson_shadow = 0.0,           # disable shadow enrichment
+        blend_opacity  = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r = float(after_buf[:, :, 2].mean())
+
+    assert after_r > before_r, (
+        f"moreau_gilded_pass gold scattering with warm gold_tint should raise mean R; "
+        f"before={before_r:.1f}, after={after_r:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SYMBOLIST period routing (session 32)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_symbolist_flag_set():
+    """SYMBOLIST period must set is_symbolist=True."""
+    flags = _routing_flags(Period.SYMBOLIST)
+    assert flags["is_symbolist"] is True
+
+
+def test_symbolist_flag_not_set_for_other_periods():
+    """is_symbolist must be False for all periods except SYMBOLIST."""
+    for period in Period:
+        if period == Period.SYMBOLIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_symbolist"], (
+            f"is_symbolist should be False for {period.name}")
+
+
+def test_symbolist_mutually_exclusive_with_pre_raphaelite():
+    """SYMBOLIST and PRE_RAPHAELITE must not both be True simultaneously."""
+    flags_s  = _routing_flags(Period.SYMBOLIST)
+    flags_pr = _routing_flags(Period.PRE_RAPHAELITE)
+    assert     flags_s["is_symbolist"]
+    assert not flags_s["is_pre_raphaelite"]
+    assert     flags_pr["is_pre_raphaelite"]
+    assert not flags_pr["is_symbolist"]
+
+
+def test_symbolist_stroke_params_valid():
+    """SYMBOLIST stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.SYMBOLIST,
+                  palette=PaletteHint.JEWEL)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"SYMBOLIST stroke_params missing key: {key!r}"
     assert sp["stroke_size_face"] > 0
     assert sp["stroke_size_bg"]   > 0
     assert 0.0 <= sp["wet_blend"]     <= 1.0
