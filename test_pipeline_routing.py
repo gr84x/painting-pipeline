@@ -174,6 +174,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_primitivist":             period == Period.PRIMITIVIST,
         "is_early_netherlandish":     period == Period.EARLY_NETHERLANDISH,
         "is_art_deco":                period == Period.ART_DECO,
+        "is_high_renaissance":        period == Period.HIGH_RENAISSANCE,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -1731,3 +1732,179 @@ def test_dappled_light_pass_luminismo_routing_flag():
     assert style.period != Period.MANNERIST
     assert style.period != Period.SYNTHETIST
     assert style.period != Period.COLOR_FIELD
+
+
+# Session 23: radiance_bloom_pass + reflected_light_pass + HIGH_RENAISSANCE routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_radiance_bloom_pass_exists():
+    """Session 23: Painter must have radiance_bloom_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "radiance_bloom_pass"), (
+        "radiance_bloom_pass not found on Painter")
+    assert callable(getattr(Painter, "radiance_bloom_pass"))
+
+
+def test_reflected_light_pass_exists():
+    """Session 23: Painter must have reflected_light_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "reflected_light_pass"), (
+        "reflected_light_pass not found on Painter")
+    assert callable(getattr(Painter, "reflected_light_pass"))
+
+
+def test_radiance_bloom_pass_no_error():
+    """radiance_bloom_pass() runs without error on a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.50, 0.32), texture_strength=0.09)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    # Should not raise
+    p.radiance_bloom_pass(ref, glow_radius=4.0, glow_opacity=0.18)
+
+
+def test_radiance_bloom_pass_modifies_canvas():
+    """radiance_bloom_pass() with positive opacity must modify the canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.50, 0.32), texture_strength=0.09)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.radiance_bloom_pass(ref, glow_radius=6.0, glow_opacity=0.30,
+                          glow_tint=(0.85, 0.68, 0.40))
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff > 0, (
+        "radiance_bloom_pass with glow_opacity=0.30 should modify the canvas")
+
+
+def test_radiance_bloom_pass_pixels_in_range():
+    """radiance_bloom_pass() must not produce out-of-range pixel values."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.58, 0.48, 0.30), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.radiance_bloom_pass(ref, glow_radius=5.0, glow_opacity=0.25)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4)
+    assert buf.min() >= 0,   "Pixel values must be >= 0 after radiance_bloom_pass"
+    assert buf.max() <= 255, "Pixel values must be <= 255 after radiance_bloom_pass"
+
+
+def test_radiance_bloom_pass_figure_only_no_error():
+    """radiance_bloom_pass() with figure_only=True and a loaded mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.50, 0.32), texture_strength=0.09)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.radiance_bloom_pass(ref, glow_radius=4.0, glow_opacity=0.20, figure_only=True)
+
+
+def test_reflected_light_pass_no_error():
+    """reflected_light_pass() runs without error on a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.50, 0.32), texture_strength=0.09)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    # Should not raise
+    p.reflected_light_pass()
+
+
+def test_reflected_light_pass_modifies_canvas():
+    """reflected_light_pass() with positive strengths must modify the canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.08)  # dark ground → has shadows
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.reflected_light_pass(warm_strength=0.30, cool_strength=0.20,
+                           shadow_threshold=0.55)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff > 0, (
+        "reflected_light_pass with positive strengths should modify the canvas")
+
+
+def test_reflected_light_pass_zero_strength_is_noop():
+    """reflected_light_pass() with both strengths at 0 should leave canvas unchanged."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.reflected_light_pass(warm_strength=0.0, cool_strength=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff <= 2, (
+        f"reflected_light_pass with zero strength should be a no-op; diff={diff}")
+
+
+def test_reflected_light_pass_pixels_in_range():
+    """reflected_light_pass() must not produce out-of-range pixel values."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.18, 0.12, 0.06), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.reflected_light_pass(warm_strength=0.25, cool_strength=0.15,
+                           shadow_threshold=0.50)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4)
+    assert buf.min() >= 0,   "Pixel values must be >= 0 after reflected_light_pass"
+    assert buf.max() <= 255, "Pixel values must be <= 255 after reflected_light_pass"
+
+
+def test_reflected_light_pass_figure_only_no_error():
+    """reflected_light_pass() with figure_only=True and a loaded mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.reflected_light_pass(warm_strength=0.18, cool_strength=0.10,
+                           shadow_threshold=0.45, figure_only=True)
+
+
+def test_high_renaissance_routing_flag():
+    """HIGH_RENAISSANCE period must set is_high_renaissance=True in routing flags."""
+    flags = _routing_flags(Period.HIGH_RENAISSANCE)
+    assert flags["is_high_renaissance"], (
+        "is_high_renaissance should be True for Period.HIGH_RENAISSANCE")
+
+
+def test_high_renaissance_routing_exclusive():
+    """HIGH_RENAISSANCE must not set any other exclusive period flag."""
+    flags  = _routing_flags(Period.HIGH_RENAISSANCE)
+    others = {k: v for k, v in flags.items()
+              if k not in ("is_high_renaissance", "is_watercolor",
+                           "is_romantic", "is_renaissance_soft")
+              and v}
+    assert len(others) == 0, (
+        f"HIGH_RENAISSANCE should set only is_high_renaissance; also set: {others}")
+
+
+def test_high_renaissance_stroke_params_valid():
+    """HIGH_RENAISSANCE stroke_params must be valid for pipeline use."""
+    style = Style(medium=Medium.OIL, period=Period.HIGH_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] >= 4,  "stroke_size_face should be ≥ 4"
+    assert p["stroke_size_bg"]   >= 16, "stroke_size_bg should be ≥ 16"
+    assert 0.20 <= p["wet_blend"]      <= 0.55, "wet_blend out of expected range"
+    assert 0.40 <= p["edge_softness"]  <= 0.75, "edge_softness out of expected range"
