@@ -497,6 +497,7 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
     is_early_netherlandish = (scene.style.period == Period.EARLY_NETHERLANDISH)
     is_art_deco          = (scene.style.period == Period.ART_DECO)
     is_baroque           = (scene.style.period == Period.BAROQUE)
+    is_high_renaissance  = (scene.style.period == Period.HIGH_RENAISSANCE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -1372,6 +1373,83 @@ def scene_to_painting(scene, output_path: str, verbose: bool = False) -> str:
         # No unifying glaze — de Lempicka's surface is final and lacquered.
         # Very light vignette; no crackle (1920s–1940s modern canvas).
         p.finish(vignette=0.22, crackle=False)
+
+    elif is_high_renaissance:
+        # ── High Renaissance pipeline (Raphael technique) ─────────────────
+        # Raphael achieved the ideal of High Renaissance clarity: luminous,
+        # harmonious forms with warm inner radiance.  Unlike Leonardo's sfumato
+        # (edges dissolved in smoke), Raphael *rounded* edges by softening the
+        # penumbra gradient — forms are legible and idealized, not mysterious.
+        # Unlike Baroque (dark ground, strong chiaroscuro), Raphael's palette
+        # is warm and lucid: a medium-ochre ground reads through thin paint
+        # zones as a unifying warmth, and shadows are transparent umber rather
+        # than opaque black.
+        #
+        # The defining quality — the "inner radiance" of Raphael's flesh — is
+        # produced by radiance_bloom_pass(): a wide warm-amber bloom centred on
+        # the lit midtone zone, creating the sense that the form emits light.
+        # reflected_light_pass() enriches shadow passages with warm ground-
+        # bounce below and cool sky bounce above — the classical principle that
+        # shadows contain reflected light.
+        #
+        # Pipeline:
+        #   1. Warm medium-ochre ground (lighter than Baroque, darker than
+        #      Netherlandish gesso — Raphael's typical warm imprimatura).
+        #   2. Underpainting + block_in + build_form — moderate density.
+        #   3. reflected_light_pass() — enrich shadow areas with warm/cool
+        #      bounce before the radiance bloom is applied.
+        #   4. radiance_bloom_pass() — the Raphael inner luminosity: warm amber
+        #      glow in the lit midtone zone, figure only.
+        #   5. place_lights() — clean ivory highlights.
+        #   6. Warm golden glaze + moderate vignette + crackle (old-master).
+        raphael_style = _ART_CATALOG.get("raphael")
+        ground_col    = raphael_style.ground_color if raphael_style else (0.60, 0.50, 0.32)
+
+        # Warm medium-ochre ground — Raphael's imprimatura is lighter than
+        # Rembrandt's dark brown; warmth reads through the paint film.
+        p.tone_ground(ground_col, texture_strength=0.09)
+
+        # Full form-building sequence at moderate density — Raphael's surfaces
+        # are thoroughly modelled but not overworked.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.5), n_strokes=140)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=280)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_bg"] * 0.52),  n_strokes=700)
+
+        # Reflected light pass: enrich shadow passages with classical warm/cool
+        # bounce — warm amber from the ground plane below, cool blue from sky above.
+        # Applied before radiance_bloom so the bloom can spread over enriched shadows.
+        p.reflected_light_pass(
+            warm_bounce_color = (0.72, 0.52, 0.28),   # warm amber ground bounce
+            cool_bounce_color = (0.48, 0.58, 0.76),   # cool sky bounce
+            warm_strength     = 0.13,
+            cool_strength     = 0.07,
+            shadow_threshold  = 0.42,
+            figure_only       = False,
+        )
+
+        # Radiance bloom: Raphael's inner luminosity — warm amber glow in the
+        # lit midtone zone makes flesh appear to radiate warmth.  Applied figure-
+        # only to avoid warming the landscape background.
+        p.radiance_bloom_pass(
+            ref,
+            glow_radius   = max(10.0, float(sp["stroke_size_face"]) * 1.6),
+            glow_opacity  = 0.18,
+            glow_tint     = (0.78, 0.62, 0.36),   # warm Raphael amber
+            lum_lo        = 0.40,
+            lum_hi        = 0.72,
+            sharpness     = 2.0,
+            figure_only   = True,
+        )
+
+        # Light placement — Raphael's highlights are warm ivory, not harsh white.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=480)
+
+        # Warm golden glaze: Raphael's surfaces have a unified warm tonality
+        # from amber-tinted varnish.  Moderate opacity: luminous, not heavy.
+        glaze_col = raphael_style.glazing if raphael_style else (0.68, 0.55, 0.30)
+        p.glaze(glaze_col, opacity=0.06)
+        # Moderate vignette — classical framing; crackle for old-master patina.
+        p.finish(vignette=0.42, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

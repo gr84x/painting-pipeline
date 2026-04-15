@@ -200,6 +200,7 @@ class Period(Enum):
     ART_DECO      = auto()   # Tamara de Lempicka — smooth cubist facets, metallic gloss, bold saturated palette
     NABIS         = auto()   # Vuillard / Bonnard — intimate pattern-ground fusion, flat muted zones, figures absorbed into patterned grounds
     LUMINISMO     = auto()   # Sorolla — maximum sunlight, warm/cool simultaneous contrast, dappled light pools
+    HIGH_RENAISSANCE = auto()  # Raphael — luminous clarity, radiant warm midtones, idealized form, no heavy sfumato
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -505,6 +506,13 @@ class Style:
             # readable and energetic, not muddy.  Low-moderate edge_softness: forms
             # are clear in the brilliant Mediterranean light — no sfumato.
             Period.LUMINISMO:     dict(stroke_size_face=10, stroke_size_bg=24, wet_blend=0.38, edge_softness=0.42),
+            # High Renaissance (Raphael): luminous clarity — forms rounded gently,
+            # no sfumato haze, shadows transparent.  stroke_size_face is moderate
+            # (7–9px: fine enough for idealized detail, broad enough for confident
+            # form-building).  stroke_size_bg is moderate — balanced backgrounds.
+            # wet_blend=0.35: softer than Baroque but far less blended than Leonardo.
+            # edge_softness=0.58: clear, legible forms with soft penumbra (not sfumato).
+            Period.HIGH_RENAISSANCE: dict(stroke_size_face=7, stroke_size_bg=26, wet_blend=0.35, edge_softness=0.58),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

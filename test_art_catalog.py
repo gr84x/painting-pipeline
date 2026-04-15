@@ -34,7 +34,8 @@ EXPECTED_ARTISTS = [
     "el_greco", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "jan_van_eyck",
     "kandinsky",
-    "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "rembrandt",
+    "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "raphael",
+    "rembrandt",
     "rothko", "sargent", "seurat", "sorolla", "tamara_de_lempicka", "titian", "turner",
     "van_gogh", "velazquez", "vermeer",
     "vuillard",
@@ -165,6 +166,7 @@ EXPECTED_PERIODS = [
     "FAUVIST", "PRIMITIVIST", "EARLY_NETHERLANDISH",
     "ART_DECO",
     "NABIS", "LUMINISMO",
+    "HIGH_RENAISSANCE",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -1455,4 +1457,100 @@ def test_luminismo_stroke_params_all_keys_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"LUMINISMO stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 23: Raphael / HIGH_RENAISSANCE addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_raphael_in_catalog():
+    """Session 23: Raphael must be present in CATALOG."""
+    assert "raphael" in CATALOG, "raphael not found in CATALOG"
+
+
+def test_raphael_movement():
+    """Raphael entry must identify as High Renaissance."""
+    s = get_style("raphael")
+    assert "Renaissance" in s.movement or "renaissance" in s.movement.lower(), (
+        f"Raphael movement should contain 'Renaissance'; got {s.movement!r}")
+
+
+def test_raphael_palette_length():
+    """Raphael palette must have at least 7 colours."""
+    s = get_style("raphael")
+    assert len(s.palette) >= 7, (
+        f"Raphael palette should have ≥7 colours; got {len(s.palette)}")
+
+
+def test_raphael_palette_values_in_range():
+    """All Raphael palette RGB values must be in [0, 1]."""
+    s = get_style("raphael")
+    for i, col in enumerate(s.palette):
+        for ch in col:
+            assert 0.0 <= ch <= 1.0, (
+                f"Raphael palette[{i}] channel out of range: {col}")
+
+
+def test_raphael_wet_blend_in_range():
+    """Raphael wet_blend must be in a moderate range (forms rounded but not sfumato)."""
+    s = get_style("raphael")
+    assert 0.20 <= s.wet_blend <= 0.55, (
+        f"Raphael wet_blend should be moderate; got {s.wet_blend}")
+
+
+def test_raphael_edge_softness_in_range():
+    """Raphael edge_softness must be moderate (clear forms, not sfumato-dissolved)."""
+    s = get_style("raphael")
+    assert 0.40 <= s.edge_softness <= 0.75, (
+        f"Raphael edge_softness should be moderate; got {s.edge_softness}")
+
+
+def test_raphael_glazing_is_warm():
+    """Raphael glazing should be warm (golden amber tonality)."""
+    s = get_style("raphael")
+    assert s.glazing is not None, "Raphael should have a warm unifying glaze"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"Raphael glaze should be warm (R>B); got R={r:.2f} B={b:.2f}")
+
+
+def test_raphael_famous_works_contains_school_of_athens():
+    """Raphael famous_works must include School of Athens."""
+    s = get_style("raphael")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Athens" in t or "Sistine" in t for t in titles), (
+        f"Raphael famous_works should include School of Athens or Sistine Madonna; got {titles}")
+
+
+def test_high_renaissance_period_present():
+    """Session 23: HIGH_RENAISSANCE must exist in Period enum."""
+    assert hasattr(Period, "HIGH_RENAISSANCE"), "Period.HIGH_RENAISSANCE not found"
+    assert Period.HIGH_RENAISSANCE in list(Period)
+
+
+def test_high_renaissance_stroke_params_all_keys():
+    """HIGH_RENAISSANCE stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.HIGH_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"HIGH_RENAISSANCE stroke_params missing key: {key!r}"
+
+
+def test_high_renaissance_wet_blend():
+    """HIGH_RENAISSANCE wet_blend should be moderate — softer than Baroque, less extreme than Leonardo."""
+    style = Style(medium=Medium.OIL, period=Period.HIGH_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.20 <= p["wet_blend"] <= 0.55, (
+        f"HIGH_RENAISSANCE wet_blend should be moderate; got {p['wet_blend']}")
+
+
+def test_high_renaissance_edge_softness():
+    """HIGH_RENAISSANCE edge_softness must be clear but rounded — no sfumato haze."""
+    style = Style(medium=Medium.OIL, period=Period.HIGH_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["edge_softness"] <= 0.75, (
+        f"HIGH_RENAISSANCE edge_softness should be moderate; got {p['edge_softness']}")
 

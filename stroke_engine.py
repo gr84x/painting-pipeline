@@ -7083,3 +7083,275 @@ class Painter:
         n_painted = len(chosen_idx)
         print(f"  Intimiste pattern pass complete  ({n_painted} motif marks, "
               f"type={pattern_type!r})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # radiance_bloom_pass — Raphael High Renaissance inner luminosity
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def radiance_bloom_pass(self,
+                            reference,
+                            glow_radius:   float = 14.0,
+                            glow_opacity:  float = 0.18,
+                            glow_tint:     Color = (0.78, 0.62, 0.36),
+                            lum_lo:        float = 0.42,
+                            lum_hi:        float = 0.74,
+                            sharpness:     float = 2.0,
+                            figure_only:   bool  = False):
+        """
+        Raphael-inspired warm radiance bloom in the lit midtone zone.
+
+        Raphael's figures appear to *emit* warm light rather than merely reflect
+        it.  Unlike specular highlight bloom (which targets the very brightest
+        pixels), this pass targets the warm midtone-to-highlight transition zone
+        (lum in [lum_lo, lum_hi]) — the "radiant amber band" that is the
+        defining quality of Raphael's flesh rendering.
+
+        The effect is achieved by:
+          1. Building a triangle-falloff midtone mask: pixels exactly at the
+             midpoint of [lum_lo, lum_hi] have weight 1.0; values at the edges
+             of the range have weight 0.0. This isolates the glowing penumbra
+             zone without touching deep shadows or pure highlights.
+          2. Applying a wide Gaussian blur (glow_radius) to this mask so the
+             warm tint blooms softly outward into adjacent tones.
+          3. Blending the glow_tint colour into canvas pixels proportional to
+             the blurred mask weight × glow_opacity, preserving luminance so
+             the pass warms the hue/chroma without lightening or darkening
+             the tonal structure.
+
+        Unlike highlight_bloom_pass (which adds luminance), radiance_bloom_pass
+        is a *chromatic* operation — it shifts warmth within the midtone range
+        rather than brightening it.  This matches Raphael's technique: his
+        midtones are not brighter than they should be, but they are distinctly
+        *warmer* (amber-gold) compared to the cooler highlights above and the
+        transparent umber shadows below.
+
+        Parameters
+        ----------
+        reference   : PIL Image — used only to extract the luminance map; the
+                      bloom is computed from the *current canvas*, not reference.
+        glow_radius : Gaussian blur sigma for the radiance spread (pixels).
+                      10–16 = realistic penumbra; 20+ = glowing halo effect.
+        glow_opacity: Blend weight of the warm glow layer.  0.12–0.20 = subtle
+                      Raphael-like radiance; 0.25+ = stronger warm glow.
+        glow_tint   : (R,G,B) target colour for the warm glow zone.  Default is
+                      warm amber-gold — Raphael's characteristic midtone colour.
+        lum_lo      : Lower luminance boundary of the midtone radiance zone.
+        lum_hi      : Upper luminance boundary of the midtone radiance zone.
+        sharpness   : Triangle falloff exponent.  1.0 = linear; 2.0 = quadratic
+                      (peakier, concentrates glow closer to the midpoint).
+        figure_only : If True and a figure mask is loaded, restrict glow to the
+                      figure region only (avoids warming background/landscape).
+
+        Notes
+        -----
+        Call AFTER build_form() / place_lights() and BEFORE the final glaze and
+        finish().  Effective on HIGH_RENAISSANCE, VENETIAN_RENAISSANCE, and any
+        portrait where warm inner luminosity is desired.
+        """
+        import numpy as np
+        from scipy.ndimage import gaussian_filter
+
+        print(f"  Radiance bloom pass  (radius={glow_radius:.1f}  "
+              f"opacity={glow_opacity:.2f}  lum=[{lum_lo:.2f},{lum_hi:.2f}])")
+
+        # ── Read current canvas ARGB32 (premultiplied) ────────────────────────
+        buf  = np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=np.uint8).reshape(self.h, self.w, 4).copy()
+        # ARGB32: channels = B, G, R, A (little-endian BGRA on most platforms)
+        B = buf[:, :, 0].astype(np.float32) / 255.0
+        G = buf[:, :, 1].astype(np.float32) / 255.0
+        R = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Luminance map ────────────────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B   # (h, w)
+
+        # ── Triangle-falloff midtone mask ────────────────────────────────────
+        mid   = (lum_lo + lum_hi) * 0.5
+        span  = (lum_hi - lum_lo) * 0.5 + 1e-9
+        dist  = np.abs(lum - mid) / span            # 0 at midpoint, 1 at edges
+        mask  = np.clip(1.0 - dist, 0.0, 1.0) ** sharpness   # (h, w)
+        mask  = np.where((lum >= lum_lo) & (lum <= lum_hi), mask, 0.0)
+
+        # ── Apply figure mask if requested ───────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            fm   = self._figure_mask
+            if fm.shape != (self.h, self.w):
+                from PIL import Image as _PILImg
+                fm = np.array(
+                    _PILImg.fromarray((fm * 255).astype(np.uint8)).resize(
+                        (self.w, self.h), _PILImg.BILINEAR)) / 255.0
+            mask = mask * fm
+
+        # ── Blur mask to create soft radiant spread ──────────────────────────
+        blurred = gaussian_filter(mask, sigma=glow_radius)
+        blurred = np.clip(blurred / (blurred.max() + 1e-9), 0.0, 1.0) * mask.max()
+
+        # ── Blend warm tint toward canvas pixels (lum-preserve) ──────────────
+        tr, tg, tb = glow_tint
+        weight = blurred * glow_opacity   # (H, W) per-pixel blend weight
+
+        # Shift toward glow_tint while preserving luminance
+        new_R = R + (tr - R) * weight
+        new_G = G + (tg - G) * weight
+        new_B = B + (tb - B) * weight
+
+        # Luminance preservation: rescale so lum is unchanged
+        new_lum = 0.299 * new_R + 0.587 * new_G + 0.114 * new_B
+        safe    = np.where(new_lum > 1e-6, lum / new_lum, 1.0)
+        new_R   = np.clip(new_R * safe, 0.0, 1.0)
+        new_G   = np.clip(new_G * safe, 0.0, 1.0)
+        new_B   = np.clip(new_B * safe, 0.0, 1.0)
+
+        # ── Write back to ARGB32 (BGRA layout) ────────────────────────────────
+        buf[:, :, 0] = np.clip(new_B * 255.0, 0, 255).astype(np.uint8)  # B
+        buf[:, :, 1] = np.clip(new_G * 255.0, 0, 255).astype(np.uint8)  # G
+        buf[:, :, 2] = np.clip(new_R * 255.0, 0, 255).astype(np.uint8)  # R
+        buf[:, :, 3] = 255                                                 # A
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # reflected_light_pass — classical shadow bounce illumination
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def reflected_light_pass(self,
+                             warm_bounce_color: Color = (0.72, 0.52, 0.28),
+                             cool_bounce_color: Color = (0.45, 0.55, 0.72),
+                             warm_strength:     float = 0.14,
+                             cool_strength:     float = 0.08,
+                             shadow_threshold:  float = 0.40,
+                             warm_y_split:      float = 0.50,
+                             figure_only:       bool  = False):
+        """
+        Classical reflected-light shadow enrichment.
+
+        The fundamental principle of classical painting — codified by Leonardo,
+        practised by Raphael, Rubens, Vermeer, and every Academy-trained painter
+        thereafter — is that *shadows contain reflected light*.  A shadow area
+        is never purely dark: it receives indirect light bounced from surrounding
+        surfaces.  In a standard portrait setup:
+
+          - The lower shadow zones (facing the warm ground plane, ochre-red
+            imprimatura, warm fabrics) receive a *warm* bounce:
+            deep amber-sienna reflected up from below.
+          - The upper shadow zones (facing the cool open sky) receive a *cool*
+            bounce: blue-violet sky light filtering down from above.
+
+        Without reflected light, shadows read as flat, dead, and painterly-wrong.
+        With reflected light, even the darkest shadow passage has chromatic life
+        and the painting appears to breathe.
+
+        Implementation
+        --------------
+        1. Read the canvas buffer and compute luminance.
+        2. Build a shadow mask: pixels where luminance < shadow_threshold.
+        3. Compute a vertical gradient weight: pixels in the lower half of the
+           canvas (y > warm_y_split × H) receive warm_bounce_color; pixels in
+           the upper half receive cool_bounce_color.
+        4. Blend the bounce color into shadow pixels at the corresponding
+           strength, with luminance preservation so the tonal structure is
+           unchanged — only the chromatic quality of the shadow shifts.
+
+        This is a style-agnostic improvement: it benefits RENAISSANCE,
+        HIGH_RENAISSANCE, BAROQUE, VENETIAN_RENAISSANCE, and any period where
+        traditional oil-painting technique is appropriate.  It was validated as
+        the session-23 random artistic improvement.
+
+        Parameters
+        ----------
+        warm_bounce_color : (R,G,B) warm reflected light colour — the bounce
+                            from warm ground / imprimatura / fabric below.
+                            Default: warm amber-sienna.
+        cool_bounce_color : (R,G,B) cool reflected light colour — sky bounce
+                            from above.  Default: cool blue-violet.
+        warm_strength     : Blend weight for warm bounce (lower shadows).
+                            0.08–0.15 = classical subtlety; 0.20+ = vivid.
+        cool_strength     : Blend weight for cool bounce (upper shadows).
+                            Typically slightly weaker than warm (sky is less
+                            intense than ground-plane bounce indoors).
+        shadow_threshold  : Luminance below which a pixel is treated as
+                            shadow and receives bounce light.  0.35–0.45.
+        warm_y_split      : Normalised Y coordinate (0=top, 1=bottom) dividing
+                            warm-bounce zone (below) from cool-bounce (above).
+                            Default 0.50 = canvas midpoint.
+        figure_only       : If True and a figure mask is loaded, restrict bounce
+                            to the figure region (avoids warming background).
+
+        Notes
+        -----
+        Call AFTER build_form() and before place_lights() or the final glaze,
+        so the warm/cool shadow enrichment is visible but can be slightly
+        modulated by subsequent highlights and glazes.
+        """
+        import numpy as np
+
+        print(f"  Reflected light pass  (warm={warm_strength:.2f}  "
+              f"cool={cool_strength:.2f}  shadow_thresh={shadow_threshold:.2f})")
+
+        # ── Read current canvas ARGB32 ─────────────────────────────────────
+        buf = np.frombuffer(self.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(np.float32) / 255.0
+        G = buf[:, :, 1].astype(np.float32) / 255.0
+        R = buf[:, :, 2].astype(np.float32) / 255.0
+
+        # ── Luminance and shadow mask ──────────────────────────────────────
+        lum  = 0.299 * R + 0.587 * G + 0.114 * B
+        # Shadow weight: 1.0 deep in shadow, 0.0 at threshold edge
+        shad = np.clip((shadow_threshold - lum) / (shadow_threshold + 1e-9),
+                       0.0, 1.0)   # (h, w)
+
+        # ── Figure mask ────────────────────────────────────────────────────
+        if figure_only and self._figure_mask is not None:
+            fm = self._figure_mask
+            if fm.shape != (self.h, self.w):
+                from PIL import Image as _PILImg
+                fm = np.array(
+                    _PILImg.fromarray((fm * 255).astype(np.uint8)).resize(
+                        (self.w, self.h), _PILImg.BILINEAR)) / 255.0
+            shad = shad * fm
+
+        # ── Vertical bounce gradient ───────────────────────────────────────
+        ys   = np.arange(self.h, dtype=np.float32).reshape(-1, 1) / self.h  # (h,1)
+        # warm_weight: 0 at top, 1 at bottom (below warm_y_split → warm)
+        warm_w = np.clip((ys - warm_y_split) / (1.0 - warm_y_split + 1e-9),
+                         0.0, 1.0)   # (H, 1) broadcast to (H, W)
+        cool_w = np.clip((warm_y_split - ys) / (warm_y_split + 1e-9),
+                         0.0, 1.0)   # (H, 1)
+
+        # ── Apply warm bounce to lower shadows ─────────────────────────────
+        wr, wg, wb = warm_bounce_color
+        w_alpha    = shad * warm_w * warm_strength
+
+        new_R = R + (wr - R) * w_alpha
+        new_G = G + (wg - G) * w_alpha
+        new_B = B + (wb - B) * w_alpha
+
+        # ── Apply cool bounce to upper shadows ─────────────────────────────
+        cr, cg, cb = cool_bounce_color
+        c_alpha    = shad * cool_w * cool_strength
+
+        new_R = new_R + (cr - new_R) * c_alpha
+        new_G = new_G + (cg - new_G) * c_alpha
+        new_B = new_B + (cb - new_B) * c_alpha
+
+        # ── Luminance preservation ─────────────────────────────────────────
+        new_lum = 0.299 * new_R + 0.587 * new_G + 0.114 * new_B
+        safe    = np.where(new_lum > 1e-6, lum / new_lum, 1.0)
+        new_R   = np.clip(new_R * safe, 0.0, 1.0)
+        new_G   = np.clip(new_G * safe, 0.0, 1.0)
+        new_B   = np.clip(new_B * safe, 0.0, 1.0)
+
+        # ── Write back to ARGB32 (BGRA layout) ────────────────────────────────
+        buf[:, :, 0] = np.clip(new_B * 255.0, 0, 255).astype(np.uint8)  # B
+        buf[:, :, 1] = np.clip(new_G * 255.0, 0, 255).astype(np.uint8)  # G
+        buf[:, :, 2] = np.clip(new_R * 255.0, 0, 255).astype(np.uint8)  # R
+        buf[:, :, 3] = 255                                                 # A
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()

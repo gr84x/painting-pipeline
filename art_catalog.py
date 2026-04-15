@@ -1842,6 +1842,74 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Raphael Sanzio ────────────────────────────────────────────────────────
+    # Raffaello Sanzio da Urbino (1483–1520) is the exemplar of High Renaissance
+    # *clarity* — the luminous, harmonious ideal that Leonardo approached through
+    # sfumato smoke, but Raphael achieved through controlled warm light and
+    # gentle, rounded form building.  Where Leonardo dissolved edges, Raphael
+    # *rounded* them: each form receives a soft penumbra gradient that preserves
+    # legibility while conveying perfect three-dimensionality.  His flesh is not
+    # smoky but LUCID — warm ivory lit from a high upper-left source, with
+    # luminous midtones that feel self-illuminated rather than merely reflected.
+    # The shadows are transparent, never heavy.
+    #
+    # The defining quality that separates Raphael from every other Renaissance
+    # master is the *radiance* of his lit zones: the transition from shadow to
+    # light passes through a glowing, warm-amber midtone zone that appears to
+    # emit light rather than receive it — as if a candle burned inside the form.
+    # This quality is best approximated by a gentle Gaussian bloom centred on
+    # bright midtone pixels, tinted warm amber.
+    "raphael": ArtStyle(
+        artist="Raphael Sanzio (Raffaello Sanzio da Urbino)",
+        movement="High Renaissance / Umbrian School",
+        nationality="Italian",
+        period="1500–1520",
+        palette=[
+            (0.90, 0.80, 0.62),   # luminous warm ivory flesh highlight
+            (0.72, 0.58, 0.38),   # warm golden amber midtone — the radiant zone
+            (0.52, 0.38, 0.22),   # warm umber shadow — transparent, never black
+            (0.38, 0.28, 0.14),   # deep warm brown — deepest shadow passage
+            (0.50, 0.62, 0.80),   # Raphael sky blue — Sistine Madonna azure
+            (0.32, 0.50, 0.28),   # verdaccio-tinged green — landscape distance
+            (0.88, 0.84, 0.72),   # near-white ivory — highlight peak
+            (0.60, 0.44, 0.24),   # warm sienna — drapery mid-value
+        ],
+        ground_color=(0.60, 0.50, 0.32),    # warm medium-ochre imprimatura
+        stroke_size=7,
+        wet_blend=0.35,                      # soft blending — forms round gently
+        edge_softness=0.58,                  # clear but rounded — no hard planes
+        jitter=0.022,
+        glazing=(0.68, 0.55, 0.30),          # warm golden unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "High Renaissance clarity — idealized, harmonious form with luminous "
+            "warm midtones that appear self-illuminated.  Raphael built form through "
+            "controlled tonal gradients rather than sfumato haze: each plane receives "
+            "a soft, warm penumbra that rounds forms gently without dissolving edges "
+            "into ambiguity.  Shadows are transparent warm umber, never heavy or "
+            "opaque.  The defining quality is the *radiant midtone zone* — a warm "
+            "amber glow in the lit-to-shadow transition that gives his figures an "
+            "inner luminosity unique in Western painting."
+        ),
+        famous_works=[
+            ("Sistine Madonna", "1512"),
+            ("School of Athens", "1509–1511"),
+            ("The Transfiguration", "1516–1520"),
+            ("La Fornarina", "c. 1518–1519"),
+            ("Portrait of Baldassare Castiglione", "c. 1514–1515"),
+            ("The Triumph of Galatea", "1512"),
+        ],
+        inspiration=(
+            "Use radiance_bloom_pass() to create the glowing warm-amber midtone "
+            "zone that defines Raphael's inner luminosity. Warm wet_blend rounds "
+            "forms gently without sfumato haze. Transparent warm umber shadows — "
+            "apply reflected_light_pass() so all shadow areas receive subtle warm "
+            "bounce from the ground plane below. Final warm golden glaze unifies "
+            "the luminous tonality."
+        ),
+    ),
+
 }
 
 
