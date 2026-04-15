@@ -43,6 +43,7 @@ EXPECTED_ARTISTS = [
     "jan_van_eyck",
     "kandinsky",
     "klimt", "leonardo", "manet", "mary_cassatt", "matisse", "modigliani", "monet",
+    "piero_della_francesca",
     "raphael",
     "rembrandt",
     "rothko", "sargent", "seurat", "sorolla", "tamara_de_lempicka", "titian", "turner",
@@ -2884,4 +2885,155 @@ def test_post_impressionist_wet_blend_low():
     sp = Style(medium=Medium.OIL, period=Period.POST_IMPRESSIONIST).stroke_params
     assert sp["wet_blend"] <= 0.30, (
         f"POST_IMPRESSIONIST wet_blend should be ≤ 0.30; got {sp['wet_blend']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Piero della Francesca — catalog entry (this session)
+# Cool mineral Early Italian Renaissance palette / piero_crystalline_pass()
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_piero_della_francesca_in_catalog():
+    """piero_della_francesca must appear in CATALOG after this session."""
+    assert "piero_della_francesca" in CATALOG
+
+
+def test_piero_della_francesca_movement():
+    s = get_style("piero_della_francesca")
+    assert "Renaissance" in s.movement or "renaissance" in s.movement.lower(), (
+        f"Expected Renaissance movement, got {s.movement!r}")
+
+
+def test_piero_della_francesca_nationality():
+    s = get_style("piero_della_francesca")
+    assert "Italian" in s.nationality, (
+        f"Expected Italian nationality, got {s.nationality!r}")
+
+
+def test_piero_della_francesca_palette_length():
+    s = get_style("piero_della_francesca")
+    assert len(s.palette) >= 5, (
+        f"Piero palette should have at least 5 colours; got {len(s.palette)}")
+
+
+def test_piero_della_francesca_palette_values_in_range():
+    """All Piero palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("piero_della_francesca")
+    for i, color in enumerate(s.palette):
+        for j, channel in enumerate(color):
+            assert 0.0 <= channel <= 1.0, (
+                f"piero_della_francesca palette[{i}][{j}] = {channel} is outside [0, 1]")
+
+
+def test_piero_della_francesca_ground_cool_or_neutral():
+    """Piero's ground should be cooler / more neutral than Leonardo's amber ochre."""
+    s = get_style("piero_della_francesca")
+    r, g, b = s.ground_color
+    leo = get_style("leonardo")
+    lr, lg, lb = leo.ground_color
+    # Piero's ground R channel should be less warm-dominant than Leonardo's
+    piero_warmth = r - b
+    leo_warmth   = lr - lb
+    assert piero_warmth < leo_warmth, (
+        f"Piero's ground should be cooler than Leonardo's: "
+        f"piero (R-B)={piero_warmth:.3f}, leo (R-B)={leo_warmth:.3f}")
+
+
+def test_piero_della_francesca_palette_has_cool_stone():
+    """Piero's palette must contain at least one cool grey or blue entry (B >= R)."""
+    s = get_style("piero_della_francesca")
+    has_cool = any(b >= r for r, g, b in s.palette)
+    assert has_cool, (
+        "piero_della_francesca palette must contain a cool entry (B >= R) "
+        "for his stone-grey shadows and cerulean sky tones")
+
+
+def test_piero_della_francesca_wet_blend_moderate():
+    """Piero's wet_blend should be moderate — not Leonardo's 0.92 but not Flemish dry."""
+    s = get_style("piero_della_francesca")
+    assert 0.35 <= s.wet_blend <= 0.60, (
+        f"piero_della_francesca wet_blend should be in [0.35, 0.60]; got {s.wet_blend}")
+
+
+def test_piero_della_francesca_edge_softness_moderate():
+    """Piero's edge_softness should be moderate — clear geometric forms, not sfumato."""
+    s = get_style("piero_della_francesca")
+    assert 0.30 <= s.edge_softness <= 0.60, (
+        f"piero_della_francesca edge_softness should be in [0.30, 0.60]; "
+        f"got {s.edge_softness}")
+
+
+def test_piero_della_francesca_famous_works_not_empty():
+    s = get_style("piero_della_francesca")
+    assert len(s.famous_works) >= 4, (
+        f"piero_della_francesca famous_works should have ≥ 4 entries; "
+        f"got {len(s.famous_works)}")
+
+
+def test_piero_della_francesca_flagellation_referenced():
+    """'The Flagellation of Christ' — Piero's most analysed work — must be listed."""
+    s = get_style("piero_della_francesca")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Flagellation" in t for t in titles), (
+        "piero_della_francesca famous_works must include 'The Flagellation of Christ'")
+
+
+def test_piero_della_francesca_inspiration_references_pass():
+    """The Piero catalog entry must reference the piero_crystalline_pass."""
+    s = get_style("piero_della_francesca")
+    assert "piero_crystalline_pass" in s.inspiration, (
+        "piero_della_francesca inspiration must reference piero_crystalline_pass()")
+
+
+def test_piero_della_francesca_low_jitter():
+    """Piero's jitter should be low — precise geometric technique."""
+    s = get_style("piero_della_francesca")
+    assert s.jitter <= 0.06, (
+        f"piero_della_francesca jitter should be ≤ 0.06; got {s.jitter}")
+
+
+def test_piero_della_francesca_has_crackle():
+    """Piero's panel and fresco work should have the crackle finish flag."""
+    s = get_style("piero_della_francesca")
+    assert s.crackle, "piero_della_francesca crackle should be True (aged panel/fresco)"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EARLY_ITALIAN_RENAISSANCE period (scene_schema, this session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_early_italian_renaissance_period_exists():
+    """EARLY_ITALIAN_RENAISSANCE must exist in the Period enum after this session."""
+    assert hasattr(Period, "EARLY_ITALIAN_RENAISSANCE"), (
+        "Period.EARLY_ITALIAN_RENAISSANCE not found — add it to scene_schema.py")
+
+
+def test_early_italian_renaissance_stroke_params_valid():
+    """EARLY_ITALIAN_RENAISSANCE stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.EARLY_ITALIAN_RENAISSANCE,
+                  palette=PaletteHint.COOL_GREY)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, (
+            f"EARLY_ITALIAN_RENAISSANCE stroke_params missing key: {key!r}")
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_early_italian_renaissance_wet_blend_lower_than_venetian():
+    """EARLY_ITALIAN_RENAISSANCE wet_blend must be lower than VENETIAN_RENAISSANCE (less rich blending)."""
+    sp_early = Style(medium=Medium.OIL, period=Period.EARLY_ITALIAN_RENAISSANCE).stroke_params
+    sp_ven   = Style(medium=Medium.OIL, period=Period.VENETIAN_RENAISSANCE).stroke_params
+    assert sp_early["wet_blend"] < sp_ven["wet_blend"], (
+        "EARLY_ITALIAN_RENAISSANCE wet_blend must be lower than VENETIAN_RENAISSANCE "
+        "(Piero's geometric precision uses less fluid blending than Titian's rich Venetian technique)")
+
+
+def test_early_italian_renaissance_edge_softness_moderate():
+    """EARLY_ITALIAN_RENAISSANCE edge_softness should be moderate (clear geometric forms)."""
+    sp = Style(medium=Medium.OIL, period=Period.EARLY_ITALIAN_RENAISSANCE).stroke_params
+    assert 0.30 <= sp["edge_softness"] <= 0.60, (
+        f"EARLY_ITALIAN_RENAISSANCE edge_softness should be in [0.30, 0.60]; "
+        f"got {sp['edge_softness']}")
 

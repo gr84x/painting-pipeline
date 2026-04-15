@@ -201,6 +201,7 @@ class Period(Enum):
     NABIS         = auto()   # Vuillard / Bonnard — intimate pattern-ground fusion, flat muted zones, figures absorbed into patterned grounds
     LUMINISMO     = auto()   # Sorolla — maximum sunlight, warm/cool simultaneous contrast, dappled light pools
     HIGH_RENAISSANCE = auto()  # Raphael — luminous clarity, radiant warm midtones, idealized form, no heavy sfumato
+    EARLY_ITALIAN_RENAISSANCE = auto()  # Piero della Francesca — cool mineral palette, geometric clarity, diffuse crystalline light
     TENEBRIST     = auto()   # Zurbarán — near-black void, hyper-real white fabric, razor-sharp found edges
     NEOCLASSICAL  = auto()   # Ingres — porcelain-smooth flesh, cool pearl highlights, precise classical line
     NOCTURNE      = auto()   # La Tour — single candle, warm amber radial glow, near-black void, simplified serene forms
@@ -600,6 +601,16 @@ class Style:
             # edge_softness=0.42: decisive edges that have a natural wet-paint softness —
             # not the sfumato of Leonardo or the razor-edge of Tenebrist; the boundary is
             # present but yielding, as if the paint was still moist.
+            # Early Italian Renaissance (Piero della Francesca): geometric precision, diffuse cool light.
+            # stroke_size_face=5: fine deliberate marks — Piero built form with precision, never
+            # broad gesture; his flesh tones emerge from patient layering rather than large wet passes.
+            # stroke_size_bg=22: moderate — architectural and landscape backgrounds need crisp geometry
+            # more than expressive sweep.
+            # wet_blend=0.45: moderate — more blending than Flemish oil glazing but far less than
+            # Leonardo's 0.92 sfumato; Piero's transitions are smooth but not smoke-dissolved.
+            # edge_softness=0.42: clean, present edges — the geometric clarity of his figures and
+            # architectural forms is a signature quality; edges are resolved, not dissolved.
+            Period.EARLY_ITALIAN_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.45, edge_softness=0.42),
             Period.NORDIC_IMPRESSIONIST: dict(stroke_size_face=10, stroke_size_bg=28, wet_blend=0.62, edge_softness=0.42),
             # Impressionist Plein Air (Morisot): airy, high-key portraiture on a pale ground.
             # stroke_size_face=9: medium marks — visible individual brushwork, not coarse.

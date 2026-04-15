@@ -2555,6 +2555,73 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Piero della Francesca ─────────────────────────────────────────────────
+    # Pipeline key: piero_crystalline_pass() — shifts shadows toward cool stone-grey,
+    # cools highlights toward silver-white, and gently desaturates midtones to achieve
+    # the mineral, fresco-like clarity of Piero's panel and fresco painting.
+    "piero_della_francesca": ArtStyle(
+        artist="Piero della Francesca",
+        movement="Early Italian Renaissance",
+        nationality="Italian",
+        period="c. 1450–1492",
+        palette=[
+            (0.88, 0.82, 0.70),   # pale warm ivory — lit flesh in full light
+            (0.56, 0.55, 0.52),   # cool stone-grey — shadow flesh and mid-ground
+            (0.52, 0.66, 0.78),   # muted cerulean blue — sky, robes, distant forms
+            (0.74, 0.68, 0.54),   # warm sand-buff — architectural elements, stone
+            (0.50, 0.58, 0.46),   # muted green-grey — landscape foliage and hills
+            (0.82, 0.80, 0.78),   # pale silver-cool — principal highlight tone
+        ],
+        ground_color=(0.72, 0.68, 0.58),    # warm neutral buff — lighter than Leonardo's ochre
+        stroke_size=5,
+        wet_blend=0.45,
+        edge_softness=0.42,
+        jitter=0.04,
+        glazing=(0.70, 0.70, 0.66),          # pale cool-neutral glaze — not Leonardo's warm amber
+        crackle=True,                         # panel paintings and frescoes age
+        chromatic_split=False,
+        technique=(
+            "Piero della Francesca approached painting as a branch of applied geometry: "
+            "every figure, drapery fold, and architectural element was governed by "
+            "mathematical perspective and precise spatial logic.  His figures inhabit space "
+            "with a monumental, crystalline clarity — forms are fully resolved rather than "
+            "dissolved into sfumato, and the light that falls on them is diffuse, sourceless, "
+            "and almost mineral in quality.  Unlike the warm amber light of Leonardo or the "
+            "golden fire of Titian, Piero's illumination is cool and even — as if his subjects "
+            "exist in the clear, shadowless air of an early-morning Italian hilltown.  "
+            "His flesh palette is cool ivory; shadows drift toward pale stone-grey rather than "
+            "warm umber; and his highlights are silver-white rather than the warm cream of the "
+            "High Renaissance.  The result is a surface that reads as simultaneously luminous "
+            "and austere — figures appear carved from light-transmitting stone.  "
+            "Piero's technique on panel involved careful egg-tempera underpaint followed by "
+            "transparent oil glazes, a hybrid method that produced the crystalline depth "
+            "visible in works like the Flagellation.  His frescoes in Arezzo (Legend of the "
+            "True Cross) demonstrate the same quality at monumental scale: the colours are "
+            "muted, the edges resolved, and the spatial logic impeccable."
+        ),
+        famous_works=[
+            ("The Flagellation of Christ", "c. 1455"),
+            ("The Resurrection", "c. 1463"),
+            ("The Baptism of Christ", "c. 1448"),
+            ("Portrait of Federico da Montefeltro", "c. 1472"),
+            ("Legend of the True Cross", "c. 1452–1466"),
+            ("Madonna del Parto", "c. 1460"),
+        ],
+        inspiration=(
+            "Use piero_crystalline_pass() as the defining colouristic technique: "
+            "shift shadow areas toward cool stone-grey rather than warm umber, cool "
+            "highlights toward silver-white rather than amber, and gently desaturate "
+            "midtones to achieve the pale mineral quality of Piero's fresco and panel work.  "
+            "tone_ground() with warm neutral buff (0.72, 0.68, 0.58) — lighter and cooler "
+            "than Leonardo's ochre.  "
+            "block_in() and build_form() with fine marks (stroke_size_face=5).  "
+            "piero_crystalline_pass() after build_form() to impose the cool mineral palette.  "
+            "sfumato_veil_pass() is inappropriate — Piero's edges are clear, not dissolved.  "
+            "Final glaze: pale cool-neutral (0.70, 0.70, 0.66) at low opacity to unify "
+            "without warming."
+        ),
+    ),
+
     "berthe_morisot": ArtStyle(
         artist="Berthe Morisot",
         movement="French Impressionism",

@@ -9518,6 +9518,170 @@ class Painter:
         print(f"    Zorn tricolor pass complete")
 
     # ─────────────────────────────────────────────────────────────────────────
+    # piero_crystalline_pass — Piero della Francesca's cool mineral light
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def piero_crystalline_pass(
+            self,
+            shadow_stone:        Color = (0.44, 0.46, 0.50),  # cool stone-grey shadow target
+            highlight_silver:    Color = (0.93, 0.94, 0.96),  # cool silver-white highlight target
+            shadow_threshold:    float = 0.42,                 # lum below = shadow zone
+            highlight_threshold: float = 0.70,                 # lum above = highlight zone
+            shadow_strength:     float = 0.22,                 # shadow shift blend weight
+            highlight_strength:  float = 0.16,                 # highlight shift blend weight
+            chroma_dampen:       float = 0.08,                 # midtone desaturation strength
+            blend_opacity:       float = 0.45,
+    ):
+        """
+        Simulates Piero della Francesca's characteristic cool, crystalline light.
+
+        Piero's surfaces have a quality unlike any other painter of his era: the light
+        that falls on his figures is diffuse, sourceless, and mineral — as if his
+        subjects were carved from pale stone and placed under an even, cloudless sky.
+        Where Leonardo dissolved edges in amber sfumato and Titian warmed flesh with
+        golden glazes, Piero's illumination is cool and resolved.  Shadows drift toward
+        pale stone-grey rather than warm umber; highlights are silver-white rather than
+        cream; and the midtones carry a gentle desaturation that gives every surface a
+        geometric, fresco-like austerity.
+
+        This pass imposes that quality through three simultaneous corrections:
+
+        1. **Shadow cooldown** (luminance < ``shadow_threshold``):
+           Dark areas are shifted toward ``shadow_stone`` — a cool stone-grey that
+           replicates the pale, unsentimental shadow quality visible in the Flagellation
+           and the Resurrection.  Unlike Rembrandt or Caravaggio, Piero never lets a
+           shadow become warm umber or dramatic near-black; his shadows are resolutely
+           cool and contained.  The blend weight is highest at the darkest pixels and
+           fades smoothly to zero at the threshold boundary.
+
+        2. **Highlight silver tint** (luminance > ``highlight_threshold``):
+           Bright areas receive a cool silver-white bias.  This is the opposite of
+           Leonardo's amber highlight tint and Zorn's ivory-warm brightest mark: Piero's
+           highest lights read as luminous pale stone — cool, not golden.
+
+        3. **Midtone chroma dampen** (``shadow_threshold`` < lum < ``highlight_threshold``):
+           Midtone pixels are gently blended toward their own luminance grey, reducing
+           saturation in the mid-range.  This replicates the restrained, mineral palette
+           of Piero's fresco work — colours in the midtone zone are present but muted,
+           never the full saturation of a Venetian master.  The effect is proportional
+           to distance from the shadow and highlight zones: pixels squarely in the
+           midrange receive the strongest desaturation; pixels near the zone boundaries
+           receive progressively less.
+
+        Together these three corrections shift any base painting toward Piero's cool,
+        geometric, crystalline aesthetic without altering the fundamental tonal structure
+        established by ``build_form()``.
+
+        Call AFTER ``build_form()`` and BEFORE ``place_lights()``.  Do NOT follow
+        with ``sfumato_veil_pass()`` — Piero's edges are clear and resolved, not
+        dissolved into atmospheric smoke.
+
+        Parameters
+        ----------
+        shadow_stone        : RGB target for the shadow zone.
+                              Default (0.44, 0.46, 0.50) is a cool neutral stone-grey.
+                              Shift toward (0.38, 0.40, 0.46) for deeper, cooler shadows.
+        highlight_silver    : RGB target for the highlight zone.
+                              Default (0.93, 0.94, 0.96) is a pale cool silver-white.
+                              Shift toward (0.88, 0.90, 0.94) for a slightly warmer silver.
+        shadow_threshold    : Luminance boundary below which shadow cooldown engages.
+                              0.38–0.45 covers deep shadows without touching midtones.
+        highlight_threshold : Luminance boundary above which silver tint engages.
+                              0.66–0.74 covers highlights without touching midtones.
+        shadow_strength     : Blend weight for the shadow-to-stone-grey shift.
+                              0.18–0.28 gives visible cool shadow without deadening form.
+        highlight_strength  : Blend weight for the highlight-to-silver shift.
+                              0.12–0.22 gives cool highlights without washing the form.
+        chroma_dampen       : Strength of midtone desaturation.
+                              0.06–0.12 gives Piero's characteristic muted midtone palette.
+                              0.0 disables midtone desaturation entirely.
+        blend_opacity       : Global opacity of the entire pass.  0.40–0.55 for a single
+                              confident pass; 0.25–0.35 when stacking multiple calls.
+
+        Notes
+        -----
+        Inspired by: "The Flagellation of Christ" (c. 1455),
+        "The Resurrection" (c. 1463), "The Baptism of Christ" (c. 1448),
+        "Portrait of Federico da Montefeltro" (c. 1472).
+        This session's new artist addition — Piero della Francesca's cool mineral
+        quality as a computational painting pass.
+        """
+        import numpy as _np
+
+        print(f"  Piero crystalline pass  "
+              f"(shadow={shadow_strength:.2f}  highlight={highlight_strength:.2f}  "
+              f"chroma_dampen={chroma_dampen:.3f}  opacity={blend_opacity:.2f})")
+
+        # ── Read current canvas ARGB32 (BGRA byte order in pycairo) ──────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Perceptual luminance ──────────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        # ── Zone 1: Shadow cooldown toward stone-grey ─────────────────────────
+        # Dark pixels (lum < shadow_threshold) blend toward shadow_stone.
+        # Smoothstep weighting: highest blend at lum=0, fades to zero at threshold.
+        ss_r, ss_g, ss_b = shadow_stone
+        shadow_t = _np.clip(1.0 - lum / (shadow_threshold + 1e-6), 0.0, 1.0)
+        shadow_t = shadow_t * shadow_t * (3.0 - 2.0 * shadow_t)  # smoothstep
+        shadow_alpha = shadow_t * shadow_strength * blend_opacity
+
+        new_R = R + (ss_r - R) * shadow_alpha
+        new_G = G + (ss_g - G) * shadow_alpha
+        new_B = B + (ss_b - B) * shadow_alpha
+
+        # ── Zone 2: Highlight silver tint ─────────────────────────────────────
+        # Bright pixels (lum > highlight_threshold) blend toward highlight_silver.
+        # Quadratic ease: effect strongest at peak luminance, fades toward threshold.
+        hs_r, hs_g, hs_b = highlight_silver
+        hi_t = _np.clip(
+            (lum - highlight_threshold) / (1.0 - highlight_threshold + 1e-6),
+            0.0, 1.0,
+        )
+        hi_t = hi_t * hi_t  # quadratic: strongest at peak brightness
+        hi_alpha = hi_t * highlight_strength * blend_opacity
+
+        new_R = _np.clip(new_R + (hs_r - new_R) * hi_alpha, 0.0, 1.0)
+        new_G = _np.clip(new_G + (hs_g - new_G) * hi_alpha, 0.0, 1.0)
+        new_B = _np.clip(new_B + (hs_b - new_B) * hi_alpha, 0.0, 1.0)
+
+        # ── Zone 3: Midtone chroma dampen ─────────────────────────────────────
+        # Pixels in the midtone range (shadow_threshold < lum < highlight_threshold)
+        # are gently blended toward their own luminance grey.  This replicates
+        # Piero's restrained midtone palette — colours are present but never saturated.
+        if chroma_dampen > 0.0:
+            # Midtone weight: highest at centre of midrange, zero at both zone edges.
+            mid_low    = shadow_threshold
+            mid_high   = highlight_threshold
+            mid_centre = 0.5 * (mid_low + mid_high)
+            mid_half   = 0.5 * (mid_high - mid_low) + 1e-6
+            mid_t = _np.clip(1.0 - _np.abs(lum - mid_centre) / mid_half, 0.0, 1.0)
+            mid_t = mid_t * mid_t  # quadratic — softer ramp into the midzone
+
+            chroma_alpha = mid_t * chroma_dampen * blend_opacity
+            new_lum = 0.299 * new_R + 0.587 * new_G + 0.114 * new_B
+            new_R = _np.clip(new_R + (new_lum - new_R) * chroma_alpha, 0.0, 1.0)
+            new_G = _np.clip(new_G + (new_lum - new_G) * chroma_alpha, 0.0, 1.0)
+            new_B = _np.clip(new_B + (new_lum - new_B) * chroma_alpha, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Piero crystalline pass complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
     # morisot_plein_air_pass — Berthe Morisot's high-key impressionist light
     # ─────────────────────────────────────────────────────────────────────────
 

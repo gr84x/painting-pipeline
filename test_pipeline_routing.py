@@ -3201,3 +3201,156 @@ def test_post_impressionist_wet_blend_lower_than_nordic_impressionist():
     assert sp_post["wet_blend"] < sp_nord["wet_blend"], (
         "POST_IMPRESSIONIST wet_blend must be lower than NORDIC_IMPRESSIONIST "
         "(pastel marks sit drier than Zorn's wet-into-wet oil technique)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# piero_crystalline_pass — this session's random artistic improvement
+# Inspired by Piero della Francesca's cool mineral Early Italian Renaissance light
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_piero_crystalline_pass_exists():
+    """Painter must have piero_crystalline_pass() method after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "piero_crystalline_pass"), (
+        "piero_crystalline_pass not found on Painter")
+    assert callable(getattr(Painter, "piero_crystalline_pass"))
+
+
+def test_piero_crystalline_pass_no_error():
+    """piero_crystalline_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.58), texture_strength=0.04)
+    # Should not raise
+    p.piero_crystalline_pass(
+        shadow_stone        = (0.44, 0.46, 0.50),
+        highlight_silver    = (0.93, 0.94, 0.96),
+        shadow_threshold    = 0.42,
+        highlight_threshold = 0.70,
+        shadow_strength     = 0.22,
+        highlight_strength  = 0.16,
+        chroma_dampen       = 0.08,
+        blend_opacity       = 0.45,
+    )
+
+
+def test_piero_crystalline_pass_modifies_canvas():
+    """piero_crystalline_pass() with non-zero strengths must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    # Warm dark canvas — shadow zone pixels to shift toward cool stone
+    p.tone_ground((0.30, 0.22, 0.14), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32).copy()
+    p.piero_crystalline_pass(
+        shadow_strength     = 0.50,
+        highlight_strength  = 0.30,
+        chroma_dampen       = 0.15,
+        blend_opacity       = 0.70,
+    )
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    diff = np.abs(after - before).max()
+    assert diff > 0, (
+        "piero_crystalline_pass with non-zero strengths should modify the canvas")
+
+
+def test_piero_crystalline_pass_zero_opacity_no_op():
+    """piero_crystalline_pass with blend_opacity=0.0 and chroma_dampen=0.0 should be a no-op."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.28), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.piero_crystalline_pass(blend_opacity=0.0, chroma_dampen=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="piero_crystalline_pass with blend_opacity=0 and chroma_dampen=0 should be a no-op")
+
+
+def test_piero_crystalline_pass_cools_dark_shadows():
+    """
+    A dark warm canvas should become cooler (higher B channel) after
+    piero_crystalline_pass — because shadows are shifted toward stone-grey (B > R).
+    """
+    p = _make_small_painter(64, 64)
+    # Very dark warm canvas — all pixels fall in the shadow zone
+    p.tone_ground((0.22, 0.16, 0.10), texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA layout: channel 0 = B, channel 2 = R
+    before_b = float(before_buf[:, :, 0].mean())
+
+    p.piero_crystalline_pass(
+        shadow_stone    = (0.44, 0.46, 0.50),  # B > R target
+        shadow_strength = 0.50,
+        chroma_dampen   = 0.00,
+        blend_opacity   = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_b = float(after_buf[:, :, 0].mean())
+
+    assert after_b > before_b, (
+        f"Shadow stone shift should increase B channel on a dark warm canvas: "
+        f"before={before_b:.1f}, after={after_b:.1f}")
+
+
+def test_piero_crystalline_pass_cools_bright_highlights():
+    """
+    A bright warm canvas should become cooler (lower R/B ratio) after
+    piero_crystalline_pass — because highlights shift toward silver-white (B > R).
+    """
+    p = _make_small_painter(64, 64)
+    # Very bright warm canvas — all pixels fall in the highlight zone
+    p.tone_ground((0.90, 0.86, 0.78), texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA layout: channel 2 = R, channel 0 = B
+    before_r = float(before_buf[:, :, 2].mean())
+    before_b = float(before_buf[:, :, 0].mean())
+
+    p.piero_crystalline_pass(
+        highlight_silver    = (0.93, 0.94, 0.96),  # higher B/G than warm start
+        highlight_threshold = 0.60,                  # lower threshold to catch all pixels
+        highlight_strength  = 0.60,
+        shadow_strength     = 0.00,
+        chroma_dampen       = 0.00,
+        blend_opacity       = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r = float(after_buf[:, :, 2].mean())
+    after_b = float(after_buf[:, :, 0].mean())
+
+    # Silver-white has higher B relative to R than the warm canvas start — so
+    # R should decrease and/or B should increase after the shift.
+    r_decreased = after_r < before_r
+    b_increased = after_b > before_b
+    assert r_decreased or b_increased, (
+        f"Highlight silver shift should reduce R or increase B on a warm canvas: "
+        f"R before={before_r:.1f} after={after_r:.1f}, "
+        f"B before={before_b:.1f} after={after_b:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EARLY_ITALIAN_RENAISSANCE period routing (this session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_early_italian_renaissance_stroke_params_valid():
+    """EARLY_ITALIAN_RENAISSANCE stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.EARLY_ITALIAN_RENAISSANCE,
+                  palette=PaletteHint.COOL_GREY)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, (
+            f"EARLY_ITALIAN_RENAISSANCE stroke_params missing key: {key!r}")
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_early_italian_renaissance_wet_blend_lower_than_venetian():
+    """EARLY_ITALIAN_RENAISSANCE wet_blend must be lower than VENETIAN_RENAISSANCE (less fluid blending)."""
+    sp_early = Style(medium=Medium.OIL, period=Period.EARLY_ITALIAN_RENAISSANCE).stroke_params
+    sp_ven   = Style(medium=Medium.OIL, period=Period.VENETIAN_RENAISSANCE).stroke_params
+    assert sp_early["wet_blend"] < sp_ven["wet_blend"], (
+        "EARLY_ITALIAN_RENAISSANCE wet_blend must be lower than VENETIAN_RENAISSANCE "
+        "(Piero's geometric precision uses less fluid blending than Titian's rich Venetian technique)")
