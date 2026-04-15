@@ -2235,6 +2235,86 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Mary Cassatt ──────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Mary Stevenson Cassatt (1844–1926) was an American painter who spent most
+    # of her career in Paris, becoming the only American — and one of only two
+    # women — to join the core Impressionist circle.  Her lifelong association
+    # with Degas shaped her cropped, asymmetric compositions, but her palette and
+    # subject matter are distinctly her own.
+    #
+    # Her defining subject is the domestic interior: women reading, bathing
+    # children, nursing infants, attending the theatre.  The scenes are always
+    # lit by *north-window daylight* — cool, diffused, indirect — rather than
+    # the outdoor sunlight that preoccupied Monet or Renoir.  This gives her
+    # palette a characteristic quality: warm flesh illuminated by cool sky light,
+    # with warm amber ambient bouncing back from walls and floors into shadow.
+    #
+    # Her sustained engagement with Japanese woodblock prints (ukiyo-e) from 1890
+    # onward pushed her toward flatter zones, stronger contours, and cropped
+    # viewpoints.  Her series of colour aquatints (1890–1891) — exhibited
+    # alongside Hiroshige and Utamaro — are the most direct synthesis.  In her
+    # paintings the influence is subtler but present: clear, unmodulated passages
+    # of flat colour in garments and backgrounds contrast with the more carefully
+    # modelled flesh.
+    #
+    # Cassatt was also a pre-eminent pastel artist.  Her pastels carry a fine
+    # chalky granularity — the powdery surface of dry chalk on laid paper —
+    # quite different from the oil impasto of her male colleagues.
+    #
+    # Pipeline key: north_light_diffusion_pass() — simulates the cool-light /
+    # warm-shadow interplay of indoor north-window daylight.
+    "mary_cassatt": ArtStyle(
+        artist="Mary Stevenson Cassatt",
+        movement="American Impressionism / Intimisme",
+        nationality="American (expatriate French)",
+        period="1872–1926",
+        palette=[
+            (0.92, 0.82, 0.68),   # warm ivory highlight — north-lit flesh
+            (0.78, 0.64, 0.50),   # warm mid-flesh — ochre-cream
+            (0.54, 0.62, 0.72),   # cool blue-grey — north-light shadow
+            (0.68, 0.78, 0.65),   # sage green — foliage / wallpaper
+            (0.82, 0.70, 0.82),   # dusty rose-mauve — fabric / bonnets
+            (0.42, 0.52, 0.68),   # cool cerulean — armchair / dress
+            (0.88, 0.76, 0.55),   # warm amber — bounced ground-plane light
+        ],
+        ground_color=(0.88, 0.84, 0.76),    # pale cream — north-lit interior ground
+        stroke_size=9,
+        wet_blend=0.38,                      # deliberate but not Impressionist-broken
+        edge_softness=0.42,                  # soft edges from diffused north light
+        jitter=0.035,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "North-window intimate Impressionism. Soft, cool, diffused daylight from one "
+            "side creates gentle shadow transitions — no harsh chiaroscuro. Shadow areas "
+            "receive warm amber reflected light from ground plane and walls rather than "
+            "pure darkness. Figures cropped and asymmetrically placed, influenced by "
+            "Japanese woodblock prints (ukiyo-e). Background objects — wallpaper patterns, "
+            "striped fabrics, floral upholstery — treated as flat decorative zones that "
+            "contrast with more carefully modelled flesh. Pastel work adds a chalky, "
+            "granular surface quite different from oil impasto: powdery, directional, "
+            "layer upon layer of fine chalk strokes. Dominant warm palette: cream, sage, "
+            "dusty rose, with cool blue-grey shadow and warm amber reflected light."
+        ),
+        famous_works=[
+            ("In the Loge", "1878"),
+            ("Little Girl in a Blue Armchair", "1878"),
+            ("The Child's Bath", "1893"),
+            ("Mother and Child (The Oval Mirror)", "1899"),
+            ("Young Woman Sewing in a Garden", "c. 1886"),
+            ("The Boating Party", "1893–1894"),
+        ],
+        inspiration=(
+            "Use north_light_diffusion_pass() as the primary atmospheric pass: "
+            "cool blue-grey shift on the lit (window) side; warm amber reflected "
+            "light in the shadow. Backgrounds: flat_plane_pass() for flat patterned "
+            "fabric zones. Skin: academic_skin_pass() with moderate wet_blend (0.38) "
+            "and cool-leaning flesh tones — north light desaturates warm highlights."
+        ),
+    ),
+
 }
 
 

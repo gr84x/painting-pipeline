@@ -2613,3 +2613,82 @@ def test_academic_realist_stroke_params_valid():
     assert p["stroke_size_bg"]   >= 12, "ACADEMIC_REALIST bg stroke should be moderate (≥12)"
     assert p["wet_blend"]        >= 0.80, "ACADEMIC_REALIST wet_blend must be very high (≥0.80)"
     assert p["edge_softness"]    >= 0.70, "ACADEMIC_REALIST edge_softness must be high (≥0.70)"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# north_light_diffusion_pass — this session's new rendering pass (Cassatt)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_north_light_diffusion_pass_exists():
+    """Painter must have north_light_diffusion_pass() method after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "north_light_diffusion_pass"), (
+        "north_light_diffusion_pass not found on Painter")
+    assert callable(getattr(Painter, "north_light_diffusion_pass"))
+
+
+def test_north_light_diffusion_pass_no_error_left():
+    """north_light_diffusion_pass(light_side='left') runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.84, 0.76), texture_strength=0.04)
+    # Should complete without exception
+    p.north_light_diffusion_pass(light_side="left")
+
+
+def test_north_light_diffusion_pass_no_error_right():
+    """north_light_diffusion_pass(light_side='right') runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.84, 0.76), texture_strength=0.04)
+    p.north_light_diffusion_pass(light_side="right")
+
+
+def test_north_light_diffusion_pass_no_error_top():
+    """north_light_diffusion_pass(light_side='top') runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.84, 0.76), texture_strength=0.04)
+    p.north_light_diffusion_pass(light_side="top")
+
+
+def test_north_light_diffusion_pass_modifies_canvas():
+    """north_light_diffusion_pass with non-zero strengths must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.84, 0.76), texture_strength=0.04)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32).copy()
+    p.north_light_diffusion_pass(
+        light_side="left",
+        cool_strength=0.15,
+        warm_strength=0.12,
+        blend_opacity=0.50,
+    )
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    diff = np.abs(after - before).max()
+    assert diff > 0, (
+        "north_light_diffusion_pass with non-zero strengths should modify the canvas")
+
+
+def test_north_light_diffusion_pass_zero_opacity_no_op():
+    """north_light_diffusion_pass with blend_opacity=0 should not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.84, 0.76), texture_strength=0.04)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.north_light_diffusion_pass(blend_opacity=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="north_light_diffusion_pass with blend_opacity=0 should be a no-op")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# IMPRESSIONIST_INTIMISTE period routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_impressionist_intimiste_stroke_params_valid():
+    """IMPRESSIONIST_INTIMISTE stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_INTIMISTE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"IMPRESSIONIST_INTIMISTE stroke_params missing key: {key!r}"
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"]   > 0
+    assert 0.0 <= p["wet_blend"]      <= 1.0
+    assert 0.0 <= p["edge_softness"]  <= 1.0
