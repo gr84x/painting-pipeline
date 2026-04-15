@@ -3340,3 +3340,177 @@ def test_symbolist_edge_softness_low():
     assert sp["edge_softness"] <= 0.35, (
         f"SYMBOLIST edge_softness should be ≤ 0.35; got {sp['edge_softness']}")
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Albrecht Dürer / NORTHERN_RENAISSANCE — session 34 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_albrecht_durer_in_catalog():
+    """albrecht_durer must be present in CATALOG after session 34."""
+    assert "albrecht_durer" in CATALOG
+
+
+def test_albrecht_durer_movement():
+    s = get_style("albrecht_durer")
+    assert "northern renaissance" in s.movement.lower() or "northern" in s.movement.lower(), (
+        f"albrecht_durer movement should reference Northern Renaissance; got {s.movement!r}")
+
+
+def test_albrecht_durer_nationality():
+    s = get_style("albrecht_durer")
+    assert s.nationality == "German", (
+        f"albrecht_durer nationality should be 'German'; got {s.nationality!r}")
+
+
+def test_albrecht_durer_palette_length():
+    s = get_style("albrecht_durer")
+    assert len(s.palette) >= 5, (
+        f"albrecht_durer palette should have ≥ 5 colours; got {len(s.palette)}")
+
+
+def test_albrecht_durer_palette_values_in_range():
+    """All palette RGB values for albrecht_durer must be in [0, 1]."""
+    s = get_style("albrecht_durer")
+    for i, color in enumerate(s.palette):
+        for j, channel in enumerate(color):
+            assert 0.0 <= channel <= 1.0, (
+                f"albrecht_durer palette[{i}][{j}] = {channel} is outside [0, 1]")
+
+
+def test_albrecht_durer_ground_pale():
+    """albrecht_durer ground_color should be pale — silver-white imprimatura on gessoed panel."""
+    s = get_style("albrecht_durer")
+    lum = 0.299 * s.ground_color[0] + 0.587 * s.ground_color[1] + 0.114 * s.ground_color[2]
+    assert lum >= 0.70, (
+        f"albrecht_durer ground_color should be pale (lum ≥ 0.70); got lum={lum:.3f}")
+
+
+def test_albrecht_durer_palette_has_cool_grey():
+    """albrecht_durer palette must contain a cool grey/silver tone (near-equal RGB, mid-high value)."""
+    s = get_style("albrecht_durer")
+    cool_grey = any(
+        abs(r - g) < 0.10 and abs(g - b) < 0.10 and r > 0.55
+        for r, g, b in s.palette
+    )
+    assert cool_grey, (
+        "albrecht_durer palette must contain a cool grey/silver entry "
+        "(Dürer's background and shadow tonality is cool silver-grey)")
+
+
+def test_albrecht_durer_palette_has_warm_flesh():
+    """albrecht_durer palette must contain a warm flesh tone (R dominant in midrange)."""
+    s = get_style("albrecht_durer")
+    warm_flesh = any(r > 0.70 and r > g and g > b and r < 0.95 for r, g, b in s.palette)
+    assert warm_flesh, (
+        "albrecht_durer palette must contain a warm ochre flesh entry (R dominant midrange)")
+
+
+def test_albrecht_durer_has_crackle():
+    """albrecht_durer crackle should be True — 500-year-old panel paintings crack extensively."""
+    s = get_style("albrecht_durer")
+    assert s.crackle, "albrecht_durer crackle should be True (500-year-old gessoed panels)"
+
+
+def test_albrecht_durer_edge_softness_crisp():
+    """albrecht_durer edge_softness should be very low — engraving-precision crisp edges."""
+    s = get_style("albrecht_durer")
+    assert s.edge_softness <= 0.25, (
+        f"albrecht_durer edge_softness should be ≤ 0.25 (engraving-crisp); "
+        f"got {s.edge_softness}")
+
+
+def test_albrecht_durer_stroke_size_fine():
+    """albrecht_durer stroke_size should be very fine — single-hair precision marks."""
+    s = get_style("albrecht_durer")
+    assert s.stroke_size <= 5, (
+        f"albrecht_durer stroke_size should be ≤ 5 (single-hair engraving precision); "
+        f"got {s.stroke_size}")
+
+
+def test_albrecht_durer_wet_blend_moderate():
+    """albrecht_durer wet_blend should be moderate — thin oil layers, some blending."""
+    s = get_style("albrecht_durer")
+    assert 0.10 <= s.wet_blend <= 0.40, (
+        f"albrecht_durer wet_blend should be 0.10–0.40 (thin oil, not tempera dry nor wet sfumato); "
+        f"got {s.wet_blend}")
+
+
+def test_albrecht_durer_famous_works_not_empty():
+    s = get_style("albrecht_durer")
+    assert len(s.famous_works) >= 4, (
+        f"albrecht_durer famous_works should have ≥ 4 entries; got {len(s.famous_works)}")
+
+
+def test_albrecht_durer_self_portrait_referenced():
+    """albrecht_durer famous_works must include a self-portrait — his most iconic works."""
+    s = get_style("albrecht_durer")
+    titles = [title for title, _ in s.famous_works]
+    assert any("self-portrait" in t.lower() or "self portrait" in t.lower() for t in titles), (
+        "albrecht_durer famous_works must include a Self-Portrait")
+
+
+def test_albrecht_durer_inspiration_references_pass():
+    """The Dürer catalog entry must reference durer_engraving_pass."""
+    s = get_style("albrecht_durer")
+    assert "durer_engraving_pass" in s.inspiration, (
+        "albrecht_durer inspiration must reference durer_engraving_pass()")
+
+
+def test_albrecht_durer_no_warm_glaze():
+    """albrecht_durer glazing should be cool (B ≥ R) or very neutral — not Italian warm amber."""
+    s = get_style("albrecht_durer")
+    if s.glazing is not None:
+        r, g, b = s.glazing
+        # Cool or neutral: R should not strongly dominate (not >0.20 above B)
+        assert r - b <= 0.20, (
+            f"albrecht_durer glazing should be cool/neutral (not warm amber); "
+            f"got R={r:.2f} G={g:.2f} B={b:.2f}")
+
+
+# ── NORTHERN_RENAISSANCE period stroke_params ─────────────────────────────────
+
+def test_northern_renaissance_period_in_enum():
+    """NORTHERN_RENAISSANCE must be a valid Period enum member after session 34."""
+    assert hasattr(Period, "NORTHERN_RENAISSANCE"), (
+        "Period.NORTHERN_RENAISSANCE missing from scene_schema")
+    assert isinstance(Period.NORTHERN_RENAISSANCE, Period)
+
+
+def test_northern_renaissance_stroke_params_present():
+    """NORTHERN_RENAISSANCE must have a stroke_params entry covering all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"NORTHERN_RENAISSANCE stroke_params missing key: {key!r}"
+
+
+def test_northern_renaissance_stroke_size_face_fine():
+    """NORTHERN_RENAISSANCE stroke_size_face should be very fine — engraving-precision marks."""
+    sp = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE).stroke_params
+    assert sp["stroke_size_face"] <= 5, (
+        f"NORTHERN_RENAISSANCE stroke_size_face should be ≤ 5 (single-hair precision); "
+        f"got {sp['stroke_size_face']}")
+
+
+def test_northern_renaissance_edge_softness_crisp():
+    """NORTHERN_RENAISSANCE edge_softness should be very low — crisp engraving-influenced edges."""
+    sp = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE).stroke_params
+    assert sp["edge_softness"] <= 0.25, (
+        f"NORTHERN_RENAISSANCE edge_softness should be ≤ 0.25 (engraving-crisp); "
+        f"got {sp['edge_softness']}")
+
+
+def test_northern_renaissance_wet_blend_moderate():
+    """NORTHERN_RENAISSANCE wet_blend should be moderate — thin oils, some blending."""
+    sp = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE).stroke_params
+    assert 0.10 <= sp["wet_blend"] <= 0.40, (
+        f"NORTHERN_RENAISSANCE wet_blend should be 0.10–0.40; got {sp['wet_blend']:.3f}")
+
+
+def test_northern_renaissance_crisper_than_venetian():
+    """NORTHERN_RENAISSANCE edge_softness must be lower than VENETIAN_RENAISSANCE."""
+    sp_north = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE).stroke_params
+    sp_ven   = Style(medium=Medium.OIL, period=Period.VENETIAN_RENAISSANCE).stroke_params
+    assert sp_north["edge_softness"] < sp_ven["edge_softness"], (
+        "NORTHERN_RENAISSANCE edge_softness must be lower than VENETIAN_RENAISSANCE "
+        "(Dürer's engraving-influenced precision is crisper than Titian's rich glazed softness)")
+

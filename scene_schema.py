@@ -216,6 +216,7 @@ class Period(Enum):
     PRE_RAPHAELITE = auto()          # Waterhouse — jewel palette, wet white ground luminosity, fine Pre-Raphaelite detail
     SYMBOLIST     = auto()           # Moreau — encrusted gold highlights, Byzantine mosaic texture, deep crimson shadow richness
     FLORENTINE_RENAISSANCE = auto()  # Botticelli — pale gesso ground, sinuous linear grace, tempera hatching, chrysographic gold filaments
+    NORTHERN_RENAISSANCE = auto()    # Dürer — pale silver-white ground, cool engraving-precision, cross-hatch shadows, single-hair detail
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -664,6 +665,16 @@ class Style:
             # line defines every figure; there is no sfumato, no atmospheric softening;
             # the edge is a drawn line, not the edge of a tonal gradient.
             Period.FLORENTINE_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.06, edge_softness=0.12),
+            # Northern Renaissance (Dürer): engraving-precision oil on pale silver-white panel.
+            # stroke_size_face=3: the finest possible marks — Dürer painted individual hairs
+            # and fabric threads; each stroke is a deliberate, precise calligraphic touch.
+            # stroke_size_bg=16: moderate fine marks — Dürer's backgrounds are carefully
+            # observed dark neutral fields, not loose impressionistic washes.
+            # wet_blend=0.20: thin transparent oil layers permit limited wet blending in
+            # flesh halftones, but there is no wet-into-wet fusion — forms stay precise.
+            # edge_softness=0.18: very crisp — Dürer's engraving background makes every
+            # edge a drawn line, not the edge of a tonal gradient.  No sfumato haze.
+            Period.NORTHERN_RENAISSANCE: dict(stroke_size_face=3, stroke_size_bg=16, wet_blend=0.20, edge_softness=0.18),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
