@@ -29,6 +29,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 EXPECTED_ARTISTS = [
     "anders_zorn",
     "artemisia_gentileschi",
+    "berthe_morisot",
     "bouguereau",
     "bruegel",
     "caravaggio", "caspar_david_friedrich", "cezanne",
@@ -2640,4 +2641,127 @@ def test_nordic_impressionist_wet_blend_moderate_high():
               palette=PaletteHint.WARM_EARTH).stroke_params
     assert p["wet_blend"] >= 0.50, (
         f"NORDIC_IMPRESSIONIST wet_blend should be ≥ 0.50; got {p['wet_blend']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Berthe Morisot — this session's randomly discovered artist
+# French Impressionism / high-key colorful shadows / luminous plein-air palette
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_berthe_morisot_in_catalog():
+    """Berthe Morisot must appear in CATALOG after this session."""
+    assert "berthe_morisot" in CATALOG
+
+
+def test_berthe_morisot_movement():
+    s = get_style("berthe_morisot")
+    assert "Impression" in s.movement or "impression" in s.movement.lower(), (
+        f"Expected Impressionist movement, got {s.movement!r}")
+
+
+def test_berthe_morisot_nationality():
+    s = get_style("berthe_morisot")
+    assert "French" in s.nationality, (
+        f"Expected French nationality, got {s.nationality!r}")
+
+
+def test_berthe_morisot_palette_length():
+    s = get_style("berthe_morisot")
+    assert len(s.palette) >= 5, (
+        f"Morisot palette should have at least 5 key colours; got {len(s.palette)}")
+
+
+def test_berthe_morisot_palette_values_in_range():
+    """All Morisot palette RGB values must be floats in [0, 1]."""
+    s = get_style("berthe_morisot")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Out-of-range channel {ch} in Berthe Morisot palette {rgb}")
+
+
+def test_berthe_morisot_ground_high_luminance():
+    """Morisot's pale cream ground must be high-key (luminance > 0.70)."""
+    s = get_style("berthe_morisot")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum > 0.70, (
+        f"Morisot ground should be high-key (lum > 0.70); got {lum:.3f}")
+
+
+def test_berthe_morisot_palette_has_blue_violet():
+    """Morisot's palette must contain a blue or violet-biased shadow color."""
+    s = get_style("berthe_morisot")
+    has_cool = any(b >= r and b >= g - 0.05 for r, g, b in s.palette)
+    assert has_cool, (
+        "Morisot palette must contain a blue/violet color for her characteristic shadows")
+
+
+def test_berthe_morisot_no_crackle():
+    """Morisot's fresh Impressionist surface should not use a crackle finish."""
+    s = get_style("berthe_morisot")
+    assert not s.crackle, "berthe_morisot crackle should be False (fresh Impressionist surface)"
+
+
+def test_berthe_morisot_no_unifying_glaze():
+    """Morisot used no warm unifying glaze — her surfaces stay fresh."""
+    s = get_style("berthe_morisot")
+    assert s.glazing is None, "berthe_morisot glazing should be None (no warm film)"
+
+
+def test_berthe_morisot_famous_works_not_empty():
+    s = get_style("berthe_morisot")
+    assert len(s.famous_works) >= 4, (
+        f"Morisot famous_works has only {len(s.famous_works)} entries; expected ≥ 4")
+
+
+def test_berthe_morisot_cradle_referenced():
+    """'The Cradle' (1872) — Morisot's most celebrated work — must be listed."""
+    s = get_style("berthe_morisot")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Cradle" in t for t in titles), (
+        "berthe_morisot famous_works must include 'The Cradle'")
+
+
+def test_berthe_morisot_inspiration_references_pass():
+    """The Morisot catalog entry must reference the morisot_plein_air_pass."""
+    s = get_style("berthe_morisot")
+    assert "morisot_plein_air_pass" in s.inspiration, (
+        "berthe_morisot inspiration must reference morisot_plein_air_pass()")
+
+
+def test_impressionist_plein_air_period_exists():
+    """IMPRESSIONIST_PLEIN_AIR must exist in Period enum after this session."""
+    assert hasattr(Period, "IMPRESSIONIST_PLEIN_AIR"), (
+        "Period.IMPRESSIONIST_PLEIN_AIR not found")
+    assert Period.IMPRESSIONIST_PLEIN_AIR in list(Period)
+
+
+def test_impressionist_plein_air_stroke_params_valid():
+    """IMPRESSIONIST_PLEIN_AIR stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_PLEIN_AIR,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"IMPRESSIONIST_PLEIN_AIR stroke_params missing key: {key!r}"
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"]   > 0
+    assert 0.0 <= p["wet_blend"]      <= 1.0
+    assert 0.0 <= p["edge_softness"]  <= 1.0
+
+
+def test_impressionist_plein_air_wet_blend_moderate():
+    """IMPRESSIONIST_PLEIN_AIR wet_blend should be moderate — visible strokes but not raw."""
+    p = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_PLEIN_AIR).stroke_params
+    assert 0.20 <= p["wet_blend"] <= 0.60, (
+        f"IMPRESSIONIST_PLEIN_AIR wet_blend should be 0.20–0.60; got {p['wet_blend']}")
+
+
+def test_impressionist_plein_air_edge_softness_low():
+    """IMPRESSIONIST_PLEIN_AIR edge_softness should be lower than sfumato-style periods."""
+    sp_plein = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_PLEIN_AIR).stroke_params
+    sp_sfum  = Style(medium=Medium.OIL, period=Period.RENAISSANCE).stroke_params
+    assert sp_plein["edge_softness"] < sp_sfum["edge_softness"], (
+        "IMPRESSIONIST_PLEIN_AIR edge_softness should be lower than RENAISSANCE sfumato")
 

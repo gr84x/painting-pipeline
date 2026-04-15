@@ -2490,6 +2490,68 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Berthe Morisot ────────────────────────────────────────────────────────────
+    "berthe_morisot": ArtStyle(
+        artist="Berthe Morisot",
+        movement="French Impressionism",
+        nationality="French",
+        period="1864–1895",
+        palette=[
+            (0.96, 0.93, 0.86),   # warm white — luminous, slightly cream highlight
+            (0.78, 0.88, 0.95),   # pale sky blue — cool shadow of flesh in daylight
+            (0.94, 0.82, 0.72),   # warm peach-flesh — highlighted skin
+            (0.72, 0.80, 0.88),   # blue-grey — cool halftone shadow
+            (0.82, 0.74, 0.88),   # lavender — colorful reflected shadow in flesh
+            (0.64, 0.76, 0.62),   # muted sage — garden or outdoor backdrop element
+            (0.90, 0.72, 0.54),   # warm amber flesh midtone
+        ],
+        ground_color=(0.88, 0.84, 0.78),    # pale luminous warm cream — much lighter than most
+        stroke_size=9,
+        wet_blend=0.35,
+        edge_softness=0.25,
+        jitter=0.06,
+        glazing=None,                        # no unifying glaze — keep the surface fresh
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Morisot built her pictures on a pale, luminous ground with feathery, "
+            "multi-directional brushstrokes applied wet-into-wet.  Her shadow passages "
+            "are never dark or neutral — they are painted in blue-violet or lavender, "
+            "enriched with chromatic color rather than mere value reduction.  She studied "
+            "under Corot, then absorbed Manet's influence (she became his sister-in-law), "
+            "but developed a distinctly intimate vocabulary: loose, gestural marks that "
+            "suggest rather than define, interiors that dissolve into light, women and "
+            "children captured in fleeting moments of domestic life.  Her palette is "
+            "consistently high-key: highlights push toward warm cream, shadows toward "
+            "cool lavender, midtones toward warm peach.  There is almost no darkness in "
+            "her work — the tonal dynamic stays in the upper half of the scale, and even "
+            "the most shadowed passages retain a luminous quality.  She frequently broke "
+            "brushstroke direction to create a shimmering, woven surface texture — "
+            "horizontal in one area, diagonal in the next — giving the painting a sense "
+            "of captured movement and vibrating light."
+        ),
+        famous_works=[
+            ("The Cradle", "1872"),
+            ("Summer's Day", "1879"),
+            ("Woman at Her Toilette", "1879"),
+            ("The Harbor at Lorient", "1869"),
+            ("Reading", "1873"),
+            ("The Butterfly Hunt", "1874"),
+            ("Girl Arranging Her Hair", "1893"),
+        ],
+        inspiration=(
+            "Use morisot_plein_air_pass() as the primary atmosphere technique: "
+            "convert dark/neutral shadow areas to blue-violet or lavender, boost overall "
+            "luminosity so the tonal range stays high-key, and apply short multi-directional "
+            "feather strokes.  "
+            "tone_ground() with pale warm cream (0.88, 0.84, 0.78) — far lighter than most. "
+            "block_in() and build_form() with medium marks (stroke_size_face=9). "
+            "morisot_plein_air_pass() shifts shadow chroma toward cool lavender. "
+            "place_lights() with warm cream highlights, not brilliant white. "
+            "No final glaze — her surface should remain fresh and atmospheric."
+        ),
+    ),
+
 }
 
 

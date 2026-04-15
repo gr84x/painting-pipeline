@@ -9516,3 +9516,146 @@ class Painter:
         self.canvas.ctx.paint()
 
         print(f"    Zorn tricolor pass complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # morisot_plein_air_pass — Berthe Morisot's high-key impressionist light
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def morisot_plein_air_pass(
+            self,
+            shadow_violet:      Color = (0.72, 0.68, 0.90),  # blue-violet shadow target
+            luminosity_lift:    float = 0.10,                 # shadow brightness boost
+            shadow_threshold:   float = 0.42,                 # lum below = shadow zone
+            highlight_cream:    Color = (0.96, 0.93, 0.86),  # warm cream for highlights
+            highlight_threshold: float = 0.76,                # lum above = highlight zone
+            chroma_strength:    float = 0.18,                 # shadow hue-shift strength
+            blend_opacity:      float = 0.45,
+    ):
+        """
+        Simulates Berthe Morisot's characteristic high-key impressionist technique.
+
+        Morisot's paintings share two defining qualities that distinguish her from her
+        contemporaries: **colored shadows** and **elevated luminosity range**.  Where
+        Rembrandt's shadows are warm umber, Zorn's are warm ivory-black, and Caravaggio's
+        are pure void, Morisot's shadows are blue-violet or lavender — chromatic passages
+        that contain as much color as the lights, only cooler.  This keeps her tonal range
+        compressed into the upper half of the luminance scale, giving every canvas an
+        airy, light-filled quality regardless of subject matter.
+
+        This pass imposes that quality through two simultaneous corrections:
+
+        1. **Shadow chroma correction** (luminance < ``shadow_threshold``):
+           Dark areas are shifted toward ``shadow_violet`` — a blue-violet color
+           that replicates the cool reflected sky light Morisot perceived in outdoor
+           and north-lit interior settings.  The shift is proportional to how dark the
+           pixel is, so the deepest shadows receive the strongest hue rotation while
+           midtones blend smoothly out.  Luminance is also gently lifted by
+           ``luminosity_lift`` to keep her characteristic high-key quality.
+
+        2. **Highlight cream tint** (luminance > ``highlight_threshold``):
+           The brightest areas receive a subtle warm cream bias — Morisot's highlights
+           are never a brilliant blue-white but rather a luminous warm ivory, consistent
+           with diffuse northern daylight reflecting off pale skin and white fabric.
+
+        Both corrections are gated by ``blend_opacity`` so the pass can be called
+        at lower strength multiple times, mirroring her layered wet-into-wet method.
+
+        The pass is luminance-structure-neutral: unlike a simple colorize operation,
+        the shadow shift targets only the chromatic component — the tonal hierarchy
+        established by ``build_form()`` is preserved; only the color of each tonal
+        zone is moved toward Morisot's characteristic palette.
+
+        Call AFTER ``build_form()`` and BEFORE ``place_lights()``.  No final glaze
+        is needed — Morisot's surface should remain fresh, not unified by a warm film.
+
+        Parameters
+        ----------
+        shadow_violet      : RGB target color for the shadow zone.
+                             Default (0.72, 0.68, 0.90) is a muted blue-violet.
+                             Shift toward (0.60, 0.60, 0.92) for cooler, bluer shadows.
+        luminosity_lift    : How much to lift shadow luminance toward the midtones.
+                             0.06–0.12 gives Morisot's characteristic high-key quality.
+                             0.0 shifts hue only without brightening.
+        shadow_threshold   : Luminance boundary separating shadow from midtone zones.
+                             0.38–0.45 typical for impressionist shadow treatment.
+        highlight_cream    : RGB target color for the highlight zone.
+                             Default (0.96, 0.93, 0.86) is warm ivory — not blue-white.
+        highlight_threshold: Luminance above which the cream tint is applied.
+                             0.72–0.80 avoids touching midtones.
+        chroma_strength    : Blend weight for the shadow-to-violet hue shift.
+                             0.12–0.22 gives visible but tasteful color in shadows.
+        blend_opacity      : Global opacity of the entire pass.  0.40–0.55 for a single
+                             confident pass; 0.20–0.30 when stacking multiple calls.
+
+        Notes
+        -----
+        Inspired by: "The Cradle" (1872), "Summer's Day" (1879),
+        "Woman at Her Toilette" (1879), "The Harbor at Lorient" (1869).
+        This session's random artistic improvement — Morisot's colorful-shadow
+        approach as a computational painting pass.
+        """
+        import numpy as _np
+
+        print(f"  Morisot plein-air pass  "
+              f"(chroma={chroma_strength:.2f}  lift={luminosity_lift:.2f}  "
+              f"opacity={blend_opacity:.2f})")
+
+        # ── Read current canvas ARGB32 (BGRA byte order in pycairo) ──────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Perceptual luminance ──────────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        # ── Zone 1: Shadow chroma shift toward blue-violet ───────────────────
+        # Dark pixels (lum < shadow_threshold) are blended toward shadow_violet.
+        # The blend weight is highest at lum=0 and fades to 0 at shadow_threshold.
+        sv_r, sv_g, sv_b = shadow_violet
+        shadow_t = _np.clip(1.0 - lum / (shadow_threshold + 1e-6), 0.0, 1.0)
+        # Smoothstep: slow start, fast middle, slow end — avoids hard boundary
+        shadow_t = shadow_t * shadow_t * (3.0 - 2.0 * shadow_t)
+        shadow_alpha = shadow_t * chroma_strength * blend_opacity
+
+        new_R = R + (sv_r - R) * shadow_alpha
+        new_G = G + (sv_g - G) * shadow_alpha
+        new_B = B + (sv_b - B) * shadow_alpha
+
+        # ── Luminosity lift in shadow zone ────────────────────────────────────
+        # Gently raise shadow luminance toward midtone — Morisot's shadows are
+        # never the near-black void of Caravaggio or Rembrandt.
+        if luminosity_lift > 0.0:
+            lift_alpha = shadow_t * luminosity_lift * blend_opacity
+            new_R = _np.clip(new_R + lift_alpha, 0.0, 1.0)
+            new_G = _np.clip(new_G + lift_alpha, 0.0, 1.0)
+            new_B = _np.clip(new_B + lift_alpha, 0.0, 1.0)
+
+        # ── Zone 2: Highlight cream tint ──────────────────────────────────────
+        # Bright areas (lum > highlight_threshold) receive a subtle warm cream bias.
+        # Morisot's highlights read as warm ivory, not brilliant cool white.
+        hc_r, hc_g, hc_b = highlight_cream
+        hi_t = _np.clip(
+            (lum - highlight_threshold) / (1.0 - highlight_threshold + 1e-6),
+            0.0, 1.0,
+        )
+        hi_t = hi_t * hi_t  # quadratic ease — effect strongest at peak luminance
+        hi_alpha = hi_t * 0.30 * blend_opacity  # cream tint is subtle; never overwhelm
+
+        new_R = _np.clip(new_R + (hc_r - new_R) * hi_alpha, 0.0, 1.0)
+        new_G = _np.clip(new_G + (hc_g - new_G) * hi_alpha, 0.0, 1.0)
+        new_B = _np.clip(new_B + (hc_b - new_B) * hi_alpha, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Morisot plein-air pass complete")
