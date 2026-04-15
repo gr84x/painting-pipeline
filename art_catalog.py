@@ -2491,6 +2491,70 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
     # ── Berthe Morisot ────────────────────────────────────────────────────────────
+    # ── Edgar Degas ───────────────────────────────────────────────────────────
+    # Pipeline key: degas_pastel_pass() — builds crosshatched pastel-over-monotype
+    # texture; shifts dark areas toward blue-grey while warming the lights with orange-rose.
+    "degas": ArtStyle(
+        artist="Edgar Degas",
+        movement="Post-Impressionism / Impressionism",
+        nationality="French",
+        period="1853–1917",
+        palette=[
+            (0.88, 0.72, 0.54),   # warm amber-orange — lit flesh highlight
+            (0.74, 0.68, 0.78),   # cool blue-grey — shadow flesh / background tone
+            (0.96, 0.88, 0.76),   # pale ivory — top highlight on skin
+            (0.38, 0.62, 0.52),   # muted viridian — costume accents, background
+            (0.86, 0.62, 0.66),   # warm dusty rose — fabric and soft shadows
+            (0.30, 0.30, 0.42),   # deep blue-grey — deep shadow, near-black passages
+            (0.72, 0.60, 0.42),   # raw sienna — monotype base warmth beneath pastels
+        ],
+        ground_color=(0.28, 0.26, 0.32),    # dark blue-grey toned monotype ground
+        stroke_size=7,
+        wet_blend=0.22,
+        edge_softness=0.35,
+        jitter=0.05,
+        glazing=None,                        # pastel has no glazing layer
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Degas developed a hybrid technique combining oil-ink monotype with subsequent "
+            "pastel reworking — a method that gave his surfaces an extraordinary tension "
+            "between the fluid, spontaneous monotype ground and the precise, directional "
+            "pastel marks layered on top.  His hatching was multidirectional: short strokes "
+            "at varying angles build up colour optically rather than physically mixing.  "
+            "The result is a shimmering, vibrating surface — adjacent complementary marks "
+            "(warm orange against cool blue-grey) create simultaneous contrast that the eye "
+            "resolves into a coherent, luminous whole only at reading distance.  "
+            "His palette is cooler and more restrained than the garden Impressionists: "
+            "shadow areas drift toward blue-grey and deep slate, while lights warm toward "
+            "amber, dusty rose, and pale ivory.  He was deeply influenced by Japanese prints "
+            "(strong diagonals, unusual cropping, flat pattern) and by classical masters "
+            "including Ingres and Mantegna.  Despite founding the Impressionist exhibitions "
+            "he rejected the label, insisting that spontaneity was overrated and that "
+            "careful drawing lay beneath every vibrating surface he ever made."
+        ),
+        famous_works=[
+            ("The Dance Class", "1874"),
+            ("L'Absinthe", "1876"),
+            ("Ballet Rehearsal", "1875"),
+            ("Woman Bathing in a Shallow Tub", "1886"),
+            ("At the Races", "1869"),
+            ("The Millinery Shop", "1879"),
+            ("Dancers in Blue", "1890"),
+        ],
+        inspiration=(
+            "Use degas_pastel_pass() as the primary colouristic technique: "
+            "build directional crosshatched strokes over a dark blue-grey ground, "
+            "shift shadows toward cool blue-grey while warming lights toward amber-orange. "
+            "tone_ground() with dark blue-grey (0.28, 0.26, 0.32) — a monotype-like base. "
+            "block_in() and build_form() with fine marks (stroke_size_face=7). "
+            "degas_pastel_pass() adds the characteristic cool-shadow / warm-light duality "
+            "and simulates the optical colour-mixing of overlaid pastel hatching. "
+            "No final glaze — pastels have no varnish layer.  Edge softness is moderate: "
+            "structural drawing clarity must remain beneath the colouristic surface."
+        ),
+    ),
+
     "berthe_morisot": ArtStyle(
         artist="Berthe Morisot",
         movement="French Impressionism",
