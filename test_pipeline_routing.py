@@ -1462,3 +1462,76 @@ def test_scumble_pass_figure_only_no_error():
     mask[16:48, 16:48] = 1.0
     p._figure_mask = mask
     p.scumble_pass(opacity=0.20, n_drags=80, drag_distance=8, figure_only=True)
+# dappled_light_pass — Sorolla / Luminismo addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_dappled_light_pass_exists():
+    """Painter must have dappled_light_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "dappled_light_pass"), (
+        "dappled_light_pass not found on Painter")
+    assert callable(getattr(Painter, "dappled_light_pass"))
+
+
+def test_dappled_light_pass_no_error():
+    """dappled_light_pass() runs without error on a plain toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.70, 0.68, 0.58), texture_strength=0.06)
+    # Should not raise
+    p.dappled_light_pass(ref, n_pools=6, pool_radius=0.12)
+
+
+def test_dappled_light_pass_modifies_canvas():
+    """dappled_light_pass() with non-zero intensity must modify a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.dappled_light_pass(ref, n_pools=10, pool_radius=0.15,
+                         light_intensity=0.40, shadow_intensity=0.20)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff > 0, "dappled_light_pass should modify the canvas"
+
+
+def test_dappled_light_pass_zero_intensity_minimal_change():
+    """dappled_light_pass() with zero intensities should leave the canvas essentially unchanged."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.dappled_light_pass(ref, n_pools=8, pool_radius=0.12,
+                         light_intensity=0.0, shadow_intensity=0.0,
+                         blur_sigma=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    # With both intensities at zero the RGB channels should be unaltered;
+    # allow a tolerance of 1 for float rounding through the uint8 write-back.
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff <= 2, (
+        f"dappled_light_pass with zero intensity should not change the canvas, "
+        f"but max pixel diff was {diff}")
+
+
+def test_dappled_light_pass_luminismo_routing_flag():
+    """LUMINISMO period must produce a valid stroke_params dict (routing smoke test)."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LUMINISMO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "wet_blend"        in p
+    # Luminismo should NOT be mannerist, synthetist, or color-field
+    assert style.period != Period.MANNERIST
+    assert style.period != Period.SYNTHETIST
+    assert style.period != Period.COLOR_FIELD

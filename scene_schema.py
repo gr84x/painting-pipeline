@@ -198,6 +198,7 @@ class Period(Enum):
     PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
     EARLY_NETHERLANDISH = auto()  # Jan van Eyck — stacked transparent oil glazes, chalk-white gesso, Flemish micro-detail
     NABIS         = auto()   # Vuillard — flat muted intimiste zones, scumbled surfaces, figures absorbed into patterned grounds
+    LUMINISMO     = auto()   # Sorolla — maximum sunlight, warm/cool simultaneous contrast, dappled light pools
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -490,6 +491,13 @@ class Style:
             # Low-moderate edge_softness: edges are present but softened by the uniform
             # mark density rather than blending — forms lose definition in the pattern.
             Period.NABIS:         dict(stroke_size_face=7,  stroke_size_bg=9,  wet_blend=0.12, edge_softness=0.28),
+            # Luminismo (Sorolla): bold outdoor Impressionism — maximum sunlight,
+            # warm/cool simultaneous contrast.  stroke_size_face is moderate (loaded
+            # decisive outdoor strokes).  stroke_size_bg is large (broad sky and sea
+            # washes).  Moderate wet_blend: lively wet-into-wet but strokes stay
+            # readable and energetic, not muddy.  Low-moderate edge_softness: forms
+            # are clear in the brilliant Mediterranean light — no sfumato.
+            Period.LUMINISMO:     dict(stroke_size_face=10, stroke_size_bg=24, wet_blend=0.38, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -3153,6 +3153,191 @@ class Painter:
 
         print("  Granulation complete.")
 
+    def dappled_light_pass(
+            self,
+            reference:          "Union[np.ndarray, Image.Image]",
+            n_pools:            int   = 38,
+            pool_radius:        float = 0.065,
+            light_color:        Color = (1.00, 0.97, 0.82),
+            shadow_color:       Color = (0.62, 0.58, 0.80),
+            light_intensity:    float = 0.28,
+            shadow_intensity:   float = 0.14,
+            scatter_jitter:     float = 0.18,
+            lum_gate:           float = 0.30,
+            blur_sigma:         float = 3.5,
+    ):
+        """
+        Dappled light pass — inspired by Joaquín Sorolla's luminismo.
+
+        Sorolla's outdoor paintings are defined by broken pools of Mediterranean
+        sunlight scattered across figures, fabric, and water.  Direct sunlight
+        filters through leaves (or reflects off water) to create irregular,
+        overlapping patches of warm brilliance surrounded by cool violet shadow.
+
+        This pass simulates that effect entirely in the painted pixel buffer:
+
+        1. **Pool placement** — ``n_pools`` elliptical masks are placed pseudo-
+           randomly across the canvas, biased toward mid-luminance areas (the
+           brightly-lit regions where the effect is most readable).
+
+        2. **Warm light dabs** — inside each pool the canvas is nudged toward
+           ``light_color`` (warm golden-white) proportional to ``light_intensity``.
+           The shift is strongest at the pool centre and falls off with a Gaussian
+           envelope, so each patch is softer at its perimeter — imitating the
+           penumbral edge of filtered sunlight.
+
+        3. **Cool violet shadow fringe** — immediately outside each pool the
+           complement effect kicks in: the shadow side is shifted toward
+           ``shadow_color`` (cool violet / blue) at ``shadow_intensity``.
+           This simultaneous contrast is the defining Sorolla move: warm light
+           makes the adjacent shadow *cooler and more violet* by comparison.
+
+        4. **Specular impasto dot** — at each pool's brightest point a single
+           very bright near-white dab (radius ≈ pool_radius × 0.12) marks the
+           direct specular highlight.  In Sorolla's technique these dots are
+           painted last with a heavily loaded brush.
+
+        The pass works in float32 pixel space for accuracy, then writes back to
+        the Cairo ARGB32 surface — exactly like ``pigment_granulation_pass``.
+
+        Parameters
+        ----------
+        reference        : Reference image for luminance-biased placement.
+        n_pools          : Number of light pools to scatter.
+        pool_radius      : Pool radius as a fraction of canvas width (0.03–0.12).
+        light_color      : Warm sunlight colour to push into pool centres.
+        shadow_color     : Cool shadow/violet colour for pool fringes.
+        light_intensity  : Maximum lightening strength inside each pool (0–1).
+        shadow_intensity : Maximum shadow fringe shift (0–1).
+        scatter_jitter   : Fraction of canvas added as uniform random noise to
+                           pool positions beyond the luminance-biased grid.
+        lum_gate         : Only place pools over pixels above this luminance —
+                           avoids scattering light into already-dark shadow areas.
+        blur_sigma       : Gaussian sigma (px) for pool envelope softening.
+        """
+        print(f"Dappled light pass  (n_pools={n_pools}  "
+              f"radius={pool_radius:.3f}  intensity={light_intensity:.2f})…")
+
+        ref = self._prep(reference)
+        h, w = self.h, self.w
+        rng  = random.Random(42)           # deterministic within a painting session
+
+        # ── Read current canvas ───────────────────────────────────────────────
+        buf  = np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=np.uint8).reshape(h, w, 4).copy()
+        carr = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0   # BGR→RGB
+
+        # ── Reference luminance for placement bias ────────────────────────────
+        ref_lum = (0.299 * ref[:, :, 0] +
+                   0.587 * ref[:, :, 1] +
+                   0.114 * ref[:, :, 2])
+
+        # Build a candidate set: pixels above lum_gate
+        bright_ys, bright_xs = np.where(ref_lum > lum_gate)
+        if bright_ys.size == 0:
+            bright_ys, bright_xs = np.where(ref_lum >= 0)   # fallback: anywhere
+
+        # Pixel radius
+        radius_px = max(6, int(pool_radius * w))
+
+        # Accumulator for light and shadow shifts — summed, then applied once
+        light_acc  = np.zeros((h, w), dtype=np.float32)   # +lightening
+        shadow_acc = np.zeros((h, w), dtype=np.float32)   # +shadow fringe
+
+        ys_f = np.arange(h, dtype=np.float32)
+        xs_f = np.arange(w, dtype=np.float32)
+
+        for _ in range(n_pools):
+            # Sample a candidate pixel, biased toward bright areas
+            idx = rng.randrange(len(bright_ys))
+            cy  = int(bright_ys[idx] + rng.uniform(-scatter_jitter * h,
+                                                     scatter_jitter * h))
+            cx  = int(bright_xs[idx] + rng.uniform(-scatter_jitter * w,
+                                                     scatter_jitter * w))
+            cy  = max(0, min(h - 1, cy))
+            cx  = max(0, min(w - 1, cx))
+
+            # Elliptical Gaussian pool envelope (slight aspect-ratio variation)
+            rx  = radius_px * rng.uniform(0.75, 1.25)
+            ry  = radius_px * rng.uniform(0.75, 1.25)
+
+            # Distance grid — vectorised
+            dy  = (ys_f[:, np.newaxis] - cy) / max(ry, 1)
+            dx  = (xs_f[np.newaxis, :] - cx) / max(rx, 1)
+            d2  = dx * dx + dy * dy
+
+            # Gaussian core: peaks at the pool centre (d2=0)
+            gauss  = np.exp(-d2 * 1.8).astype(np.float32)
+
+            # Shadow fringe: annular region just outside the core
+            fringe = np.exp(-((d2 - 1.0) ** 2) * 2.5).astype(np.float32)
+            fringe = np.where(d2 > 0.6, fringe, 0.0).astype(np.float32)
+
+            light_acc  += gauss  * rng.uniform(0.65, 1.0)
+            shadow_acc += fringe * rng.uniform(0.50, 1.0)
+
+        # Normalise accumulators so overlapping pools don't over-saturate
+        max_l = light_acc.max()
+        max_s = shadow_acc.max()
+        if max_l > 0:
+            light_acc  /= max_l
+        if max_s > 0:
+            shadow_acc /= max_s
+
+        # Optional Gaussian blur to soften pool boundaries
+        if blur_sigma > 0:
+            light_acc  = ndimage.gaussian_filter(light_acc,  sigma=blur_sigma)
+            shadow_acc = ndimage.gaussian_filter(shadow_acc, sigma=blur_sigma)
+
+        light_acc  = light_acc.clip(0, 1)
+        shadow_acc = shadow_acc.clip(0, 1)
+
+        # ── Warm light shift ──────────────────────────────────────────────────
+        lc = np.array(light_color,  dtype=np.float32)
+        sc = np.array(shadow_color, dtype=np.float32)
+
+        out = carr.copy()
+        for c in range(3):
+            # Blend each pixel toward light_color proportional to pool presence
+            out[:, :, c] = (carr[:, :, c]
+                            + (lc[c] - carr[:, :, c]) * light_acc  * light_intensity
+                            + (sc[c] - carr[:, :, c]) * shadow_acc * shadow_intensity)
+        out = out.clip(0.0, 1.0)
+
+        # ── Specular impasto dot at each pool centre ──────────────────────────
+        # A single very bright near-white dab at the pool core — the small
+        # loaded-brush impasto mark that catches the eye in Sorolla's work.
+        # Only placed when light is actually being applied (intensity > 0).
+        if light_intensity > 0:
+            spec_r = max(2, int(radius_px * 0.12))
+            spec_c = np.array([1.00, 0.98, 0.90], dtype=np.float32)
+            ys_g, xs_g = np.ogrid[:h, :w]
+            for _ in range(min(n_pools, 12)):   # only the first 12 pools get specular dots
+                idx = rng.randrange(len(bright_ys))
+                cy  = int(bright_ys[idx])
+                cx  = int(bright_xs[idx])
+                dg  = (ys_g - cy) ** 2 + (xs_g - cx) ** 2
+                within = dg <= spec_r ** 2
+                for c in range(3):
+                    out[:, :, c] = np.where(within,
+                                            out[:, :, c] * 0.25 + spec_c[c] * 0.75,
+                                            out[:, :, c])
+
+        out = out.clip(0.0, 1.0)
+
+        # ── Write back to Cairo surface ───────────────────────────────────────
+        buf[:, :, 2] = np.clip(out[:, :, 0] * 255, 0, 255).astype(np.uint8)  # R→G2
+        buf[:, :, 1] = np.clip(out[:, :, 1] * 255, 0, 255).astype(np.uint8)  # G→G1
+        buf[:, :, 0] = np.clip(out[:, :, 2] * 255, 0, 255).astype(np.uint8)  # B→G0
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print("  Dappled light complete.")
+
     def glaze(self, color: Color, opacity: float = 0.10):
         """
         Step 6 — Final glaze.

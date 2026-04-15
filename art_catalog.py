@@ -1731,6 +1731,58 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Joaquín Sorolla ───────────────────────────────────────────────────────
+    "sorolla": ArtStyle(
+        artist="Joaquín Sorolla y Bastida",
+        movement="Spanish Luminismo / Impressionism",
+        nationality="Spanish",
+        period="1890–1923",
+        palette=[
+            (0.98, 0.96, 0.88),   # brilliant white sunlight (titanium white / lead white)
+            (0.94, 0.82, 0.52),   # warm golden sunlit flesh
+            (0.60, 0.78, 0.92),   # Mediterranean sea blue
+            (0.35, 0.62, 0.78),   # deep water blue-cyan
+            (0.88, 0.92, 0.72),   # sun-bleached sand / dry grass
+            (0.72, 0.55, 0.35),   # warm shadow flesh — violet-tinged brown
+            (0.62, 0.70, 0.52),   # dappled shade — cool olive green
+            (0.92, 0.88, 0.96),   # cool violet reflected light in shadows
+        ],
+        ground_color=(0.70, 0.68, 0.58),    # warm buff / primed linen in direct sun
+        stroke_size=10,
+        wet_blend=0.38,                      # fluid but not fully blended — lively
+        edge_softness=0.45,                  # soft but readable edges; no sfumato
+        jitter=0.055,                        # high colour variation — vibrant optical mix
+        glazing=None,                        # no unifying glaze — brilliance is the point
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Luminismo — the Spanish outdoor Impressionism of maximum sunlight. "
+            "Sorolla built intense illumination through simultaneous contrast: "
+            "warm white or golden highlights against cool violet and blue shadows. "
+            "Characteristic dappled light pools scatter across figure, fabric, and "
+            "water as broken, high-key strokes. Wet-into-wet for the broad passages; "
+            "decisive loaded-brush impasto dabs for the brightest specular points. "
+            "The shadow side of flesh is never brown — it is violet-tinted cool, "
+            "in Impressionist opposition to the warm direct light."
+        ),
+        famous_works=[
+            ("Sewing the Sail", "1896"),
+            ("Sorolla's Children on the Beach", "1909"),
+            ("Walk on the Beach", "1909"),
+            ("The Beach at Valencia by Morning Light", "1908"),
+            ("Sad Inheritance!", "1899"),
+            ("Louis Comfort Tiffany", "1911"),
+        ],
+        inspiration=(
+            "Use dappled_light_pass() to scatter the signature broken pools of "
+            "Mediterranean sunlight across the canvas. Warm-cool simultaneous "
+            "contrast is the core move: wherever the sunlit key hits (warm golden), "
+            "the adjacent shadow answers in cool violet. High jitter and moderately "
+            "low wet_blend keeps strokes lively and optically mixed rather than "
+            "muddied. Final highlights are impasto-bright white with a yellow cast."
+        ),
+    ),
+
 }
 
 
