@@ -33,8 +33,8 @@ EXPECTED_ARTISTS = [
     "jan_van_eyck",
     "kandinsky",
     "klimt", "leonardo", "manet", "matisse", "modigliani", "monet", "rembrandt",
-    "rothko", "sargent", "seurat", "titian", "turner", "van_gogh", "velazquez",
-    "vermeer",
+    "rothko", "sargent", "seurat", "tamara_de_lempicka", "titian", "turner",
+    "van_gogh", "velazquez", "vermeer",
 ]
 
 
@@ -160,6 +160,7 @@ EXPECTED_PERIODS = [
     "COLOR_FIELD", "SYNTHETIST", "MANNERIST", "SURREALIST",
     "ABSTRACT_EXPRESSIONIST", "VENETIAN_RENAISSANCE",
     "FAUVIST", "PRIMITIVIST", "EARLY_NETHERLANDISH",
+    "ART_DECO",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
 ]
 
@@ -1029,3 +1030,109 @@ def test_early_netherlandish_stroke_params_all_keys_present():
     p = style.stroke_params
     for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
         assert key in p, f"EARLY_NETHERLANDISH stroke_params missing key: {key!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 22: Tamara de Lempicka — Art Deco figurative portraiture
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_tamara_de_lempicka_in_catalog():
+    """Session 22: tamara_de_lempicka must be present in CATALOG."""
+    assert "tamara_de_lempicka" in CATALOG, (
+        "tamara_de_lempicka not found in CATALOG after session 22")
+
+
+def test_tamara_de_lempicka_movement():
+    """de Lempicka's movement must reference Art Deco."""
+    s = get_style("tamara_de_lempicka")
+    assert "Art Deco" in s.movement or "art deco" in s.movement.lower(), (
+        f"Expected 'Art Deco' in movement, got: {s.movement!r}")
+
+
+def test_tamara_de_lempicka_nationality():
+    s = get_style("tamara_de_lempicka")
+    assert "Polish" in s.nationality or "French" in s.nationality, (
+        f"Expected Polish or French in nationality, got: {s.nationality!r}")
+
+
+def test_tamara_de_lempicka_palette_length():
+    s = get_style("tamara_de_lempicka")
+    assert len(s.palette) >= 6, (
+        f"de Lempicka palette should have at least 6 colours, got {len(s.palette)}")
+
+
+def test_tamara_de_lempicka_palette_in_range():
+    """All de Lempicka palette RGB values must be in [0, 1]."""
+    s = get_style("tamara_de_lempicka")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Out-of-range channel {ch} in de Lempicka palette {rgb}")
+
+
+def test_tamara_de_lempicka_low_wet_blend():
+    """de Lempicka has a polished, lacquered surface — wet_blend should be low."""
+    s = get_style("tamara_de_lempicka")
+    assert s.wet_blend <= 0.15, (
+        f"de Lempicka wet_blend should be low (polished surface); got {s.wet_blend}")
+
+
+def test_tamara_de_lempicka_low_edge_softness():
+    """de Lempicka has crisp Art Deco edges — edge_softness should be low."""
+    s = get_style("tamara_de_lempicka")
+    assert s.edge_softness <= 0.15, (
+        f"de Lempicka edge_softness should be low (hard contour lines); "
+        f"got {s.edge_softness}")
+
+
+def test_tamara_de_lempicka_no_glaze():
+    """de Lempicka's lacquered surface is final — no unifying glaze expected."""
+    s = get_style("tamara_de_lempicka")
+    assert s.glazing is None, (
+        f"de Lempicka should have no unifying glaze, got: {s.glazing}")
+
+
+def test_tamara_de_lempicka_no_crackle():
+    """de Lempicka's 1920s–1940s paintings should not have crackle ageing."""
+    s = get_style("tamara_de_lempicka")
+    assert s.crackle is False, (
+        "de Lempicka crackle should be False (modern canvas)")
+
+
+def test_tamara_de_lempicka_famous_works():
+    """de Lempicka should have at least three famous works listed."""
+    s = get_style("tamara_de_lempicka")
+    assert len(s.famous_works) >= 3, (
+        f"de Lempicka should have at least 3 famous works, got {len(s.famous_works)}")
+
+
+def test_tamara_de_lempicka_technique_non_empty():
+    s = get_style("tamara_de_lempicka")
+    assert s.technique, "de Lempicka technique description should not be empty"
+    assert len(s.technique) > 50, (
+        "de Lempicka technique description should be substantive")
+
+
+def test_art_deco_period_present():
+    """Session 22: ART_DECO must exist in Period enum."""
+    assert hasattr(Period, "ART_DECO"), "Period.ART_DECO not found"
+    assert Period.ART_DECO in list(Period)
+
+
+def test_art_deco_stroke_params_all_keys():
+    """ART_DECO stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.ART_DECO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"ART_DECO stroke_params missing key: {key!r}"
+
+
+def test_art_deco_stroke_params_low_wet_blend():
+    """ART_DECO wet_blend should be very low — polished lacquered surface."""
+    style = Style(medium=Medium.OIL, period=Period.ART_DECO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.12, (
+        f"ART_DECO wet_blend should be very low (lacquered Art Deco); got {p['wet_blend']}")

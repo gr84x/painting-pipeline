@@ -173,6 +173,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_fauvist":                 period == Period.FAUVIST,
         "is_primitivist":             period == Period.PRIMITIVIST,
         "is_early_netherlandish":     period == Period.EARLY_NETHERLANDISH,
+        "is_art_deco":                period == Period.ART_DECO,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -1261,3 +1262,199 @@ def test_highlight_bloom_pass_no_error_figure_only():
     mask[16:48, 16:48] = 1.0
     p._figure_mask = mask
     p.highlight_bloom_pass(figure_only=True, bloom_opacity=0.20)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 22: art_deco_facet_pass + velatura_pass + ART_DECO routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_art_deco_facet_pass_exists():
+    """Session 22: Painter must have art_deco_facet_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "art_deco_facet_pass"), (
+        "art_deco_facet_pass not found on Painter")
+    assert callable(getattr(Painter, "art_deco_facet_pass"))
+
+
+def test_velatura_pass_exists():
+    """Session 22: Painter must have velatura_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "velatura_pass"), (
+        "velatura_pass not found on Painter")
+    assert callable(getattr(Painter, "velatura_pass"))
+
+
+def test_art_deco_facet_pass_no_error():
+    """art_deco_facet_pass() runs without error on a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    # Should not raise
+    p.art_deco_facet_pass(ref, n_zones=4, smooth_sigma=2.0,
+                          boundary_contrast=0.25, metallic_sheen=0.20)
+
+
+def test_art_deco_facet_pass_modifies_canvas():
+    """art_deco_facet_pass() with boundary_contrast > 0 must modify the canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=30)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.art_deco_facet_pass(ref, n_zones=5, smooth_sigma=2.5,
+                          boundary_contrast=0.30, metallic_sheen=0.22,
+                          saturation_boost=1.20)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff > 0, (
+        "art_deco_facet_pass with boundary_contrast=0.30 should modify the canvas; "
+        f"max pixel diff = {diff}")
+
+
+def test_art_deco_facet_pass_pixels_in_range():
+    """art_deco_facet_pass() must not produce out-of-range pixel values."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.art_deco_facet_pass(ref, n_zones=5, smooth_sigma=3.0,
+                          boundary_contrast=0.35, metallic_sheen=0.25)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_art_deco_facet_pass_figure_only_no_error():
+    """art_deco_facet_pass() with figure_only=True and a loaded mask should not raise."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.art_deco_facet_pass(ref, n_zones=4, figure_only=True)
+
+
+def test_velatura_pass_no_error():
+    """velatura_pass() runs without error on a painted canvas."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    # Should not raise — default warm amber midtone tint
+    p.velatura_pass()
+
+
+def test_velatura_pass_modifies_canvas():
+    """velatura_pass() with midtone_opacity > 0 must shift canvas values."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=30)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.velatura_pass(midtone_tint=(0.62, 0.52, 0.32), midtone_opacity=0.20)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff > 0, (
+        "velatura_pass with midtone_opacity=0.20 should modify the canvas; "
+        f"max pixel diff = {diff}")
+
+
+def test_velatura_pass_zero_opacity_is_near_noop():
+    """velatura_pass() with midtone_opacity=0 and no shadow_tint should be a no-op."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.velatura_pass(midtone_opacity=0.0, shadow_tint=None, lum_preserve=False)
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    np.testing.assert_array_equal(before, after,
+        err_msg="velatura_pass with opacity=0 and no shadow_tint should be a no-op")
+
+
+def test_velatura_pass_with_shadow_tint_no_error():
+    """velatura_pass() with an explicit shadow_tint should not raise."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.velatura_pass(
+        midtone_tint  = (0.62, 0.52, 0.32),
+        shadow_tint   = (0.35, 0.24, 0.10),
+        midtone_opacity = 0.10,
+        shadow_opacity  = 0.06,
+    )
+
+
+def test_velatura_pass_pixels_in_range():
+    """velatura_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.velatura_pass(midtone_tint=(0.62, 0.52, 0.32), midtone_opacity=0.30,
+                    shadow_tint=(0.35, 0.24, 0.10), shadow_opacity=0.20)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_art_deco_period_in_enum():
+    """ART_DECO must be a member of the Period enum."""
+    assert hasattr(Period, "ART_DECO"), "Period.ART_DECO not found"
+    assert Period.ART_DECO in list(Period)
+
+
+def test_art_deco_stroke_params_valid():
+    """ART_DECO period must return valid stroke_params."""
+    style = Style(medium=Medium.OIL, period=Period.ART_DECO,
+                  palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"]   > 0
+    assert 0.0 <= params["wet_blend"]    <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+    # Art Deco has very low wet_blend and edge_softness — polished, hard edges
+    assert params["wet_blend"]    <= 0.15, "ART_DECO should have low wet_blend"
+    assert params["edge_softness"] <= 0.15, "ART_DECO should have low edge_softness"
+
+
+def test_art_deco_routing_flag_set():
+    """ART_DECO period must set is_art_deco=True in routing flags."""
+    flags = _routing_flags(Period.ART_DECO)
+    assert flags["is_art_deco"] is True
+
+
+def test_art_deco_routing_flag_not_set_for_other_periods():
+    """is_art_deco must be False for all periods except ART_DECO."""
+    for period in Period:
+        if period == Period.ART_DECO:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_art_deco"], (
+            f"is_art_deco should be False for {period.name}")
+
+
+def test_art_deco_and_fauvist_mutually_exclusive():
+    """ART_DECO and FAUVIST are distinct periods."""
+    flags_ad = _routing_flags(Period.ART_DECO)
+    flags_f  = _routing_flags(Period.FAUVIST)
+    assert     flags_ad["is_art_deco"]
+    assert not flags_ad["is_fauvist"]
+    assert     flags_f["is_fauvist"]
+    assert not flags_f["is_art_deco"]

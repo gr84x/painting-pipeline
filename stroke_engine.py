@@ -6066,3 +6066,320 @@ class Painter:
 
         n_bloomed = int((hi_wt > 0.01).sum())
         print(f"  Highlight bloom pass complete  (bloom_source={n_bloomed}px)")
+
+    def art_deco_facet_pass(self,
+                            reference,
+                            n_zones:           int   = 5,
+                            smooth_sigma:      float = 3.5,
+                            boundary_contrast: float = 0.28,
+                            metallic_sheen:    float = 0.22,
+                            saturation_boost:  float = 1.18,
+                            sheen_color:       Optional[Color] = None,
+                            figure_only:       bool  = False):
+        """
+        Art Deco faceted surface technique inspired by Tamara de Lempicka.
+
+        De Lempicka painted flesh and drapery as a series of smooth, clearly
+        bounded tonal facets — influenced equally by Ingres' polished surfaces
+        and Léger's Cubist geometry.  Each facet is a discrete, nearly flat
+        plane of colour.  The boundary between adjacent facets is sharpened
+        to a crisp, slightly darker edge.  The overall surface reads as
+        lacquered or enamelled — metal, not skin.
+
+        The technique differs from Manet's flat_plane_pass in that:
+        (a) de Lempicka's zones are smoothed *within* but contrasted *between* —
+            a distinct polished-metal quality rather than Manet's chalky flatness;
+        (b) a metallic sheen highlight (cool silver-cream) is placed at the top
+            of each bright zone boundary, simulating the specular ridge of a
+            curved reflective surface;
+        (c) shadow zones receive a saturation boost toward the dominant hue —
+            de Lempicka's shadows are rich and chromatic, never muddy grey.
+
+        Implementation
+        --------------
+        1. Read canvas buffer; compute luminance map.
+        2. Quantize luminance into n_zones tonal bands.
+        3. Within each zone, apply Gaussian smoothing (sigma=smooth_sigma) to
+           suppress micro-variation (the intra-zone polish).
+        4. Detect zone boundaries with Sobel; build a boundary weight map.
+        5. At boundaries: push toward darker tone on shadow side, lighter cool
+           sheen (sheen_color) on highlight side — boundary_contrast controls
+           the strength of this edge sharpening.
+        6. Boost saturation in mid-tone and shadow zones (metallic surfaces
+           desaturate in direct light, saturate in shadow).
+        7. Composite back onto canvas; optionally figure-only.
+
+        Parameters
+        ----------
+        n_zones           : Number of tonal quantization bands.  3 = very broad
+                            cubist planes; 6 = finely faceted, almost smooth.
+        smooth_sigma      : Gaussian sigma for intra-zone smoothing.  Higher =
+                            more polished, less textured surfaces.
+        boundary_contrast : Strength of boundary sharpening.  0.0 = no effect;
+                            0.4 = very dramatic edge sharpening.
+        metallic_sheen    : Opacity of the cool silver highlight placed at the
+                            top (light side) of each boundary.
+        saturation_boost  : HSV saturation multiplier applied to shadow and
+                            mid-tone zones.  > 1.0 = richer shadow colour.
+        sheen_color       : RGB of the metallic sheen highlight.  Default is
+                            a cool silver-cream (0.90, 0.88, 0.86).
+        figure_only       : If True and a figure mask is loaded, restrict the
+                            pass to the figure region only.
+        """
+        print(f"Art Deco facet pass  (zones={n_zones}  sigma={smooth_sigma:.1f}  "
+              f"contrast={boundary_contrast:.2f}  sheen={metallic_sheen:.2f})…")
+
+        if sheen_color is None:
+            sheen_color = (0.90, 0.88, 0.86)   # cool silver-cream
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+
+        # ── Figure mask ────────────────────────────────────────────────────────
+        fig_mask = self._figure_mask if (figure_only and self._figure_mask is not None) \
+                   else np.ones((h, w), dtype=np.float32)
+
+        # ── Stage 1: Tonal zone quantization ──────────────────────────────────
+        zone_idx = np.floor(np.clip(lum, 0.0, 1.0 - 1e-6) * n_zones).astype(np.int32)
+
+        # ── Stage 2: Per-zone Gaussian smoothing (intra-zone polish) ──────────
+        r_smooth = ndimage.gaussian_filter(r_ch, sigma=smooth_sigma)
+        g_smooth = ndimage.gaussian_filter(g_ch, sigma=smooth_sigma)
+        b_smooth = ndimage.gaussian_filter(b_ch, sigma=smooth_sigma)
+
+        # Blend toward smoothed version within each zone (intra-zone polish)
+        # The zone index keeps boundary transitions from bleeding across zones.
+        smooth_weight = 0.65   # 65% toward smoothed — keeps paint-feel from disappearing
+        r_out = r_ch * (1.0 - smooth_weight) + r_smooth * smooth_weight
+        g_out = g_ch * (1.0 - smooth_weight) + g_smooth * smooth_weight
+        b_out = b_ch * (1.0 - smooth_weight) + b_smooth * smooth_weight
+
+        # ── Stage 3: Zone boundary detection ──────────────────────────────────
+        # Sobel on the quantized zone index map — picks up tonal boundaries.
+        zone_float = zone_idx.astype(np.float32)
+        sobel_x = ndimage.sobel(zone_float, axis=1)
+        sobel_y = ndimage.sobel(zone_float, axis=0)
+        boundary = np.sqrt(sobel_x**2 + sobel_y**2)
+        # Normalise boundary to [0, 1]
+        b_max = boundary.max()
+        if b_max > 1e-6:
+            boundary = boundary / b_max
+
+        # ── Stage 4: Boundary sharpening ──────────────────────────────────────
+        # Shadow side of each boundary: push slightly darker (warm umber)
+        # Light side: add cool silver sheen
+        # The Sobel gradient direction distinguishes warm from cool side:
+        # positive gradient = transitioning to lighter zone (light side here)
+        grad_dir = np.sign(sobel_y + sobel_x)   # rough light/shadow discriminator
+
+        # Boundary weight: how strongly to apply sharpening at each pixel
+        bwt = np.clip(boundary * boundary_contrast, 0.0, 1.0) * fig_mask
+
+        # Shadow-side darkening (where gradient direction indicates shadow approach)
+        shadow_side = np.clip(grad_dir * -1.0, 0.0, 1.0)   # pixels on shadow side
+        r_out = r_out - bwt * shadow_side * 0.18
+        g_out = g_out - bwt * shadow_side * 0.14
+        b_out = b_out - bwt * shadow_side * 0.10
+
+        # Light-side metallic sheen (cool silver-cream highlight at boundary ridge)
+        light_side = np.clip(grad_dir, 0.0, 1.0)   # pixels on light side
+        sheen_wt = bwt * light_side * metallic_sheen
+        r_out = r_out + (sheen_color[0] - r_out) * sheen_wt
+        g_out = g_out + (sheen_color[1] - g_out) * sheen_wt
+        b_out = b_out + (sheen_color[2] - b_out) * sheen_wt
+
+        # ── Stage 5: Shadow/midtone saturation boost ──────────────────────────
+        # De Lempicka's shadows are richly coloured, never grey.
+        # Convert to HSV, boost S in dark and mid-tone zones.
+        r_vec = r_out.ravel()
+        g_vec = g_out.ravel()
+        b_vec = b_out.ravel()
+
+        import colorsys as _cs
+        r_new = r_vec.copy()
+        g_new = g_vec.copy()
+        b_new = b_vec.copy()
+
+        lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        # Apply saturation boost only to mid-tone and shadow pixels
+        boost_mask = (lum_out < 0.72).ravel()
+        for i in np.where(boost_mask)[0]:
+            rv, gv, bv = float(r_vec[i]), float(g_vec[i]), float(b_vec[i])
+            hh, ss, vv = _cs.rgb_to_hsv(rv, gv, bv)
+            ss = min(1.0, ss * saturation_boost)
+            rr, gg, bb = _cs.hsv_to_rgb(hh, ss, vv)
+            r_new[i], g_new[i], b_new[i] = rr, gg, bb
+
+        r_out = r_new.reshape(h, w)
+        g_out = g_new.reshape(h, w)
+        b_out = b_new.reshape(h, w)
+
+        # ── Clamp and write back ───────────────────────────────────────────────
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_boundary_px = int((boundary > 0.1).sum())
+        print(f"  Art Deco facet pass complete  "
+              f"(boundary={n_boundary_px}px  zones={n_zones})")
+
+    def velatura_pass(self,
+                      midtone_tint:       Color = (0.62, 0.52, 0.32),
+                      shadow_tint:        Optional[Color] = None,
+                      midtone_opacity:    float = 0.10,
+                      shadow_opacity:     float = 0.06,
+                      midtone_lo:         float = 0.28,
+                      midtone_hi:         float = 0.72,
+                      lum_preserve:       bool  = True,
+                      figure_only:        bool  = False):
+        """
+        Italian Old Master velatura (glazed midtone enrichment) technique.
+
+        Velatura — from the Italian for 'veil' — is a technique in which a thin,
+        semi-transparent coloured glaze is applied selectively over the midtone
+        zones of a painting.  Unlike an overall unifying glaze (which shifts the
+        entire surface), velatura is zone-selective: it enriches the mid-value
+        range where local colour is most expressive while leaving highlights
+        (which should stay cool-neutral) and deep shadows (which should stay
+        warm-dark) relatively undisturbed.
+
+        The technique was described by Cennini and practiced by Leonardo, Titian,
+        and the Flemish masters.  In portraits it creates the sensation that flesh
+        has an inner warmth — as if blood moves beneath the surface.  In landscape
+        it deepens the colour complexity of middle-distance zones.
+
+        This pass differs from the Painter.glaze() method in three ways:
+        (a) It is zone-selective (midtone only), not uniform;
+        (b) An optional complementary shadow tint can be applied to shadow zones
+            simultaneously, creating optical depth from the warm/cool pairing;
+        (c) Luminance preservation: the tint shifts hue and saturation but does
+            not change the value, keeping the tonal structure intact.
+
+        Implementation
+        --------------
+        1. Read canvas buffer; compute luminance.
+        2. Build a soft midtone mask: 1.0 at the midtone centre, falling off to
+           0.0 at shadow_lo and highlight_hi boundaries (triangle falloff).
+        3. Blend each midtone pixel toward midtone_tint weighted by mask ×
+           midtone_opacity.  If lum_preserve=True, adjust the tinted result to
+           match the original luminance (hue/chroma shift only).
+        4. If shadow_tint is given, build a complementary shadow mask and apply
+           the same blend logic to shadow-zone pixels.
+        5. Composite result back onto canvas; optionally figure-only.
+
+        Parameters
+        ----------
+        midtone_tint    : Warm or cool tint colour for the midtone zone.  Default
+                          (0.62, 0.52, 0.32) = warm amber — typical Leonardo/Titian.
+                          A cool blue-grey (0.42, 0.50, 0.58) works for austere
+                          Northern European portraits.
+        shadow_tint     : Optional tint for shadow zone.  None = no shadow tint.
+                          A warm umber (0.35, 0.24, 0.10) deepens shadows richly.
+        midtone_opacity : Blend strength toward midtone_tint.  0.05–0.15 = subtle
+                          and authentic; > 0.25 = strongly coloured, painterly.
+        shadow_opacity  : Blend strength toward shadow_tint (if given).
+        midtone_lo      : Lower luminance boundary of the midtone zone.
+        midtone_hi      : Upper luminance boundary of the midtone zone.
+        lum_preserve    : If True, adjust tinted result to maintain original
+                          luminance so the pass is purely a hue/chroma enrichment.
+        figure_only     : If True and a figure mask is loaded, restrict the pass
+                          to the figure region only.
+
+        Notes
+        -----
+        Call AFTER main painting passes (underpainting, block_in, build_form,
+        place_lights) and BEFORE the final glaze and finish.  Velatura is an
+        intermediate enrichment step, not a finishing varnish.
+        """
+        print(f"Velatura pass  (midtone_tint={midtone_tint}  "
+              f"opacity={midtone_opacity:.2f}  lum_preserve={lum_preserve})…")
+
+        surf = self.canvas.surface
+        h, w = surf.get_height(), surf.get_width()
+
+        buf = np.frombuffer(surf.get_data(), dtype=np.uint8).reshape((h, w, 4)).copy()
+        b_ch = buf[:, :, 0].astype(np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(np.float32) / 255.0
+        r_ch = buf[:, :, 2].astype(np.float32) / 255.0
+
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch
+
+        # ── Figure mask ────────────────────────────────────────────────────────
+        fig_mask = self._figure_mask if (figure_only and self._figure_mask is not None) \
+                   else np.ones((h, w), dtype=np.float32)
+
+        # ── Build midtone mask (triangle falloff) ─────────────────────────────
+        mid_center = (midtone_lo + midtone_hi) * 0.5
+        mid_half   = (midtone_hi - midtone_lo) * 0.5
+        # Linear ramp from 0 at edges to 1 at center of midtone zone
+        mid_mask = np.clip(1.0 - np.abs(lum - mid_center) / max(mid_half, 1e-6),
+                           0.0, 1.0) * fig_mask
+
+        # ── Apply midtone tint ─────────────────────────────────────────────────
+        mt_r, mt_g, mt_b = midtone_tint
+        blend_wt = mid_mask * midtone_opacity
+
+        r_out = r_ch + (mt_r - r_ch) * blend_wt
+        g_out = g_ch + (mt_g - g_ch) * blend_wt
+        b_out = b_ch + (mt_b - b_ch) * blend_wt
+
+        # ── Luminance preservation ─────────────────────────────────────────────
+        if lum_preserve:
+            lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+            # Scale RGB uniformly so lum_out matches original lum
+            # Avoid divide-by-zero in near-black areas
+            scale = np.where(lum_out > 1e-4, lum / (lum_out + 1e-6), 1.0)
+            scale = np.clip(scale, 0.0, 3.0)   # guard against runaway in pure black
+            r_out = np.clip(r_out * scale, 0.0, 1.0)
+            g_out = np.clip(g_out * scale, 0.0, 1.0)
+            b_out = np.clip(b_out * scale, 0.0, 1.0)
+
+        # ── Optional shadow tint ───────────────────────────────────────────────
+        if shadow_tint is not None:
+            st_r, st_g, st_b = shadow_tint
+            # Shadow mask: pixels below midtone_lo, falling off to 0 at midtone_lo
+            shad_mask = np.clip(1.0 - lum / max(midtone_lo, 1e-6),
+                                0.0, 1.0) * fig_mask
+            s_wt = shad_mask * shadow_opacity
+
+            r_out = r_out + (st_r - r_out) * s_wt
+            g_out = g_out + (st_g - g_out) * s_wt
+            b_out = b_out + (st_b - b_out) * s_wt
+
+            if lum_preserve:
+                lum_out2 = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+                scale2 = np.where(lum_out2 > 1e-4, lum / (lum_out2 + 1e-6), 1.0)
+                scale2 = np.clip(scale2, 0.0, 3.0)
+                r_out = np.clip(r_out * scale2, 0.0, 1.0)
+                g_out = np.clip(g_out * scale2, 0.0, 1.0)
+                b_out = np.clip(b_out * scale2, 0.0, 1.0)
+
+        # ── Write back ─────────────────────────────────────────────────────────
+        buf[:, :, 2] = np.clip(r_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 1] = np.clip(g_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 0] = np.clip(b_out * 255, 0, 255).astype(np.uint8)
+        buf[:, :, 3] = 255
+
+        ctx = self.canvas.ctx
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+        ctx.set_source_surface(tmp, 0, 0)
+        ctx.paint()
+
+        n_midtone_px = int((mid_mask > 0.05).sum())
+        print(f"  Velatura pass complete  (midtone_zone={n_midtone_px}px  "
+              f"lo={midtone_lo:.2f}  hi={midtone_hi:.2f})")

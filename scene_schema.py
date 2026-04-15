@@ -197,6 +197,7 @@ class Period(Enum):
     FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
     PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
     EARLY_NETHERLANDISH = auto()  # Jan van Eyck — stacked transparent oil glazes, chalk-white gesso, Flemish micro-detail
+    ART_DECO      = auto()   # Tamara de Lempicka — smooth cubist facets, metallic gloss, bold saturated palette
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -481,6 +482,12 @@ class Style:
             # but each glaze layer must stay distinct.  Moderate edge_softness: Flemish edges
             # are present and precise, softened only by the outermost translucent glaze film.
             Period.EARLY_NETHERLANDISH: dict(stroke_size_face=4, stroke_size_bg=14, wet_blend=0.55, edge_softness=0.45),
+            # Art Deco (de Lempicka): smooth, polished surfaces — low wet_blend keeps
+            # colour zones hard-edged and metallic.  stroke_size_face is the smoothing
+            # brush width — medium (facets are larger than Flemish micro-detail but
+            # smaller than Impressionist dabs).  stroke_size_bg is the background fill.
+            # Very low edge_softness: Art Deco has sharp, decisive contour lines.
+            Period.ART_DECO:      dict(stroke_size_face=8,  stroke_size_bg=22, wet_blend=0.06, edge_softness=0.08),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
