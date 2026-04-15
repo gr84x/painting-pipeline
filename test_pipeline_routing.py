@@ -186,6 +186,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_pre_raphaelite":             period == Period.PRE_RAPHAELITE,
         "is_symbolist":                  period == Period.SYMBOLIST,
         "is_florentine_renaissance":     period == Period.FLORENTINE_RENAISSANCE,
+        "is_northern_renaissance":       period == Period.NORTHERN_RENAISSANCE,
         "is_renaissance_soft":           (period == Period.RENAISSANCE
                                           and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -4010,4 +4011,246 @@ def test_florentine_renaissance_has_crisp_edges():
     sp = Style(medium=Medium.OIL, period=Period.FLORENTINE_RENAISSANCE).stroke_params
     assert sp["edge_softness"] <= 0.20, (
         f"FLORENTINE_RENAISSANCE edge_softness should be ≤ 0.20 (crisp tempera line), "
+        f"got {sp['edge_softness']:.3f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# durer_engraving_pass — session 34 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_durer_engraving_pass_exists():
+    """Painter must have durer_engraving_pass() method after session 34."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "durer_engraving_pass"), (
+        "durer_engraving_pass not found on Painter")
+    assert callable(getattr(Painter, "durer_engraving_pass"))
+
+
+def test_durer_engraving_pass_runs():
+    """durer_engraving_pass() runs without error on a small synthetic canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.82, 0.80, 0.76), texture_strength=0.02)
+    p.underpainting(ref, stroke_size=20, n_strokes=30)
+    p.durer_engraving_pass(ref, hatch_density=0.025, cross_hatch=True)
+
+
+def test_durer_engraving_pass_no_cross_hatch():
+    """durer_engraving_pass() runs correctly with cross_hatch=False."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.82, 0.80, 0.76), texture_strength=0.02)
+    p.durer_engraving_pass(ref, hatch_density=0.020, cross_hatch=False)
+
+
+def test_durer_engraving_pass_darkens_shadows():
+    """
+    durer_engraving_pass() should darken (or at minimum not brighten) shadow zones.
+
+    The hatching adds darker marks and the cool shift reduces the red channel
+    in shadows.  On a canvas that has both a dark zone and a light zone, the
+    mean luminance of the dark zone should be ≤ its value before the pass.
+    """
+    p   = _make_small_painter(64, 64)
+    # Build a reference with a clear dark (shadow) left half and light right half
+    import numpy as np
+    arr = np.zeros((64, 64, 3), dtype=np.uint8)
+    arr[:, :32, :] = 40    # dark left — shadow zone
+    arr[:, 32:, :] = 200   # light right — highlight zone
+    from PIL import Image
+    ref = Image.fromarray(arr, "RGB")
+    p.tone_ground((0.50, 0.45, 0.40), texture_strength=0.00)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    shadow_lum_before = (
+        0.299 * buf_before[:, :32, 2].astype(float)
+        + 0.587 * buf_before[:, :32, 1].astype(float)
+        + 0.114 * buf_before[:, :32, 0].astype(float)
+    ).mean()
+
+    p.durer_engraving_pass(ref, hatch_density=0.040, cool_shift=0.06, cross_hatch=True)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    shadow_lum_after = (
+        0.299 * buf_after[:, :32, 2].astype(float)
+        + 0.587 * buf_after[:, :32, 1].astype(float)
+        + 0.114 * buf_after[:, :32, 0].astype(float)
+    ).mean()
+
+    assert shadow_lum_after <= shadow_lum_before + 2.0, (
+        f"durer_engraving_pass should not brighten shadow zones; "
+        f"before={shadow_lum_before:.2f}, after={shadow_lum_after:.2f}")
+
+
+def test_durer_engraving_pass_cool_shifts_shadow_red():
+    """
+    durer_engraving_pass() cool shift must reduce mean red channel in shadow zone.
+
+    The cool_shift parameter reduces R more than B in shadow pixels.
+    On a canvas toned with a warm mid-grey, the red channel in a dark shadow
+    zone should be lower after the pass than before.
+    """
+    import numpy as np
+    from PIL import Image
+    p = _make_small_painter(64, 64)
+    # Dark ground (lum ≈ 0.28) — well below shadow_threshold=0.45 so the
+    # cool-shift actually fires on these pixels.
+    p.tone_ground((0.30, 0.28, 0.24), texture_strength=0.00)
+
+    # Reference: pure dark so the whole canvas is in the shadow zone
+    arr = np.zeros((64, 64, 3), dtype=np.uint8) + 30
+    ref = Image.fromarray(arr, "RGB")
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    r_before = buf_before[:, :, 2].astype(float).mean()
+
+    p.durer_engraving_pass(ref, hatch_density=0.010, cool_shift=0.12, cross_hatch=False)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = buf_after[:, :, 2].astype(float).mean()
+
+    assert r_after < r_before, (
+        f"durer_engraving_pass cool_shift must reduce mean red channel in shadow zones; "
+        f"before={r_before:.2f}, after={r_after:.2f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# selective_focus_pass — session 34 random improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_selective_focus_pass_exists():
+    """Painter must have selective_focus_pass() method after session 34."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "selective_focus_pass"), (
+        "selective_focus_pass not found on Painter")
+    assert callable(getattr(Painter, "selective_focus_pass"))
+
+
+def test_selective_focus_pass_runs():
+    """selective_focus_pass() runs without error on a small synthetic canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.55, 0.48), texture_strength=0.03)
+    p.selective_focus_pass(
+        center_x=0.50, center_y=0.30,
+        focus_radius=0.30, max_blur_radius=3.0,
+        desaturation=0.10,
+    )
+
+
+def test_selective_focus_pass_peripheral_softer():
+    """
+    selective_focus_pass() must make the canvas periphery softer (lower contrast)
+    than the focal centre region.
+
+    Blur reduces local contrast.  The standard deviation of pixel values in
+    a corner patch should be ≤ that of the centre patch after the pass.
+    """
+    import numpy as np
+    p = _make_small_painter(128, 128)
+    # Lay down a noisy pattern to make contrast measurable
+    p.tone_ground((0.50, 0.48, 0.44), texture_strength=0.08)
+
+    p.selective_focus_pass(
+        center_x=0.50, center_y=0.50,
+        focus_radius=0.25,
+        max_blur_radius=5.0,
+        desaturation=0.15,
+        gamma=2.0,
+    )
+
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(128, 128, 4)
+    lum = (0.299 * buf[:, :, 2].astype(float)
+           + 0.587 * buf[:, :, 1].astype(float)
+           + 0.114 * buf[:, :, 0].astype(float))
+
+    # Standard deviation of the centre 32×32 vs. four corner 24×24 patches
+    centre_std  = lum[48:80, 48:80].std()
+    tl_std = lum[:24,  :24 ].std()
+    tr_std = lum[:24, 104:].std()
+    bl_std = lum[104:, :24 ].std()
+    br_std = lum[104:, 104:].std()
+    corner_std  = (tl_std + tr_std + bl_std + br_std) / 4.0
+
+    assert corner_std <= centre_std + 2.0, (
+        f"selective_focus_pass periphery should not be sharper than centre; "
+        f"centre_std={centre_std:.2f}  corner_std={corner_std:.2f}")
+
+
+def test_selective_focus_pass_zero_blur_zero_desat_no_op():
+    """selective_focus_pass with max_blur_radius=0 and desaturation=0 must be a no-op."""
+    import numpy as np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.56, 0.48), texture_strength=0.04)
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.selective_focus_pass(max_blur_radius=0.0, desaturation=0.0)
+    after  = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4)
+
+    np.testing.assert_array_equal(before, after,
+        err_msg="selective_focus_pass with zero blur and zero desat must be a no-op")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NORTHERN_RENAISSANCE period routing flags
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_northern_renaissance_flag_set():
+    """NORTHERN_RENAISSANCE period must set is_northern_renaissance=True."""
+    flags = _routing_flags(Period.NORTHERN_RENAISSANCE)
+    assert flags["is_northern_renaissance"] is True
+
+
+def test_northern_renaissance_flag_not_set_for_other_periods():
+    """is_northern_renaissance must be False for all other periods."""
+    for period in Period:
+        if period == Period.NORTHERN_RENAISSANCE:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_northern_renaissance"], (
+            f"is_northern_renaissance should be False for {period.name}")
+
+
+def test_northern_renaissance_mutually_exclusive_with_florentine():
+    """NORTHERN_RENAISSANCE and FLORENTINE_RENAISSANCE must not both be True."""
+    flags_n = _routing_flags(Period.NORTHERN_RENAISSANCE)
+    flags_f = _routing_flags(Period.FLORENTINE_RENAISSANCE)
+    assert     flags_n["is_northern_renaissance"]
+    assert not flags_n["is_florentine_renaissance"]
+    assert     flags_f["is_florentine_renaissance"]
+    assert not flags_f["is_northern_renaissance"]
+
+
+def test_northern_renaissance_stroke_params_valid():
+    """NORTHERN_RENAISSANCE stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE,
+                  palette=PaletteHint.COOL_GREY)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"NORTHERN_RENAISSANCE stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_northern_renaissance_fine_stroke():
+    """NORTHERN_RENAISSANCE stroke_size_face must be very fine (engraving precision)."""
+    sp = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE).stroke_params
+    assert sp["stroke_size_face"] <= 5, (
+        f"NORTHERN_RENAISSANCE stroke_size_face should be ≤ 5 (single-hair precision); "
+        f"got {sp['stroke_size_face']}")
+
+
+def test_northern_renaissance_crisp_edges():
+    """NORTHERN_RENAISSANCE edge_softness must be very low (engraving-influenced crisp contours)."""
+    sp = Style(medium=Medium.OIL, period=Period.NORTHERN_RENAISSANCE).stroke_params
+    assert sp["edge_softness"] <= 0.25, (
+        f"NORTHERN_RENAISSANCE edge_softness should be ≤ 0.25 (engraving-crisp); "
         f"got {sp['edge_softness']:.3f}")

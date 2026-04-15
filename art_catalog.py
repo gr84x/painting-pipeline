@@ -2843,6 +2843,121 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Albrecht Dürer ────────────────────────────────────────────────────────
+    # German painter, printmaker, and theorist (1471–1528) — the colossus of
+    # the Northern Renaissance.  Dürer was the first artist north of the Alps
+    # to fully absorb and systematize the Italian Renaissance discoveries of
+    # perspective, proportion, and classical form, and the first Northern
+    # European artist to achieve international celebrity in his own lifetime.
+    # He was born in Nuremberg, the son of a goldsmith, and his earliest
+    # training was in the precise, disciplined craft of metal engraving —
+    # an influence that never left his oil painting.  His three self-portraits
+    # (1484, 1498, 1500) are among the most technically ambitious portraits of
+    # the entire Renaissance.  The Self-Portrait at 28 (1500, Alte Pinakothek)
+    # is unique in the history of art: Dürer painted himself in a strict frontal
+    # pose reserved exclusively for images of Christ, asserting his divinely
+    # granted creative power with startling boldness.
+    #
+    # Dürer's oil technique is the opposite of Leonardo's sfumato and the
+    # Venetian wet glaze.  He worked on a pale grey or white-silver ground
+    # (often linden wood gessoed and then given a thin lead-white imprimatura),
+    # built forms with the finest sable brushes, and finished individual hairs
+    # and fabric fibres with a near-engraving precision that no other painter
+    # of his era could match.  His shadows are cool and clearly structured —
+    # thin semi-transparent grey washes that model form without the warmth of
+    # Italian chiaroscuro.  Highlights are pure white or near-white, with no
+    # warm amber shift.  The overall tonality is silvery, intellectual, and
+    # exquisitely controlled.
+    #
+    # His palette is restrained but precise: warm ochre and raw sienna for
+    # flesh, cool blue-grey for shadows and backgrounds, black for drawing-
+    # style contour reinforcement, crimson for lips and fabric accents, and
+    # a characteristic cool lead-white for the highest lights.  His fur
+    # rendering (the famous fur collar in his 1500 Self-Portrait) is achieved
+    # by painting every individual hair in a separate thin stroke with a
+    # single-hair brush — a technique that reads as virtuosity at the edge
+    # of human capability.
+    #
+    # Famous works: Self-Portrait at 28 (1500), Self-Portrait at 26 (1498),
+    # Young Hare (1502), The Large Turf (1503), Praying Hands (1508),
+    # Portrait of Hieronymus Holzschuher (1526), The Four Apostles (1526).
+    "albrecht_durer": ArtStyle(
+        artist     = "Albrecht Dürer",
+        movement   = "Northern Renaissance",
+        nationality= "German",
+        period     = "1471–1528",
+        palette    = [
+            (0.84, 0.72, 0.56),   # warm flesh — ochre midtone, less orange than Italian
+            (0.58, 0.46, 0.34),   # shadow flesh — cool umber half-tone
+            (0.72, 0.70, 0.68),   # cool silver-grey — background and atmospheric shadow
+            (0.92, 0.88, 0.82),   # pale lead-white — highest flesh highlight
+            (0.62, 0.14, 0.10),   # crimson — lips, drapery accents, bonnet cord
+            (0.22, 0.20, 0.18),   # near-black — engraving-style contour lines
+            (0.36, 0.42, 0.50),   # cool blue-grey — background, shadow cool shift
+            (0.52, 0.40, 0.22),   # raw sienna — hair, fur mid-tone
+        ],
+        ground_color  = (0.82, 0.80, 0.76),   # pale silver-white imprimatura on gessoed panel
+        stroke_size   = 3,                      # extremely fine — each mark a single hair
+        wet_blend     = 0.20,                   # thin transparent oil layers; some blending
+        edge_softness = 0.18,                   # crisp engraving-influenced edges
+        jitter        = 0.025,                  # very controlled — minimal colour variation
+        glazing       = (0.70, 0.68, 0.64),    # very subtle cool silver unifier
+        crackle       = True,                   # 500-year-old panel paintings crack extensively
+        chromatic_split = False,                # no optical mixing — precise layered oil
+        technique=(
+            "Dürer's oil technique is rooted in the precision of metal engraving.  "
+            "He worked on a pale lead-white or silver-grey ground applied over "
+            "gessoed linden-wood or limewood panels, and built his forms with the "
+            "finest available sable brushes — often single-hair strokes for fur, "
+            "beard, and fabric detail.  His shadows are cool and transparent, built "
+            "from thin grey or blue-grey washes layered without blending, creating "
+            "a tonal structure that reads like an engraving translated into colour.  "
+            "There is no sfumato, no warm atmospheric haze, no Venetian wet-into-wet "
+            "colour mixing: each form is precisely drawn before it is painted, and "
+            "the drawn underdrawing is often visible beneath the thin paint film.  "
+            "Highlights are pure lead-white with the cool, hard quality of silverpoint "
+            "rather than the warm ivory of Italian flesh lights.  "
+            "His most virtuosic paintings — the 1500 Self-Portrait, the Holzschuher "
+            "portrait — achieve a level of individual-hair-by-hair precision that "
+            "remains astonishing five centuries later.  The fur collar in the 1500 "
+            "Self-Portrait is painted hair by hair, each strand following the natural "
+            "direction of the fur with a sensitivity and patience that no other "
+            "Renaissance painter attempted at this scale.  "
+            "His palette is deliberately restrained: warm ochre flesh, cool grey shadow, "
+            "near-black contour reinforcement, and a single saturated accent (usually "
+            "crimson or deep blue) for psychological emphasis.  There is no sweetness "
+            "in his colour — it is intellectual, controlled, and exquisitely calibrated."
+        ),
+        famous_works=[
+            ("Self-Portrait at 28",               "1500"),
+            ("Self-Portrait at 26",               "1498"),
+            ("Young Hare",                        "1502"),
+            ("Praying Hands",                     "1508"),
+            ("Portrait of Hieronymus Holzschuher","1526"),
+            ("The Four Apostles",                 "1526"),
+            ("The Large Turf",                    "1503"),
+            ("Portrait of the Artist's Father",   "1490"),
+        ],
+        inspiration=(
+            "Use durer_engraving_pass() as the defining surface technique: apply "
+            "fine cross-hatching in shadow zones at ±45°, denser in deeper shadows, "
+            "replicating the graphic, engraving-influenced quality of Dürer's shadow "
+            "modelling in oil.  "
+            "tone_ground() with pale silver-white (0.82, 0.80, 0.76) — the cool "
+            "Flemish-style imprimatura that makes his flesh tones read as luminous "
+            "and cool rather than warm and amber.  "
+            "underpainting() and block_in() with very fine marks (stroke_size=3).  "
+            "build_form() with the finest stroke_size — each mark deliberate.  "
+            "durer_engraving_pass() applies the cross-hatching that defines his "
+            "shadow structure.  "
+            "selective_focus_pass() to keep the face razor-sharp while the "
+            "background and clothing areas soften slightly.  "
+            "place_lights() with cool lead-white highlights (0.92, 0.88, 0.82).  "
+            "Very subtle cool silver final glaze (0.70, 0.68, 0.64).  "
+            "Prominent crackle — 500-year-old gessoed panels show extensive craquelure."
+        ),
+    ),
+
     # ── Gustave Moreau ────────────────────────────────────────────────────────
     # French Symbolist painter (1826–1898).  Moreau is the founder of the
     # Symbolist movement in painting, and his mythological canvases are unlike

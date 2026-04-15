@@ -10700,3 +10700,328 @@ class Painter:
         self.canvas.ctx.paint()
 
         print("    Tonal envelope pass complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # durer_engraving_pass — Albrecht Dürer Northern Renaissance graphic precision
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def durer_engraving_pass(
+            self,
+            reference,
+            hatch_density:    float = 0.030,
+            hatch_length:     float = 10.0,
+            hatch_opacity:    float = 0.45,
+            cross_hatch:      bool  = True,
+            shadow_threshold: float = 0.45,
+            cool_shift:       float = 0.06,
+    ):
+        """
+        Simulates Albrecht Dürer's engraving-influenced oil shadow technique.
+
+        Dürer's oil paintings carry the unmistakable imprint of his years as
+        a master engraver.  In engraving, tonal gradations are achieved through
+        the *density* and *crossing angle* of fine parallel lines, not through
+        smooth blending.  Dürer applied this graphic principle to oil painting:
+        in his shadow zones, forms are built through thin, directional strokes
+        that run parallel and cross-parallel (at ±45°), creating a systematic
+        hatching that reads as both painted and drawn simultaneously.
+
+        This pass replicates three aspects of his technique:
+
+        1. **Cross-hatching in shadow zones** — In areas darker than
+           ``shadow_threshold``, fine diagonal strokes are drawn at +45°
+           (primary hatching) and, if ``cross_hatch=True``, a second pass at
+           −45° (cross-hatching).  Line density and opacity scale with local
+           darkness: the deepest shadows receive the most marks at the highest
+           opacity; the upper shadow zone receives sparse, lighter marks.
+           This graduated density replicates the engraving convention of
+           building tonal depth through accumulating hatch lines.
+
+        2. **Directional shadow parallel lines** — Unlike Botticelli's
+           contour-following tangent marks, Dürer's hatching is consistently
+           directional (±45° to the picture plane), independent of local
+           surface curvature.  This is the signature quality that separates
+           engraving-influenced oil from purely painterly oil technique.
+
+        3. **Cool shadow shift** — Dürer's shadows have a cool blue-grey
+           quality absent from Italian chiaroscuro.  A subtle cool tint
+           (reducing R, preserving B) is applied in the shadow zone,
+           simulating the cool transparent grey washes he laid into shadows
+           before the hatching strokes.
+
+        Parameters
+        ----------
+        reference       : PIL Image or ndarray — the reference image.
+        hatch_density   : Fraction of shadow-zone pixels receiving a hatch
+                          mark.  0.020–0.040 replicates Dürer's shadow density.
+        hatch_length    : Length of each hatch stroke in pixels (6–14).
+                          Dürer's marks in oil were slightly longer than
+                          Botticelli's tempera hatching.
+        hatch_opacity   : Base opacity of hatch marks (0.30–0.55).
+                          Scales with local darkness — deepest shadows use
+                          full hatch_opacity; lighter shadow zones use 0.5×.
+        cross_hatch     : Whether to apply a second pass of −45° hatching
+                          over the primary +45° layer.  True = full
+                          cross-hatching (Dürer's standard shadow convention).
+                          False = single-direction hatching (his lighter
+                          shadow passages use single-direction only).
+        shadow_threshold: Luminance below which hatching is applied (0–1).
+                          0.45 captures shadow and dark-midtone zones without
+                          intruding into the lit flesh areas.
+        cool_shift      : Magnitude of the cool (blue-grey) shift applied in
+                          shadow zones.  0.04–0.08 is perceptible but subtle —
+                          the cool is an undertone, not a dominant hue.
+
+        Notes
+        -----
+        Inspired by: "Self-Portrait at 28" (1500, Alte Pinakothek),
+        "Portrait of Hieronymus Holzschuher" (1526, Gemäldegalerie Berlin),
+        "Self-Portrait at 26" (1498, Prado).
+        Technical reference: Panofsky, "The Life and Art of Albrecht Dürer"
+        (1943); Koerner, "The Moment of Self-Portraiture in German Renaissance
+        Art" (1993); NGA technical study of Dürer panel paintings.
+        Randomly selected artistic discovery for session 34 — the Northern
+        Renaissance's graphic precision as a distinct oil-painting paradigm,
+        extending the hatching vocabulary beyond Botticelli's tempera-specific
+        contour marks to a systematic cross-directional engraving logic.
+        """
+        import numpy as _np
+        import cairo as _cairo
+        from PIL import Image as _Img
+
+        print(f"  Dürer engraving pass  "
+              f"(hatch_density={hatch_density:.3f}  cross_hatch={cross_hatch}  "
+              f"cool_shift={cool_shift:.2f})")
+
+        # ── Read reference and current canvas (BGRA) ─────────────────────────
+        ref = self._prep(reference)
+        rarr = ref[:, :, :3].astype(_np.float32) / 255.0   # (H, W, 3) RGB float
+
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        new_R = R.copy()
+        new_G = G.copy()
+        new_B = B.copy()
+
+        # ── Zone 1: Cool shadow shift ─────────────────────────────────────────
+        # Pixels below shadow_threshold get a cool (blue-grey) tint: reduce R
+        # slightly, leave G neutral, preserve B.  The shift is proportional to
+        # how far the pixel falls into the shadow zone.
+        shadow_weight = _np.clip((shadow_threshold - lum) / shadow_threshold, 0.0, 1.0)
+        new_R = _np.clip(new_R - shadow_weight * cool_shift * 1.20, 0.0, 1.0)
+        new_G = _np.clip(new_G - shadow_weight * cool_shift * 0.60, 0.0, 1.0)
+        new_B = _np.clip(new_B + shadow_weight * cool_shift * 0.35, 0.0, 1.0)
+
+        # ── Zone 2: Directional cross-hatching in shadow zones ────────────────
+        # Shadow pixels receive fine parallel lines at +45° and (if cross_hatch)
+        # a second pass at −45°.  Opacity and density scale with local darkness.
+        shadow_mask = lum < shadow_threshold
+        shadow_pixels = _np.argwhere(shadow_mask)
+
+        rng = _np.random.default_rng(seed=42)
+
+        def _draw_hatch_pass(angle_deg: float, density: float, opacity_scale: float):
+            """Draw a single directional hatch pass at angle_deg."""
+            if shadow_pixels.shape[0] == 0:
+                return 0
+            n_marks = max(1, int(shadow_pixels.shape[0] * density))
+            chosen_idx = rng.choice(shadow_pixels.shape[0], size=n_marks, replace=False)
+            chosen = shadow_pixels[chosen_idx]
+
+            import math as _math
+            rad = _math.radians(angle_deg)
+            dx = _math.cos(rad)
+            dy = _math.sin(rad)
+            hl = max(1, int(hatch_length / 2))
+
+            for ys, xs in chosen:
+                # Local darkness weight: deeper shadow → more opacity
+                local_lum = float(lum[ys, xs])
+                depth_weight = _np.clip(1.0 - local_lum / shadow_threshold, 0.0, 1.0)
+                mark_opacity = hatch_opacity * opacity_scale * (0.50 + 0.50 * depth_weight)
+
+                # Hatch colour: slightly darker and cooler than canvas pixel
+                local_r = float(new_R[ys, xs]) * 0.68
+                local_g = float(new_G[ys, xs]) * 0.72
+                local_b = float(new_B[ys, xs]) * 0.78   # blue channel preserved more
+
+                for step in range(-hl, hl + 1):
+                    px = int(round(xs + dx * step))
+                    py = int(round(ys + dy * step))
+                    if 0 <= px < self.w and 0 <= py < self.h:
+                        a = mark_opacity
+                        new_R[py, px] = new_R[py, px] * (1 - a) + local_r * a
+                        new_G[py, px] = new_G[py, px] * (1 - a) + local_g * a
+                        new_B[py, px] = new_B[py, px] * (1 - a) + local_b * a
+
+            return n_marks
+
+        # Primary hatch at +45°
+        n_primary = _draw_hatch_pass(45.0, hatch_density, 1.0)
+        # Cross-hatch at −45° with slightly lower density and opacity
+        n_cross = 0
+        if cross_hatch:
+            n_cross = _draw_hatch_pass(-45.0, hatch_density * 0.65, 0.75)
+
+        # ── Write back to ARGB32 surface (BGRA) ──────────────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = _cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), _cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Dürer engraving pass complete  "
+              f"(primary marks: {n_primary}  cross marks: {n_cross})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # selective_focus_pass — Portrait depth-of-field softening (random improvement)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def selective_focus_pass(
+            self,
+            center_x:        float = 0.50,
+            center_y:        float = 0.30,
+            focus_radius:    float = 0.32,
+            max_blur_radius: float = 4.0,
+            desaturation:    float = 0.12,
+            gamma:           float = 2.0,
+    ):
+        """
+        Applies a radial selective-focus softening to peripheral areas.
+
+        Portrait painters throughout history — from Leonardo to Vermeer to
+        Sargent — kept the focal area (typically the sitter's face) rendered
+        with maximum sharpness and clarity while allowing the peripheral zones
+        (clothing, background, hands) to soften gradually.  This was partly
+        intentional (directing the viewer's eye) and partly a natural consequence
+        of working at close range: the artist's own eye focused on the face and
+        rendered it with proportionally more attention and refinement.
+
+        This pass replicates that quality computationally: pixels beyond the
+        ``focus_radius`` ellipse are progressively blurred and desaturated,
+        with both effects scaling quadratically with distance from the focal
+        centre.  The blur is applied as a Gaussian convolution with a radius
+        that grows from zero at the focus boundary to ``max_blur_radius`` at
+        the canvas corners.  Desaturation reduces the chromatic intensity of
+        peripheral areas, simulating the slightly less saturated peripheral
+        vision of the painting eye and the tonal wash quality of loosely-
+        rendered background passages.
+
+        The pass is designed to be subtle: the default parameters produce a
+        barely-perceptible improvement in visual hierarchy that does not read
+        as an obvious photographic blur effect, but as the natural quality
+        difference between a carefully wrought face and a broadly indicated
+        background — the quality that separates a portrait by Dürer or Holbein
+        from a merely competent likeness.
+
+        Parameters
+        ----------
+        center_x       : Horizontal focus centre as fraction of canvas width.
+        center_y       : Vertical focus centre as fraction of canvas height.
+                         0.30 places the focus at typical portrait face height.
+        focus_radius   : Radius of the sharp zone as a fraction of the shorter
+                         canvas dimension.  0.28–0.36 covers the face and the
+                         immediate surrounding area.
+        max_blur_radius: Maximum Gaussian blur sigma at the canvas corners, in
+                         pixels.  2.0–5.0: subtle without reading as digital
+                         post-processing.
+        desaturation   : Maximum chroma reduction in the peripheral zone (0–1).
+                         0.08–0.18: enough to read as a looser passage without
+                         draining the peripheral colour to grey.
+        gamma          : Exponent on the radial transition — higher values
+                         create a sharper focus boundary.  1.5–2.5.
+
+        Notes
+        -----
+        Randomly selected artistic improvement for session 34 — a composable
+        selective-focus primitive that benefits any portrait pipeline by
+        replicating the natural attention-gradient of the human eye as it
+        studies a sitter across a working distance.  Distinct from
+        ``sfumato_veil_pass`` (which targets painted edges specifically) and
+        ``atmospheric_depth_pass`` (which models distance-based aerial haze):
+        this pass is compositionally focused, not optically motivated.
+        """
+        import numpy as _np
+        import cairo as _cairo
+        from scipy.ndimage import gaussian_filter as _gauss
+
+        print(f"  Selective focus pass  "
+              f"(centre=({center_x:.2f},{center_y:.2f})  r={focus_radius:.2f}  "
+              f"max_blur={max_blur_radius:.1f}  desat={desaturation:.2f})")
+
+        # ── Early exit: nothing to do when both effects are zero ──────────────
+        if max_blur_radius <= 0.0 and desaturation <= 0.0:
+            print(f"    Selective focus pass complete  (no-op — zero blur and desat)")
+            return
+
+        # ── Read canvas BGRA ──────────────────────────────────────────────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build radial distance map ─────────────────────────────────────────
+        # 0 at focus centre, 1 at focus boundary, > 1 outside
+        y_idx = _np.arange(self.h, dtype=_np.float32)[:, None] / self.h
+        x_idx = _np.arange(self.w, dtype=_np.float32)[None, :] / self.w
+
+        short = min(self.w, self.h)
+        # Elliptical — slightly wider than tall for portrait proportions
+        edx = (x_idx - center_x) / (focus_radius * 1.15)
+        edy = (y_idx - center_y) / focus_radius
+        dist = _np.sqrt(edx**2 + edy**2)
+
+        # Peripheral weight: 0 inside focus, scales to 1 at corners
+        outer = _np.clip(dist - 1.0, 0.0, None)
+        # Normalise: maximum possible outer distance from focus boundary
+        max_dist = _np.max(outer) + 1e-8
+        w_periph = _np.clip(outer / max_dist, 0.0, 1.0) ** gamma   # (H, W)
+
+        # ── Blur channel: progressive Gaussian on the full image, blend ───────
+        # Rather than per-pixel blur (expensive), blur the full canvas at the
+        # maximum radius and composite using the radial weight mask.
+        # This is an efficient approximation of radially-varying blur.
+        if max_blur_radius > 0.5:
+            R_blurred = _gauss(R, sigma=max_blur_radius)
+            G_blurred = _gauss(G, sigma=max_blur_radius)
+            B_blurred = _gauss(B, sigma=max_blur_radius)
+        else:
+            R_blurred, G_blurred, B_blurred = R, G, B
+
+        # Composite: sharp in focus zone, blurred in periphery
+        new_R = R * (1.0 - w_periph) + R_blurred * w_periph
+        new_G = G * (1.0 - w_periph) + G_blurred * w_periph
+        new_B = B * (1.0 - w_periph) + B_blurred * w_periph
+
+        # ── Desaturation: reduce chroma in periphery ──────────────────────────
+        # Perceptual grey conversion, then lerp toward grey by desaturation × weight
+        grey = 0.299 * new_R + 0.587 * new_G + 0.114 * new_B
+        desat_w = w_periph * desaturation
+        new_R = new_R * (1.0 - desat_w) + grey * desat_w
+        new_G = new_G * (1.0 - desat_w) + grey * desat_w
+        new_B = new_B * (1.0 - desat_w) + grey * desat_w
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = _cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), _cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Selective focus pass complete  "
+              f"(blur sigma={max_blur_radius:.1f}  desat={desaturation:.2f})")
