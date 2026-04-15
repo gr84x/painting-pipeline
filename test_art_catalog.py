@@ -30,6 +30,7 @@ EXPECTED_ARTISTS = [
     "anders_zorn",
     "artemisia_gentileschi",
     "berthe_morisot",
+    "waterhouse",
     "bouguereau",
     "bruegel",
     "caravaggio", "caspar_david_friedrich", "cezanne",
@@ -186,6 +187,7 @@ EXPECTED_PERIODS = [
     "ACADEMIC_REALIST",
     "IMPRESSIONIST_INTIMISTE",
     "CONTEMPORARY", "FANTASY_ART", "NONE",
+    "PRE_RAPHAELITE",
 ]
 
 
@@ -2888,7 +2890,7 @@ def test_post_impressionist_wet_blend_low():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Piero della Francesca — catalog entry (this session)
+# Piero della Francesca — catalog entry (prior session)
 # Cool mineral Early Italian Renaissance palette / piero_crystalline_pass()
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -2998,7 +3000,7 @@ def test_piero_della_francesca_has_crackle():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# EARLY_ITALIAN_RENAISSANCE period (scene_schema, this session)
+# EARLY_ITALIAN_RENAISSANCE period (scene_schema, prior session)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def test_early_italian_renaissance_period_exists():
@@ -3021,6 +3023,139 @@ def test_early_italian_renaissance_stroke_params_valid():
     assert 0.0 <= sp["edge_softness"] <= 1.0
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# John William Waterhouse — current session addition (PRE_RAPHAELITE)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_waterhouse_in_catalog():
+    """Waterhouse (current session) must be present in CATALOG."""
+    assert "waterhouse" in CATALOG
+
+
+def test_waterhouse_movement():
+    s = get_style("waterhouse")
+    assert ("Pre-Raphael" in s.movement or "Academic" in s.movement
+            or "pre-raphael" in s.movement.lower())
+
+
+def test_waterhouse_palette_length():
+    s = get_style("waterhouse")
+    assert len(s.palette) >= 5, "Waterhouse palette should have at least 5 key colours"
+
+
+def test_waterhouse_palette_values_in_range():
+    """All Waterhouse palette RGB values must be in [0, 1]."""
+    s = get_style("waterhouse")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Waterhouse palette {rgb}")
+
+
+def test_waterhouse_ground_color_near_white():
+    """Waterhouse ground should be near-white — defining Pre-Raphaelite wet white ground."""
+    s = get_style("waterhouse")
+    avg = sum(s.ground_color) / 3.0
+    assert avg >= 0.85, (
+        f"Waterhouse ground_color average should be ≥ 0.85 (near-white); got {avg:.3f}")
+
+
+def test_waterhouse_ground_color_valid():
+    s = get_style("waterhouse")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_waterhouse_famous_works_not_empty():
+    s = get_style("waterhouse")
+    assert len(s.famous_works) >= 5, (
+        f"waterhouse famous_works should have ≥ 5 entries; got {len(s.famous_works)}")
+
+
+def test_waterhouse_lady_of_shalott_referenced():
+    """The Lady of Shalott must appear in waterhouse famous_works."""
+    s = get_style("waterhouse")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Shalott" in t for t in titles), (
+        "waterhouse famous_works must include 'The Lady of Shalott'")
+
+
+def test_waterhouse_hylas_referenced():
+    """Hylas and the Nymphs must appear in waterhouse famous_works."""
+    s = get_style("waterhouse")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Hylas" in t for t in titles), (
+        "waterhouse famous_works must include 'Hylas and the Nymphs'")
+
+
+def test_waterhouse_inspiration_references_pass():
+    s = get_style("waterhouse")
+    assert "waterhouse_jewel_pass()" in s.inspiration, (
+        "waterhouse inspiration must reference waterhouse_jewel_pass()")
+
+
+def test_waterhouse_wet_blend_moderate():
+    """Waterhouse wet_blend should be moderate — wet white ground blends gently."""
+    s = get_style("waterhouse")
+    assert 0.20 <= s.wet_blend <= 0.50, (
+        f"waterhouse wet_blend should be 0.20–0.50; got {s.wet_blend}")
+
+
+def test_waterhouse_glazing_present():
+    """Waterhouse should have a unifying glaze — the cool Pre-Raphaelite atmosphere."""
+    s = get_style("waterhouse")
+    assert s.glazing is not None, "waterhouse must have a glazing colour defined"
+    # Should be a cool blue-grey (blue channel higher than red)
+    r, g, b = s.glazing
+    assert b >= r, (
+        f"Waterhouse glazing should be cool (B ≥ R); got R={r:.2f} B={b:.2f}")
+
+
+def test_waterhouse_no_crackle():
+    """Waterhouse should not have crackle — he is modern, not museum-aged."""
+    s = get_style("waterhouse")
+    assert not s.crackle, "waterhouse crackle should be False (not museum-aged)"
+
+
+def test_waterhouse_has_blue_in_palette():
+    """Waterhouse palette must contain a sapphire-blue entry (high B, low R)."""
+    s = get_style("waterhouse")
+    has_blue = any(b > 0.50 and b > r + 0.20 for r, g, b in s.palette)
+    assert has_blue, "Waterhouse palette must contain a deep blue (sapphire) entry"
+
+
+def test_waterhouse_has_crimson_in_palette():
+    """Waterhouse palette must contain a deep red/crimson entry (high R, low B)."""
+    s = get_style("waterhouse")
+    has_crimson = any(r > 0.55 and r > b + 0.30 for r, g, b in s.palette)
+    assert has_crimson, "Waterhouse palette must contain a deep crimson/red entry"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PRE_RAPHAELITE period (scene_schema, current session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_pre_raphaelite_period_exists():
+    """PRE_RAPHAELITE must exist in the Period enum after this session."""
+    assert hasattr(Period, "PRE_RAPHAELITE"), (
+        "Period.PRE_RAPHAELITE not found — add it to scene_schema.py")
+
+
+def test_pre_raphaelite_stroke_params_valid():
+    """PRE_RAPHAELITE stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.PRE_RAPHAELITE,
+                  palette=PaletteHint.JEWEL)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"PRE_RAPHAELITE stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
 def test_early_italian_renaissance_wet_blend_lower_than_venetian():
     """EARLY_ITALIAN_RENAISSANCE wet_blend must be lower than VENETIAN_RENAISSANCE (less rich blending)."""
     sp_early = Style(medium=Medium.OIL, period=Period.EARLY_ITALIAN_RENAISSANCE).stroke_params
@@ -3036,4 +3171,28 @@ def test_early_italian_renaissance_edge_softness_moderate():
     assert 0.30 <= sp["edge_softness"] <= 0.60, (
         f"EARLY_ITALIAN_RENAISSANCE edge_softness should be in [0.30, 0.60]; "
         f"got {sp['edge_softness']}")
+
+
+def test_pre_raphaelite_stroke_size_face_small():
+    """PRE_RAPHAELITE stroke_size_face should be small — fine Pre-Raphaelite detail."""
+    sp = Style(medium=Medium.OIL, period=Period.PRE_RAPHAELITE).stroke_params
+    assert sp["stroke_size_face"] <= 7, (
+        f"PRE_RAPHAELITE stroke_size_face should be ≤ 7 (fine detail); "
+        f"got {sp['stroke_size_face']}")
+
+
+def test_pre_raphaelite_wet_blend_moderate():
+    """PRE_RAPHAELITE wet_blend should be moderate — wet white ground."""
+    sp = Style(medium=Medium.OIL, period=Period.PRE_RAPHAELITE).stroke_params
+    assert 0.15 <= sp["wet_blend"] <= 0.55, (
+        f"PRE_RAPHAELITE wet_blend should be 0.15–0.55; got {sp['wet_blend']}")
+
+
+def test_pre_raphaelite_wet_blend_lower_than_academic():
+    """PRE_RAPHAELITE wet_blend should be lower than ACADEMIC_REALIST."""
+    sp_pr  = Style(medium=Medium.OIL, period=Period.PRE_RAPHAELITE).stroke_params
+    sp_ac  = Style(medium=Medium.OIL, period=Period.ACADEMIC_REALIST).stroke_params
+    assert sp_pr["wet_blend"] < sp_ac["wet_blend"], (
+        "PRE_RAPHAELITE wet_blend must be lower than ACADEMIC_REALIST "
+        "(Pre-Raphaelite ground technique is wet but not the hyper-smooth Academic blend)")
 

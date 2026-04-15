@@ -557,6 +557,8 @@ def scene_to_painting(
     is_neoclassical      = (scene.style.period == Period.NEOCLASSICAL)
     is_nordic_impressionist = (scene.style.period == Period.NORDIC_IMPRESSIONIST)
     is_impressionist_plein_air = (scene.style.period == Period.IMPRESSIONIST_PLEIN_AIR)
+    is_post_impressionist  = (scene.style.period == Period.POST_IMPRESSIONIST)
+    is_pre_raphaelite      = (scene.style.period == Period.PRE_RAPHAELITE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2293,6 +2295,161 @@ def scene_to_painting(
             print(_feedback.summary())
         # Light vignette only — no crackle; Morisot's canvases are not aged relics.
         p.finish(vignette=0.20, crackle=False)
+
+    elif is_post_impressionist:
+        # ── Post-Impressionist pipeline (Edgar Degas pastel-over-monotype) ────
+        # Degas invented a hybrid technique: he printed a thin ink monotype onto
+        # the support, then reworked it in pastel while the monotype was still wet.
+        # The monotype provides a dark, calligraphic skeleton; the pastel builds
+        # an optically mixed colour surface on top through multidirectional hatching.
+        #
+        # Pipeline:
+        #   1. Dark blue-grey monotype ground — the defining starting point.
+        #   2. Minimal underpainting + block_in with fine directed marks.
+        #   3. build_form — medium marks building the figure masses.
+        #   4. degas_pastel_pass() — the defining technique: shadow cooldown toward
+        #      blue-grey, highlight warmup toward amber-orange, bidirectional grain.
+        #   5. place_lights() with warm amber highlights.
+        #   6. edge_lost_and_found_pass — Degas kept structural drawing beneath the
+        #      colouristic surface; edges dissolve at the periphery but remain at
+        #      the structural drawing lines.
+        #   7. Moderate vignette (0.30); no crackle (pastels do not crackle).
+        degas_style = _ART_CATALOG.get("degas")
+        ground_col  = degas_style.ground_color if degas_style else (0.28, 0.26, 0.32)
+
+        # Dark blue-grey ground — the monotype base.
+        p.tone_ground(ground_col, texture_strength=0.08)
+
+        # Restrained form-building sequence — Degas drew before he coloured.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.1), n_strokes=100)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=220)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_face"] * 1.2), n_strokes=560)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.96,
+                                         midtone_contrast=0.03)
+
+        # Core Degas technique: crosshatched pastel, cool shadows, warm lights.
+        p.degas_pastel_pass(
+            shadow_grey     = (0.30, 0.30, 0.42),   # deep blue-grey shadow target
+            shadow_threshold = 0.40,
+            shadow_strength  = 0.38,
+            light_amber      = (0.88, 0.72, 0.54),  # warm amber-orange highlight target
+            light_threshold  = 0.68,
+            light_strength   = 0.32,
+            pastel_grain     = 0.018,               # bidirectional pastel grain
+            blend_opacity    = 0.42,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "degas_pastel_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.74, 0.68, 0.78), opacity=0.04)  # cool blue-grey unifier
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97,
+                                             midtone_contrast=0.02)
+
+        # Warm amber lights — Degas' pastels are assertive in the highlight zone.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=360)
+
+        # Lost-and-found: structural drawing edges remain; peripheral marks dissolve.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.26,
+            found_sharpness = 0.38,
+            lost_blur       = 1.5,
+            strength        = 0.30,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Moderate vignette; no crackle (pastel finishes do not age with crackle).
+        p.finish(vignette=0.30, crackle=False)
+
+    elif is_pre_raphaelite:
+        # ── Pre-Raphaelite pipeline (John William Waterhouse technique) ───────
+        # The Pre-Raphaelite Brotherhood and their successors (including Waterhouse)
+        # painted onto a STILL-WET white lead priming — the wet white ground method.
+        # This choice of support fundamentally changes the colour quality: every pigment
+        # reads at maximum luminosity, with the white ground reflecting light back
+        # through thin paint layers.  Jewel colours (sapphire, crimson, viridian) reach
+        # a depth and radiance impossible on a toned or dark ground.
+        #
+        # Pipeline:
+        #   1. Near-white ground (0.94, 0.93, 0.90) — the defining Pre-Raphaelite choice.
+        #   2. Light underpainting + block_in with fine careful marks.
+        #   3. build_form — precise small marks for Pre-Raphaelite detail quality.
+        #   4. waterhouse_jewel_pass() — the defining technique: midtone saturation
+        #      lift, cool shadow lavender (white ground showing through thin paint),
+        #      warm ivory highlight reinforcement.
+        #   5. place_lights() with warm ivory — not brilliant white.
+        #   6. Cool blue-grey glaze — unifies the Pre-Raphaelite atmospheric palette.
+        #   7. edge_lost_and_found_pass — focal precision, periphery softened by scumbling.
+        #   8. Light vignette (0.22); no crackle (Waterhouse is recent, not museum-aged).
+        waterhouse_style = _ART_CATALOG.get("waterhouse")
+        ground_col = waterhouse_style.ground_color if waterhouse_style else (0.94, 0.93, 0.90)
+
+        # Near-white ground — essential for the wet-white-ground luminosity.
+        p.tone_ground(ground_col, texture_strength=0.03)
+
+        # Fine, careful form-building — Pre-Raphaelite precision requires small marks.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.1), n_strokes=100)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=200)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_face"] * 1.1), n_strokes=540)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97,
+                                         midtone_contrast=0.03)
+
+        # Core Waterhouse technique: jewel saturation on a white ground.
+        p.waterhouse_jewel_pass(
+            jewel_boost         = 0.14,
+            jewel_low           = 0.20,
+            jewel_high          = 0.62,
+            shadow_cool         = 0.10,
+            shadow_threshold    = 0.30,
+            shadow_width        = 0.12,
+            highlight_warmth    = 0.06,
+            highlight_threshold = 0.76,
+            blend_opacity       = 0.46,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "waterhouse_jewel_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.78, 0.82, 0.90), opacity=0.04)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97,
+                                             midtone_contrast=0.02)
+
+        # Warm ivory highlights — Pre-Raphaelite loaded-brush decisive marks.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=340)
+
+        # Cool blue-grey glaze — atmospheric Pre-Raphaelite palette unifier.
+        if waterhouse_style and waterhouse_style.glazing:
+            p.glaze(waterhouse_style.glazing, opacity=0.05)
+        else:
+            p.glaze((0.78, 0.82, 0.90), opacity=0.05)
+
+        # Lost-and-found: focal precision (face, hands), peripheral scumbled softness.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.26,
+            found_sharpness = 0.42,
+            lost_blur       = 1.6,
+            strength        = 0.28,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Light vignette only; no crackle — Waterhouse is modern enough not to age.
+        p.finish(vignette=0.22, crackle=False)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

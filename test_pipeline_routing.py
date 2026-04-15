@@ -182,6 +182,8 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_academic_realist":        period == Period.ACADEMIC_REALIST,
         "is_nordic_impressionist":    period == Period.NORDIC_IMPRESSIONIST,
         "is_impressionist_plein_air": period == Period.IMPRESSIONIST_PLEIN_AIR,
+        "is_post_impressionist":      period == Period.POST_IMPRESSIONIST,
+        "is_pre_raphaelite":          period == Period.PRE_RAPHAELITE,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -3204,7 +3206,7 @@ def test_post_impressionist_wet_blend_lower_than_nordic_impressionist():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# piero_crystalline_pass — this session's random artistic improvement
+# piero_crystalline_pass — prior session's random artistic improvement
 # Inspired by Piero della Francesca's cool mineral Early Italian Renaissance light
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -3330,7 +3332,7 @@ def test_piero_crystalline_pass_cools_bright_highlights():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# EARLY_ITALIAN_RENAISSANCE period routing (this session)
+# EARLY_ITALIAN_RENAISSANCE period routing (prior session)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def test_early_italian_renaissance_stroke_params_valid():
@@ -3354,3 +3356,232 @@ def test_early_italian_renaissance_wet_blend_lower_than_venetian():
     assert sp_early["wet_blend"] < sp_ven["wet_blend"], (
         "EARLY_ITALIAN_RENAISSANCE wet_blend must be lower than VENETIAN_RENAISSANCE "
         "(Piero's geometric precision uses less fluid blending than Titian's rich Venetian technique)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST_IMPRESSIONIST routing flags (Degas, current session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_post_impressionist_flag_set():
+    """POST_IMPRESSIONIST period must set is_post_impressionist=True."""
+    flags = _routing_flags(Period.POST_IMPRESSIONIST)
+    assert flags["is_post_impressionist"] is True
+
+
+def test_post_impressionist_flag_not_set_for_other_periods():
+    """is_post_impressionist must be False for all periods except POST_IMPRESSIONIST."""
+    for period in Period:
+        if period == Period.POST_IMPRESSIONIST:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_post_impressionist"], (
+            f"is_post_impressionist should be False for {period.name}")
+
+
+def test_post_impressionist_mutually_exclusive_with_impressionist_plein_air():
+    """POST_IMPRESSIONIST and IMPRESSIONIST_PLEIN_AIR must not both be True."""
+    flags_pi = _routing_flags(Period.POST_IMPRESSIONIST)
+    flags_pa = _routing_flags(Period.IMPRESSIONIST_PLEIN_AIR)
+    assert     flags_pi["is_post_impressionist"]
+    assert not flags_pi["is_impressionist_plein_air"]
+    assert     flags_pa["is_impressionist_plein_air"]
+    assert not flags_pa["is_post_impressionist"]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# degas_pastel_pass — routing-level smoke tests (current session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_degas_pastel_pass_exists():
+    """Painter must have degas_pastel_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "degas_pastel_pass"), (
+        "degas_pastel_pass not found on Painter")
+    assert callable(getattr(Painter, "degas_pastel_pass"))
+
+
+def test_degas_pastel_pass_no_error():
+    """degas_pastel_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.28, 0.26, 0.32), texture_strength=0.06)
+    p.degas_pastel_pass()
+
+
+def test_degas_pastel_pass_modifies_canvas():
+    """degas_pastel_pass() with non-zero strengths must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.28, 0.26, 0.32), texture_strength=0.04)
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.degas_pastel_pass(
+        shadow_strength = 0.40,
+        light_strength  = 0.30,
+        blend_opacity   = 0.60,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+    assert not np.array_equal(before, after), (
+        "degas_pastel_pass with non-zero strengths must modify the canvas")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# waterhouse_jewel_pass — current session addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_waterhouse_jewel_pass_exists():
+    """Painter must have waterhouse_jewel_pass() method after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "waterhouse_jewel_pass"), (
+        "waterhouse_jewel_pass not found on Painter")
+    assert callable(getattr(Painter, "waterhouse_jewel_pass"))
+
+
+def test_waterhouse_jewel_pass_no_error():
+    """waterhouse_jewel_pass() runs without error on a plain near-white canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.93, 0.90), texture_strength=0.02)
+    p.waterhouse_jewel_pass()
+
+
+def test_waterhouse_jewel_pass_no_error_with_block_in():
+    """waterhouse_jewel_pass() runs without error after block_in on a painted canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.94, 0.93, 0.90), texture_strength=0.02)
+    p.block_in(ref, stroke_size=6, n_strokes=15)
+    p.waterhouse_jewel_pass(
+        jewel_boost         = 0.14,
+        jewel_low           = 0.20,
+        jewel_high          = 0.62,
+        shadow_cool         = 0.10,
+        shadow_threshold    = 0.30,
+        shadow_width        = 0.12,
+        highlight_warmth    = 0.06,
+        highlight_threshold = 0.76,
+        blend_opacity       = 0.46,
+    )
+
+
+def test_waterhouse_jewel_pass_zero_boost_no_saturation_change():
+    """waterhouse_jewel_pass with jewel_boost=0 and shadow_cool=0 and highlight_warmth=0 is a no-op."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.35), texture_strength=0.04)
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.waterhouse_jewel_pass(
+        jewel_boost      = 0.0,
+        shadow_cool      = 0.0,
+        highlight_warmth = 0.0,
+        blend_opacity    = 0.50,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=np.uint8).reshape(64, 64, 4).copy()
+    np.testing.assert_array_equal(before, after,
+        err_msg="waterhouse_jewel_pass with all-zero strengths should be a no-op")
+
+
+def test_waterhouse_jewel_pass_increases_saturation_on_midtone_canvas():
+    """
+    On a desaturated midtone canvas, waterhouse_jewel_pass should increase
+    the spread between colour channels (higher saturation).
+    """
+    p = _make_small_painter(64, 64)
+    # Slightly coloured midtone canvas — R > G > B but not by much
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.00)
+
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Saturation proxy: max(R, G, B) - min(R, G, B)
+    before_chroma = float(
+        (before_buf[:, :, 2].astype(float) - before_buf[:, :, 0].astype(float)).mean())
+
+    p.waterhouse_jewel_pass(
+        jewel_boost      = 0.20,
+        jewel_low        = 0.30,
+        jewel_high       = 0.75,
+        shadow_cool      = 0.00,
+        highlight_warmth = 0.00,
+        blend_opacity    = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_chroma = float(
+        (after_buf[:, :, 2].astype(float) - after_buf[:, :, 0].astype(float)).mean())
+
+    assert after_chroma > before_chroma, (
+        f"waterhouse_jewel_pass should increase channel spread (saturation) on "
+        f"a coloured midtone canvas: before={before_chroma:.2f}, after={after_chroma:.2f}")
+
+
+def test_waterhouse_jewel_pass_shadow_cool_increases_blue():
+    """
+    On a dark warm canvas, waterhouse_jewel_pass shadow_cool should increase
+    the B channel (cooling deep shadows toward lavender-blue).
+    """
+    p = _make_small_painter(64, 64)
+    # Very dark warm canvas — all pixels fall in the shadow zone
+    p.tone_ground((0.15, 0.11, 0.07), texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    before_b = float(before_buf[:, :, 0].mean())   # Cairo BGRA: channel 0 = B
+
+    p.waterhouse_jewel_pass(
+        jewel_boost      = 0.0,
+        shadow_cool      = 0.35,
+        shadow_threshold = 0.40,   # high threshold to catch these dark pixels
+        shadow_width     = 0.15,
+        highlight_warmth = 0.0,
+        blend_opacity    = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_b = float(after_buf[:, :, 0].mean())
+
+    assert after_b > before_b, (
+        f"Shadow cooling should increase B channel on a dark warm canvas: "
+        f"before_B={before_b:.1f}, after_B={after_b:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PRE_RAPHAELITE period routing (current session)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_pre_raphaelite_flag_set():
+    """PRE_RAPHAELITE period must set is_pre_raphaelite=True."""
+    flags = _routing_flags(Period.PRE_RAPHAELITE)
+    assert flags["is_pre_raphaelite"] is True
+
+
+def test_pre_raphaelite_flag_not_set_for_other_periods():
+    """is_pre_raphaelite must be False for all periods except PRE_RAPHAELITE."""
+    for period in Period:
+        if period == Period.PRE_RAPHAELITE:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_pre_raphaelite"], (
+            f"is_pre_raphaelite should be False for {period.name}")
+
+
+def test_pre_raphaelite_mutually_exclusive_with_post_impressionist():
+    """PRE_RAPHAELITE and POST_IMPRESSIONIST must not both be True."""
+    flags_pr = _routing_flags(Period.PRE_RAPHAELITE)
+    flags_pi = _routing_flags(Period.POST_IMPRESSIONIST)
+    assert     flags_pr["is_pre_raphaelite"]
+    assert not flags_pr["is_post_impressionist"]
+    assert     flags_pi["is_post_impressionist"]
+    assert not flags_pi["is_pre_raphaelite"]
+
+
+def test_pre_raphaelite_stroke_params_valid():
+    """PRE_RAPHAELITE stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.PRE_RAPHAELITE,
+                  palette=PaletteHint.JEWEL)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"PRE_RAPHAELITE stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0

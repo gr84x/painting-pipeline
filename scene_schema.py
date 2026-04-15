@@ -213,6 +213,7 @@ class Period(Enum):
     NORDIC_IMPRESSIONIST = auto()     # Zorn — warm Zorn palette, confident calligraphic marks, wet-into-wet portraiture
     IMPRESSIONIST_PLEIN_AIR = auto()  # Morisot — feathery high-key brushwork, colorful violet shadows, luminous atmosphere
     POST_IMPRESSIONIST = auto()      # Degas — crosshatched pastel over monotype, blue-grey tonality, warm orange lights
+    PRE_RAPHAELITE = auto()          # Waterhouse — jewel palette, wet white ground luminosity, fine Pre-Raphaelite detail
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -628,6 +629,16 @@ class Style:
             # edge_softness=0.35: edges are softened by pastel layering but never fully lost;
             # Degas retained structural drawing clarity beneath the colouristic surface.
             Period.POST_IMPRESSIONIST: dict(stroke_size_face=7, stroke_size_bg=18, wet_blend=0.22, edge_softness=0.35),
+            # Pre-Raphaelite (Waterhouse): the Brotherhood painted on a STILL-WET white ground,
+            # so every colour reads at maximum luminosity — no oil sinking into a dark priming.
+            # stroke_size_face=5: fine, detail-oriented marks (foliage, fabric, face textures
+            # were all rendered with exceptional Pre-Raphaelite precision).  stroke_size_bg=16:
+            # moderate — landscape and architectural backgrounds are carefully observed,
+            # not loose Impressionist washes.  wet_blend=0.30: enough to fuse flesh tones
+            # smoothly on the wet white ground without losing brushstroke identity.
+            # edge_softness=0.28: edges are present and legible — Pre-Raphaelite precision —
+            # but yielding at the focal periphery through the scumbling technique.
+            Period.PRE_RAPHAELITE: dict(stroke_size_face=5, stroke_size_bg=16, wet_blend=0.30, edge_softness=0.28),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

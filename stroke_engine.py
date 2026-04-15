@@ -9978,3 +9978,202 @@ class Painter:
         self.canvas.ctx.paint()
 
         print(f"    Degas pastel pass complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # waterhouse_jewel_pass — Pre-Raphaelite wet-white-ground jewel saturation
+    #
+    # This is this session's random artistic improvement: simulating the unique
+    # luminosity that results from the Pre-Raphaelite wet white ground method.
+    # Unlike any prior pass, it operates by lifting midtone SATURATION selectively
+    # (not luminance, not hue) in the zone where jewel colours live.  The white
+    # ground reflects back through the paint, making colours appear more saturated
+    # than they would on a dark or mid-tone priming.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def waterhouse_jewel_pass(
+            self,
+            jewel_boost:        float = 0.14,
+            jewel_low:          float = 0.20,
+            jewel_high:         float = 0.62,
+            shadow_cool:        float = 0.10,
+            shadow_threshold:   float = 0.32,
+            shadow_width:       float = 0.12,
+            highlight_warmth:   float = 0.06,
+            highlight_threshold: float = 0.78,
+            blend_opacity:      float = 0.45,
+    ):
+        """
+        Simulates John William Waterhouse's Pre-Raphaelite wet white ground technique.
+
+        The Pre-Raphaelite Brotherhood (and Waterhouse as their foremost late
+        successor) applied paint onto a STILL-WET white lead priming.  This "wet
+        white ground" method has a profound effect on colour:
+
+        1. **Midtone jewel saturation** — Paint applied thinly or transparently over
+           a wet white ground reads at higher saturation than the same paint on a
+           toned or dark ground, because the white substrate reflects light back
+           through the paint film rather than absorbing it.  This is the source of
+           the characteristic jewel quality of Pre-Raphaelite colours — the sapphire
+           blues, deep crimsons, and rich viridians of Waterhouse, Millais, and
+           Holman Hunt glow from within.  The effect is strongest in the midtone
+           range (lum 0.20–0.62) where pigments are applied in one or two thin layers
+           rather than the thick impasto of the highlights.
+
+        2. **Cool shadow passages** — Where the paint is thinnest (deep shadows, the
+           penumbra between lit and unlit), the cool white ground shows through as a
+           pale lavender-grey tint.  Waterhouse's shadow flesh has this quality:
+           the halftone cools toward blue-grey before darkening, rather than shifting
+           toward warm umber as it would on a mid-tone ground.
+
+        3. **Warm ivory highlights** — The lit passages receive confident loaded-brush
+           strokes that fully cover the ground; these are warm ivory (the natural
+           mixing of white and ochre flesh pigment) rather than cool.  A gentle
+           warmth pass in the highlight zone reinforces this.
+
+        The pass imposes all three effects on the current canvas without disrupting
+        the tonal structure established by ``build_form()``.
+
+        This method is this session's **random artistic improvement**: no prior pass
+        in the pipeline targeted midtone saturation independently of luminance or hue.
+        All earlier chromatic adjustments (``zorn_tricolor_pass``, ``morisot_plein_air_pass``,
+        ``degas_pastel_pass``) shifted *hue* or *luminance*; this is the first to lift
+        *chroma* directly in HSV space within a luminance window — a technique applicable
+        to any artist pipeline that benefits from increased colour richness.
+
+        Parameters
+        ----------
+        jewel_boost        : Saturation increase in the jewel zone (0–0.30).
+                             0.10–0.18 replicates Pre-Raphaelite richness without
+                             artificiality; above 0.25 reads as oversaturated.
+        jewel_low          : Lower luminance boundary of the jewel (midtone) zone.
+                             0.18–0.25 is appropriate — below this, paint is too thick
+                             to show white ground influence.
+        jewel_high         : Upper luminance boundary of the jewel zone.
+                             0.58–0.68 — above this, the highlight strokes are opaque
+                             loaded paint (full cover) and the ground plays no role.
+        shadow_cool        : Strength of the blue-grey cool shift in deep shadows.
+                             0.08–0.14 recreates the lavender quality of Waterhouse's
+                             shadow flesh without making the darks look cold.
+        shadow_threshold   : Luminance below which shadow cooling is applied.
+                             0.28–0.36 targets deep shadow without touching midtones.
+        shadow_width       : Width of the smooth ramp from shadow to neutral.
+                             0.10–0.16 creates a gentle transition without a hard seam.
+        highlight_warmth   : Warm ivory tint applied to high-luminance pixels.
+                             0.04–0.08 — the white-ground loaded strokes are warm,
+                             not neutral; this reinforces that quality.
+        highlight_threshold: Luminance above which warmth is applied (0.75–0.82).
+        blend_opacity      : Global blend weight for all three effects.
+                             0.40–0.55 for a full confident pass; 0.25–0.35 when
+                             used on top of a non-white ground for a gentler effect.
+
+        Notes
+        -----
+        Inspired by: "The Lady of Shalott" (1888, Tate), "Hylas and the Nymphs"
+        (1896, Manchester), "Ophelia" (1894).
+        Primary reference: Joyce Townsend, Tate Conservation, on Pre-Raphaelite
+        wet white ground priming technique (Tate Papers, 2004).
+        This session's random artistic improvement — midtone chroma lifting as an
+        independent pipeline pass applicable across all white-ground painting styles.
+        """
+        import numpy as _np
+        import colorsys as _cs
+
+        print(f"  Waterhouse jewel pass  "
+              f"(jewel_boost={jewel_boost:.2f}  shadow_cool={shadow_cool:.2f}  "
+              f"highlight_warmth={highlight_warmth:.2f}  opacity={blend_opacity:.2f})")
+
+        # ── Read current canvas ARGB32 (BGRA byte order in pycairo) ──────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(self.h, self.w, 4).copy()
+        B = buf[:, :, 0].astype(_np.float32) / 255.0
+        G = buf[:, :, 1].astype(_np.float32) / 255.0
+        R = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Perceptual luminance ──────────────────────────────────────────────
+        lum = 0.299 * R + 0.587 * G + 0.114 * B
+
+        # Pre-allocate output arrays (modified in-place per zone)
+        new_R = R.copy()
+        new_G = G.copy()
+        new_B = B.copy()
+
+        # ── Zone 1: Jewel saturation boost in the midtone range ──────────────
+        # The white ground reflects through thin-to-moderate paint application
+        # (midtone luminance), boosting apparent saturation.  We operate in HSV:
+        # convert each pixel, increase S by jewel_boost, clamp, convert back.
+        #
+        # The boost is weighted by how deep the pixel sits inside the jewel window:
+        # 0 at the window edges, peak at the midpoint.  This gives a smooth
+        # saturation gradient rather than a hard-edged mask.
+        jewel_mid   = (jewel_low + jewel_high) * 0.5
+        jewel_range = (jewel_high - jewel_low) * 0.5 + 1e-6
+        jewel_t     = _np.clip(1.0 - _np.abs(lum - jewel_mid) / jewel_range, 0.0, 1.0)
+        # Smoothstep for softer transitions
+        jewel_t     = jewel_t * jewel_t * (3.0 - 2.0 * jewel_t)
+
+        # For each pixel in the jewel zone, boost saturation in HSV space.
+        # Vectorised HSV conversion: max/min per pixel.
+        Cmax  = _np.maximum(_np.maximum(R, G), B)
+        Cmin  = _np.minimum(_np.minimum(R, G), B)
+        delta = Cmax - Cmin + 1e-9
+
+        # HSV S (saturation) = delta / Cmax  (0 when Cmax=0)
+        S = _np.where(Cmax > 1e-6, delta / Cmax, 0.0)
+
+        # Boost S proportional to jewel_t and jewel_boost, clamped to [0, 1]
+        S_new = _np.clip(S + jewel_t * jewel_boost * blend_opacity, 0.0, 1.0)
+        S_boost_ratio = _np.where(S > 1e-6, S_new / S, 1.0)
+
+        # Apply saturation boost: distance from grey (Cmax) is scaled.
+        # grey_R = R where saturation = 0, i.e., R == G == B == Cmax (the grey axis).
+        grey_R = Cmax
+        grey_G = Cmax
+        grey_B = Cmax
+        new_R = _np.clip(grey_R + (R - grey_R) * S_boost_ratio, 0.0, 1.0)
+        new_G = _np.clip(grey_G + (G - grey_G) * S_boost_ratio, 0.0, 1.0)
+        new_B = _np.clip(grey_B + (B - grey_B) * S_boost_ratio, 0.0, 1.0)
+
+        # ── Zone 2: Shadow cooling toward lavender-blue ───────────────────────
+        # In the shadow zone the white ground shows through as a pale cool tint
+        # (the lead white of the priming, visible through very thin paint).
+        # Target: (0.72, 0.72, 0.86) — pale blue-grey lavender.
+        sc_r, sc_g, sc_b = 0.72, 0.72, 0.86
+        lo = shadow_threshold - shadow_width * 0.5
+        hi = shadow_threshold + shadow_width * 0.5
+        # Smooth ramp: 1.0 in deep shadow, 0.0 above the ramp
+        shadow_t = _np.clip((hi - lum) / (hi - lo + 1e-6), 0.0, 1.0)
+        shadow_t = shadow_t * shadow_t * (3.0 - 2.0 * shadow_t)  # smoothstep
+        shadow_alpha = shadow_t * shadow_cool * blend_opacity
+
+        new_R = _np.clip(new_R + (sc_r - new_R) * shadow_alpha, 0.0, 1.0)
+        new_G = _np.clip(new_G + (sc_g - new_G) * shadow_alpha, 0.0, 1.0)
+        new_B = _np.clip(new_B + (sc_b - new_B) * shadow_alpha, 0.0, 1.0)
+
+        # ── Zone 3: Highlight warm ivory tint ────────────────────────────────
+        # Loaded opaque highlight strokes are warm ivory on a white ground —
+        # not cool (the white ground is not showing through thick paint here).
+        # Target: (0.94, 0.88, 0.72) — warm ivory.
+        hi_r, hi_g, hi_b = 0.94, 0.88, 0.72
+        light_t = _np.clip(
+            (lum - highlight_threshold) / (1.0 - highlight_threshold + 1e-6),
+            0.0, 1.0,
+        )
+        light_t = light_t * light_t  # quadratic ease — strongest at peak brightness
+        light_alpha = light_t * highlight_warmth * blend_opacity
+
+        new_R = _np.clip(new_R + (hi_r - new_R) * light_alpha, 0.0, 1.0)
+        new_G = _np.clip(new_G + (hi_g - new_G) * light_alpha, 0.0, 1.0)
+        new_B = _np.clip(new_B + (hi_b - new_B) * light_alpha, 0.0, 1.0)
+
+        # ── Write back to ARGB32 surface (BGRA layout) ───────────────────────
+        buf[:, :, 0] = _np.clip(new_B * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_G * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 2] = _np.clip(new_R * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = 255
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(buf.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.canvas.ctx.set_source_surface(tmp, 0, 0)
+        self.canvas.ctx.paint()
+
+        print(f"    Waterhouse jewel pass complete")

@@ -2622,6 +2622,74 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── John William Waterhouse ───────────────────────────────────────────────
+    # Pipeline key: waterhouse_jewel_pass() — lifts midtone saturation on a near-white
+    # ground; cools shadows toward Pre-Raphaelite blue; reinforces jewel-tone pigments.
+    "waterhouse": ArtStyle(
+        artist="John William Waterhouse",
+        movement="Pre-Raphaelitism / Academic Classicism",
+        nationality="British",
+        period="1874–1917",
+        palette=[
+            (0.22, 0.38, 0.68),   # deep sapphire blue — costume and water reflections
+            (0.72, 0.12, 0.18),   # deep crimson — drapery and mythological garments
+            (0.88, 0.78, 0.55),   # warm ivory flesh — lit skin on a white ground
+            (0.18, 0.48, 0.32),   # rich viridian — foliage and landscape greens
+            (0.92, 0.85, 0.72),   # pale golden cream — highlight skin and linen
+            (0.58, 0.28, 0.62),   # dusty mauve-violet — shadow passages in drapery
+            (0.30, 0.22, 0.14),   # warm dark umber — hair and deep shadow accents
+        ],
+        ground_color=(0.94, 0.93, 0.90),    # near-white — wet white ground priming (Pre-Raphaelite method)
+        stroke_size=5,
+        wet_blend=0.30,
+        edge_softness=0.28,
+        jitter=0.04,
+        glazing=(0.78, 0.82, 0.90),          # cool blue-grey unifying glaze — Pre-Raphaelite atmosphere
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Waterhouse inherited the Pre-Raphaelite Brotherhood's wet white ground method: "
+            "he applied each painting session directly onto a still-wet white lead priming, "
+            "so every pigment retained maximum luminosity as it dried — there was no oil "
+            "sinking into a dark absorbent ground to grey the colours.  The result is the "
+            "characteristic jewel-quality of his palette: the sapphire blues, deep crimsons, "
+            "and rich viridians that saturate his mythological subjects glow from within "
+            "rather than sitting inertly on the surface.  His flesh tones are warm ivory on "
+            "the lit side, cooling toward pale lavender in the halftone as the white ground "
+            "shows through thin, wet paint — a quality only achievable on a white support.  "
+            "He worked with exceptional Pre-Raphaelite precision in the rendering of textile "
+            "detail, foliage, and facial features, using fine sable brushes in the focal "
+            "areas and broader scumbled marks at the edges of the composition.  His "
+            "backgrounds show careful atmospheric recession — the landscape behind Lady "
+            "of Shalott or Hylas recedes through graduated aerial perspective rather than "
+            "Impressionist dissolution — and are painted with the same high-key luminosity "
+            "as the figure.  Despite the Victorian Academic setting, Waterhouse's colour is "
+            "more Pre-Raphaelite than Academic in its intensity and chromatic precision."
+        ),
+        famous_works=[
+            ("The Lady of Shalott", "1888"),
+            ("Hylas and the Nymphs", "1896"),
+            ("Ophelia", "1894"),
+            ("Echo and Narcissus", "1903"),
+            ("The Magic Circle", "1886"),
+            ("Circe Invidiosa", "1892"),
+            ("Miranda", "1916"),
+        ],
+        inspiration=(
+            "Use waterhouse_jewel_pass() as the defining colouristic technique: "
+            "it lifts midtone saturation (jewel zone: lum 0.20–0.62) to simulate the "
+            "white-ground luminosity, cools shadows toward lavender-blue (the white ground "
+            "visible through thin paint), and preserves highlight warmth. "
+            "tone_ground() with near-white (0.94, 0.93, 0.90) — the defining Pre-Raphaelite choice. "
+            "block_in() and build_form() with fine marks (stroke_size_face=5). "
+            "waterhouse_jewel_pass() saturates the jewel zones and cools the shadows. "
+            "place_lights() with warm ivory highlights (not brilliant white — the white "
+            "ground is already doing the luminosity work). "
+            "Cool blue-grey glazing (0.78, 0.82, 0.90) at opacity 0.05–0.07 unifies the "
+            "atmospheric Pre-Raphaelite palette.  Light vignette; no crackle."
+        ),
+    ),
+
     "berthe_morisot": ArtStyle(
         artist="Berthe Morisot",
         movement="French Impressionism",
