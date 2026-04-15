@@ -556,6 +556,7 @@ def scene_to_painting(
     is_tenebrist         = (scene.style.period == Period.TENEBRIST)
     is_neoclassical      = (scene.style.period == Period.NEOCLASSICAL)
     is_nordic_impressionist = (scene.style.period == Period.NORDIC_IMPRESSIONIST)
+    is_impressionist_plein_air = (scene.style.period == Period.IMPRESSIONIST_PLEIN_AIR)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2218,6 +2219,80 @@ def scene_to_painting(
         if _feedback is not None:
             print(_feedback.summary())
         p.finish(vignette=0.35, crackle=True)
+
+    elif is_impressionist_plein_air:
+        # ── Impressionist Plein Air pipeline (Berthe Morisot technique) ───────
+        # Morisot painted on a pale, luminous ground — much lighter than the dark
+        # umber grounds of the Baroque or even the mid-tone grounds of most Impressionists.
+        # Her shadows are never dark neutrals: they are blue-violet or lavender,
+        # enriched with chromatic color rather than reduced in value alone.
+        # The overall tonal range stays compressed into the upper half of the
+        # luminance scale, giving every canvas an airy, light-filled quality.
+        #
+        # Pipeline:
+        #   1. Pale warm cream ground — far lighter than most (0.88, 0.84, 0.78).
+        #   2. Light underpainting + block_in with medium confident strokes.
+        #   3. build_form with visible directional marks.
+        #   4. morisot_plein_air_pass() — the defining technique: shifts dark
+        #      shadow areas toward blue-violet, lifts luminosity, and applies a
+        #      warm cream tint to the brightest highlights.
+        #   5. place_lights() with warm cream highlights (not brilliant white).
+        #   6. edge_lost_and_found_pass — soft lost edges in background, found
+        #      edges at the figure's focal point.
+        #   7. Light vignette (0.20); no crackle (Morisot's era, not museum-aged).
+        morisot_style = _ART_CATALOG.get("berthe_morisot")
+        ground_col = morisot_style.ground_color if morisot_style else (0.88, 0.84, 0.78)
+
+        # Pale cream ground — Morisot typically primed with a light, luminous base.
+        p.tone_ground(ground_col, texture_strength=0.04)
+
+        # Form-building sequence with medium, visible marks — no micro-blending.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.2), n_strokes=120)
+        p.block_in(ref,     stroke_size=int(sp["stroke_size_bg"]),         n_strokes=240)
+        p.build_form(ref,   stroke_size=int(sp["stroke_size_face"] * 1.2), n_strokes=520)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.tonal_compression_pass(shadow_lift=0.04, highlight_compress=0.96,
+                                         midtone_contrast=0.02)
+
+        # Core Morisot technique: colorful shadows, high-key luminosity.
+        p.morisot_plein_air_pass(
+            shadow_violet       = (0.72, 0.68, 0.90),
+            luminosity_lift     = 0.10,
+            shadow_threshold    = 0.42,
+            highlight_cream     = (0.96, 0.93, 0.86),
+            highlight_threshold = 0.76,
+            chroma_strength     = 0.18,
+            blend_opacity       = 0.45,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "morisot_plein_air_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze((0.88, 0.86, 0.96), opacity=0.04)  # pale lavender unifier
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.04, highlight_compress=0.97,
+                                             midtone_contrast=0.02)
+
+        # Warm cream highlights — never a brilliant cool white.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=380)
+
+        # Soft lost-and-found edges: Morisot dissolved backgrounds into light.
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.40,
+            lost_blur       = 1.6,
+            strength        = 0.28,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Light vignette only — no crackle; Morisot's canvases are not aged relics.
+        p.finish(vignette=0.20, crackle=False)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

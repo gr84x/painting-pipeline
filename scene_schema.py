@@ -210,6 +210,7 @@ class Period(Enum):
     IMPRESSIONIST_INTIMISTE = auto()  # Cassatt — north-window light, warm/cool shadow contrast, domestic intimacy
     FLEMISH_PANORAMIC = auto()        # Bruegel — high-horizon landscape, systematic aerial perspective, earthy palette
     NORDIC_IMPRESSIONIST = auto()     # Zorn — warm Zorn palette, confident calligraphic marks, wet-into-wet portraiture
+    IMPRESSIONIST_PLEIN_AIR = auto()  # Morisot — feathery high-key brushwork, colorful violet shadows, luminous atmosphere
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -599,6 +600,13 @@ class Style:
             # not the sfumato of Leonardo or the razor-edge of Tenebrist; the boundary is
             # present but yielding, as if the paint was still moist.
             Period.NORDIC_IMPRESSIONIST: dict(stroke_size_face=10, stroke_size_bg=28, wet_blend=0.62, edge_softness=0.42),
+            # Impressionist Plein Air (Morisot): airy, high-key portraiture on a pale ground.
+            # stroke_size_face=9: medium marks — visible individual brushwork, not coarse.
+            # stroke_size_bg=20: loose, open background washes that let the ground breathe.
+            # wet_blend=0.35: enough blending to fuse colors softly without losing stroke identity.
+            # edge_softness=0.25: crisp-ish — Morisot's strokes have legible direction and boundary,
+            # unlike sfumato; edges are yielding but present.
+            Period.IMPRESSIONIST_PLEIN_AIR: dict(stroke_size_face=9, stroke_size_bg=20, wet_blend=0.35, edge_softness=0.25),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

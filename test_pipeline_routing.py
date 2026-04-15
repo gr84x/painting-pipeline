@@ -180,6 +180,8 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_nocturne":                period == Period.NOCTURNE,
         "is_social_realist":          period == Period.SOCIAL_REALIST,
         "is_academic_realist":        period == Period.ACADEMIC_REALIST,
+        "is_nordic_impressionist":    period == Period.NORDIC_IMPRESSIONIST,
+        "is_impressionist_plein_air": period == Period.IMPRESSIONIST_PLEIN_AIR,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -2920,3 +2922,142 @@ def test_nordic_impressionist_wet_blend_moderate():
     sp = Style(medium=Medium.OIL, period=Period.NORDIC_IMPRESSIONIST).stroke_params
     assert sp["wet_blend"] >= 0.50, (
         f"NORDIC_IMPRESSIONIST wet_blend should be ≥ 0.50; got {sp['wet_blend']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# morisot_plein_air_pass — this session's random artistic improvement
+# Inspired by Berthe Morisot's high-key colorful-shadow impressionist technique
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_morisot_plein_air_pass_exists():
+    """Painter must have morisot_plein_air_pass() method after this session."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "morisot_plein_air_pass"), (
+        "morisot_plein_air_pass not found on Painter")
+    assert callable(getattr(Painter, "morisot_plein_air_pass"))
+
+
+def test_morisot_plein_air_pass_no_error():
+    """morisot_plein_air_pass() runs without error on a plain toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.84, 0.78), texture_strength=0.04)
+    # Should not raise
+    p.morisot_plein_air_pass(
+        shadow_violet       = (0.72, 0.68, 0.90),
+        luminosity_lift     = 0.10,
+        shadow_threshold    = 0.42,
+        highlight_cream     = (0.96, 0.93, 0.86),
+        highlight_threshold = 0.76,
+        chroma_strength     = 0.18,
+        blend_opacity       = 0.45,
+    )
+
+
+def test_morisot_plein_air_pass_modifies_canvas():
+    """morisot_plein_air_pass() with non-zero strengths must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    # Dark warm-grey canvas — lots of shadow pixels for the pass to target
+    p.tone_ground((0.28, 0.22, 0.18), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32).copy()
+    p.morisot_plein_air_pass(
+        shadow_violet   = (0.72, 0.68, 0.90),
+        luminosity_lift = 0.12,
+        chroma_strength = 0.20,
+        blend_opacity   = 0.50,
+    )
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    diff = np.abs(after - before).max()
+    assert diff > 0, (
+        "morisot_plein_air_pass with non-zero strengths should modify the canvas")
+
+
+def test_morisot_plein_air_pass_zero_opacity_no_op():
+    """morisot_plein_air_pass with blend_opacity=0.0 should leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.28), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.morisot_plein_air_pass(blend_opacity=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="morisot_plein_air_pass with blend_opacity=0 should be a no-op")
+
+
+def test_morisot_plein_air_pass_cools_dark_shadows():
+    """
+    A dark warm canvas should become cooler (higher B channel) after
+    morisot_plein_air_pass — because shadows are shifted toward blue-violet.
+    """
+    p = _make_small_painter(64, 64)
+    # Very dark warm canvas — all pixels in the shadow zone
+    dark_warm = (0.20, 0.14, 0.08)
+    p.tone_ground(dark_warm, texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA layout: channel 0 = B, channel 2 = R
+    before_b = float(before_buf[:, :, 0].mean())
+
+    p.morisot_plein_air_pass(
+        shadow_violet   = (0.72, 0.68, 0.90),   # strongly blue-violet
+        chroma_strength = 0.40,
+        luminosity_lift = 0.15,
+        blend_opacity   = 0.80,
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_b = float(after_buf[:, :, 0].mean())
+
+    assert after_b > before_b, (
+        f"Shadow violet shift should increase B channel on a dark canvas: "
+        f"before={before_b:.1f}, after={after_b:.1f}")
+
+
+def test_morisot_plein_air_pass_lifts_dark_luminance():
+    """
+    A very dark canvas should become brighter after morisot_plein_air_pass
+    when luminosity_lift > 0 — replicating Morisot's high-key shadow treatment.
+    """
+    p = _make_small_painter(64, 64)
+    dark_canvas = (0.15, 0.12, 0.10)
+    p.tone_ground(dark_canvas, texture_strength=0.00)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32)
+    before_mean = before.mean()
+
+    p.morisot_plein_air_pass(
+        luminosity_lift  = 0.20,
+        chroma_strength  = 0.10,
+        shadow_threshold = 0.50,
+        blend_opacity    = 0.70,
+    )
+
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    after_mean = after.mean()
+
+    assert after_mean > before_mean, (
+        f"luminosity_lift should brighten dark shadows: "
+        f"before_mean={before_mean:.1f}, after_mean={after_mean:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# IMPRESSIONIST_PLEIN_AIR period routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_impressionist_plein_air_stroke_params_valid():
+    """IMPRESSIONIST_PLEIN_AIR stroke_params must have all required keys and valid ranges."""
+    style = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_PLEIN_AIR,
+                  palette=PaletteHint.COOL_GREY)
+    sp = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"IMPRESSIONIST_PLEIN_AIR stroke_params missing key: {key!r}"
+    assert sp["stroke_size_face"] > 0
+    assert sp["stroke_size_bg"]   > 0
+    assert 0.0 <= sp["wet_blend"]     <= 1.0
+    assert 0.0 <= sp["edge_softness"] <= 1.0
+
+
+def test_impressionist_plein_air_edge_softness_lower_than_renaissance():
+    """IMPRESSIONIST_PLEIN_AIR edge_softness must be lower than sfumato RENAISSANCE."""
+    sp_plein = Style(medium=Medium.OIL, period=Period.IMPRESSIONIST_PLEIN_AIR).stroke_params
+    sp_ren   = Style(medium=Medium.OIL, period=Period.RENAISSANCE).stroke_params
+    assert sp_plein["edge_softness"] < sp_ren["edge_softness"], (
+        "IMPRESSIONIST_PLEIN_AIR edge_softness must be lower than RENAISSANCE sfumato")
