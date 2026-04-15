@@ -17,10 +17,121 @@ from cartoon_morphology import CartoonMorphology
 
 
 # ---------------------------------------------------------------------------
+# Expression offsets
+# ---------------------------------------------------------------------------
+
+def expression_offsets(expression) -> dict:
+    """Return per-feature adjustment deltas/multipliers for the given expression.
+
+    Keys mirror the parameter names computed in build_head_code.  Values are
+    *additive deltas* applied on top of the morphology-scaled baseline, except
+    for keys ending in '_scale' which are *multiplicative* factors.
+
+    Supported delta keys (all optional — missing keys default to 0.0 / 1.0):
+      brow_z_delta       — vertical shift of brow-ridge gaussian centre (height_t)
+      eye_height_scale   — scale eye_sigma_ht (narrower/wider aperture)
+      eye_depth_scale    — scale eye_amp (deeper/shallower socket)
+      cheek_scale        — scale cheek_amp
+      lip_corner_y       — unused positional hint (kept for semantic clarity)
+      upper_lip_delta    — additive delta to upper_lip_amp
+      lower_lip_delta    — additive delta to lower_lip_amp
+      lip_height_scale   — scale both lip amps together
+      jaw_width_scale    — scale cheek lateral sigma (broadens perceived jaw)
+      lid_drop           — additional eye narrowing (additive to eye_sigma_ht fraction)
+      lip_separation     — additive gap between upper/lower lip (shifts lower_lip height_t)
+    """
+    # Neutral baseline: zero deltas, unity scales.
+    base = dict(
+        brow_z_delta=0.0,
+        eye_height_scale=1.0,
+        eye_depth_scale=1.0,
+        cheek_scale=1.0,
+        upper_lip_delta=0.0,
+        lower_lip_delta=0.0,
+        lip_height_scale=1.0,
+        jaw_width_scale=1.0,
+        lid_drop=0.0,
+        lip_separation=0.0,
+    )
+
+    # Import lazily to avoid a hard dependency at module load time.
+    try:
+        from scene_schema import Expression
+        expr_name = expression.name if expression is not None else "NEUTRAL"
+    except Exception:
+        expr_name = str(expression) if expression is not None else "NEUTRAL"
+
+    if expr_name == "NEUTRAL":
+        pass  # baseline is correct
+
+    elif expr_name == "SMILING":
+        # Lip corners raised — modelled as slight upper-lip amplitude boost.
+        # Cheek fullness increased.  Eyes slightly narrowed.
+        base["upper_lip_delta"]  =  0.008
+        base["lower_lip_delta"]  =  0.004
+        base["cheek_scale"]      =  1.15
+        base["eye_height_scale"] =  0.92
+
+    elif expr_name == "ENIGMATIC":
+        # Asymmetric: barely-raised left lip corner, eyes slightly hooded.
+        # Modelled symmetrically here — full asymmetry would require per-side
+        # parameters; this keeps the param dict simple.
+        base["upper_lip_delta"]  =  0.004
+        base["lid_drop"]         =  0.08    # slight hooding of upper eyelid
+        base["eye_height_scale"] =  0.95
+
+    elif expr_name == "PENSIVE":
+        # Brow furrowed slightly, eyes somewhat downcast, mouth relaxed-down.
+        base["brow_z_delta"]     = -0.005
+        base["eye_depth_scale"]  =  1.05   # sockets slightly deeper = more shadowed
+        base["upper_lip_delta"]  = -0.004
+
+    elif expr_name == "STERN":
+        # Brow furrowed more, jaw set wider, lips compressed.
+        base["brow_z_delta"]     = -0.010
+        base["jaw_width_scale"]  =  1.05
+        base["lip_height_scale"] =  0.88
+
+    elif expr_name in ("SURPRISED", "FEARFUL"):
+        # Brows raised, eyes wider, mouth slightly open.
+        # FEARFUL shares the same wide-eyed, raised-brow geometry as surprised.
+        base["brow_z_delta"]     =  0.012
+        base["eye_height_scale"] =  1.12
+        base["eye_depth_scale"]  =  0.92   # sockets slightly shallower = open look
+        base["lip_separation"]   =  0.006  # lower lip shifts down
+
+    elif expr_name == "JOYFUL":
+        # More pronounced than SMILING — broader cheeks, eyes more narrowed.
+        base["upper_lip_delta"]  =  0.012
+        base["lower_lip_delta"]  =  0.006
+        base["cheek_scale"]      =  1.22
+        base["eye_height_scale"] =  0.85
+
+    elif expr_name == "SORROWFUL":
+        # Brow knitted, eyes slightly narrowed, mouth turned down.
+        base["brow_z_delta"]     = -0.008
+        base["eye_height_scale"] =  0.94
+        base["upper_lip_delta"]  = -0.006
+        base["lower_lip_delta"]  = -0.004
+
+    elif expr_name == "ANGRY":
+        # Heavy brow furrow, jaw set wide, lips compressed tight.
+        base["brow_z_delta"]     = -0.014
+        base["jaw_width_scale"]  =  1.08
+        base["lip_height_scale"] =  0.82
+        base["eye_depth_scale"]  =  1.08   # deeper sockets = shadowed glare
+
+    # Any remaining unrecognised expression falls through to NEUTRAL baseline.
+
+    return base
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def build_head_code(lm: dict, pose_detail, morphology: CartoonMorphology = None) -> str:
+def build_head_code(lm: dict, pose_detail, morphology: CartoonMorphology = None,
+                    expression=None) -> str:
     """Return a self-contained Blender Python script string that builds the
     head mesh when exec()'d inside Blender's interpreter.
 
@@ -100,8 +211,28 @@ def build_head_code(lm: dict, pose_detail, morphology: CartoonMorphology = None)
     face_flat     = float(m.face_flat)
     jaw_taper     = float(m.jaw_taper)
 
+    # ── Expression offsets ────────────────────────────────────────────────────
+    # Apply after morphology scaling so expression modulates the final amplitude.
+    # brow_z_delta adjusts the height_t centre of the brow gaussian.
+    # All other keys scale or shift the corresponding amplitude.
+    ex = expression_offsets(expression)
+
+    eye_amp        *= ex["eye_depth_scale"]
+    eye_sigma_ht   *= ex["eye_height_scale"]
+    eye_sigma_ht   *= max(0.0, 1.0 - ex["lid_drop"])    # hooding reduces aperture
+    cheek_amp      *= ex["cheek_scale"]
+    upper_lip_amp  += ex["upper_lip_delta"]
+    lower_lip_amp  += ex["lower_lip_delta"]
+    upper_lip_amp  *= ex["lip_height_scale"]
+    lower_lip_amp  *= ex["lip_height_scale"]
+    eye_sigma_lat  *= ex["jaw_width_scale"]   # jaw_width_scale broadens face laterally
+    # brow_z_delta and lip_separation are passed through as extra params
+    brow_z_centre  = 0.38 + ex["brow_z_delta"]   # default gaussian centre for brow
+    lower_lip_ht   = -0.46 - ex["lip_separation"]  # default lower-lip height_t centre
+
     params = dict(
         brow_amp=brow_amp,
+        brow_z_centre=brow_z_centre,
         eye_amp=eye_amp,
         eye_lat_l=eye_lat_l,
         eye_lat_r=eye_lat_r,
@@ -114,6 +245,7 @@ def build_head_code(lm: dict, pose_detail, morphology: CartoonMorphology = None)
         nostril_amp=nostril_amp,
         upper_lip_amp=upper_lip_amp,
         lower_lip_amp=lower_lip_amp,
+        lower_lip_ht=lower_lip_ht,
         lip_sigma_lat=lip_sigma_lat,
         lower_lip_sigma_lat=lower_lip_sigma_lat,
         philtrum_amp=philtrum_amp,
@@ -140,6 +272,7 @@ def _render_head_template(r: float, cx: float, cy: float, cz: float,
     """
     # Unpack params for f-string embedding (repr for exact float literals).
     brow_amp             = repr(params["brow_amp"])
+    brow_z_centre        = repr(params.get("brow_z_centre", 0.38))
     eye_amp              = repr(params["eye_amp"])
     eye_lat_l            = repr(params["eye_lat_l"])
     eye_lat_r            = repr(params["eye_lat_r"])
@@ -152,6 +285,7 @@ def _render_head_template(r: float, cx: float, cy: float, cz: float,
     nostril_amp          = repr(params["nostril_amp"])
     upper_lip_amp        = repr(params["upper_lip_amp"])
     lower_lip_amp        = repr(params["lower_lip_amp"])
+    lower_lip_ht         = repr(params.get("lower_lip_ht", -0.46))
     lip_sigma_lat        = repr(params["lip_sigma_lat"])
     lower_lip_sigma_lat  = repr(params["lower_lip_sigma_lat"])
     philtrum_amp         = repr(params["philtrum_amp"])
@@ -184,6 +318,7 @@ _hb_NECK_R = 0.040  # neck radius (metres) for taper
 # These are exact literals embedded at script-generation time; no
 # CartoonMorphology class is needed inside the Blender interpreter.
 _hb_brow_amp            = {brow_amp}
+_hb_brow_z_centre       = {brow_z_centre}   # expression-shifted brow height centre
 _hb_eye_amp             = {eye_amp}
 _hb_eye_lat_l           = {eye_lat_l}
 _hb_eye_lat_r           = {eye_lat_r}
@@ -196,6 +331,7 @@ _hb_nose_tip_amp        = {nose_tip_amp}
 _hb_nostril_amp         = {nostril_amp}
 _hb_upper_lip_amp       = {upper_lip_amp}
 _hb_lower_lip_amp       = {lower_lip_amp}
+_hb_lower_lip_ht        = {lower_lip_ht}   # expression-shifted lower-lip height centre
 _hb_lip_sigma_lat       = {lip_sigma_lat}
 _hb_lower_lip_sigma_lat = {lower_lip_sigma_lat}
 _hb_philtrum_amp        = {philtrum_amp}
@@ -315,8 +451,9 @@ def _hb_displace(verts, r):
 
             # Brow ridge — protrudes; wider Gaussian so it reads clearly.
             # Amplitude pre-scaled by brow_ridge morphology parameter.
+            # _hb_brow_z_centre is shifted by expression (raised/furrowed).
             lat_clamp = lateral_t / 0.80
-            delta += face_weight * _hb_brow_amp * r * g(height_t, 0.38, 0.10) * g(face_dot, 0.75, 0.18) * max(0.0, 1.0 - lat_clamp * lat_clamp)
+            delta += face_weight * _hb_brow_amp * r * g(height_t, _hb_brow_z_centre, 0.10) * g(face_dot, 0.75, 0.18) * max(0.0, 1.0 - lat_clamp * lat_clamp)
 
             # Eye sockets — deep indent; lateral position and sigma scaled by eye_scale.
             # Amplitude pre-scaled by eye_depth morphology parameter.
@@ -341,7 +478,8 @@ def _hb_displace(verts, r):
             delta += face_weight * _hb_upper_lip_amp * r * g(lateral_t, 0.0, _hb_lip_sigma_lat) * g(height_t, -0.34, 0.06) * g(face_dot, 0.82, 0.12)
 
             # Lower lip boss — slightly fuller; scaled similarly.
-            delta += face_weight * _hb_lower_lip_amp * r * g(lateral_t, 0.0, _hb_lower_lip_sigma_lat) * g(height_t, -0.46, 0.07) * g(face_dot, 0.80, 0.12)
+            # _hb_lower_lip_ht is shifted downward for surprised/open-mouth expressions.
+            delta += face_weight * _hb_lower_lip_amp * r * g(lateral_t, 0.0, _hb_lower_lip_sigma_lat) * g(height_t, _hb_lower_lip_ht, 0.07) * g(face_dot, 0.80, 0.12)
 
             # Philtrum groove — narrow concave channel; slight lip_fullness link.
             delta -= face_weight * _hb_philtrum_amp * r * g(lateral_t, 0.0, 0.06) * g(height_t, -0.28, 0.06) * g(face_dot, 0.83, 0.10)
