@@ -177,6 +177,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_high_renaissance":        period == Period.HIGH_RENAISSANCE,
         "is_tenebrist":               period == Period.TENEBRIST,
         "is_neoclassical":            period == Period.NEOCLASSICAL,
+        "is_nocturne":                period == Period.NOCTURNE,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -2240,3 +2241,163 @@ def test_neoclassical_stroke_params_valid():
     assert p["stroke_size_bg"]   >= 14, "NEOCLASSICAL bg stroke should be present"
     assert 0.15 <= p["wet_blend"] <= 0.55, "NEOCLASSICAL wet_blend should be moderate"
     assert 0.20 <= p["edge_softness"] <= 0.55, "NEOCLASSICAL edge_softness moderate"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NOCTURNE / La Tour — candlelight_pass + routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_candlelight_pass_exists():
+    """candlelight_pass must exist as a method on Painter."""
+    p = _make_small_painter()
+    assert hasattr(p, "candlelight_pass"), "Painter.candlelight_pass not found"
+    assert callable(getattr(p, "candlelight_pass"))
+
+
+def test_candlelight_pass_no_error():
+    """candlelight_pass runs without raising on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.05, 0.03, 0.01))
+    p.candlelight_pass(candle_x=0.5, candle_y=0.5)
+
+
+def test_candlelight_pass_no_error_custom_params():
+    """candlelight_pass accepts custom candle position, radius, and colors."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.05, 0.03, 0.01))
+    p.candlelight_pass(
+        candle_x=0.4, candle_y=0.6,
+        radius=0.45,
+        candle_color=(0.90, 0.60, 0.15),
+        dark_color=(0.03, 0.02, 0.01),
+        warmth_peak=0.60,
+        void_crush=0.90,
+        falloff_power=2.5,
+    )
+
+
+def test_candlelight_pass_modifies_canvas():
+    """candlelight_pass must change at least some pixels on the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.40, 0.35, 0.25))
+
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+
+    p.candlelight_pass(candle_x=0.5, candle_y=0.5, void_crush=0.85)
+
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+
+    assert not np.array_equal(before, after), (
+        "candlelight_pass should modify the canvas")
+
+
+def test_candlelight_pass_darkens_periphery():
+    """Pixels far from the candle should be darker after the pass."""
+    p = _make_small_painter(128, 128)
+    # Start with a mid-grey canvas
+    p.tone_ground((0.50, 0.50, 0.50))
+
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(128, 128, 4).copy().astype(np.float32) / 255.0
+
+    # Candle centred; periphery = corners
+    p.candlelight_pass(candle_x=0.5, candle_y=0.5,
+                       radius=0.40, void_crush=0.80)
+
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(128, 128, 4).copy().astype(np.float32) / 255.0
+
+    # Top-left corner should be darker after the pass
+    corner_before = before[5:15, 5:15, :3].mean()
+    corner_after  = after[5:15, 5:15, :3].mean()
+    assert corner_after < corner_before, (
+        f"Periphery should darken: before={corner_before:.3f} after={corner_after:.3f}")
+
+
+def test_candlelight_pass_warms_centre():
+    """Pixels close to the candle should shift toward warm amber."""
+    p = _make_small_painter(128, 128)
+    # Start with a cool neutral canvas
+    p.tone_ground((0.40, 0.40, 0.55))   # slightly cool (B > R)
+
+    p.candlelight_pass(
+        candle_x=0.5, candle_y=0.5,
+        candle_color=(0.92, 0.62, 0.18),   # warm amber
+        warmth_peak=0.60,
+        void_crush=0.50,
+        radius=0.60,
+    )
+
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(128, 128, 4).copy().astype(np.float32) / 255.0
+
+    # Cairo ARGB32 in memory: B G R A
+    R_centre = after[56:72, 56:72, 2].mean()   # channel 2 = R in ARGB32
+    B_centre = after[56:72, 56:72, 0].mean()   # channel 0 = B in ARGB32
+    assert R_centre > B_centre, (
+        f"Centre should be warm (R > B) after candlelight; R={R_centre:.3f} B={B_centre:.3f}")
+
+
+def test_candlelight_pass_pixels_in_range():
+    """All pixel values must remain in [0, 255] after candlelight_pass."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.30))
+    p.candlelight_pass()
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0,   "Pixel value below 0 after candlelight_pass"
+    assert buf.max() <= 255, "Pixel value above 255 after candlelight_pass"
+
+
+def test_candlelight_pass_figure_only_no_error():
+    """candlelight_pass(figure_only=True) must not raise even with a figure mask."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.15, 0.05))
+    # Circular figure mask in the upper half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[10:40, 15:50] = 1.0
+    p.set_figure_mask(mask)
+    p.candlelight_pass(candle_x=0.5, candle_y=0.4, figure_only=True)
+
+
+def test_nocturne_routing_flag():
+    """is_nocturne should be True for Period.NOCTURNE."""
+    flags = _routing_flags(Period.NOCTURNE)
+    assert flags["is_nocturne"], "is_nocturne should be True for Period.NOCTURNE"
+
+
+def test_nocturne_routing_exclusive():
+    """NOCTURNE should only set is_nocturne among the period flags."""
+    flags = _routing_flags(Period.NOCTURNE)
+    others = {k: v for k, v in flags.items()
+              if k not in ("is_nocturne", "is_watercolor",
+                           "is_romantic", "is_renaissance_soft") and v}
+    assert len(others) == 0, (
+        f"NOCTURNE should only set is_nocturne; also set: {others}")
+
+
+def test_nocturne_flag_false_for_other_periods():
+    """is_nocturne must be False for every period except NOCTURNE."""
+    for period in Period:
+        if period == Period.NOCTURNE:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_nocturne"], (
+            f"is_nocturne should be False for {period.name}")
+
+
+def test_nocturne_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.NOCTURNE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_bg"]   >= 35, "NOCTURNE bg stroke should be large (void)"
+    assert 0.35 <= p["wet_blend"] <= 0.75, "NOCTURNE wet_blend should be moderate"
+    assert 0.25 <= p["edge_softness"] <= 0.65, "NOCTURNE edge_softness moderate"
