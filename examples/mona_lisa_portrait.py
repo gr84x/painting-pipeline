@@ -179,26 +179,26 @@ def paint_mona_lisa(output_path: str = "mona_lisa_portrait.png") -> str:
     # Leonardo worked on a mid-toned ochre imprimatura that eliminates the cold
     # white of raw canvas and provides a warm unified undertone.
     p.tone_ground(leo.ground_color, texture_strength=0.06)
-    print("\n  [1/9] Tone ground complete")
+    print("\n  [1/10] Tone ground complete")
 
     # ── Step 2: Underpainting — dead-colour value structure ───────────────────
     # Value composition only: no colour yet.  Leonardo established his tonal
     # structure in desaturated umber before introducing colour glazes.
     p.underpainting(ref, stroke_size=48, n_strokes=160)
-    print("  [2/9] Underpainting complete")
+    print("  [2/10] Underpainting complete")
 
     # ── Step 3: Block-in — main colour masses ─────────────────────────────────
     # Large confident strokes establishing the warm flesh vs cool background
     # colour relationship across the composition.
     p.block_in(ref, stroke_size=32, n_strokes=340)
-    print("  [3/9] Block-in complete")
+    print("  [3/10] Block-in complete")
 
     # ── Step 4: Build form — directional medium strokes ───────────────────────
     # Medium strokes following surface topology: face, neck, hands, drapery.
     # Leonardo was extraordinarily patient here — hundreds of small, deliberate
     # marks building the three-dimensional form.
     p.build_form(ref, stroke_size=10, n_strokes=1400)
-    print("  [4/9] Build form complete")
+    print("  [4/10] Build form complete")
 
     # ── Step 5: Sfumato veil pass — imperceptible edge dissolution ────────────
     # The defining Leonardo technique: multiple thin, warm semi-transparent
@@ -215,10 +215,10 @@ def paint_mona_lisa(output_path: str = "mona_lisa_portrait.png") -> str:
         edge_only     = True,
         chroma_dampen = 0.20,
     )
-    print("  [5/9] Sfumato veil pass complete")
+    print("  [5/10] Sfumato veil pass complete")
 
     # ── Step 6: Tonal envelope — portrait luminosity gradient ─────────────────
-    # NEW: brightens the composition centre (face/hands area) with a warm amber
+    # Brightens the composition centre (face/hands area) with a warm amber
     # glow, slightly deepens the peripheral corners.  Simulates the tonal
     # management Leonardo applied to guide the eye to the sitter's face.
     p.tonal_envelope_pass(
@@ -230,26 +230,42 @@ def paint_mona_lisa(output_path: str = "mona_lisa_portrait.png") -> str:
         edge_darken   = 0.07,
         gamma         = 1.9,
     )
-    print("  [6/9] Tonal envelope pass complete")
+    print("  [6/10] Tonal envelope pass complete")
 
-    # ── Step 7: Place lights — impasto highlights ─────────────────────────────
+    # ── Step 7: Selective focus — face sharp, background softens ─────────────
+    # NEW (session 34): radial peripheral blur + desaturation that keeps the
+    # sitter's face and hands at maximum sharpness while the landscape
+    # background and clothing areas soften gradually — the natural quality
+    # difference between a carefully wrought face and a broadly indicated
+    # environment that Leonardo instinctively applied.
+    p.selective_focus_pass(
+        center_x        = 0.488,   # face position (matches tonal envelope)
+        center_y        = 0.29,
+        focus_radius    = 0.34,    # covers the face and immediate neckline
+        max_blur_radius = 2.8,     # subtle — not a photographic effect
+        desaturation    = 0.10,    # slight peripheral chroma reduction
+        gamma           = 2.2,
+    )
+    print("  [7/10] Selective focus pass complete")
+
+    # ── Step 8: Place lights — impasto highlights ─────────────────────────────
     # Warm ivory highlights concentrated in the lit upper-left face zone,
     # hands, and the brightest passages of the atmospheric background.
     p.place_lights(ref, stroke_size=5, n_strokes=320)
-    print("  [7/9] Place lights complete")
+    print("  [8/10] Place lights complete")
 
-    # ── Step 8: Warm amber unifying glaze ─────────────────────────────────────
+    # ── Step 9: Warm amber unifying glaze ─────────────────────────────────────
     # Leonardo's characteristic final glaze: a thin transparent warm amber wash
     # that unifies the entire picture plane with a golden warmth and eliminates
     # any remaining coolness in the shadow passages.
     p.glaze((0.72, 0.52, 0.22), opacity=0.06)
-    print("  [8/9] Final glaze complete")
+    print("  [9/10] Final glaze complete")
 
-    # ── Step 9: Finish — subtle vignette + crackle ────────────────────────────
+    # ── Step 10: Finish — subtle vignette + crackle ───────────────────────────
     # Gentle vignette (Louvre lighting reproduces a slight peripheral darkening).
     # Crackle: the original Mona Lisa has extensive craquelure.
     p.finish(vignette=0.28, crackle=True)
-    print("  [9/9] Finish complete")
+    print("  [10/10] Finish complete")
 
     # ── Save output ───────────────────────────────────────────────────────────
     result = p.canvas.to_pil()
