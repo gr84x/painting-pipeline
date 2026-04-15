@@ -39,6 +39,7 @@ EXPECTED_ARTISTS = [
     "rothko", "sargent", "seurat", "sorolla", "tamara_de_lempicka", "titian", "turner",
     "van_gogh", "velazquez", "vermeer",
     "vuillard",
+    "zurbaran",
 ]
 
 
@@ -1553,4 +1554,140 @@ def test_high_renaissance_edge_softness():
     p = style.stroke_params
     assert 0.40 <= p["edge_softness"] <= 0.75, (
         f"HIGH_RENAISSANCE edge_softness should be moderate; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Francisco de Zurbarán / Tenebrist Baroque — session 24
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_zurbaran_in_catalog():
+    """Zurbarán (session 24) must be in the catalog."""
+    assert "zurbaran" in CATALOG
+
+
+def test_zurbaran_movement():
+    s = get_style("zurbaran")
+    assert "tenebr" in s.movement.lower() or "baroque" in s.movement.lower(), (
+        f"Zurbarán movement should be Tenebrist/Baroque; got {s.movement!r}")
+
+
+def test_zurbaran_nationality():
+    s = get_style("zurbaran")
+    assert "spanish" in s.nationality.lower(), (
+        f"Zurbarán should be Spanish; got {s.nationality!r}")
+
+
+def test_zurbaran_palette_length():
+    s = get_style("zurbaran")
+    assert len(s.palette) >= 6, (
+        f"Zurbarán palette should have ≥ 6 colours; got {len(s.palette)}")
+
+
+def test_zurbaran_palette_values_in_range():
+    """All Zurbarán palette RGB values must be in [0, 1]."""
+    s = get_style("zurbaran")
+    for i, col in enumerate(s.palette):
+        for ch in col:
+            assert 0.0 <= ch <= 1.0, (
+                f"Zurbarán palette[{i}] channel out of range: {ch}")
+
+
+def test_zurbaran_dark_ground():
+    """Zurbarán used a very dark ground — ground_color luminance must be very low."""
+    s = get_style("zurbaran")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum <= 0.20, (
+        f"Zurbarán ground should be near-black (lum ≤ 0.20); got {lum:.3f}")
+
+
+def test_zurbaran_low_wet_blend():
+    """Zurbarán worked in precise, deliberate strokes — wet_blend must be low."""
+    s = get_style("zurbaran")
+    assert s.wet_blend <= 0.35, (
+        f"Zurbarán wet_blend should be low (precise technique); got {s.wet_blend}")
+
+
+def test_zurbaran_low_edge_softness():
+    """Zurbarán's crisp fabric edges — edge_softness must be low."""
+    s = get_style("zurbaran")
+    assert s.edge_softness <= 0.40, (
+        f"Zurbarán edge_softness should be low (crisp found edges); got {s.edge_softness}")
+
+
+def test_zurbaran_crackle():
+    """Zurbarán worked on 17th-century canvas — crackle should be True."""
+    s = get_style("zurbaran")
+    assert s.crackle, "Zurbarán crackle should be True (17th-century technique)"
+
+
+def test_zurbaran_no_glazing():
+    """Zurbarán's austere technique required no warm unifying glaze."""
+    s = get_style("zurbaran")
+    assert s.glazing is None, "Zurbarán glazing should be None (monastic austerity)"
+
+
+def test_zurbaran_palette_has_near_white():
+    """Zurbarán's defining tone is brilliant near-white cloth."""
+    s = get_style("zurbaran")
+    # At least one colour in the palette should be near-white (lum > 0.85)
+    has_white = any(0.299 * r + 0.587 * g + 0.114 * b > 0.85
+                    for r, g, b in s.palette)
+    assert has_white, "Zurbarán palette must contain a near-white colour for brilliant cloth"
+
+
+def test_zurbaran_palette_has_near_black():
+    """Zurbarán's void background requires a near-black in the palette."""
+    s = get_style("zurbaran")
+    has_black = any(0.299 * r + 0.587 * g + 0.114 * b < 0.10
+                    for r, g, b in s.palette)
+    assert has_black, "Zurbarán palette must contain a near-black for the void background"
+
+
+def test_zurbaran_famous_works_non_empty():
+    s = get_style("zurbaran")
+    assert len(s.famous_works) >= 3, (
+        f"Zurbarán should have ≥ 3 famous works listed; got {len(s.famous_works)}")
+
+
+def test_tenebrist_period_present():
+    """Session 24: TENEBRIST must exist in Period enum."""
+    assert hasattr(Period, "TENEBRIST"), "Period.TENEBRIST not found"
+    assert Period.TENEBRIST in list(Period)
+
+
+def test_tenebrist_stroke_params_all_keys():
+    """TENEBRIST stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.TENEBRIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"TENEBRIST stroke_params missing key: {key!r}"
+
+
+def test_tenebrist_low_wet_blend():
+    """TENEBRIST wet_blend must be low — precise, deliberate strokes."""
+    style = Style(medium=Medium.OIL, period=Period.TENEBRIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.35, (
+        f"TENEBRIST wet_blend should be low; got {p['wet_blend']}")
+
+
+def test_tenebrist_low_edge_softness():
+    """TENEBRIST edge_softness must be low — crisp fabric-void edges."""
+    style = Style(medium=Medium.OIL, period=Period.TENEBRIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.40, (
+        f"TENEBRIST edge_softness should be low; got {p['edge_softness']}")
+
+
+def test_tenebrist_large_bg_stroke():
+    """TENEBRIST stroke_size_bg should be large — void needs few, vast dark strokes."""
+    style = Style(medium=Medium.OIL, period=Period.TENEBRIST,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_bg"] >= 30, (
+        f"TENEBRIST stroke_size_bg should be ≥ 30 (void background); got {p['stroke_size_bg']}")
 

@@ -1910,6 +1910,58 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Francisco de Zurbarán ─────────────────────────────────────────────────
+    "zurbaran": ArtStyle(
+        artist="Francisco de Zurbarán",
+        movement="Spanish Golden Age / Tenebrist Baroque",
+        nationality="Spanish",
+        period="1598–1664",
+        palette=[
+            (0.95, 0.94, 0.90),   # brilliant linen-white — the defining tone
+            (0.80, 0.77, 0.68),   # warm ivory shadow in white cloth
+            (0.60, 0.52, 0.36),   # warm ochre at deep cloth folds
+            (0.30, 0.22, 0.12),   # dark umber in the fold recesses
+            (0.05, 0.04, 0.03),   # near-black void background
+            (0.60, 0.10, 0.08),   # deep crimson — occasional drapery accent
+            (0.82, 0.64, 0.22),   # warm amber-gold — halo or fabric trim
+            (0.82, 0.68, 0.48),   # warm ivory-olive flesh
+        ],
+        ground_color=(0.12, 0.08, 0.05),   # very dark warm brown ground
+        stroke_size=6,
+        wet_blend=0.22,                     # precise, deliberate — not blended
+        edge_softness=0.28,                 # crisp edges, especially fabric-to-void
+        jitter=0.025,
+        glazing=None,                       # monastic austerity: no warm unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Tenebrist void backgrounds with hyper-real white fabric emerging from "
+            "absolute darkness.  Zurbarán achieved a sculptural, almost photographic "
+            "quality in white cloth — every fold precisely modelled with warm ochre "
+            "shadows and near-black recesses.  The defining characteristic is the "
+            "razor-sharp edge between brilliant white cloth and the near-black void: "
+            "this 'found edge' is the most precisely rendered boundary in 17th-century "
+            "painting.  Flesh tones are warm but secondary to the fabric drama.  "
+            "No atmospheric perspective, no landscape — pure figure against absolute void."
+        ),
+        famous_works=[
+            ("Saint Francis in Meditation", "c. 1635–1639"),
+            ("Still Life with Pottery Jars", "c. 1636"),
+            ("The Immaculate Conception", "c. 1628–1630"),
+            ("Agnus Dei", "c. 1635–1640"),
+            ("Saint Serapion", "1628"),
+            ("Still Life with Four Vessels", "c. 1650"),
+        ],
+        inspiration=(
+            "Use luminous_fabric_pass() to isolate brilliant white/ivory cloth zones "
+            "and sharpen their fold micro-contrast against deep umber recesses.  "
+            "The void background must be near-black; edge_lost_and_found_pass() places "
+            "razor-sharp 'found edges' at the fabric-void boundary.  Heavy vignette "
+            "crushes the painting's periphery further into darkness."
+        ),
+    ),
+
 }
 
 

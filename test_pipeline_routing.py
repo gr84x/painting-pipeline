@@ -175,6 +175,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_early_netherlandish":     period == Period.EARLY_NETHERLANDISH,
         "is_art_deco":                period == Period.ART_DECO,
         "is_high_renaissance":        period == Period.HIGH_RENAISSANCE,
+        "is_tenebrist":               period == Period.TENEBRIST,
         "is_renaissance_soft":        (period == Period.RENAISSANCE
                                        and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -1908,3 +1909,137 @@ def test_high_renaissance_stroke_params_valid():
     assert p["stroke_size_bg"]   >= 16, "stroke_size_bg should be ≥ 16"
     assert 0.20 <= p["wet_blend"]      <= 0.55, "wet_blend out of expected range"
     assert 0.40 <= p["edge_softness"]  <= 0.75, "edge_softness out of expected range"
+
+
+# luminous_fabric_pass tests - session 24
+
+def test_luminous_fabric_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, 'luminous_fabric_pass')
+    assert callable(getattr(Painter, 'luminous_fabric_pass'))
+
+def test_luminous_fabric_pass_no_error():
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.08, 0.06, 0.04), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.luminous_fabric_pass(ref)
+
+def test_luminous_fabric_pass_modifies_canvas():
+    """luminous_fabric_pass() must change pixels when reference has both bright and dark zones."""
+    import numpy as np
+    from PIL import Image
+    # Reference with bright-white top half (fabric zone) and near-black bottom half (void zone).
+    # This ensures fabric_mask and void_mask are both populated so the pass has work to do.
+    ref_arr = np.zeros((64, 64, 3), dtype=np.uint8)
+    ref_arr[:32, :] = [240, 238, 232]   # near-white top half — fabric zone
+    ref_arr[32:, :] = [8,   6,   4]     # near-black bottom half — void zone
+    ref = Image.fromarray(ref_arr, "RGB")
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.35), texture_strength=0.06)   # bright ground so difference is visible
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.luminous_fabric_pass(ref, void_darken=0.70)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert np.abs(after.astype(np.int32) - before.astype(np.int32)).sum() > 0
+
+def test_luminous_fabric_pass_pixels_in_range():
+    import numpy as np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.08, 0.06, 0.04), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.luminous_fabric_pass(ref, fold_contrast=0.80, void_darken=0.85)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf.min() >= 0 and buf.max() <= 255
+
+def test_luminous_fabric_pass_void_darkens():
+    import numpy as np
+    from PIL import Image
+    dark_ref = Image.fromarray(
+        (np.ones((64, 64, 3), dtype=np.uint8) * np.array([20, 16, 10], dtype=np.uint8)), "RGB")
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.45, 0.38, 0.28), texture_strength=0.06)
+    p.block_in(dark_ref, stroke_size=10, n_strokes=30)
+    before_mean = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)[:, :, :3].mean()
+    p.luminous_fabric_pass(dark_ref, void_darken=0.75)
+    after_mean = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)[:, :, :3].mean()
+    assert after_mean <= before_mean, f"void_darken should not increase luminance: before={before_mean:.1f} after={after_mean:.1f}"
+
+# edge_lost_and_found_pass tests - session 24
+
+def test_edge_lost_and_found_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "edge_lost_and_found_pass")
+    assert callable(getattr(Painter, "edge_lost_and_found_pass"))
+
+def test_edge_lost_and_found_pass_no_error():
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.edge_lost_and_found_pass()
+
+def test_edge_lost_and_found_pass_modifies_canvas():
+    import numpy as np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.edge_lost_and_found_pass(strength=0.50)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert np.abs(after.astype(np.int32) - before.astype(np.int32)).sum() > 0
+
+def test_edge_lost_and_found_pass_zero_strength_noop():
+    import numpy as np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.edge_lost_and_found_pass(strength=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    diff = np.abs(after.astype(np.int32) - before.astype(np.int32)).max()
+    assert diff <= 2, f"zero strength should be near-noop; diff={diff}"
+
+def test_edge_lost_and_found_pass_pixels_in_range():
+    import numpy as np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.edge_lost_and_found_pass(found_sharpness=0.80, lost_blur=3.0, strength=0.60)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf.min() >= 0 and buf.max() <= 255
+
+def test_edge_lost_and_found_pass_figure_only_no_error():
+    import numpy as np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.06)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[16:48, 16:48] = 1.0
+    p._figure_mask = mask
+    p.edge_lost_and_found_pass(strength=0.35, figure_only=True)
+
+# TENEBRIST routing flag tests - session 24
+
+def test_tenebrist_routing_flag():
+    flags = _routing_flags(Period.TENEBRIST)
+    assert flags["is_tenebrist"], "is_tenebrist should be True for Period.TENEBRIST"
+
+def test_tenebrist_routing_exclusive():
+    flags = _routing_flags(Period.TENEBRIST)
+    others = {k: v for k, v in flags.items()
+              if k not in ("is_tenebrist", "is_watercolor", "is_romantic", "is_renaissance_soft") and v}
+    assert len(others) == 0, f"TENEBRIST should only set is_tenebrist; also set: {others}"
+
+def test_tenebrist_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.TENEBRIST, palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] >= 4
+    assert p["stroke_size_bg"] >= 30
+    assert p["wet_blend"] <= 0.35
+    assert p["edge_softness"] <= 0.40
