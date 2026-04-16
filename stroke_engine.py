@@ -2391,13 +2391,14 @@ class Painter:
                                              region_mask=None)  # allow crossing boundary
 
     def sfumato_veil_pass(self,
-                          reference:     Union[np.ndarray, Image.Image],
-                          n_veils:       int   = 7,
-                          blur_radius:   float = 12.0,
-                          warmth:        float = 0.35,
-                          veil_opacity:  float = 0.08,
-                          edge_only:     bool  = True,
-                          chroma_dampen: float = 0.18):
+                          reference:      Union[np.ndarray, Image.Image],
+                          n_veils:        int   = 7,
+                          blur_radius:    float = 12.0,
+                          warmth:         float = 0.35,
+                          veil_opacity:   float = 0.08,
+                          edge_only:      bool  = True,
+                          chroma_dampen:  float = 0.18,
+                          depth_gradient: float = 0.0):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2449,6 +2450,18 @@ class Painter:
                         the subtle grey-amber edge quality visible under X-ray at
                         the mouth corners of the Mona Lisa.  Applied per-veil so
                         outer veils are more desaturated than inner ones.
+        depth_gradient : When > 0, intensifies the sfumato effect toward the
+                         upper portion of the canvas (the distant background), and
+                         reduces it toward the lower foreground.  This matches
+                         Leonardo's actual technique: the landscape behind the Mona
+                         Lisa — the rocky terrain and winding road that recede into
+                         the far distance — is significantly more hazed than the
+                         figure in the foreground.  The sfumato effect exists along
+                         a vertical gradient of atmospheric depth, not uniformly.
+                         At ``depth_gradient=1.0`` the top of the canvas receives
+                         full veil_opacity while the bottom receives ~20% — a strong
+                         but naturalistic atmospheric recession.  At 0.0 (default)
+                         the behaviour is unchanged from prior sessions.
 
         Notes
         -----
@@ -2461,9 +2474,15 @@ class Painter:
         are also slightly desaturated relative to adjacent flesh areas — a
         quality missed by blur-only approximations.  chroma_dampen replicates
         this.
+
+        The ``depth_gradient`` improvement (session 54): prior sessions applied
+        sfumato uniformly across the canvas, which missed Leonardo's spatial
+        logic — near-foreground forms are less hazed than distant ones.  The
+        gradient weight corrects this by modulating veil opacity per-row.
         """
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
-              f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f})…")
+              f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f}"
+              f"  depth_gradient={depth_gradient:.2f})…")
 
         ref  = self._prep(reference)
         rarr = ref[:, :, :3].astype(np.float32) / 255.0
@@ -2500,6 +2519,20 @@ class Painter:
             else:
                 edge_mask = np.ones((h, w), dtype=np.float32)
 
+        # ── Depth gradient weight (session 54 improvement) ───────────────────────
+        # Build a (H, 1) vertical weight map: rows near the top (background /
+        # distant landscape) receive more sfumato; rows near the bottom
+        # (foreground) receive less.  This matches Leonardo's spatial logic:
+        # the far landscape behind the Mona Lisa is far more hazed than the
+        # figure in the foreground.  depth_gradient=0 disables this (uniform).
+        if depth_gradient > 0.0:
+            # ys: 1.0 at the top row (row 0), fading toward a minimum of
+            # (1 - depth_gradient) at the bottom row.
+            ys = np.linspace(1.0, 1.0 - depth_gradient, h, dtype=np.float32)
+            depth_w = np.clip(ys, 0.01, 1.0)[:, np.newaxis]  # (H, 1)
+        else:
+            depth_w = 1.0   # scalar broadcast — no per-row adjustment
+
         # ── Multi-veil accumulation ───────────────────────────────────────────
         # Each veil: blur the warmed reference at a slightly larger radius,
         # weight by the edge mask, and composite at veil_opacity.
@@ -2535,8 +2568,9 @@ class Painter:
                 for c in range(3)
             ], axis=2)
 
-            # Composite: only where edge_mask is active
-            alpha = edge_mask * veil_opacity            # (H, W) float
+            # Composite: only where edge_mask is active; modulate by depth gradient
+            # so distant (upper) regions receive stronger sfumato.
+            alpha = edge_mask * veil_opacity * depth_w  # (H, W) float
 
             # Build an ARGB32 Cairo surface for this veil.
             # IMPORTANT: Cairo's FORMAT_ARGB32 uses PREMULTIPLIED alpha.
@@ -15304,4 +15338,196 @@ class Painter:
         highlight_count = int((light_zone  > 0.5).sum())
         print(f"    Weyden angular shadow pass complete  "
               f"(shadow_px={shadow_count}  highlight_px={highlight_count})")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 54 — new artist: Hans Memling / memling_jewel_light_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def memling_jewel_light_pass(
+        self,
+        figure_mask:         "Optional[_np.ndarray]" = None,
+        highlight_thresh:    float = 0.72,
+        midtone_low:         float = 0.32,
+        midtone_high:        float = 0.58,
+        jewel_strength:      float = 0.07,
+        subsurface_strength: float = 0.055,
+        opacity:             float = 0.72,
+    ) -> None:
+        """
+        Apply Hans Memling's crystalline jewel-light luminosity to the canvas.
+
+        Hans Memling (c. 1430/1440–1494) — trained in Rogier van der Weyden's
+        Brussels workshop — transformed Early Netherlandish technique into a
+        world of serene, jewel-like luminosity.  Where Weyden's shadows are
+        tense and architectural, Memling's lights are warm and crystalline:
+        the brightest highlight passages read as polished enamel — brilliant,
+        cold, and luminous rather than simply pale.
+
+        He achieved this through stacked transparent oil glazes on a chalk-
+        white gesso ground.  Each glaze layer (lead white + pale ochre) was
+        dried separately, so light could pass through the paint film, reflect
+        from the white ground, and exit cooled and brightened.  The result:
+        highlights that have interior depth rather than surface opaqueness.
+
+        The other defining quality is the blue-green coolness in the shadow
+        transitions of his flesh.  Unlike Rembrandt's warm amber shadows or
+        Titian's glowing umbers, Memling's mid-tones carry a subtle blue-green
+        undertone — the Flemish subsurface quality — that reads as translucent
+        skin with light scattering through it before exiting.
+
+        This pass applies two operations:
+
+        1. **Jewel-highlight push** (``lum > highlight_thresh``): The brightest
+           pixels are pushed toward cool pale ivory — R is gently reduced and
+           B is lifted, making the highlights read as slightly cooler and more
+           luminous than the warm mid-tones.  Unlike Rembrandt's warm golden
+           highlights, Memling's lights are almost white with a faint blue
+           quality, like the reflection from polished silver.  Controlled by
+           ``jewel_strength``.
+
+        2. **Subsurface mid-tone tint** (``midtone_low ≤ lum < midtone_high``):
+           The shadow-transition zone receives a gentle blue-green push — G
+           and B lifted slightly, R reduced fractionally.  This mimics the
+           effect of light scattering through translucent skin and exiting
+           slightly cooled and greenish.  Controlled by ``subsurface_strength``.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array ``(H, W)`` in [0, 1].  1 = figure, 0 = background.
+            When provided, corrections are applied only within the figure.
+        highlight_thresh : float
+            Luminance threshold above which pixels are treated as bright
+            highlights.  Default 0.72 — a high value to target only the
+            genuine enamel-bright specular zones, not the mid-tones.
+        midtone_low : float
+            Lower luminance bound for the subsurface mid-tone band.
+            Default 0.32 — below this the shadows are too deep for the
+            translucent effect.
+        midtone_high : float
+            Upper luminance bound for the subsurface mid-tone band.
+            Default 0.58 — above this the flesh begins to be clearly lit.
+        jewel_strength : float
+            Magnitude of the cool ivory push in the highlight zone.  Lifts B,
+            reduces R fractionally.  Default 0.07 — visible but not stark.
+        subsurface_strength : float
+            Magnitude of the blue-green push in the mid-tone shadow zone.
+            Lifts G and B, reduces R slightly.  Default 0.055 — a subtle
+            glowing coolness rather than an obvious colour shift.
+        opacity : float
+            Global blend factor: 0 = no effect, 1 = full correction.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` — the subsurface quality is a refinement
+        of the modelled form, not a substitute for it.  Works well before a
+        warm ``glaze()`` call: the warm glaze will slightly mellow the cool
+        quality, exactly as Memling's final amber varnish does on his panels.
+        Pairs naturally with ``weyden_angular_shadow_pass()`` (which cools the
+        deepest shadows); Memling handled the highlights and mid-shadows,
+        while the Weyden pass handles the dark shadow geometry.
+        """
+        import numpy as _np
+
+        print(f"  Memling jewel-light pass  "
+              f"(highlight_thresh={highlight_thresh:.2f}  "
+              f"midtone_low={midtone_low:.2f}  midtone_high={midtone_high:.2f}  "
+              f"jewel_strength={jewel_strength:.3f}  "
+              f"subsurface_strength={subsurface_strength:.3f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Memling jewel-light pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f   # (H, W)
+
+        # ── Figure mask weight ────────────────────────────────────────────────
+        if figure_mask is not None:
+            mask_w = _np.clip(
+                _np.array(figure_mask, dtype=_np.float32), 0.0, 1.0
+            )
+            if mask_w.shape != (h, w):
+                from PIL import Image as _Img
+                mask_w = _np.array(
+                    _Img.fromarray((mask_w * 255).astype(_np.uint8)).resize(
+                        (w, h), _Img.BILINEAR
+                    ), dtype=_np.float32
+                ) / 255.0
+        else:
+            mask_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Jewel highlight push (lum > highlight_thresh) ──────────────────
+        # Lift the brightest zones toward cool ivory: B up, R slightly down.
+        # Memling's highlights are not warm gold (Rembrandt) but cool enamel-
+        # white — as if the light has been filtered through a thin silver mirror.
+        highlight_zone = (lum > highlight_thresh).astype(_np.float32)
+        # Scale the push by how far above the threshold the pixel is — the
+        # very brightest pixels get the full push; pixels just above threshold
+        # receive only a fractional correction.
+        highlight_excess = _np.clip(
+            (lum - highlight_thresh) / max(1.0 - highlight_thresh, 1e-6),
+            0.0, 1.0
+        )
+        highlight_w = highlight_zone * highlight_excess
+        b_out = _np.clip(b_out + highlight_w * jewel_strength,           0.0, 1.0)
+        r_out = _np.clip(r_out - highlight_w * jewel_strength * 0.40,    0.0, 1.0)
+
+        # ── 2. Subsurface mid-tone tint (midtone_low ≤ lum < midtone_high) ───
+        # Lift G and B in the shadow-transition band, reduce R fractionally.
+        # This mimics light scattering through translucent skin: wavelengths
+        # in the blue-green range penetrate more shallowly and exit from the
+        # surface adjacent to the entry point, giving the transition zones a
+        # slightly cooler, glowing quality.
+        midtone_zone = (
+            (lum >= midtone_low) & (lum < midtone_high)
+        ).astype(_np.float32)
+
+        # Weight peaks in the middle of the mid-tone band — subtlest at edges,
+        # strongest at the centre of the transition zone (most translucent area).
+        band_width = max(midtone_high - midtone_low, 1e-6)
+        band_pos   = _np.clip((lum - midtone_low) / band_width, 0.0, 1.0)
+        # Triangular weighting: 0 at band edges, 1 at centre
+        sub_weight = midtone_zone * (1.0 - _np.abs(band_pos * 2.0 - 1.0))
+
+        g_out = _np.clip(g_out + sub_weight * subsurface_strength * 0.70, 0.0, 1.0)
+        b_out = _np.clip(b_out + sub_weight * subsurface_strength,         0.0, 1.0)
+        r_out = _np.clip(r_out - sub_weight * subsurface_strength * 0.30,  0.0, 1.0)
+
+        # ── Blend corrected layer back at `opacity`, weighted by mask ─────────
+        blend = opacity * mask_w
+
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - blend) + r_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - blend) + g_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - blend) + b_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        highlight_count  = int((highlight_zone  > 0.5).sum())
+        midtone_count    = int((midtone_zone    > 0.5).sum())
+        print(f"    Memling jewel-light pass complete  "
+              f"(highlight_px={highlight_count}  midtone_px={midtone_count})")
 

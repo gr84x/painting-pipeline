@@ -7545,3 +7545,199 @@ def test_weyden_angular_shadow_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.48, 0.40, 0.28), texture_strength=0.0)
     p.weyden_angular_shadow_pass(opacity=0.65)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 54 — memling_jewel_light_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_memling_jewel_light_pass_exists():
+    """memling_jewel_light_pass() must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "memling_jewel_light_pass"), (
+        "Painter.memling_jewel_light_pass not found — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "memling_jewel_light_pass"))
+
+
+def test_memling_jewel_light_pass_smoke():
+    """memling_jewel_light_pass() must run without error on default canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.42), texture_strength=0.0)
+    p.memling_jewel_light_pass()
+
+
+def test_memling_jewel_light_pass_opacity_zero_no_change():
+    """memling_jewel_light_pass(opacity=0) must not change the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.42), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.memling_jewel_light_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "Canvas must not change when memling_jewel_light_pass(opacity=0)")
+
+
+def test_memling_jewel_light_pass_highlight_zone_cooled():
+    """memling_jewel_light_pass() must lift B and reduce R in bright highlight zones."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with warm bright colour (high luminance, low B relative to R)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 240   # R — bright warm
+    buf[:, :, 1] = 210   # G
+    buf[:, :, 0] = 160   # B — relatively low (warm highlight)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+    b_before = float(buf[:, :, 0].mean())
+
+    p.memling_jewel_light_pass(
+        highlight_thresh  = 0.68,
+        jewel_strength    = 0.14,   # amplified for measurable shift
+        subsurface_strength = 0.0,
+        opacity           = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert b_after > b_before + 1, (
+        f"Highlight zone B should increase (jewel-cool push); "
+        f"B_before={b_before:.1f}  B_after={b_after:.1f}")
+    assert r_after < r_before + 1, (
+        f"Highlight zone R should not increase (jewel push reduces R); "
+        f"R_before={r_before:.1f}  R_after={r_after:.1f}")
+
+
+def test_memling_jewel_light_pass_subsurface_midtone_blue_green():
+    """memling_jewel_light_pass() must lift G and B in the mid-tone shadow band."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with a warm mid-tone colour (lum ~0.45 — in the mid-tone band)
+    # Cairo BGRA: B=idx0, G=idx1, R=idx2
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 140   # R — warm mid-tone
+    buf[:, :, 1] = 115   # G
+    buf[:, :, 0] = 80    # B — low (warm, no cool undertone yet)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    g_before = float(buf[:, :, 1].mean())
+    b_before = float(buf[:, :, 0].mean())
+
+    p.memling_jewel_light_pass(
+        midtone_low         = 0.30,
+        midtone_high        = 0.65,
+        subsurface_strength = 0.18,   # amplified for measurable shift
+        jewel_strength      = 0.0,
+        opacity             = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    g_after = float(buf_after[:, :, 1].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert g_after > g_before + 1, (
+        f"Mid-tone G should increase (subsurface blue-green push); "
+        f"G_before={g_before:.1f}  G_after={g_after:.1f}")
+    assert b_after > b_before + 1, (
+        f"Mid-tone B should increase (subsurface blue-green push); "
+        f"B_before={b_before:.1f}  B_after={b_after:.1f}")
+
+
+def test_memling_jewel_light_pass_with_figure_mask():
+    """memling_jewel_light_pass() with figure_mask must not alter background pixels."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a warm bright colour (triggers highlight zone)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 230
+    buf[:, :, 1] = 200
+    buf[:, :, 0] = 155
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: figure only in top half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:32, :] = 1.0
+
+    p.memling_jewel_light_pass(
+        figure_mask      = mask,
+        jewel_strength   = 0.20,
+        opacity          = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom half (background, mask=0) must be unchanged
+    assert np.array_equal(buf_after[40:, :, :3], buf[40:, :, :3]), (
+        "Background pixels (mask=0) must not be altered by memling_jewel_light_pass")
+
+
+def test_memling_jewel_light_pass_custom_params():
+    """memling_jewel_light_pass() must accept all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.42), texture_strength=0.0)
+    p.memling_jewel_light_pass(
+        highlight_thresh    = 0.78,
+        midtone_low         = 0.28,
+        midtone_high        = 0.55,
+        jewel_strength      = 0.05,
+        subsurface_strength = 0.04,
+        opacity             = 0.60,
+    )
+
+
+def test_memling_jewel_light_pass_large_canvas():
+    """memling_jewel_light_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.72, 0.62, 0.42), texture_strength=0.0)
+    p.memling_jewel_light_pass(opacity=0.65)
+
+
+# ── sfumato_veil_pass depth_gradient improvement (session 54) ────────────────
+
+def test_sfumato_veil_pass_depth_gradient_param_accepted():
+    """sfumato_veil_pass() must accept depth_gradient without error."""
+    from PIL import Image
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    ref = Image.fromarray(
+        (np.ones((64, 64, 3), dtype=np.uint8) * np.array([180, 150, 120],
+                                                           dtype=np.uint8)), "RGB")
+    p.sfumato_veil_pass(ref, n_veils=2, blur_radius=4.0, depth_gradient=0.6)
+
+
+def test_sfumato_veil_pass_depth_gradient_zero_unchanged_signature():
+    """sfumato_veil_pass(depth_gradient=0.0) must behave identically to no-arg call."""
+    from PIL import Image
+    # Two painters with identical seeded states must produce identical output.
+    ref = Image.fromarray(
+        (np.ones((64, 64, 3), dtype=np.uint8) * np.array([180, 150, 120],
+                                                           dtype=np.uint8)), "RGB")
+
+    p1 = _make_small_painter(64, 64)
+    p1.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p1.sfumato_veil_pass(ref, n_veils=3, blur_radius=4.0, depth_gradient=0.0)
+    buf1 = np.frombuffer(p1.canvas.surface.get_data(),
+                         dtype=np.uint8).reshape(64, 64, 4).copy()
+
+    p2 = _make_small_painter(64, 64)
+    p2.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p2.sfumato_veil_pass(ref, n_veils=3, blur_radius=4.0)
+    buf2 = np.frombuffer(p2.canvas.surface.get_data(),
+                         dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf1, buf2), (
+        "sfumato_veil_pass with depth_gradient=0.0 must produce identical "
+        "output to calling without depth_gradient")
