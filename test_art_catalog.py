@@ -66,6 +66,7 @@ EXPECTED_ARTISTS = [
     "frans_hals",
     "salvador_dali",
     "vilhelm_hammershoi",
+    "john_constable",
 ]
 
 
@@ -5457,4 +5458,94 @@ def test_danish_intimiste_high_edge_softness():
     sp = Style(medium=Medium.OIL, period=Period.DANISH_INTIMISTE).stroke_params
     assert sp["edge_softness"] >= 0.60, (
         f"DANISH_INTIMISTE edge_softness={sp['edge_softness']:.2f} should be ≥0.60")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Session 50 — John Constable
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_john_constable_in_catalog():
+    """John Constable must be in the CATALOG (session 50 addition)."""
+    assert "john_constable" in CATALOG, (
+        "john_constable missing from CATALOG — add it to art_catalog.py")
+
+
+def test_john_constable_movement_contains_romanticism():
+    """Constable's movement must reference Romanticism."""
+    s = get_style("john_constable")
+    assert "romantic" in s.movement.lower() or "naturalis" in s.movement.lower(), (
+        f"Constable movement should mention Romanticism or Naturalism; got {s.movement!r}")
+
+
+def test_john_constable_british():
+    """Constable must be listed as British."""
+    s = get_style("john_constable")
+    assert s.nationality.lower() == "british", (
+        f"John Constable nationality should be 'British'; got {s.nationality!r}")
+
+
+def test_john_constable_green_in_palette():
+    """Constable's palette must include at least one distinctly green swatch."""
+    s = get_style("john_constable")
+    has_green = any(
+        g > r + 0.12 and g > b + 0.08
+        for r, g, b in s.palette
+    )
+    assert has_green, (
+        "Constable's palette must include a green swatch — he is the Suffolk landscape painter")
+
+
+def test_john_constable_moderate_wet_blend():
+    """Constable wet_blend should be in [0.30, 0.60] — plein air freshness, not over-blended."""
+    s = get_style("john_constable")
+    assert 0.30 <= s.wet_blend <= 0.60, (
+        f"Constable wet_blend={s.wet_blend:.2f} should be in [0.30, 0.60] "
+        f"(plein air spontaneity — not Turner's atmospheric dissolution)")
+
+
+def test_john_constable_moderate_edge_softness():
+    """Constable edge_softness should be in [0.20, 0.55] — atmospheric softness without sfumato."""
+    s = get_style("john_constable")
+    assert 0.20 <= s.edge_softness <= 0.55, (
+        f"Constable edge_softness={s.edge_softness:.2f} should be in [0.20, 0.55] "
+        f"(landscape edges are soft but present — not Turner-level dissolution)")
+
+
+def test_john_constable_warm_green_ground():
+    """Constable's ground must have a greenish or warm bias (G channel dominant or equal)."""
+    s = get_style("john_constable")
+    r, g, b = s.ground_color
+    # The typical greenish-grey ground: G should be close to or above R
+    assert g >= r - 0.05, (
+        f"Constable ground_color should have a greenish or neutral bias; "
+        f"got R={r:.2f} G={g:.2f} B={b:.2f}")
+
+
+def test_john_constable_famous_works_include_hay_wain():
+    """The Hay Wain (1821) must be in Constable's famous works."""
+    s = get_style("john_constable")
+    titles = [w[0] for w in s.famous_works]
+    assert any("hay wain" in t.lower() for t in titles), (
+        "Constable famous works should include 'The Hay Wain' (1821) — his most celebrated work")
+
+
+def test_john_constable_famous_works_count():
+    """Constable should have at least 5 famous works documented."""
+    s = get_style("john_constable")
+    assert len(s.famous_works) >= 5, (
+        f"John Constable should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_john_constable_inspiration_references_constable_cloud_sky_pass():
+    """Inspiration text must reference constable_cloud_sky_pass."""
+    s = get_style("john_constable")
+    assert "constable_cloud_sky" in s.inspiration.lower().replace(" ", "_"), (
+        "Constable inspiration should reference constable_cloud_sky_pass() — "
+        "the defining sky technique pass")
+
+
+def test_john_constable_in_expected_artists():
+    """EXPECTED_ARTISTS list must include john_constable."""
+    assert "john_constable" in EXPECTED_ARTISTS, (
+        "john_constable missing from EXPECTED_ARTISTS — add it to the list")
 

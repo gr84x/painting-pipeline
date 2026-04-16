@@ -6393,3 +6393,278 @@ def test_horizon_mist_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
     p.horizon_mist_pass(opacity=0.72)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Session 50 — constable_cloud_sky_pass (John Constable artist pass)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_constable_cloud_sky_pass_exists():
+    """constable_cloud_sky_pass must exist on the Painter class."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "constable_cloud_sky_pass"), (
+        "Painter missing constable_cloud_sky_pass — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "constable_cloud_sky_pass")), (
+        "constable_cloud_sky_pass is not callable")
+
+
+def test_constable_cloud_sky_pass_runs():
+    """constable_cloud_sky_pass() must run without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.54, 0.42), texture_strength=0.0)
+    p.constable_cloud_sky_pass()
+
+
+def test_constable_cloud_sky_pass_modifies_canvas():
+    """constable_cloud_sky_pass must visibly modify the sky zone."""
+    p = _make_small_painter(64, 64)
+
+    # Fill canvas with a uniform mid-grey
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:] = 128
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.constable_cloud_sky_pass(sky_threshold=0.50, opacity=1.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "constable_cloud_sky_pass should change the sky zone")
+
+
+def test_constable_cloud_sky_pass_opacity_zero_is_noop():
+    """constable_cloud_sky_pass(opacity=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.54, 0.42), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.constable_cloud_sky_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "constable_cloud_sky_pass(opacity=0) should be a noop")
+
+
+def test_constable_cloud_sky_pass_landscape_zone_unchanged():
+    """constable_cloud_sky_pass must not alter pixels below sky_threshold."""
+    p = _make_small_painter(64, 64)
+
+    # Set whole canvas to a distinctive warm mid-value
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 60    # B
+    buf[:, :, 1] = 80    # G
+    buf[:, :, 2] = 100   # R
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Apply with sky threshold = 0.25 → only rows 0..15 (of 64) are sky
+    p.constable_cloud_sky_pass(sky_threshold=0.25, opacity=1.0)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    # Landscape zone (row 16 onward) should be unchanged
+    landscape = buf_after[16:, :, :3]
+    assert np.all(landscape[:, :, 0] == 60), "B channel changed in landscape zone"
+    assert np.all(landscape[:, :, 1] == 80), "G channel changed in landscape zone"
+    assert np.all(landscape[:, :, 2] == 100), "R channel changed in landscape zone"
+
+
+def test_constable_cloud_sky_pass_custom_params():
+    """constable_cloud_sky_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.54, 0.42), texture_strength=0.0)
+    p.constable_cloud_sky_pass(
+        sky_threshold   = 0.35,
+        warm_top        = 0.20,
+        cool_base       = 0.12,
+        silver_strength = 0.25,
+        silver_density  = 0.02,
+        opacity         = 0.60,
+    )
+
+
+def test_constable_cloud_sky_pass_large_canvas():
+    """constable_cloud_sky_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.52, 0.54, 0.42), texture_strength=0.0)
+    p.constable_cloud_sky_pass(opacity=0.72)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Session 50 — chiaroscuro_modelling_pass (random improvement)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_chiaroscuro_modelling_pass_exists():
+    """chiaroscuro_modelling_pass must exist on the Painter class."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "chiaroscuro_modelling_pass"), (
+        "Painter missing chiaroscuro_modelling_pass — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "chiaroscuro_modelling_pass")), (
+        "chiaroscuro_modelling_pass is not callable")
+
+
+def test_chiaroscuro_modelling_pass_runs():
+    """chiaroscuro_modelling_pass() must run without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.58), texture_strength=0.0)
+    p.chiaroscuro_modelling_pass()
+
+
+def test_chiaroscuro_modelling_pass_modifies_canvas():
+    """chiaroscuro_modelling_pass must visibly modify a canvas with clear light/shadow zones."""
+    p = _make_small_painter(64, 64)
+
+    # Set canvas: top half bright (lit), bottom half dark (shadowed)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:32, :, :3] = 200   # bright rows — light zone
+    buf[32:, :, :3] = 50    # dark rows — shadow zone
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.chiaroscuro_modelling_pass(opacity=1.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "chiaroscuro_modelling_pass should change the canvas")
+
+
+def test_chiaroscuro_modelling_pass_opacity_zero_is_noop():
+    """chiaroscuro_modelling_pass(opacity=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.58), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.chiaroscuro_modelling_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "chiaroscuro_modelling_pass(opacity=0) should be a noop")
+
+
+def test_chiaroscuro_modelling_pass_warms_lights():
+    """Light-zone pixels must become warmer (R lifted relative to B) after the pass."""
+    p = _make_small_painter(64, 64)
+
+    # Fill with a uniformly bright neutral canvas (all channels ~200 → lum ≈ 0.78)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 200   # neutral bright — ensures all pixels are in light zone
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.chiaroscuro_modelling_pass(
+        light_thresh  = 0.50,    # low threshold — all 200/255≈0.78 pixels qualify
+        shadow_thresh = 0.20,    # high threshold keeps shadow zone empty
+        light_warmth  = 0.20,
+        shadow_cool   = 0.0,
+        shadow_deepen = 0.0,
+        opacity       = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_mean = float(buf_after[:, :, 2].mean())
+    b_mean = float(buf_after[:, :, 0].mean())
+    assert r_mean > b_mean + 5, (
+        f"After warm light push R should exceed B by >5; got R={r_mean:.1f} B={b_mean:.1f}")
+
+
+def test_chiaroscuro_modelling_pass_cools_shadows():
+    """Shadow-zone pixels must become cooler (B lifted relative to R) after the pass."""
+    p = _make_small_painter(64, 64)
+
+    # Fill with a uniformly dark neutral canvas (all channels ~40 → lum ≈ 0.16)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 40    # neutral dark — ensures all pixels are in shadow zone
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.chiaroscuro_modelling_pass(
+        light_thresh  = 0.80,    # high threshold keeps light zone empty
+        shadow_thresh = 0.50,    # low threshold — all 40/255≈0.16 pixels qualify
+        light_warmth  = 0.0,
+        shadow_cool   = 0.20,
+        shadow_deepen = 0.0,
+        opacity       = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_mean = float(buf_after[:, :, 0].mean())
+    r_mean = float(buf_after[:, :, 2].mean())
+    assert b_mean > r_mean + 3, (
+        f"After shadow cool push B should exceed R; got B={b_mean:.1f} R={r_mean:.1f}")
+
+
+def test_chiaroscuro_modelling_pass_with_figure_mask():
+    """chiaroscuro_modelling_pass() must respect a figure_mask."""
+    p = _make_small_painter(64, 64)
+
+    # Uniform bright neutral canvas
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 200
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: only left half is figure
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:, :32] = 1.0
+
+    p.chiaroscuro_modelling_pass(
+        figure_mask  = mask,
+        light_thresh = 0.50,
+        light_warmth = 0.30,
+        shadow_cool  = 0.0,
+        shadow_deepen= 0.0,
+        opacity      = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Left half (figure) should be warmer than right half (background, unchanged)
+    r_left  = float(buf_after[:, :32,  2].mean())
+    r_right = float(buf_after[:, 32:, 2].mean())
+    assert r_left > r_right, (
+        f"Figure (left) R should exceed background (right) R after warm push; "
+        f"R_left={r_left:.1f} R_right={r_right:.1f}")
+
+    # Right half should be essentially unchanged (still ~200)
+    assert r_right >= 195, (
+        f"Background R should stay near 200 when outside mask; got {r_right:.1f}")
+
+
+def test_chiaroscuro_modelling_pass_custom_params():
+    """chiaroscuro_modelling_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.58), texture_strength=0.0)
+    p.chiaroscuro_modelling_pass(
+        light_thresh  = 0.60,
+        shadow_thresh = 0.35,
+        light_warmth  = 0.12,
+        shadow_cool   = 0.09,
+        shadow_deepen = 0.06,
+        opacity       = 0.55,
+    )
+
+
+def test_chiaroscuro_modelling_pass_large_canvas():
+    """chiaroscuro_modelling_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.72, 0.68, 0.58), texture_strength=0.0)
+    p.chiaroscuro_modelling_pass(opacity=0.68)

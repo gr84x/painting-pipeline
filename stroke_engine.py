@@ -14112,3 +14112,334 @@ class Painter:
         print(f"    Horizon mist pass complete  "
               f"(band_center_px={int(horizon_y * h)}  "
               f"peak_weight={peak_weight:.3f})")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 50 — John Constable artist pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def constable_cloud_sky_pass(
+        self,
+        sky_threshold:    float = 0.40,
+        warm_top:         float = 0.16,
+        cool_base:        float = 0.10,
+        silver_strength:  float = 0.30,
+        silver_density:   float = 0.04,
+        opacity:          float = 0.72,
+    ) -> None:
+        """
+        Build luminous English skies in the manner of John Constable.
+
+        Constable's skies are the most technically studied element of his
+        paintings.  He conducted hundreds of dedicated cloud studies from life,
+        noting meteorological conditions on the verso.  His sky technique has
+        three distinct registers:
+
+        1. **Warm cream tops / cool grey undersides** — Cloud formations read
+           as three-dimensional forms lit from above: the top surfaces catch
+           warm direct light (cream-ivory); the undersides carry cool grey-blue
+           shadow.  The overall sky tone is not a flat blue wash but a complex
+           field of warm and cool passages in dialogue.
+
+        2. **Luminous horizon** — The sky near the horizon is always lighter
+           and cooler than the sky at the zenith, modelling the way atmospheric
+           perspective reduces colour and value contrast near the far ground.
+           This lift also provides luminosity beneath the clouds, pushing the
+           sky reading as a genuine *light source* rather than a backdrop.
+
+        3. **'Constable's snow'** — His signature impasto device: tiny dagger-
+           touches of thick, undiluted white (sometimes pure lead white or
+           flake white) scattered across lit cloud edges, water glints, and
+           wet leaf surfaces.  These touches are not blended; they sit proud of
+           the picture surface and catch raking light in a way that illusory
+           white paint alone cannot.  In this pass they are simulated as sparse
+           scattered bright-white pixels, slightly above the existing local tone.
+
+        The pass operates only on the sky zone (``y < sky_threshold * h``),
+        leaving the landscape below unmodified.  A soft cosine gradient feathers
+        the sky-to-landscape transition so no hard band appears at the boundary.
+
+        Strategies
+        ----------
+        1. **Sky gradient** — A 1-D cosine weight along Y (1.0 at top → 0.0 at
+           ``sky_threshold``) modulates two simultaneous colour pushes: a warm
+           cream push toward the zenith (``warm_top``) and a cool pale-blue push
+           toward the horizon base of the sky zone (``cool_base``).
+
+        2. **Silver sparkle** — A sparse binary mask (Bernoulli with probability
+           ``silver_density``) restricted to the sky zone selects candidate
+           pixels.  Only pixels already brighter than the local mean in their
+           3×3 neighbourhood are promoted further toward (1.0, 1.0, 0.95) —
+           Constable's impasto white — at strength ``silver_strength``.
+
+        Parameters
+        ----------
+        sky_threshold : float
+            Fraction of canvas height (from top) defining the sky zone.
+            0.40 means the upper 40 % is treated as sky.
+        warm_top : float
+            Strength of the warm cream push (R lift, G lift, B damp) at the
+            sky zenith.  0.16 gives a subtle creamy warmth without browning.
+        cool_base : float
+            Strength of the cool pale-blue push (B lift, R+G slight damp) at
+            the base of the sky zone.  0.10 gives a gentle horizon luminosity.
+        silver_strength : float
+            How strongly selected pixels are pushed toward pure silver-white.
+            0.30 gives convincing sparkle without over-brightening.
+        silver_density : float
+            Probability that any given sky pixel becomes a sparkle candidate
+            before brightness-gating.  0.04 (4 %) gives a lively but not
+            over-crowded scatter.
+        opacity : float
+            Global blend weight for the pass result over the original canvas.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and before the final glaze.  Pairs well
+        with ``atmospheric_depth_pass()`` for full landscape recession and
+        ``horizon_mist_pass()`` for mid-ground haze.
+        """
+        import numpy as _np
+
+        print(f"  Constable cloud sky pass  "
+              f"(sky_threshold={sky_threshold:.2f}  warm_top={warm_top:.2f}  "
+              f"cool_base={cool_base:.2f}  silver_strength={silver_strength:.2f}  "
+              f"silver_density={silver_density:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Constable cloud sky pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # Sky zone: rows 0 … sky_px-1 inclusive
+        sky_px = max(1, int(sky_threshold * h))
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:sky_px, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:sky_px, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:sky_px, :, 2].astype(_np.float32) / 255.0
+
+        # ── 1. Sky gradient — warm top → cool horizon base ───────────────────
+        # cosine weight: 1.0 at row 0 (zenith), 0.0 at row sky_px-1 (horizon)
+        ys         = _np.linspace(0.0, 1.0, sky_px, dtype=_np.float32)
+        warm_w     = ((_np.cos(_np.pi * ys) + 1.0) * 0.5)[:, _np.newaxis]   # (sky_px, 1)
+        cool_w     = (1.0 - warm_w)                                           # (sky_px, 1)
+
+        # Warm top push: cream-ivory — lift R and G, slight B damp
+        r_f = _np.clip(r_f + warm_w * warm_top * 0.90, 0.0, 1.0)
+        g_f = _np.clip(g_f + warm_w * warm_top * 0.80, 0.0, 1.0)
+        b_f = _np.clip(b_f - warm_w * warm_top * 0.15, 0.0, 1.0)
+
+        # Cool base push: pale cerulean — lift B, slight R+G damp
+        b_f = _np.clip(b_f + cool_w * cool_base * 1.10, 0.0, 1.0)
+        r_f = _np.clip(r_f - cool_w * cool_base * 0.20, 0.0, 1.0)
+        g_f = _np.clip(g_f - cool_w * cool_base * 0.10, 0.0, 1.0)
+
+        # ── 2. Constable's silver sparkle ─────────────────────────────────────
+        # Sparse bright-white impasto touches on already-lit sky pixels
+        rng       = _np.random.default_rng(seed=42)
+        candidate = rng.random(size=(sky_px, w), dtype=_np.float32) < silver_density
+
+        # Brightness-gate: only promote pixels already locally bright
+        lum       = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+        bright    = lum > 0.55   # keep only pixels that are already in the light
+        mask      = candidate & bright
+
+        # Push selected pixels toward silver-white (1.0, 1.0, 0.95)
+        r_f = _np.where(mask, _np.clip(r_f + silver_strength, 0.0, 1.0), r_f)
+        g_f = _np.where(mask, _np.clip(g_f + silver_strength, 0.0, 1.0), g_f)
+        b_f = _np.where(mask, _np.clip(b_f + silver_strength * 0.92, 0.0, 1.0), b_f)
+
+        # ── Blend sky zone back at `opacity` ──────────────────────────────────
+        buf[:sky_px, :, 2] = _np.clip(
+            orig[:sky_px, :, 2] * (1.0 - opacity) + r_f * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:sky_px, :, 1] = _np.clip(
+            orig[:sky_px, :, 1] * (1.0 - opacity) + g_f * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:sky_px, :, 0] = _np.clip(
+            orig[:sky_px, :, 0] * (1.0 - opacity) + b_f * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        # Alpha and landscape zone unchanged
+        buf[:sky_px, :, 3] = orig[:sky_px, :, 3]
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        sparkle_count = int(mask.sum())
+        print(f"    Constable cloud sky pass complete  "
+              f"(sky_px={sky_px}  sparkle_pixels={sparkle_count})")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 50 — random improvement: chiaroscuro_modelling_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def chiaroscuro_modelling_pass(
+        self,
+        figure_mask:    "Optional[_np.ndarray]" = None,
+        light_thresh:   float = 0.65,
+        shadow_thresh:  float = 0.38,
+        light_warmth:   float = 0.10,
+        shadow_cool:    float = 0.08,
+        shadow_deepen:  float = 0.07,
+        opacity:        float = 0.68,
+    ) -> None:
+        """
+        Enhance three-dimensional figure modelling via chiaroscuro warm/cool split.
+
+        Chiaroscuro — Italian for 'light-dark' — is the classical technique of
+        modelling solid form through a deliberate warm-to-cool tonal shift from
+        the lit side to the shadow side of a figure.  It was perfected in the
+        Italian Renaissance and then extended into its most extreme expression
+        by Caravaggio (tenebrism) and Rembrandt (luminous impasto against deep
+        shadow).  The physical basis is real: direct sunlight (or lamplight)
+        is warm (high colour temperature ~3000–5500 K) while open-sky fill
+        light and shadow is cool (high colour temperature ~7000–12000 K from
+        scattered blue skylight).
+
+        This pass implements the two-zone correction:
+
+        **Light zone** (``luminance > light_thresh``) — Push toward warm ivory.
+        Lift R and G slightly (toward cream), damp B slightly.  This enriches
+        the sense that lit flesh is warm with blood and direct light.
+
+        **Shadow zone** (``luminance < shadow_thresh``) — Deepen and cool
+        shadows simultaneously.  Lower R+G (darker), lift B slightly (cooler).
+        This prevents shadows from looking like mere grey mud and gives them
+        the quality of atmospheric open-sky fill: cold, airy, and receding.
+
+        The pass is most effective on portrait figures with a clear three-
+        quarter lighting setup.  When ``figure_mask`` is provided the effect
+        is spatially limited to the figure, preserving the background tone.
+
+        Strategies
+        ----------
+        1. **Luminance gating** — Per-pixel luminance (BT.709 coefficients) is
+           computed from the current canvas state.  Pixels are sorted into three
+           zones: light, midtone (unchanged), and shadow.  A soft falloff is
+           applied: the correction strength ramps from zero at the threshold to
+           full at the zone extreme, avoiding a hard step.
+
+        2. **Warm light push** — Light-zone R + G lift, B slight damp.  The
+           asymmetric weighting (R > G > B) targets the ivory-amber of lit skin
+           rather than a generic white push.
+
+        3. **Cool shadow deepen** — Shadow-zone R + G damp (darkening), B lift
+           (cooling).  The B lift is smaller than the R+G damp so the net effect
+           is a *darker* cool, not a bright blue.
+
+        4. **Mask compositing** — When ``figure_mask`` (float32 H×W in [0,1])
+           is provided, adjustments are weighted by the mask: corrections are
+           full-strength at mask=1 and zero at mask=0.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array of shape ``(H, W)`` with values in [0, 1].  1 = fully
+            inside figure, 0 = background.  If None, the pass operates on the
+            full canvas.
+        light_thresh : float
+            Luminance threshold above which a pixel is considered 'in the
+            light'.  0.65 catches highlights and upper mid-tones.
+        shadow_thresh : float
+            Luminance threshold below which a pixel is considered 'in shadow'.
+            0.38 catches deep shadows and lower mid-tones.
+        light_warmth : float
+            Magnitude of the warm push on the lit side.  0.10 is noticeable
+            but restrained — suitable for a Renaissance portrait.
+        shadow_cool : float
+            Magnitude of the B channel lift in shadow zones.  0.08 gives a
+            cold-air quality without turning shadows blue.
+        shadow_deepen : float
+            Magnitude of the R+G channel damp in shadow zones.  0.07 darkens
+            the shadows while the B lift adds coolness.
+        opacity : float
+            Global blend weight applied to the full adjusted layer.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and ``sfumato_veil_pass()`` (if used),
+        BEFORE the final glaze.  Pairs naturally with ``subsurface_glow_pass()``
+        (warm sub-surface scatter in the lit zone amplifies the warm reading)
+        and ``reflected_light_pass()`` (bounce light in shadow zones).
+        """
+        import numpy as _np
+
+        print(f"  Chiaroscuro modelling pass  "
+              f"(light_thresh={light_thresh:.2f}  shadow_thresh={shadow_thresh:.2f}  "
+              f"light_warmth={light_warmth:.2f}  shadow_cool={shadow_cool:.2f}  "
+              f"shadow_deepen={shadow_deepen:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Chiaroscuro modelling pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance (BT.709) ───────────────────────────────────────────────
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f  # (H, W)
+
+        # ── Soft zone weights ────────────────────────────────────────────────
+        # light_w ramps 0→1 as lum rises from light_thresh to 1.0
+        light_range = max(1e-6, 1.0 - light_thresh)
+        light_w     = _np.clip((lum - light_thresh) / light_range, 0.0, 1.0)
+
+        # shadow_w ramps 0→1 as lum falls from shadow_thresh to 0.0
+        shadow_range = max(1e-6, shadow_thresh)
+        shadow_w     = _np.clip(1.0 - lum / shadow_range, 0.0, 1.0)
+
+        # ── Apply figure mask if provided ────────────────────────────────────
+        if figure_mask is not None:
+            fm   = _np.asarray(figure_mask, dtype=_np.float32)
+            if fm.shape != (h, w):
+                # resize mask to canvas dimensions if needed
+                from scipy.ndimage import zoom as _zoom
+                fm = _zoom(fm, (h / fm.shape[0], w / fm.shape[1]), order=1)
+                fm = _np.clip(fm, 0.0, 1.0)
+            light_w  = light_w  * fm
+            shadow_w = shadow_w * fm
+
+        # ── 1. Warm light push ───────────────────────────────────────────────
+        r_out = _np.clip(r_f + light_w * light_warmth * 0.90, 0.0, 1.0)
+        g_out = _np.clip(g_f + light_w * light_warmth * 0.70, 0.0, 1.0)
+        b_out = _np.clip(b_f - light_w * light_warmth * 0.25, 0.0, 1.0)
+
+        # ── 2. Cool shadow deepen ────────────────────────────────────────────
+        r_out = _np.clip(r_out - shadow_w * shadow_deepen, 0.0, 1.0)
+        g_out = _np.clip(g_out - shadow_w * shadow_deepen * 0.90, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_w * shadow_cool,   0.0, 1.0)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        light_count  = int((light_w  > 0.05).sum())
+        shadow_count = int((shadow_w > 0.05).sum())
+        print(f"    Chiaroscuro modelling pass complete  "
+              f"(light_pixels={light_count}  shadow_pixels={shadow_count})")
