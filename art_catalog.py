@@ -3675,6 +3675,93 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Artemisia Gentileschi ─────────────────────────────────────────────────
+    # Artemisia Gentileschi (1593–1653) stands apart from Caravaggio's pure
+    # tenebrism: where Caravaggio's flesh emerges cold from absolute void,
+    # Gentileschi's subjects carry a warm candlelit humanity — flesh tones are
+    # richer, more saturated, emotionally charged.  Her defining qualities:
+    #   • Warm shadow zone — shadows are deep warm umber-brown, never the cold
+    #     near-black of Caravaggio; the half-shadow carries a warm olive-amber cast
+    #     that reads as firelight absorbed into the flesh rather than an absence of light
+    #   • Theatrical single-source illumination — harsh directional light from upper-left;
+    #     lit faces gleam with warm golden highlights while the far side falls to deep
+    #     shadow in a steep, dramatic gradient
+    #   • Deep crimson / burgundy drapery — rich saturated red contrasting against warm
+    #     flesh and dark ground; her cloth has physical weight and sculptural folds
+    #   • Confident, energetic brushwork in lit areas — not the patient sfumato of
+    #     Leonardo; Gentileschi painted decisively, with thick impasto in the highlights
+    #     and thinner, more transparent glazes in the shadows
+    #   • Psychological intensity — her figures have an interiority lacking in many
+    #     Baroque contemporaries; the face is always the emotional centre
+    # gentileschi_dramatic_flesh_pass() approximates these qualities.
+    "artemisia_gentileschi": ArtStyle(
+        artist="Artemisia Gentileschi",
+        movement="Italian Baroque / Tenebrism",
+        nationality="Italian",
+        period="1593–1653",
+        palette=[
+            (0.89, 0.70, 0.48),   # warm candlelit flesh highlight — golden amber warmth
+            (0.72, 0.52, 0.34),   # rose-warm flesh midtone — the key flesh register
+            (0.52, 0.36, 0.22),   # warm mid-shadow — the penumbra zone, olive warmth
+            (0.32, 0.22, 0.12),   # deep warm umber shadow — not cold black, warm brown
+            (0.08, 0.06, 0.04),   # near-black void background — not absolute; retains warmth
+            (0.62, 0.10, 0.08),   # deep crimson drapery — her signature rich red
+            (0.78, 0.60, 0.20),   # warm amber-gold accent — collar trim, jewel, candlelight
+            (0.30, 0.36, 0.20),   # deep olive — shadow within cloth, distant fabric
+        ],
+        ground_color=(0.14, 0.10, 0.06),    # very dark warm brown ground — Gentileschi
+                                            # prepared on a dark warm imprimatura; this
+                                            # ground shows through shadow zones, warming
+                                            # the darks from beneath and preventing the
+                                            # cold void of Caravaggio's black grounds
+        stroke_size=9,
+        wet_blend=0.32,                      # deliberate but not dry — confident marks
+                                            # that stay distinct in the shadow zone but
+                                            # allow some wet-into-wet blending in the
+                                            # highly-worked lit flesh areas
+        edge_softness=0.42,                  # moderate — not sfumato (Leonardo), not
+                                            # razor-sharp (Schiele); Gentileschi's edges
+                                            # are legible and confident but not harsh
+        jitter=0.040,
+        glazing=(0.58, 0.38, 0.16),          # warm amber-umber glaze — enriches the
+                                            # shadow zone with depth; applied thinly over
+                                            # the dark ground to warm the entire canvas
+                                            # in candlelit amber
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Baroque tenebrism with warm emotional flesh — Gentileschi took Caravaggio's "
+            "dramatic chiaroscuro but suffused the shadows with warm umber rather than "
+            "cold black void.  A dark warm-brown imprimatura shows through all shadow "
+            "areas, preventing the cold nihilism of pure tenebrism.  Single-source "
+            "directional lighting illuminates flesh in warm golden-amber highlights; "
+            "the penumbra carries an olive-warm intermediate tone; the shadow zone "
+            "deepens to warm umber-brown rather than absolute darkness.  Highlights are "
+            "applied in thick, confident impasto — not sfumato; the brushwork is "
+            "energetic and decisive in the lit areas.  Deep crimson drapery provides "
+            "chromatic contrast against the warm flesh and dark ground.  The face is "
+            "always the psychological centre: Gentileschi's protagonists meet the viewer "
+            "with directness and psychological intensity rarely found in Baroque portraiture."
+        ),
+        famous_works=[
+            ("Judith Slaying Holofernes",              "c. 1614–1620"),
+            ("Self-Portrait as the Allegory of Painting", "c. 1638–1639"),
+            ("Susanna and the Elders",                 "1610"),
+            ("Judith and Her Maidservant",             "c. 1623–1625"),
+            ("Mary Magdalene as Melancholy",           "c. 1621–1622"),
+            ("Lucretia",                               "c. 1621"),
+        ],
+        inspiration=(
+            "Use gentileschi_dramatic_flesh_pass() for the hallmark warm shadow zone, "
+            "deep warm umber-brown darks, and golden candlelit highlight lift.  "
+            "Dark warm brown ground_color (0.14, 0.10, 0.06) — shows through shadows "
+            "and warms the entire canvas.  Moderate wet_blend (0.32) and edge_softness (0.42) "
+            "— confident, legible marks in the Baroque tradition.  Warm amber-umber glaze "
+            "(0.58, 0.38, 0.16) unifies in candlelit warmth.  Shadows stay warm umber — "
+            "never the cold near-black of Caravaggio's pure tenebrism."
+        ),
+    ),
+
     # ── Jean-Honoré Fragonard ──────────────────────────────────────────────────
     # Fragonard was the supreme master of French Rococo painting — rapid, assured,
     # loaded-brush bravura that dazzles with its spontaneity.  His mature style

@@ -996,11 +996,12 @@ def test_artemisia_gentileschi_famous_works_count():
         f"Gentileschi should have at least 4 famous works, got {len(s.famous_works)}")
 
 
-def test_artemisia_gentileschi_inspiration_references_chiaroscuro_focus():
-    """Inspiration text must reference chiaroscuro_focus_pass."""
+def test_artemisia_gentileschi_inspiration_references_dramatic_flesh_pass():
+    """Inspiration text must reference gentileschi_dramatic_flesh_pass."""
     s = get_style("artemisia_gentileschi")
-    assert "chiaroscuro_focus" in s.inspiration.lower().replace(" ", "_"), (
-        "Gentileschi inspiration should reference chiaroscuro_focus_pass()")
+    assert "gentileschi_dramatic_flesh" in s.inspiration.lower().replace(" ", "_"), (
+        "Gentileschi inspiration should reference gentileschi_dramatic_flesh_pass() — "
+        "the dedicated Baroque warm-shadow/candlelit-highlight pass for her style")
 
 
 def test_artemisia_gentileschi_moderate_wet_blend():
