@@ -15119,3 +15119,189 @@ class Painter:
         atm_count = int((atm_w.squeeze() > 0.05).sum() * w)
         print(f"    Aerial perspective pass complete  (affected_px~{atm_count})")
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 53 — new artist: Rogier van der Weyden / weyden_angular_shadow_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def weyden_angular_shadow_pass(
+        self,
+        figure_mask:      "Optional[_np.ndarray]" = None,
+        shadow_thresh:    float = 0.38,
+        light_thresh:     float = 0.60,
+        edge_sharpen:     float = 0.55,
+        shadow_cool:      float = 0.08,
+        highlight_cool:   float = 0.04,
+        opacity:          float = 0.70,
+    ) -> None:
+        """
+        Apply Rogier van der Weyden's angular, geometric shadow modelling.
+
+        Rogier van der Weyden (c. 1399/1400–1464) achieved emotional intensity
+        through the precise geometry of light and shadow.  Unlike Leonardo's
+        sfumato — which dissolves tonal transitions into imperceptible atmospheric
+        haze — Weyden's shadows have clean, angular found edges that describe the
+        geometry of folded drapery with almost architectural clarity.  A cloth fold
+        passes from brilliantly lit surface to near-black shadow in a single,
+        sharp step.  This gives his robes, mantles, and shrouds the quality of
+        carved stone: every plane fully resolved, every edge intentional.
+
+        His flesh is correspondingly pale — almost waxen — with cool blue-tinged
+        shadows rather than the warm ambers of Rembrandt or the glowing umbers of
+        Titian.  The coolness in the shadows reads as a kind of spiritual rigour:
+        where Rubens's flesh glows with vitality, Weyden's flesh endures with
+        austere, grief-stricken dignity.
+
+        This pass applies three distinct operations:
+
+        1. **Shadow zone cooling** (``lum < shadow_thresh``): Shadow pixels
+           receive a slight cool-violet push — R is reduced and B is lifted
+           by ``shadow_cool``.  This gives the characteristic Flemish cool-
+           shadow quality that distinguishes Weyden from the warm Venetians.
+
+        2. **Edge sharpening at the penumbra boundary**: The pixels in the
+           narrow band around the shadow threshold are pushed toward their
+           extreme (toward full shadow or full light, depending on which side
+           of the boundary they fall).  This is a local contrast stretch at
+           the transition zone only — replicating the effect of a found edge.
+           The strength is controlled by ``edge_sharpen``.
+
+        3. **Highlight cooling** (``lum > light_thresh``): The lit passages
+           receive a subtle cool-ivory push — a slight B lift by
+           ``highlight_cool``.  Weyden's lit flesh is not warm ivory (as in
+           Titian or Rembrandt) but pale, slightly cool — almost the tonality
+           of white linen rather than warm skin.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array ``(H, W)`` in [0, 1].  1 = figure, 0 = background.
+            When provided, all corrections are composited only within the figure.
+        shadow_thresh : float
+            Luminance boundary below which pixels are treated as shadow.
+            Default 0.38 matches a slightly deeper shadow zone than the
+            penumbra_zone_pass boundary, capturing the full Flemish shadow void.
+        light_thresh : float
+            Luminance boundary above which pixels are treated as lit.
+            Default 0.60 — a broad, bright-lit zone for pale Flemish flesh.
+        edge_sharpen : float
+            Strength of the found-edge contrast push at the light-shadow boundary.
+            0.0 = no sharpening (smooth transition preserved); 1.0 = maximum
+            push (extreme jump from lit to shadow at each boundary pixel).
+            Default 0.55 — strong but not posterised.
+        shadow_cool : float
+            Magnitude of the cool-violet push in shadow zones.  Reduces R,
+            lifts B.  0.08 produces a subtle but clearly visible cool shift.
+        highlight_cool : float
+            Magnitude of the pale-ivory cool lift in fully lit zones.  Lifts
+            B gently.  0.04 is a light correction — barely perceptible alone
+            but collectively shifts the flesh tonality from warm to pale.
+        opacity : float
+            Global blend factor: 0 = no effect, 1 = full correction applied.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and before ``glaze()`` so the geometric
+        shadow structure is established before any warm unifying layer is applied
+        (a warm glaze applied afterward will slightly mellow the coolness —
+        exactly as Weyden's oak panel ground does in his originals).
+        Pairs well with ``holbein_jewel_glaze_pass()`` for panel-painting finish
+        and ``edge_lost_and_found_pass()`` for final edge refinement.
+        """
+        import numpy as _np
+
+        print(f"  Weyden angular shadow pass  "
+              f"(shadow_thresh={shadow_thresh:.2f}  light_thresh={light_thresh:.2f}  "
+              f"edge_sharpen={edge_sharpen:.2f}  shadow_cool={shadow_cool:.2f}  "
+              f"highlight_cool={highlight_cool:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Weyden angular shadow pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f   # (H, W)
+
+        # ── Figure mask weight ────────────────────────────────────────────────
+        if figure_mask is not None:
+            mask_w = _np.clip(
+                _np.array(figure_mask, dtype=_np.float32), 0.0, 1.0
+            )
+            if mask_w.shape != (h, w):
+                from PIL import Image as _Img
+                mask_w = _np.array(
+                    _Img.fromarray((mask_w * 255).astype(_np.uint8)).resize(
+                        (w, h), _Img.BILINEAR
+                    ), dtype=_np.float32
+                ) / 255.0
+        else:
+            mask_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Shadow zone cooling (lum < shadow_thresh) ─────────────────────
+        # Push deep shadows toward cool violet: reduce R, lift B.
+        shadow_zone = (lum < shadow_thresh).astype(_np.float32)
+        r_out = _np.clip(r_out - shadow_zone * shadow_cool * 0.85, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_zone * shadow_cool * 0.70, 0.0, 1.0)
+
+        # ── 2. Edge sharpening at the penumbra boundary ───────────────────────
+        # The penumbra band is the zone between shadow_thresh and light_thresh.
+        # Within this band, push each pixel toward whichever extreme (lit or
+        # shadow) it is closest to — creating a sharper step at the boundary.
+        penumbra_band = ((lum >= shadow_thresh) & (lum < light_thresh)).astype(
+            _np.float32
+        )
+        # Normalised position within the band: 0 = deep shadow edge, 1 = light edge
+        band_width = max(light_thresh - shadow_thresh, 1e-6)
+        pos_in_band = _np.clip(
+            (lum - shadow_thresh) / band_width, 0.0, 1.0
+        )   # 0 near shadow, 1 near light
+
+        # Pixels in the lower half of the band → push toward shadow (darken)
+        # Pixels in the upper half of the band → push toward light (brighten)
+        push_direction = (pos_in_band - 0.5) * 2.0   # [-1, +1]
+        edge_correction = penumbra_band * edge_sharpen * push_direction * 0.15
+
+        r_out = _np.clip(r_out + edge_correction, 0.0, 1.0)
+        g_out = _np.clip(g_out + edge_correction * 0.85, 0.0, 1.0)
+        b_out = _np.clip(b_out + edge_correction * 0.70, 0.0, 1.0)
+
+        # ── 3. Highlight cooling (lum > light_thresh) ─────────────────────────
+        # Weyden's lit flesh is cool pale ivory, not warm gold.  Lift B gently.
+        light_zone = (lum >= light_thresh).astype(_np.float32)
+        b_out = _np.clip(b_out + light_zone * highlight_cool, 0.0, 1.0)
+
+        # ── Blend corrected layer back at `opacity`, weighted by mask ─────────
+        blend = opacity * mask_w
+
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - blend) + r_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - blend) + g_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - blend) + b_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        shadow_count    = int((shadow_zone > 0.5).sum())
+        highlight_count = int((light_zone  > 0.5).sum())
+        print(f"    Weyden angular shadow pass complete  "
+              f"(shadow_px={shadow_count}  highlight_px={highlight_count})")
+
