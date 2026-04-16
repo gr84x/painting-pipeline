@@ -4560,6 +4560,85 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 53 ─────────────────────────────────────────────────────────────
+    "tintoretto": ArtStyle(
+        artist="Jacopo Tintoretto",
+        movement="Venetian Late Renaissance / Mannerism",
+        nationality="Italian",
+        period="1539–1594",
+        palette=[
+            (0.90, 0.84, 0.72),   # cool silver-white — lightning highlight
+            (0.78, 0.65, 0.46),   # warm mid-flesh — Venetian impasto
+            (0.50, 0.38, 0.22),   # brown mid-shadow — raw umber
+            (0.08, 0.06, 0.10),   # near-black void — very dark Venetian ground
+            (0.22, 0.32, 0.60),   # Prussian blue — deep drapery shadow
+            (0.68, 0.18, 0.12),   # Venetian crimson — accent, martyrdom
+            (0.38, 0.48, 0.32),   # deep olive green — foliage / background
+            (0.82, 0.72, 0.55),   # warm Naples yellow — impasto foreground
+        ],
+        ground_color=(0.10, 0.07, 0.05),    # near-black Venetian ground — maximum tonal drama
+        stroke_size=10,
+        wet_blend=0.35,                      # moderate — impasto marks stay visible but wet
+        edge_softness=0.42,                  # readable edges, some Venetian atmospheric quality
+        jitter=0.048,                        # bold, gestural variation per mark
+        glazing=(0.48, 0.42, 0.18),          # deep amber Venetian varnish — rich depth
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Tintoretto — dubbed 'Il Furioso' by Aretino for the speed and violence "
+            "of his paint application — combined Venetian colourism with a Michelangelesque "
+            "command of dramatic anatomy and composition.  Where Titian built luminosity "
+            "through patient transparent glazing, Tintoretto slashed silver-white impasto "
+            "highlights directly onto near-black grounds: the light reads not as warm gold "
+            "but as cool, electric silver, as if a bolt of lightning illuminates the scene "
+            "from an oblique upper angle rather than a steady window.  "
+            "His dark grounds are among the most extreme in Italian painting — in the "
+            "Scuola Grande di San Rocco paintings the canvas absorbs light rather than "
+            "reflecting it, with figures materialising from near-absolute darkness.  "
+            "Compositionally, Tintoretto rejected the static triangular groupings of the "
+            "High Renaissance in favour of violent diagonals: figures recede sharply into "
+            "depth or lunge toward the viewer, foreshortened to near-impossibility.  "
+            "His brushwork at close range is almost incomprehensible — loose, slashing, "
+            "apparently careless marks — yet at viewing distance they resolve into urgent "
+            "flesh and drapery with total conviction.  "
+            "The silver highlight is his most distinctive single technique: a loaded filbert "
+            "brush dragged rapidly across a dark surface, breaking at the edge of a form, "
+            "leaving a bright trail that reads simultaneously as a ridge of impasto paint and "
+            "a flash of divine light.  This is neither Rembrandt's single warm-amber glowing "
+            "triangle nor Leonardo's smooth sfumato transition — it is abrupt, directional, "
+            "and luminously cool, as if the form is struck by its own internal electricity."
+        ),
+        famous_works=[
+            ("The Miracle of the Slave",               "1548"),
+            ("Saint George and the Dragon",            "c. 1555–1558"),
+            ("The Last Supper (San Giorgio Maggiore)", "1592–1594"),
+            ("The Origin of the Milky Way",            "c. 1575"),
+            ("Paradise (Doge's Palace)",               "1588–1592"),
+            ("The Finding of the Body of Saint Mark",  "1562–1566"),
+            ("Susanna and the Elders",                 "c. 1555"),
+            ("Crucifixion (Scuola Grande di San Rocco)", "1565"),
+        ],
+        inspiration=(
+            "Use tintoretto_dynamic_light_pass() after build_form() to model "
+            "Tintoretto's signature silver lightning-highlight quality: extreme contrast "
+            "amplification deepens the already-dark ground, while a silver-cool "
+            "directional highlight push cuts across form boundaries — lifting the brightest "
+            "impasto ridges toward silver-white rather than warm Naples yellow.  "
+            "Shadow deepening pulls dark zones toward the near-black ground colour, "
+            "widening the tonal gap between light and dark far beyond naturalistic range.  "
+            "ground_color=(0.10, 0.07, 0.05) is the darkest in the Venetian catalog — "
+            "even darker than Caravaggio's tenebrism (0.06, 0.04, 0.02 RG-biased) — "
+            "distinguished by a slight cool-brown rather than pure black, reflecting "
+            "Tintoretto's use of a brown-toned lead-white priming rather than Caravaggio's "
+            "pure black bitumen ground.  "
+            "wet_blend=0.35 keeps marks impasted and semi-wet — paint is worked, not dry, "
+            "but not as fluid as Titian.  "
+            "glazing=(0.48, 0.42, 0.18) applies a deep amber unifying varnish that "
+            "warms the whole surface, uniting the silver highlights and dark shadows "
+            "under a common amber tonality — the characteristic depth of old Venetian panels."
+        ),
+    ),
+
     # ── Session 52 ─────────────────────────────────────────────────────────────
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",

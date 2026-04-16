@@ -229,6 +229,7 @@ class Period(Enum):
     NORDIC_EXPRESSIONIST = auto()    # Munch — sinuous swirling lines, raw psychological color, existential anxiety rendered as landscape distortion
     DUTCH_GOLDEN_AGE  = auto()       # Frans Hals — bravura alla prima, broken tone, low wet-blend, crisp directional marks
     DANISH_INTIMISTE  = auto()       # Hammershøi — near-monochrome silver-grey, diffuse north window light, profound stillness, invisible blending
+    VENETIAN_MANNERIST = auto()     # Tintoretto — near-black void ground, silver lightning highlights, violent diagonal composition, Venetian-cool impasto
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -805,6 +806,17 @@ class Style:
             # edge_softness=0.72: very high — all edges dissolve softly; even the figure-background
             # boundary is a gradual tone transition, not a line.  The silence of the image lives here.
             Period.DANISH_INTIMISTE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.75, edge_softness=0.72),
+            # Venetian Mannerist (Tintoretto): furious impasto on a near-black Venetian ground.
+            # stroke_size_face=10: bold, gestural face strokes — Tintoretto's alla prima impasto
+            # is thick and rapid; marks are large and slashing, not fussy.  stroke_size_bg=35:
+            # very large background strokes — the near-black void needs only a few vast sweeps;
+            # detailed background work would contradict the urgent, dramatic character.
+            # wet_blend=0.35: moderate — marks are semi-wet and worked into each other at edges
+            # but the impasto ridges stay distinct and directional, not dissolved like Titian.
+            # edge_softness=0.42: readable edges with some atmospheric quality — figures are
+            # legible against the dark ground but not Flemish-crisp; a slight Venetian atmospheric
+            # softness keeps the transition between figure and void dramatic rather than surgical.
+            Period.VENETIAN_MANNERIST: dict(stroke_size_face=10, stroke_size_bg=35, wet_blend=0.35, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
