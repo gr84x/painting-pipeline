@@ -3908,6 +3908,86 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Frans Hals ─────────────────────────────────────────────────────────────
+    "frans_hals": ArtStyle(
+        artist="Frans Hals",
+        movement="Dutch Golden Age",
+        nationality="Dutch",
+        period="c. 1610–1666",
+        palette=[
+            (0.92, 0.84, 0.70),   # warm ivory (lit flesh highlights)
+            (0.72, 0.52, 0.32),   # raw sienna (mid-tone flesh)
+            (0.50, 0.30, 0.18),   # burnt umber (shadow flesh)
+            (0.14, 0.12, 0.10),   # ivory black (costume darks)
+            (0.96, 0.94, 0.88),   # lead white (direct impasto highlights)
+            (0.80, 0.42, 0.30),   # vermillion-sienna (warm blush accents)
+            (0.38, 0.34, 0.28),   # warm grey (transitional half-tone)
+        ],
+        ground_color=(0.78, 0.70, 0.52),   # warm straw-buff priming ground
+        stroke_size=8.0,
+        wet_blend=0.14,
+        edge_softness=0.18,
+        jitter=0.048,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Frans Hals's revolutionary technique is built on alla prima bravura "
+            "brushwork — each stroke placed directly, wet-on-wet in a single session, "
+            "without subsequent reworking or glazing.  His marks are short, angled, and "
+            "asymmetric; each stroke follows the local form direction approximately but "
+            "deviates at a bold angle, creating the characteristic restless spontaneity "
+            "of his surfaces that no other seventeenth-century painter approached.  "
+            "Hals's defining innovation is 'broken tone': adjacent strokes of slightly "
+            "different values are placed side-by-side rather than blended, so the "
+            "flesh passages appear to vibrate with life when viewed from normal reading "
+            "distance — the eye performs the tonal synthesis, not the brush.  This "
+            "technique anticipates Impressionist divided colour by two centuries.  "
+            "His palette is deliberately simple and direct: warm ivory and lead-white "
+            "for the lit passages of flesh; raw sienna for mid-tones; burnt umber for "
+            "the deepest shadow passages.  Vermillion accents animate lips and warm "
+            "cheek passages.  Ivory black provides the decisive costume darks — Hals "
+            "often left his black drapery areas as thin, single-layer washes rather "
+            "than building them up, creating a thin translucency in the dark areas "
+            "that contrasts vividly with the thick impasto highlights above.  "
+            "The warm straw-buff ground (ground_color) is the key structural element: "
+            "Hals allowed the priming to remain partially visible in the half-tone "
+            "passages as the mid-value, relying on it rather than mixing a mid-tone "
+            "pigment.  This creates the characteristic warm optical unity of his "
+            "canvases without any unifying glaze.  Edges are crisp and directional — "
+            "each stroke has a clear start and finish, never fading softly into the "
+            "ground the way Leonardo's sfumato does.  The cumulative effect is "
+            "spontaneous and psychologically alive, as if caught in the instant of "
+            "perception rather than constructed over many sessions."
+        ),
+        famous_works=[
+            ("The Laughing Cavalier",                       "1624"),
+            ("Malle Babbe",                                 "c. 1633–1635"),
+            ("Regents of the Old Men's Alms House",         "1664"),
+            ("Regentesses of the Old Men's Alms House",     "1664"),
+            ("Banquet of the Officers of the St George Militia", "1616"),
+            ("Portrait of a Man",                           "c. 1660"),
+            ("The Merry Drinker",                           "c. 1628–1630"),
+        ],
+        inspiration=(
+            "Use hals_bravura_stroke_pass() for the defining alla prima broken-tone "
+            "technique — short, multi-angled strokes with high per-stroke colour "
+            "jitter placed directly on the canvas with low wet_blend.  "
+            "Warm straw ground_color (0.78, 0.70, 0.52) must remain partially "
+            "visible in the half-tone passages — it supplies the warm mid-tone "
+            "that Hals relied on rather than mixing it into the paint.  "
+            "stroke_size=8.0 is the primary figure mark; reduce to 5.0–6.0 for "
+            "the fine face-detail pass.  wet_blend=0.14 keeps strokes crisp and "
+            "alla prima — increasing this destroys the bravura character.  "
+            "High jitter=0.048 ensures no two adjacent strokes are identical — "
+            "the per-stroke colour variation IS the broken-tone technique, not a "
+            "flaw.  glazing=None — Hals worked direct, no unifying glaze layers.  "
+            "angle_jitter_deg=42 in hals_bravura_stroke_pass() simulates the bold "
+            "deviation from the flow field that gives his marks their spontaneous "
+            "energy; do not reduce below 35 or the surface becomes too regular."
+        ),
+    ),
+
 }
 
 

@@ -225,6 +225,7 @@ class Period(Enum):
     FRENCH_ROCOCO = auto()           # Fragonard — bravura loaded-brush highlights, warm cream-peach palette, spontaneous gestural marks, warm amber-honey glaze
     FRENCH_IMPRESSIONIST = auto()    # Renoir — rich chromatic saturation, warm rose-peach flesh, dappled light, feathery curving brushwork, peach-rose glaze
     NORDIC_EXPRESSIONIST = auto()    # Munch — sinuous swirling lines, raw psychological color, existential anxiety rendered as landscape distortion
+    DUTCH_GOLDEN_AGE  = auto()       # Frans Hals — bravura alla prima, broken tone, low wet-blend, crisp directional marks
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -756,6 +757,17 @@ class Style:
             # edge_softness=0.38: moderate — figures are readable but edges dissolve into
             # the swirling background, figure and landscape sharing the same psychic turbulence.
             Period.NORDIC_EXPRESSIONIST: dict(stroke_size_face=9, stroke_size_bg=28, wet_blend=0.45, edge_softness=0.38),
+            # Dutch Golden Age (Frans Hals): bravura alla prima portraiture on a warm straw ground.
+            # stroke_size_face=8: medium-confident marks — Hals's primary figure stroke was broad
+            # and decisive, placed in a single loaded application and left.  stroke_size_bg=24:
+            # moderate background strokes; Hals's backgrounds are loosely indicated dark fields,
+            # not sfumatoed or elaborately worked.
+            # wet_blend=0.14: very low — this is the definitive alla prima setting; strokes are
+            # set down and left without wet-into-wet fusion.  The broken tone comes from value
+            # contrast between adjacent strokes, not from blending.
+            # edge_softness=0.18: crisp, directional edges — each stroke has a clear start and
+            # finish; no sfumato dissolving; the edge IS the stroke itself.
+            Period.DUTCH_GOLDEN_AGE: dict(stroke_size_face=8, stroke_size_bg=24, wet_blend=0.14, edge_softness=0.18),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

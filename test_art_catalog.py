@@ -62,6 +62,8 @@ EXPECTED_ARTISTS = [
     "winslow_homer",
     "jean_honore_fragonard",
     "pierre_auguste_renoir",
+    "munch",
+    "frans_hals",
 ]
 
 
@@ -5034,4 +5036,149 @@ def test_nordic_expressionist_moderate_edge_softness():
     sp = Style(medium=Medium.OIL, period=Period.NORDIC_EXPRESSIONIST).stroke_params
     assert 0.20 <= sp["edge_softness"] <= 0.55, (
         f"NORDIC_EXPRESSIONIST edge_softness={sp['edge_softness']:.2f} should be in [0.20, 0.55]")
+
+
+# ── Frans Hals catalog tests ───────────────────────────────────────────────────
+
+def test_frans_hals_in_catalog():
+    """Frans Hals must be present in CATALOG under the key 'frans_hals'."""
+    assert "frans_hals" in CATALOG, "frans_hals not found in CATALOG"
+
+
+def test_frans_hals_style_retrieval():
+    """get_style('frans_hals') must return an ArtStyle without raising."""
+    s = get_style("frans_hals")
+    assert s is not None
+    assert s.artist == "Frans Hals"
+
+
+def test_frans_hals_movement():
+    """Frans Hals must be catalogued under the Dutch Golden Age movement."""
+    s = get_style("frans_hals")
+    assert "Dutch Golden Age" in s.movement, (
+        f"Expected 'Dutch Golden Age' in movement, got {s.movement!r}")
+
+
+def test_frans_hals_nationality():
+    """Frans Hals must be recorded as Dutch."""
+    s = get_style("frans_hals")
+    assert "Dutch" in s.nationality, (
+        f"Expected 'Dutch' in nationality, got {s.nationality!r}")
+
+
+def test_frans_hals_palette_length():
+    """Frans Hals palette must have at least 5 colour entries."""
+    s = get_style("frans_hals")
+    assert len(s.palette) >= 5, (
+        f"Frans Hals palette should have ≥5 colours; got {len(s.palette)}")
+
+
+def test_frans_hals_palette_values_in_range():
+    """All palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("frans_hals")
+    for i, rgb in enumerate(s.palette):
+        for c_idx, c in enumerate(rgb):
+            assert 0.0 <= c <= 1.0, (
+                f"Frans Hals palette[{i}][{c_idx}] = {c:.4f} out of [0, 1]")
+
+
+def test_frans_hals_warm_ground():
+    """Frans Hals's ground_color must be warm (R > B)."""
+    s = get_style("frans_hals")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Frans Hals ground_color should be warm (R > B); got R={r:.2f} B={b:.2f}")
+    assert 0.0 <= r <= 1.0 and 0.0 <= g <= 1.0 and 0.0 <= b <= 1.0, (
+        "Frans Hals ground_color values must be in [0, 1]")
+
+
+def test_frans_hals_no_glazing():
+    """Frans Hals worked alla prima without a unifying glaze — glazing must be None."""
+    s = get_style("frans_hals")
+    assert s.glazing is None, (
+        f"Frans Hals glazing should be None (no unifying glaze); got {s.glazing!r}")
+
+
+def test_frans_hals_famous_works_include_laughing_cavalier():
+    """The Laughing Cavalier must be in Frans Hals's famous works."""
+    s = get_style("frans_hals")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Laughing Cavalier" in t for t in titles), (
+        "Frans Hals famous works should include The Laughing Cavalier (1624)")
+
+
+def test_frans_hals_famous_works_count():
+    """Frans Hals should have at least 5 famous works documented."""
+    s = get_style("frans_hals")
+    assert len(s.famous_works) >= 5, (
+        f"Frans Hals should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_Frans_hals_inspiration_references_bravura_pass():
+    """Inspiration text must reference hals_bravura_stroke_pass."""
+    s = get_style("frans_hals")
+    assert "hals_bravura_stroke" in s.inspiration.lower().replace(" ", "_"), (
+        "Frans Hals inspiration should reference hals_bravura_stroke_pass() — "
+        "the dedicated alla prima broken-tone pass")
+
+
+def test_Frans_hals_low_wet_blend():
+    """Alla prima technique demands low wet_blend (no wet-into-wet fusion)."""
+    s = get_style("frans_hals")
+    assert s.wet_blend <= 0.25, (
+        f"Frans Hals wet_blend should be low (≤0.25 for alla prima); got {s.wet_blend:.2f}")
+
+
+def test_Frans_hals_low_edge_softness():
+    """Crisp directional bravura marks demand low edge_softness (no sfumato)."""
+    s = get_style("frans_hals")
+    assert s.edge_softness <= 0.30, (
+        f"Frans Hals edge_softness should be low (≤0.30 for crisp marks); got {s.edge_softness:.2f}")
+
+
+def test_Frans_hals_high_jitter():
+    """Broken-tone variation requires jitter > 0.03."""
+    s = get_style("frans_hals")
+    assert s.jitter > 0.03, (
+        f"Frans Hals jitter should be > 0.03 (broken-tone variation); got {s.jitter:.3f}")
+
+
+# ── DUTCH_GOLDEN_AGE Period stroke params ─────────────────────────────────────
+
+def test_dutch_golden_age_period_exists():
+    """Period.DUTCH_GOLDEN_AGE must exist in the Period enum."""
+    assert hasattr(Period, "DUTCH_GOLDEN_AGE"), (
+        "Period.DUTCH_GOLDEN_AGE not found — add it to scene_schema.py")
+
+
+def test_dutch_golden_age_stroke_params_keys():
+    """DUTCH_GOLDEN_AGE stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.DUTCH_GOLDEN_AGE).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"DUTCH_GOLDEN_AGE stroke_params missing key: {key!r}"
+
+
+def test_dutch_golden_age_stroke_params_ranges():
+    """DUTCH_GOLDEN_AGE stroke_params values must be in valid numeric ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.DUTCH_GOLDEN_AGE).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"DUTCH_GOLDEN_AGE stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"DUTCH_GOLDEN_AGE wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"DUTCH_GOLDEN_AGE edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_dutch_golden_age_low_wet_blend():
+    """DUTCH_GOLDEN_AGE wet_blend should be in [0.05, 0.25] — alla prima, minimal fusion."""
+    sp = Style(medium=Medium.OIL, period=Period.DUTCH_GOLDEN_AGE).stroke_params
+    assert 0.05 <= sp["wet_blend"] <= 0.25, (
+        f"DUTCH_GOLDEN_AGE wet_blend={sp['wet_blend']:.2f} should be in [0.05, 0.25]")
+
+
+def test_dutch_golden_age_low_edge_softness():
+    """DUTCH_GOLDEN_AGE edge_softness should be in [0.05, 0.28] — crisp directional marks."""
+    sp = Style(medium=Medium.OIL, period=Period.DUTCH_GOLDEN_AGE).stroke_params
+    assert 0.05 <= sp["edge_softness"] <= 0.28, (
+        f"DUTCH_GOLDEN_AGE edge_softness={sp['edge_softness']:.2f} should be in [0.05, 0.28]")
 
