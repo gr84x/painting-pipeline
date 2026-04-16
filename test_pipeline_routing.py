@@ -5910,3 +5910,97 @@ def test_munch_anxiety_swirl_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.18, 0.14, 0.10), texture_strength=0.0)
     p.munch_anxiety_swirl_pass(n_swirl_strokes=80, color_intensity=0.55, stroke_opacity=0.30)
+
+
+# ── hals_bravura_stroke_pass tests ────────────────────────────────────────────
+
+def test_hals_bravura_stroke_pass_exists():
+    """Painter must have hals_bravura_stroke_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hals_bravura_stroke_pass"), (
+        "hals_bravura_stroke_pass not found on Painter")
+    assert callable(getattr(Painter, "hals_bravura_stroke_pass"))
+
+
+def test_hals_bravura_stroke_pass_no_reference():
+    """hals_bravura_stroke_pass() runs without error when no reference is passed."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.hals_bravura_stroke_pass(n_strokes=40, stroke_size=6.0, opacity=0.55)
+
+
+def test_hals_bravura_stroke_pass_with_reference():
+    """hals_bravura_stroke_pass() runs without error when a reference is passed."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.hals_bravura_stroke_pass(ref, n_strokes=40, stroke_size=6.0, opacity=0.55)
+
+
+def test_hals_bravura_stroke_pass_changes_canvas():
+    """hals_bravura_stroke_pass() must modify canvas pixels when n_strokes > 0."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.hals_bravura_stroke_pass(n_strokes=80, stroke_size=6.0, opacity=0.65)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "hals_bravura_stroke_pass should change the canvas — no strokes were drawn")
+
+
+def test_hals_bravura_stroke_pass_zero_strokes_is_noop():
+    """hals_bravura_stroke_pass(n_strokes=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.hals_bravura_stroke_pass(n_strokes=0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "hals_bravura_stroke_pass(n_strokes=0) should be a noop")
+
+
+def test_hals_bravura_stroke_pass_broken_tone_disabled():
+    """hals_bravura_stroke_pass(broken_tone=False) must run without error."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.hals_bravura_stroke_pass(ref, n_strokes=40, broken_tone=False, opacity=0.55)
+
+
+def test_hals_bravura_stroke_pass_with_figure_mask():
+    """hals_bravura_stroke_pass() accepts and uses a figure_mask without error."""
+    p    = _make_small_painter(64, 64)
+    ref  = _solid_reference(64, 64)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[10:54, 12:52] = 1.0
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.hals_bravura_stroke_pass(ref, n_strokes=50, figure_mask=mask, opacity=0.60)
+
+
+def test_hals_bravura_stroke_pass_custom_params():
+    """hals_bravura_stroke_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.hals_bravura_stroke_pass(
+        n_strokes        = 30,
+        stroke_size      = 5.0,
+        opacity          = 0.50,
+        angle_jitter_deg = 35.0,
+        color_jitter     = 0.03,
+        broken_tone      = True,
+    )
+
+
+def test_hals_bravura_stroke_pass_large_canvas():
+    """hals_bravura_stroke_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.hals_bravura_stroke_pass(n_strokes=120, stroke_size=8.0, opacity=0.55)

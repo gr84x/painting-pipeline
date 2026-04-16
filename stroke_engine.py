@@ -13340,3 +13340,210 @@ class Painter:
             strokes_placed += 1
 
         print(f"    Munch anxiety swirl pass complete  ({strokes_placed} swirl strokes placed)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # hals_bravura_stroke_pass — inspired by Frans Hals
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def hals_bravura_stroke_pass(
+        self,
+        reference:        Union[np.ndarray, Image.Image, None] = None,
+        *,
+        n_strokes:        int   = 480,
+        stroke_size:      float = 8.0,
+        opacity:          float = 0.62,
+        angle_jitter_deg: float = 42.0,
+        color_jitter:     float = 0.05,
+        broken_tone:      bool  = True,
+        figure_mask:      Optional[np.ndarray] = None,
+    ) -> None:
+        """
+        Hals Bravura Stroke Pass — Frans Hals's alla prima broken-tone technique.
+
+        Frans Hals (c. 1582–1666) was the first great master of the 'broken
+        tone': adjacent strokes of slightly different value and colour
+        temperature are set down directly on the canvas without blending, so
+        the eye synthesises the tonal mixture from a normal reading distance.
+        This anticipates Impressionist divided colour by two centuries and
+        gives Hals's portraits their startling sense of psychological
+        immediacy — as if the sitter were caught mid-thought.
+
+        The improvement this pass introduces
+        -------------------------------------
+        No previous pass in this pipeline simulates 'broken tone' as a
+        deliberate compositional strategy.  Existing passes blend colours
+        through wet_blend or glaze layers.  This pass withholds blending
+        entirely and instead places two value-contrasting strokes side-by-side,
+        trusting the viewer's eye to resolve the optical mixture.  This is a
+        distinct artistic capability not previously available in the pipeline.
+
+        Implementation strategy
+        -----------------------
+        The pass samples n_strokes positions across the canvas, each time
+        reading the reference colour at that location and applying a bold
+        angular jitter (±angle_jitter_deg degrees) to the local flow-field
+        direction.  Each stroke is short — approximately 2–3× its width — to
+        match the compact, decisive mark Hals preferred.  Per-stroke colour
+        jitter (color_jitter) ensures no two adjacent strokes are identical;
+        the variation is the technique, not a flaw.
+
+        When broken_tone=True (default), each primary stroke is accompanied
+        by a slightly lighter or darker companion stroke offset roughly one
+        brush-width perpendicular to the stroke direction.  The companion uses
+        an inverted value delta (lighter companion for a shadow stroke, darker
+        companion for a highlight stroke), creating the shimmering half-tone
+        quality that distinguishes Hals from any smooth-blended technique.
+
+        Parameters
+        ----------
+        reference : PIL Image, numpy array, or None
+            Reference to sample colours from.  When None the current canvas
+            buffer is used as reference — useful for a post-processing pass.
+        n_strokes : int
+            Number of bravura strokes.  480 gives good coverage on 512×512.
+        stroke_size : float
+            Base brush radius in pixels.  8.0 is the primary Hals mark.
+        opacity : float
+            Per-stroke opacity in [0, 1].  0.62 places marks confidently
+            without fully obliterating the warm straw ground.
+        angle_jitter_deg : float
+            Maximum angular deviation from local flow direction in degrees.
+            42.0 produces the spontaneous multi-directional quality of Hals.
+            Do not reduce below 35 or the surface becomes too regular.
+        color_jitter : float
+            Per-stroke colour variation amplitude.  0.05 is faithful to
+            Hals's subtle broken tone; raise toward 0.10 for more vibration.
+        broken_tone : bool
+            When True, each primary stroke is accompanied by a value-shifted
+            companion stroke to simulate Hals's broken-tone technique.
+        figure_mask : numpy array, optional
+            Overrides self._figure_mask for stroke placement bias.
+
+        Notes
+        -----
+        Call AFTER block_in() / build_form() and BEFORE any final glaze().
+        No glazing pass is needed or recommended afterward — Hals finished
+        directly, without a unifying glaze layer.
+        Pair with tone_ground((0.78, 0.70, 0.52)) beforehand so the warm
+        straw buff shows through in the half-tone areas.
+        """
+        print(f"  Hals bravura stroke pass  "
+              f"(n={n_strokes}  size={stroke_size:.1f}  "
+              f"opacity={opacity:.2f}  broken_tone={broken_tone})…")
+
+        h, w = self.h, self.w
+
+        # ── Reference: sample canvas buffer when none provided ────────────────
+        if reference is not None:
+            ref  = self._prep(reference)
+            rarr = ref[:, :, :3].astype(np.float32) / 255.0
+        else:
+            # Use current canvas state as colour reference
+            buf  = np.frombuffer(self.canvas.surface.get_data(),
+                                 dtype=np.uint8).reshape(h, w, 4).copy()
+            # Cairo stores BGRA; convert to RGB for consistency
+            rarr = buf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        # ── Flow field: stroke angle follows colour contours ──────────────────
+        angles = flow_field(rarr)
+
+        # ── Effective region mask ──────────────────────────────────────────────
+        effective_mask = figure_mask if figure_mask is not None else self._figure_mask
+
+        # ── Sampling weight: uniform with modest figure bias ──────────────────
+        # Hals painted background and figure with the same bravura approach,
+        # so we do not mask to figure only — we merely weight figure pixels
+        # slightly higher to concentrate detail where it matters.
+        weight = np.ones((h, w), dtype=np.float32)
+        if effective_mask is not None:
+            weight = np.where(effective_mask > 0.5, 2.0, 1.0).astype(np.float32)
+        weight_flat = weight.flatten()
+        weight_flat /= weight_flat.sum() + 1e-9
+
+        if n_strokes <= 0:
+            print("    Hals bravura stroke pass skipped (n_strokes=0)")
+            return
+
+        positions = self.rng.choice(h * w, size=n_strokes,
+                                    p=weight_flat, replace=True)
+
+        tip              = BrushTip(BrushTip.FILBERT)
+        angle_jitter_rad = math.radians(angle_jitter_deg)
+        strokes_placed   = 0
+
+        for pos in positions:
+            py, px = int(pos // w), int(pos % w)
+            margin = max(4, int(stroke_size * 2))
+            px = int(np.clip(px, margin, w - margin))
+            py = int(np.clip(py, margin, h - margin))
+
+            # ── Colour from reference + per-stroke jitter ─────────────────────
+            col = tuple(float(rarr[py, px, c]) for c in range(3))
+            col = jitter(col, color_jitter, self._rng_py)
+
+            # ── Stroke direction: flow field + bold angular jitter ────────────
+            # Hals's bravura mark does not consistently follow the form contour;
+            # it departs at a bold angle, creating the restless spontaneous energy
+            # of his technique.  angle_jitter_rad applies a uniform random offset
+            # of up to ±42° from the locally dominant colour-contour direction.
+            a = (float(angles[py, px])
+                 + self._rng_py.uniform(-angle_jitter_rad, angle_jitter_rad))
+
+            # ── Short, decisive stroke: ~2–3× width in length ─────────────────
+            length = stroke_size * self._rng_py.uniform(2.0, 3.2)
+            start  = (px - math.cos(a) * length * 0.5,
+                      py - math.sin(a) * length * 0.5)
+            # Slight S-curve (curve parameter) for organic cursive quality
+            curve = self._rng_py.uniform(-0.18, 0.18)
+            pts   = stroke_path(start, a, length,
+                                curve=curve,
+                                n=max(3, int(length / 4)))
+            ws    = [stroke_size * self._rng_py.uniform(0.75, 1.15)] * len(pts)
+
+            self.canvas.apply_stroke(
+                pts, ws, col, tip,
+                opacity=opacity,
+                wet_blend=0.10,        # alla prima: minimal wet blending
+                jitter_amt=color_jitter * 0.5,
+                rng=self._rng_py,
+                region_mask=effective_mask,
+            )
+            strokes_placed += 1
+
+            # ── Broken-tone companion stroke ───────────────────────────────────
+            # Hals's defining innovation: a value-shifted companion stroke placed
+            # perpendicular to the primary, one brush-width offset.  The companion
+            # is lighter adjacent to a shadow stroke and darker adjacent to a
+            # highlight stroke — the eye resolves the optical mixture into a
+            # vibrant, living half-tone that no blended technique can replicate.
+            if broken_tone:
+                lum = 0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]
+                # Positive delta (lighter) for dark strokes; negative (darker) for lights
+                value_delta = 0.12 if lum < 0.45 else -0.09
+                comp_col = (
+                    max(0.0, min(1.0, col[0] + value_delta)),
+                    max(0.0, min(1.0, col[1] + value_delta * 0.88)),
+                    max(0.0, min(1.0, col[2] + value_delta * 0.72)),
+                )
+                # Perpendicular offset — one brush-radius away from primary stroke
+                perp_offset = stroke_size * 0.85
+                perp_cos    = -math.sin(a)
+                perp_sin    =  math.cos(a)
+                comp_pts    = [
+                    (px_ + perp_cos * perp_offset,
+                     py_ + perp_sin * perp_offset)
+                    for (px_, py_) in pts
+                ]
+                comp_ws = [wi * 0.75 for wi in ws]
+
+                self.canvas.apply_stroke(
+                    comp_pts, comp_ws, comp_col, tip,
+                    opacity=opacity * 0.55,
+                    wet_blend=0.06,
+                    jitter_amt=color_jitter * 0.35,
+                    rng=self._rng_py,
+                    region_mask=effective_mask,
+                )
+
+        print(f"    Hals bravura stroke pass complete  "
+              f"({strokes_placed} bravura strokes placed)")
