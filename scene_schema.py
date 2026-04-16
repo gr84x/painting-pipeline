@@ -219,6 +219,7 @@ class Period(Enum):
     FLORENTINE_RENAISSANCE = auto()  # Botticelli — pale gesso ground, sinuous linear grace, tempera hatching, chrysographic gold filaments
     NORTHERN_RENAISSANCE = auto()    # Dürer — pale silver-white ground, cool engraving-precision, cross-hatch shadows, single-hair detail
     QUATTROCENTO  = auto()           # Fra Angelico — chalk-white gesso, tempera hatching, pure lapis/vermilion, gold-leaf halos
+    FRENCH_CLASSICAL = auto()        # Poussin — cool architectural clarity, silver shadows, rational colour zones, saturation discipline
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -690,6 +691,16 @@ class Style:
             # edge_softness=0.15: crisp, present outlines — the Gothic-influenced contour
             # line defines every figure; no sfumato; edges are drawn, not tonal gradients.
             Period.QUATTROCENTO:  dict(stroke_size_face=3, stroke_size_bg=14, wet_blend=0.04, edge_softness=0.15),
+            # French Classical (Poussin): deliberate, considered brushwork — no impasto, no alla prima.
+            # stroke_size_face=7: precise medium marks — Poussin modelled his figures with patient,
+            # controlled strokes rather than the broad confident passes of Baroque or Impressionist
+            # painting.  stroke_size_bg=24: moderate background strokes — his Arcadian landscapes
+            # are carefully constructed, not loosely indicated.
+            # wet_blend=0.38: moderate — Poussin layered deliberately; each passage dried before the
+            # next, giving a cool, sober surface rather than the fluid warmth of wet-on-wet Baroque.
+            # edge_softness=0.42: clear, legible Classical boundaries — forms read as rational sculpture;
+            # no sfumato haze, no razor Tenebrist knife-edge; edges are present and considered.
+            Period.FRENCH_CLASSICAL: dict(stroke_size_face=7, stroke_size_bg=24, wet_blend=0.38, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

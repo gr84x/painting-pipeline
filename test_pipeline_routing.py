@@ -4786,3 +4786,197 @@ def test_flemish_baroque_period_in_enum():
     """Period.FLEMISH_BAROQUE must be a valid member of the Period enum."""
     assert hasattr(Period, "FLEMISH_BAROQUE"), (
         "Period enum is missing FLEMISH_BAROQUE — add it to scene_schema.py")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Nicolas Poussin / FRENCH_CLASSICAL — Period enum + pass tests
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_french_classical_period_in_enum():
+    """Period.FRENCH_CLASSICAL must be a valid member of the Period enum."""
+    assert hasattr(Period, "FRENCH_CLASSICAL"), (
+        "Period enum is missing FRENCH_CLASSICAL — add it to scene_schema.py")
+
+
+def test_french_classical_stroke_params_keys():
+    """FRENCH_CLASSICAL stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_CLASSICAL).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"FRENCH_CLASSICAL stroke_params missing key: {key!r}"
+
+
+def test_french_classical_stroke_params_ranges():
+    """FRENCH_CLASSICAL stroke_params values must be in valid ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_CLASSICAL).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"FRENCH_CLASSICAL stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"FRENCH_CLASSICAL wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"FRENCH_CLASSICAL edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_poussin_classical_clarity_pass_exists():
+    """Painter must have a poussin_classical_clarity_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "poussin_classical_clarity_pass"), (
+        "Painter is missing poussin_classical_clarity_pass — add it to stroke_engine.py")
+
+
+def test_poussin_classical_clarity_pass_modifies_canvas():
+    """poussin_classical_clarity_pass() must alter the canvas from its initial state."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Mid-grey with slight warmth — the pass should introduce cool corrections
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.poussin_classical_clarity_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert not _np.array_equal(before, after), (
+        "poussin_classical_clarity_pass should change the canvas when opacity=1.0")
+
+
+def test_poussin_classical_clarity_pass_opacity_zero_is_noop():
+    """poussin_classical_clarity_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.poussin_classical_clarity_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert _np.array_equal(before, after), (
+        "poussin_classical_clarity_pass(opacity=0) should be a noop")
+
+
+def test_poussin_classical_clarity_pass_cools_shadows():
+    """
+    On a near-black canvas (lum ~0.08, well below shadow_thresh=0.32),
+    the B channel should increase after poussin_classical_clarity_pass —
+    the cool blue-grey shadow push.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Near-black neutral: R=G=B=20 → lum~0.08, below shadow_thresh=0.32
+    p.tone_ground((20/255, 20/255, 20/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    b_before = before[:, :, 0].astype(_np.float32).mean()   # BGRA index 0 = Blue
+
+    p.poussin_classical_clarity_pass(
+        shadow_cool=0.20,
+        midtone_lift=0.0,
+        saturation_cap=1.0,    # disable saturation cap for isolation
+        highlight_ivory=0.0,
+        shadow_thresh=0.32,
+        opacity=1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+    b_after = after[:, :, 0].astype(_np.float32).mean()
+
+    assert b_after > b_before, (
+        f"poussin_classical_clarity_pass should boost B channel in deep shadows; "
+        f"B before={b_before:.1f}  B after={b_after:.1f}")
+
+
+def test_poussin_classical_clarity_pass_lifts_midtones():
+    """
+    On a mid-grey canvas (lum ~0.50, inside midtone_lo=0.32..midtone_hi=0.68),
+    the average luminance should increase after poussin_classical_clarity_pass —
+    the mid-tone clarification lift.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Pure mid-grey: R=G=B=128 → lum~0.50, inside the mid-tone band
+    p.tone_ground((128/255, 128/255, 128/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    lum_before = (0.299 * before[:, :, 2].astype(_np.float32)
+                + 0.587 * before[:, :, 1].astype(_np.float32)
+                + 0.114 * before[:, :, 0].astype(_np.float32)).mean()
+
+    p.poussin_classical_clarity_pass(
+        shadow_cool=0.0,
+        midtone_lift=0.10,
+        saturation_cap=1.0,
+        highlight_ivory=0.0,
+        midtone_lo=0.32,
+        midtone_hi=0.68,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+    lum_after = (0.299 * after[:, :, 2].astype(_np.float32)
+               + 0.587 * after[:, :, 1].astype(_np.float32)
+               + 0.114 * after[:, :, 0].astype(_np.float32)).mean()
+
+    assert lum_after > lum_before, (
+        f"poussin_classical_clarity_pass mid-tone lift should increase luminance; "
+        f"lum before={lum_before:.1f}  lum after={lum_after:.1f}")
+
+
+def test_poussin_classical_clarity_pass_caps_saturation():
+    """
+    On a fully saturated red canvas (R=255, G=B=0 → sat=1.0), the saturation
+    should be reduced after poussin_classical_clarity_pass(saturation_cap=0.70).
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Pure red: R=1.0, G=0, B=0 → saturation=1.0, well above cap of 0.70
+    p.tone_ground((1.0, 0.0, 0.0), texture_strength=0.0)
+
+    p.poussin_classical_clarity_pass(
+        shadow_cool=0.0,
+        midtone_lift=0.0,
+        saturation_cap=0.70,
+        highlight_ivory=0.0,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+    r_a = after[:, :, 2].astype(_np.float32) / 255.0
+    g_a = after[:, :, 1].astype(_np.float32) / 255.0
+    b_a = after[:, :, 0].astype(_np.float32) / 255.0
+
+    max_c  = _np.maximum(_np.maximum(r_a, g_a), b_a)
+    min_c  = _np.minimum(_np.minimum(r_a, g_a), b_a)
+    sat    = _np.where(max_c > 1e-6, (max_c - min_c) / max_c, 0.0)
+    max_sat = float(sat.max())
+
+    assert max_sat <= 0.70 + 0.05, (
+        f"poussin_classical_clarity_pass saturation_cap=0.70 should reduce max sat "
+        f"to ≤0.75; got max_sat={max_sat:.3f}")
+
+
+def test_poussin_classical_clarity_pass_custom_parameters():
+    """poussin_classical_clarity_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.40), texture_strength=0.0)
+    p.poussin_classical_clarity_pass(
+        shadow_cool      = 0.15,
+        midtone_lift     = 0.08,
+        saturation_cap   = 0.65,
+        highlight_ivory  = 0.06,
+        shadow_thresh    = 0.30,
+        highlight_thresh = 0.75,
+        midtone_lo       = 0.30,
+        midtone_hi       = 0.70,
+        opacity          = 0.75,
+    )
+
+
+def test_poussin_classical_clarity_pass_large_canvas():
+    """poussin_classical_clarity_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.60, 0.55, 0.45), texture_strength=0.0)
+    p.poussin_classical_clarity_pass(shadow_cool=0.10, midtone_lift=0.05, opacity=0.70)

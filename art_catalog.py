@@ -3272,6 +3272,90 @@ CATALOG: Dict[str, ArtStyle] = {
     # or grey in Rubens — they glow with a deep brownish-red transmitted light,
     # as though the figure were lit from within.  This is the quality that
     # rubens_flesh_vitality_pass() approximates.
+    # ── Nicolas Poussin ───────────────────────────────────────────────────────
+    # Poussin is the supreme classicist of European painting.  Born in Normandy,
+    # trained in Paris, he settled permanently in Rome in 1624 and devoted himself
+    # to classical antiquity, Stoic philosophy, and the rational organisation of
+    # pictorial space.  His paintings are argued compositions: every figure, every
+    # gesture, every colour zone is placed with deliberate architectural intent.
+    #
+    # Poussin's technique differs from the warm Baroque tradition around him in
+    # three crucial ways:
+    #
+    #   1. COOL SHADOWS — Unlike Rembrandt (warm brown), Rubens (brownish-red),
+    #      or Caravaggio (near-black), Poussin's shadow areas have a silvery,
+    #      blue-grey quality derived from his close study of classical marble
+    #      sculpture in Rome.  Marble casts cool grey shadows, and his figures —
+    #      conceived as living sculptures — reflect this quality.
+    #
+    #   2. RATIONAL COLOUR IDENTITY — Poussin dressed each figure in a distinct
+    #      colour badge (his famous azure/vermilion/yellow triads) so that the
+    #      composition could be read from across a gallery as a clear chromatic
+    #      argument.  No two major figures share the same hue.
+    #
+    #   3. SATURATION DISCIPLINE — His palette is radiant but never garish.
+    #      No colour dominates the whole surface; every hue is placed in a tonal
+    #      context that gives it value without allowing it to overwhelm.
+    #
+    # poussin_classical_clarity_pass() approximates these three qualities.
+    "nicolas_poussin": ArtStyle(
+        artist="Nicolas Poussin",
+        movement="French Classicism / Grand Manner",
+        nationality="French",
+        period="1624–1665",
+        palette=[
+            (0.80, 0.70, 0.56),   # warm ivory flesh highlight — cool lead white
+            (0.60, 0.48, 0.34),   # warm flesh mid-tone
+            (0.30, 0.18, 0.10),   # umber shadow flesh
+            (0.22, 0.44, 0.72),   # Poussin azure blue — his signature garment hue
+            (0.76, 0.24, 0.16),   # clear vermilion red — garment accent
+            (0.72, 0.68, 0.22),   # acid yellow-gold — sunlit fabric / hair
+            (0.28, 0.50, 0.30),   # classical forest green — landscape / drapery
+            (0.58, 0.60, 0.64),   # cool silver-grey shadow — marble-cast quality
+            (0.66, 0.62, 0.48),   # warm golden ochre — Arcadian landscape ground
+        ],
+        ground_color=(0.52, 0.48, 0.38),    # neutral warm ochre imprimatura — not the hot
+                                             # reddish-brown of Rubens; Poussin's ground
+                                             # is temperate and architectural
+        stroke_size=7,
+        wet_blend=0.38,                      # deliberate layering — not wet-on-wet alla prima;
+                                             # each passage is considered before the next begins
+        edge_softness=0.42,                  # clear, legible classical edges — no sfumato haze;
+                                             # forms read as rational sculpture, not atmosphere
+        jitter=0.022,
+        glazing=(0.60, 0.62, 0.64),          # cool silver-neutral unifying glaze — slightly more
+                                             # blue than red; the opposite of warm Baroque varnish
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Rational classical composition built on a moderate warm-ochre imprimatura.  "
+            "Each figure is given a distinct chromatic identity (azure/vermilion/yellow "
+            "triads) so the composition reads as a clear chromatic argument at distance.  "
+            "Shadows are cool and silvery — derived from the marble sculpture Poussin studied "
+            "in Rome — rather than the warm browns of the Baroque tradition.  "
+            "Brushwork is deliberate and patient: thin oil layers, no impasto, no wet-on-wet "
+            "alla prima; Poussin re-drew and re-painted passages until they satisfied his "
+            "geometric and philosophical criteria.  The final surface is smooth and silvery, "
+            "with a cool near-neutral glaze unifying the whole picture plane."
+        ),
+        famous_works=[
+            ("Et in Arcadia Ego (The Arcadian Shepherds)", "c. 1637–1638"),
+            ("The Rape of the Sabine Women",               "c. 1634–1635"),
+            ("A Dance to the Music of Time",               "c. 1634–1636"),
+            ("Landscape with Saint John on Patmos",        "1640"),
+            ("The Holy Family on the Steps",               "1648"),
+            ("Landscape with the Burial of Phocion",       "1648"),
+        ],
+        inspiration=(
+            "Apply poussin_classical_clarity_pass() for cool silver shadows, "
+            "rational mid-tone clarity, and saturation discipline.  "
+            "Use the azure/vermilion/yellow palette triad for figure garments.  "
+            "Cool silver-neutral glaze (0.60, 0.62, 0.64) at very low opacity "
+            "unifies without warming.  Keep wet_blend moderate (0.38) — Poussin "
+            "layers deliberately, not alla prima."
+        ),
+    ),
+
     "peter_paul_rubens": ArtStyle(
         artist="Peter Paul Rubens",
         movement="Flemish Baroque",
