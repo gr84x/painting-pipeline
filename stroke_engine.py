@@ -11638,3 +11638,150 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
 
         print(f"    Van Dyck silver-drapery pass complete")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Rubens flesh-vitality pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def rubens_flesh_vitality_pass(
+            self,
+            blush_strength:   float = 0.14,
+            cream_strength:   float = 0.10,
+            warm_shadow:      float = 0.06,
+            blush_lo:         float = 0.28,
+            blush_hi:         float = 0.68,
+            highlight_thresh: float = 0.72,
+            shadow_thresh:    float = 0.22,
+            opacity:          float = 0.80,
+    ):
+        """
+        Rubens flesh-vitality pass — inspired by Peter Paul Rubens' technique.
+
+        Rubens' most celebrated achievement is his rendering of living flesh:
+        warm, rosy, translucent, and unmistakably breathing.  He achieved this
+        through three distinct chromatic strategies applied simultaneously:
+
+        1. **Rosy blush in thin-skin zones** (mid-luminance band):
+           Ears, nose tip, cheeks, lips, and knuckles — places where the skin is
+           thin enough for blood vessels to show — received an extra glaze of
+           vermilion or rose madder.  This is the flushed, vascular warmth that
+           no cool-flesh palette can replicate.  Here we apply it as a
+           luminance-gated R-channel boost that peaks in the mid-tone band
+           (blush_lo..blush_hi) and falls to zero at the extremes.
+
+        2. **Cream-ivory impasto at highlight peaks** (high-luminance band):
+           Rubens pressed final highlights on with a palette knife — thick
+           lead-white tinted with naples yellow, warm ivory rather than pure
+           white.  This cream push (R + slight G) warms the brightest peaks
+           away from dead-white, giving them the luminous quality of sunlit
+           porcelain.
+
+        3. **Warm brownish-red in deep shadows** (low-luminance band):
+           Unlike Northern painters who let shadows go cool and grey, Rubens'
+           shadows glow with brownish-red transmitted light, as though the
+           figure were lit from within.  A subtle R boost and B reduction in
+           the darkest zones reproduces this quality without lifting the overall
+           shadow depth.
+
+        All three adjustments are blended back at `opacity` so the original
+        canvas reading is preserved beneath the tonal shift.
+
+        Parameters
+        ----------
+        blush_strength   : peak strength of the rosy blush tint in mid-tones
+        cream_strength   : ivory warmth pushed into highlight peaks
+        warm_shadow      : brownish-red glow added to deep shadow pixels
+        blush_lo         : lower luminance bound for the blush zone
+        blush_hi         : upper luminance bound for the blush zone
+        highlight_thresh : luminance above which cream push begins
+        shadow_thresh    : luminance below which warm shadow begins
+        opacity          : global blend weight of the entire adjustment layer
+        """
+        import numpy as _np
+
+        print(f"  Rubens flesh-vitality pass  "
+              f"(blush={blush_strength:.2f}  cream={cream_strength:.2f}  "
+              f"warm_shadow={warm_shadow:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Rubens flesh-vitality pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance ────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Rosy blush — mid-luminance thin-skin zones ────────────────────
+        # A sine ramp peaks at the centre of the blush band and fades to zero
+        # at both boundaries, giving a smooth, anatomically convincing taper.
+        blush_range = max(blush_hi - blush_lo, 1e-6)
+        blush_t     = _np.clip((lum - blush_lo) / blush_range, 0.0, 1.0)
+        blush_scale = _np.sin(_np.pi * blush_t)   # 0 at edges, 1 at centre
+        blush_mask  = (lum >= blush_lo) & (lum <= blush_hi)
+
+        r_out = _np.where(blush_mask,
+                          _np.clip(r_f + blush_strength * blush_scale, 0.0, 1.0),
+                          r_f)
+        g_out = _np.where(blush_mask,
+                          _np.clip(g_f - blush_strength * 0.30 * blush_scale, 0.0, 1.0),
+                          g_f)
+        b_out = _np.where(blush_mask,
+                          _np.clip(b_f - blush_strength * 0.50 * blush_scale, 0.0, 1.0),
+                          b_f)
+
+        # ── 2. Cream-ivory push at highlight peaks ───────────────────────────
+        # Ramp from zero at highlight_thresh to full at lum=1.0.
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(hi_mask,
+                            _np.clip((lum - highlight_thresh)
+                                     / (1.0 - highlight_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out + cream_strength * hi_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(hi_mask,
+                          _np.clip(g_out + cream_strength * 0.85 * hi_ramp, 0.0, 1.0),
+                          g_out)
+        # Blue is left unchanged at highlights — warm ivory keeps its warmth.
+
+        # ── 3. Warm brownish-red undertone in deep shadows ───────────────────
+        # Ramp from zero at shadow_thresh down to full at lum=0.
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(sh_mask,
+                            _np.clip((shadow_thresh - lum)
+                                     / (shadow_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out + warm_shadow * sh_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out - warm_shadow * 0.70 * sh_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── Blend adjusted layer back at `opacity` ───────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        print(f"    Rubens flesh-vitality pass complete")

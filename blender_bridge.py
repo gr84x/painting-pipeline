@@ -561,6 +561,7 @@ def scene_to_painting(
     is_pre_raphaelite         = (scene.style.period == Period.PRE_RAPHAELITE)
     is_symbolist              = (scene.style.period == Period.SYMBOLIST)
     is_florentine_renaissance = (scene.style.period == Period.FLORENTINE_RENAISSANCE)
+    is_flemish_baroque        = (scene.style.period == Period.FLEMISH_BAROQUE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2614,6 +2615,98 @@ def scene_to_painting(
             print(_feedback.summary())
         # Light vignette + prominent crackle — aged tempera panels.
         p.finish(vignette=0.20, crackle=True)
+
+    elif is_flemish_baroque:
+        # ── Flemish Baroque pipeline (Peter Paul Rubens technique) ───────────
+        # Rubens built flesh through a disciplined multi-layer alla prima
+        # process over a warm reddish-brown imprimatura.  The defining quality
+        # is not grand composition but the living warmth of his flesh — rosy,
+        # translucent, breathing — achieved through three chromatic strategies:
+        #   a) vermilion blush in thin-skin mid-tone zones
+        #   b) creamy ivory impasto at highlight peaks
+        #   c) warm brownish-red transmitted light in deep shadows
+        #
+        # Pipeline:
+        #   1. Warm reddish-brown ground — glows through thin paint zones,
+        #      unifying the whole surface without extra glazes.
+        #   2. Standard monochrome underpainting + broad block-in to establish
+        #      masses before the flesh glazing begins.
+        #   3. build_form() with generous wet_blend — Rubens blended each
+        #      layer while still wet (wet-on-wet), preventing muddying.
+        #   4. rubens_flesh_vitality_pass() — the three-strategy flesh
+        #      technique: rosy blush, cream highlight, warm shadow glow.
+        #   5. place_lights() — thick lead-white impasto highlights pressed
+        #      on last, as Rubens did with his palette knife.
+        #   6. Warm amber-red unifying glaze at low opacity.
+        #   7. edge_lost_and_found_pass() — Rubens' edges are soft in the
+        #      periphery but found sharply at the focal face.
+        #   8. finish(vignette=0.45, crackle=True) — dark edges focus the
+        #      eye; aged crackle appropriate for large oil canvases.
+        rubens_style = _ART_CATALOG.get("peter_paul_rubens")
+        ground_col   = rubens_style.ground_color if rubens_style else (0.44, 0.28, 0.12)
+        glaze_col    = rubens_style.glazing      if rubens_style else (0.55, 0.36, 0.14)
+
+        # Warm reddish-brown imprimatura — glows through every thin paint zone
+        p.tone_ground(ground_col, texture_strength=0.09)
+
+        # Dead-colour monochrome underpainting to establish figure masses
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.3), n_strokes=180)
+
+        # Broad block-in: warm umber base colour, covering the ground
+        p.block_in(ref, stroke_size=int(sp["stroke_size_bg"]), n_strokes=360)
+
+        # build_form with elevated wet_blend — Rubens worked wet-on-wet,
+        # allowing each layer to modify and blend with the last
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.55), n_strokes=750)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.50, 0.38), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.03, highlight_compress=0.97,
+                                         midtone_contrast=0.04)
+
+        # Core Rubens technique: rosy blush, cream highlight, warm shadow glow
+        p.rubens_flesh_vitality_pass(
+            blush_strength   = 0.14,
+            cream_strength   = 0.10,
+            warm_shadow      = 0.06,
+            blush_lo         = 0.28,
+            blush_hi         = 0.68,
+            highlight_thresh = 0.72,
+            shadow_thresh    = 0.22,
+            opacity          = float(sp["wet_blend"]) * 1.28,  # scale with style
+        )
+
+        # Thick impasto highlights pressed on last — Rubens' palette-knife
+        # lead-white ridges at cheekbones, forehead, nose bridge
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=550)
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "rubens_flesh_vitality_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze(glaze_col, opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98,
+                                             midtone_contrast=0.03)
+
+        # Warm amber-red unifying glaze — Rubens' surface-unifying varnish
+        p.glaze(glaze_col, opacity=0.08)
+
+        # Edge lost-and-found: peripheral edges lost in warm glazing; face edge found
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.30,
+            found_sharpness = 0.50,
+            lost_blur       = 1.8,
+            strength        = 0.32,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Strong vignette focuses attention on the figure; crackle for aged oil canvas
+        p.finish(vignette=0.45, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
