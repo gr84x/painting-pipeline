@@ -4616,3 +4616,173 @@ def test_van_dyck_silver_drapery_pass_excludes_chromatic_pixels():
     assert diff < 10.0, (
         f"van_dyck_silver_drapery_pass should not significantly modify vivid chromatic "
         f"pixels; mean diff={diff:.2f} (expected < 10.0 on a pure red canvas)")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# rubens_flesh_vitality_pass() — pass tests
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_rubens_flesh_vitality_pass_exists():
+    """rubens_flesh_vitality_pass() must exist as a method on Painter."""
+    p = _make_small_painter(64, 64)
+    assert hasattr(p, "rubens_flesh_vitality_pass"), (
+        "Painter must have rubens_flesh_vitality_pass() method")
+
+
+def test_rubens_flesh_vitality_pass_modifies_canvas():
+    """rubens_flesh_vitality_pass() must modify the canvas (not a no-op at default params)."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Tone with a mid-luminance warm flesh — falls squarely in the blush zone
+    p.tone_ground((0.72, 0.58, 0.42), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.rubens_flesh_vitality_pass(opacity=0.80)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).mean()
+    assert diff > 0.5, (
+        f"rubens_flesh_vitality_pass() made no changes to canvas — "
+        f"mean pixel diff={diff:.3f} (expected > 0.5 on a mid-tone flesh canvas)")
+
+
+def test_rubens_flesh_vitality_pass_opacity_zero_is_noop():
+    """rubens_flesh_vitality_pass() with opacity=0 must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.58, 0.42), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.rubens_flesh_vitality_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).mean()
+    assert diff < 1.0, (
+        f"rubens_flesh_vitality_pass with opacity=0 must be a no-op; "
+        f"mean diff={diff:.3f}")
+
+
+def test_rubens_flesh_vitality_pass_warms_mid_tones():
+    """
+    On a neutral mid-grey canvas (lum ~0.50, in the blush zone), the R channel
+    should increase after rubens_flesh_vitality_pass — the rosy blush effect.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Neutral grey: R=G=B=128 → lum=0.50, in blush_lo..blush_hi band
+    # Use texture_strength=0 for a perfectly uniform canvas
+    p.tone_ground((128/255, 128/255, 128/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    r_before = before[:, :, 2].astype(_np.float32).mean()
+
+    p.rubens_flesh_vitality_pass(
+        blush_strength=0.20,
+        blush_lo=0.35,
+        blush_hi=0.65,
+        cream_strength=0.0,   # disable other effects for isolation
+        warm_shadow=0.0,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+    r_after = after[:, :, 2].astype(_np.float32).mean()
+
+    assert r_after > r_before, (
+        f"rubens_flesh_vitality_pass should boost R channel in mid-tone band "
+        f"(rosy blush); R before={r_before:.1f}  R after={r_after:.1f}")
+
+
+def test_rubens_flesh_vitality_pass_warms_highlights():
+    """
+    On a bright near-white canvas (lum ~0.90, above highlight_thresh), the R
+    channel should increase after rubens_flesh_vitality_pass — the cream push.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Near-white neutral: R=G=B=230 → lum~0.90, above highlight_thresh=0.72
+    p.tone_ground((230/255, 230/255, 230/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    r_before = before[:, :, 2].astype(_np.float32).mean()
+
+    p.rubens_flesh_vitality_pass(
+        blush_strength=0.0,   # disable blush for isolation
+        cream_strength=0.15,
+        warm_shadow=0.0,
+        highlight_thresh=0.72,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+    r_after = after[:, :, 2].astype(_np.float32).mean()
+
+    assert r_after > r_before, (
+        f"rubens_flesh_vitality_pass cream push should boost R channel in highlights; "
+        f"R before={r_before:.1f}  R after={r_after:.1f}")
+
+
+def test_rubens_flesh_vitality_pass_warms_shadows():
+    """
+    On a dark canvas (lum ~0.10, below shadow_thresh), the R channel should
+    increase after rubens_flesh_vitality_pass — the warm shadow glow.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Near-black neutral: R=G=B=28 → lum~0.11, below shadow_thresh=0.22
+    p.tone_ground((28/255, 28/255, 28/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    r_before = before[:, :, 2].astype(_np.float32).mean()
+
+    p.rubens_flesh_vitality_pass(
+        blush_strength=0.0,   # disable other effects for isolation
+        cream_strength=0.0,
+        warm_shadow=0.12,
+        shadow_thresh=0.22,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+    r_after = after[:, :, 2].astype(_np.float32).mean()
+
+    assert r_after > r_before, (
+        f"rubens_flesh_vitality_pass warm shadow should boost R channel in deep shadows; "
+        f"R before={r_before:.1f}  R after={r_after:.1f}")
+
+
+def test_rubens_flesh_vitality_pass_custom_parameters():
+    """rubens_flesh_vitality_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.50, 0.35), texture_strength=0.0)
+    # Call with all parameters explicitly — must not raise
+    p.rubens_flesh_vitality_pass(
+        blush_strength   = 0.18,
+        cream_strength   = 0.12,
+        warm_shadow      = 0.08,
+        blush_lo         = 0.25,
+        blush_hi         = 0.70,
+        highlight_thresh = 0.75,
+        shadow_thresh    = 0.20,
+        opacity          = 0.90,
+    )
+
+
+def test_rubens_flesh_vitality_pass_large_canvas():
+    """rubens_flesh_vitality_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.70, 0.55, 0.40), texture_strength=0.0)
+    p.rubens_flesh_vitality_pass(blush_strength=0.10, opacity=0.70)
+
+
+def test_flemish_baroque_period_in_enum():
+    """Period.FLEMISH_BAROQUE must be a valid member of the Period enum."""
+    assert hasattr(Period, "FLEMISH_BAROQUE"), (
+        "Period enum is missing FLEMISH_BAROQUE — add it to scene_schema.py")

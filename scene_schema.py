@@ -209,6 +209,7 @@ class Period(Enum):
     SOCIAL_REALIST = auto()    # Courbet — palette knife planes, dark earthy ground, unidealized impasto
     ACADEMIC_REALIST = auto()  # Bouguereau — porcelain-smooth flesh, imperceptible blending, warm golden glazing
     IMPRESSIONIST_INTIMISTE = auto()  # Cassatt — north-window light, warm/cool shadow contrast, domestic intimacy
+    FLEMISH_BAROQUE   = auto()        # Rubens — warm imprimatura, rosy flesh vitality, wet-on-wet alla prima, amber glaze
     FLEMISH_PANORAMIC = auto()        # Bruegel — high-horizon landscape, systematic aerial perspective, earthy palette
     NORDIC_IMPRESSIONIST = auto()     # Zorn — warm Zorn palette, confident calligraphic marks, wet-into-wet portraiture
     IMPRESSIONIST_PLEIN_AIR = auto()  # Morisot — feathery high-key brushwork, colorful violet shadows, luminous atmosphere

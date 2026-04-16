@@ -3251,6 +3251,83 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Peter Paul Rubens ──────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Peter Paul Rubens (1577–1640) — the supreme master of Flemish Baroque,
+    # arguably the most technically accomplished and prolific painter of the
+    # seventeenth century.  Born in Siegen, Westphalia, trained in Antwerp, and
+    # deeply formed by a decade in Italy (1600–1608) studying Titian, Veronese,
+    # and Caravaggio.  What makes Rubens unmistakable is not grand composition
+    # alone but an almost uncanny ability to render living flesh — warm, rosy,
+    # translucent, breathing.  He achieved this through a disciplined multi-layer
+    # technique: a reddish-brown imprimatura (he called this the "preparation")
+    # over which he blocked in dead-colour monochrome, then built flesh in three
+    # to five glazed layers, each applied wet-on-wet before the previous fully
+    # dried, so colours mingled without muddying.  The final touches — thick
+    # lead-white impasto at cheekbones, forehead, and nose tip — were pressed on
+    # with a palette knife, leaving a textural ridge that catches raking light.
+    # Thin-skin zones (ears, nose, lips, knuckles) were treated with an extra
+    # glaze of vermilion or rose madder, giving them a flushed, vascular warmth
+    # entirely absent from his Northern contemporaries.  Shadows are never cool
+    # or grey in Rubens — they glow with a deep brownish-red transmitted light,
+    # as though the figure were lit from within.  This is the quality that
+    # rubens_flesh_vitality_pass() approximates.
+    "peter_paul_rubens": ArtStyle(
+        artist="Peter Paul Rubens",
+        movement="Flemish Baroque",
+        nationality="Flemish",
+        period="1600–1640",
+        palette=[
+            (0.95, 0.80, 0.64),   # warm cream flesh highlight — lead white + naples yellow
+            (0.88, 0.65, 0.48),   # warm flesh mid-tone — naples yellow + vermilion
+            (0.82, 0.50, 0.40),   # rosy blush — vermilion tint in thin-skin zones
+            (0.64, 0.40, 0.24),   # warm umber flesh shadow
+            (0.52, 0.28, 0.12),   # deep brownish-red transmitted shadow
+            (0.26, 0.12, 0.05),   # near-black void — sparingly used
+            (0.76, 0.22, 0.12),   # vermilion lake — fabric, lips, accent
+            (0.12, 0.26, 0.58),   # ultramarine — cool sky and garment accent
+        ],
+        ground_color=(0.44, 0.28, 0.12),    # warm reddish-brown imprimatura
+        stroke_size=10,
+        wet_blend=0.62,                      # fluid alla prima; wet-on-wet layers
+        edge_softness=0.42,                  # edges present and readable; no Northern crispness
+        jitter=0.055,
+        glazing=(0.55, 0.36, 0.14),          # warm amber-red unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Warm reddish-brown imprimatura over linen.  Dead-colour block-in in "
+            "raw umber monochrome to establish masses.  Flesh built wet-on-wet "
+            "through three to five layers, each modifying the last before fully "
+            "drying: mid-tones of naples yellow, vermilion, and lead white; "
+            "shadows of raw umber deepened with ivory black.  Thin-skin zones "
+            "(ears, nose tip, lips, knuckles) receive an extra glaze of vermilion "
+            "or rose madder — the blush that gives Rubens figures their living warmth.  "
+            "Deep shadows glow with brownish-red transmitted light, never turning "
+            "cold or grey.  Final highlights pressed on with thick lead-white "
+            "impasto, leaving a raised ridge at cheekbones, forehead, and nose "
+            "bridge.  A warm amber-red varnish glaze unifies the whole surface."
+        ),
+        famous_works=[
+            ("The Descent from the Cross",                    "1612–1614"),
+            ("The Rape of the Daughters of Leucippus",        "c. 1617–1618"),
+            ("Samson and Delilah",                            "c. 1609–1610"),
+            ("The Three Graces",                              "c. 1635"),
+            ("Peace and War (Minerva Protects Pax from Mars)", "1629–1630"),
+            ("The Garden of Love",                            "c. 1630–1635"),
+            ("Self-Portrait",                                 "c. 1638–1640"),
+        ],
+        inspiration=(
+            "Use warm reddish-brown imprimatura (ground_color ≈ (0.44, 0.28, 0.12)).  "
+            "rubens_flesh_vitality_pass() for the hallmark warm, pink-vitality skin: "
+            "rosy blush in mid-luminance thin-skin zones, creamy ivory push at "
+            "highlight peaks, warm brownish-red undertone in deep shadows.  "
+            "High wet_blend (0.62) for fluid wet-on-wet blending; moderate "
+            "edge_softness (0.42) keeps forms readable.  Final warm amber-red glaze "
+            "(0.55, 0.36, 0.14) at low opacity unifies the whole surface."
+        ),
+    ),
+
 }
 
 

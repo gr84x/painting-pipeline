@@ -3902,3 +3902,133 @@ def test_van_dyck_darker_ground_than_holbein():
         f"anthony_van_dyck ground ({lum_vd:.3f}) should be darker than "
         f"holbein_the_younger ground ({lum_hb:.3f}) — warm dark imprimatura vs. near-white buff")
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Peter Paul Rubens — catalog tests
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_rubens_in_catalog():
+    """peter_paul_rubens must be present in CATALOG."""
+    assert "peter_paul_rubens" in CATALOG, (
+        "peter_paul_rubens not found in CATALOG — add the ArtStyle entry")
+
+
+def test_rubens_palette_valid():
+    """Every colour in peter_paul_rubens palette must have RGB channels in [0, 1]."""
+    s = get_style("peter_paul_rubens")
+    for i, rgb in enumerate(s.palette):
+        for j, v in enumerate(rgb):
+            assert 0.0 <= v <= 1.0, (
+                f"peter_paul_rubens palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_rubens_warm_ground():
+    """peter_paul_rubens ground must be warm (R > B) — reddish-brown imprimatura."""
+    s = get_style("peter_paul_rubens")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"peter_paul_rubens ground_color R={r:.3f} should exceed B={b:.3f} "
+        f"(warm reddish-brown imprimatura, not cold grey)")
+
+
+def test_rubens_high_wet_blend():
+    """peter_paul_rubens wet_blend should be >= 0.55 for fluid wet-on-wet alla prima."""
+    s = get_style("peter_paul_rubens")
+    assert s.wet_blend >= 0.55, (
+        f"peter_paul_rubens wet_blend={s.wet_blend:.2f} should be >= 0.55 "
+        "(Rubens worked wet-on-wet through multiple layers; fluid blending is essential)")
+
+
+def test_rubens_moderate_edge_softness():
+    """peter_paul_rubens edge_softness should be in [0.30, 0.60] — present but readable."""
+    s = get_style("peter_paul_rubens")
+    assert 0.30 <= s.edge_softness <= 0.60, (
+        f"peter_paul_rubens edge_softness={s.edge_softness:.2f} should be in [0.30, 0.60] "
+        "(Rubens' edges are soft but not sfumato — forms remain clearly bounded)")
+
+
+def test_rubens_has_glazing():
+    """peter_paul_rubens glazing must not be None — warm amber-red unifying glaze."""
+    s = get_style("peter_paul_rubens")
+    assert s.glazing is not None, (
+        "peter_paul_rubens glazing should not be None — warm amber-red final varnish")
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0, (
+            f"peter_paul_rubens glazing channel {ch:.3f} out of [0, 1]")
+
+
+def test_rubens_warm_glazing():
+    """peter_paul_rubens glazing must be warm (R > B) — amber-red, not cool."""
+    s = get_style("peter_paul_rubens")
+    r, g, b = s.glazing
+    assert r > b, (
+        f"peter_paul_rubens glazing R={r:.3f} should exceed B={b:.3f} "
+        "(Rubens' unifying glaze is warm amber-red, never cool)")
+
+
+def test_rubens_crackle():
+    """peter_paul_rubens crackle should be True — large oil canvases age and crackle."""
+    s = get_style("peter_paul_rubens")
+    assert s.crackle is True, (
+        "peter_paul_rubens crackle should be True (aged oil canvas on large panel/linen)")
+
+
+def test_rubens_no_chromatic_split():
+    """peter_paul_rubens chromatic_split should be False — no Pointillist technique."""
+    s = get_style("peter_paul_rubens")
+    assert s.chromatic_split is False, (
+        "peter_paul_rubens chromatic_split should be False (no Seurat/divisionist dots)")
+
+
+def test_rubens_famous_works():
+    """peter_paul_rubens should have >= 5 famous works including The Descent from the Cross."""
+    s = get_style("peter_paul_rubens")
+    assert len(s.famous_works) >= 5, (
+        f"peter_paul_rubens should have >= 5 famous works; got {len(s.famous_works)}")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Descent" in t for t in titles), (
+        "peter_paul_rubens famous_works must include 'The Descent from the Cross' "
+        "— his most celebrated altarpiece in Antwerp Cathedral")
+
+
+def test_rubens_palette_has_warm_flesh():
+    """peter_paul_rubens palette must contain at least one warm cream flesh highlight."""
+    s = get_style("peter_paul_rubens")
+
+    def _is_warm_cream(rgb):
+        r, g, b = rgb
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        return lum >= 0.60 and r > b and r > g * 0.85   # bright, warm-dominant
+
+    assert any(_is_warm_cream(rgb) for rgb in s.palette), (
+        "peter_paul_rubens palette must contain at least one warm cream flesh colour "
+        "(lead white + naples yellow — his hallmark highlight tone)")
+
+
+def test_rubens_palette_has_rosy_blush():
+    """peter_paul_rubens palette must contain a reddish-pink blush tone."""
+    s = get_style("peter_paul_rubens")
+
+    def _is_rosy(rgb):
+        r, g, b = rgb
+        return r > 0.65 and r > g * 1.30 and r > b * 1.50   # clearly red-dominant blush
+
+    assert any(_is_rosy(rgb) for rgb in s.palette), (
+        "peter_paul_rubens palette must contain a reddish-pink blush tone "
+        "(vermilion applied to thin-skin zones — cheeks, ears, lips, knuckles)")
+
+
+def test_rubens_ground_similar_warmth_to_van_dyck():
+    """
+    Rubens and Van Dyck share warm imprimatura tradition;
+    both grounds must be warm (R > B), though specific values may differ.
+    """
+    s_rb = get_style("peter_paul_rubens")
+    s_vd = get_style("anthony_van_dyck")
+    r_rb, _, b_rb = s_rb.ground_color
+    r_vd, _, b_vd = s_vd.ground_color
+    assert r_rb > b_rb, (
+        f"peter_paul_rubens ground must be warm (R={r_rb:.3f} > B={b_rb:.3f})")
+    assert r_vd > b_vd, (
+        f"anthony_van_dyck ground must be warm (R={r_vd:.3f} > B={b_vd:.3f})")
+
