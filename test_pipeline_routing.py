@@ -5157,3 +5157,249 @@ def test_gainsborough_feathery_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.70, 0.65, 0.60), texture_strength=0.0)
     p.gainsborough_feathery_pass(silver_strength=0.10, feather_spread=2.5, opacity=0.75)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# homer_marine_clarity_pass — Winslow Homer artist pass (session 41)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_homer_marine_clarity_pass_exists():
+    """Painter must have homer_marine_clarity_pass() method (session 41 addition)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "homer_marine_clarity_pass"), (
+        "homer_marine_clarity_pass not found on Painter")
+    assert callable(getattr(Painter, "homer_marine_clarity_pass"))
+
+
+def test_homer_marine_clarity_pass_runs():
+    """homer_marine_clarity_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.93, 0.90), texture_strength=0.0)
+    p.homer_marine_clarity_pass(opacity=0.72)
+
+
+def test_homer_marine_clarity_pass_opacity_zero_is_noop():
+    """homer_marine_clarity_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.85, 0.80, 0.75), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.homer_marine_clarity_pass(opacity=0.0)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert _np.array_equal(before, after), (
+        "homer_marine_clarity_pass(opacity=0) should be a noop")
+
+
+def test_homer_marine_clarity_pass_lifts_highlights():
+    """
+    On a near-white warm canvas (lum ~0.90, above highlight_thresh=0.72),
+    overall luminance should increase after homer_marine_clarity_pass —
+    the maritime highlight lift.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Warm pale: R=240, G=230, B=210 → lum ~0.88, above default highlight_thresh=0.72
+    p.tone_ground((240/255, 230/255, 210/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    # Average luminance before (from BGRA: R=index2, G=index1, B=index0)
+    r_before = before[:, :, 2].astype(_np.float32).mean()
+    g_before = before[:, :, 1].astype(_np.float32).mean()
+    lum_before = (0.299 * r_before + 0.587 * g_before) / 255.0
+
+    p.homer_marine_clarity_pass(
+        highlight_lift    = 0.15,
+        shadow_cool       = 0.0,    # disable for isolation
+        contrast_strength = 0.0,
+        wash_luminosity   = 0.0,
+        highlight_thresh  = 0.72,
+        opacity           = 1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+    r_after = after[:, :, 2].astype(_np.float32).mean()
+    g_after = after[:, :, 1].astype(_np.float32).mean()
+    lum_after = (0.299 * r_after + 0.587 * g_after) / 255.0
+
+    assert lum_after > lum_before, (
+        f"homer_marine_clarity_pass should lift highlight luminance; "
+        f"lum before={lum_before:.4f}  lum after={lum_after:.4f}")
+
+
+def test_homer_marine_clarity_pass_cools_shadows():
+    """
+    On a warm dark canvas (lum ~0.12, below shadow_thresh=0.35),
+    B channel should increase after homer_marine_clarity_pass —
+    the Prussian shadow cool push.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Warm dark: R=50, G=35, B=20 → lum ~0.13, below shadow_thresh=0.35
+    p.tone_ground((50/255, 35/255, 20/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    b_before = before[:, :, 0].astype(_np.float32).mean()
+
+    p.homer_marine_clarity_pass(
+        highlight_lift    = 0.0,    # disable for isolation
+        shadow_cool       = 0.15,
+        contrast_strength = 0.0,
+        wash_luminosity   = 0.0,
+        shadow_thresh     = 0.35,
+        opacity           = 1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+    b_after = after[:, :, 0].astype(_np.float32).mean()
+
+    assert b_after > b_before, (
+        f"homer_marine_clarity_pass should boost B in shadows (Prussian cool push); "
+        f"B before={b_before:.1f}  B after={b_after:.1f}")
+
+
+def test_homer_marine_clarity_pass_custom_params():
+    """homer_marine_clarity_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.92, 0.88), texture_strength=0.0)
+    p.homer_marine_clarity_pass(
+        highlight_lift    = 0.10,
+        shadow_cool       = 0.08,
+        contrast_strength = 0.06,
+        wash_luminosity   = 0.04,
+        highlight_thresh  = 0.70,
+        shadow_thresh     = 0.30,
+        opacity           = 0.80,
+    )
+
+
+def test_homer_marine_clarity_pass_changes_canvas():
+    """homer_marine_clarity_pass(opacity=1.0) must change at least some pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Use a canvas with mixed luminance so both highlight and shadow zones exist
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.homer_marine_clarity_pass(opacity=1.0)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert not _np.array_equal(before, after), (
+        "homer_marine_clarity_pass should change the canvas when opacity=1.0")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# wet_on_wet_bleeding_pass — session 41 random improvement
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_wet_on_wet_bleeding_pass_exists():
+    """Painter must have wet_on_wet_bleeding_pass() method (session 41 random improvement)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "wet_on_wet_bleeding_pass"), (
+        "wet_on_wet_bleeding_pass not found on Painter")
+    assert callable(getattr(Painter, "wet_on_wet_bleeding_pass"))
+
+
+def test_wet_on_wet_bleeding_pass_runs():
+    """wet_on_wet_bleeding_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.45, 0.35), texture_strength=0.0)
+    p.wet_on_wet_bleeding_pass(opacity=0.65)
+
+
+def test_wet_on_wet_bleeding_pass_opacity_zero_is_noop():
+    """wet_on_wet_bleeding_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.40), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.wet_on_wet_bleeding_pass(opacity=0.0)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert _np.array_equal(before, after), (
+        "wet_on_wet_bleeding_pass(opacity=0) should be a noop")
+
+
+def test_wet_on_wet_bleeding_pass_changes_high_contrast_canvas():
+    """
+    wet_on_wet_bleeding_pass should change pixels on a high-contrast canvas
+    (sharp boundary → bleeding occurs at the edge).
+    """
+    import numpy as _np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    # Manually draw a sharp vertical dark/light boundary to create a strong edge
+    buf = _np.frombuffer(p.canvas.surface.get_data(),
+                         dtype=_np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :32, :3] = 30    # dark left half (BGRA — all channels)
+    buf[:, 32:, :3] = 220   # bright right half
+    buf[:, :, 3]    = 255   # full alpha
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.wet_on_wet_bleeding_pass(
+        bleed_radius      = 3.0,
+        bleed_strength    = 0.50,
+        edge_sensitivity  = 0.30,
+        opacity           = 1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert not _np.array_equal(before, after), (
+        "wet_on_wet_bleeding_pass should change pixels on a high-contrast canvas")
+
+
+def test_wet_on_wet_bleeding_pass_flat_canvas_is_noop():
+    """
+    On a perfectly flat (uniform-colour) canvas there are no edges, so
+    wet_on_wet_bleeding_pass should return without modifying any pixels
+    (or modify negligibly — the Sobel will be zero everywhere).
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Perfectly uniform fill — texture_strength=0 guarantees flat colour
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.wet_on_wet_bleeding_pass(opacity=1.0)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    # Allow a tiny epsilon for float→int rounding, but no gross changes
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32))
+    assert diff.max() <= 2, (
+        f"wet_on_wet_bleeding_pass on a flat canvas should be a near-noop; "
+        f"max pixel delta={diff.max()}")
+
+
+def test_wet_on_wet_bleeding_pass_custom_params():
+    """wet_on_wet_bleeding_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.52, 0.44), texture_strength=0.0)
+    p.wet_on_wet_bleeding_pass(
+        bleed_radius     = 4.0,
+        bleed_strength   = 0.25,
+        edge_sensitivity = 0.60,
+        opacity          = 0.55,
+    )
+
+
+def test_wet_on_wet_bleeding_pass_large_canvas():
+    """wet_on_wet_bleeding_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.0)
+    p.wet_on_wet_bleeding_pass(bleed_radius=3.0, bleed_strength=0.20, opacity=0.60)

@@ -59,6 +59,7 @@ EXPECTED_ARTISTS = [
     "peter_paul_rubens",
     "nicolas_poussin",
     "thomas_gainsborough",
+    "winslow_homer",
 ]
 
 
@@ -4335,4 +4336,156 @@ def test_rococo_portrait_high_edge_softness():
     assert sp["edge_softness"] >= 0.55, (
         f"ROCOCO_PORTRAIT edge_softness={sp['edge_softness']:.2f} should be >= 0.55 "
         "(Gainsborough's feathery edges require high softness)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Winslow Homer — art catalog tests (session 41)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_winslow_homer_in_catalog():
+    """winslow_homer must be present in CATALOG (session 41 addition)."""
+    assert "winslow_homer" in CATALOG, "winslow_homer not found in CATALOG"
+
+
+def test_winslow_homer_in_expected_artists():
+    """winslow_homer must appear in the EXPECTED_ARTISTS list used by test_all_expected_artists_present."""
+    assert "winslow_homer" in EXPECTED_ARTISTS, (
+        "winslow_homer missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_winslow_homer_movement_american():
+    """winslow_homer movement must reference American painting."""
+    s = get_style("winslow_homer")
+    assert "American" in s.movement or "american" in s.movement.lower(), (
+        f"winslow_homer movement={s.movement!r} should reference 'American'")
+
+
+def test_winslow_homer_nationality():
+    """winslow_homer was American."""
+    s = get_style("winslow_homer")
+    assert "American" in s.nationality, (
+        f"winslow_homer nationality should be American; got: {s.nationality!r}")
+
+
+def test_winslow_homer_palette_length():
+    """winslow_homer palette should have at least 7 key colours."""
+    s = get_style("winslow_homer")
+    assert len(s.palette) >= 7, (
+        f"winslow_homer palette should have >= 7 colours; got {len(s.palette)}")
+
+
+def test_winslow_homer_palette_in_range():
+    """All winslow_homer palette RGB values must be in [0, 1]."""
+    s = get_style("winslow_homer")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in winslow_homer palette {rgb}")
+
+
+def test_winslow_homer_pale_ground():
+    """
+    winslow_homer ground must be very pale (lum >= 0.88) — near-white gessoed
+    panel or paper is the foundation of his transparent-wash technique.
+    """
+    s = get_style("winslow_homer")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum >= 0.88, (
+        f"winslow_homer ground luminance={lum:.3f} should be >= 0.88 "
+        "(near-white ground — Homer's transparent washes require a luminous support)")
+
+
+def test_winslow_homer_palette_has_ocean_blue():
+    """winslow_homer palette must include a dominant cool blue (Atlantic ocean shadow)."""
+    s = get_style("winslow_homer")
+    has_ocean_blue = any(
+        b > 0.50 and b > r + 0.12
+        for r, g, b in s.palette
+    )
+    assert has_ocean_blue, (
+        "winslow_homer palette should include a cool blue for Atlantic ocean shadows "
+        "(B > 0.50 and B > R + 0.12)")
+
+
+def test_winslow_homer_famous_works_contain_breezing_up():
+    """winslow_homer famous_works should include 'Breezing Up' — his most iconic oil."""
+    s = get_style("winslow_homer")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Breezing" in t for t in titles), (
+        f"winslow_homer famous_works should include 'Breezing Up'; got: {titles}")
+
+
+def test_winslow_homer_inspiration_references_homer_pass():
+    """winslow_homer inspiration text should reference homer_marine_clarity_pass."""
+    s = get_style("winslow_homer")
+    assert "homer_marine_clarity_pass" in s.inspiration, (
+        "winslow_homer inspiration should reference homer_marine_clarity_pass()")
+
+
+def test_winslow_homer_moderate_wet_blend():
+    """
+    winslow_homer wet_blend must be in [0.20, 0.45] — decisive, unretouched
+    strokes with limited wet-into-wet blending.
+    """
+    s = get_style("winslow_homer")
+    assert 0.20 <= s.wet_blend <= 0.45, (
+        f"winslow_homer wet_blend={s.wet_blend:.2f} should be in [0.20, 0.45] "
+        "(decisive strokes — not overly blended like Academic, not dry like Flemish)")
+
+
+def test_winslow_homer_moderate_edge_softness():
+    """
+    winslow_homer edge_softness should be in [0.22, 0.50] — marine silhouettes
+    and horizon lines are crisp; only far atmospheric distance softens.
+    """
+    s = get_style("winslow_homer")
+    assert 0.22 <= s.edge_softness <= 0.50, (
+        f"winslow_homer edge_softness={s.edge_softness:.2f} should be in [0.22, 0.50] "
+        "(clear silhouette edges — not sfumato-dissolved)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AMERICAN_MARINE period enum tests — Winslow Homer (session 41)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_american_marine_period_in_enum():
+    """Period.AMERICAN_MARINE must be a valid member of the Period enum."""
+    assert hasattr(Period, "AMERICAN_MARINE"), (
+        "Period enum is missing AMERICAN_MARINE — add it to scene_schema.py")
+
+
+def test_american_marine_stroke_params_keys():
+    """AMERICAN_MARINE stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.AMERICAN_MARINE).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"AMERICAN_MARINE stroke_params missing key: {key!r}"
+
+
+def test_american_marine_stroke_params_ranges():
+    """AMERICAN_MARINE stroke_params values must be in valid numeric ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.AMERICAN_MARINE).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"AMERICAN_MARINE stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"AMERICAN_MARINE wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"AMERICAN_MARINE edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_american_marine_moderate_edge_softness():
+    """AMERICAN_MARINE edge_softness should be in [0.22, 0.50] — marine edges are present."""
+    sp = Style(medium=Medium.OIL, period=Period.AMERICAN_MARINE).stroke_params
+    assert 0.22 <= sp["edge_softness"] <= 0.50, (
+        f"AMERICAN_MARINE edge_softness={sp['edge_softness']:.2f} should be in [0.22, 0.50] "
+        "(Homer's silhouette edges are crisp — not dissolved like Gainsborough)")
+
+
+def test_american_marine_moderate_wet_blend():
+    """AMERICAN_MARINE wet_blend should be in [0.20, 0.45] — decisive brushwork."""
+    sp = Style(medium=Medium.OIL, period=Period.AMERICAN_MARINE).stroke_params
+    assert 0.20 <= sp["wet_blend"] <= 0.45, (
+        f"AMERICAN_MARINE wet_blend={sp['wet_blend']:.2f} should be in [0.20, 0.45] "
+        "(Homer placed strokes once and left them — no heavy wet-on-wet blending)")
 
