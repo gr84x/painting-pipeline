@@ -5810,3 +5810,103 @@ def test_gentileschi_dramatic_flesh_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.45, 0.32, 0.22), texture_strength=0.0)
     p.gentileschi_dramatic_flesh_pass(shadow_warmth=0.12, highlight_gold=0.08, opacity=0.75)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# munch_anxiety_swirl_pass — Edvard Munch artist pass (current session)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_munch_anxiety_swirl_pass_exists():
+    """Painter must have munch_anxiety_swirl_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "munch_anxiety_swirl_pass"), (
+        "Painter is missing munch_anxiety_swirl_pass — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "munch_anxiety_swirl_pass"))
+
+
+def test_munch_anxiety_swirl_pass_runs():
+    """munch_anxiety_swirl_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.18, 0.14, 0.10), texture_strength=0.0)
+    p.munch_anxiety_swirl_pass(n_swirl_strokes=20)
+
+
+def test_munch_anxiety_swirl_pass_changes_canvas():
+    """munch_anxiety_swirl_pass() must change at least some pixels on a toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.18, 0.14, 0.10), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.munch_anxiety_swirl_pass(
+        n_swirl_strokes=80,
+        color_intensity=0.80,
+        stroke_opacity=0.60,
+        stroke_size=8.0,
+    )
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "munch_anxiety_swirl_pass should change the canvas — no swirl strokes were drawn")
+
+
+def test_munch_anxiety_swirl_pass_zero_strokes_is_noop():
+    """munch_anxiety_swirl_pass(n_swirl_strokes=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.16, 0.12), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.munch_anxiety_swirl_pass(n_swirl_strokes=0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "munch_anxiety_swirl_pass(n_swirl_strokes=0) should be a noop")
+
+
+def test_munch_anxiety_swirl_pass_bg_only_with_full_figure_mask():
+    """With bg_only=True and a full-white figure mask, no strokes should be placed."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.16, 0.12), texture_strength=0.0)
+
+    # Set full-canvas figure mask — every pixel is figure, none is background
+    p.set_figure_mask(np.ones((64, 64), dtype=np.float32))
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.munch_anxiety_swirl_pass(
+        n_swirl_strokes=100,
+        bg_only=True,
+        color_intensity=0.90,
+        stroke_opacity=0.70,
+    )
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "munch_anxiety_swirl_pass(bg_only=True) with a full figure mask should be a noop — "
+        "all stroke midpoints fall within the figure and should be skipped")
+
+
+def test_munch_anxiety_swirl_pass_custom_params():
+    """munch_anxiety_swirl_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.18, 0.14, 0.10), texture_strength=0.0)
+    p.munch_anxiety_swirl_pass(
+        n_swirl_strokes = 30,
+        swirl_amplitude = 0.30,
+        swirl_frequency = 4.5,
+        color_intensity = 0.60,
+        bg_only         = False,
+        stroke_opacity  = 0.35,
+        stroke_size     = 7.0,
+    )
+
+
+def test_munch_anxiety_swirl_pass_large_canvas():
+    """munch_anxiety_swirl_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.18, 0.14, 0.10), texture_strength=0.0)
+    p.munch_anxiety_swirl_pass(n_swirl_strokes=80, color_intensity=0.55, stroke_opacity=0.30)

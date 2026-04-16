@@ -224,6 +224,7 @@ class Period(Enum):
     AMERICAN_MARINE = auto()         # Homer — brilliant maritime light, cool Prussian shadows, transparent wash over white ground, decisive unretouched strokes
     FRENCH_ROCOCO = auto()           # Fragonard — bravura loaded-brush highlights, warm cream-peach palette, spontaneous gestural marks, warm amber-honey glaze
     FRENCH_IMPRESSIONIST = auto()    # Renoir — rich chromatic saturation, warm rose-peach flesh, dappled light, feathery curving brushwork, peach-rose glaze
+    NORDIC_EXPRESSIONIST = auto()    # Munch — sinuous swirling lines, raw psychological color, existential anxiety rendered as landscape distortion
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -745,6 +746,16 @@ class Style:
             # edge_softness=0.48: moderate — figures are readable (not dissolved), but contours
             # soften gently, especially where dappled garden light breaks up the boundary.
             Period.FRENCH_IMPRESSIONIST: dict(stroke_size_face=8, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.48),
+            # Nordic Expressionist (Munch): emotionally charged marks on a dark ground.
+            # stroke_size_face=9: medium-large marks — Munch's portraiture used bold,
+            # energetic strokes that follow form but dissolve into background anxiety.
+            # stroke_size_bg=28: wide swirling background strokes carry the emotional
+            # weight — the landscape churns with the same psychological energy as the figure.
+            # wet_blend=0.45: moderate — paint blends enough for atmospheric continuity
+            # but strokes remain visible and directional, carrying the sinuous Munch line.
+            # edge_softness=0.38: moderate — figures are readable but edges dissolve into
+            # the swirling background, figure and landscape sharing the same psychic turbulence.
+            Period.NORDIC_EXPRESSIONIST: dict(stroke_size_face=9, stroke_size_bg=28, wet_blend=0.45, edge_softness=0.38),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

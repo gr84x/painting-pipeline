@@ -4882,3 +4882,156 @@ def test_french_impressionist_moderate_edge_softness():
         f"FRENCH_IMPRESSIONIST edge_softness={sp['edge_softness']:.2f} should be in [0.30, 0.60] "
         "(Renoir's figures are readable — not dissolved; not crisp marine silhouettes)")
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Edvard Munch — NORDIC_EXPRESSIONIST (current session addition)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_munch_in_catalog():
+    """Edvard Munch must be present in CATALOG under the key 'munch'."""
+    assert "munch" in CATALOG, "munch not found in CATALOG"
+
+
+def test_munch_style_retrieval():
+    """get_style('munch') must return an ArtStyle without raising."""
+    s = get_style("munch")
+    assert s is not None
+
+
+def test_munch_movement():
+    """Movement must reference Expressionism or Symbolism."""
+    s = get_style("munch")
+    combined = s.movement.lower()
+
+    assert "expressionism" in combined or "symbolism" in combined, (
+        f"Expected Expressionism or Symbolism in movement, got {s.movement!r}")
+
+
+def test_munch_nationality():
+    """Munch was Norwegian."""
+    s = get_style("munch")
+    assert "norwegian" in s.nationality.lower(), (
+        f"Expected Norwegian nationality, got {s.nationality!r}")
+
+
+def test_munch_palette_length():
+    """Palette should have at least 5 entries covering anxiety reds, blues, and flesh."""
+    s = get_style("munch")
+    assert len(s.palette) >= 5, (
+        f"Munch palette should have at least 5 entries, got {len(s.palette)}")
+
+
+def test_munch_palette_values_in_range():
+    """All Munch palette RGB values must be in [0, 1]."""
+    s = get_style("munch")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Munch palette {rgb}")
+
+
+def test_munch_dark_ground():
+    """Munch primed on dark warm umber grounds — ground_color mean must be < 0.35."""
+    s = get_style("munch")
+    mean_ground = sum(s.ground_color) / 3
+    assert mean_ground < 0.35, (
+        f"Munch ground should be dark (mean < 0.35), got {mean_ground:.3f}")
+
+
+def test_munch_has_glazing():
+    """Munch used warm crimson-amber glazes — glazing should not be None."""
+    s = get_style("munch")
+    assert s.glazing is not None, "Munch should have a warm crimson-amber glazing colour"
+
+
+def test_munch_glazing_warm():
+    """Munch glaze should be warm (R > B)."""
+    s = get_style("munch")
+    r, g, b = s.glazing
+    assert r > b, (
+        f"Munch glaze should be warm (R > B), got ({r:.2f},{g:.2f},{b:.2f})")
+
+
+def test_munch_crackle_true():
+    """Munch's aged oils — crackle must be True."""
+    s = get_style("munch")
+    assert s.crackle, "Munch's aged oil canvases should have crackle=True"
+
+
+def test_munch_famous_works_include_scream():
+    """The Scream must be in Munch's famous works."""
+    s = get_style("munch")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Scream" in t for t in titles), (
+        "Munch famous works should include The Scream (1893)")
+
+
+def test_munch_famous_works_count():
+    """Munch should have at least 6 famous works documented."""
+    s = get_style("munch")
+    assert len(s.famous_works) >= 6, (
+        f"Munch should have at least 6 famous works, got {len(s.famous_works)}")
+
+
+def test_munch_inspiration_references_swirl_pass():
+    """Inspiration text must reference munch_anxiety_swirl_pass."""
+    s = get_style("munch")
+    assert "munch_anxiety_swirl" in s.inspiration.lower().replace(" ", "_"), (
+        "Munch inspiration should reference munch_anxiety_swirl_pass() — "
+        "the dedicated Nordic Expressionist sinuous background turbulence pass")
+
+
+def test_munch_moderate_wet_blend():
+    """Munch's directional strokes require moderate wet_blend (not too dissolved)."""
+    s = get_style("munch")
+    assert 0.30 <= s.wet_blend <= 0.65, (
+        f"Munch wet_blend should be moderate [0.30, 0.65]; got {s.wet_blend}")
+
+
+def test_munch_moderate_edge_softness():
+    """Figure-ground boundary dissolves — edge_softness should be moderate."""
+    s = get_style("munch")
+    assert 0.25 <= s.edge_softness <= 0.60, (
+        f"Munch edge_softness should be moderate [0.25, 0.60]; got {s.edge_softness}")
+
+
+# ── NORDIC_EXPRESSIONIST Period stroke params ──────────────────────────────
+
+def test_nordic_expressionist_period_exists():
+    """Period.NORDIC_EXPRESSIONIST must exist in the Period enum."""
+    assert hasattr(Period, "NORDIC_EXPRESSIONIST"), (
+        "Period.NORDIC_EXPRESSIONIST not found — add it to scene_schema.py")
+
+
+def test_nordic_expressionist_stroke_params_keys():
+    """NORDIC_EXPRESSIONIST stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.NORDIC_EXPRESSIONIST).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"NORDIC_EXPRESSIONIST stroke_params missing key: {key!r}"
+
+
+def test_nordic_expressionist_stroke_params_ranges():
+    """NORDIC_EXPRESSIONIST stroke_params values must be in valid numeric ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.NORDIC_EXPRESSIONIST).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"NORDIC_EXPRESSIONIST stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"NORDIC_EXPRESSIONIST wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"NORDIC_EXPRESSIONIST edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_nordic_expressionist_moderate_wet_blend():
+    """NORDIC_EXPRESSIONIST wet_blend should be in [0.30, 0.65] — directional but blended."""
+    sp = Style(medium=Medium.OIL, period=Period.NORDIC_EXPRESSIONIST).stroke_params
+    assert 0.30 <= sp["wet_blend"] <= 0.65, (
+        f"NORDIC_EXPRESSIONIST wet_blend={sp['wet_blend']:.2f} should be in [0.30, 0.65]")
+
+
+def test_nordic_expressionist_moderate_edge_softness():
+    """NORDIC_EXPRESSIONIST edge_softness should be in [0.20, 0.55] — dissolving but present."""
+    sp = Style(medium=Medium.OIL, period=Period.NORDIC_EXPRESSIONIST).stroke_params
+    assert 0.20 <= sp["edge_softness"] <= 0.55, (
+        f"NORDIC_EXPRESSIONIST edge_softness={sp['edge_softness']:.2f} should be in [0.20, 0.55]")
+
