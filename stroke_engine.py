@@ -12966,3 +12966,211 @@ class Painter:
         n_edge = int((edge_weight > 0.01).sum())
         print(f"    Wet-on-wet bleeding pass complete  "
               f"(boundary pixels={n_edge}  bleed_radius={bleed_radius:.1f}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # gentileschi_dramatic_flesh_pass — inspired by Artemisia Gentileschi
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def gentileschi_dramatic_flesh_pass(
+        self,
+        *,
+        shadow_deepen:    float = 0.20,
+        shadow_warmth:    float = 0.12,
+        penumbra_warmth:  float = 0.09,
+        highlight_gold:   float = 0.10,
+        shadow_thresh:    float = 0.30,
+        highlight_thresh: float = 0.68,
+        opacity:          float = 0.75,
+    ) -> None:
+        """
+        Artemisia Gentileschi dramatic flesh pass (artist pass).
+
+        Gentileschi inherited Caravaggio's tenebrism but departed from it in one
+        defining way: her shadows are *warm*.  Where Caravaggio's void is cold —
+        a near-black that has no temperature — Gentileschi's darks carry a deep
+        umber-brown warmth absorbed from her dark ground and amber glazes.  This
+        pass replicates that quality by operating separately on three tonal zones:
+
+        1. **Shadow deepening** — In the darkest zone (lum < shadow_thresh), value
+           is pulled further down toward deep shadow, but simultaneously warmed:
+           R is lifted relative to G and B.  The result is warm umber-brown dark
+           rather than cold near-black — the defining difference between Gentileschi's
+           emotional tenebrism and Caravaggio's nihilistic void.
+
+        2. **Penumbra warmth** — In the lower half of the midtone zone (shadow_thresh
+           ≤ lum ≤ midtone centre), the colour is pushed toward a warm olive-amber.
+           This is the *penumbra* — the zone of partial shadow — which Gentileschi
+           glazed with warm amber to create an intermediate transition that reads as
+           firelight absorbed into flesh.  It is distinct from both the warm golden
+           highlight above it and the warm umber shadow below.
+
+        3. **Candlelit highlight gold** — In the brightest zone (lum > highlight_thresh),
+           highlights are warmed toward amber-gold: R lifts most, G moderately, B
+           barely.  Gentileschi's highlights are not the cool silver of northern
+           painting or the ivory of Academic painters — they carry the warm golden
+           quality of single-source candlelight or torch illumination.
+
+        All three adjustments are composited back at ``opacity`` over the original
+        canvas, preserving the underlying layer structure.
+
+        Parameters
+        ----------
+        shadow_deepen    : how strongly the dark zone is deepened (value pulled down)
+        shadow_warmth    : warm umber push in the shadow zone (lifts R relative to G/B)
+        penumbra_warmth  : olive-amber push in the lower midtone / penumbra zone
+        highlight_gold   : warm amber-gold lift in the bright highlight zone
+        shadow_thresh    : luminance boundary below which shadow adjustments apply
+        highlight_thresh : luminance boundary above which highlight adjustments apply
+        opacity          : global blend weight (0 = noop, 1 = full replacement)
+
+        Notes
+        -----
+        Call this AFTER the main form-building passes (block_in, build_form) and
+        BEFORE the final highlights (place_lights).  Pairs well with a warm
+        amber-umber glaze (0.58, 0.38, 0.16) applied afterward.
+
+        The penumbra zone (shadow_thresh to midtone centre) is where this pass
+        does its most distinctive work — the olive-warm half-shadow is the
+        quality most absent from generic tenebrism implementations and most
+        characteristic of Gentileschi's specific style.
+
+        Famous works to study:
+          *Judith Slaying Holofernes* (c. 1614–1620, Uffizi) — the lit side of
+          Judith's arm and chest gleam with warm golden impasto; her shadow side
+          falls into deep warm umber, not cold black; the penumbra zone between
+          them carries a warm olive-amber transition.
+          *Self-Portrait as the Allegory of Painting* (c. 1638–1639, Royal
+          Collection) — the lit face and arm show warm candlelit gold; the
+          shadow half is warm umber-brown with visible amber glaze in the
+          half-shadow.
+        """
+        import numpy as _np
+
+        print(f"  Gentileschi dramatic flesh pass  "
+              f"(shadow_deepen={shadow_deepen:.2f}  shadow_warmth={shadow_warmth:.2f}  "
+              f"penumbra_warmth={penumbra_warmth:.2f}  highlight_gold={highlight_gold:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Gentileschi dramatic flesh pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── Thresholds and zone midpoint ──────────────────────────────────────
+        mid_centre = (shadow_thresh + highlight_thresh) * 0.5
+        penumbra_top = mid_centre  # penumbra warmth applies from shadow_thresh to mid_centre
+
+        # ── 1. Shadow zone: deepen and warm toward umber ──────────────────────
+        # Pixels darker than shadow_thresh are pulled deeper (shadow_deepen) and
+        # simultaneously warmed (shadow_warmth): R lifted, G/B damped.
+        # The warm push is proportional to how deep into the shadow the pixel is,
+        # so the darkest pixels get the most warmth (they need it most to escape
+        # cold-black appearance).
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(
+            sh_mask,
+            _np.clip((shadow_thresh - lum) / (shadow_thresh + 1e-6), 0.0, 1.0),
+            0.0)  # peaks at lum=0, zero at lum=shadow_thresh
+
+        # Deepen: pull all channels down proportionally
+        deepen_factor = 1.0 - shadow_deepen * sh_ramp
+        r_out = _np.where(sh_mask, r_out * deepen_factor, r_out)
+        g_out = _np.where(sh_mask, g_out * deepen_factor, g_out)
+        b_out = _np.where(sh_mask, b_out * deepen_factor, b_out)
+
+        # Warm umber push: after deepening, lift R, damp B relative to mid
+        # — turns the deepened tone from cold grey-black to warm umber-brown
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out + shadow_warmth * 0.70 * sh_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(sh_mask,
+                          _np.clip(g_out + shadow_warmth * 0.20 * sh_ramp, 0.0, 1.0),
+                          g_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out - shadow_warmth * 0.30 * sh_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 2. Penumbra zone: olive-amber warmth ──────────────────────────────
+        # The lower midtone band (shadow_thresh to mid_centre) — where Gentileschi
+        # applied warm amber glazes to create the characteristic olive-warm half-shadow.
+        # This is the most distinctive quality of her flesh rendering.
+        pen_mask = (lum >= shadow_thresh) & (lum < penumbra_top)
+        pen_ramp = _np.where(
+            pen_mask,
+            # peaks midway between shadow_thresh and penumbra_top; zero at both ends
+            1.0 - _np.abs(lum - (shadow_thresh + penumbra_top) * 0.5)
+                  / ((penumbra_top - shadow_thresh) * 0.5 + 1e-6),
+            0.0)
+        pen_ramp = _np.clip(pen_ramp, 0.0, 1.0)
+
+        # Olive-amber: R up (warm), G up slightly (olive), B down (remove cool)
+        r_out = _np.where(pen_mask,
+                          _np.clip(r_out + penumbra_warmth * 0.65 * pen_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(pen_mask,
+                          _np.clip(g_out + penumbra_warmth * 0.30 * pen_ramp, 0.0, 1.0),
+                          g_out)
+        b_out = _np.where(pen_mask,
+                          _np.clip(b_out - penumbra_warmth * 0.40 * pen_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 3. Highlight zone: warm amber-gold lift ───────────────────────────
+        # In bright zones above highlight_thresh, warm the highlights toward
+        # amber-gold: R lifts most, G moderately, B barely.  Gentileschi's
+        # highlights carry the colour of a single warm candle or torch — not
+        # the cool silver of northern painting.
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(
+            hi_mask,
+            _np.clip((lum - highlight_thresh) / (1.0 - highlight_thresh + 1e-6),
+                     0.0, 1.0),
+            0.0)  # zero at lum=highlight_thresh, peaks at lum=1.0
+
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out + highlight_gold * 0.80 * hi_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(hi_mask,
+                          _np.clip(g_out + highlight_gold * 0.45 * hi_ramp, 0.0, 1.0),
+                          g_out)
+        b_out = _np.where(hi_mask,
+                          _np.clip(b_out + highlight_gold * 0.08 * hi_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_shadow    = int(sh_mask.sum())
+        n_penumbra  = int(pen_mask.sum())
+        n_highlight = int(hi_mask.sum())
+        print(f"    Gentileschi dramatic flesh pass complete  "
+              f"(shadow={n_shadow}px  penumbra={n_penumbra}px  highlight={n_highlight}px)")
