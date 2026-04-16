@@ -71,6 +71,7 @@ EXPECTED_ARTISTS = [
     "pontormo",
     "rogier_van_der_weyden",
     "hans_memling",
+    "bronzino",
 ]
 
 
@@ -6010,4 +6011,133 @@ def test_hans_memling_subsurface_blue_green_in_palette():
     assert has_blue_green, (
         "Memling palette should include a blue-green entry for the "
         "subsurface flesh shadow quality — no such entry found")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Bronzino — session 56 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bronzino_in_catalog():
+    """bronzino must be present in CATALOG (session 56)."""
+    assert "bronzino" in CATALOG, (
+        "bronzino missing from CATALOG — add it to art_catalog.py")
+
+
+def test_bronzino_movement_is_mannerist():
+    """Bronzino's movement must be Florentine Mannerism."""
+    s = get_style("bronzino")
+    assert "manner" in s.movement.lower() or "mannerist" in s.movement.lower(), (
+        f"Bronzino movement should be Mannerism-related; got {s.movement!r}")
+
+
+def test_bronzino_palette_cool_ivory_highlight():
+    """Bronzino palette must contain a cool pale ivory highlight (all channels > 0.80)."""
+    s = get_style("bronzino")
+    pale = [(r, g, b) for r, g, b in s.palette if r > 0.80 and g > 0.80 and b > 0.75]
+    assert len(pale) >= 1, (
+        "Bronzino palette should include at least one cool pale ivory highlight "
+        f"(R > 0.80, G > 0.80, B > 0.75); palette={s.palette}")
+
+
+def test_bronzino_palette_deep_shadow():
+    """Bronzino palette must contain a deep cool shadow (all channels < 0.45)."""
+    s = get_style("bronzino")
+    dark = [(r, g, b) for r, g, b in s.palette if r < 0.45 and g < 0.45 and b < 0.45]
+    assert len(dark) >= 1, (
+        "Bronzino palette should include at least one deep shadow colour; "
+        f"palette={s.palette}")
+
+
+def test_bronzino_wet_blend_low():
+    """Bronzino wet_blend must be ≤ 0.25 — precise Florentine court marks."""
+    s = get_style("bronzino")
+    assert s.wet_blend <= 0.25, (
+        f"Bronzino wet_blend={s.wet_blend:.2f} should be ≤ 0.25 "
+        f"— court precision demands dry, controlled marks without wet diffusion")
+
+
+def test_bronzino_edge_softness_precise():
+    """Bronzino edge_softness must be ≤ 0.30 — Florentine draughtsmanship, not sfumato."""
+    s = get_style("bronzino")
+    assert s.edge_softness <= 0.30, (
+        f"Bronzino edge_softness={s.edge_softness:.2f} should be ≤ 0.30 "
+        f"— Florentine drawing tradition: found edges, no sfumato dissolution")
+
+
+def test_bronzino_famous_works_include_eleanor():
+    """Bronzino must list the Portrait of Eleanor of Toledo as a famous work."""
+    s = get_style("bronzino")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("eleanor" in t or "toledo" in t for t in titles), (
+        "Bronzino famous works should include the Portrait of Eleanor of Toledo "
+        "— his most celebrated and technically refined surviving work")
+
+
+def test_bronzino_famous_works_count():
+    """Bronzino should have at least 5 famous works documented."""
+    s = get_style("bronzino")
+    assert len(s.famous_works) >= 5, (
+        f"Bronzino should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_bronzino_inspiration_references_enamel_pass():
+    """Bronzino inspiration must reference bronzino_enamel_skin_pass."""
+    s = get_style("bronzino")
+    assert "bronzino_enamel" in s.inspiration.lower().replace(" ", "_"), (
+        "Bronzino inspiration must reference bronzino_enamel_skin_pass() — "
+        "the defining enamel-smooth flesh technique pass")
+
+
+def test_bronzino_in_expected_artists():
+    """EXPECTED_ARTISTS list must include bronzino."""
+    assert "bronzino" in EXPECTED_ARTISTS, (
+        "bronzino missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_bronzino_palette_length():
+    """Bronzino palette should have at least 6 colours."""
+    s = get_style("bronzino")
+    assert len(s.palette) >= 6, (
+        f"Bronzino palette should have ≥6 colours; got {len(s.palette)}")
+
+
+def test_bronzino_palette_values_in_range():
+    """All Bronzino palette RGB values must be in [0, 1]."""
+    s = get_style("bronzino")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Bronzino palette entry not 3-tuple: {rgb}"
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Bronzino palette {rgb}")
+
+
+def test_bronzino_ground_color_cool_neutral():
+    """Bronzino ground_color must be a cool neutral (B not far below R)."""
+    s = get_style("bronzino")
+    r, g, b = s.ground_color
+    # Cool neutral: B should be within 0.12 of R (not a warm amber like Rembrandt)
+    assert abs(r - b) <= 0.12, (
+        f"Bronzino ground_color should be cool-neutral (|R-B| ≤ 0.12); "
+        f"got R={r:.2f}  B={b:.2f} — use a pale restrained neutral, not warm ochre")
+
+
+def test_bronzino_ground_color_pale():
+    """Bronzino ground_color should be relatively pale (luminance ≥ 0.40)."""
+    s = get_style("bronzino")
+    r, g, b = s.ground_color
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    assert lum >= 0.40, (
+        f"Bronzino ground_color luminance={lum:.2f} should be ≥ 0.40 "
+        f"— pale panel ground allows transparent layers to retain luminosity")
+
+
+def test_bronzino_glazing_cool():
+    """Bronzino glazing must be cool (B ≥ R − 0.08) — silvery ivory, not warm amber."""
+    s = get_style("bronzino")
+    assert s.glazing is not None, (
+        "Bronzino.glazing should not be None — he used a cool pale ivory unifying glaze")
+    r, g, b = s.glazing
+    assert b >= r - 0.08, (
+        f"Bronzino glazing should be cool-toned (B ≥ R−0.08); "
+        f"got R={r:.2f}  B={b:.2f} — glazing should be silvery ivory, not warm amber")
 

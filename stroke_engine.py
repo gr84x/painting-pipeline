@@ -15531,3 +15531,227 @@ class Painter:
         print(f"    Memling jewel-light pass complete  "
               f"(highlight_px={highlight_count}  midtone_px={midtone_count})")
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 56 — new artist: Agnolo Bronzino / bronzino_enamel_skin_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def bronzino_enamel_skin_pass(
+        self,
+        figure_mask:          "Optional[_np.ndarray]" = None,
+        midtone_low:          float = 0.35,
+        midtone_high:         float = 0.72,
+        compression_strength: float = 0.18,
+        highlight_thresh:     float = 0.72,
+        cool_strength:        float = 0.05,
+        shadow_thresh:        float = 0.35,
+        desaturate_strength:  float = 0.22,
+        opacity:              float = 0.70,
+    ) -> None:
+        """
+        Apply Agnolo Bronzino's enamel-smooth flesh quality to the canvas.
+
+        Agnolo Bronzino (1503–1572) — court painter to Cosimo I de' Medici and
+        the supreme Florentine Mannerist portraitist — achieved a surface quality
+        unlike any other painter of his era.  Where Leonardo dissolved edges in
+        sfumato smoke and Rembrandt built impasto mountains of light, Bronzino
+        refined and refined until the flesh read as polished ivory: seamless,
+        cool, and utterly opaque to the emotions beneath.
+
+        The technical basis was patient oil layering on a prepared panel, with
+        each layer dried and sanded before the next was applied.  The result:
+        a surface without visible brushwork, without texture, without incident.
+        Tonal transitions in the midtones are minimal — barely perceptible —
+        and this near-flat quality in the flesh is paradoxically more unsettling
+        than bold modelling: the face becomes a mask.
+
+        His highlights are not warm gold (as in Rembrandt or Titian) but cool
+        pale ivory — as if the brightest zones have been lightly touched with
+        white lead mixed with a trace of cool grey rather than Naples yellow.
+        His deepest shadows carry no warm amber undertone; they desaturate toward
+        cool grey, draining vitality from the flesh and replacing it with a
+        controlled, aristocratic neutrality.
+
+        This pass applies three distinct operations:
+
+        1. **Midtone compression** (``midtone_low ≤ lum ≤ midtone_high``):
+           Each pixel in the midtone band is blended toward a locally smoothed
+           (gaussian-filtered) version of itself.  This compresses the tonal
+           micro-texture of the painted surface — the fine variation that reads
+           as brushwork — toward a smooth, seamless average.  The blend strength
+           is highest at the band centre and tapers to zero at the edges
+           (triangular weighting).  Controlled by ``compression_strength``.
+
+        2. **Cool highlight push** (``lum > highlight_thresh``): The brightest
+           pixels are pushed toward cool pale ivory: B is lifted and R is
+           reduced.  Unlike Memling's jewel-light (which targets a specific
+           enamel brilliance) this is a subtler, more uniform cooling — the
+           entire lit zone is shifted very slightly toward silver-white rather
+           than warm gold.  Controlled by ``cool_strength``.
+
+        3. **Shadow desaturation** (``lum < shadow_thresh``): Deep shadow
+           pixels are mixed toward their luminance value (neutral grey).  This
+           drains warm undertones from the dark zones — removing the amber and
+           sienna that warm oil grounds tend to impart — and leaves the shadows
+           cool, chromatic-neutral, and slightly lifeless.  The strength scales
+           with shadow depth: deepest shadows receive the full desaturation;
+           pixels at the shadow boundary receive a fractional push.  Controlled
+           by ``desaturate_strength``.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array ``(H, W)`` in [0, 1].  1 = figure, 0 = background.
+            When provided, all corrections are applied only within the figure.
+        midtone_low : float
+            Lower luminance boundary of the midtone compression band.
+            Default 0.35 — below this the pixel is in shadow territory.
+        midtone_high : float
+            Upper luminance boundary of the midtone compression band.
+            Default 0.72 — above this the pixel transitions to highlight.
+        compression_strength : float
+            Maximum blend fraction toward the gaussian-smoothed neighbourhood.
+            0.0 = no smoothing; 1.0 = fully replaces local texture with the
+            neighbourhood average.  Default 0.18 — perceptible but not extreme.
+        highlight_thresh : float
+            Luminance threshold above which pixels receive the cool push.
+            Default 0.72 — only genuinely bright highlight zones are affected.
+        cool_strength : float
+            Magnitude of the cool ivory push in highlight zones.  Lifts B,
+            reduces R.  Default 0.05 — subtle; stacks well with other passes.
+        shadow_thresh : float
+            Luminance boundary below which pixels are desaturated.
+            Default 0.35 — captures the lower-mid and deep shadow zones.
+        desaturate_strength : float
+            Maximum desaturation strength at the deepest shadows.  0.0 = no
+            change; 1.0 = full grayscale in the darkest pixels.  Default 0.22.
+        opacity : float
+            Global blend factor: 0 = no effect applied, 1 = full correction.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` — the compression suppresses brushwork
+        texture, not the modelled tonal structure.  Works well before the final
+        ``glaze()`` call: a cool pale ivory glaze (as in Bronzino's catalog
+        entry) will complement and extend the enamel quality introduced here.
+        Pairs well with ``weyden_angular_shadow_pass()`` (for precise shadow
+        geometry) and ``holbein_jewel_glaze_pass()`` (for panel-painting
+        finish).  Does NOT pair well with ``sfumato_veil_pass()`` at high
+        settings — sfumato and enamel are aesthetically opposed techniques.
+        """
+        import numpy as _np
+
+        print(f"  Bronzino enamel-skin pass  "
+              f"(midtone_low={midtone_low:.2f}  midtone_high={midtone_high:.2f}  "
+              f"compression={compression_strength:.3f}  cool={cool_strength:.3f}  "
+              f"desaturate={desaturate_strength:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Bronzino enamel-skin pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f   # (H, W)
+
+        # ── Figure mask weight ────────────────────────────────────────────────
+        if figure_mask is not None:
+            mask_w = _np.clip(
+                _np.array(figure_mask, dtype=_np.float32), 0.0, 1.0
+            )
+            if mask_w.shape != (h, w):
+                from PIL import Image as _Img
+                mask_w = _np.array(
+                    _Img.fromarray((mask_w * 255).astype(_np.uint8)).resize(
+                        (w, h), _Img.BILINEAR
+                    ), dtype=_np.float32
+                ) / 255.0
+        else:
+            mask_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Midtone compression (midtone_low ≤ lum ≤ midtone_high) ─────────
+        # Blend each pixel in the midtone band toward a locally smoothed version.
+        # The gaussian kernel produces a neighbourhood average that reflects the
+        # broad colour mass rather than individual brushstroke variation — mixing
+        # toward it compresses local tonal texture without affecting the overall
+        # tonal structure of the painting.
+        sigma = max(2.0, min(w, h) * 0.012)
+        r_smooth = ndimage.gaussian_filter(r_f, sigma=sigma).astype(_np.float32)
+        g_smooth = ndimage.gaussian_filter(g_f, sigma=sigma).astype(_np.float32)
+        b_smooth = ndimage.gaussian_filter(b_f, sigma=sigma).astype(_np.float32)
+
+        midtone_zone = (
+            (lum >= midtone_low) & (lum <= midtone_high)
+        ).astype(_np.float32)
+        # Triangular weighting: 0 at band edges, 1 at centre
+        band_width = max(midtone_high - midtone_low, 1e-6)
+        band_pos   = _np.clip((lum - midtone_low) / band_width, 0.0, 1.0)
+        mid_weight = midtone_zone * (1.0 - _np.abs(band_pos * 2.0 - 1.0))
+        blend_w    = mid_weight * compression_strength
+
+        r_out = r_out * (1.0 - blend_w) + r_smooth * blend_w
+        g_out = g_out * (1.0 - blend_w) + g_smooth * blend_w
+        b_out = b_out * (1.0 - blend_w) + b_smooth * blend_w
+
+        # ── 2. Cool highlight push (lum > highlight_thresh) ───────────────────
+        # Lift B, reduce R in the brightest zones — Bronzino's highlights read
+        # as cool pale ivory, not the warm Naples yellow of Italian Renaissance
+        # painting.  Scale by how far above the threshold the pixel sits.
+        highlight_zone   = (lum > highlight_thresh).astype(_np.float32)
+        highlight_excess = _np.clip(
+            (lum - highlight_thresh) / max(1.0 - highlight_thresh, 1e-6),
+            0.0, 1.0
+        )
+        hi_w = highlight_zone * highlight_excess * cool_strength
+        b_out = _np.clip(b_out + hi_w,            0.0, 1.0)
+        r_out = _np.clip(r_out - hi_w * 0.50,     0.0, 1.0)
+
+        # ── 3. Shadow desaturation (lum < shadow_thresh) ─────────────────────
+        # Mix deep shadow pixels toward their luminance value (grayscale).
+        # This removes the warm amber undertone that oil grounds introduce,
+        # leaving Bronzino's characteristic cool, chromatic-neutral shadows.
+        # Strength scales with depth — deepest shadows receive full push.
+        shadow_depth = _np.clip(
+            (shadow_thresh - lum) / max(shadow_thresh, 1e-6), 0.0, 1.0
+        )
+        desat_w = shadow_depth * desaturate_strength
+        r_out = _np.clip(r_out * (1.0 - desat_w) + lum * desat_w, 0.0, 1.0)
+        g_out = _np.clip(g_out * (1.0 - desat_w) + lum * desat_w, 0.0, 1.0)
+        b_out = _np.clip(b_out * (1.0 - desat_w) + lum * desat_w, 0.0, 1.0)
+
+        # ── Blend corrected layer back at `opacity`, weighted by mask ─────────
+        blend = opacity * mask_w
+
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - blend) + r_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - blend) + g_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - blend) + b_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        midtone_count   = int((midtone_zone   > 0.5).sum())
+        highlight_count = int((highlight_zone  > 0.5).sum())
+        shadow_count    = int((shadow_depth    > 0.05).sum())
+        print(f"    Bronzino enamel-skin pass complete  "
+              f"(midtone_px={midtone_count}  highlight_px={highlight_count}  "
+              f"shadow_px={shadow_count})")
+
