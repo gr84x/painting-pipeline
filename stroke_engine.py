@@ -11220,3 +11220,224 @@ class Painter:
         print(f"    Hatching pass complete  "
               f"(shadow={shadow_count}  cross={n_strokes // 3 if cross_hatch else 0}  "
               f"light={light_count})")
+
+    def holbein_jewel_glaze_pass(
+            self,
+            chroma_boost:      float = 0.30,
+            jewel_lo:          float = 0.22,
+            jewel_hi:          float = 0.72,
+            shadow_cool_shift: float = 0.08,
+            highlight_pale:    float = 0.14,
+            shadow_desat:      float = 0.18,
+            opacity:           float = 0.82,
+    ):
+        """
+        Holbein jewel-glaze pass — inspired by Hans Holbein the Younger's technique.
+
+        Holbein built his surfaces through thin, resin-rich oil glazes applied to a
+        near-white ground, each glaze drying completely before the next was applied.
+        Because he never used a warm amber varnish to unify the surface — as Leonardo,
+        Raphael, and the Venetians did — each colour zone in a Holbein portrait retains
+        its full chromatic identity: the crimson sleeve stays crimson, the smalt-blue
+        doublet stays cold cobalt, the malachite green remains clear and mineral.  The
+        result has a jewel-like, enamel quality: every colour appears to glow from
+        within, as if lit by its own internal light rather than by a shared external
+        source.
+
+        This pass simulates that effect through three targeted per-pixel adjustments:
+
+        1. **Jewel-zone chroma boost** — In the mid-luminance band (``jewel_lo`` to
+           ``jewel_hi``, default 0.22–0.72) the pass boosts HSV saturation by
+           ``chroma_boost`` (default 0.30).  This is the zone where local colour is
+           most legible; boosting it replicates the jewel depth that Holbein achieved
+           through repeated transparent glazes.  A smooth cosine ramp at both edges of
+           the zone prevents hard saturation cliffs.
+
+        2. **Shadow cooling and desaturation** — Pixels below ``jewel_lo`` have their
+           saturation reduced by ``shadow_desat`` and their hue gently shifted toward
+           the blue-grey end of the spectrum by ``shadow_cool_shift``.  Holbein's
+           shadows are cool and restrained — never the warm chiaroscuro of Caravaggio —
+           because his thin glazes lack the optical body to absorb light into drama.
+           Desaturating the darks also ensures that the boosted mid-tones read as
+           jewel-bright against a neutral shadow field.
+
+        3. **Highlight paling** — Pixels above ``jewel_hi`` have their saturation
+           reduced by ``highlight_pale`` and their value (lightness) pushed slightly
+           toward an ivory-white, simulating the lead-white highlights Holbein applied
+           last to seal the surface.  These near-white touches make the jewel mid-tones
+           read as even richer by contrast.
+
+        All operations are fully vectorised (NumPy) and applied to the raw Cairo surface
+        buffer.  The result is blended back at ``opacity`` so the caller can control the
+        overall strength of the effect.  The pass is safe to call multiple times —
+        successive applications compound the jewel depth without clipping.
+
+        Parameters
+        ----------
+        chroma_boost      : Saturation increase in the jewel zone (0–1 delta added to
+                            HSV saturation, clamped to 1.0).  0.20–0.35 gives a
+                            rich but believable jewel quality; higher values read as
+                            illustration.
+        jewel_lo          : Lower luminance boundary of the jewel zone (default 0.22).
+                            Pixels below this are treated as deep shadow.
+        jewel_hi          : Upper luminance boundary of the jewel zone (default 0.72).
+                            Pixels above this are treated as highlight.
+        shadow_cool_shift : Amount by which the hue of shadow pixels is shifted toward
+                            the blue-grey cool direction (0–1, applied as a small
+                            additive hue offset toward ~0.60 in HSV).
+        highlight_pale    : Saturation reduction in the highlight zone (0–1 delta).
+                            0.10–0.20 drives highlights toward ivory without fully
+                            neutralising any remaining warm tint.
+        shadow_desat      : Saturation reduction in the shadow zone (0–1 delta).
+        opacity           : Blend weight of the adjusted layer over the original
+                            canvas pixels (0 = no effect, 1 = full replacement).
+
+        Notes
+        -----
+        Randomly selected artistic improvement for this session — a composable
+        jewel-glaze primitive inspired by Holbein's unique palette strategy.  Distinct
+        from ``chroma_zone_pass()`` (which only adjusts saturation globally), this pass
+        also introduces directed warm/cool temperature shifts in the luminance extremes,
+        replicating the specific chromatic personality of Northern Renaissance panel
+        painting: brilliant mid-tone hues, cool restrained shadows, pale ivory lights.
+        """
+        import numpy as _np
+        import colorsys as _colorsys
+
+        print(f"  Holbein jewel-glaze pass  "
+              f"(chroma_boost={chroma_boost:.2f}  "
+              f"jewel=[{jewel_lo:.2f}–{jewel_hi:.2f}]  "
+              f"opacity={opacity:.2f})…")
+
+        h, w = self.h, self.w
+
+        # ── Read current canvas (Cairo BGRA layout) ───────────────────────────
+        buf = _np.frombuffer(self.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()   # keep original for the final opacity blend
+
+        # Extract RGB float in [0, 1] — Cairo stores BGRA
+        r_ch = buf[:, :, 2].astype(_np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(_np.float32) / 255.0
+        b_ch = buf[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── Vectorised RGB → HSV ──────────────────────────────────────────────
+        v_ch  = _np.maximum(_np.maximum(r_ch, g_ch), b_ch)   # value
+        c_min = _np.minimum(_np.minimum(r_ch, g_ch), b_ch)   # chrominance range
+        delta = v_ch - c_min
+
+        # Saturation: s = delta / v (undefined when v=0 — keep s=0)
+        s_ch = _np.where(v_ch > 1e-6, delta / (v_ch + 1e-6), 0.0)
+
+        # Hue (in [0, 1] = [0°, 360°] / 360):
+        #   When delta=0 the colour is achromatic — hue is undefined; set to 0.
+        eps = 1e-6
+        h_ch = _np.zeros_like(r_ch)
+
+        r_max = (v_ch == r_ch) & (delta > eps)
+        g_max = (v_ch == g_ch) & (delta > eps) & ~r_max
+        b_max = ~r_max & ~g_max & (delta > eps)
+
+        h_ch[r_max] = ((g_ch[r_max] - b_ch[r_max]) / delta[r_max]) % 6.0
+        h_ch[g_max] = ((b_ch[g_max] - r_ch[g_max]) / delta[g_max]) + 2.0
+        h_ch[b_max] = ((r_ch[b_max] - g_ch[b_max]) / delta[b_max]) + 4.0
+        h_ch = h_ch / 6.0   # normalise to [0, 1]
+
+        # ── Luminance (perceived brightness) for zone decisions ───────────────
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch   # (H, W) float32
+
+        # ── Zone masks ────────────────────────────────────────────────────────
+        in_shadow   = lum < jewel_lo
+        in_highlight = lum > jewel_hi
+        in_jewel    = ~in_shadow & ~in_highlight
+
+        # Smooth cosine ramp at zone boundaries to avoid saturation cliffs.
+        # Within the jewel zone, ramp from 0→1 over the lower 10% and 1→0 over
+        # the upper 10% of the zone width.
+        zone_width = jewel_hi - jewel_lo + eps
+        ramp_w     = zone_width * 0.10   # transition width at each edge
+
+        ramp_lo = _np.clip((lum - jewel_lo) / ramp_w, 0.0, 1.0)
+        ramp_hi = _np.clip((jewel_hi - lum) / ramp_w, 0.0, 1.0)
+        jewel_ramp = _np.where(in_jewel,
+                               0.5 * (1.0 - _np.cos(_np.pi * _np.minimum(ramp_lo, ramp_hi))),
+                               0.0)
+
+        # ── Apply jewel-zone chroma boost ─────────────────────────────────────
+        s_out = s_ch.copy()
+        s_out = _np.where(in_jewel,
+                          _np.clip(s_ch + chroma_boost * jewel_ramp, 0.0, 1.0),
+                          s_out)
+
+        # ── Shadow cooling + desaturation ─────────────────────────────────────
+        # Shift hue toward blue (0.58 in [0,1] ≈ 210° — blue-grey / slate)
+        hue_blue  = 0.58
+        shadow_ramp = _np.clip((jewel_lo - lum) / (jewel_lo + eps), 0.0, 1.0)
+        h_out = h_ch.copy()
+        h_out = _np.where(
+            in_shadow,
+            h_ch + shadow_cool_shift * shadow_ramp * (hue_blue - h_ch),
+            h_out,
+        )
+        s_out = _np.where(in_shadow,
+                          _np.clip(s_ch - shadow_desat * shadow_ramp, 0.0, 1.0),
+                          s_out)
+
+        # ── Highlight paling ──────────────────────────────────────────────────
+        # Drive highlights toward pale ivory by reducing saturation.
+        # Also push value very slightly toward 1.0 (white-lead highlights).
+        hi_ramp = _np.clip((lum - jewel_hi) / (1.0 - jewel_hi + eps), 0.0, 1.0)
+        s_out = _np.where(in_highlight,
+                          _np.clip(s_ch - highlight_pale * hi_ramp, 0.0, 1.0),
+                          s_out)
+        v_out = _np.where(in_highlight,
+                          _np.clip(v_ch + 0.04 * hi_ramp, 0.0, 1.0),
+                          v_ch)
+        v_out = _np.where(in_jewel | in_shadow, v_ch, v_out)   # only highlights
+
+        # ── Reconstruct RGB from adjusted HSV ─────────────────────────────────
+        # HSV → RGB via sector-based formula (vectorised, no per-pixel loop)
+        h6  = (h_out % 1.0) * 6.0           # [0, 6)
+        hi_ = h6.astype(_np.int32) % 6      # sector index 0–5
+        f   = h6 - hi_.astype(_np.float32)  # fractional part
+
+        p   = v_out * (1.0 - s_out)
+        q   = v_out * (1.0 - s_out * f)
+        t_  = v_out * (1.0 - s_out * (1.0 - f))
+
+        r_out = _np.zeros_like(r_ch)
+        g_out = _np.zeros_like(g_ch)
+        b_out = _np.zeros_like(b_ch)
+
+        for sec, (rv, gv, bv) in enumerate(
+            [(v_out, t_, p), (q, v_out, p), (p, v_out, t_),
+             (p, q, v_out), (t_, p, v_out), (v_out, p, q)]
+        ):
+            mask = hi_ == sec
+            r_out[mask] = rv[mask]
+            g_out[mask] = gv[mask]
+            b_out[mask] = bv[mask]
+
+        # Achromatic pixels: copy value to all channels
+        achromatic = delta < eps
+        r_out[achromatic] = v_out[achromatic]
+        g_out[achromatic] = v_out[achromatic]
+        b_out[achromatic] = v_out[achromatic]
+
+        # ── Blend adjusted layer back at `opacity` ───────────────────────────
+        # Cairo BGRA: blue in [0], green in [1], red in [2], alpha in [3]
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        print(f"    Holbein jewel-glaze pass complete")

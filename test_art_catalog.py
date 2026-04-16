@@ -41,6 +41,7 @@ EXPECTED_ARTISTS = [
     "egon_schiele",
     "el_greco", "fra_angelico", "frida_kahlo", "gauguin", "goya", "hilma_af_klint", "hokusai",
     "georges_de_la_tour",
+    "holbein_the_younger",
     "ingres",
     "jan_van_eyck",
     "kandinsky",
@@ -3657,4 +3658,121 @@ def test_quattrocento_crisper_than_high_renaissance():
     assert sp_quat["edge_softness"] < sp_high["edge_softness"], (
         "QUATTROCENTO edge_softness must be crisper than HIGH_RENAISSANCE "
         "(Fra Angelico's contour lines precede the soft modelling of Raphael)")
+
+
+# ── Hans Holbein the Younger (session 36 addition) ──────────────────────────
+
+def test_holbein_the_younger_in_catalog():
+    """holbein_the_younger must be present in CATALOG after this session."""
+    assert "holbein_the_younger" in CATALOG, (
+        "holbein_the_younger missing from CATALOG — expected after session 36")
+
+
+def test_holbein_in_expected_artists():
+    """EXPECTED_ARTISTS list must include holbein_the_younger."""
+    assert "holbein_the_younger" in EXPECTED_ARTISTS, (
+        "holbein_the_younger must appear in EXPECTED_ARTISTS for catalog completeness tests")
+
+
+def test_holbein_movement():
+    """Holbein's movement must reference Northern Renaissance."""
+    s = get_style("holbein_the_younger")
+    assert "Northern Renaissance" in s.movement or "northern renaissance" in s.movement.lower(), (
+        f"holbein_the_younger movement should include 'Northern Renaissance'; got {s.movement!r}")
+
+
+def test_holbein_nationality():
+    """Holbein was German-Swiss."""
+    s = get_style("holbein_the_younger")
+    assert "German" in s.nationality or "Swiss" in s.nationality, (
+        f"holbein_the_younger nationality should be German-Swiss; got {s.nationality!r}")
+
+
+def test_holbein_palette_length():
+    """Holbein palette must have at least 6 colours."""
+    s = get_style("holbein_the_younger")
+    assert len(s.palette) >= 6, (
+        f"holbein_the_younger palette should have ≥ 6 colours; got {len(s.palette)}")
+
+
+def test_holbein_palette_values_in_range():
+    """All palette RGB components must be in [0, 1]."""
+    s = get_style("holbein_the_younger")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"holbein_the_younger palette[{i}][{j}]={v:.3f} out of [0,1]")
+
+
+def test_holbein_low_wet_blend():
+    """Holbein used thin dry glazes — wet_blend must be low (≤ 0.20)."""
+    s = get_style("holbein_the_younger")
+    assert s.wet_blend <= 0.20, (
+        f"holbein_the_younger wet_blend should be ≤ 0.20 (thin glaze, no wet-into-wet); "
+        f"got {s.wet_blend:.3f}")
+
+
+def test_holbein_crisp_edges():
+    """Holbein's portraits have extremely crisp outlines — edge_softness must be low (≤ 0.25)."""
+    s = get_style("holbein_the_younger")
+    assert s.edge_softness <= 0.25, (
+        f"holbein_the_younger edge_softness should be ≤ 0.25 (no sfumato, precise contour); "
+        f"got {s.edge_softness:.3f}")
+
+
+def test_holbein_no_chromatic_split():
+    """Holbein predates Seurat divisionism — chromatic_split must be False."""
+    s = get_style("holbein_the_younger")
+    assert s.chromatic_split is False, (
+        "holbein_the_younger chromatic_split should be False (no Pointillist technique)")
+
+
+def test_holbein_crackle():
+    """Aged oak panel paintings crackle — crackle should be True."""
+    s = get_style("holbein_the_younger")
+    assert s.crackle is True, "holbein_the_younger crackle should be True (aged panel)"
+
+
+def test_holbein_fine_stroke_size():
+    """Holbein's technique requires very fine marks — stroke_size must be ≤ 6."""
+    s = get_style("holbein_the_younger")
+    assert s.stroke_size <= 6, (
+        f"holbein_the_younger stroke_size should be ≤ 6 (precise panel technique); "
+        f"got {s.stroke_size}")
+
+
+def test_holbein_famous_works():
+    """Holbein must have at least 5 famous works and include The Ambassadors."""
+    s = get_style("holbein_the_younger")
+    assert len(s.famous_works) >= 5, (
+        f"holbein_the_younger should have ≥ 5 famous works; got {len(s.famous_works)}")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Ambassadors" in t or "ambassadors" in t.lower() for t in titles), (
+        "holbein_the_younger famous_works must include 'The Ambassadors' (1533 — his "
+        "most celebrated work, now in the National Gallery, London)")
+
+
+def test_holbein_crisper_than_leonardo():
+    """Holbein's edge_softness must be lower than Leonardo's (no sfumato vs. maximum sfumato)."""
+    s_holbein  = get_style("holbein_the_younger")
+    s_leonardo = get_style("leonardo")
+    assert s_holbein.edge_softness < s_leonardo.edge_softness, (
+        "holbein_the_younger edge_softness must be crisper than leonardo "
+        "(Holbein's precise Northern outlines vs. Leonardo's smoke-dissolved edges)")
+
+
+def test_holbein_ground_paler_than_rembrandt():
+    """Holbein's pale white ground must be lighter than Rembrandt's dark imprimatura."""
+    s_holbein  = get_style("holbein_the_younger")
+    s_rembrandt = get_style("rembrandt")
+    # Ground luminance: 0.299R + 0.587G + 0.114B
+    lum_h = (0.299 * s_holbein.ground_color[0]
+             + 0.587 * s_holbein.ground_color[1]
+             + 0.114 * s_holbein.ground_color[2])
+    lum_r = (0.299 * s_rembrandt.ground_color[0]
+             + 0.587 * s_rembrandt.ground_color[1]
+             + 0.114 * s_rembrandt.ground_color[2])
+    assert lum_h > lum_r, (
+        f"holbein_the_younger ground ({lum_h:.3f}) should be lighter than "
+        f"rembrandt ground ({lum_r:.3f})")
 
