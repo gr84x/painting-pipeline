@@ -4077,6 +4077,86 @@ CATALOG: Dict[str, ArtStyle] = {
 
 
     # ── Vilhelm Hammershøi ─────────────────────────────────────────────────────
+    # ── John Constable ───────────────────────────────────────────────────────
+    # Randomly selected artist for this session's naturalistic-landscape inspiration.
+    # Constable is the founding voice of English plein air painting — his observation
+    # of cloud, light, and the living English countryside shaped both the Barbizon
+    # School and French Impressionism.  His technique is the polar opposite of Turner's
+    # atmospheric dissolution: Constable's edges are PRESENT; his colour is broken but
+    # READ; his sky is studied fact before it is feeling.
+    "john_constable": ArtStyle(
+        artist="John Constable",
+        movement="Romanticism / English Naturalism",
+        nationality="British",
+        period="c. 1799–1837",
+        palette=[
+            (0.28, 0.52, 0.22),   # sap green — dense summer foliage (his dominant key)
+            (0.48, 0.32, 0.15),   # warm earth brown — ploughed Suffolk field
+            (0.55, 0.70, 0.82),   # cool cerulean sky — English overcast blue
+            (0.92, 0.90, 0.85),   # silver white — cloud highlight (his famous "snow")
+            (0.62, 0.64, 0.68),   # cool grey — storm-cloud underbelly
+            (0.72, 0.62, 0.38),   # warm ochre — sunlit path and foreground mud
+            (0.22, 0.28, 0.15),   # dark olive shadow — deep tree and hedge shadow
+            (0.78, 0.82, 0.88),   # luminous pale sky — horizon glow near waterline
+        ],
+        ground_color=(0.52, 0.54, 0.42),   # warm greenish-grey — his Dedham Vale ground
+        stroke_size=12.0,
+        wet_blend=0.42,         # moderate — fresh plein air spontaneity, not over-blended
+        edge_softness=0.35,     # moderate — atmospheric softness without Turner-like dissolution
+        jitter=0.040,           # animated mark texture — sky and foliage alive
+        glazing=(0.68, 0.72, 0.62),     # cool grey-green unifying veil — English damp air
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Constable's fundamental innovation was systematic sky observation: he "
+            "painted hundreds of cloud studies from life, recording time, date, and "
+            "wind direction on the verso, treating meteorology as pictorial fact. "
+            "His canvases begin with a warm greenish ground that reads through the "
+            "thin paint layers of the middle distance, warming the greens of the "
+            "Stour Valley meadows.  Foliage is built from broken, directional dabs "
+            "— never blended into a single tone — so the eye reads 'leaves' rather "
+            "than 'green mass'.  His most celebrated technical device is the "
+            "'Constable snow': tiny dagger-like touches of thick undiluted white "
+            "impasto scattered across lit surfaces — water glints, cloud edges, wet "
+            "leaf surfaces — that catch actual raking studio light and give the "
+            "painting a real luminosity beyond tonal illusion alone.  Shadows are "
+            "cool, often greenish; lit passages are warm cream-ochre; the sky is "
+            "always the light source and the most carefully painted element.  He "
+            "rejected the brown-varnish conventions of the 'Old Masters' as "
+            "falsified nature: 'The sound of water escaping from mill-dams, willows, "
+            "old rotten planks, slimy posts, and brickwork, I love such things.'  "
+            "The technique requires three registers held simultaneously: the large "
+            "enveloping sky tone, the middle-distance tonal silhouette, and the "
+            "broken close-focus foreground detail."
+        ),
+        famous_works=[
+            ("The Hay Wain",                              "1821"),
+            ("Dedham Vale",                               "1802"),
+            ("Salisbury Cathedral from the Meadows",      "1831"),
+            ("Flatford Mill (Scene on a Navigable River)", "1817"),
+            ("Weymouth Bay",                              "1816"),
+            ("The White Horse",                           "1819"),
+            ("Cloud Study",                               "1822"),
+            ("Hampstead Heath with a Rainbow",            "1836"),
+        ],
+        inspiration=(
+            "Use constable_cloud_sky_pass() as the defining stylistic pass — it "
+            "builds luminous English skies with warm cream cloud-highlight edges, "
+            "cool grey-blue shadow undersides, and Constable's characteristic "
+            "'silver sparkle' impasto highlights scattered across lit cloud and "
+            "water surfaces.  "
+            "The ground_color (0.52, 0.54, 0.42) — warm greenish-grey — should "
+            "remain visible in the mid-tone middle-distance passages; Constable's "
+            "meadows are the ground showing through thin broken colour.  "
+            "wet_blend=0.42 is deliberately moderate: DO NOT raise it; the freshness "
+            "of plein air handling depends on NOT over-blending individual strokes.  "
+            "jitter=0.040 animates the foliage and sky marks — essential for the "
+            "sense of breeze and living light.  "
+            "Apply constable_cloud_sky_pass() AFTER build_form() and BEFORE the "
+            "final glaze.  Pair with atmospheric_depth_pass() for full recession."
+        ),
+    ),
+
     "vilhelm_hammershoi": ArtStyle(
         artist="Vilhelm Hammershøi",
         movement="Symbolism / Danish Intimisme",
