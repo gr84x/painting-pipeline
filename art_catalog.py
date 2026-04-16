@@ -4075,6 +4075,64 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Vilhelm Hammershøi ────────────────────────────────────────────────────
+    "vilhelm_hammershoi": ArtStyle(
+        artist="Vilhelm Hammershøi",
+        movement="Symbolism / Nordic Intimism",
+        nationality="Danish",
+        period="1884–1916",
+        palette=[
+            (0.88, 0.87, 0.85),   # ash-white — near-white window light
+            (0.72, 0.72, 0.72),   # silver-grey — dominant mid-tone
+            (0.55, 0.57, 0.60),   # cool blue-grey — shadow passages
+            (0.38, 0.38, 0.40),   # dark grey — deep interior shadows
+            (0.82, 0.80, 0.72),   # warm ivory — filtered afternoon light
+            (0.65, 0.63, 0.58),   # muted ochre-grey — wooden floor warmth
+        ],
+        ground_color=(0.68, 0.67, 0.65),    # cool silver-ash imprimatura
+        stroke_size=4,
+        wet_blend=0.75,                      # smooth seamless blending — no visible marks
+        edge_softness=0.72,                  # soft diffused edges — muted transitions
+        jitter=0.008,                        # near-zero colour jitter — restrained palette
+        glazing=(0.78, 0.77, 0.74),          # cool grey unifying veil
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Hammershøi worked with an extraordinarily restrained near-monochromatic "
+            "palette of silver-greys, ash-whites, and muted blue-greys, placing them "
+            "with a smooth, nearly invisible touch that dissolves brushwork entirely. "
+            "His interiors are lit by diffuse north window light — cool, even, and "
+            "shadowless in the highlights — with the room receding into warm grey "
+            "shadow toward the walls.  Figures, when present, appear from behind, "
+            "anonymous, absorbed into the same tonal register as the walls and floors. "
+            "The effect is one of profound stillness: a world paused mid-breath, "
+            "existing slightly outside of ordinary time.  Hammershøi achieved this "
+            "silence by ruthlessly eliminating colour saturation, allowing only the "
+            "faintest warmth in the floor planks and the barest cool in the shadows, "
+            "while rendering all surfaces with an impossibly smooth, porcelain-like "
+            "blending that makes objects feel weightless."
+        ),
+        famous_works=[
+            ("Interior with Young Woman from Behind", "1904"),
+            ("Dust Motes Dancing in Sunrays", "1900"),
+            ("Interior, Strandgade 30", "1901"),
+            ("The Four Rooms", "1914"),
+            ("Interior with a Woman Reading", "1899"),
+            ("White Doors (Open Doors)", "1905"),
+            ("Interior, Sunlight on the Floor", "1906"),
+        ],
+        inspiration=(
+            "Use hammershoi_grey_silence_pass() after block_in() to drain colour "
+            "toward the cool silver-grey register that defines Hammershøi's interiors. "
+            "The pass desaturates the canvas while preserving luminance gradients and "
+            "applies a cool window-light correction (boosting the blue-grey channel in "
+            "lit regions) to simulate the north-window diffused light quality. "
+            "Pair with tone_ground((0.68, 0.67, 0.65)) — the cool silver-ash ground — "
+            "and use very low jitter=0.008 to enforce the restrained near-monochrome. "
+            "Apply glazing=(0.78, 0.77, 0.74) as a final cool grey veil."
+        ),
+    ),
+
 }
 
 

@@ -65,6 +65,7 @@ EXPECTED_ARTISTS = [
     "munch",
     "frans_hals",
     "salvador_dali",
+    "vilhelm_hammershoi",
 ]
 
 
@@ -5291,4 +5292,171 @@ def test_dutch_golden_age_low_edge_softness():
     sp = Style(medium=Medium.OIL, period=Period.DUTCH_GOLDEN_AGE).stroke_params
     assert 0.05 <= sp["edge_softness"] <= 0.28, (
         f"DUTCH_GOLDEN_AGE edge_softness={sp['edge_softness']:.2f} should be in [0.05, 0.28]")
+
+
+# ── Vilhelm Hammershøi catalog tests ──────────────────────────────────────────
+
+def test_vilhelm_hammershoi_in_catalog():
+    """Vilhelm Hammershøi must be present in CATALOG under the key 'vilhelm_hammershoi'."""
+    assert "vilhelm_hammershoi" in CATALOG, "vilhelm_hammershoi not found in CATALOG"
+
+
+def test_vilhelm_hammershoi_style_retrieval():
+    """get_style('vilhelm_hammershoi') must return an ArtStyle without raising."""
+    s = get_style("vilhelm_hammershoi")
+    assert s is not None
+    assert s.artist == "Vilhelm Hammershøi"
+
+
+def test_vilhelm_hammershoi_movement():
+    """Hammershøi must be catalogued under Symbolism or Nordic Intimism."""
+    s = get_style("vilhelm_hammershoi")
+    combined = s.movement.lower()
+    assert "symbol" in combined or "intimis" in combined, (
+        f"Expected 'Symbol' or 'Intimis' in movement, got {s.movement!r}")
+
+
+def test_vilhelm_hammershoi_nationality():
+    """Hammershøi must be recorded as Danish."""
+    s = get_style("vilhelm_hammershoi")
+    assert "Danish" in s.nationality, (
+        f"Expected 'Danish' in nationality, got {s.nationality!r}")
+
+
+def test_vilhelm_hammershoi_palette_length():
+    """Hammershøi palette must have at least 5 colour entries."""
+    s = get_style("vilhelm_hammershoi")
+    assert len(s.palette) >= 5, (
+        f"Vilhelm Hammershøi palette should have ≥5 colours; got {len(s.palette)}")
+
+
+def test_vilhelm_hammershoi_palette_values_in_range():
+    """All Hammershøi palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("vilhelm_hammershoi")
+    for i, rgb in enumerate(s.palette):
+        for c_idx, c in enumerate(rgb):
+            assert 0.0 <= c <= 1.0, (
+                f"Hammershøi palette[{i}][{c_idx}] = {c:.4f} out of [0, 1]")
+
+
+def test_vilhelm_hammershoi_high_wet_blend():
+    """Hammershøi's seamless blending demands high wet_blend (≥ 0.65)."""
+    s = get_style("vilhelm_hammershoi")
+    assert s.wet_blend >= 0.65, (
+        f"Vilhelm Hammershøi wet_blend should be ≥0.65 for seamless blending; "
+        f"got {s.wet_blend:.2f}")
+
+
+def test_vilhelm_hammershoi_high_edge_softness():
+    """Hammershøi's diffused north light demands high edge_softness (≥ 0.60)."""
+    s = get_style("vilhelm_hammershoi")
+    assert s.edge_softness >= 0.60, (
+        f"Vilhelm Hammershøi edge_softness should be ≥0.60 for diffused edges; "
+        f"got {s.edge_softness:.2f}")
+
+
+def test_vilhelm_hammershoi_low_jitter():
+    """Hammershøi's restrained palette requires very low jitter (≤ 0.015)."""
+    s = get_style("vilhelm_hammershoi")
+    assert s.jitter <= 0.015, (
+        f"Vilhelm Hammershøi jitter should be ≤0.015 (near-zero colour variation); "
+        f"got {s.jitter:.4f}")
+
+
+def test_vilhelm_hammershoi_famous_works_include_dust_motes():
+    """'Dust Motes Dancing in Sunrays' must be in Hammershøi's famous works."""
+    s = get_style("vilhelm_hammershoi")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Dust Motes" in t for t in titles), (
+        "Hammershøi famous works should include Dust Motes Dancing in Sunrays (1900)")
+
+
+def test_vilhelm_hammershoi_famous_works_count():
+    """Hammershøi should have at least 5 famous works documented."""
+    s = get_style("vilhelm_hammershoi")
+    assert len(s.famous_works) >= 5, (
+        f"Vilhelm Hammershøi should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_vilhelm_hammershoi_inspiration_references_grey_silence_pass():
+    """Inspiration text must reference hammershoi_grey_silence_pass."""
+    s = get_style("vilhelm_hammershoi")
+    assert "hammershoi_grey_silence" in s.inspiration.lower().replace(" ", "_"), (
+        "Hammershøi inspiration should reference hammershoi_grey_silence_pass() — "
+        "the dedicated desaturation and window-light pass")
+
+
+def test_vilhelm_hammershoi_in_expected_artists():
+    """EXPECTED_ARTISTS list must include vilhelm_hammershoi."""
+    assert "vilhelm_hammershoi" in EXPECTED_ARTISTS, (
+        "vilhelm_hammershoi missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_vilhelm_hammershoi_palette_is_desaturated():
+    """Hammershøi's palette must be nearly achromatic — max chroma ≤ 0.15 per colour."""
+    import colorsys
+    s = get_style("vilhelm_hammershoi")
+    for i, rgb in enumerate(s.palette):
+        _, s_val, _ = colorsys.rgb_to_hsv(*rgb)
+        assert s_val <= 0.20, (
+            f"Hammershøi palette[{i}] saturation={s_val:.3f} should be ≤0.20 "
+            f"(near-achromatic grey palette); rgb={rgb}")
+
+
+def test_vilhelm_hammershoi_cool_ground():
+    """Hammershøi's ground must be cool (B ≥ R − 0.08) — silver-ash imprimatura."""
+    s = get_style("vilhelm_hammershoi")
+    r, g, b = s.ground_color
+    assert b >= r - 0.08, (
+        f"Hammershøi ground_color should be cool or neutral (B ≥ R−0.08); "
+        f"got R={r:.2f} B={b:.2f}")
+    assert 0.0 <= r <= 1.0 and 0.0 <= g <= 1.0 and 0.0 <= b <= 1.0, (
+        "Hammershøi ground_color values must be in [0, 1]")
+
+
+def test_vilhelm_hammershoi_has_glazing():
+    """Hammershøi used a cool grey unifying veil — glazing must not be None."""
+    s = get_style("vilhelm_hammershoi")
+    assert s.glazing is not None, (
+        "Hammershøi glazing should be set to cool grey veil; got None")
+
+
+# ── DANISH_INTIMISTE Period stroke params ──────────────────────────────────────
+
+def test_danish_intimiste_period_exists():
+    """Period.DANISH_INTIMISTE must exist in the Period enum."""
+    assert hasattr(Period, "DANISH_INTIMISTE"), (
+        "Period.DANISH_INTIMISTE not found — add it to scene_schema.py")
+
+
+def test_danish_intimiste_stroke_params_keys():
+    """DANISH_INTIMISTE stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.DANISH_INTIMISTE).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"DANISH_INTIMISTE stroke_params missing key: {key!r}"
+
+
+def test_danish_intimiste_stroke_params_ranges():
+    """DANISH_INTIMISTE stroke_params values must be in valid numeric ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.DANISH_INTIMISTE).stroke_params
+    assert 2 <= sp["stroke_size_face"] <= 10, (
+        f"DANISH_INTIMISTE stroke_size_face={sp['stroke_size_face']} should be in [2, 10]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"DANISH_INTIMISTE wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"DANISH_INTIMISTE edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_danish_intimiste_high_wet_blend():
+    """DANISH_INTIMISTE wet_blend should be in [0.60, 0.90] — seamless smooth blending."""
+    sp = Style(medium=Medium.OIL, period=Period.DANISH_INTIMISTE).stroke_params
+    assert 0.60 <= sp["wet_blend"] <= 0.90, (
+        f"DANISH_INTIMISTE wet_blend={sp['wet_blend']:.2f} should be in [0.60, 0.90]")
+
+
+def test_danish_intimiste_high_edge_softness():
+    """DANISH_INTIMISTE edge_softness should be in [0.55, 0.85] — diffused quiet edges."""
+    sp = Style(medium=Medium.OIL, period=Period.DANISH_INTIMISTE).stroke_params
+    assert 0.55 <= sp["edge_softness"] <= 0.85, (
+        f"DANISH_INTIMISTE edge_softness={sp['edge_softness']:.2f} should be in [0.55, 0.85]")
 

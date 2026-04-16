@@ -6135,3 +6135,143 @@ def test_dali_paranoiac_critical_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
     p.dali_paranoiac_critical_pass(opacity=0.80, chroma_shift=3)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# hammershoi_grey_silence_pass — Vilhelm Hammershøi
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_hammershoi_grey_silence_pass_exists():
+    """Painter must have hammershoi_grey_silence_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hammershoi_grey_silence_pass"), (
+        "hammershoi_grey_silence_pass not found on Painter")
+    assert callable(getattr(Painter, "hammershoi_grey_silence_pass"))
+
+
+def test_hammershoi_grey_silence_pass_runs():
+    """hammershoi_grey_silence_pass() runs without error on a toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+    p.hammershoi_grey_silence_pass(opacity=0.80)
+
+
+def test_hammershoi_grey_silence_pass_changes_canvas():
+    """hammershoi_grey_silence_pass() must modify canvas pixels when opacity > 0."""
+    p = _make_small_painter(64, 64)
+    # Fill with a saturated warm colour so desaturation is measurable
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 30    # B
+    buf[:, :, 1] = 80    # G
+    buf[:, :, 2] = 200   # R  — warm saturated fill
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.hammershoi_grey_silence_pass(desaturation=0.82, opacity=0.80)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "hammershoi_grey_silence_pass should change the canvas — no effect was applied")
+
+
+def test_hammershoi_grey_silence_pass_opacity_zero_is_noop():
+    """hammershoi_grey_silence_pass(opacity=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.hammershoi_grey_silence_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "hammershoi_grey_silence_pass(opacity=0) should be a noop")
+
+
+def test_hammershoi_grey_silence_pass_desaturates_towards_grey():
+    """Desaturation must reduce the R-B channel spread toward grey."""
+    p = _make_small_painter(64, 64)
+    # Fill with a warm orange — high R, moderate G, low B
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 40    # B
+    buf[:, :, 1] = 120   # G
+    buf[:, :, 2] = 220   # R  — warm orange fill
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+    b_before = float(buf[:, :, 0].mean())
+    spread_before = r_before - b_before
+
+    p.hammershoi_grey_silence_pass(desaturation=1.0, window_cool=0.0,
+                                   shadow_cool=0.0, opacity=1.0)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+    spread_after = r_after - b_after
+
+    assert spread_after < spread_before * 0.15, (
+        f"Full desaturation should collapse R-B spread nearly to zero; "
+        f"before={spread_before:.1f} after={spread_after:.1f}")
+
+
+def test_hammershoi_grey_silence_pass_cools_bright_pixels():
+    """Bright pixels must become cooler (B increases, R decreases) after window cooling."""
+    p = _make_small_painter(64, 64)
+    # Fill with a warm bright ivory — lum well above window_thresh default (0.68)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 200   # B
+    buf[:, :, 1] = 220   # G
+    buf[:, :, 2] = 235   # R  — warm bright fill (lum ≈ 0.87)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.hammershoi_grey_silence_pass(
+        desaturation=0.0,    # disable desaturation — isolate window cooling
+        window_cool=0.15,
+        window_thresh=0.60,
+        shadow_cool=0.0,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_after = float(buf_after[:, :, 0].mean())
+    r_after = float(buf_after[:, :, 2].mean())
+
+    assert b_after > 200, (
+        f"Bright pixels should have more blue after window cooling; "
+        f"B before=200 after={b_after:.1f}")
+    assert r_after < 235, (
+        f"Bright pixels should have less red after window cooling; "
+        f"R before=235 after={r_after:.1f}")
+
+
+def test_hammershoi_grey_silence_pass_custom_params():
+    """hammershoi_grey_silence_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+    p.hammershoi_grey_silence_pass(
+        desaturation  = 0.90,
+        window_cool   = 0.08,
+        window_thresh = 0.62,
+        shadow_cool   = 0.05,
+        shadow_thresh = 0.30,
+        opacity       = 0.75,
+    )
+
+
+def test_hammershoi_grey_silence_pass_large_canvas():
+    """hammershoi_grey_silence_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+    p.hammershoi_grey_silence_pass(opacity=0.80)

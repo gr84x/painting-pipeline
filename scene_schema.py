@@ -226,6 +226,7 @@ class Period(Enum):
     FRENCH_IMPRESSIONIST = auto()    # Renoir — rich chromatic saturation, warm rose-peach flesh, dappled light, feathery curving brushwork, peach-rose glaze
     NORDIC_EXPRESSIONIST = auto()    # Munch — sinuous swirling lines, raw psychological color, existential anxiety rendered as landscape distortion
     DUTCH_GOLDEN_AGE  = auto()       # Frans Hals — bravura alla prima, broken tone, low wet-blend, crisp directional marks
+    DANISH_INTIMISTE  = auto()       # Hammershøi — near-monochrome grey silence, diffused north window light, near-zero saturation
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -768,6 +769,12 @@ class Style:
             # edge_softness=0.18: crisp, directional edges — each stroke has a clear start and
             # finish; no sfumato dissolving; the edge IS the stroke itself.
             Period.DUTCH_GOLDEN_AGE: dict(stroke_size_face=8, stroke_size_bg=24, wet_blend=0.14, edge_softness=0.18),
+            # DANISH_INTIMISTE — Hammershøi's near-monochrome grey silence.
+            # stroke_size_face=4: very fine marks, nearly invisible on the figure.
+            # stroke_size_bg=16:  subdued background treatment matching the grey walls.
+            # wet_blend=0.75:     heavy blending — surfaces are porcelain-smooth.
+            # edge_softness=0.72: diffused edges dissolve forms into each other gently.
+            Period.DANISH_INTIMISTE: dict(stroke_size_face=4, stroke_size_bg=16, wet_blend=0.75, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

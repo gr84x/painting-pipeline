@@ -13793,3 +13793,184 @@ class Painter:
         print(f"    Dali paranoiac-critical pass complete  "
               f"(shadow={n_shadow}px  highlight={n_highlight}px  "
               f"aberration={'on' if chroma_shift > 0 else 'off'})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # hammershoi_grey_silence_pass — Vilhelm Hammershøi
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def hammershoi_grey_silence_pass(
+        self,
+        *,
+        desaturation:    float = 0.82,
+        window_cool:     float = 0.06,
+        window_thresh:   float = 0.68,
+        shadow_cool:     float = 0.04,
+        shadow_thresh:   float = 0.35,
+        opacity:         float = 0.80,
+    ) -> None:
+        """
+        Hammershøi Grey Silence Pass — Vilhelm Hammershøi's near-monochrome interior light.
+
+        Vilhelm Hammershøi (1864–1916) is among the most radical colourists in
+        Western painting — radical not through intensity but through its total
+        elimination.  Where Post-Impressionists pushed colour to maximum
+        saturation, Hammershøi drained it almost entirely, reducing his interiors
+        to a silver-grey monochrome broken only by the faintest warmth in the
+        floorboards and the most subtle cool blue tinge in the shadows cast by
+        his Copenhagen north-facing windows.
+
+        His technique was as restrained as his palette: he blended colour almost
+        seamlessly across large tonal zones, with no visible individual strokes,
+        no broken-tone variation, no gestural marks.  The result is an atmosphere
+        of extraordinary quiet — rooms that breathe with the silence of
+        interrupted time.
+
+        This pass introduces a new capability not previously available in the
+        pipeline: systematic near-total desaturation combined with a differential
+        window-cool correction that simulates the cool grey daylight of a north-
+        facing Scandinavian interior.  No other pass achieves true grey-silence:
+        existing passes add colour, shift temperature, or emphasise contrast.
+        This pass removes chromatic information while preserving the luminance
+        structure that makes Hammershøi's spaces feel three-dimensional despite
+        the near absence of colour.
+
+        Implementation
+        --------------
+        The pass operates in three stages:
+
+        1. **Desaturation** — For each pixel, the RGB values are blended toward
+           their luminance equivalent (grey) at the `desaturation` rate.  At 1.0,
+           the result is a true greyscale; at 0.82, a ghost of the original
+           colour survives — just enough warmth in the ochre floor and just
+           enough blue-grey in the cool shadow to feel like a memory of colour
+           rather than its absence.
+
+        2. **Window-light cooling** — In the bright zone (lum > window_thresh),
+           lit surfaces receive a gentle cool shift: R and G are damped slightly
+           while B is boosted by window_cool.  This simulates the cool blue-grey
+           quality of north window daylight — the same light that falls across
+           Hammershøi's bare floors and white-plaster walls.
+
+        3. **Shadow cooling** — In the dark zone (lum < shadow_thresh), shadows
+           are cooled further toward blue-grey.  This is the quality of deep
+           interior shadow in a north-lit room: cool, still, and slightly blue
+           where the light does not reach at all.
+
+        Parameters
+        ----------
+        desaturation : float
+            Strength of the grey desaturation blend.  0.82 is faithful to
+            Hammershøi — strong enough to feel near-monochrome while preserving
+            a barely perceptible warmth in the floor planks.  1.0 = full grey.
+        window_cool : float
+            Cool-shift strength in bright zones (lum > window_thresh).  0.06
+            gives the characteristic blue-grey north window cast; reduce toward
+            0 for a more neutral ivory light.
+        window_thresh : float
+            Luminance above which window cooling applies.
+        shadow_cool : float
+            Additional cool-shift strength in dark zones (lum < shadow_thresh).
+            0.04 is subtle — just enough to distinguish warm floor shadows from
+            cool wall shadows.
+        shadow_thresh : float
+            Luminance below which shadow cooling applies.
+        opacity : float
+            Global blend weight for all adjustments.  0 = noop, 1 = full.
+
+        Notes
+        -----
+        Call AFTER block_in().  Follow with tone_ground((0.68, 0.67, 0.65))
+        or apply the ground before building form.  Finish with a cool grey
+        glaze (0.78, 0.77, 0.74) at opacity 0.08–0.12 to unify the surface.
+
+        Famous works to study:
+          *Dust Motes Dancing in Sunrays* (1900, Ordrupgaard) — a near-empty
+          room; diagonal light falls across bare floorboards; the only subject
+          is the light itself rendered as dust motes.  No figure, no furniture.
+          The extreme simplicity makes the grey palette monumental.
+
+          *Interior with Young Woman from Behind* (1904, Randers Museum) —
+          a woman in a dark dress stands with her back to the viewer against
+          a white door.  Her form and the door are painted in the same cool
+          grey-white tonal register; they dissolve into each other at the edges.
+        """
+        import numpy as _np
+
+        print(f"  Hammershøi grey silence pass  "
+              f"(desaturation={desaturation:.2f}  "
+              f"window_cool={window_cool:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Hammershøi grey silence pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Desaturation toward grey ───────────────────────────────────────
+        # Blend each channel toward its luminance value at the desaturation rate.
+        # At desaturation=1.0, all channels equal lum (pure greyscale).
+        # At desaturation=0.82, a faint residue of the original hue remains.
+        r_out = r_f * (1.0 - desaturation) + lum * desaturation
+        g_out = g_f * (1.0 - desaturation) + lum * desaturation
+        b_out = b_f * (1.0 - desaturation) + lum * desaturation
+
+        # ── 2. Window-light cooling in bright zone ────────────────────────────
+        # In lit regions (lum > window_thresh), apply a gentle cool shift that
+        # simulates the blue-grey quality of north window daylight.
+        # Ramp from 0 at window_thresh to 1 at lum=1.0.
+        hi_mask = lum > window_thresh
+        hi_ramp = _np.where(
+            hi_mask,
+            _np.clip((lum - window_thresh) / (1.0 - window_thresh + 1e-6),
+                     0.0, 1.0),
+            0.0)
+
+        r_out = _np.clip(r_out - window_cool * 0.55 * hi_ramp, 0.0, 1.0)
+        g_out = _np.clip(g_out - window_cool * 0.25 * hi_ramp, 0.0, 1.0)
+        b_out = _np.clip(b_out + window_cool * 0.40 * hi_ramp, 0.0, 1.0)
+
+        # ── 3. Shadow cooling in dark zone ────────────────────────────────────
+        # In deep shadow (lum < shadow_thresh), apply a subtle additional cool
+        # shift — the characteristic blue-cool of deep interior Nordic shadow.
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(
+            sh_mask,
+            _np.clip((shadow_thresh - lum) / (shadow_thresh + 1e-6), 0.0, 1.0),
+            0.0)
+
+        r_out = _np.clip(r_out - shadow_cool * 0.50 * sh_ramp, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_cool * 0.65 * sh_ramp, 0.0, 1.0)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_lit    = int(hi_mask.sum())
+        n_shadow = int(sh_mask.sum())
+        print(f"    Hammershøi grey silence pass complete  "
+              f"(lit={n_lit}px  shadow={n_shadow}px)")
