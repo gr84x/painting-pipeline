@@ -3593,6 +3593,82 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jean-Honoré Fragonard ──────────────────────────────────────────────────
+    # Fragonard was the supreme master of French Rococo painting — rapid, assured,
+    # loaded-brush bravura that dazzles with its spontaneity.  His mature style
+    # (1760s–1780s) is characterised by:
+    #   • Bravura brushwork — a single loaded sweep covers a broad passage; Fragonard
+    #     often completed a canvas in a single session, painting alla prima
+    #   • Warm, airy palette — rose flesh, cream highlights, honey-amber shadows;
+    #     no cold northern light, only the warm glow of French garden afternoons
+    #   • Luminous cream-ivory highlights that bloom slightly at their tips into the
+    #     surrounding warm midtone — not the silver-cool of Gainsborough or the
+    #     Academic porcelain of Bouguereau
+    #   • Spontaneous gesture — brushstrokes read as marks; Fragonard celebrated the
+    #     stroke itself rather than hiding it behind glazing
+    #   • Playful, lyrical subject matter — garden swings, lovers, bathers, reading girls
+    # fragonard_bravura_pass() approximates these qualities.
+    "jean_honore_fragonard": ArtStyle(
+        artist="Jean-Honoré Fragonard",
+        movement="French Rococo",
+        nationality="French",
+        period="1752–1806",
+        palette=[
+            (0.96, 0.88, 0.78),   # warm cream-white highlight — sunlit, not silver
+            (0.88, 0.72, 0.62),   # warm rose flesh mid-tone
+            (0.76, 0.58, 0.46),   # warm peach flesh shadow
+            (0.55, 0.38, 0.28),   # warm umber deep shadow — no cool blue in shadows
+            (0.84, 0.88, 0.68),   # chartreuse garden green — Fragonard's vivid foliage
+            (0.64, 0.80, 0.90),   # soft sky blue — warm pastel, not cold
+            (0.92, 0.80, 0.54),   # warm golden sunlight — his characteristic afternoon glow
+            (0.72, 0.54, 0.70),   # soft lavender-pink drapery — ribbons, silks, petticoats
+        ],
+        ground_color=(0.90, 0.82, 0.70),    # warm cream-ivory ground — Fragonard toned his
+                                            # canvases with a warm, honey-tinted preparation;
+                                            # this warm underpaint glows through and unifies
+                                            # the whole surface in garden-afternoon warmth
+        stroke_size=12,
+        wet_blend=0.62,                      # fluid, spontaneous — paint is worked wet-into-
+                                            # wet throughout a single sitting; Fragonard rarely
+                                            # returned to a dry passage to rework it
+        edge_softness=0.52,                  # edges present but softened at stroke tips —
+                                            # more spirited than Gainsborough (who dissolved
+                                            # edges to mist); Fragonard's strokes have body
+                                            # and direction with only the tip feathered
+        jitter=0.055,
+        glazing=(0.88, 0.78, 0.62),          # warm honey-amber glaze — peach-gold overtone
+                                            # that bathes the whole surface in afternoon warmth;
+                                            # the opposite of Gainsborough's cool silver glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Bravura alla-prima oil on warm cream-ivory ground.  "
+            "A single loaded sweep of a broad, springy hog-bristle brush "
+            "covers each passage; marks are confident and largely unretouched.  "
+            "Warm rose flesh emerges from a peach-cream midtone ground rather "
+            "than the cool Academic imprimatura.  Highlights are creamy warm "
+            "(not silver), blooming slightly at their edges into the surrounding "
+            "warm half-tone.  Shadows stay warm umber-brown — no cool blue intrudes.  "
+            "The whole surface is unified by a warm honey-amber glaze that reads "
+            "as afternoon garden light rather than northern studio illumination."
+        ),
+        famous_works=[
+            ("The Swing",                   "1767"),
+            ("The Bathers",                 "c. 1765"),
+            ("The Progress of Love",        "1771–1772"),
+            ("Young Girl Reading",          "c. 1776"),
+            ("The Love Letter",             "c. 1770"),
+            ("A Young Girl Playing with a Dog", "c. 1770"),
+        ],
+        inspiration=(
+            "Use fragonard_bravura_pass() for the hallmark warm highlight bloom, "
+            "rosy flesh-midtone warmth, and honey-amber shadow.  Warm cream-ivory "
+            "ground_color (0.90, 0.82, 0.70).  High stroke_size (12) and wet_blend (0.62) "
+            "— bravura, spontaneous, loaded-brush marks.  Warm honey glaze "
+            "(0.88, 0.78, 0.62) unifies in afternoon warmth.  No cool blue in shadows."
+        ),
+    ),
+
 }
 
 

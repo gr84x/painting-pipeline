@@ -222,6 +222,7 @@ class Period(Enum):
     FRENCH_CLASSICAL = auto()        # Poussin — cool architectural clarity, silver shadows, rational colour zones, saturation discipline
     ROCOCO_PORTRAIT = auto()         # Gainsborough — feathery edge dissolution, cool silver-blue tonality, figure embedded in landscape
     AMERICAN_MARINE = auto()         # Homer — brilliant maritime light, cool Prussian shadows, transparent wash over white ground, decisive unretouched strokes
+    FRENCH_ROCOCO = auto()           # Fragonard — bravura loaded-brush highlights, warm cream-peach palette, spontaneous gestural marks, warm amber-honey glaze
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -722,6 +723,17 @@ class Style:
             # edge_softness=0.35: present, decisive edges — marine silhouettes and
             # the horizon line are crisp; only far atmospheric distance softens.
             Period.AMERICAN_MARINE: dict(stroke_size_face=9, stroke_size_bg=26, wet_blend=0.30, edge_softness=0.35),
+            # French Rococo (Fragonard): bravura oil on a warm cream-ivory ground.
+            # stroke_size_face=10: large, confident marks — Fragonard's swift loaded brush
+            # covered broad areas in single sweeping passes, creating the gestural,
+            # spontaneous surface that defines bravura painting.  stroke_size_bg=32: loose,
+            # expressive garden and landscape backgrounds rendered with open, airy sweeps.
+            # wet_blend=0.62: fluid, spontaneous application — paint stays workable; Fragonard
+            # often worked alla prima in a single sitting, blending wet-into-wet throughout.
+            # edge_softness=0.52: edges are present but softened at their tips — more spirited
+            # and less dissolved than Gainsborough (0.68); the bravura stroke has a clear
+            # direction and body, with feathering only at the tapered end.
+            Period.FRENCH_ROCOCO: dict(stroke_size_face=10, stroke_size_bg=32, wet_blend=0.62, edge_softness=0.52),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

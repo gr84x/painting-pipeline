@@ -60,6 +60,7 @@ EXPECTED_ARTISTS = [
     "nicolas_poussin",
     "thomas_gainsborough",
     "winslow_homer",
+    "jean_honore_fragonard",
 ]
 
 
@@ -198,6 +199,7 @@ EXPECTED_PERIODS = [
     "CONTEMPORARY", "FANTASY_ART", "NONE",
     "PRE_RAPHAELITE",
     "QUATTROCENTO",
+    "FRENCH_ROCOCO",
 ]
 
 
@@ -4488,4 +4490,210 @@ def test_american_marine_moderate_wet_blend():
     assert 0.20 <= sp["wet_blend"] <= 0.45, (
         f"AMERICAN_MARINE wet_blend={sp['wet_blend']:.2f} should be in [0.20, 0.45] "
         "(Homer placed strokes once and left them — no heavy wet-on-wet blending)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Jean-Honoré Fragonard — art catalog tests (session 42)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_jean_honore_fragonard_in_catalog():
+    """jean_honore_fragonard must be present in CATALOG (session 42 addition)."""
+    assert "jean_honore_fragonard" in CATALOG, "jean_honore_fragonard not found in CATALOG"
+
+
+def test_jean_honore_fragonard_in_expected_artists():
+    """jean_honore_fragonard must appear in the EXPECTED_ARTISTS list."""
+    assert "jean_honore_fragonard" in EXPECTED_ARTISTS, (
+        "jean_honore_fragonard missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_jean_honore_fragonard_movement_french_rococo():
+    """jean_honore_fragonard movement must reference French Rococo."""
+    s = get_style("jean_honore_fragonard")
+    assert "Rococo" in s.movement or "rococo" in s.movement.lower(), (
+        f"jean_honore_fragonard movement={s.movement!r} should reference 'Rococo'")
+
+
+def test_jean_honore_fragonard_nationality():
+    """jean_honore_fragonard was French."""
+    s = get_style("jean_honore_fragonard")
+    assert "French" in s.nationality, (
+        f"jean_honore_fragonard nationality should be French; got: {s.nationality!r}")
+
+
+def test_jean_honore_fragonard_palette_length():
+    """jean_honore_fragonard palette should have at least 7 key colours."""
+    s = get_style("jean_honore_fragonard")
+    assert len(s.palette) >= 7, (
+        f"jean_honore_fragonard palette should have >= 7 colours; got {len(s.palette)}")
+
+
+def test_jean_honore_fragonard_palette_in_range():
+    """All jean_honore_fragonard palette RGB values must be in [0, 1]."""
+    s = get_style("jean_honore_fragonard")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in jean_honore_fragonard palette {rgb}")
+
+
+def test_jean_honore_fragonard_warm_ground():
+    """
+    jean_honore_fragonard ground must be warm (R > B) and pale (lum >= 0.70) —
+    the warm cream-ivory preparation that unifies his garden-afternoon palette.
+    """
+    s = get_style("jean_honore_fragonard")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert r > b, (
+        f"jean_honore_fragonard ground_color R={r:.3f} should exceed B={b:.3f} "
+        "(warm cream-ivory ground — not cool northern grey)")
+    assert lum >= 0.70, (
+        f"jean_honore_fragonard ground luminance={lum:.3f} should be >= 0.70 "
+        "(pale warm ground — Fragonard's warmth glows through thin paint layers)")
+
+
+def test_jean_honore_fragonard_warm_glazing():
+    """jean_honore_fragonard glazing must be warm (R > B) — honey-amber afternoon glow."""
+    s = get_style("jean_honore_fragonard")
+    assert s.glazing is not None, (
+        "jean_honore_fragonard glazing should not be None — warm honey-amber final varnish")
+    r, g, b = s.glazing
+    assert r > b, (
+        f"jean_honore_fragonard glazing R={r:.3f} should exceed B={b:.3f} "
+        "(warm honey-amber glaze — the opposite of Gainsborough's cool silver glaze)")
+
+
+def test_jean_honore_fragonard_high_wet_blend():
+    """jean_honore_fragonard wet_blend should be >= 0.55 — fluid bravura alla prima."""
+    s = get_style("jean_honore_fragonard")
+    assert s.wet_blend >= 0.55, (
+        f"jean_honore_fragonard wet_blend={s.wet_blend:.2f} should be >= 0.55 "
+        "(Fragonard painted alla prima, often completing a canvas wet-into-wet in one sitting)")
+
+
+def test_jean_honore_fragonard_moderate_edge_softness():
+    """jean_honore_fragonard edge_softness should be in [0.40, 0.65] — spirited but not dissolved."""
+    s = get_style("jean_honore_fragonard")
+    assert 0.40 <= s.edge_softness <= 0.65, (
+        f"jean_honore_fragonard edge_softness={s.edge_softness:.2f} should be in [0.40, 0.65] "
+        "(edges tapered at stroke tips but the stroke body is legible — not sfumato-dissolved)")
+
+
+def test_jean_honore_fragonard_crackle():
+    """jean_honore_fragonard crackle should be True — aged 18th-century oil on canvas."""
+    s = get_style("jean_honore_fragonard")
+    assert s.crackle is True, (
+        "jean_honore_fragonard crackle should be True (aged 18th-century oil on canvas)")
+
+
+def test_jean_honore_fragonard_famous_works_contain_swing():
+    """jean_honore_fragonard famous_works should include 'The Swing' — his most iconic work."""
+    s = get_style("jean_honore_fragonard")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Swing" in t for t in titles), (
+        f"jean_honore_fragonard famous_works should include 'The Swing'; got: {titles}")
+
+
+def test_jean_honore_fragonard_inspiration_references_bravura_pass():
+    """jean_honore_fragonard inspiration text should reference fragonard_bravura_pass."""
+    s = get_style("jean_honore_fragonard")
+    assert "fragonard_bravura_pass" in s.inspiration, (
+        "jean_honore_fragonard inspiration should reference fragonard_bravura_pass()")
+
+
+def test_jean_honore_fragonard_palette_has_warm_highlight():
+    """jean_honore_fragonard palette must have a warm, bright highlight (R > B and lum >= 0.82)."""
+    s = get_style("jean_honore_fragonard")
+
+    def _is_warm_highlight(rgb):
+        r, g, b = rgb
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        return lum >= 0.82 and r > b
+
+    assert any(_is_warm_highlight(rgb) for rgb in s.palette), (
+        "jean_honore_fragonard palette must contain a warm bright highlight "
+        "(lum >= 0.82 and R > B) — Fragonard's cream-warm sunlit highlights")
+
+
+def test_jean_honore_fragonard_palette_warmer_highlight_than_gainsborough():
+    """
+    jean_honore_fragonard highlight must be warmer than thomas_gainsborough highlight.
+    Gainsborough uses cool silver-white; Fragonard uses warm cream-ivory.
+    """
+    s_f = get_style("jean_honore_fragonard")
+    s_g = get_style("thomas_gainsborough")
+
+    def _brightest_rgb(palette):
+        """Return the RGB with highest luminance."""
+        return max(palette, key=lambda rgb: 0.299*rgb[0] + 0.587*rgb[1] + 0.114*rgb[2])
+
+    hi_f = _brightest_rgb(s_f.palette)
+    hi_g = _brightest_rgb(s_g.palette)
+
+    # Fragonard's highlight R/B ratio should exceed Gainsborough's
+    ratio_f = hi_f[0] / (hi_f[2] + 1e-6)
+    ratio_g = hi_g[0] / (hi_g[2] + 1e-6)
+    assert ratio_f >= ratio_g, (
+        f"jean_honore_fragonard highlight R/B ratio ({ratio_f:.3f}) should be >= "
+        f"thomas_gainsborough highlight R/B ratio ({ratio_g:.3f}) — "
+        "Fragonard warm cream vs Gainsborough cool silver")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FRENCH_ROCOCO period enum tests — Jean-Honoré Fragonard (session 42)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_french_rococo_period_in_enum():
+    """Period.FRENCH_ROCOCO must be a valid member of the Period enum."""
+    assert hasattr(Period, "FRENCH_ROCOCO"), (
+        "Period enum is missing FRENCH_ROCOCO — add it to scene_schema.py")
+
+
+def test_french_rococo_stroke_params_keys():
+    """FRENCH_ROCOCO stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_ROCOCO).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"FRENCH_ROCOCO stroke_params missing key: {key!r}"
+
+
+def test_french_rococo_stroke_params_ranges():
+    """FRENCH_ROCOCO stroke_params values must be in valid ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_ROCOCO).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"FRENCH_ROCOCO stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"FRENCH_ROCOCO wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"FRENCH_ROCOCO edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_french_rococo_high_wet_blend():
+    """FRENCH_ROCOCO wet_blend should be >= 0.55 — fluid bravura alla prima."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_ROCOCO).stroke_params
+    assert sp["wet_blend"] >= 0.55, (
+        f"FRENCH_ROCOCO wet_blend={sp['wet_blend']:.2f} should be >= 0.55 "
+        "(Fragonard painted wet-into-wet in a single sitting — fluid, spontaneous)")
+
+
+def test_french_rococo_moderate_edge_softness():
+    """FRENCH_ROCOCO edge_softness should be in [0.40, 0.65] — spirited but readable strokes."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_ROCOCO).stroke_params
+    assert 0.40 <= sp["edge_softness"] <= 0.65, (
+        f"FRENCH_ROCOCO edge_softness={sp['edge_softness']:.2f} should be in [0.40, 0.65] "
+        "(bravura strokes taper at tips but body remains legible — not sfumato-dissolved)")
+
+
+def test_french_rococo_larger_stroke_than_rococo_portrait():
+    """
+    FRENCH_ROCOCO stroke_size_face should be >= ROCOCO_PORTRAIT stroke_size_face.
+    Fragonard's bravura marks are bolder than Gainsborough's refined feathered strokes.
+    """
+    sp_fr = Style(medium=Medium.OIL, period=Period.FRENCH_ROCOCO).stroke_params
+    sp_rp = Style(medium=Medium.OIL, period=Period.ROCOCO_PORTRAIT).stroke_params
+    assert sp_fr["stroke_size_face"] >= sp_rp["stroke_size_face"], (
+        f"FRENCH_ROCOCO stroke_size_face ({sp_fr['stroke_size_face']}) should be >= "
+        f"ROCOCO_PORTRAIT stroke_size_face ({sp_rp['stroke_size_face']}) — "
+        "Fragonard's bravura marks are larger and bolder than Gainsborough's refined touches")
 

@@ -12410,6 +12410,175 @@ class Painter:
               f"(highlight={n_highlight}px  shadow={n_shadow}px)")
 
     # ─────────────────────────────────────────────────────────────────────────
+    # fragonard_bravura_pass — session 42 artist pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def fragonard_bravura_pass(
+        self,
+        *,
+        warmth_strength: float = 0.08,
+        highlight_bloom: float = 0.06,
+        shadow_warm: float = 0.05,
+        highlight_thresh: float = 0.65,
+        shadow_thresh: float = 0.30,
+        opacity: float = 0.70,
+    ) -> None:
+        """
+        Jean-Honoré Fragonard bravura pass (session 42 artist pass).
+
+        Fragonard's French Rococo canvases are defined by three tonal qualities
+        that this pass approximates:
+
+        1. **Warm highlight bloom** — In bright zones (lum > highlight_thresh),
+           highlights are pushed toward a creamy warm tone rather than the cool
+           silver of northern European painting.  R and G channels lift; B is
+           gently boosted only slightly (warm cream, not cold white).  This
+           gives the sensation of afternoon garden light striking silk and flesh
+           rather than cold studio daylight.
+
+        2. **Rosy peach midtone warmth** — In the middle zone
+           (shadow_thresh ≤ lum ≤ highlight_thresh), a gentle warmth push
+           toward peach-rose is applied: R lifts slightly, B is subtly damped.
+           Fragonard's flesh tones are warm and rosy — not the cool ivory of
+           Academic painting, not the amber of Rembrandt, but a light garden-
+           afternoon peach.
+
+        3. **Warm shadow damping** — In shadow zones (lum < shadow_thresh),
+           any cool blue is gently damped and R is slightly boosted, keeping
+           shadows in warm umber-brown territory.  Fragonard's shadows are warm
+           throughout — the contrast in his work is light warm versus dark warm,
+           never the warm-light/cool-shadow convention of Academic Realism.
+
+        All three adjustments composite back at ``opacity`` over the original
+        canvas, preserving the underlying painterly layer.
+
+        Parameters
+        ----------
+        warmth_strength   : strength of the rose-peach push in midtones
+        highlight_bloom   : extra warm-cream boost in highlight zones
+        shadow_warm       : strength of the warm shadow damping (reduces B in darks)
+        highlight_thresh  : luminance above which highlight bloom begins
+        shadow_thresh     : luminance below which shadow warmth applies
+        opacity           : global blend weight of the entire adjustment
+                            (0 = noop, 1 = full replacement)
+
+        Notes
+        -----
+        Call this AFTER the main style passes and BEFORE the final glaze/finish.
+        Pairs well with a warm honey-amber glaze (0.88, 0.78, 0.62) applied after.
+
+        Famous works to study:
+          *The Swing* (1767, Wallace Collection, London) — the definitive
+          Fragonard; the pink-silk dress and foliage are lit with warm cream-
+          gold afternoon sun; shadows are warm leafy green-umber, never cool.
+          *Young Girl Reading* (c. 1776, National Gallery of Art, Washington) —
+          the yellow dress in warm afternoon light; a masterclass in warm
+          highlight and warm shadow coexisting without any cool tone.
+          *The Bathers* (c. 1765, Louvre) — luminous rose-cream flesh bathed in
+          dappled warm light; the water shadows are warm olive, not cool blue.
+        """
+        import numpy as _np
+
+        print(f"  Fragonard bravura pass  "
+              f"(warmth={warmth_strength:.2f}  hi_bloom={highlight_bloom:.2f}  "
+              f"shadow_warm={shadow_warm:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Fragonard bravura pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Warm highlight bloom ───────────────────────────────────────────
+        # Linear ramp from zero at highlight_thresh to full at lum=1.0.
+        # Push toward warm cream: R lifts most, G lifts moderately, B lifts
+        # just slightly — creamy warm, not silvery cool.
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(hi_mask,
+                            _np.clip((lum - highlight_thresh)
+                                     / (1.0 - highlight_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out + highlight_bloom * 0.70 * hi_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(hi_mask,
+                          _np.clip(g_out + highlight_bloom * 0.50 * hi_ramp, 0.0, 1.0),
+                          g_out)
+        b_out = _np.where(hi_mask,
+                          _np.clip(b_out + highlight_bloom * 0.20 * hi_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 2. Rosy peach midtone warmth ─────────────────────────────────────
+        # The midtone band: shadow_thresh ≤ lum ≤ highlight_thresh.
+        # Gently warm toward peach-rose: lift R, damp B slightly.
+        mid_mask = (lum >= shadow_thresh) & (lum <= highlight_thresh)
+        # Weight peaks at the centre of the midtone band, tapering to zero at edges.
+        mid_centre = (shadow_thresh + highlight_thresh) * 0.5
+        mid_half   = (highlight_thresh - shadow_thresh) * 0.5 + 1e-6
+        mid_weight = _np.where(mid_mask,
+                               1.0 - _np.abs(lum - mid_centre) / mid_half,
+                               0.0)
+        r_out = _np.where(mid_mask,
+                          _np.clip(r_out + warmth_strength * 0.55 * mid_weight, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(mid_mask,
+                          _np.clip(b_out - warmth_strength * 0.30 * mid_weight, 0.0, 1.0),
+                          b_out)
+
+        # ── 3. Warm shadow damping ────────────────────────────────────────────
+        # In shadows (lum < shadow_thresh): slightly boost R, damp B.
+        # This keeps Fragonard's shadows warm umber-brown rather than cool Prussian.
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(sh_mask,
+                            _np.clip((shadow_thresh - lum)
+                                     / (shadow_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out + shadow_warm * 0.40 * sh_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out - shadow_warm * 0.45 * sh_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_highlight = int(hi_mask.sum())
+        n_midtone   = int(mid_mask.sum())
+        n_shadow    = int(sh_mask.sum())
+        print(f"    Fragonard bravura pass complete  "
+              f"(highlight={n_highlight}px  midtone={n_midtone}px  shadow={n_shadow}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
     # wet_on_wet_bleeding_pass — session 41 random improvement
     # ─────────────────────────────────────────────────────────────────────────
 

@@ -5403,3 +5403,142 @@ def test_wet_on_wet_bleeding_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.0)
     p.wet_on_wet_bleeding_pass(bleed_radius=3.0, bleed_strength=0.20, opacity=0.60)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# fragonard_bravura_pass — Jean-Honoré Fragonard artist pass (session 42)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_fragonard_bravura_pass_exists():
+    """Painter must have fragonard_bravura_pass() method (session 42 addition)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "fragonard_bravura_pass"), (
+        "fragonard_bravura_pass not found on Painter")
+    assert callable(getattr(Painter, "fragonard_bravura_pass"))
+
+
+def test_fragonard_bravura_pass_runs():
+    """fragonard_bravura_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.68), texture_strength=0.0)
+    p.fragonard_bravura_pass(opacity=0.70)
+
+
+def test_fragonard_bravura_pass_opacity_zero_is_noop():
+    """fragonard_bravura_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.75, 0.65, 0.55), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.fragonard_bravura_pass(opacity=0.0)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert _np.array_equal(before, after), (
+        "fragonard_bravura_pass(opacity=0) should be a noop")
+
+
+def test_fragonard_bravura_pass_warms_highlights():
+    """
+    On a warm-midtone canvas (lum ~0.75, above highlight_thresh=0.65),
+    R channel should increase after fragonard_bravura_pass —
+    the warm cream highlight bloom.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Warm bright midtone: R=210, G=195, B=175 → lum ~0.76, above highlight_thresh=0.65
+    p.tone_ground((210/255, 195/255, 175/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    r_before = before[:, :, 2].astype(_np.float32).mean()
+
+    p.fragonard_bravura_pass(
+        warmth_strength  = 0.0,   # disable midtone for isolation
+        highlight_bloom  = 0.10,
+        shadow_warm      = 0.0,
+        highlight_thresh = 0.65,
+        opacity          = 1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+    r_after = after[:, :, 2].astype(_np.float32).mean()
+
+    assert r_after > r_before, (
+        f"fragonard_bravura_pass should boost R in highlight zone; "
+        f"R before={r_before:.1f}  R after={r_after:.1f}")
+
+
+def test_fragonard_bravura_pass_warms_shadows():
+    """
+    On a warm dark canvas (lum ~0.12, below shadow_thresh=0.30),
+    R channel should increase and B should decrease after fragonard_bravura_pass —
+    the warm shadow damping (Fragonard's shadows are warm umber, not cool Prussian).
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Warm dark: R=50, G=35, B=25 → lum ~0.13, below shadow_thresh=0.30
+    p.tone_ground((50/255, 35/255, 25/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    r_before = before[:, :, 2].astype(_np.float32).mean()
+    b_before = before[:, :, 0].astype(_np.float32).mean()
+
+    p.fragonard_bravura_pass(
+        warmth_strength  = 0.0,   # disable midtone for isolation
+        highlight_bloom  = 0.0,   # disable highlight for isolation
+        shadow_warm      = 0.15,
+        shadow_thresh    = 0.30,
+        opacity          = 1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+    r_after = after[:, :, 2].astype(_np.float32).mean()
+    b_after = after[:, :, 0].astype(_np.float32).mean()
+
+    assert r_after > r_before, (
+        f"fragonard_bravura_pass should boost R in shadow zone (warm umber); "
+        f"R before={r_before:.1f}  R after={r_after:.1f}")
+    assert b_after < b_before, (
+        f"fragonard_bravura_pass should damp B in shadow zone (remove Prussian cool); "
+        f"B before={b_before:.1f}  B after={b_after:.1f}")
+
+
+def test_fragonard_bravura_pass_changes_canvas():
+    """fragonard_bravura_pass(opacity=1.0) must change at least some pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.55, 0.45), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.fragonard_bravura_pass(opacity=1.0)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert not _np.array_equal(before, after), (
+        "fragonard_bravura_pass should change the canvas when opacity=1.0")
+
+
+def test_fragonard_bravura_pass_custom_params():
+    """fragonard_bravura_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.85, 0.75, 0.65), texture_strength=0.0)
+    p.fragonard_bravura_pass(
+        warmth_strength  = 0.06,
+        highlight_bloom  = 0.05,
+        shadow_warm      = 0.04,
+        highlight_thresh = 0.70,
+        shadow_thresh    = 0.25,
+        opacity          = 0.60,
+    )
+
+
+def test_fragonard_bravura_pass_large_canvas():
+    """fragonard_bravura_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.88, 0.80, 0.70), texture_strength=0.0)
+    p.fragonard_bravura_pass(warmth_strength=0.07, highlight_bloom=0.05, opacity=0.70)
