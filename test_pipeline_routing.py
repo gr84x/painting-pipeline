@@ -6668,3 +6668,402 @@ def test_chiaroscuro_modelling_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.72, 0.68, 0.58), texture_strength=0.0)
     p.chiaroscuro_modelling_pass(opacity=0.68)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 51 — bellini_sacred_light_pass() tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bellini_sacred_light_pass_exists():
+    """Painter must have bellini_sacred_light_pass() method (session 51)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bellini_sacred_light_pass"), (
+        "bellini_sacred_light_pass not found on Painter")
+    assert callable(getattr(Painter, "bellini_sacred_light_pass"))
+
+
+def test_bellini_sacred_light_pass_no_error():
+    """bellini_sacred_light_pass() must run without error on a small canvas."""
+    p   = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.32), texture_strength=0.0)
+    p.bellini_sacred_light_pass()
+
+
+def test_bellini_sacred_light_pass_warms_highlights():
+    """After the pass, bright pixels should shift warmer (R > B increased)."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a uniform bright neutral canvas (~lum 0.75 > light_thresh 0.62)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 200    # neutral bright — in the light zone
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Record R and B before
+    r_before = float(buf[:, :, 2].mean())
+    b_before = float(buf[:, :, 0].mean())
+
+    p.bellini_sacred_light_pass(
+        light_thresh  = 0.50,   # lowered so ~200/255≈0.78 clearly in light zone
+        shadow_thresh = 0.20,
+        honey_warmth  = 0.20,   # amplified for a testable shift
+        lapis_cool    = 0.0,
+        halo_thresh   = 0.90,   # above our luminance — halo zone inactive
+        halo_gold     = 0.0,
+        opacity       = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert r_after > r_before + 2, (
+        f"R should increase in light zone after honey warmth push; "
+        f"R_before={r_before:.1f} R_after={r_after:.1f}")
+    assert b_after < b_before + 1, (
+        f"B should not increase in light zone (honey warmth damps B); "
+        f"B_before={b_before:.1f} B_after={b_after:.1f}")
+
+
+def test_bellini_sacred_light_pass_cools_shadows():
+    """After the pass, dark pixels should gain a blue (lapis) cast."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a uniformly dark neutral canvas (~lum 0.16 < shadow_thresh 0.32)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 40
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.bellini_sacred_light_pass(
+        light_thresh  = 0.80,   # well above lum — light zone inactive
+        shadow_thresh = 0.50,   # well above lum ≈ 0.16 — all in shadow zone
+        honey_warmth  = 0.0,
+        lapis_cool    = 0.25,   # amplified for a testable shift
+        halo_gold     = 0.0,
+        opacity       = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_after = float(buf_after[:, :, 0].mean())
+    r_after = float(buf_after[:, :, 2].mean())
+    assert b_after > r_after + 2, (
+        f"B should exceed R after lapis shadow push; B={b_after:.1f} R={r_after:.1f}")
+
+
+def test_bellini_sacred_light_pass_halo_warms_highlights():
+    """Very bright pixels should receive an additional golden halo warm push."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with very bright neutral canvas (~lum 0.94 > halo_thresh 0.82)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 240
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+
+    p.bellini_sacred_light_pass(
+        light_thresh  = 0.50,
+        shadow_thresh = 0.10,
+        honey_warmth  = 0.0,     # disable regular warm push
+        lapis_cool    = 0.0,
+        halo_thresh   = 0.70,    # 240/255≈0.94 is clearly above 0.70
+        halo_gold     = 0.15,    # amplified for testable shift
+        opacity       = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    assert r_after > r_before + 2, (
+        f"R should increase in halo zone; R_before={r_before:.1f} R_after={r_after:.1f}")
+
+
+def test_bellini_sacred_light_pass_respects_figure_mask():
+    """bellini_sacred_light_pass() must confine warm push to figure (masked) region."""
+    p = _make_small_painter(64, 64)
+
+    # Bright uniform canvas (in light zone)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 200
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: only left half is figure
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:, :32] = 1.0
+
+    p.bellini_sacred_light_pass(
+        figure_mask  = mask,
+        light_thresh = 0.50,
+        honey_warmth = 0.25,
+        lapis_cool   = 0.0,
+        halo_gold    = 0.0,
+        opacity      = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_left  = float(buf_after[:, :32, 2].mean())
+    r_right = float(buf_after[:, 32:, 2].mean())
+    assert r_left > r_right + 3, (
+        f"Figure (left) R should exceed background (right) R after warm push; "
+        f"R_left={r_left:.1f} R_right={r_right:.1f}")
+    assert r_right >= 195, (
+        f"Background R should stay near 200 when outside mask; got {r_right:.1f}")
+
+
+def test_bellini_sacred_light_pass_opacity_zero_skips():
+    """bellini_sacred_light_pass() with opacity=0 must not change the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.32), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.bellini_sacred_light_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "Canvas must not change when bellini_sacred_light_pass(opacity=0)")
+
+
+def test_bellini_sacred_light_pass_custom_params():
+    """bellini_sacred_light_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.32), texture_strength=0.0)
+    p.bellini_sacred_light_pass(
+        light_thresh  = 0.55,
+        shadow_thresh = 0.28,
+        honey_warmth  = 0.15,
+        lapis_cool    = 0.12,
+        halo_thresh   = 0.85,
+        halo_gold     = 0.05,
+        opacity       = 0.80,
+    )
+
+
+def test_bellini_sacred_light_pass_large_canvas():
+    """bellini_sacred_light_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.62, 0.50, 0.32), texture_strength=0.0)
+    p.bellini_sacred_light_pass(opacity=0.70)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 51 — penumbra_zone_pass() tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_penumbra_zone_pass_exists():
+    """Painter must have penumbra_zone_pass() method (session 51)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "penumbra_zone_pass"), (
+        "penumbra_zone_pass not found on Painter")
+    assert callable(getattr(Painter, "penumbra_zone_pass"))
+
+
+def test_penumbra_zone_pass_no_error():
+    """penumbra_zone_pass() must run without error on a small canvas."""
+    p   = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.32), texture_strength=0.0)
+    p.penumbra_zone_pass()
+
+
+def test_penumbra_zone_pass_warms_midtones():
+    """penumbra_zone_pass() must warm R in the penumbra band (midtone luminance)."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a neutral midtone canvas (lum ≈ 0.49 — in penumbra zone [0.35, 0.62])
+    neutral_val = int(0.49 * 255)   # ≈ 125
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = neutral_val
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+
+    p.penumbra_zone_pass(
+        light_thresh    = 0.62,
+        shadow_thresh   = 0.35,
+        penumbra_warmth = 0.20,    # amplified for testable shift
+        penumbra_chroma = 0.0,
+        opacity         = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    assert r_after > r_before + 2, (
+        f"R should increase in penumbra band; R_before={r_before:.1f} R_after={r_after:.1f}")
+
+
+def test_penumbra_zone_pass_does_not_affect_deep_shadows():
+    """penumbra_zone_pass() must leave deep shadow pixels (lum << shadow_thresh) unchanged."""
+    p = _make_small_painter(64, 64)
+
+    # Very dark canvas: lum ≈ 0.08 — well below shadow_thresh=0.35
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 20
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+
+    p.penumbra_zone_pass(
+        light_thresh    = 0.62,
+        shadow_thresh   = 0.35,
+        penumbra_warmth = 0.30,
+        opacity         = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    # Should be essentially unchanged — tent weight ≈ 0 far below shadow_thresh
+    assert abs(r_after - r_before) < 5, (
+        f"Deep shadow pixels should be barely affected; "
+        f"R_before={r_before:.1f} R_after={r_after:.1f}")
+
+
+def test_penumbra_zone_pass_does_not_affect_highlights():
+    """penumbra_zone_pass() must leave bright highlight pixels (lum >> light_thresh) unchanged."""
+    p = _make_small_painter(64, 64)
+
+    # Very bright canvas: lum ≈ 0.91 — well above light_thresh=0.62
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 232
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+
+    p.penumbra_zone_pass(
+        light_thresh    = 0.62,
+        shadow_thresh   = 0.35,
+        penumbra_warmth = 0.30,
+        opacity         = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    assert abs(r_after - r_before) < 5, (
+        f"Highlight pixels should be barely affected; "
+        f"R_before={r_before:.1f} R_after={r_after:.1f}")
+
+
+def test_penumbra_zone_pass_respects_figure_mask():
+    """penumbra_zone_pass() must confine warm blush to the figure (masked) region."""
+    p = _make_small_painter(64, 64)
+
+    # Midtone neutral canvas (in penumbra zone)
+    neutral_val = int(0.49 * 255)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = neutral_val
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: only left half is figure
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:, :32] = 1.0
+
+    p.penumbra_zone_pass(
+        figure_mask     = mask,
+        light_thresh    = 0.62,
+        shadow_thresh   = 0.35,
+        penumbra_warmth = 0.25,
+        penumbra_chroma = 0.0,
+        opacity         = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_left  = float(buf_after[:, :32, 2].mean())
+    r_right = float(buf_after[:, 32:, 2].mean())
+    assert r_left > r_right + 3, (
+        f"Figure (left) R should exceed background R after penumbra blush; "
+        f"R_left={r_left:.1f} R_right={r_right:.1f}")
+    assert r_right >= neutral_val - 3, (
+        f"Background should stay near original when outside mask; got {r_right:.1f}")
+
+
+def test_penumbra_zone_pass_opacity_zero_skips():
+    """penumbra_zone_pass() with opacity=0 must not change the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.32), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.penumbra_zone_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "Canvas must not change when penumbra_zone_pass(opacity=0)")
+
+
+def test_penumbra_zone_pass_chroma_boost_increases_saturation():
+    """penumbra_zone_pass() with chroma boost should increase colour distance from grey."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a slightly warm midtone canvas: R > G > B in penumbra zone
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 140   # R (Cairo index 2)
+    buf[:, :, 1] = 120   # G
+    buf[:, :, 0] = 100   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Measure chroma (std of RGB channels) before
+    r_b = buf[:, :, 2].astype(float)
+    g_b = buf[:, :, 1].astype(float)
+    b_b = buf[:, :, 0].astype(float)
+    chroma_before = float(np.std(np.stack([r_b, g_b, b_b], axis=-1), axis=-1).mean())
+
+    p.penumbra_zone_pass(
+        light_thresh    = 0.62,
+        shadow_thresh   = 0.35,
+        penumbra_warmth = 0.0,      # disable blush to isolate chroma boost
+        penumbra_chroma = 0.40,     # amplified for measurable shift
+        opacity         = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_a = buf_after[:, :, 2].astype(float)
+    g_a = buf_after[:, :, 1].astype(float)
+    b_a = buf_after[:, :, 0].astype(float)
+    chroma_after = float(np.std(np.stack([r_a, g_a, b_a], axis=-1), axis=-1).mean())
+
+    assert chroma_after >= chroma_before, (
+        f"Chroma (std of channels) should not decrease after penumbra chroma boost; "
+        f"before={chroma_before:.2f} after={chroma_after:.2f}")
+
+
+def test_penumbra_zone_pass_custom_params():
+    """penumbra_zone_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.32), texture_strength=0.0)
+    p.penumbra_zone_pass(
+        light_thresh    = 0.68,
+        shadow_thresh   = 0.30,
+        penumbra_warmth = 0.10,
+        penumbra_chroma = 0.08,
+        opacity         = 0.55,
+    )
+
+
+def test_penumbra_zone_pass_large_canvas():
+    """penumbra_zone_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.55, 0.48, 0.32), texture_strength=0.0)
+    p.penumbra_zone_pass(opacity=0.65)

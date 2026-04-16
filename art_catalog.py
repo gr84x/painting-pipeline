@@ -4238,6 +4238,76 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giovanni Bellini ───────────────────────────────────────────────────────
+    "giovanni_bellini": ArtStyle(
+        artist="Giovanni Bellini",
+        movement="Early Venetian Renaissance",
+        nationality="Italian",
+        period="1470–1516",
+        palette=[
+            (0.92, 0.82, 0.65),   # luminous ivory flesh — sacred warmth
+            (0.65, 0.50, 0.30),   # warm amber shadow — honey underpaint
+            (0.28, 0.20, 0.10),   # deep umber dark — warm, not black
+            (0.30, 0.42, 0.68),   # lapis lazuli — Virgin's robe deep blue
+            (0.72, 0.60, 0.30),   # warm gold ochre — architectural ground
+            (0.52, 0.65, 0.58),   # soft sage-green landscape — hazy recession
+            (0.68, 0.28, 0.22),   # soft crimson — drapery warmth
+            (0.85, 0.82, 0.75),   # silver-ivory highlight — lit stone and cloth
+        ],
+        ground_color=(0.62, 0.50, 0.32),    # warm amber-ochre imprimatura
+        stroke_size=5,
+        wet_blend=0.55,                      # moderate; thin glazes blend in halftones
+        edge_softness=0.55,                  # soft but resolved — not sfumato
+        jitter=0.018,
+        glazing=(0.72, 0.58, 0.28),          # warm honey-amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Bellini's method is the first fully matured Venetian oil technique, "
+            "adopted from the Flemish glazing system that Antonello da Messina "
+            "brought to Venice around 1475.  He works on a warm amber imprimatura "
+            "over gessoed panel, establishing the tonal structure in dilute raw "
+            "umber, then builds colour through successive thin transparent oil glazes.  "
+            "Each glaze layer dries before the next is applied, creating a luminous "
+            "optical depth that cannot be achieved by mixing: light passes through "
+            "the upper glaze layers and reflects back from the white gesso beneath, "
+            "producing the characteristic crystalline inner glow of his Madonnas.  "
+            "His flesh tones — ivory lit surfaces over warm umber shadows — have a "
+            "quality of translucent warmth, as if skin were backlit from within by "
+            "a divine source.  Edges are soft but architecturally resolved; unlike "
+            "Leonardo's sfumato they maintain clear form, merely yielding gently at "
+            "the periphery.  The sky passages in his altarpieces — cool dove-grey "
+            "at the horizon lifting to deeper cerulean at the zenith — introduce the "
+            "Venetian tradition of sky-as-atmosphere that Giorgione and Titian would "
+            "later extend into full landscape poetry."
+        ),
+        famous_works=[
+            ("San Zaccaria Altarpiece",               "1505"),
+            ("Madonna of the Meadow",                  "c. 1500"),
+            ("Doge Leonardo Loredan",                  "c. 1501"),
+            ("Transfiguration of Christ",              "c. 1480"),
+            ("Pietà",                                  "c. 1460"),
+            ("St Francis in the Desert",               "c. 1480"),
+            ("Madonna with Child Enthroned",           "c. 1488"),
+            ("The Feast of the Gods",                  "1514"),
+        ],
+        inspiration=(
+            "Use bellini_sacred_light_pass() after build_form() and sfumato_veil_pass() "
+            "to apply the crystalline divine luminosity characteristic of his sacred works.  "
+            "The pass applies a warm ivory lift to the upper light zone (simulating the "
+            "honey-amber glaze over a warm imprimatura), a cool translucent blue push in the "
+            "deep shadow zone (lapis lazuli glaze quality), and a subtle golden halo zone in "
+            "the brightest highlight region.  "
+            "wet_blend=0.55 balances Flemish glaze precision with Venetian atmospheric warmth.  "
+            "edge_softness=0.55 keeps forms legible and architecturally sound — Bellini's forms "
+            "are resolved, not dissolved.  "
+            "glazing=(0.72, 0.58, 0.28) applies the final warm honey-amber unifying veil that "
+            "gives his altarpieces their characteristic golden sacred warmth.  "
+            "ground_color=(0.62, 0.50, 0.32) reproduces the warm amber imprimatura — this ground "
+            "should remain visible in the thinner passages as a unifying undertone."
+        ),
+    ),
+
 }
 
 
