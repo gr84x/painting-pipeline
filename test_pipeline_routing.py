@@ -5542,3 +5542,135 @@ def test_fragonard_bravura_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.88, 0.80, 0.70), texture_strength=0.0)
     p.fragonard_bravura_pass(warmth_strength=0.07, highlight_bloom=0.05, opacity=0.70)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# renoir_luminous_warmth_pass — Pierre-Auguste Renoir artist pass
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_renoir_luminous_warmth_pass_exists():
+    """Painter must have renoir_luminous_warmth_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "renoir_luminous_warmth_pass"), (
+        "Painter is missing renoir_luminous_warmth_pass — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "renoir_luminous_warmth_pass"))
+
+
+def test_renoir_luminous_warmth_pass_runs():
+    """renoir_luminous_warmth_pass() runs without error on a small canvas."""
+    p = _make_small_painter()
+    p.tone_ground((0.92, 0.86, 0.78), texture_strength=0.0)
+    p.renoir_luminous_warmth_pass(opacity=0.72)
+
+
+def test_renoir_luminous_warmth_pass_opacity_zero_is_noop():
+    """renoir_luminous_warmth_pass(opacity=0) must leave the canvas unchanged."""
+    p = _make_small_painter()
+    p.tone_ground((0.92, 0.86, 0.78), texture_strength=0.0)
+    buf_before = bytes(p.canvas.surface.get_data())
+    p.renoir_luminous_warmth_pass(opacity=0.0)
+    buf_after = bytes(p.canvas.surface.get_data())
+    assert buf_before == buf_after, (
+        "renoir_luminous_warmth_pass(opacity=0) should be a noop")
+
+
+def test_renoir_luminous_warmth_pass_warms_midtones():
+    """
+    R channel should increase in midtone pixels after renoir_luminous_warmth_pass —
+    the rose-peach warmth push.
+    """
+    p = _make_small_painter(32, 32)
+    # Fill with a neutral warm-grey midtone (lum ~0.47 — solidly in the midtone band)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(32, 32, 4).copy()
+    # Cairo BGRA: set R=140, G=120, B=115  → lum ≈ 0.47
+    buf[:, :, 2] = 140   # R
+    buf[:, :, 1] = 120   # G
+    buf[:, :, 0] = 115   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = int(buf[:, :, 2].mean())
+
+    p.renoir_luminous_warmth_pass(
+        saturation_boost=0.0,    # disable saturation to isolate warmth effect
+        rose_warmth=0.10,
+        highlight_glow=0.0,
+        highlight_thresh=0.65,
+        shadow_thresh=0.30,
+        opacity=1.0,
+    )
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(32, 32, 4)
+    r_after = int(buf_after[:, :, 2].mean())
+    assert r_after >= r_before, (
+        f"renoir_luminous_warmth_pass should boost R in midtone zone; "
+        f"R before={r_before}  after={r_after}")
+
+
+def test_renoir_luminous_warmth_pass_lifts_highlights():
+    """
+    R and G channels should lift after renoir_luminous_warmth_pass in bright pixels —
+    the luminous warm highlight glow.
+    """
+    p = _make_small_painter(32, 32)
+    # Fill with near-white highlights (lum ~0.88 — well above highlight_thresh=0.62)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(32, 32, 4).copy()
+    buf[:, :, 2] = 230   # R
+    buf[:, :, 1] = 225   # G
+    buf[:, :, 0] = 218   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = int(buf[:, :, 2].mean())
+
+    p.renoir_luminous_warmth_pass(
+        saturation_boost=0.0,
+        rose_warmth=0.0,
+        highlight_glow=0.10,
+        highlight_thresh=0.62,
+        shadow_thresh=0.28,
+        opacity=1.0,
+    )
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(32, 32, 4)
+    r_after = int(buf_after[:, :, 2].mean())
+    assert r_after >= r_before, (
+        f"renoir_luminous_warmth_pass should boost R in highlight zone; "
+        f"R before={r_before}  after={r_after}")
+
+
+def test_renoir_luminous_warmth_pass_changes_canvas():
+    """renoir_luminous_warmth_pass(opacity=1.0) must change at least some pixels."""
+    p = _make_small_painter()
+    p.tone_ground((0.92, 0.86, 0.78), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.renoir_luminous_warmth_pass(
+        saturation_boost=0.18, rose_warmth=0.07, highlight_glow=0.06, opacity=1.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "renoir_luminous_warmth_pass should change the canvas when opacity=1.0")
+
+
+def test_renoir_luminous_warmth_pass_custom_params():
+    """renoir_luminous_warmth_pass() accepts all custom parameters without error."""
+    p = _make_small_painter()
+    p.tone_ground((0.92, 0.86, 0.78), texture_strength=0.0)
+    p.renoir_luminous_warmth_pass(
+        saturation_boost = 0.12,
+        rose_warmth      = 0.05,
+        highlight_glow   = 0.04,
+        highlight_thresh = 0.68,
+        shadow_thresh    = 0.25,
+        opacity          = 0.65,
+    )
+
+
+def test_renoir_luminous_warmth_pass_large_canvas():
+    """renoir_luminous_warmth_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.92, 0.86, 0.78), texture_strength=0.0)
+    p.renoir_luminous_warmth_pass(saturation_boost=0.15, rose_warmth=0.06, opacity=0.70)

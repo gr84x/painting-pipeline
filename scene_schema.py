@@ -223,6 +223,7 @@ class Period(Enum):
     ROCOCO_PORTRAIT = auto()         # Gainsborough — feathery edge dissolution, cool silver-blue tonality, figure embedded in landscape
     AMERICAN_MARINE = auto()         # Homer — brilliant maritime light, cool Prussian shadows, transparent wash over white ground, decisive unretouched strokes
     FRENCH_ROCOCO = auto()           # Fragonard — bravura loaded-brush highlights, warm cream-peach palette, spontaneous gestural marks, warm amber-honey glaze
+    FRENCH_IMPRESSIONIST = auto()    # Renoir — rich chromatic saturation, warm rose-peach flesh, dappled light, feathery curving brushwork, peach-rose glaze
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -734,6 +735,16 @@ class Style:
             # and less dissolved than Gainsborough (0.68); the bravura stroke has a clear
             # direction and body, with feathering only at the tapered end.
             Period.FRENCH_ROCOCO: dict(stroke_size_face=10, stroke_size_bg=32, wet_blend=0.62, edge_softness=0.52),
+            # French Impressionism (Renoir): warm pale-ivory ground with feathery curving strokes.
+            # stroke_size_face=8: medium marks — Renoir's brushwork was lively and surface-following,
+            # neither fussy Flemish micro-detail nor Fragonard's bold sweep.  stroke_size_bg=22: loose,
+            # impressionistic garden/landscape backgrounds with open, dappled dabs.
+            # wet_blend=0.55: moderate — strokes blend at their tips into the preceding wet layer;
+            # Renoir built colour by laying warm strokes adjacent and slightly overlapping,
+            # producing a vibrant optical mixture rather than physical paint mixing.
+            # edge_softness=0.48: moderate — figures are readable (not dissolved), but contours
+            # soften gently, especially where dappled garden light breaks up the boundary.
+            Period.FRENCH_IMPRESSIONIST: dict(stroke_size_face=8, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.48),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

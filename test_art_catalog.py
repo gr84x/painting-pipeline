@@ -61,6 +61,7 @@ EXPECTED_ARTISTS = [
     "thomas_gainsborough",
     "winslow_homer",
     "jean_honore_fragonard",
+    "pierre_auguste_renoir",
 ]
 
 
@@ -4696,4 +4697,187 @@ def test_french_rococo_larger_stroke_than_rococo_portrait():
         f"FRENCH_ROCOCO stroke_size_face ({sp_fr['stroke_size_face']}) should be >= "
         f"ROCOCO_PORTRAIT stroke_size_face ({sp_rp['stroke_size_face']}) — "
         "Fragonard's bravura marks are larger and bolder than Gainsborough's refined touches")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Pierre-Auguste Renoir — art catalog tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_pierre_auguste_renoir_in_catalog():
+    """pierre_auguste_renoir must be present in CATALOG."""
+    assert "pierre_auguste_renoir" in CATALOG, (
+        "pierre_auguste_renoir not found in CATALOG — add the ArtStyle entry")
+
+
+def test_pierre_auguste_renoir_in_expected_artists():
+    """pierre_auguste_renoir must appear in the EXPECTED_ARTISTS list."""
+    assert "pierre_auguste_renoir" in EXPECTED_ARTISTS, (
+        "pierre_auguste_renoir missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_pierre_auguste_renoir_movement_impressionist():
+    """pierre_auguste_renoir movement must reference Impressionism."""
+    s = get_style("pierre_auguste_renoir")
+    assert "Impressi" in s.movement, (
+        f"pierre_auguste_renoir movement={s.movement!r} should reference 'Impressionism'")
+
+
+def test_pierre_auguste_renoir_nationality():
+    """pierre_auguste_renoir was French."""
+    s = get_style("pierre_auguste_renoir")
+    assert "French" in s.nationality, (
+        f"pierre_auguste_renoir nationality should be French; got: {s.nationality!r}")
+
+
+def test_pierre_auguste_renoir_palette_length():
+    """pierre_auguste_renoir palette should have at least 7 key colours."""
+    s = get_style("pierre_auguste_renoir")
+    assert len(s.palette) >= 7, (
+        f"pierre_auguste_renoir palette should have >= 7 colours; got {len(s.palette)}")
+
+
+def test_pierre_auguste_renoir_palette_in_range():
+    """All pierre_auguste_renoir palette RGB values must be in [0, 1]."""
+    s = get_style("pierre_auguste_renoir")
+    for i, rgb in enumerate(s.palette):
+        assert len(rgb) == 3
+        for j, channel in enumerate(rgb):
+            assert 0.0 <= channel <= 1.0, (
+                f"pierre_auguste_renoir palette[{i}][{j}]={channel:.3f} out of [0, 1]")
+
+
+def test_pierre_auguste_renoir_warm_ground():
+    """
+    pierre_auguste_renoir ground must be warm (R > B) and pale (lum >= 0.70) —
+    the warm pale-ivory preparation that unifies his chromatic palette in warmth.
+    """
+    s = get_style("pierre_auguste_renoir")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert r > b, (
+        f"pierre_auguste_renoir ground_color R={r:.3f} should exceed B={b:.3f} "
+        "(warm pale-ivory ground — not cool northern grey)")
+    assert lum >= 0.70, (
+        f"pierre_auguste_renoir ground luminance={lum:.3f} should be >= 0.70 "
+        "(pale warm ground glows through thin paint layers in typical Renoir warmth)")
+
+
+def test_pierre_auguste_renoir_warm_glazing():
+    """pierre_auguste_renoir glazing must be warm (R > B) — peach-rose afternoon glow."""
+    s = get_style("pierre_auguste_renoir")
+    assert s.glazing is not None, (
+        "pierre_auguste_renoir glazing should not be None — warm peach-rose glaze")
+    r, _, b = s.glazing
+    assert r > b, (
+        f"pierre_auguste_renoir glazing R={r:.3f} should exceed B={b:.3f} "
+        "(warm peach-rose glaze — not cool northern silver)")
+
+
+def test_pierre_auguste_renoir_crackle():
+    """pierre_auguste_renoir crackle should be True — aged 19th-century oil on canvas."""
+    s = get_style("pierre_auguste_renoir")
+    assert s.crackle is True, (
+        "pierre_auguste_renoir crackle should be True (aged 19th-century oil on canvas)")
+
+
+def test_pierre_auguste_renoir_no_chromatic_split():
+    """pierre_auguste_renoir chromatic_split should be False — not Pointillist."""
+    s = get_style("pierre_auguste_renoir")
+    assert s.chromatic_split is False, (
+        "pierre_auguste_renoir chromatic_split should be False "
+        "(Renoir used optical colour mixing via adjacent strokes, not Pointillist dots)")
+
+
+def test_pierre_auguste_renoir_famous_works():
+    """pierre_auguste_renoir should have >= 5 famous works including Moulin de la Galette."""
+    s = get_style("pierre_auguste_renoir")
+    assert len(s.famous_works) >= 5, (
+        f"pierre_auguste_renoir should have >= 5 famous works; got {len(s.famous_works)}")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Galette" in t or "Moulin" in t for t in titles), (
+        "pierre_auguste_renoir famous_works must include 'Dance at Le Moulin de la Galette' "
+        "— his most celebrated and technically representative work")
+
+
+def test_pierre_auguste_renoir_palette_has_warm_flesh():
+    """pierre_auguste_renoir palette must contain at least one warm rose-peach flesh tone."""
+    s = get_style("pierre_auguste_renoir")
+    found = any(
+        r > 0.75 and r > g and g > b and (r - b) > 0.20
+        for r, g, b in s.palette
+    )
+    assert found, (
+        "pierre_auguste_renoir palette must contain at least one warm rose-peach flesh tone "
+        "(R dominant, R > G > B pattern, r-b spread > 0.20) — his signature warm flesh")
+
+
+def test_pierre_Auguste_renoir_palette_has_spring_green():
+    """pierre_auguste_renoir palette must contain at least one fresh spring green."""
+    s = get_style("pierre_auguste_renoir")
+    found = any(g > r and g > b for r, g, b in s.palette)
+    assert found, (
+        "pierre_auguste_renoir palette must contain at least one spring green (G dominant) — "
+        "his garden and outdoor scenes always include fresh foliage greens")
+
+
+def test_pierre_auguste_renoir_moderate_wet_blend():
+    """pierre_auguste_renoir wet_blend should be in [0.40, 0.70] — feathery, living paint."""
+    s = get_style("pierre_auguste_renoir")
+    assert 0.40 <= s.wet_blend <= 0.70, (
+        f"pierre_auguste_renoir wet_blend={s.wet_blend:.2f} should be in [0.40, 0.70] "
+        "(Renoir worked wet-into-wet throughout; each stroke blends at its tip into "
+        "the preceding layer — more fluid than Homer, less blended than Leonardo)")
+
+
+def test_pierre_auguste_renoir_moderate_edge_softness():
+    """pierre_auguste_renoir edge_softness should be in [0.30, 0.65] — soft but readable."""
+    s = get_style("pierre_auguste_renoir")
+    assert 0.30 <= s.edge_softness <= 0.65, (
+        f"pierre_auguste_renoir edge_softness={s.edge_softness:.2f} should be in [0.30, 0.65] "
+        "(figures are readable and present, but contours gently diffuse — "
+        "not dissolved like Leonardo, not crisp like Homer)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FRENCH_IMPRESSIONIST Period — scene_schema tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_french_impressionist_period_exists():
+    """Period enum must have FRENCH_IMPRESSIONIST member."""
+    assert hasattr(Period, "FRENCH_IMPRESSIONIST"), (
+        "Period enum is missing FRENCH_IMPRESSIONIST — add it to scene_schema.py")
+
+
+def test_french_impressionist_stroke_params_keys():
+    """FRENCH_IMPRESSIONIST stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_IMPRESSIONIST).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"FRENCH_IMPRESSIONIST stroke_params missing key: {key!r}"
+
+
+def test_french_impressionist_stroke_params_ranges():
+    """FRENCH_IMPRESSIONIST stroke_params values must be in valid numeric ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_IMPRESSIONIST).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"FRENCH_IMPRESSIONIST stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"FRENCH_IMPRESSIONIST wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"FRENCH_IMPRESSIONIST edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_french_impressionist_moderate_wet_blend():
+    """FRENCH_IMPRESSIONIST wet_blend should be in [0.40, 0.70] — feathery wet-into-wet."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_IMPRESSIONIST).stroke_params
+    assert 0.40 <= sp["wet_blend"] <= 0.70, (
+        f"FRENCH_IMPRESSIONIST wet_blend={sp['wet_blend']:.2f} should be in [0.40, 0.70] "
+        "(Renoir worked wet-into-wet; strokes blend at tips but retain identity)")
+
+
+def test_french_impressionist_moderate_edge_softness():
+    """FRENCH_IMPRESSIONIST edge_softness should be in [0.30, 0.60] — soft but readable."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_IMPRESSIONIST).stroke_params
+    assert 0.30 <= sp["edge_softness"] <= 0.60, (
+        f"FRENCH_IMPRESSIONIST edge_softness={sp['edge_softness']:.2f} should be in [0.30, 0.60] "
+        "(Renoir's figures are readable — not dissolved; not crisp marine silhouettes)")
 

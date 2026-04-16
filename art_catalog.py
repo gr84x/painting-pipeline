@@ -3593,6 +3593,88 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Pierre-Auguste Renoir ─────────────────────────────────────────────────
+    # Renoir was the supreme portraitist of French Impressionism — his canvases
+    # glow with warm, saturated colour and a luminous, almost confection-like
+    # quality of light.  His mature style (1870s–1880s) is defined by:
+    #   • Rich chromatic saturation — every hue at maximum luminous intensity;
+    #     reds are rose-warm, greens are spring-fresh, blues are sky-warm not cold
+    #   • Warm, rosy flesh tones — Renoir's skin is peach-rose; never the cool
+    #     ivory of Academic painting, never the umber warmth of Rembrandt
+    #   • Dappled, broken light — outdoor and garden scenes with shifting pools
+    #     of warm and cool light flickering across figures and foliage
+    #   • Feathery, curving brushwork — strokes follow the surface, curving with
+    #     the form; lively but not angular like Van Gogh's impasto
+    #   • Warm peach-cream highlights — highlights bloom warm, never silvery-cold
+    # renoir_luminous_warmth_pass() approximates these qualities.
+    "pierre_auguste_renoir": ArtStyle(
+        artist="Pierre-Auguste Renoir",
+        movement="French Impressionism",
+        nationality="French",
+        period="1867–1919",
+        palette=[
+            (0.97, 0.91, 0.82),   # warm cream-white highlight — sunlit skin, lace
+            (0.92, 0.72, 0.68),   # rose-peach flesh mid-tone — his signature warmth
+            (0.80, 0.56, 0.50),   # warm peach shadow — deepening flesh tones
+            (0.52, 0.32, 0.28),   # warm umber shadow — dark hair, deep shade
+            (0.58, 0.74, 0.52),   # spring leaf green — garden foliage
+            (0.68, 0.82, 0.88),   # warm sky blue — his skies are warm, not cold
+            (0.86, 0.60, 0.70),   # rose-pink — ribbons, lips, warm drapery
+            (0.94, 0.80, 0.52),   # warm golden sunlight — dappled afternoon
+            (0.42, 0.56, 0.70),   # soft warm blue-grey — shadows in drapery
+        ],
+        ground_color=(0.94, 0.88, 0.80),    # warm pale ivory ground — Renoir prepared
+                                            # his canvases with a warm cream-white; the
+                                            # ground glows through thin paint and unifies
+                                            # the whole surface in warm ambient light
+        stroke_size=8,
+        wet_blend=0.55,                      # moderate — Renoir worked wet-into-wet
+                                            # throughout; strokes blend at their tips into
+                                            # the preceding layer, but each mark retains
+                                            # its identity — not the total dissolution
+                                            # of Leonardo's sfumato
+        edge_softness=0.48,                  # moderate-soft — edges are present and
+                                            # readable (Renoir's figures are not dissolved
+                                            # like Gainsborough's), but contours are
+                                            # gently diffused, especially where foliage
+                                            # or dappled light breaks up the boundary
+        jitter=0.045,
+        glazing=(0.90, 0.72, 0.62),          # warm peach-rose glaze — unifies the
+                                            # whole surface in a rosy warmth; the
+                                            # characteristic Renoir "glow" that
+                                            # reads as warm afternoon garden light
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Rich, feathery oil on pale warm-ivory ground.  "
+            "Strokes are curving and surface-following — each mark traces the form "
+            "beneath it, giving the paint surface a living, breathing quality.  "
+            "Flesh tones are warm rose-peach throughout; shadows deepen in warm umber "
+            "with no cool blue intrusion — Renoir explicitly rejected the Impressionist "
+            "convention of cool violet shadows.  Highlights bloom in warm cream-gold, "
+            "not silver.  The palette is maximally chromatic — saturation runs high.  "
+            "A warm peach-rose glaze over the whole surface unifies all colours into "
+            "the characteristic Renoir warmth."
+        ),
+        famous_works=[
+            ("Dance at Le Moulin de la Galette",    "1876"),
+            ("Luncheon of the Boating Party",        "1880–1881"),
+            ("Two Sisters (On the Terrace)",         "1881"),
+            ("The Large Bathers",                    "1887"),
+            ("Madame Georges Charpentier and Her Children", "1878"),
+            ("La Loge (The Theatre Box)",            "1874"),
+            ("Girl with a Watering Can",             "1876"),
+        ],
+        inspiration=(
+            "Use renoir_luminous_warmth_pass() for the hallmark warm saturation boost, "
+            "rose-peach flesh tone push, and luminous highlight bloom.  Warm pale-ivory "
+            "ground_color (0.94, 0.88, 0.80).  Moderate wet_blend (0.55) and "
+            "edge_softness (0.48) — feathery, curving marks with soft but readable edges.  "
+            "Warm peach-rose glaze (0.90, 0.72, 0.62) unifies in garden-afternoon warmth.  "
+            "No cool blue in shadows — Renoir's darks are warm umber throughout."
+        ),
+    ),
+
     # ── Jean-Honoré Fragonard ──────────────────────────────────────────────────
     # Fragonard was the supreme master of French Rococo painting — rapid, assured,
     # loaded-brush bravura that dazzles with its spontaneity.  His mature style

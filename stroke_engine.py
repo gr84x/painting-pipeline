@@ -12579,6 +12579,242 @@ class Painter:
               f"(highlight={n_highlight}px  midtone={n_midtone}px  shadow={n_shadow}px)")
 
     # ─────────────────────────────────────────────────────────────────────────
+    # renoir_luminous_warmth_pass — Pierre-Auguste Renoir artist pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def renoir_luminous_warmth_pass(
+        self,
+        *,
+        saturation_boost: float = 0.18,
+        rose_warmth: float = 0.07,
+        highlight_glow: float = 0.06,
+        highlight_thresh: float = 0.62,
+        shadow_thresh: float = 0.28,
+        opacity: float = 0.72,
+    ) -> None:
+        """
+        Pierre-Auguste Renoir luminous warmth pass (artist pass).
+
+        Renoir's French Impressionist canvases are defined by three tonal qualities
+        that this pass approximates:
+
+        1. **Chromatic saturation boost** — Renoir's palette runs at maximum
+           luminous intensity across all hue zones.  The saturation of every
+           non-shadow pixel is lifted toward full chroma, giving the canvas its
+           characteristic vivid, jewel-like quality.  The boost is strongest in
+           the midtone band (shadows and near-white highlights are less affected
+           to avoid cartoon-like oversaturation).
+
+        2. **Rose-peach midtone warmth** — In the midtone band
+           (shadow_thresh ≤ lum ≤ highlight_thresh), R is lifted and B is
+           gently damped, pushing toward Renoir's signature warm rose-peach.
+           He explicitly rejected the Impressionist convention of cool violet
+           shadows; his darks remain warm throughout.
+
+        3. **Luminous warm highlight glow** — In bright zones
+           (lum > highlight_thresh), highlights are pushed toward a warm
+           cream-gold tone: R and G lift, B lifts only slightly.  This replicates
+           the characteristic Renoir bloom — warm afternoon sunlight striking
+           white lace, pale skin, or gleaming hair — as opposed to the cool
+           silver of Northern European painting.
+
+        All three adjustments composite back at ``opacity`` over the original
+        canvas, preserving the underlying painterly layer structure.
+
+        Parameters
+        ----------
+        saturation_boost : how much saturation is lifted in mid-lum zones
+                           (0 = no change, 1 = full saturation clamp at 1.0)
+        rose_warmth      : strength of the rose-peach push in midtones
+        highlight_glow   : warm-cream boost amplitude in highlight zones
+        highlight_thresh : luminance above which highlight glow begins
+        shadow_thresh    : luminance below which warm push tapers off
+        opacity          : global blend weight of the entire adjustment
+                           (0 = noop, 1 = full replacement)
+
+        Notes
+        -----
+        Call this AFTER the main style passes (block_in, build_form) and
+        BEFORE the final glaze/finish.  Pairs well with a warm peach-rose
+        glaze (0.90, 0.72, 0.62) applied afterward.
+
+        Famous works to study:
+          *Dance at Le Moulin de la Galette* (1876, Musée d'Orsay) — dappled
+          afternoon garden light; warm rose-cream skin dabs interleaved with
+          cool blue-grey shadow strokes; saturation maximised throughout.
+          *Luncheon of the Boating Party* (1880–1881, Phillips Collection) —
+          the pink-cheeked faces and richly coloured drapery; warm golden light
+          on every highlight; not a cool tone in the entire canvas.
+          *Two Sisters (On the Terrace)* (1881, Art Institute of Chicago) —
+          the warm spring green foliage and rose-peach flesh; highlights are
+          cream-warm, shadows are warm ochre-umber; vivid chromatic punch.
+        """
+        import colorsys as _cs
+        import numpy as _np
+
+        print(f"  Renoir luminous warmth pass  "
+              f"(sat_boost={saturation_boost:.2f}  warmth={rose_warmth:.2f}  "
+              f"hi_glow={highlight_glow:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Renoir luminous warmth pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Chromatic saturation boost ─────────────────────────────────────
+        # Convert each pixel to HSV, lift S by saturation_boost, convert back.
+        # The boost is weighted by a bell curve centred in the midtone band so
+        # very dark shadows and near-white highlights are less affected.
+        # We implement this with a fast vectorised HSV round-trip via colorsys
+        # logic expressed as array operations (avoids slow per-pixel loops).
+
+        # HSV conversion (vectorised):
+        cmax = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        cmin = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        delta = cmax - cmin
+
+        # Value (V) = cmax
+        v_ch = cmax
+
+        # Saturation (S) = delta / cmax  (0 when cmax == 0)
+        s_ch = _np.where(cmax > 1e-6, delta / (cmax + 1e-6), 0.0)
+
+        # Hue computation (6 segments)
+        with _np.errstate(invalid='ignore', divide='ignore'):
+            h_seg = _np.zeros_like(r_out)
+            mask_r = (cmax == r_out) & (delta > 1e-6)
+            mask_g = (cmax == g_out) & (delta > 1e-6)
+            mask_b = (cmax == b_out) & (delta > 1e-6)
+            h_seg = _np.where(
+                mask_r,
+                ((g_out - b_out) / (delta + 1e-6)) % 6.0,
+                _np.where(
+                    mask_g,
+                    (b_out - r_out) / (delta + 1e-6) + 2.0,
+                    _np.where(
+                        mask_b,
+                        (r_out - g_out) / (delta + 1e-6) + 4.0,
+                        0.0)))
+        h_ch = h_seg / 6.0  # normalise to [0, 1]
+
+        # Saturation boost weight — peaks at the midtone centre, zero at extremes
+        mid_centre = (shadow_thresh + highlight_thresh) * 0.5
+        mid_half   = (highlight_thresh - shadow_thresh) * 0.5 + 1e-6
+        sat_weight = _np.clip(1.0 - _np.abs(lum - mid_centre) / (mid_half * 1.4), 0.0, 1.0)
+        s_new = _np.clip(s_ch + saturation_boost * sat_weight, 0.0, 1.0)
+
+        # HSV → RGB back-conversion (vectorised)
+        h6   = h_ch * 6.0
+        i    = _np.floor(h6).astype(_np.int32) % 6
+        f    = h6 - _np.floor(h6)
+        p_v  = v_ch * (1.0 - s_new)
+        q_v  = v_ch * (1.0 - s_new * f)
+        t_v  = v_ch * (1.0 - s_new * (1.0 - f))
+
+        r_sat = _np.select(
+            [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5],
+            [v_ch,   q_v,    p_v,    p_v,    t_v,    v_ch],
+            default=r_out)
+        g_sat = _np.select(
+            [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5],
+            [t_v,    v_ch,   v_ch,   q_v,    p_v,    p_v],
+            default=g_out)
+        b_sat = _np.select(
+            [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5],
+            [p_v,    p_v,    t_v,    v_ch,   v_ch,   q_v],
+            default=b_out)
+
+        # Where delta==0 (grey pixels), saturation boost has no effect — keep original
+        grey_mask = delta < 1e-6
+        r_out = _np.where(grey_mask, r_out, _np.clip(r_sat, 0.0, 1.0))
+        g_out = _np.where(grey_mask, g_out, _np.clip(g_sat, 0.0, 1.0))
+        b_out = _np.where(grey_mask, b_out, _np.clip(b_sat, 0.0, 1.0))
+
+        # ── 2. Rose-peach midtone warmth ──────────────────────────────────────
+        # In the midtone band: lift R toward rose-peach, damp B slightly.
+        # Weight peaks at the midtone centre.
+        mid_mask = (lum >= shadow_thresh) & (lum <= highlight_thresh)
+        mid_w    = _np.where(mid_mask,
+                             1.0 - _np.abs(lum - mid_centre) / (mid_half + 1e-6),
+                             0.0)
+        r_out = _np.where(mid_mask,
+                          _np.clip(r_out + rose_warmth * 0.60 * mid_w, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(mid_mask,
+                          _np.clip(b_out - rose_warmth * 0.28 * mid_w, 0.0, 1.0),
+                          b_out)
+
+        # Shadow zone: keep warm — gentle R lift, B damp to prevent cool invasion
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(sh_mask,
+                            _np.clip((shadow_thresh - lum) / (shadow_thresh + 1e-6),
+                                     0.0, 1.0),
+                            0.0)
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out + rose_warmth * 0.25 * sh_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out - rose_warmth * 0.35 * sh_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 3. Luminous warm highlight glow ──────────────────────────────────
+        # In bright zones: push toward warm cream-gold.
+        # R lifts most, G moderately, B just slightly — warm cream, not cold silver.
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(hi_mask,
+                            _np.clip((lum - highlight_thresh)
+                                     / (1.0 - highlight_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out + highlight_glow * 0.72 * hi_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(hi_mask,
+                          _np.clip(g_out + highlight_glow * 0.48 * hi_ramp, 0.0, 1.0),
+                          g_out)
+        b_out = _np.where(hi_mask,
+                          _np.clip(b_out + highlight_glow * 0.18 * hi_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_highlight = int(hi_mask.sum())
+        n_midtone   = int(mid_mask.sum())
+        n_shadow    = int(sh_mask.sum())
+        print(f"    Renoir luminous warmth pass complete  "
+              f"(highlight={n_highlight}px  midtone={n_midtone}px  shadow={n_shadow}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
     # wet_on_wet_bleeding_pass — session 41 random improvement
     # ─────────────────────────────────────────────────────────────────────────
 
