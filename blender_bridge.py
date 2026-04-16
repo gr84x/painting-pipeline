@@ -561,6 +561,7 @@ def scene_to_painting(
     is_pre_raphaelite         = (scene.style.period == Period.PRE_RAPHAELITE)
     is_symbolist              = (scene.style.period == Period.SYMBOLIST)
     is_florentine_renaissance = (scene.style.period == Period.FLORENTINE_RENAISSANCE)
+    is_florentine_mannerist   = (scene.style.period == Period.FLORENTINE_MANNERIST)
     is_flemish_baroque        = (scene.style.period == Period.FLEMISH_BAROQUE)
     is_nordic_expressionist   = (scene.style.period == Period.NORDIC_EXPRESSIONIST)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
@@ -2785,6 +2786,50 @@ def scene_to_painting(
             print(_feedback.summary())
         # Heavy vignette + crackle — Munch's aged oils on dark grounds
         p.finish(vignette=0.55, crackle=True)
+
+    elif is_florentine_mannerist:
+        # ── Florentine Mannerist pipeline (Pontormo technique) ───────────────
+        # Cool grey-lilac imprimatura — Pontormo's dissonant palette requires
+        # a neutral-cool ground so that the acid colours are not pre-warmed.
+        # Underpainting in muted violet-grey; block-in reveals the dissonant
+        # chromatic zones; pontormo_dissonance_pass() applies the signature
+        # acid-highlight / violet-shadow / spatial midtone tension.
+        pont_style = _ART_CATALOG.get("pontormo")
+        ground_col = pont_style.ground_color if pont_style else (0.52, 0.50, 0.58)
+
+        p.tone_ground(ground_col, texture_strength=0.06)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.3), n_strokes=150)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),           n_strokes=300)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.50),    n_strokes=700)
+
+        p.pontormo_dissonance_pass(
+            light_thresh   = 0.60,
+            shadow_thresh  = 0.32,
+            acid_lift      = 0.14,
+            violet_push    = 0.12,
+            midtone_chroma = 0.10,
+            opacity        = 0.68,
+        )
+
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=400)
+
+        # Cool grey-violet glaze — NOT warm amber; Pontormo's palette must not be
+        # warmed by the glaze.  A subtle cool grey-blue wash unifies the composition
+        # while preserving the dissonant chromatic relationships.
+        p.glaze((0.50, 0.52, 0.60), opacity=0.04)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.30,
+            found_sharpness = 0.40,
+            lost_blur       = 1.4,
+            strength        = 0.28,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Moderate vignette + crackle — Pontormo's panels have significant aged craquelure
+        p.finish(vignette=0.40, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

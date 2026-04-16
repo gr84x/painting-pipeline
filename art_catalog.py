@@ -4308,6 +4308,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 52 ─────────────────────────────────────────────────────────────
+    "pontormo": ArtStyle(
+        artist="Jacopo Pontormo",
+        movement="Florentine Mannerism",
+        nationality="Italian",
+        period="1494–1557",
+        palette=[
+            (0.78, 0.88, 0.30),   # acid chartreuse-yellow — the Deposition robes
+            (0.90, 0.32, 0.52),   # shocking carmine-rose — swooping drapery pink
+            (0.68, 0.80, 0.92),   # glacial pale blue — the Virgin's mantle
+            (0.78, 0.62, 0.82),   # lavender-lilac — ambiguous intermediate
+            (0.92, 0.50, 0.26),   # hot vermilion-orange — accent drapery
+            (0.52, 0.68, 0.80),   # cerulean — cold middle-ground
+            (0.94, 0.90, 0.54),   # lemon ice — acid pale yellow
+            (0.06, 0.04, 0.14),   # purple-black void — deep shadow
+        ],
+        ground_color=(0.52, 0.50, 0.58),
+        stroke_size=5,
+        wet_blend=0.28,
+        edge_softness=0.68,
+        jitter=0.028,
+        glazing=None,
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Pontormo abandoned the warm harmonic palettes of the High Renaissance "
+            "for an entirely unprecedented system of colour — acid, dissonant, "
+            "deliberately unnatural.  Where Leonardo sought harmony through sfumato "
+            "and Raphael through luminous balance, Pontormo cultivated tension.  "
+            "His Deposition from the Cross (c.1525–28, Capponi Chapel, Florence) "
+            "is the supreme example: a composition built from chartreuse yellow, "
+            "shocking carmine rose, glacial blue, and hot vermilion, none of which "
+            "harmonise in the conventional sense — the effect is a sustained "
+            "chromatic anxiety.  "
+            "The shadows in his work are not warm umbers but cold, blue-tinged or "
+            "violet-black — a deliberate inversion of the High Renaissance norm. "
+            "Highlights push toward acid lemon-yellow rather than warm ivory.  "
+            "His figures have a compressed, swirling quality: they occupy shallow "
+            "space with no convincing recession — the composition feels crowded "
+            "and airless, as if the figures cannot escape one another.  "
+            "His flesh is pale, almost waxen, with a slightly clammy quality — "
+            "lacking the warm subsurface glow of Venetian portraiture.  "
+            "He was intensely introspective: his late diary records a life of "
+            "anxious solitude, and this psychological state is inseparable from "
+            "his work's quality of interior tension rendered as colour."
+        ),
+        famous_works=[
+            ("Deposition from the Cross",        "c. 1525–28"),
+            ("Visitation",                        "c. 1528–29"),
+            ("Portrait of a Halberdier",          "c. 1528–30"),
+            ("Joseph in Egypt",                   "c. 1515–18"),
+            ("Vertumnus and Pomona",              "1519–21"),
+            ("Portrait of a Young Man",           "c. 1530"),
+            ("Supper at Emmaus",                  "1525"),
+            ("Cosimo de' Medici the Elder",       "c. 1519"),
+        ],
+        inspiration=(
+            "Use pontormo_dissonance_pass() after build_form() to apply Pontormo's "
+            "signature dissonant colour vibration: acid chartreuse pushed into the "
+            "highlights, cold violet-black deepened in the shadows, and a chromatic "
+            "tension introduced in the midtones (alternating warm rose and cool "
+            "chartreuse by spatial region) that reads as psychological unease rather "
+            "than conventional colour harmony.  "
+            "ground_color=(0.52, 0.50, 0.58) uses a cool grey-lilac imprimatura — "
+            "unlike the warm ochre grounds of the High Renaissance, Pontormo's "
+            "Mannerist palette demands a neutral-cool base so that the acid colours "
+            "are not pre-warmed by the ground.  "
+            "edge_softness=0.68 keeps form legible but not resolved — Pontormo's "
+            "figure edges are not sfumato (imperceptible) but not Flemish either: "
+            "a controlled softness that maintains the swirling compositional flow.  "
+            "glazing=None — his colours are direct and opaque, not built through "
+            "transparent layers: the shocking effect would be lost under glazing."
+        ),
+    ),
+
 }
 
 

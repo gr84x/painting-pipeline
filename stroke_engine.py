@@ -14789,3 +14789,333 @@ class Painter:
         pen_count = int((pen_w > 0.05).sum())
         print(f"    Penumbra zone pass complete  (penumbra_pixels={pen_count})")
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 52 — new artist: Pontormo / FLORENTINE_MANNERIST
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def pontormo_dissonance_pass(
+        self,
+        figure_mask:      "Optional[_np.ndarray]" = None,
+        light_thresh:     float = 0.60,
+        shadow_thresh:    float = 0.32,
+        acid_lift:        float = 0.14,
+        violet_push:      float = 0.12,
+        midtone_chroma:   float = 0.10,
+        opacity:          float = 0.68,
+    ) -> None:
+        """
+        Apply Pontormo's signature chromatic dissonance to the canvas.
+
+        Jacopo Pontormo (1494–1557) abandoned the warm harmonic colour systems
+        of the High Renaissance in favour of a deliberately unsettling palette:
+        acid chartreuse in the lights, cold violet-black in the shadows, and a
+        competing tension of rose and chartreuse in the midtones that denies the
+        viewer a comfortable resting point.  The effect is one of sustained
+        chromatic anxiety — a visual correlate of the psychological intensity
+        that characterises his greatest work, the Deposition from the Cross
+        (Capponi Chapel, Florence, c.1525–28).
+
+        This pass applies three distinct zone corrections:
+
+        1. **Highlight zone** (``lum > light_thresh``): Pushes the lit passages
+           toward acid lemon-yellow by lifting R strongly and G moderately while
+           reducing B.  This produces the characteristic cold-warm paradox of
+           Pontormo's lights — they are bright but not warm in the conventional
+           ivory-to-gold sense; instead they carry the acid quality of a lemon
+           or chartreuse that sits at the hot-cool boundary.
+
+        2. **Shadow zone** (``lum < shadow_thresh``): Pushes the shadow
+           passages toward cool violet-black by reducing R and boosting B
+           significantly.  Pontormo's shadows are not warm Rembrandt umbers;
+           they are cold, slightly purple-tinged near-blacks that make the
+           surrounding acid colours appear even more dissonant by contrast.
+
+        3. **Midtone zone**: Applies a spatially modulated chroma push: pixels
+           in the left half of the canvas receive a rose-carmine pull (R boost,
+           slight B push) while pixels in the right half receive a chartreuse
+           pull (G boost, R moderate).  This creates the competing colour
+           tension across the midtone band that reads as Pontormo's instinctive
+           refusal to let any colour zone fully resolve into harmonic agreement
+           with its neighbours.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array ``(H, W)`` in [0, 1].  When provided, the correction
+            is weighted by the mask so the dissonance is strongest on the figure
+            and fades toward the neutral background.
+        light_thresh : float
+            Luminance boundary above which the acid-yellow highlight push is
+            applied.  0.60 catches the upper midtone zone as well as the
+            direct lights, giving a broad, assertive acid highlight zone.
+        shadow_thresh : float
+            Luminance boundary below which the violet-black shadow push is
+            applied.  0.32 targets the core shadow without eating into the
+            penumbra zone, which is left for the midtone correction.
+        acid_lift : float
+            Strength of the acid lemon-yellow highlight push.  0.14 is a
+            visible, assertive lift — Pontormo's highlights are unmistakably
+            acid, not subtle.
+        violet_push : float
+            Strength of the violet-black shadow push.  0.12 gives a clearly
+            cooler, more purple shadow without becoming a digital chroma-key.
+        midtone_chroma : float
+            Strength of the spatial rose/chartreuse chroma pull in the midtone
+            zone.  0.10 is a moderate pull — visible in the midtones without
+            dominating the composition.
+        opacity : float
+            Global blend weight for the entire pass over the original canvas.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and before final glaze.  Pairs with a cool
+        grey ``glaze()`` (not warm amber) to reinforce the Mannerist palette.
+        Do NOT combine with ``sfumato_veil_pass()`` — sfumato warms and softens;
+        Pontormo's dissonance requires crisp, unsmoked colour zones.
+        """
+        import numpy as _np
+
+        print(f"  Pontormo dissonance pass  "
+              f"(light_thresh={light_thresh:.2f}  shadow_thresh={shadow_thresh:.2f}  "
+              f"acid_lift={acid_lift:.2f}  violet_push={violet_push:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Pontormo dissonance pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance (BT.709) ───────────────────────────────────────────────
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # ── Zone weights ─────────────────────────────────────────────────────
+        light_w  = _np.clip((lum - light_thresh) / (1.0 - light_thresh + 1e-6), 0.0, 1.0)
+        shadow_w = _np.clip((shadow_thresh - lum) / (shadow_thresh + 1e-6), 0.0, 1.0)
+        mid_w    = _np.clip(1.0 - light_w - shadow_w, 0.0, 1.0)
+
+        # ── Spatial left/right split for midtone dissonance ──────────────────
+        # xs: 0.0 at left edge, 1.0 at right edge — (H, W) broadcast
+        xs = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[_np.newaxis, :]  # (1, W)
+        rose_w  = mid_w * _np.clip(0.55 - xs, 0.0, 1.0) * 2.0   # left → rose
+        chart_w = mid_w * _np.clip(xs - 0.45, 0.0, 1.0) * 2.0   # right → chartreuse
+
+        # ── Apply figure mask ────────────────────────────────────────────────
+        if figure_mask is not None:
+            fm = _np.asarray(figure_mask, dtype=_np.float32)
+            if fm.shape != (h, w):
+                from scipy.ndimage import zoom as _zoom
+                fm = _zoom(fm, (h / fm.shape[0], w / fm.shape[1]), order=1)
+                fm = _np.clip(fm, 0.0, 1.0)
+            light_w  = light_w  * fm
+            shadow_w = shadow_w * fm
+            rose_w   = rose_w   * fm
+            chart_w  = chart_w  * fm
+
+        # ── 1. Acid lemon-yellow highlight push ───────────────────────────────
+        # R up strong, G up moderate, B down — acid chartreuse-yellow
+        r_out = _np.clip(r_f + light_w * acid_lift * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_f + light_w * acid_lift * 0.75, 0.0, 1.0)
+        b_out = _np.clip(b_f - light_w * acid_lift * 0.55, 0.0, 1.0)
+
+        # ── 2. Violet-black shadow push ───────────────────────────────────────
+        # R down, G slightly down, B up — cool violet-black
+        r_out = _np.clip(r_out - shadow_w * violet_push * 0.90, 0.0, 1.0)
+        g_out = _np.clip(g_out - shadow_w * violet_push * 0.30, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_w * violet_push * 0.60, 0.0, 1.0)
+
+        # ── 3. Midtone spatial dissonance ─────────────────────────────────────
+        # Left: rose-carmine pull (R up, slight B up)
+        r_out = _np.clip(r_out + rose_w  * midtone_chroma * 0.80, 0.0, 1.0)
+        b_out = _np.clip(b_out + rose_w  * midtone_chroma * 0.20, 0.0, 1.0)
+        # Right: chartreuse pull (G up, R moderate up, B down)
+        r_out = _np.clip(r_out + chart_w * midtone_chroma * 0.45, 0.0, 1.0)
+        g_out = _np.clip(g_out + chart_w * midtone_chroma * 0.85, 0.0, 1.0)
+        b_out = _np.clip(b_out - chart_w * midtone_chroma * 0.40, 0.0, 1.0)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        light_count  = int((light_w  > 0.05).sum())
+        shadow_count = int((shadow_w > 0.05).sum())
+        mid_count    = int((mid_w    > 0.05).sum())
+        print(f"    Pontormo dissonance pass complete  "
+              f"(light_px={light_count}  shadow_px={shadow_count}  mid_px={mid_count})")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 52 — random improvement: aerial_perspective_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def aerial_perspective_pass(
+        self,
+        sky_band:         float = 0.45,
+        fade_power:       float = 2.2,
+        desaturation:     float = 0.55,
+        cool_push:        float = 0.10,
+        haze_lift:        float = 0.06,
+        opacity:          float = 0.72,
+    ) -> None:
+        """
+        Apply systematic aerial (atmospheric) perspective to the upper canvas zone.
+
+        Aerial perspective — the optical phenomenon by which distant objects
+        appear lighter, bluer, and less saturated than near objects — was first
+        codified by Leonardo da Vinci in his notebooks and is visible in the
+        Mona Lisa's famous hazy background landscape.  The principle derives from
+        the physical reality that atmospheric particles (water vapour, dust,
+        aerosols) scatter shorter wavelengths (blue) preferentially and absorb
+        longer wavelengths (red, green), causing the following perceptual shifts
+        with increasing distance:
+
+        - **Desaturation**: colours lose their purity, converging toward neutral grey
+        - **Cool push**: the residual hue drifts toward blue-grey (atmospheric blue)
+        - **Value lift**: shadows lighten toward the atmospheric tone (near-white haze)
+        - **Edge softening**: distant contours dissolve into the ambient atmosphere
+
+        This pass applies a vertical weight gradient — maximum at the top of the
+        canvas (sky and far horizon), fading to zero at ``sky_band * H`` — and
+        applies three corrections weighted by that gradient:
+
+        1. **Desaturation**: pixels are blended toward their BT.709 luminance
+           (grey) by ``desaturation × weight``.  This models the loss of chroma
+           that accumulates over distance as atmospheric particles scatter colour
+           out of the light path.
+
+        2. **Cool push**: the desaturated result is pushed further toward cool
+           blue-grey by boosting B and reducing R in proportion to ``cool_push``
+           and the atmospheric weight.  This models the preferential scattering
+           of short-wavelength (blue) light, which tints the atmosphere itself
+           blue and simultaneously removes the warm wavelengths from distant objects.
+
+        3. **Haze lift**: the overall luminance in the atmospheric zone is raised
+           by ``haze_lift × weight``.  In nature, the atmospheric column between
+           the observer and a distant surface adds a veil of semi-luminous haze;
+           even a dark distant mountain reads lighter than a nearby shadow of
+           the same tonal value.
+
+        Parameters
+        ----------
+        sky_band : float
+            Fractional height from the top of the canvas over which the
+            atmospheric effect is applied.  0.45 = upper 45% of the image.
+            Below this line the weight fades to zero and the pass has no effect.
+        fade_power : float
+            Power exponent of the vertical weight gradient.  Higher values make
+            the effect more concentrated at the very top (faster fade from the
+            top edge).  2.2 gives a natural-looking quadratic falloff that
+            matches the perceptual experience of aerial perspective.
+        desaturation : float
+            Maximum desaturation applied at the top of the canvas.  0.55 gives
+            a clearly atmospheric haze in the far sky zone; 0.0 disables
+            desaturation while allowing the cool push and haze lift alone.
+        cool_push : float
+            Maximum blue-grey push applied at the top.  0.10 is a gentle but
+            clearly visible cool shift in the sky zone.
+        haze_lift : float
+            Maximum luminance lift applied at the top.  0.06 is a subtle veil
+            of atmospheric light — visible in the distant sky but not washing
+            out foreground tones (which receive near-zero weight).
+        opacity : float
+            Global blend weight for the pass result over the original canvas.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and before ``place_lights()`` so the
+        atmospheric haze is established before the final light accents are
+        placed.  Pairs especially well with ``sfumato_veil_pass()`` (which
+        softens edges) and ``tonal_envelope_pass()`` (which enriches the
+        foreground figure separately from the receding background).  Do NOT
+        apply to images with no landscape or sky zone — the effect has no
+        meaning on flat-background portrait compositions.
+        """
+        import numpy as _np
+
+        print(f"  Aerial perspective pass  "
+              f"(sky_band={sky_band:.2f}  fade_power={fade_power:.2f}  "
+              f"desaturation={desaturation:.2f}  cool_push={cool_push:.2f}  "
+              f"haze_lift={haze_lift:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Aerial perspective pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Vertical weight: 1.0 at top row, fading to 0 at sky_band * H ─────
+        # ys: normalised position within the sky band [0 = top, 1 = bottom of band]
+        sky_px = max(1, int(h * sky_band))
+        ys = _np.linspace(0.0, 1.0, sky_px, dtype=_np.float32)   # (sky_px,)
+        atm_weight_1d = _np.clip(1.0 - ys, 0.0, 1.0) ** fade_power  # (sky_px,)
+
+        # Expand to full canvas height: zeros for rows below sky_band
+        atm_w = _np.zeros((h,), dtype=_np.float32)
+        atm_w[:sky_px] = atm_weight_1d
+        atm_w = atm_w[:, _np.newaxis]   # (H, 1) — broadcast over W
+
+        # ── 1. Desaturate toward luminance ────────────────────────────────────
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f   # (H, W)
+        desat = atm_w * desaturation   # (H, W)
+        r_out = r_f * (1.0 - desat) + lum * desat
+        g_out = g_f * (1.0 - desat) + lum * desat
+        b_out = b_f * (1.0 - desat) + lum * desat
+
+        # ── 2. Cool push: boost B, reduce R, toward atmospheric blue-grey ─────
+        cool = atm_w * cool_push
+        r_out = _np.clip(r_out - cool * 0.80, 0.0, 1.0)
+        g_out = _np.clip(g_out - cool * 0.15, 0.0, 1.0)
+        b_out = _np.clip(b_out + cool * 0.60, 0.0, 1.0)
+
+        # ── 3. Haze lift: raise overall luminance in atmospheric zone ─────────
+        haze = atm_w * haze_lift
+        r_out = _np.clip(r_out + haze, 0.0, 1.0)
+        g_out = _np.clip(g_out + haze, 0.0, 1.0)
+        b_out = _np.clip(b_out + haze, 0.0, 1.0)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        atm_count = int((atm_w.squeeze() > 0.05).sum() * w)
+        print(f"    Aerial perspective pass complete  (affected_px≈{atm_count})")
+
