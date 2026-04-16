@@ -69,6 +69,7 @@ EXPECTED_ARTISTS = [
     "john_constable",
     "giovanni_bellini",
     "pontormo",
+    "rogier_van_der_weyden",
 ]
 
 
@@ -5847,4 +5848,63 @@ def test_florentine_mannerist_in_expected_periods():
     """EXPECTED_PERIODS list must include FLORENTINE_MANNERIST."""
     assert "FLORENTINE_MANNERIST" in EXPECTED_PERIODS, (
         "FLORENTINE_MANNERIST missing from EXPECTED_PERIODS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Rogier van der Weyden — session 53 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_rogier_van_der_weyden_in_catalog():
+    """Rogier van der Weyden (session 53) must be in the catalog."""
+    assert "rogier_van_der_weyden" in CATALOG, (
+        "rogier_van_der_weyden not found in CATALOG — add it to art_catalog.py")
+
+
+def test_rogier_van_der_weyden_movement():
+    """Weyden movement must reference Early Netherlandish."""
+    s = get_style("rogier_van_der_weyden")
+    assert "Netherlandish" in s.movement or "netherlandish" in s.movement.lower(), (
+        f"Weyden movement should reference 'Netherlandish'; got {s.movement!r}")
+
+
+def test_rogier_van_der_weyden_palette_length():
+    """Weyden palette should have at least 6 colours."""
+    s = get_style("rogier_van_der_weyden")
+    assert len(s.palette) >= 6, (
+        f"Weyden palette should have ≥6 colours; got {len(s.palette)}")
+
+
+def test_rogier_van_der_weyden_palette_values_in_range():
+    """All Weyden palette RGB values must be in [0, 1]."""
+    s = get_style("rogier_van_der_weyden")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Weyden palette entry not 3-tuple: {rgb}"
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Weyden palette {rgb}")
+
+
+def test_rogier_van_der_weyden_edge_softness_low():
+    """Weyden edge_softness should be ≤ 0.25 — angular found edges, not sfumato."""
+    s = get_style("rogier_van_der_weyden")
+    assert s.edge_softness <= 0.25, (
+        f"Weyden edge_softness={s.edge_softness:.2f} should be ≤ 0.25 "
+        f"(angular found edges characterise his shadow geometry)")
+
+
+def test_rogier_van_der_weyden_wet_blend_low():
+    """Weyden wet_blend should be ≤ 0.20 — precise Flemish dry marks."""
+    s = get_style("rogier_van_der_weyden")
+    assert s.wet_blend <= 0.20, (
+        f"Weyden wet_blend={s.wet_blend:.2f} should be ≤ 0.20 "
+        f"— Early Netherlandish panel precision demands dry, controlled marks")
+
+
+def test_rogier_van_der_weyden_ground_color_valid():
+    """Weyden ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("rogier_van_der_weyden")
+    assert len(s.ground_color) == 3, "Weyden ground_color not a 3-tuple"
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, (
+            f"Weyden ground_color channel {ch} out of [0, 1]")
 

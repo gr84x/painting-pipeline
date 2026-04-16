@@ -4308,6 +4308,84 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 53 — new artist: Rogier van der Weyden ────────────────────────
+    # Randomly selected artist for session 53's inspiration.
+    # Rogier van der Weyden (c. 1399/1400–1464) was the most influential painter
+    # in Northern Europe after Jan van Eyck, and in many ways his emotional
+    # opposite.  Where Van Eyck described the world with encyclopaedic patience —
+    # every texture, every material, every reflection catalogued with devotion —
+    # Weyden used oil paint as an instrument of intense psychological drama.
+    # His great achievement was the transmission of interior emotional states
+    # through purely pictorial means: the angle of a head, the tension of a hand,
+    # the precise geometry of shadow across a tear-streaked face.
+    #
+    # Technically, Weyden's defining quality is the relationship between light and
+    # shadow.  Unlike Leonardo's sfumato (which dissolves edges into a continuous
+    # atmospheric haze), Weyden's shadows have clean, angular boundaries that
+    # describe the geometry of folded cloth with almost architectural precision.
+    # A mantle fold is modelled by a single sharp passage from warm lit surface
+    # into a deep, cool shadow — the edge is found, not lost.  This gives his
+    # drapery the quality of carved stone: the cloth looks as if it could support
+    # its own weight.  His flesh is pale — often almost waxen — with cool, slightly
+    # blue-tinged shadows.  The emotional charge lives not in warm luminous flesh
+    # (Titian, Rubens) but in the precise rendering of grief: swollen eyelids,
+    # tautened brows, hands clasped to white-knuckle tension.
+    #
+    # His palette is rich but controlled: brilliant reds (vermilion, red lake),
+    # deep blues (lapis lazuli, azurite), warm gold (Naples yellow, lead white),
+    # and the almost black shadows that define his forms.  Unlike Van Eyck's
+    # landscapes, Weyden's backgrounds are often gold-leaf or plain architectural
+    # settings that concentrate attention on the emotional geometry of the figures.
+    "rogier_van_der_weyden": ArtStyle(
+        artist="Rogier van der Weyden",
+        movement="Early Netherlandish",
+        nationality="Flemish",
+        period="1430–1464",
+        palette=[
+            (0.88, 0.76, 0.54),   # warm ivory flesh — pale, slightly cool lit skin
+            (0.58, 0.38, 0.28),   # warm umber mid-tone — flesh shadow
+            (0.20, 0.14, 0.10),   # near-black shadow — drapery voids
+            (0.82, 0.18, 0.14),   # vermilion — rich red mantle, Christ's robe
+            (0.18, 0.28, 0.62),   # lapis blue — Virgin's robe, deep background
+            (0.88, 0.76, 0.22),   # Naples gold — gilded background, halo
+            (0.42, 0.30, 0.48),   # cool violet-shadow — pale flesh in shade
+        ],
+        ground_color=(0.48, 0.40, 0.28),    # warm ochre-brown oak panel ground
+        stroke_size=4,
+        wet_blend=0.12,                      # precise, dry marks — Flemish control
+        edge_softness=0.18,                  # found edges: angular, geometric shadows
+        jitter=0.018,                        # tight colour variation — controlled surface
+        glazing=(0.68, 0.52, 0.30),          # warm amber final glaze over oak panel tone
+        crackle=True,                        # 15th-century Flemish panel
+        chromatic_split=False,
+        technique=(
+            "Weyden modelled form through angular, geometric shadow passages with "
+            "clean found edges — unlike sfumato, each shadow boundary is precise. "
+            "Pale flesh rendered with cool undertones; warm umber mid-tones model "
+            "the form, then near-black recesses define folds with architectural clarity. "
+            "Emotional charge conveyed through exact geometry: brow angles, hand tension. "
+            "Vermilion and lapis anchor the composition; gilded or plain dark backgrounds "
+            "concentrate all attention on figural expression and drapery geometry."
+        ),
+        famous_works=[
+            ("Descent from the Cross", "c. 1435"),
+            ("Beaune Altarpiece (Last Judgement)", "c. 1446–1452"),
+            ("Portrait of a Lady", "c. 1460"),
+            ("Seven Sacraments Altarpiece", "c. 1445–1450"),
+            ("Entombment of Christ", "c. 1450"),
+            ("St Luke Drawing the Virgin", "c. 1435–1440"),
+        ],
+        inspiration=(
+            "Use weyden_angular_shadow_pass() to apply Weyden's signature sharp, "
+            "geometric shadow boundaries: find each light-to-shadow transition and "
+            "harden it into a precise angular edge (rather than blending it away). "
+            "Shadow zones receive a slight cool-violet tint (damp, cloth-like shadow) "
+            "rather than warm umber.  Flesh highlights push toward cool pale ivory. "
+            "Follows well after build_form() and before glaze() — establishes the "
+            "geometric clarity before any unifying warm layer is applied."
+        ),
+    ),
+
     # ── Session 52 ─────────────────────────────────────────────────────────────
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",

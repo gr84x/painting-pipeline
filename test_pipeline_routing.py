@@ -7390,3 +7390,158 @@ def test_aerial_perspective_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.40, 0.46, 0.58), texture_strength=0.0)
     p.aerial_perspective_pass(opacity=0.72)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 53 — weyden_angular_shadow_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_weyden_angular_shadow_pass_exists():
+    """weyden_angular_shadow_pass() must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "weyden_angular_shadow_pass"), (
+        "Painter.weyden_angular_shadow_pass not found — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "weyden_angular_shadow_pass"))
+
+
+def test_weyden_angular_shadow_pass_smoke():
+    """weyden_angular_shadow_pass() must run without error on default canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.48, 0.40, 0.28), texture_strength=0.0)
+    p.weyden_angular_shadow_pass()
+
+
+def test_weyden_angular_shadow_pass_opacity_zero_no_change():
+    """weyden_angular_shadow_pass(opacity=0) must not change the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.48, 0.40, 0.28), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.weyden_angular_shadow_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "Canvas must not change when weyden_angular_shadow_pass(opacity=0)")
+
+
+def test_weyden_angular_shadow_pass_shadow_zone_cooled():
+    """weyden_angular_shadow_pass() must reduce R (cool push) in dark shadow zones."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with a warm dark colour (low luminance, high R relative to B)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 60    # R — warm dark
+    buf[:, :, 1] = 45    # G
+    buf[:, :, 0] = 30    # B — low B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+    b_before = float(buf[:, :, 0].mean())
+
+    p.weyden_angular_shadow_pass(
+        shadow_thresh  = 0.38,
+        shadow_cool    = 0.15,   # amplified for measurable shift
+        highlight_cool = 0.0,
+        edge_sharpen   = 0.0,
+        opacity        = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+
+    # Dark warm pixels should have R reduced and B lifted
+    assert r_after < r_before - 1, (
+        f"Shadow zone R should decrease after cool push; "
+        f"R_before={r_before:.1f}  R_after={r_after:.1f}")
+    assert b_after > b_before + 1, (
+        f"Shadow zone B should increase after cool push; "
+        f"B_before={b_before:.1f}  B_after={b_after:.1f}")
+
+
+def test_weyden_angular_shadow_pass_highlight_zone_cooled():
+    """weyden_angular_shadow_pass() must lift B in bright highlight zones."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with a warm bright colour (high luminance, low B)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 230   # R — bright warm
+    buf[:, :, 1] = 210   # G
+    buf[:, :, 0] = 170   # B — warmer (lower B)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    b_before = float(buf[:, :, 0].mean())
+
+    p.weyden_angular_shadow_pass(
+        light_thresh   = 0.60,
+        highlight_cool = 0.12,   # amplified for measurable shift
+        shadow_cool    = 0.0,
+        edge_sharpen   = 0.0,
+        opacity        = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert b_after > b_before + 1, (
+        f"Highlight zone B should increase after cool lift; "
+        f"B_before={b_before:.1f}  B_after={b_after:.1f}")
+
+
+def test_weyden_angular_shadow_pass_with_figure_mask():
+    """weyden_angular_shadow_pass() with figure_mask must not alter background."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with dark warm colour
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 55
+    buf[:, :, 1] = 42
+    buf[:, :, 0] = 25
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: figure only in top half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:32, :] = 1.0
+
+    p.weyden_angular_shadow_pass(
+        figure_mask  = mask,
+        shadow_cool  = 0.20,
+        edge_sharpen = 0.0,
+        opacity      = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom half (background, mask=0) must be unchanged
+    assert np.array_equal(buf_after[40:, :, :3], buf[40:, :, :3]), (
+        "Background pixels (mask=0) must not be altered by weyden_angular_shadow_pass")
+
+
+def test_weyden_angular_shadow_pass_custom_params():
+    """weyden_angular_shadow_pass() must accept all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.48, 0.40, 0.28), texture_strength=0.0)
+    p.weyden_angular_shadow_pass(
+        shadow_thresh  = 0.32,
+        light_thresh   = 0.65,
+        edge_sharpen   = 0.40,
+        shadow_cool    = 0.10,
+        highlight_cool = 0.05,
+        opacity        = 0.60,
+    )
+
+
+def test_weyden_angular_shadow_pass_large_canvas():
+    """weyden_angular_shadow_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.48, 0.40, 0.28), texture_strength=0.0)
+    p.weyden_angular_shadow_pass(opacity=0.65)
