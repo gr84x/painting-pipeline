@@ -4640,6 +4640,90 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
     # ── Session 52 ─────────────────────────────────────────────────────────────
+    "giorgione": ArtStyle(
+        artist="Giorgione (Giorgio Barbarelli da Castelfranco)",
+        movement="Venetian High Renaissance",
+        nationality="Italian",
+        period="c. 1477–1510",
+        palette=[
+            (0.94, 0.88, 0.78),   # pale ivory — primary lit flesh
+            (0.82, 0.68, 0.52),   # warm amber-peach — mid-tone flesh
+            (0.58, 0.42, 0.28),   # raw sienna — shadow flesh, warmly earthen
+            (0.18, 0.26, 0.44),   # deep Prussian blue — sky, storm-blue distance
+            (0.28, 0.38, 0.26),   # muted blue-green — deep shadow, distant landscape
+            (0.72, 0.52, 0.28),   # warm amber — glowing earth and warm dark tones
+            (0.14, 0.10, 0.06),   # near-black brown — deepest shadow void
+            (0.86, 0.80, 0.68),   # silver-warm grey — atmospheric haze, fading distance
+        ],
+        ground_color=(0.68, 0.56, 0.38),
+        stroke_size=7,
+        wet_blend=0.62,
+        edge_softness=0.72,
+        jitter=0.022,
+        glazing=(0.76, 0.62, 0.32),
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Giorgione revolutionised Venetian painting by abandoning the primacy of "
+            "drawing and designing compositions entirely through tone and colour — a method "
+            "the Venetians called 'pittura di macchia' (painting in patches), later "
+            "recognised as 'tonalismo.'  Where his teacher Giovanni Bellini still used "
+            "linear underdrawing as structural armature, Giorgione built form directly from "
+            "the prepared amber ground upward, placing dark tones first and coaxing light "
+            "from the surface by transparent glaze accumulation.  His flesh is organised "
+            "not by boundary lines but by tonal pools — areas of luminous midtone that "
+            "catch the light and dissolve imperceptibly into either highlight or shadow.  "
+            "The result is a form that appears to breathe from within, as if the skin "
+            "itself generated light.  "
+            "His characteristic edges are never the crisp Flemish edge of van Eyck nor the "
+            "disembodied haze of Leonardo's pure sfumato: they occupy a middle position — "
+            "soft enough that forms merge into landscape and atmosphere, firm enough that "
+            "figure and space remain distinct.  He was the first major Venetian painter to "
+            "treat landscape not as a backdrop but as a participant — atmospheric recession, "
+            "wet riverbanks, and storm-lit trees share the emotional weight of the figure.  "
+            "His palette is consistently warm in the lights and in the deep earth shadows, "
+            "with cool blue-green infiltrating the middle-ground distances and occasionally "
+            "the figure's peripheral shadows, creating a warm-cool oscillation that binds "
+            "figure to landscape.  "
+            "Only about six works are universally attributed to him — the mystery of his "
+            "brief life (he died of plague at approximately 33) and the numerous works "
+            "attributed and deattributed have made him one of the most debated artists in "
+            "the Western canon.  Titian, who completed his Sleeping Venus after his death, "
+            "absorbed and amplified every technique Giorgione invented."
+        ),
+        famous_works=[
+            ("The Tempest",                   "c. 1508"),
+            ("The Three Philosophers",         "c. 1508–09"),
+            ("Sleeping Venus",                 "c. 1508–10"),
+            ("Castelfranco Madonna",           "c. 1504"),
+            ("Portrait of a Young Man",        "c. 1504–06"),
+            ("Laura",                          "c. 1506"),
+            ("Judith",                         "c. 1504"),
+        ],
+        inspiration=(
+            "Use giorgione_tonal_poetry_pass() after build_form() to apply Giorgione's "
+            "signature tonal luminosity — a soft inner glow lifted into the midtone range "
+            "that gives flesh its mysterious pooled light.  The pass also applies a warm "
+            "amber push to the shadow-midtone transition (Giorgione's earthen warmth in the "
+            "deep half-tones) and, when a figure_mask is provided, a cool blue-green "
+            "atmospheric bleed at the figure's peripheral edge — the landscape seeping into "
+            "the figure's silhouette, one of his most distinctive spatial qualities.  "
+            "ground_color=(0.68, 0.56, 0.38) is a warm honey-amber Venetian panel — warmer "
+            "and lighter than Tintoretto's near-black, slightly darker and more amber than "
+            "Titian's ochre-sienna.  This warm ground shows through in the shadows and "
+            "contributes to the characteristic Giorgionesque warmth.  "
+            "wet_blend=0.62 supports the tonal building method: colour is worked wet-into-wet "
+            "in a liquid, blended manner, with each tone zone softly absorbed into its "
+            "neighbour.  "
+            "edge_softness=0.72 gives the distinctive soft-but-present Giorgione edge — not "
+            "the crisp Flemish line, not the dissolved Leonardo sfumato, but a firm "
+            "atmospheric suggestion that keeps forms luminous and readable.  "
+            "glazing=(0.76, 0.62, 0.32) applies a deep amber honey unifying varnish in the "
+            "final step, warming the entire surface and intensifying the characteristic "
+            "tonal depth of the Venetian panel."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",

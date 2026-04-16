@@ -6237,6 +6237,204 @@ def test_tintoretto_glazing_amber():
         f"got R={r:.2f}  B={b:.2f} — glazing must be deep amber, not silver-cool")
 
 
+# ── Giorgione ────────────────────────────────────────────────────────────────
+
+def test_giorgione_in_catalog():
+    """Giorgione must be present in the CATALOG."""
+    assert "giorgione" in CATALOG, (
+        "'giorgione' key not found in CATALOG — add the Giorgione entry to art_catalog.py")
+
+
+def test_giorgione_artist_name():
+    """Giorgione entry must carry the full birth name."""
+    s = get_style("giorgione")
+    assert "Giorgione" in s.artist, (
+        f"Giorgione artist field should include 'Giorgione'; got {s.artist!r}")
+    assert "Castelfranco" in s.artist, (
+        f"Giorgione artist field should include 'Castelfranco'; got {s.artist!r}")
+
+
+def test_giorgione_movement_venetian_high_renaissance():
+    """Giorgione movement must be Venetian High Renaissance."""
+    s = get_style("giorgione")
+    assert "Venetian High Renaissance" in s.movement, (
+        f"Giorgione movement should be 'Venetian High Renaissance'; got {s.movement!r}")
+
+
+def test_giorgione_nationality_italian():
+    """Giorgione must be recorded as Italian."""
+    s = get_style("giorgione")
+    assert s.nationality.lower() == "italian", (
+        f"Giorgione nationality should be 'Italian'; got {s.nationality!r}")
+
+
+def test_giorgione_palette_count():
+    """Giorgione must have 6–8 palette colours."""
+    s = get_style("giorgione")
+    assert 6 <= len(s.palette) <= 8, (
+        f"Giorgione palette should have 6–8 colours; got {len(s.palette)}")
+
+
+def test_giorgione_palette_warm_light():
+    """Giorgione's lightest palette colour must be warm (R ≥ B + 0.08) — pale ivory lit flesh."""
+    s = get_style("giorgione")
+    lightest = max(s.palette, key=lambda c: 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2])
+    r, g, b = lightest
+    assert r >= b + 0.08, (
+        f"Giorgione lightest colour should be warm (R ≥ B+0.08 for ivory flesh); "
+        f"got R={r:.2f}  B={b:.2f} — Giorgione's lit flesh is warm pale ivory, not silver-cool")
+
+
+def test_giorgione_palette_has_cool_blue():
+    """Giorgione palette must contain at least one cool blue (B ≥ R + 0.10) for sky/distance."""
+    s = get_style("giorgione")
+    cool_blues = [(r, g, b) for r, g, b in s.palette if b >= r + 0.10]
+    assert len(cool_blues) >= 1, (
+        "Giorgione palette should contain at least one cool blue (B ≥ R+0.10) — "
+        "his Prussian-blue sky and atmospheric distances are characteristic")
+
+
+def test_giorgione_ground_warm_amber():
+    """Giorgione ground must be warm amber (R ≥ B + 0.20) — Venetian honey-panel preparation."""
+    s = get_style("giorgione")
+    r, g, b = s.ground_color
+    assert r >= b + 0.20, (
+        f"Giorgione ground_color should be warm amber (R ≥ B+0.20); "
+        f"got R={r:.2f}  B={b:.2f} — his warm honey-panel is lighter and warmer than Tintoretto")
+
+
+def test_giorgione_ground_lighter_than_tintoretto():
+    """Giorgione ground luminance must exceed Tintoretto's near-black ground."""
+    g_style = get_style("giorgione")
+    t_style = get_style("tintoretto")
+    def lum(c): return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]
+    assert lum(g_style.ground_color) > lum(t_style.ground_color), (
+        "Giorgione ground must be lighter than Tintoretto's near-black ground — "
+        "Giorgione used a warm amber panel, not Tintoretto's void black priming")
+
+
+def test_giorgione_stroke_size_moderate():
+    """Giorgione stroke_size must be 5–9 — broader than Bellini, smaller than Titian's impasto."""
+    s = get_style("giorgione")
+    assert 5 <= s.stroke_size <= 9, (
+        f"Giorgione stroke_size={s.stroke_size} should be 5–9 "
+        f"— broader than Bellini's micro-detail (3) but finer than Titian's gestural impasto (12)")
+
+
+def test_giorgione_wet_blend_high():
+    """Giorgione wet_blend must be 0.55–0.70 — tonal building requires liquid wet-into-wet."""
+    s = get_style("giorgione")
+    assert 0.55 <= s.wet_blend <= 0.70, (
+        f"Giorgione wet_blend={s.wet_blend:.2f} should be 0.55–0.70 "
+        f"— 'pittura di macchia' demands colour to flow freely between tonal zones")
+
+
+def test_giorgione_edge_softness_high():
+    """Giorgione edge_softness must be 0.60–0.82 — soft-but-present, not crisp Flemish nor dissolved sfumato."""
+    s = get_style("giorgione")
+    assert 0.60 <= s.edge_softness <= 0.82, (
+        f"Giorgione edge_softness={s.edge_softness:.2f} should be 0.60–0.82 "
+        f"— his edges are softer than Flemish precision but firmer than Leonardo's sfumato")
+
+
+def test_giorgione_glazing_warm_amber():
+    """Giorgione glazing must be warm amber (R ≥ B + 0.30) — honey Venetian varnish."""
+    s = get_style("giorgione")
+    assert s.glazing is not None, (
+        "Giorgione.glazing should not be None — he used a deep honey-amber Venetian varnish")
+    r, g, b = s.glazing
+    assert r >= b + 0.30, (
+        f"Giorgione glazing should be warm amber (R ≥ B+0.30); "
+        f"got R={r:.2f}  B={b:.2f} — the honey varnish is warmer than Tintoretto's amber")
+
+
+def test_giorgione_crackle():
+    """Giorgione crackle must be True — old Venetian panel paintings age with craquelure."""
+    s = get_style("giorgione")
+    assert s.crackle is True, (
+        "Giorgione.crackle should be True — Venetian panel paintings develop pronounced "
+        "craquelure over 500+ years")
+
+
+def test_giorgione_chromatic_split_false():
+    """Giorgione chromatic_split must be False — tonal Venetian painting, not Seuratian divisionism."""
+    s = get_style("giorgione")
+    assert s.chromatic_split is False, (
+        "Giorgione.chromatic_split should be False — his tonalismo is the antithesis of "
+        "Seurat's divisionist dot separation; chromatic splitting would destroy the tonal fusion")
+
+
+def test_giorgione_famous_works_count():
+    """Giorgione must have at least 5 famous works documented."""
+    s = get_style("giorgione")
+    assert len(s.famous_works) >= 5, (
+        f"Giorgione should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_giorgione_famous_works_include_tempest():
+    """Giorgione must list The Tempest as a famous work."""
+    s = get_style("giorgione")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("tempest" in t for t in titles), (
+        "Giorgione famous works should include The Tempest (c.1508) — "
+        "his most celebrated and studied surviving work")
+
+
+def test_giorgione_famous_works_include_sleeping_venus():
+    """Giorgione must list Sleeping Venus as a famous work."""
+    s = get_style("giorgione")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("sleeping" in t or "venus" in t for t in titles), (
+        "Giorgione famous works should include Sleeping Venus — "
+        "the reclining nude he left unfinished, completed by Titian")
+
+
+def test_giorgione_technique_mentions_tonalismo():
+    """Giorgione technique description must reference tonal painting / tonalismo."""
+    s = get_style("giorgione")
+    lower = s.technique.lower()
+    assert "tonal" in lower or "tonalismo" in lower or "macchia" in lower, (
+        "Giorgione technique must describe tonalismo / pittura di macchia — "
+        "his defining innovation of composition through tone rather than line")
+
+
+def test_giorgione_inspiration_references_tonal_poetry_pass():
+    """Giorgione inspiration must reference giorgione_tonal_poetry_pass()."""
+    s = get_style("giorgione")
+    assert "giorgione_tonal_poetry_pass()" in s.inspiration, (
+        "Giorgione inspiration must reference giorgione_tonal_poetry_pass() — "
+        "see Tintoretto or Bronzino for the expected format")
+
+
+def test_venetian_high_renaissance_period_in_enum():
+    """Period.VENETIAN_HIGH_RENAISSANCE must exist in the Period enum."""
+    assert hasattr(Period, "VENETIAN_HIGH_RENAISSANCE"), (
+        "Period.VENETIAN_HIGH_RENAISSANCE not found — add it to the Period enum in scene_schema.py")
+
+
+def test_venetian_high_renaissance_stroke_params():
+    """Style with Period.VENETIAN_HIGH_RENAISSANCE must return valid stroke_params."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_HIGH_RENAISSANCE)
+    params = style.stroke_params
+    assert "stroke_size_face" in params
+    assert "wet_blend" in params
+    assert "edge_softness" in params
+    # Giorgione: moderate face strokes (5–9), not Bellini's micro-detail nor Titian's impasto
+    assert 5 <= params["stroke_size_face"] <= 9, (
+        f"VENETIAN_HIGH_RENAISSANCE stroke_size_face should be 5–9; "
+        f"got {params['stroke_size_face']}")
+    # High wet_blend: tonal building demands wet-into-wet liquid blending
+    assert params["wet_blend"] >= 0.55, (
+        f"VENETIAN_HIGH_RENAISSANCE wet_blend should be ≥0.55 for tonalismo; "
+        f"got {params['wet_blend']:.2f}")
+    # High edge_softness: soft-but-present atmospheric Giorgione edge
+    assert params["edge_softness"] >= 0.60, (
+        f"VENETIAN_HIGH_RENAISSANCE edge_softness should be ≥0.60; "
+        f"got {params['edge_softness']:.2f}")
+
+
+# ── Venetian Mannerist ────────────────────────────────────────────────────────
+
 def test_venetian_mannerist_period_in_enum():
     """Period.VENETIAN_MANNERIST must exist in the Period enum."""
     assert hasattr(Period, "VENETIAN_MANNERIST"), (

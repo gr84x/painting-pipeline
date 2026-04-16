@@ -15950,4 +15950,181 @@ class Painter:
         print(f"    Tintoretto dynamic-light pass complete  "
               f"(highlight_px={highlight_count}  shadow_px={shadow_count})")
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Giorgione — tonal poetry pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def giorgione_tonal_poetry_pass(
+        self,
+        figure_mask:         "Optional[_np.ndarray]" = None,
+        midtone_low:         float = 0.30,
+        midtone_high:        float = 0.70,
+        luminous_lift:       float = 0.12,
+        warm_shadow_strength: float = 0.06,
+        cool_edge_strength:  float = 0.05,
+        opacity:             float = 0.70,
+    ) -> None:
+        """
+        Apply Giorgione's tonal-poetry quality to the canvas.
+
+        Giorgione (Giorgio Barbarelli da Castelfranco, c.1477–1510) — Venetian High
+        Renaissance — invented 'tonalismo': building form entirely through pooled
+        tone and colour rather than linear underdrawing.  His flesh appears to breathe
+        from within because his midtones carry a mysterious inner luminosity — forms
+        are neither crisp (Flemish) nor dissolved (sfumato) but softly, warmly
+        present.  Landscape and atmosphere seep into the figure's peripheral silhouette,
+        creating the warm-cool oscillation that binds figure to environment.
+
+        This pass applies three distinct operations:
+
+        1. **Luminous midtone lift** (midtone_low ≤ lum ≤ midtone_high): Brightens
+           midtone pixels by a soft, lum-weighted amount, creating the characteristic
+           inner glow.  Controlled by luminous_lift.
+
+        2. **Warm amber shadow-transition push** (lum < midtone_high): At the
+           shadow-to-midtone boundary, warms the tone toward Giorgione's raw-sienna
+           earth palette by slightly elevating the red-channel relative to blue.
+           Controlled by warm_shadow_strength.
+
+        3. **Cool blue-green peripheral bleed** (figure_mask provided, mask < 0.4):
+           At the figure's peripheral silhouette, bleeds a subtle cool blue-green
+           tint inward — the landscape atmosphere seeping into the figure edge.
+           Controlled by cool_edge_strength.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array (H, W) in [0, 1]. 1 = figure interior, 0 = background.
+            When provided, operation 3 is applied at the figure's soft edge zone
+            (mask values 0.05–0.40).  If None, operation 3 is skipped.
+        midtone_low : float
+            Lower luminance boundary of the midtone zone in [0, 1].  Pixels with
+            luminance below this are treated as shadows; only operation 2 applies
+            at the shadow-midtone transition.  Default 0.30.
+        midtone_high : float
+            Upper luminance boundary of the midtone zone in [0, 1].  Pixels above
+            this are highlights; operation 1 tapers off toward this threshold.
+            Default 0.70.
+        luminous_lift : float
+            Magnitude of the midtone luminance lift in [0, 1].  0 = no inner glow;
+            0.20+ produces a noticeably bright, almost Bellini-esque glow.
+            Default 0.12 — subtle inner light.
+        warm_shadow_strength : float
+            Red-channel boost applied in the shadow-to-midtone transition zone.
+            Warms the deep half-tones toward Giorgione's raw-sienna earth palette.
+            Default 0.06.
+        cool_edge_strength : float
+            Blue-green tint added at the figure's peripheral mask edge (mask 0.05–0.40).
+            Simulates the landscape atmosphere seeping into the silhouette.
+            Default 0.05.
+        opacity : float
+            Global blend factor: 0 = no effect, 1 = full correction applied.
+            The three operations are each independently blended at this opacity.
+
+        Notes
+        -----
+        Apply AFTER build_form().  Works best before glaze(), which will warm and
+        deepen the final surface over the tonal work this pass establishes.
+        Pairs well with sfumato_veil_pass() (softens remaining hard edges further)
+        and atmospheric_depth_pass() (extends the cool recessive logic into the
+        background).
+        Does NOT pair well with tintoretto_dynamic_light_pass() (which dramatically
+        re-contrasts what this pass intentionally softens).
+        """
+        import numpy as _np
+
+        print(f"  Giorgione tonal-poetry pass  "
+              f"(luminous_lift={luminous_lift:.3f}  "
+              f"warm_shadow={warm_shadow_strength:.3f}  "
+              f"cool_edge={cool_edge_strength:.3f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Giorgione tonal-poetry pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Normalise to float [0, 1] — cairo surface is BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # Perceived luminance
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # When a figure_mask is provided, operations 1 and 2 are gated to figure
+        # pixels — pixels where mask=0 (pure background) are not altered.
+        # This matches the convention of every other artist-specific pass in this engine.
+        if figure_mask is not None:
+            mask_f  = figure_mask.astype(_np.float32)
+            fig_w   = _np.clip(mask_f, 0.0, 1.0)   # [0, 1] spatial weight for ops 1 & 2
+        else:
+            mask_f  = None
+            fig_w   = _np.ones((h, w), dtype=_np.float32)   # apply everywhere
+
+        # ── Operation 1: luminous midtone lift ────────────────────────────────
+        # Bell-shaped weight: peaks at midpoint of midtone_low..midtone_high,
+        # falls to zero at either boundary.
+        mid_centre = (midtone_low + midtone_high) * 0.5
+        mid_half   = (midtone_high - midtone_low) * 0.5 + 1e-8
+        in_mid     = (lum >= midtone_low) & (lum <= midtone_high)
+        # Cosine bell: weight 1 at centre, 0 at edges of midtone zone
+        bell       = _np.where(in_mid,
+                               0.5 * (1.0 + _np.cos(
+                                   _np.pi * (lum - mid_centre) / mid_half)),
+                               0.0).astype(_np.float32)
+        lift       = bell * luminous_lift * opacity * fig_w
+
+        r_out = _np.clip(r_f + lift, 0.0, 1.0)
+        g_out = _np.clip(g_f + lift * 0.92, 0.0, 1.0)   # slightly less green lift
+        b_out = _np.clip(b_f + lift * 0.80, 0.0, 1.0)   # least blue lift — keeps warm
+
+        # ── Operation 2: warm amber shadow-transition push ────────────────────
+        # Target zone: shadow-to-midtone boundary (midtone_low ± half its span)
+        shadow_zone_top = midtone_low + (midtone_high - midtone_low) * 0.25
+        in_shadow_trans = (lum >= (midtone_low * 0.5)) & (lum <= shadow_zone_top)
+        # Weight strongest at midtone_low, fading at either side
+        shadow_bell     = _np.where(
+            in_shadow_trans,
+            _np.clip(1.0 - _np.abs(lum - midtone_low) / (shadow_zone_top - midtone_low * 0.5 + 1e-8), 0.0, 1.0),
+            0.0).astype(_np.float32)
+        warm_push       = shadow_bell * warm_shadow_strength * opacity * fig_w
+
+        # Raise R slightly, pull B slightly — raw-sienna warmth in the half-tones
+        r_out = _np.clip(r_out + warm_push,        0.0, 1.0)
+        b_out = _np.clip(b_out - warm_push * 0.50, 0.0, 1.0)
+
+        # ── Operation 3: cool blue-green peripheral bleed ─────────────────────
+        if mask_f is not None:
+            # Edge zone: mask values between 0.05 and 0.40 — soft peripheral silhouette
+            in_edge = (mask_f >= 0.05) & (mask_f <= 0.40)
+            # Weight inversely proportional to mask density — strongest at outer edge
+            edge_w  = _np.where(in_edge,
+                                (0.40 - mask_f) / 0.35,
+                                0.0).astype(_np.float32)
+            cool_push = edge_w * cool_edge_strength * opacity
+
+            # Add blue-green at the peripheral edge — Giorgione's landscape seeping in
+            b_out = _np.clip(b_out + cool_push * 1.20, 0.0, 1.0)
+            g_out = _np.clip(g_out + cool_push * 0.80, 0.0, 1.0)
+            r_out = _np.clip(r_out - cool_push * 0.40, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        midtone_px = int(in_mid.sum())
+        print(f"    Giorgione tonal-poetry pass complete  "
+              f"(midtone_px={midtone_px})")
+
 
