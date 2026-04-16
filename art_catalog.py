@@ -3838,6 +3838,76 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Edvard Munch ──────────────────────────────────────────────────────────
+    "munch": ArtStyle(
+        artist      = "Edvard Munch",
+        movement    = "Nordic Expressionism / Symbolism",
+        nationality = "Norwegian",
+        period      = "1880–1944",
+        palette     = [
+            (0.82, 0.28, 0.14),   # cadmium-red anxiety — the blood-red of The Scream sky
+            (0.88, 0.62, 0.18),   # saffron-amber — warm undulating atmospheric tone
+            (0.18, 0.32, 0.52),   # prussian-cobalt — cold fjord depth, existential shadow
+            (0.42, 0.58, 0.38),   # muted verdigris — sickly landscape green, emotional unease
+            (0.12, 0.10, 0.08),   # near-black umber — void, formlessness, encroaching dark
+            (0.78, 0.72, 0.62),   # pale ivory — isolated flesh tones in the turbulence
+            (0.62, 0.22, 0.35),   # crimson-violet — late-evening sky, psychic wound colour
+        ],
+        ground_color   = (0.18, 0.14, 0.10),   # dark warm umber — Munch primed on dark grounds
+        stroke_size    = 10.0,                  # bold, loaded-brush curvilinear marks
+        wet_blend      = 0.45,                  # moderate — strokes fuse at tips but stay directional
+        edge_softness  = 0.38,                  # figure-ground boundary purposely dissolves
+        jitter         = 0.06,                  # organic colour variation per stroke
+        glazing        = (0.65, 0.30, 0.10),    # warm crimson-amber unifying glaze
+        crackle        = True,                  # Munch's oils have aged surface craquelure
+        chromatic_split = False,
+        technique=(
+            "Edvard Munch painted from psychological states rather than observed nature.  "
+            "His defining technical hallmark is the sinuous, undulating brushstroke — long, "
+            "curving marks that follow no fixed axis but instead spiral and eddy across the "
+            "canvas surface, making the air itself feel charged and unstable.  He applied "
+            "oil paint in sweeping directional arcs — the same rhythmic energy appears in "
+            "both the figure and the landscape behind them, erasing the boundary between "
+            "inner emotional state and outer world.  "
+            "Munch worked on dark-toned grounds, usually a warm umber or raw sienna "
+            "imprimatura, which unifies his palette in shadow and gives his lit zones their "
+            "intensity by simultaneous contrast.  His palette is deliberately visceral: "
+            "blood reds, saffron yellows, prussian blues and sickly greens are opposed "
+            "without neutral mediation — the colour relationships carry anxiety directly.  "
+            "Flesh in Munch's portraits is simplified and mask-like — oval, pale, almost "
+            "featureless — while the background swirls with expressionist energy.  The "
+            "figure is present but barely anchored; it could dissolve into the landscape "
+            "at any moment.  "
+            "His glazing practice involves thin, turbid colour washes that build atmospheric "
+            "depth rather than form, unifying the whole surface in a sickly warmth reminiscent "
+            "of fever light.  Edge_softness is deliberately elevated so that figure contours "
+            "begin to merge with the swirling background — psychological dissolution made "
+            "visible through paint."
+        ),
+        famous_works=[
+            ("The Scream",                  "1893"),
+            ("Madonna",                     "1894–1895"),
+            ("The Kiss",                    "1897"),
+            ("Anxiety",                     "1894"),
+            ("Melancholy",                  "1894–1895"),
+            ("The Sick Child",              "1885–1886"),
+            ("Vampire",                     "1893–1894"),
+            ("Dance of Life",               "1899–1900"),
+            ("Self-Portrait with Cigarette","1895"),
+            ("Girls on the Bridge",         "1901"),
+        ],
+        inspiration=(
+            "Use munch_anxiety_swirl_pass() for the signature sinuous swirling background — "
+            "long curvilinear strokes that spiral across the canvas generating psychological "
+            "turbulence.  Dark warm umber ground_color (0.18, 0.14, 0.10) — light zones "
+            "must earn their presence against the dark.  stroke_size=10, wet_blend=0.45 — "
+            "bold marks that blend at their tips but retain directional energy.  Warm "
+            "crimson-amber glaze (0.65, 0.30, 0.10) unifies in fever warmth.  High "
+            "edge_softness (0.38) dissolves figure-ground boundary — the psychological "
+            "key of the whole approach."
+        ),
+    ),
+
 }
 
 

@@ -13174,3 +13174,169 @@ class Painter:
         n_highlight = int(hi_mask.sum())
         print(f"    Gentileschi dramatic flesh pass complete  "
               f"(shadow={n_shadow}px  penumbra={n_penumbra}px  highlight={n_highlight}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # munch_anxiety_swirl_pass — inspired by Edvard Munch
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def munch_anxiety_swirl_pass(
+        self,
+        *,
+        n_swirl_strokes:  int   = 320,
+        swirl_amplitude:  float = 0.22,
+        swirl_frequency:  float = 3.8,
+        color_intensity:  float = 0.55,
+        bg_only:          bool  = True,
+        stroke_opacity:   float = 0.28,
+        stroke_size:      float = 9.0,
+    ) -> None:
+        """
+        Munch Anxiety Swirl Pass — Edvard Munch's sinuous background turbulence.
+
+        Munch's defining compositional gesture is the undulating, serpentine
+        brushstroke that spirals across the canvas in long curving arcs —
+        most famously in "The Scream" (1893), where the entire sky and
+        landscape becomes a single churning vortex of anxious energy.  This
+        technique dissolves the distinction between figure and environment,
+        making the external world an expression of an internal psychological
+        state.
+
+        Implementation strategy
+        -----------------------
+        The pass places a series of long sinusoidal stroke paths across the
+        canvas.  Each path is a sine-wave trajectory with randomised phase,
+        frequency, and amplitude, oriented at a shallow diagonal to suggest
+        the rolling, fjord-scape undulations in Munch's oils.  The colour
+        of each stroke is drawn from the Munch palette — blood reds, saffron
+        yellows, prussian blues, sickly greens — with per-stroke jitter to
+        introduce the characteristic raw, trembling quality of his surface.
+
+        When bg_only=True (the default), strokes are suppressed wherever the
+        figure mask is solid, confining the turbulence to the background and
+        leaving the portrait subject as a calmer, mask-like presence within
+        the swirling landscape.  This matches Munch's portrait practice:
+        the sitter is simplified and steady while the world behind them writhes.
+
+        Parameters
+        ----------
+        n_swirl_strokes : int
+            Number of sinusoidal swirl paths to place.  320 produces dense
+            coverage; reduce to 180–220 for a looser, more gestural reading.
+        swirl_amplitude : float
+            Amplitude of the sinusoidal wave as a fraction of canvas height.
+            0.22 produces medium-depth undulation; raise to 0.35+ for extreme
+            churning, lower to 0.10 for shallow ripples.
+        swirl_frequency : float
+            Number of complete wave cycles across the canvas width.  3.8
+            gives roughly four undulations per stroke — the Munch characteristic
+            rhythm.  Higher values produce tighter, more frantic coils.
+        color_intensity : float
+            Blend weight of the Munch palette colours into the existing canvas.
+            0.55 is psychologically vivid without obliterating the underpainting.
+            Raise toward 1.0 for maximum expressionist intensity.
+        bg_only : bool
+            If True, strokes are masked to the background only (suppressed
+            where figure mask alpha > 0.5).  Recommended True for portraiture.
+        stroke_opacity : float
+            Per-stroke opacity in [0, 1].  Lower values (0.20–0.28) build up
+            colour gradually as strokes cross; higher values (0.40+) create
+            bold individual marks visible from across the room.
+        stroke_size : float
+            Base brush radius in pixels.  Munch's loaded-brush swirl marks
+            are wider than most portrait passes — 9px is appropriate for a
+            512×512 canvas; scale proportionally for larger outputs.
+
+        Notes
+        -----
+        Call AFTER block_in() / build_form() and BEFORE glaze() and finish().
+        Pair with a warm crimson-amber glaze (0.65, 0.30, 0.10) at opacity
+        0.07–0.10 after this pass to unify the turbulent surface in fever warmth.
+        """
+        import math as _math
+        import numpy as _np
+        import cairo as _cairo
+
+        print(f"  Munch anxiety swirl pass  "
+              f"(n={n_swirl_strokes}  amp={swirl_amplitude:.2f}  "
+              f"freq={swirl_frequency:.1f}  intensity={color_intensity:.2f})…")
+
+        surf = self.canvas.surface
+        W    = surf.get_width()
+        H    = surf.get_height()
+
+        # ── Munch characteristic palette ──────────────────────────────────────
+        munch_colors = [
+            (0.82, 0.28, 0.14),   # cadmium-red anxiety
+            (0.88, 0.62, 0.18),   # saffron-amber atmospheric warmth
+            (0.18, 0.32, 0.52),   # prussian-cobalt cold depth
+            (0.42, 0.58, 0.38),   # sickly verdigris
+            (0.62, 0.22, 0.35),   # crimson-violet psychic wound
+        ]
+        n_colors = len(munch_colors)
+
+        # ── Figure mask for bg_only suppression ───────────────────────────────
+        fig_mask = self._figure_mask   # (H, W) float32 in [0, 1] or None
+
+        rng = _np.random.default_rng(seed=42)   # deterministic for reproducibility
+
+        strokes_placed = 0
+        for _ in range(n_swirl_strokes):
+            # Starting y position distributed across full canvas height
+            y0_frac = rng.uniform(0.0, 1.0)
+            phase   = rng.uniform(0.0, 2.0 * _math.pi)
+            # Diagonal angle — Munch's lines rarely run purely horizontal
+            angle_deg = rng.uniform(-18.0, 18.0)
+            cos_a = _math.cos(_math.radians(angle_deg))
+            sin_a = _math.sin(_math.radians(angle_deg))
+
+            # Choose colour with slight jitter
+            base_col = munch_colors[rng.integers(0, n_colors)]
+            jitter   = rng.uniform(-0.06, 0.06, size=3)
+            col = tuple(float(_np.clip(c + j, 0.0, 1.0))
+                        for c, j in zip(base_col, jitter))
+
+            # Build sinusoidal path across the canvas
+            n_pts   = 32
+            pts     = []
+            amp_px  = swirl_amplitude * H
+            for i in range(n_pts):
+                t  = i / (n_pts - 1)          # 0 → 1 across the stroke length
+                # Base x progresses across canvas; y follows sine wave
+                bx = t * W
+                by = y0_frac * H + amp_px * _math.sin(
+                    2.0 * _math.pi * swirl_frequency * t + phase
+                )
+                # Apply rotational tilt
+                cx = bx * cos_a - (by - y0_frac * H) * sin_a
+                cy = by * cos_a + (bx - 0) * sin_a * 0.08   # subtle rotation
+                pts.append((cx, cy))
+
+            # Check whether the stroke midpoint falls in background
+            mid_x = int(_np.clip(pts[n_pts // 2][0], 0, W - 1))
+            mid_y = int(_np.clip(pts[n_pts // 2][1], 0, H - 1))
+            if bg_only and fig_mask is not None:
+                if fig_mask[mid_y, mid_x] > 0.50:
+                    continue   # Skip — this stroke would cover the figure
+
+            # Draw the swirl path as a series of connected segments
+            ctx = self.canvas.ctx
+            ctx.save()
+
+            # Scale opacity by color_intensity
+            effective_opacity = stroke_opacity * color_intensity
+
+            r_col, g_col, b_col = col
+            ctx.set_source_rgba(r_col, g_col, b_col, effective_opacity)
+            ctx.set_line_width(stroke_size)
+            ctx.set_line_cap(_cairo.LINE_CAP_ROUND)
+            ctx.set_line_join(_cairo.LINE_JOIN_ROUND)
+
+            ctx.move_to(pts[0][0], pts[0][1])
+            for px, py in pts[1:]:
+                ctx.line_to(px, py)
+            ctx.stroke()
+            ctx.restore()
+
+            strokes_placed += 1
+
+        print(f"    Munch anxiety swirl pass complete  ({strokes_placed} swirl strokes placed)")

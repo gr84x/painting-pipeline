@@ -562,6 +562,7 @@ def scene_to_painting(
     is_symbolist              = (scene.style.period == Period.SYMBOLIST)
     is_florentine_renaissance = (scene.style.period == Period.FLORENTINE_RENAISSANCE)
     is_flemish_baroque        = (scene.style.period == Period.FLEMISH_BAROQUE)
+    is_nordic_expressionist   = (scene.style.period == Period.NORDIC_EXPRESSIONIST)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2707,6 +2708,83 @@ def scene_to_painting(
             print(_feedback.summary())
         # Strong vignette focuses attention on the figure; crackle for aged oil canvas
         p.finish(vignette=0.45, crackle=True)
+
+    elif is_nordic_expressionist:
+        # ── Nordic Expressionist pipeline (Edvard Munch technique) ───────────
+        # Munch painted from psychological states, not observed nature.  His
+        # technique fuses figure and environment through sinuous, undulating
+        # brushstrokes that carry the same emotional charge in both the sitter
+        # and the turbulent landscape behind them.
+        #
+        # Pipeline:
+        #   1. Dark warm umber ground — lit zones earn presence by contrast.
+        #   2. Underpainting + block_in: establish figure masses against the void.
+        #   3. build_form(): Munch-style bold directional strokes.
+        #   4. munch_anxiety_swirl_pass(): sinuous swirling background turbulence,
+        #      the defining expressionist gesture.
+        #   5. Warm crimson-amber unifying glaze — fever warmth.
+        #   6. edge_lost_and_found_pass(): figure edges dissolve into background.
+        #   7. finish(vignette=0.55, crackle=True): heavy vignette + aged crackle.
+        munch_style = _ART_CATALOG.get("munch")
+        ground_col  = munch_style.ground_color if munch_style else (0.18, 0.14, 0.10)
+        glaze_col   = munch_style.glazing      if munch_style else (0.65, 0.30, 0.10)
+
+        # Dark warm umber ground — the psychic void from which the figure emerges
+        p.tone_ground(ground_col, texture_strength=0.11)
+
+        # Monochrome underpainting: broadly sketch the figure mass
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.2), n_strokes=160)
+
+        # Broad block-in: establish figure colours against the dark ground
+        p.block_in(ref, stroke_size=int(sp["stroke_size_bg"]), n_strokes=300)
+
+        # Build form with Munch's bold directional strokes
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.58), n_strokes=700)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.30, 0.08), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97,
+                                         midtone_contrast=0.05)
+
+        # Core Munch technique: sinuous swirling background turbulence
+        p.munch_anxiety_swirl_pass(
+            n_swirl_strokes = 320,
+            swirl_amplitude = 0.22,
+            swirl_frequency = 3.8,
+            color_intensity = 0.55,
+            bg_only         = True,
+            stroke_opacity  = 0.28,
+            stroke_size     = float(sp["stroke_size_bg"]) * 0.55,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "munch_anxiety_swirl_pass")
+            for rec in _feedback.recommend_passes():
+                if rec == "glaze":
+                    p.glaze(glaze_col, opacity=0.05)
+                elif rec == "tonal_compression":
+                    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.98,
+                                             midtone_contrast=0.03)
+
+        # Warm crimson-amber fever glaze — unifies the turbulent surface
+        p.glaze(glaze_col, opacity=0.09)
+
+        # Edge lost-and-found: peripheral figure edges dissolve into background
+        # swirl — the Munch psychological dissolution effect
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.25,
+            found_sharpness = 0.40,
+            lost_blur       = 2.2,
+            strength        = 0.38,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Heavy vignette + crackle — Munch's aged oils on dark grounds
+        p.finish(vignette=0.55, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
