@@ -194,6 +194,7 @@ class Period(Enum):
     SURREALIST    = auto()   # Kahlo — flat folk-art zones, intense saturated palette, dark contour outlines
     ABSTRACT_EXPRESSIONIST = auto()  # Kandinsky — geometric resonance, synesthetic colour theory, floating primitives
     VENETIAN_RENAISSANCE = auto()  # Titian — rich colourism, warm glazing, gestural impasto, luminous depth
+    VENETIAN_HIGH_RENAISSANCE = auto()  # Giorgione — tonal poetry, luminous midtone pooling, warm-cool atmospheric transition, proto-sfumato
     EARLY_VENETIAN_RENAISSANCE = auto()  # Bellini — crystalline sacred light, honey-amber glazing, serene divine luminosity
     FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
     PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
@@ -506,6 +507,17 @@ class Style:
             # edge_softness=0.55: moderate — Bellini's edges are softer than the Northern Renaissance
             # (Dürer) but firmer than Leonardo's sfumato; forms are clearly resolved and architecturally
             # sound, with a gentle atmospheric softening at peripheral edges.
+            # Venetian High Renaissance (Giorgione): tonal building without linear armature.
+            # stroke_size_face=7: larger than Bellini's precise marks, smaller than Titian's
+            # gestural impasto — Giorgione built flesh in broad, blended tonal zones rather
+            # than individual brushwork passages.
+            # stroke_size_bg=24: moderate — his backgrounds are atmospheric and painterly,
+            # not the micro-detail of Flemish technique nor the bold drama of Tintoretto.
+            # wet_blend=0.62: high — tonal zones are worked wet-into-wet; the characteristic
+            # 'pittura di macchia' technique requires colour to flow between zones freely.
+            # edge_softness=0.72: soft-but-present — not Leonardo's dissolved sfumato, not
+            # van Eyck's precision; forms merge gently into atmosphere while remaining legible.
+            Period.VENETIAN_HIGH_RENAISSANCE: dict(stroke_size_face=7, stroke_size_bg=24, wet_blend=0.62, edge_softness=0.72),
             Period.EARLY_VENETIAN_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.55),
             # Fauvist (Matisse): bold flat colour zones, zero modelling, maximum
             # saturation.  stroke_size_face is the loaded-brush zone fill width —

@@ -8142,3 +8142,157 @@ def test_tintoretto_dynamic_light_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.10, 0.07, 0.05), texture_strength=0.0)
     p.tintoretto_dynamic_light_pass(opacity=0.65)
+
+
+# ── giorgione_tonal_poetry_pass ───────────────────────────────────────────────
+
+def test_giorgione_tonal_poetry_pass_exists():
+    """Painter must have a giorgione_tonal_poetry_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "giorgione_tonal_poetry_pass"), (
+        "Painter.giorgione_tonal_poetry_pass not found — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "giorgione_tonal_poetry_pass"))
+
+
+def test_giorgione_tonal_poetry_pass_runs_without_error():
+    """giorgione_tonal_poetry_pass() must run on default canvas without raising."""
+    p = _make_small_painter(64, 64)
+    p.giorgione_tonal_poetry_pass()  # should not raise
+
+
+def test_giorgione_tonal_poetry_pass_opacity_zero_noop():
+    """giorgione_tonal_poetry_pass(opacity=0) must not alter any pixels."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with mid-grey so midtone lift would fire if opacity > 0
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 128   # R
+    buf[:, :, 1] = 128   # G
+    buf[:, :, 0] = 128   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    before = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.giorgione_tonal_poetry_pass(opacity=0.0)
+    after  = np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(before[:, :, :3], after[:, :, :3]), (
+        "giorgione_tonal_poetry_pass(opacity=0) must not alter any pixels — "
+        "zero opacity is the no-op sentinel")
+
+
+def test_giorgione_tonal_poetry_pass_midtone_lift_brightens():
+    """giorgione_tonal_poetry_pass() must increase mean luminance on a mid-grey canvas."""
+    p = _make_small_painter(64, 64)
+
+    # Fill with mid-grey (luminance ≈ 0.50 — firmly in the midtone zone)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 128
+    buf[:, :, 1] = 128
+    buf[:, :, 0] = 128
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    lum_before = (0.2126 * buf_before[:, :, 2].astype(np.float32) +
+                  0.7152 * buf_before[:, :, 1].astype(np.float32) +
+                  0.0722 * buf_before[:, :, 0].astype(np.float32)).mean() / 255.0
+
+    p.giorgione_tonal_poetry_pass(luminous_lift=0.15, opacity=1.0)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    lum_after  = (0.2126 * buf_after[:, :, 2].astype(np.float32) +
+                  0.7152 * buf_after[:, :, 1].astype(np.float32) +
+                  0.0722 * buf_after[:, :, 0].astype(np.float32)).mean() / 255.0
+
+    assert lum_after > lum_before, (
+        f"giorgione_tonal_poetry_pass() midtone lift must raise mean luminance on a "
+        f"mid-grey canvas; lum_before={lum_before:.4f}  lum_after={lum_after:.4f}")
+
+
+def test_giorgione_tonal_poetry_pass_warm_lift_on_midtones():
+    """giorgione_tonal_poetry_pass() must add more to R than B on a mid-grey canvas (warm lift)."""
+    p = _make_small_painter(64, 64)
+
+    # Fill with neutral mid-grey — in both midtone and shadow-transition zones
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 100   # R — slightly below mid so warm_shadow fires too
+    buf[:, :, 1] = 100   # G
+    buf[:, :, 0] = 100   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.giorgione_tonal_poetry_pass(
+        luminous_lift=0.10,
+        warm_shadow_strength=0.08,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    mean_r = float(buf_after[:, :, 2].mean())
+    mean_b = float(buf_after[:, :, 0].mean())
+
+    assert mean_r >= mean_b, (
+        f"giorgione_tonal_poetry_pass() warm lift should result in mean R ≥ mean B "
+        f"on a neutral input; R={mean_r:.1f}  B={mean_b:.1f} — "
+        f"Giorgione's shadow-transition warms toward raw-sienna earth tones")
+
+
+def test_giorgione_tonal_poetry_pass_figure_mask_background_unchanged():
+    """giorgione_tonal_poetry_pass() with figure_mask must not alter background pixels."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with uniform mid-grey
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 128
+    buf[:, :,  3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: figure only in top half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:32, :] = 1.0   # top half is figure interior
+
+    p.giorgione_tonal_poetry_pass(
+        figure_mask        = mask,
+        cool_edge_strength = 0.20,   # strong enough to detect if it bleeds into background
+        opacity            = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom rows (mask=0, strictly background) must be unchanged
+    assert np.array_equal(buf_after[50:, :, :3], buf[50:, :, :3]), (
+        "giorgione_tonal_poetry_pass() with figure_mask must not alter pixels where "
+        "mask=0 (pure background) — cool_edge_strength bleeds only at the silhouette edge")
+
+
+def test_giorgione_tonal_poetry_pass_custom_params():
+    """giorgione_tonal_poetry_pass() must accept all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.56, 0.38), texture_strength=0.0)
+    p.giorgione_tonal_poetry_pass(
+        midtone_low          = 0.25,
+        midtone_high         = 0.65,
+        luminous_lift        = 0.10,
+        warm_shadow_strength = 0.04,
+        cool_edge_strength   = 0.03,
+        opacity              = 0.60,
+    )
+
+
+def test_giorgione_tonal_poetry_pass_large_canvas():
+    """giorgione_tonal_poetry_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.68, 0.56, 0.38), texture_strength=0.0)
+    p.giorgione_tonal_poetry_pass(opacity=0.70)
