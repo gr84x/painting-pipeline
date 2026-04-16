@@ -218,6 +218,7 @@ class Period(Enum):
     PRE_RAPHAELITE = auto()          # Waterhouse — jewel palette, wet white ground luminosity, fine Pre-Raphaelite detail
     SYMBOLIST     = auto()           # Moreau — encrusted gold highlights, Byzantine mosaic texture, deep crimson shadow richness
     FLORENTINE_RENAISSANCE = auto()  # Botticelli — pale gesso ground, sinuous linear grace, tempera hatching, chrysographic gold filaments
+    FLORENTINE_MANNERIST = auto()   # Pontormo — acid dissonant palette, cool grey ground, psychological colour tension, compressed figures
     NORTHERN_RENAISSANCE = auto()    # Dürer — pale silver-white ground, cool engraving-precision, cross-hatch shadows, single-hair detail
     QUATTROCENTO  = auto()           # Fra Angelico — chalk-white gesso, tempera hatching, pure lapis/vermilion, gold-leaf halos
     FRENCH_CLASSICAL = auto()        # Poussin — cool architectural clarity, silver shadows, rational colour zones, saturation discipline
@@ -691,6 +692,16 @@ class Style:
             # line defines every figure; there is no sfumato, no atmospheric softening;
             # the edge is a drawn line, not the edge of a tonal gradient.
             Period.FLORENTINE_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.06, edge_softness=0.12),
+            # Florentine Mannerist (Pontormo): acid palette, psychological dissonance, compressed figures.
+            # stroke_size_face=5: fine-medium marks — Pontormo built his faces with careful deliberate
+            # strokes on a cool grey ground; not as fine as tempera hatching but more deliberate than
+            # broad oil impasto.  stroke_size_bg=22: moderate background marks — his backgrounds are
+            # shallow and compressed, not elaborately detailed deep landscapes.
+            # wet_blend=0.28: moderate-low — the dissonant colours must stay separated and individually
+            # vivid; too much blending would neutralise the chromatic tension that is the point of the style.
+            # edge_softness=0.28: moderate-low — Pontormo's edges are present and readable; not Flemish
+            # razor-precision but not sfumato haze either.  Each colour zone is self-contained.
+            Period.FLORENTINE_MANNERIST: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.28, edge_softness=0.28),
             # Northern Renaissance (Dürer): engraving-precision oil on pale silver-white panel.
             # stroke_size_face=3: the finest possible marks — Dürer painted individual hairs
             # and fabric threads; each stroke is a deliberate, precise calligraphic touch.

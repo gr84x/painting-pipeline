@@ -7067,3 +7067,326 @@ def test_penumbra_zone_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.55, 0.48, 0.32), texture_strength=0.0)
     p.penumbra_zone_pass(opacity=0.65)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# pontormo_dissonance_pass — session 52
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_pontormo_dissonance_pass_exists():
+    """Painter must expose pontormo_dissonance_pass() (session 52)."""
+    p = _make_small_painter(64, 64)
+    assert hasattr(p, "pontormo_dissonance_pass"), (
+        "Painter.pontormo_dissonance_pass() not found — add it to stroke_engine.py")
+    assert callable(p.pontormo_dissonance_pass)
+
+
+def test_pontormo_dissonance_pass_modifies_canvas():
+    """pontormo_dissonance_pass() must change the canvas when opacity > 0."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.50, 0.58), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.pontormo_dissonance_pass(opacity=0.68)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "Canvas must change after pontormo_dissonance_pass(opacity=0.68)")
+
+
+def test_pontormo_dissonance_pass_opacity_zero_skips():
+    """pontormo_dissonance_pass() with opacity=0 must not change the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.50, 0.58), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.pontormo_dissonance_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "Canvas must not change when pontormo_dissonance_pass(opacity=0)")
+
+
+def test_pontormo_dissonance_pass_acid_lift_in_highlights():
+    """pontormo_dissonance_pass() must lift R channel in the bright zone (acid yellow)."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with a uniformly bright value (above light_thresh=0.60)
+    bright_val = 200   # ≈ 0.784 luminance — well above 0.60
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = bright_val
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+
+    p.pontormo_dissonance_pass(
+        light_thresh   = 0.60,
+        shadow_thresh  = 0.32,
+        acid_lift      = 0.20,
+        violet_push    = 0.0,
+        midtone_chroma = 0.0,
+        opacity        = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+
+    assert r_after > r_before + 2, (
+        f"Acid lift should raise R in the highlight zone; "
+        f"R_before={r_before:.1f} R_after={r_after:.1f}")
+
+
+def test_pontormo_dissonance_pass_violet_push_in_shadows():
+    """pontormo_dissonance_pass() must boost B and reduce R in the dark zone (violet shadow)."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with a dark value (below shadow_thresh=0.32)
+    dark_val = 60   # ≈ 0.235 luminance — well below 0.32
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = dark_val
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+    b_before = float(buf[:, :, 0].mean())
+
+    p.pontormo_dissonance_pass(
+        light_thresh   = 0.60,
+        shadow_thresh  = 0.32,
+        acid_lift      = 0.0,
+        violet_push    = 0.25,
+        midtone_chroma = 0.0,
+        opacity        = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert r_after < r_before - 1, (
+        f"Violet push should reduce R in shadow zone; "
+        f"R_before={r_before:.1f} R_after={r_after:.1f}")
+    assert b_after > b_before + 1, (
+        f"Violet push should boost B in shadow zone; "
+        f"B_before={b_before:.1f} B_after={b_after:.1f}")
+
+
+def test_pontormo_dissonance_pass_figure_mask_confines_effect():
+    """pontormo_dissonance_pass() with figure_mask must confine acid lift to mask region."""
+    p = _make_small_painter(64, 64)
+
+    bright_val = 200
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = bright_val
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: only left half is figure
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:, :32] = 1.0
+
+    p.pontormo_dissonance_pass(
+        figure_mask    = mask,
+        acid_lift      = 0.30,
+        violet_push    = 0.0,
+        midtone_chroma = 0.0,
+        opacity        = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_left  = float(buf_after[:, :32, 2].mean())
+    r_right = float(buf_after[:, 32:, 2].mean())
+
+    assert r_left > r_right + 3, (
+        f"Acid lift should be stronger in masked (left) region; "
+        f"R_left={r_left:.1f} R_right={r_right:.1f}")
+
+
+def test_pontormo_dissonance_pass_custom_params():
+    """pontormo_dissonance_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.50, 0.58), texture_strength=0.0)
+    p.pontormo_dissonance_pass(
+        light_thresh   = 0.55,
+        shadow_thresh  = 0.28,
+        acid_lift      = 0.18,
+        violet_push    = 0.15,
+        midtone_chroma = 0.12,
+        opacity        = 0.55,
+    )
+
+
+def test_pontormo_dissonance_pass_large_canvas():
+    """pontormo_dissonance_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.52, 0.50, 0.58), texture_strength=0.0)
+    p.pontormo_dissonance_pass(opacity=0.68)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# aerial_perspective_pass — session 52 (random improvement)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_aerial_perspective_pass_exists():
+    """Painter must expose aerial_perspective_pass() (session 52)."""
+    p = _make_small_painter(64, 64)
+    assert hasattr(p, "aerial_perspective_pass"), (
+        "Painter.aerial_perspective_pass() not found — add it to stroke_engine.py")
+    assert callable(p.aerial_perspective_pass)
+
+
+def test_aerial_perspective_pass_modifies_canvas():
+    """aerial_perspective_pass() must change the canvas when opacity > 0."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.40, 0.46, 0.58), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.aerial_perspective_pass(opacity=0.72)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "Canvas must change after aerial_perspective_pass(opacity=0.72)")
+
+
+def test_aerial_perspective_pass_opacity_zero_skips():
+    """aerial_perspective_pass() with opacity=0 must not change the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.40, 0.46, 0.58), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.aerial_perspective_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "Canvas must not change when aerial_perspective_pass(opacity=0)")
+
+
+def test_aerial_perspective_pass_upper_rows_more_affected():
+    """aerial_perspective_pass() must affect upper rows more than lower rows."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with warm earthy tones (high R, lower B) so desaturation is measurable
+    warm_r, warm_g, warm_b = 180, 140, 80
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = warm_r   # R
+    buf[:, :, 1] = warm_g   # G
+    buf[:, :, 0] = warm_b   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.aerial_perspective_pass(
+        sky_band     = 0.60,    # upper 60% affected
+        fade_power   = 2.2,
+        desaturation = 0.80,    # amplified for measurable shift
+        cool_push    = 0.0,     # disable to isolate desaturation
+        haze_lift    = 0.0,
+        opacity      = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Measure how much R has dropped in top rows vs bottom rows.
+    # Desaturation pushes warm R toward grey — R should fall near the top.
+    r_top    = float(buf_after[:8,  :, 2].mean())   # top 8 rows
+    r_bottom = float(buf_after[56:, :, 2].mean())   # bottom 8 rows (below sky_band)
+
+    assert r_bottom > r_top + 3, (
+        f"Aerial perspective should reduce R more in upper rows than lower rows; "
+        f"R_top={r_top:.1f}  R_bottom={r_bottom:.1f}")
+
+
+def test_aerial_perspective_pass_cool_push_boosts_blue_at_top():
+    """aerial_perspective_pass() cool_push must increase B channel near the top."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a warm value (low B) so boost is measurable
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 160   # R
+    buf[:, :, 1] = 140   # G
+    buf[:, :, 0] = 90    # B (low — warm canvas)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    b_top_before = float(buf[:8, :, 0].mean())
+
+    p.aerial_perspective_pass(
+        sky_band     = 0.60,
+        fade_power   = 2.2,
+        desaturation = 0.0,    # disable desaturation to isolate cool push
+        cool_push    = 0.25,   # amplified for measurable shift
+        haze_lift    = 0.0,
+        opacity      = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_top_after = float(buf_after[:8, :, 0].mean())
+
+    assert b_top_after > b_top_before + 3, (
+        f"Cool push should boost B at the top; "
+        f"B_top_before={b_top_before:.1f}  B_top_after={b_top_after:.1f}")
+
+
+def test_aerial_perspective_pass_below_sky_band_unchanged():
+    """Rows below sky_band must not be affected by aerial_perspective_pass()."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a distinctive warm colour
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 160
+    buf[:, :, 1] = 120
+    buf[:, :, 0] = 80
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.aerial_perspective_pass(
+        sky_band     = 0.25,    # only upper 25% = rows 0–15 on a 64-px canvas
+        fade_power   = 2.2,
+        desaturation = 0.80,
+        cool_push    = 0.30,
+        haze_lift    = 0.10,
+        opacity      = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom rows (well below sky_band=0.25 → row 16) should be unchanged
+    r_bottom = float(buf_after[40:, :, 2].mean())
+    assert abs(r_bottom - 160) < 3, (
+        f"Rows below sky_band should be unaffected; "
+        f"expected R≈160, got {r_bottom:.1f}")
+
+
+def test_aerial_perspective_pass_custom_params():
+    """aerial_perspective_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.40, 0.46, 0.58), texture_strength=0.0)
+    p.aerial_perspective_pass(
+        sky_band     = 0.50,
+        fade_power   = 1.8,
+        desaturation = 0.45,
+        cool_push    = 0.08,
+        haze_lift    = 0.04,
+        opacity      = 0.65,
+    )
+
+
+def test_aerial_perspective_pass_large_canvas():
+    """aerial_perspective_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.40, 0.46, 0.58), texture_strength=0.0)
+    p.aerial_perspective_pass(opacity=0.72)

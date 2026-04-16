@@ -68,6 +68,7 @@ EXPECTED_ARTISTS = [
     "vilhelm_hammershoi",
     "john_constable",
     "giovanni_bellini",
+    "pontormo",
 ]
 
 
@@ -208,6 +209,7 @@ EXPECTED_PERIODS = [
     "QUATTROCENTO",
     "FRENCH_ROCOCO",
     "EARLY_VENETIAN_RENAISSANCE",
+    "FLORENTINE_MANNERIST",
 ]
 
 
@@ -5684,4 +5686,165 @@ def test_early_venetian_renaissance_in_expected_periods():
     """EXPECTED_PERIODS list must include EARLY_VENETIAN_RENAISSANCE."""
     assert "EARLY_VENETIAN_RENAISSANCE" in EXPECTED_PERIODS, (
         "EARLY_VENETIAN_RENAISSANCE missing from EXPECTED_PERIODS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pontormo — session 52 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_pontormo_in_catalog():
+    """pontormo must be present in CATALOG (session 52)."""
+    assert "pontormo" in CATALOG, (
+        "pontormo missing from CATALOG — add it to art_catalog.py")
+
+
+def test_pontormo_movement_is_mannerist():
+    """Pontormo's movement must be Florentine Mannerism."""
+    s = get_style("pontormo")
+    assert "manner" in s.movement.lower() or "mannerist" in s.movement.lower(), (
+        f"Pontormo movement should be Mannerism-related; got {s.movement!r}")
+
+
+def test_pontormo_palette_acid_highlight():
+    """Pontormo palette must contain at least one acid yellow-green (G > 0.75 and R > 0.60)."""
+    s = get_style("pontormo")
+    acid = [(r, g, b) for r, g, b in s.palette if g > 0.75 and r > 0.60]
+    assert len(acid) >= 1, (
+        "Pontormo palette should include at least one acid chartreuse-yellow colour "
+        f"(G > 0.75 and R > 0.60); palette={s.palette}")
+
+
+def test_pontormo_palette_cool_shadow():
+    """Pontormo palette must contain at least one near-black cool shadow (all channels < 0.20)."""
+    s = get_style("pontormo")
+    dark = [(r, g, b) for r, g, b in s.palette
+            if r < 0.20 and g < 0.20 and b < 0.20]
+    assert len(dark) >= 1, (
+        "Pontormo palette should include at least one deep purple-black shadow; "
+        f"palette={s.palette}")
+
+
+def test_pontormo_palette_shocking_rose():
+    """Pontormo palette must contain a shocking rose/carmine (R > 0.75, B > 0.30, G < 0.60)."""
+    s = get_style("pontormo")
+    rose = [(r, g, b) for r, g, b in s.palette if r > 0.75 and b > 0.30 and g < 0.60]
+    assert len(rose) >= 1, (
+        "Pontormo palette should include at least one shocking rose-carmine colour; "
+        f"palette={s.palette}")
+
+
+def test_pontormo_glazing_is_none():
+    """Pontormo must have glazing=None — his colours are direct, not glazed."""
+    s = get_style("pontormo")
+    assert s.glazing is None, (
+        f"Pontormo.glazing should be None (colours are direct and opaque); got {s.glazing!r}")
+
+
+def test_pontormo_crackle():
+    """Pontormo must have crackle=True — aged Florentine panel paintings crackle."""
+    s = get_style("pontormo")
+    assert s.crackle is True, (
+        "Pontormo.crackle should be True — aged Florentine panel surfaces crackle")
+
+
+def test_pontormo_ground_color_cool():
+    """Pontormo ground must be a cool grey (B >= R, not warm amber)."""
+    s = get_style("pontormo")
+    r, g, b = s.ground_color
+    assert b >= r - 0.05, (
+        f"Pontormo ground_color should be cool (B ≥ R); got R={r:.2f} B={b:.2f}.  "
+        f"Use a cool grey-lilac imprimatura, not the warm ochre of the High Renaissance.")
+
+
+def test_pontormo_famous_works_include_deposition():
+    """Pontormo must list the Deposition from the Cross as a famous work."""
+    s = get_style("pontormo")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("deposition" in t for t in titles), (
+        "Pontormo famous works should include the Deposition from the Cross "
+        "— his supreme Mannerist masterpiece")
+
+
+def test_pontormo_famous_works_count():
+    """Pontormo should have at least 5 famous works documented."""
+    s = get_style("pontormo")
+    assert len(s.famous_works) >= 5, (
+        f"pontormo should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_pontormo_inspiration_references_dissonance_pass():
+    """Pontormo inspiration must reference pontormo_dissonance_pass."""
+    s = get_style("pontormo")
+    assert "pontormo_dissonance" in s.inspiration.lower().replace(" ", "_"), (
+        "Pontormo inspiration must reference pontormo_dissonance_pass() — "
+        "the defining chromatic dissonance technique pass")
+
+
+def test_pontormo_in_expected_artists():
+    """EXPECTED_ARTISTS list must include pontormo."""
+    assert "pontormo" in EXPECTED_ARTISTS, (
+        "pontormo missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_pontormo_wet_blend_range():
+    """Pontormo wet_blend should be in [0.20, 0.40] — crisp zones, not wet-blended."""
+    s = get_style("pontormo")
+    assert 0.20 <= s.wet_blend <= 0.40, (
+        f"Pontormo wet_blend={s.wet_blend:.2f} should be in [0.20, 0.40] "
+        f"(dissonant colour zones must stay separated, not blended)")
+
+
+def test_pontormo_palette_length():
+    """Pontormo palette should have at least 6 colours."""
+    s = get_style("pontormo")
+    assert len(s.palette) >= 6, (
+        f"Pontormo palette should have ≥6 colours; got {len(s.palette)}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FLORENTINE_MANNERIST period — session 52 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_florentine_mannerist_period_present():
+    """Period.FLORENTINE_MANNERIST must exist (session 52)."""
+    assert hasattr(Period, "FLORENTINE_MANNERIST"), (
+        "Period.FLORENTINE_MANNERIST not found — add it to scene_schema.py")
+    assert Period.FLORENTINE_MANNERIST in list(Period)
+
+
+def test_florentine_mannerist_stroke_params_valid():
+    """FLORENTINE_MANNERIST stroke_params must return valid defaults."""
+    style = Style(
+        medium=Medium.OIL,
+        period=Period.FLORENTINE_MANNERIST,
+        palette=PaletteHint.WARM_EARTH,
+    )
+    params = style.stroke_params
+    assert "stroke_size_face" in params
+    assert "stroke_size_bg"   in params
+    assert "wet_blend"        in params
+    assert "edge_softness"    in params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"]   > 0
+    assert 0.0 <= params["wet_blend"]     <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+
+
+def test_florentine_mannerist_wet_blend_low():
+    """FLORENTINE_MANNERIST wet_blend should be ≤ 0.40 — crisp dissonant zones."""
+    style = Style(
+        medium=Medium.OIL,
+        period=Period.FLORENTINE_MANNERIST,
+        palette=PaletteHint.WARM_EARTH,
+    )
+    params = style.stroke_params
+    assert params["wet_blend"] <= 0.40, (
+        f"FLORENTINE_MANNERIST wet_blend={params['wet_blend']:.2f} should be ≤ 0.40 "
+        f"— dissonant colour zones must stay separated, not blended into harmony")
+
+
+def test_florentine_mannerist_in_expected_periods():
+    """EXPECTED_PERIODS list must include FLORENTINE_MANNERIST."""
+    assert "FLORENTINE_MANNERIST" in EXPECTED_PERIODS, (
+        "FLORENTINE_MANNERIST missing from EXPECTED_PERIODS — add it to the list")
 
