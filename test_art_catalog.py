@@ -28,6 +28,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 
 EXPECTED_ARTISTS = [
     "anders_zorn",
+    "anthony_van_dyck",
     "artemisia_gentileschi",
     "berthe_morisot",
     "waterhouse",
@@ -3775,4 +3776,129 @@ def test_holbein_ground_paler_than_rembrandt():
     assert lum_h > lum_r, (
         f"holbein_the_younger ground ({lum_h:.3f}) should be lighter than "
         f"rembrandt ground ({lum_r:.3f})")
+
+
+# ── Anthony van Dyck (session 37 addition) ───────────────────────────────────
+
+def test_van_dyck_in_catalog():
+    """anthony_van_dyck must be present in CATALOG after this session."""
+    assert "anthony_van_dyck" in CATALOG, (
+        "anthony_van_dyck missing from CATALOG — expected after session 37")
+
+
+def test_van_dyck_in_expected_artists():
+    """EXPECTED_ARTISTS list must include anthony_van_dyck."""
+    assert "anthony_van_dyck" in EXPECTED_ARTISTS, (
+        "anthony_van_dyck must appear in EXPECTED_ARTISTS for catalog completeness tests")
+
+
+def test_van_dyck_movement():
+    """Van Dyck's movement must reference Baroque."""
+    s = get_style("anthony_van_dyck")
+    assert "baroque" in s.movement.lower(), (
+        f"anthony_van_dyck movement should include 'Baroque'; got {s.movement!r}")
+
+
+def test_van_dyck_nationality():
+    """Van Dyck was Flemish."""
+    s = get_style("anthony_van_dyck")
+    assert "Flemish" in s.nationality or "flemish" in s.nationality.lower(), (
+        f"anthony_van_dyck nationality should be Flemish; got {s.nationality!r}")
+
+
+def test_van_dyck_palette_length():
+    """Van Dyck palette must have at least 6 colours (flesh, silk, Van Dyck brown, black, crimson, ultramarine)."""
+    s = get_style("anthony_van_dyck")
+    assert len(s.palette) >= 6, (
+        f"anthony_van_dyck palette should have ≥ 6 colours; got {len(s.palette)}")
+
+
+def test_van_dyck_palette_values_in_range():
+    """All Van Dyck palette RGB components must be in [0, 1]."""
+    s = get_style("anthony_van_dyck")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"anthony_van_dyck palette[{i}][{j}]={v:.3f} out of [0,1]")
+
+
+def test_van_dyck_moderate_wet_blend():
+    """Van Dyck worked wet-into-wet but not as heavily as Titian — wet_blend between 0.30 and 0.65."""
+    s = get_style("anthony_van_dyck")
+    assert 0.30 <= s.wet_blend <= 0.65, (
+        f"anthony_van_dyck wet_blend should be in [0.30, 0.65] (fluid Baroque blending); "
+        f"got {s.wet_blend:.3f}")
+
+
+def test_van_dyck_moderate_edge_softness():
+    """Van Dyck's edges are present but yielding — edge_softness between 0.30 and 0.65."""
+    s = get_style("anthony_van_dyck")
+    assert 0.30 <= s.edge_softness <= 0.65, (
+        f"anthony_van_dyck edge_softness should be in [0.30, 0.65] "
+        f"(neither sfumato nor razor-crisp Northern edge); got {s.edge_softness:.3f}")
+
+
+def test_van_dyck_has_glazing():
+    """Van Dyck applied a warm amber-brown final varnish — glazing must not be None."""
+    s = get_style("anthony_van_dyck")
+    assert s.glazing is not None, (
+        "anthony_van_dyck glazing should not be None — warm amber-brown final varnish")
+    assert len(s.glazing) == 3
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0, f"anthony_van_dyck glazing channel {ch:.3f} out of [0,1]"
+
+
+def test_van_dyck_crackle():
+    """Aged canvas paintings crackle — crackle should be True."""
+    s = get_style("anthony_van_dyck")
+    assert s.crackle is True, "anthony_van_dyck crackle should be True (aged canvas)"
+
+
+def test_van_dyck_no_chromatic_split():
+    """Van Dyck predates Seurat divisionism — chromatic_split must be False."""
+    s = get_style("anthony_van_dyck")
+    assert s.chromatic_split is False, (
+        "anthony_van_dyck chromatic_split should be False (no Pointillist technique)")
+
+
+def test_van_dyck_famous_works():
+    """Van Dyck must have at least 4 famous works and include Charles I."""
+    s = get_style("anthony_van_dyck")
+    assert len(s.famous_works) >= 4, (
+        f"anthony_van_dyck should have ≥ 4 famous works; got {len(s.famous_works)}")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Charles" in t for t in titles), (
+        "anthony_van_dyck famous_works must include a portrait of Charles I "
+        "(his most celebrated patron; multiple iconic works from the London period)")
+
+
+def test_van_dyck_silk_palette_present():
+    """Van Dyck's signature silver-grey silk colour must be in his palette."""
+    s = get_style("anthony_van_dyck")
+    # Silver-grey silk: R ≈ G ≈ B in the mid-to-high range; look for a near-neutral bright entry
+    def _is_silver_grey(rgb):
+        r, g, b = rgb
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        v   = max(r, g, b)
+        c   = v - min(r, g, b)
+        sat = c / (v + 1e-6) if v > 1e-6 else 0.0
+        return lum >= 0.50 and sat <= 0.20   # bright, near-neutral grey
+    assert any(_is_silver_grey(rgb) for rgb in s.palette), (
+        "anthony_van_dyck palette must contain at least one silver-grey colour "
+        "(his defining silk-drapery tone)")
+
+
+def test_van_dyck_darker_ground_than_holbein():
+    """Van Dyck's warm dark imprimatura must be darker than Holbein's near-white buff ground."""
+    s_vd = get_style("anthony_van_dyck")
+    s_hb = get_style("holbein_the_younger")
+    lum_vd = (0.299 * s_vd.ground_color[0]
+              + 0.587 * s_vd.ground_color[1]
+              + 0.114 * s_vd.ground_color[2])
+    lum_hb = (0.299 * s_hb.ground_color[0]
+              + 0.587 * s_hb.ground_color[1]
+              + 0.114 * s_hb.ground_color[2])
+    assert lum_vd < lum_hb, (
+        f"anthony_van_dyck ground ({lum_vd:.3f}) should be darker than "
+        f"holbein_the_younger ground ({lum_hb:.3f}) — warm dark imprimatura vs. near-white buff")
 

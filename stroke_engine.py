@@ -11441,3 +11441,200 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
 
         print(f"    Holbein jewel-glaze pass complete")
+
+    def van_dyck_silver_drapery_pass(
+            self,
+            fabric_angle:     float = 30.0,
+            shimmer_period:   float = 18.0,
+            shimmer_strength: float = 0.08,
+            silver_cool:      float = 0.12,
+            ivory_boost:      float = 0.06,
+            neutral_thresh:   float = 0.40,
+            lum_lo:           float = 0.32,
+            opacity:          float = 0.75,
+    ):
+        """
+        Van Dyck silver-drapery pass — inspired by Anthony van Dyck's technique.
+
+        Van Dyck's greatest technical achievement is his rendering of silk —
+        particularly the shimmering, pearl-grey English court silks that appear
+        in virtually every portrait from his London period (1632–1641).  He
+        painted these with loaded, rapid strokes that follow the fall of the
+        fabric, leaving thick bright ridges of pearl-grey alternating with cool
+        shadow valleys.  The result has an almost liquid quality: the silk appears
+        to shift and reflect as the viewer moves.
+
+        Technically, this effect arises from two sources:
+        1. **Woven-silk anisotropy** — warp and weft threads reflect light at
+           slightly different angles, producing a subtle directional shimmer
+           perpendicular to the fabric's main fold direction.
+        2. **Temperature contrast** — van Dyck's highlights read warm ivory
+           (lead-white tinted with naples yellow) while the shadow valleys cool
+           toward a blue-grey (from the reddish-brown ground showing through thin
+           grey paint).
+
+        This pass simulates both effects through three per-pixel adjustments:
+
+        1. **Directional shimmer** — A sinusoidal brightness modulation with
+           period ``shimmer_period`` pixels is applied along the direction
+           *perpendicular* to ``fabric_angle``.  Pixels in the candidate silk
+           zone (luminance ≥ ``lum_lo`` and saturation ≤ ``neutral_thresh``) are
+           brightened at shimmer peaks and slightly darkened at troughs,
+           reproducing the alternating highlight-shadow structure of woven silk.
+
+        2. **Silver cooling** — The silk zone is shifted toward cool blue-grey by
+           reducing the red channel and boosting the blue channel proportionally
+           to local luminance.  This replicates the way van Dyck's thin silver-grey
+           paint allows the warm reddish-brown imprimatura to warm the shadow
+           passages while highlights stay cool and metallic.
+
+        3. **Ivory specular push** — In the brightest pixels of the silk zone
+           (lum > 0.78) a gentle ivory-white boost is applied via a linear ramp,
+           simulating the thick lead-white impasto van Dyck pressed onto the
+           highest highlight ridges as a final loaded-brush stroke.
+
+        All operations are fully vectorised (NumPy) and applied to the raw Cairo
+        surface buffer.  The result is blended back at ``opacity`` so the caller
+        can control overall effect strength.  The pass is composable — call it
+        after ``block_in()`` to establish the silk structure, then after
+        ``place_lights()`` to sharpen the final specular ridge.
+
+        Parameters
+        ----------
+        fabric_angle     : Direction of the fabric's main fold flow, in degrees.
+                           0° = horizontal folds, 90° = vertical, 30–45° typical
+                           for draped court costume.  The shimmer is applied
+                           *perpendicular* to this angle.
+        shimmer_period   : Pixel period of the woven-silk shimmer (default 18px).
+                           12–22px is perceptually realistic at portrait scale;
+                           larger values produce smoother, more satin-like sheen.
+        shimmer_strength : Amplitude of the brightness oscillation (0–1 delta,
+                           default 0.08).  0.05–0.10 gives a subtle realistic
+                           shimmer; higher values read as illustration.
+        silver_cool      : Strength of the cool blue-grey shift in the silk zone
+                           (0–1, default 0.12).  Applied as a luminance-scaled
+                           reduction of R and boost of B.
+        ivory_boost      : Strength of the ivory-white specular push in the
+                           brightest highlights (lum > 0.78, default 0.06).
+        neutral_thresh   : HSV saturation ceiling for silk-candidate pixels
+                           (default 0.40).  Near-neutral grey-white pixels qualify;
+                           strongly chromatic pixels (flesh, crimson, ultramarine)
+                           are excluded from the silk zone.
+        lum_lo           : Minimum luminance for silk-candidate pixels (default
+                           0.32).  Deep shadows are excluded — only mid-to-bright
+                           areas qualify as visible silk surface.
+        opacity          : Blend weight of the adjusted layer over the original
+                           canvas pixels (0 = no effect, 1 = full replacement).
+
+        Notes
+        -----
+        Randomly selected artistic improvement for this session — a composable
+        silk-shimmer primitive inspired by van Dyck's directional drapery
+        technique.  Distinct from ``luminous_fabric_pass()`` (Zurbarán's hyper-
+        real razor-sharp white cloth) and ``scumble_pass()`` (undirected dry-
+        brush texture): this pass introduces *directional* periodicity that
+        simulates the warp/weft anisotropy of woven silk, combined with the
+        warm/cool temperature contrast specific to van Dyck's pearl-grey palette.
+        """
+        import numpy as _np
+
+        print(f"  Van Dyck silver-drapery pass  "
+              f"(fabric_angle={fabric_angle:.0f}°  "
+              f"shimmer_period={shimmer_period:.0f}px  "
+              f"opacity={opacity:.2f})…")
+
+        h, w = self.h, self.w
+
+        # ── Read current canvas (Cairo BGRA layout) ───────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Extract RGB float in [0, 1] — Cairo stores BGRA
+        r_ch = buf[:, :, 2].astype(_np.float32) / 255.0
+        g_ch = buf[:, :, 1].astype(_np.float32) / 255.0
+        b_ch = buf[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── Luminance and saturation for zone decisions ───────────────────────
+        lum = 0.299 * r_ch + 0.587 * g_ch + 0.114 * b_ch   # (H, W)
+
+        v_ch  = _np.maximum(_np.maximum(r_ch, g_ch), b_ch)
+        c_min = _np.minimum(_np.minimum(r_ch, g_ch), b_ch)
+        delta = v_ch - c_min
+        s_ch  = _np.where(v_ch > 1e-6, delta / (v_ch + 1e-6), 0.0)
+
+        # Silk candidate mask: moderate-to-high luminance AND near-neutral colour.
+        # Near-neutral = low saturation: grey, white, and pale silks qualify;
+        # strongly chromatic areas (flesh, crimson, blue) are excluded.
+        silk_mask = (lum >= lum_lo) & (s_ch <= neutral_thresh)
+
+        # ── Coordinate grids for directional shimmer ──────────────────────────
+        # Build per-pixel (y, x) arrays and project onto the direction
+        # *perpendicular* to fabric_angle.  This gives each pixel a "fiber
+        # position" value; the sinusoid along this axis creates the warp/weft
+        # alternation that makes woven silk shimmer.
+        ys_grid = _np.arange(h, dtype=_np.float32)[:, None] * _np.ones((1, w), dtype=_np.float32)
+        xs_grid = _np.ones((h, 1), dtype=_np.float32) * _np.arange(w, dtype=_np.float32)[None, :]
+
+        rad_perp   = _np.radians(fabric_angle + 90.0)   # perpendicular to fabric flow
+        fiber_proj = xs_grid * _np.cos(rad_perp) + ys_grid * _np.sin(rad_perp)
+
+        # Sinusoidal shimmer: peaks at +shimmer_strength, troughs at −shimmer_strength
+        shimmer = shimmer_strength * _np.sin(
+            2.0 * _np.pi * fiber_proj / (shimmer_period + 1e-6)
+        )   # (H, W)  values in [−shimmer_strength, +shimmer_strength]
+
+        # ── Apply shimmer to silk zone ────────────────────────────────────────
+        # Brighten ridges (positive shimmer), slightly darken valleys (negative).
+        # Apply equally to R, G; apply at ×0.50 to B so shimmer ridges warm
+        # slightly (ivory ridge) and troughs cool slightly (no additional boost).
+        r_out = _np.where(silk_mask, _np.clip(r_ch + shimmer,        0.0, 1.0), r_ch)
+        g_out = _np.where(silk_mask, _np.clip(g_ch + shimmer,        0.0, 1.0), g_ch)
+        b_out = _np.where(silk_mask, _np.clip(b_ch + shimmer * 0.50, 0.0, 1.0), b_ch)
+
+        # ── Silver cooling — shift silk zone toward blue-grey ─────────────────
+        # Reduce R, boost B, proportionally to how bright the pixel is within
+        # the silk zone.  Brighter = more silver coolness (the paint is thinner
+        # at highlights, so the imprimatura shows through less, making the
+        # highlight cooler and more metallic).
+        cool_scale = _np.clip((lum - lum_lo) / (1.0 - lum_lo + 1e-6), 0.0, 1.0)
+        r_out = _np.where(silk_mask,
+                          _np.clip(r_out - silver_cool * cool_scale, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(silk_mask,
+                          _np.clip(b_out + silver_cool * cool_scale * 0.80, 0.0, 1.0),
+                          b_out)
+
+        # ── Ivory specular push in the brightest highlights ───────────────────
+        # Van Dyck pressed thick lead-white (warm ivory) onto the highest
+        # highlight ridges as a final loaded-brush stroke.  Simulate this by
+        # boosting R and G (toward warm ivory) in pixels above lum=0.78.
+        hi_thresh = 0.78
+        hi_mask   = silk_mask & (lum > hi_thresh)
+        hi_ramp   = _np.where(hi_mask,
+                               _np.clip((lum - hi_thresh) / (1.0 - hi_thresh + 1e-6),
+                                        0.0, 1.0),
+                               0.0)
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out + ivory_boost * hi_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(hi_mask,
+                          _np.clip(g_out + ivory_boost * hi_ramp * 0.85, 0.0, 1.0),
+                          g_out)
+
+        # ── Blend adjusted layer back at `opacity` ───────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        print(f"    Van Dyck silver-drapery pass complete")

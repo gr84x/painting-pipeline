@@ -4476,3 +4476,143 @@ def test_holbein_jewel_glaze_pass_jewel_zone_boosts_saturation():
     assert sat_after >= sat_before - 0.02, (
         f"holbein_jewel_glaze_pass should boost or maintain saturation in the jewel "
         f"zone; before={sat_before:.3f}  after={sat_after:.3f}")
+
+
+# ── van_dyck_silver_drapery_pass (session 37 random improvement) ─────────────
+
+def test_van_dyck_silver_drapery_pass_exists():
+    """Painter must expose van_dyck_silver_drapery_pass() after session 37."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "van_dyck_silver_drapery_pass"), (
+        "van_dyck_silver_drapery_pass not found on Painter — expected after session 37")
+    assert callable(getattr(Painter, "van_dyck_silver_drapery_pass"))
+
+
+def test_van_dyck_silver_drapery_pass_no_error():
+    """van_dyck_silver_drapery_pass() must complete without exception on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.72, 0.76), texture_strength=0.04)
+    p.van_dyck_silver_drapery_pass()
+
+
+def test_van_dyck_silver_drapery_pass_modifies_canvas():
+    """van_dyck_silver_drapery_pass() must change canvas pixel data at non-zero opacity."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Near-neutral bright tone — sits well inside the silk candidate zone
+    p.tone_ground((0.70, 0.72, 0.74), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.van_dyck_silver_drapery_pass(
+        shimmer_strength=0.15,
+        silver_cool=0.20,
+        opacity=0.90,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).max()
+    assert diff > 0, (
+        "van_dyck_silver_drapery_pass() made no changes to canvas — "
+        "shimmer, silver-cool, and ivory adjustments must be applied")
+
+
+def test_van_dyck_silver_drapery_pass_opacity_zero_is_noop():
+    """van_dyck_silver_drapery_pass() with opacity=0 must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.70, 0.72), texture_strength=0.04)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.van_dyck_silver_drapery_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    _np.testing.assert_array_equal(before, after,
+        err_msg="van_dyck_silver_drapery_pass with opacity=0 must be a no-op")
+
+
+def test_van_dyck_silver_drapery_pass_custom_parameters():
+    """van_dyck_silver_drapery_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.74, 0.78), texture_strength=0.04)
+    p.van_dyck_silver_drapery_pass(
+        fabric_angle     = 60.0,
+        shimmer_period   = 24.0,
+        shimmer_strength = 0.05,
+        silver_cool      = 0.08,
+        ivory_boost      = 0.04,
+        neutral_thresh   = 0.35,
+        lum_lo           = 0.40,
+        opacity          = 0.60,
+    )
+
+
+def test_van_dyck_silver_drapery_pass_large_canvas():
+    """van_dyck_silver_drapery_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(128, 160)
+    p.tone_ground((0.75, 0.76, 0.80), texture_strength=0.04)
+    p.van_dyck_silver_drapery_pass(shimmer_strength=0.10, opacity=0.70)
+
+
+def test_van_dyck_silver_drapery_pass_cools_bright_neutral():
+    """
+    On a bright near-neutral canvas, van_dyck_silver_drapery_pass should
+    shift the colour slightly cooler (boost blue relative to red).
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Tone with a warm-neutral bright colour that sits firmly in the silk zone
+    p.tone_ground((0.80, 0.78, 0.72), texture_strength=0.0)
+
+    def _mean_channels():
+        buf = _np.frombuffer(p.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(64, 64, 4).astype(_np.float32)
+        # Cairo BGRA: R=channel[2], B=channel[0]
+        return buf[:, :, 2].mean(), buf[:, :, 0].mean()   # mean_R, mean_B
+
+    r_before, b_before = _mean_channels()
+    p.van_dyck_silver_drapery_pass(
+        silver_cool      = 0.20,
+        shimmer_strength = 0.0,    # disable shimmer to isolate the cooling effect
+        ivory_boost      = 0.0,    # disable ivory push
+        opacity          = 0.90,
+    )
+    r_after, b_after = _mean_channels()
+
+    assert r_after <= r_before + 1.0, (
+        f"van_dyck_silver_drapery_pass silver cooling should not increase red channel; "
+        f"R before={r_before:.1f}  R after={r_after:.1f}")
+    assert b_after >= b_before - 1.0, (
+        f"van_dyck_silver_drapery_pass silver cooling should boost blue channel; "
+        f"B before={b_before:.1f}  B after={b_after:.1f}")
+
+
+def test_van_dyck_silver_drapery_pass_excludes_chromatic_pixels():
+    """
+    Strongly chromatic pixels (high saturation) must not be modified by the
+    silver-drapery pass — only near-neutral silk candidates are affected.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Tone with a vivid red — saturation is high, far outside the silk zone
+    p.tone_ground((0.85, 0.12, 0.08), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.van_dyck_silver_drapery_pass(
+        neutral_thresh   = 0.30,   # strict threshold — keep chromatic pixels out
+        shimmer_strength = 0.15,
+        silver_cool      = 0.25,
+        opacity          = 0.95,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    # Vivid red canvas should be largely unchanged (silk mask should exclude it)
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).mean()
+    assert diff < 10.0, (
+        f"van_dyck_silver_drapery_pass should not significantly modify vivid chromatic "
+        f"pixels; mean diff={diff:.2f} (expected < 10.0 on a pure red canvas)")

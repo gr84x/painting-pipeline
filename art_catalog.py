@@ -3115,6 +3115,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Anthony van Dyck ──────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Anthony van Dyck (1599–1641) — Flemish Baroque court painter who defined
+    # the language of aristocratic portraiture for a century.  Born in Antwerp,
+    # a child prodigy who became Rubens's chief assistant before establishing
+    # an independent career in Genoa and then London as court painter to Charles I.
+    # His signature is the fusion of Rubens's physical confidence with a personal
+    # psychological sensitivity: sitters look inward, melancholic, aware of their
+    # own fragility despite the grandeur of their setting.  Technically his most
+    # celebrated contribution is the rendering of silk — especially the shimmering
+    # silver-grey English court silks that appear in virtually every late portrait.
+    # Paint thin and fast over a warm reddish-brown imprimatura; lay the dark of
+    # the background in swiftly; then model the face with patient small strokes
+    # using lead white, naples yellow, and Van Dyck brown; finally, render the
+    # silk with rapid, confident loaded strokes that follow the fabric's fall,
+    # leaving light peaks and cool shadow valleys across the cloth.
+    "anthony_van_dyck": ArtStyle(
+        artist="Anthony van Dyck",
+        movement="Flemish / English Baroque",
+        nationality="Flemish",
+        period="1617–1641",
+        palette=[
+            (0.88, 0.70, 0.52),   # warm flesh highlight — Naples yellow-red
+            (0.65, 0.48, 0.30),   # mid-tone flesh — warm umber
+            (0.28, 0.16, 0.08),   # Van Dyck brown — deep warm shadow
+            (0.05, 0.05, 0.06),   # ivory black — near-black background / velvet
+            (0.72, 0.74, 0.78),   # pearl-grey silk — highlight side
+            (0.56, 0.58, 0.62),   # mid-grey silk — shadow side of silver drapery
+            (0.62, 0.08, 0.12),   # crimson lake — warm red velvet
+            (0.15, 0.22, 0.58),   # ultramarine — cool accessory blue
+            (0.92, 0.88, 0.82),   # lead-white highlight — final brilliant touch
+        ],
+        ground_color=(0.35, 0.22, 0.10),    # warm reddish-brown imprimatura
+        stroke_size=9,
+        wet_blend=0.45,                      # fluid wet-into-wet; confident blending
+        edge_softness=0.48,                  # present but yielding — no sfumato, no blade edge
+        jitter=0.038,
+        glazing=(0.48, 0.32, 0.10),          # warm amber-brown final varnish
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Warm reddish-brown imprimatura brushed over the panel or canvas ground "
+            "— this toned ground gives the shadows their deep warm unity without "
+            "extra glazes.  Background and costume laid in quickly and broadly, "
+            "wet-into-wet, with large hog-hair brushes.  The face modelled with "
+            "more patient small marks: flesh mid-tones blended softly, shadows built "
+            "from Van Dyck brown (raw umber + ivory black + venetian red), highlights "
+            "applied last with thick lead-white.  Silk drapery — van Dyck's most "
+            "celebrated achievement — rendered with rapid loaded strokes following "
+            "the fabric's fall, leaving bright ridges of thick pearl-grey paint "
+            "alternating with cool shadow valleys; the shimmer of woven silk reproduced "
+            "by varying stroke pressure and direction.  Hands and fingers 'van Dyck "
+            "elongated' — tapered, aristocratic, rendered with individual care.  Final "
+            "warm amber-brown glaze unifies the surface."
+        ),
+        famous_works=[
+            ("Charles I at the Hunt",                          "c. 1635"),
+            ("Equestrian Portrait of Charles I",               "c. 1637–1638"),
+            ("Portrait of Marchesa Elena Grimaldi",            "1623"),
+            ("The Balbi Children",                             "c. 1625–1627"),
+            ("Portrait of Henrietta Maria with Sir Jeffrey Hudson", "1633"),
+            ("Thomas Howard, 2nd Earl of Arundel",             "c. 1620–1621"),
+            ("Self-Portrait with a Sunflower",                 "c. 1632–1633"),
+        ],
+        inspiration=(
+            "Use warm reddish-brown imprimatura (ground_color ≈ (0.35, 0.22, 0.10)).  "
+            "van_dyck_silver_drapery_pass() for the shimmering silver-grey silk: "
+            "sinusoidal shimmer along fabric perpendicular, silver-cool shift, "
+            "ivory specular push in brightest highlights.  moderate wet_blend and "
+            "edge_softness: edges are present and readable but not harshly Northern.  "
+            "Place Van Dyck brown shadows early; lead-white highlights late and thick.  "
+            "Final warm amber-brown glaze (0.48, 0.32, 0.10) at low opacity to unify."
+        ),
+    ),
+
     # ── Fra Angelico ──────────────────────────────────────────────────────────
     # Randomly selected artist for this session's inspiration.
     # Fra Angelico (c. 1395–1455) — "Beato Angelico" — bridges the International
