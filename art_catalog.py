@@ -4386,6 +4386,104 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 54 — new artist: Hans Memling ────────────────────────────────
+    # Randomly selected artist for session 54's inspiration.
+    # Hans Memling (c. 1430/1440–1494) occupies a unique position in Early
+    # Netherlandish painting.  He was almost certainly trained in Rogier van
+    # der Weyden's Brussels workshop, and inherited that master's command of
+    # psychological expression through pictorial geometry.  But where Weyden
+    # cultivated drama — angular shadows, grief-stricken figures, the terrible
+    # geometry of sorrow — Memling transformed the same technical inheritance
+    # into something altogether different: a serene, luminous, jewel-like world
+    # in which every surface glows with its own interior light.
+    #
+    # His defining quality is what might be called crystalline luminosity.
+    # Unlike Leonardo's sfumato (edges dissolved into atmospheric smoke) or
+    # Weyden's angular found-edge shadows, Memling's light has the quality of
+    # polished enamel: bright passages are not just light, they are brilliant,
+    # as if the colour itself were luminescent.  This comes from Memling's
+    # mastery of oil glazing — he would build up the lit zones with multiple
+    # thin transparent layers of lead white and pale ochre, each separately
+    # dried, so the final highlight has a depth and translucency that simple
+    # opaque painting cannot achieve.
+    #
+    # The most distinctive quality of his flesh is a blue-green coolness in
+    # the shadow transitions — not the warm umber shadows of Italian painting,
+    # not Rembrandt's golden pools of shadow, but a slight blue-green
+    # undertone that reads as translucent skin with light passing partly
+    # through it.  This is the Flemish subsurface quality: the paint surface
+    # imitates the way light enters the skin, scatters slightly, and exits
+    # cooled.  In Memling's portraits this gives the faces a quality of
+    # gentle, living luminosity entirely unlike the warm opaque masks of the
+    # Venetians.
+    #
+    # His palette is rich but kept at a controlled saturation: warm peachy
+    # flesh tones, deep vermilion robes, brilliant azure blue, gold accents,
+    # and richly detailed verdant backgrounds (often Flemish landscapes or
+    # gardens through arched windows).  Nothing is strident; everything is
+    # resolved into a jewel-like harmony.
+    #
+    "hans_memling": ArtStyle(
+        artist="Hans Memling",
+        movement="Early Netherlandish",
+        nationality="Flemish",
+        period="1465–1494",
+        palette=[
+            (0.92, 0.80, 0.62),   # cool pale ivory — lit flesh highlights
+            (0.82, 0.62, 0.44),   # warm peachy mid-tone — main flesh area
+            (0.52, 0.40, 0.34),   # warm umber shadow — flesh in shadow
+            (0.40, 0.50, 0.48),   # blue-green shadow undertone — subsurface quality
+            (0.82, 0.20, 0.18),   # brilliant vermilion — the red robes
+            (0.22, 0.38, 0.72),   # azure blue — brilliant Flemish blue robes
+            (0.82, 0.70, 0.22),   # Naples gold — gilded details, halos
+            (0.28, 0.36, 0.28),   # deep Flemish green — landscape background
+        ],
+        ground_color=(0.72, 0.62, 0.42),    # warm pale ochre oak panel ground
+        stroke_size=3,
+        wet_blend=0.62,                      # smooth glazed surface — visible tool marks rare
+        edge_softness=0.35,                  # precise Flemish edges, not sfumato
+        jitter=0.012,                        # very tight colour variation — enamel control
+        glazing=(0.80, 0.68, 0.42),          # warm golden glaze — clear, not smoky
+        crackle=True,                        # 15th-century Flemish oak panel
+        chromatic_split=False,
+        technique=(
+            "Memling built luminosity through stacked transparent oil glazes on a "
+            "chalk-white gesso ground — each layer dried separately so light passes "
+            "through, reflects from the ground, and exits with a jewel-like inner glow. "
+            "Flesh is warm peachy ivory in the light, with a distinctive blue-green "
+            "coolness in the shadow transitions that mimics translucent skin (subsurface "
+            "scattering before the concept existed).  Bright highlights approach "
+            "enamel-like luminosity — the surface looks polished rather than worked. "
+            "Edges are precise and found (Early Netherlandish clarity) but softly blended "
+            "without sfumato's atmospheric smoke.  His palette is richly saturated — "
+            "brilliant vermilion, azure, and Naples gold — but always kept in jewel-like "
+            "harmonic resolution rather than the dissonant tension of the Mannerists."
+        ),
+        famous_works=[
+            ("Diptych of Maarten van Nieuwenhove",      "1487"),
+            ("Portrait of a Man with a Roman Coin",     "c. 1480"),
+            ("Triptych of Jan Floreins",                "1479"),
+            ("Portrait of Maria Portinari",             "c. 1470"),
+            ("Virgin and Child with St. Anne",          "c. 1470"),
+            ("Last Judgement Triptych",                 "c. 1467–1471"),
+            ("Portrait of a Young Man",                 "c. 1480"),
+        ],
+        inspiration=(
+            "Use memling_jewel_light_pass() after build_form() to apply Memling's "
+            "signature crystalline luminosity: brightest highlight zones receive a "
+            "gentle white-push (cool ivory) making them read as enamel-bright; "
+            "mid-shadow transitions receive a subtle blue-green subsurface tint "
+            "replicating the Flemish translucent-skin quality.  "
+            "ground_color=(0.72, 0.62, 0.42) uses a clear warm ochre — lighter than "
+            "the darker grounds of Rembrandt or Caravaggio, allowing the transparent "
+            "glaze layers to retain their luminosity rather than being absorbed.  "
+            "wet_blend=0.62 produces the smooth, polished surface characteristic of "
+            "Flemish oak panel — strokes are blended seamlessly without leaving visible "
+            "marks.  edge_softness=0.35 keeps Flemish found-edge precision but avoids "
+            "both sfumato's atmospheric loss and Weyden's angular rigour."
+        ),
+    ),
+
     # ── Session 52 ─────────────────────────────────────────────────────────────
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",

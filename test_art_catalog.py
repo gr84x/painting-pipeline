@@ -70,6 +70,7 @@ EXPECTED_ARTISTS = [
     "giovanni_bellini",
     "pontormo",
     "rogier_van_der_weyden",
+    "hans_memling",
 ]
 
 
@@ -5907,4 +5908,106 @@ def test_rogier_van_der_weyden_ground_color_valid():
     for ch in s.ground_color:
         assert 0.0 <= ch <= 1.0, (
             f"Weyden ground_color channel {ch} out of [0, 1]")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Hans Memling — session 54 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_hans_memling_in_catalog():
+    """Hans Memling (session 54) must be in the catalog."""
+    assert "hans_memling" in CATALOG, (
+        "hans_memling not found in CATALOG — add it to art_catalog.py")
+
+
+def test_hans_memling_movement():
+    """Memling movement must reference Early Netherlandish."""
+    s = get_style("hans_memling")
+    assert "Netherlandish" in s.movement or "netherlandish" in s.movement.lower(), (
+        f"Memling movement should reference 'Netherlandish'; got {s.movement!r}")
+
+
+def test_hans_memling_palette_length():
+    """Memling palette should have at least 6 colours."""
+    s = get_style("hans_memling")
+    assert len(s.palette) >= 6, (
+        f"Memling palette should have ≥6 colours; got {len(s.palette)}")
+
+
+def test_hans_memling_palette_values_in_range():
+    """All Memling palette RGB values must be in [0, 1]."""
+    s = get_style("hans_memling")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Memling palette entry not 3-tuple: {rgb}"
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Memling palette {rgb}")
+
+
+def test_hans_memling_wet_blend_moderate():
+    """Memling wet_blend should be between 0.50 and 0.80 — smooth glazed surface."""
+    s = get_style("hans_memling")
+    assert 0.50 <= s.wet_blend <= 0.80, (
+        f"Memling wet_blend={s.wet_blend:.2f} should be in [0.50, 0.80] "
+        f"— smooth Flemish panel surface with stacked transparent glazes")
+
+
+def test_hans_memling_edge_softness_moderate():
+    """Memling edge_softness should be < 0.50 — found edges, not sfumato."""
+    s = get_style("hans_memling")
+    assert s.edge_softness < 0.50, (
+        f"Memling edge_softness={s.edge_softness:.2f} should be < 0.50 "
+        f"— Flemish found edges: precise, not dissolved into atmospheric haze")
+
+
+def test_hans_memling_stroke_size_fine():
+    """Memling stroke_size should be ≤ 5 — very fine, jewel-like mark-making."""
+    s = get_style("hans_memling")
+    assert s.stroke_size <= 5, (
+        f"Memling stroke_size={s.stroke_size} should be ≤ 5 "
+        f"— Flemish micro-detail demands fine, controlled marks")
+
+
+def test_hans_memling_ground_color_valid():
+    """Memling ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("hans_memling")
+    assert len(s.ground_color) == 3, "Memling ground_color not a 3-tuple"
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, (
+            f"Memling ground_color channel {ch} out of [0, 1]")
+
+
+def test_hans_memling_ground_color_warm_light():
+    """Memling ground_color should be a warm, light ochre — allows glazes to retain luminosity."""
+    s = get_style("hans_memling")
+    r, g, b = s.ground_color
+    # Should be a warm colour: R > B
+    assert r > b, (
+        f"Memling ground should be warm (R > B); got R={r:.2f}  B={b:.2f}")
+    # Should be reasonably light — not Rembrandt's dark brown ground
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    assert lum >= 0.40, (
+        f"Memling ground_color luminance={lum:.2f} should be ≥ 0.40 "
+        f"— pale oak panel ground allows transparent glazes to glow")
+
+
+def test_hans_memling_famous_works_nonempty():
+    """Memling famous_works must contain at least three entries."""
+    s = get_style("hans_memling")
+    assert len(s.famous_works) >= 3, (
+        f"Memling famous_works should have ≥3 entries; got {len(s.famous_works)}")
+
+
+def test_hans_memling_subsurface_blue_green_in_palette():
+    """Memling palette must include a blue-green entry for the subsurface flesh quality."""
+    s = get_style("hans_memling")
+    # Look for at least one palette entry where G and B together dominate R:
+    # the characteristic blue-green shadow undertone of Flemish flesh.
+    has_blue_green = any(
+        (g + b) > (r * 1.5)
+        for r, g, b in s.palette
+    )
+    assert has_blue_green, (
+        "Memling palette should include a blue-green entry for the "
+        "subsurface flesh shadow quality — no such entry found")
 
