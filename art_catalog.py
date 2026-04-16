@@ -3412,6 +3412,106 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Thomas Gainsborough ────────────────────────────────────────────────────
+    #
+    # Thomas Gainsborough (1727–1788) was the supreme British portrait and
+    # landscape painter of the 18th century.  He worked in direct competition
+    # with Sir Joshua Reynolds — while Reynolds favoured grand classical
+    # gravity and warm academic flesh tones, Gainsborough's answer was a
+    # breathtaking lightness: silvery, feathery, alive with atmosphere.
+    #
+    # His technical signatures:
+    #
+    #   1. FEATHERY BRUSHWORK — Gainsborough used very long, flexible brushes
+    #      (sometimes taped to sticks) to apply paint from a distance.  Each
+    #      stroke ended in a fine, broken, tapered "feather" rather than a blunt
+    #      edge.  This is most visible at the boundaries between flesh and
+    #      background, and throughout drapery passages.  The effect is as if
+    #      edges were combed outward in the direction of the brush.
+    #
+    #   2. COOL SILVER TONALITY — Unlike the warm ochre and umber tradition
+    #      of the Old Masters, Gainsborough's highlights tend toward a cool,
+    #      blue-white silver.  He admired Van Dyck's pearl-grey silk passages
+    #      and translated that quality into flesh and landscape.  His shadows
+    #      in drapery areas often carry a subtle blue-grey cast.
+    #
+    #   3. FLUID, LIQUID APPLICATION — He famously worked in a dim studio by
+    #      candlelight (to soften tonal contrasts) and applied paint in very
+    #      thin fluid layers — sometimes so liquid they would run if not caught
+    #      with a broad brush immediately.  This produces a streaming, fluid
+    #      quality in drapery and hair unlike any contemporary British painter.
+    #
+    #   4. FIGURE EMBEDDED IN LANDSCAPE — Uniquely for the era, Gainsborough
+    #      always treated his sitter and their landscape as a single
+    #      atmospheric whole.  The background atmospheric haze literally
+    #      bleeds into the figure's silhouette, and the figure's costume often
+    #      carries the same cool blue-grey as the sky.
+    #
+    # gainsborough_feathery_pass() approximates these qualities.
+    "thomas_gainsborough": ArtStyle(
+        artist="Thomas Gainsborough",
+        movement="British Rococo / Grand Manner Portrait",
+        nationality="British",
+        period="1745–1788",
+        palette=[
+            (0.90, 0.86, 0.82),   # silver-white highlight — cool, not cream
+            (0.76, 0.68, 0.60),   # warm pearl flesh mid-tone
+            (0.58, 0.52, 0.46),   # cool grey-tan flesh shadow
+            (0.38, 0.30, 0.22),   # warm umber deep shadow
+            (0.64, 0.70, 0.78),   # cool blue-grey sky / background haze
+            (0.30, 0.40, 0.52),   # deep blue-grey shadow in drapery
+            (0.72, 0.64, 0.50),   # warm gold — satin or silk highlights
+            (0.44, 0.54, 0.40),   # soft landscape green — foliage distance
+            (0.56, 0.62, 0.68),   # atmospheric silver-blue — sky and far distance
+        ],
+        ground_color=(0.72, 0.68, 0.62),    # pale warm-grey ground — Gainsborough
+                                             # often used a light grey or cream
+                                             # preparation, far cooler than the warm
+                                             # reddish imprimatura of the Baroque
+        stroke_size=8,
+        wet_blend=0.55,                      # moderate-high — fluid oil applied wet-
+                                             # into-wet; each feathered stroke blends
+                                             # at its tip into the previous layer
+        edge_softness=0.68,                  # high — the feathery dissolution of edges
+                                             # is Gainsborough's hallmark; forms melt
+                                             # into background without hard seams
+        jitter=0.040,
+        glazing=(0.58, 0.64, 0.72),          # cool blue-silver unifying glaze —
+                                             # even cooler than Poussin's silver;
+                                             # Gainsborough unified his whole surface
+                                             # with a cool atmospheric veil
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Feathery fluid oil on a pale grey-cream ground.  "
+            "Applied with very long flexible brushes from a distance, "
+            "each stroke ending in a tapered, broken 'feather' that "
+            "dissolves into adjacent passages.  Cool silver-blue tonality "
+            "throughout — highlights lean toward blue-white silver rather "
+            "than warm ivory.  Thin, liquid paint layers applied wet-into-wet; "
+            "the figure and landscape background share the same atmospheric "
+            "cool haze, so the sitter appears to inhabit and breathe the "
+            "same air as their landscape setting."
+        ),
+        famous_works=[
+            ("The Blue Boy",                                        "c. 1770"),
+            ("Mr and Mrs Andrews",                                  "c. 1750"),
+            ("Portrait of Mrs. Richard Brinsley Sheridan",          "1785–1787"),
+            ("The Morning Walk (Mr and Mrs William Hallett)",       "1785"),
+            ("Portrait of Jonathan Buttall",                        "c. 1770"),
+            ("Lady Innes",                                          "c. 1757"),
+            ("The Painter's Daughters Chasing a Butterfly",        "c. 1756"),
+        ],
+        inspiration=(
+            "Use gainsborough_feathery_pass() for the hallmark feathery "
+            "edge dissolution, cool silver-blue highlights, and fluid midtone "
+            "shimmer.  Pale grey-cream ground_color (0.72, 0.68, 0.62).  "
+            "High edge_softness (0.68) — Gainsborough's figures fade into "
+            "their backgrounds.  Cool blue-silver glaze (0.58, 0.64, 0.72) "
+            "at very low opacity unifies figure and landscape into one atmosphere."
+        ),
+    ),
+
 }
 
 

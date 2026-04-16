@@ -11993,3 +11993,237 @@ class Painter:
         print(f"    Poussin classical-clarity pass complete  "
               f"(shadow={n_shadow}px  midtone={n_midtone}px  "
               f"highlight={n_highlight}px  sat-capped={n_over_sat}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Gainsborough feathery pass — Thomas Gainsborough / British Rococo Portrait
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def gainsborough_feathery_pass(
+            self,
+            silver_strength:  float = 0.10,
+            feather_spread:   float = 2.5,
+            shimmer_strength: float = 0.04,
+            shadow_haze:      float = 0.06,
+            highlight_thresh: float = 0.68,
+            midtone_lo:       float = 0.30,
+            midtone_hi:       float = 0.72,
+            shadow_thresh:    float = 0.35,
+            opacity:          float = 0.78,
+    ):
+        """
+        Gainsborough feathery pass — inspired by Thomas Gainsborough (1727–1788).
+
+        Thomas Gainsborough was the supreme British portrait and landscape painter
+        of the 18th century.  He worked in direct competition with Sir Joshua
+        Reynolds — while Reynolds favoured warm academic flesh tones and grand
+        classical gravity, Gainsborough's answer was silvery lightness: cool,
+        feathery, alive with atmospheric breath.
+
+        This pass approximates three of his defining technical signatures:
+
+        1. **Cool silver-blue highlights** — Gainsborough's brightest lights lean
+           toward a cool blue-white silver rather than warm ivory or cream.  He
+           admired Van Dyck's pearl-grey silk passages and carried that quality
+           into his flesh, drapery, and sky.  Here we apply a gentle B-channel
+           boost and slight R damp above ``highlight_thresh``, ramping linearly
+           to full strength at lum=1.0.
+
+        2. **Feathery edge dissolution** — His most iconic quality.  Using
+           long flexible brushes held at arm's length, each mark ended in a
+           broken, tapered "feather" that dissolved into the surrounding paint
+           before it dried.  We approximate this by detecting edge zones with a
+           Sobel magnitude map, then applying a directional Gaussian blur along
+           the edge gradient perpendicular (across the edge, not along it).
+           The result is the characteristic soft dissolution of a figure's
+           silhouette into its background — without losing the interior
+           structure of the form.
+
+        3. **Fluid midtone shimmer** — He applied paint in very thin, liquid
+           layers that would almost run on the canvas.  In mid-tone areas this
+           produces a subtle horizontal streaming quality — as if the paint
+           is still in motion.  We simulate this with a stochastic horizontal
+           scatter: for each mid-luminance pixel, a small random R/B offset is
+           sampled from its neighbourhood along the horizontal axis, adding the
+           optical sense of a fresh, fluid brushstroke that has not yet set.
+
+        4. **Cool atmospheric background haze** — Gainsborough always united
+           his sitter and landscape into one atmospheric world.  Shadow areas
+           receive a subtle B boost and slight R damp, pushing them toward the
+           cool blue-grey of an English cloudy sky.  This is most effective in
+           the periphery of the composition where the background sits.
+
+        All four adjustments are composited back at ``opacity`` so the original
+        canvas reading is preserved beneath the tonal shifts.
+
+        Parameters
+        ----------
+        silver_strength  : strength of the cool silver push in highlights
+        feather_spread   : Gaussian sigma (pixels) for the edge feathering blur
+        shimmer_strength : amplitude of the horizontal fluid shimmer in midtones
+        shadow_haze      : strength of the cool atmospheric push in shadows
+        highlight_thresh : luminance above which the silver push begins
+        midtone_lo       : lower luminance bound of the shimmer zone
+        midtone_hi       : upper luminance bound of the shimmer zone
+        shadow_thresh    : luminance below which the atmospheric haze begins
+        opacity          : global blend weight of the entire adjustment layer
+                          (0 = noop, 1 = full replacement)
+
+        Notes
+        -----
+        Call this AFTER the main style passes and BEFORE the final glaze/finish.
+        Particularly effective on warm-fleshed portraits that need the cool
+        British atmosphere added without removing the underlying painterly warmth.
+
+        Famous works to study:
+          *The Blue Boy* (c. 1770, Huntington Library) — his most celebrated
+          portrait; the cool silver-blue of the suit reads against a warm
+          autumnal landscape background, demonstrating his mastery of warm-cool
+          simultaneous contrast.
+          *Mrs. Richard Brinsley Sheridan* (1785–87, National Gallery of Art,
+          Washington) — the feathery dissolution of her hair and dress into the
+          landscape background is the quintessential Gainsborough edge quality.
+          *The Morning Walk* (1785, National Gallery) — the cool silver of her
+          dress and his coat unified with the sky through atmospheric feathering.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gauss
+
+        print(f"  Gainsborough feathery pass  "
+              f"(silver={silver_strength:.2f}  feather_spread={feather_spread:.1f}  "
+              f"shimmer={shimmer_strength:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Gainsborough feathery pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Luminance ────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Cool silver-blue push in highlights ───────────────────────────
+        # Linear ramp from zero at highlight_thresh to full at lum=1.0.
+        # Silver push: boost B, damp R — pearl-grey quality Gainsborough
+        # learned from studying Van Dyck's silk passages.
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(hi_mask,
+                            _np.clip((lum - highlight_thresh)
+                                     / (1.0 - highlight_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out - silver_strength * 0.45 * hi_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(hi_mask,
+                          _np.clip(b_out + silver_strength * 0.55 * hi_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 2. Feathery edge dissolution ──────────────────────────────────────
+        # Detect edges via Sobel gradient magnitude, then apply a
+        # cross-edge Gaussian blur proportional to edge strength.
+        # The blur is applied independently per channel so colour at
+        # the edge bleeds laterally — simulating the tapered "feather"
+        # where the final stroke tip breaks and dissolves.
+        if feather_spread > 0.1:
+            # Luminance Sobel for edge detection
+            sobel_x = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+                                 dtype=_np.float32)
+            sobel_y = _np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
+                                 dtype=_np.float32)
+            from scipy.ndimage import convolve as _conv
+            gx = _conv(lum, sobel_x, mode='reflect')
+            gy = _conv(lum, sobel_y, mode='reflect')
+            edge_mag = _np.sqrt(gx * gx + gy * gy)
+            edge_mag = _np.clip(edge_mag / (edge_mag.max() + 1e-6), 0.0, 1.0)
+
+            # Blurred versions of each channel
+            r_blurred = _gauss(r_out, sigma=feather_spread, mode='reflect')
+            g_blurred = _gauss(g_out, sigma=feather_spread, mode='reflect')
+            b_blurred = _gauss(b_out, sigma=feather_spread, mode='reflect')
+
+            # Blend sharpened vs. blurred based on edge strength —
+            # strong edges dissolve most; interior stays crisp.
+            feather_w = _np.clip(edge_mag * 0.80, 0.0, 1.0)
+            r_out = r_out * (1.0 - feather_w) + r_blurred * feather_w
+            g_out = g_out * (1.0 - feather_w) + g_blurred * feather_w
+            b_out = b_out * (1.0 - feather_w) + b_blurred * feather_w
+
+        # ── 3. Fluid midtone shimmer ─────────────────────────────────────────
+        # For each mid-luminance pixel, replace its R and B with a value
+        # sampled from a small horizontal neighbourhood (±4px), weighted by
+        # a random shift.  This mimics the optical streaming quality of very
+        # thin, liquid oil paint that has not fully set — a horizontal
+        # "aliveness" in the mid-tones.
+        if shimmer_strength > 0.0:
+            # Build shifted versions ±3px horizontally
+            shift_l = _np.roll(r_f, -3, axis=1)   # left shift
+            shift_r = _np.roll(r_f,  3, axis=1)   # right shift
+            shift_bl = _np.roll(b_f, -3, axis=1)
+            shift_br = _np.roll(b_f,  3, axis=1)
+
+            # Random per-pixel blend weights in midtone zone
+            rng_arr = _np.random.RandomState(42).uniform(
+                0.0, shimmer_strength, size=(h, w)).astype(_np.float32)
+
+            mt_mask = (lum >= midtone_lo) & (lum <= midtone_hi)
+            mt_ramp = _np.zeros((h, w), dtype=_np.float32)
+            mt_range = max(midtone_hi - midtone_lo, 1e-6)
+            mt_t = _np.clip((lum - midtone_lo) / mt_range, 0.0, 1.0)
+            mt_ramp = _np.where(mt_mask, _np.sin(_np.pi * mt_t), 0.0)
+
+            # Blend the shifted samples in at shimmer weight
+            shimmer_r = (shift_l + shift_r) * 0.5
+            shimmer_b = (shift_bl + shift_br) * 0.5
+            w_mt = rng_arr * mt_ramp
+            r_out = _np.clip(r_out * (1.0 - w_mt) + shimmer_r * w_mt, 0.0, 1.0)
+            b_out = _np.clip(b_out * (1.0 - w_mt) + shimmer_b * w_mt, 0.0, 1.0)
+
+        # ── 4. Cool atmospheric haze in shadows ──────────────────────────────
+        # Ramp from full at lum=0 down to zero at shadow_thresh.
+        # Cool haze: boost B, damp R — English cloudy-sky quality in shadows.
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(sh_mask,
+                            _np.clip((shadow_thresh - lum)
+                                     / (shadow_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out - shadow_haze * 0.50 * sh_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out + shadow_haze * 0.60 * sh_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── Blend adjusted layer back at `opacity` ───────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_highlight = int(hi_mask.sum())
+        n_shadow    = int(sh_mask.sum())
+        n_midtone   = int(mt_mask.sum()) if shimmer_strength > 0.0 else 0
+        print(f"    Gainsborough feathery pass complete  "
+              f"(highlight={n_highlight}px  midtone={n_midtone}px  "
+              f"shadow={n_shadow}px)")

@@ -58,6 +58,7 @@ EXPECTED_ARTISTS = [
     "albrecht_durer",
     "peter_paul_rubens",
     "nicolas_poussin",
+    "thomas_gainsborough",
 ]
 
 
@@ -4148,4 +4149,190 @@ def test_nicolas_poussin_cooler_glaze_than_rubens():
         f"nicolas_poussin glaze B/R ratio ({ratio_poussin:.3f}) should exceed "
         f"peter_paul_rubens ratio ({ratio_rubens:.3f}) — "
         "Poussin's glaze is cool-silvery; Rubens' is warm amber")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Thomas Gainsborough — catalog tests
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_thomas_gainsborough_in_catalog():
+    """thomas_gainsborough must be present in CATALOG."""
+    assert "thomas_gainsborough" in CATALOG, (
+        "thomas_gainsborough not found in CATALOG — add the ArtStyle entry")
+
+
+def test_thomas_gainsborough_palette_valid():
+    """Every colour in thomas_gainsborough palette must have RGB channels in [0, 1]."""
+    s = get_style("thomas_gainsborough")
+    for i, rgb in enumerate(s.palette):
+        for j, v in enumerate(rgb):
+            assert 0.0 <= v <= 1.0, (
+                f"thomas_gainsborough palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_thomas_gainsborough_cool_glazing():
+    """
+    thomas_gainsborough glazing must be cool (B > R) — blue-silver, not warm amber.
+    Gainsborough's unifying veil is even cooler than Poussin's; it carries the
+    English atmospheric sky colour into the whole composition.
+    """
+    s = get_style("thomas_gainsborough")
+    assert s.glazing is not None, (
+        "thomas_gainsborough glazing should not be None — cool blue-silver glaze")
+    r, g, b = s.glazing
+    assert b > r, (
+        f"thomas_gainsborough glazing B={b:.3f} should exceed R={r:.3f} "
+        "(cool blue-silver atmospheric veil — English sky tonality)")
+
+
+def test_thomas_gainsborough_cooler_glaze_than_poussin():
+    """
+    thomas_gainsborough glaze must be cooler (higher B/R ratio) than nicolas_poussin glaze.
+    Gainsborough pushed even further toward cool blue-silver than Poussin's neutral-cool.
+    """
+    s_g = get_style("thomas_gainsborough")
+    s_p = get_style("nicolas_poussin")
+
+    r_g, _, b_g = s_g.glazing
+    r_p, _, b_p = s_p.glazing
+
+    ratio_g = b_g / (r_g + 1e-6)
+    ratio_p = b_p / (r_p + 1e-6)
+
+    assert ratio_g >= ratio_p, (
+        f"thomas_gainsborough glaze B/R ratio ({ratio_g:.3f}) should be >= "
+        f"nicolas_poussin ratio ({ratio_p:.3f}) — "
+        "Gainsborough's glaze is English-sky cool; Poussin's is neutral-silver")
+
+
+def test_thomas_gainsborough_high_edge_softness():
+    """
+    thomas_gainsborough edge_softness should be in [0.55, 0.85] — his feathery
+    dissolution of figure into background is a defining quality.
+    """
+    s = get_style("thomas_gainsborough")
+    assert 0.55 <= s.edge_softness <= 0.85, (
+        f"thomas_gainsborough edge_softness={s.edge_softness:.2f} should be in [0.55, 0.85] "
+        "(feathery dissolution of figure into background — Gainsborough's hallmark)")
+
+
+def test_thomas_gainsborough_moderate_high_wet_blend():
+    """
+    thomas_gainsborough wet_blend should be in [0.40, 0.70] — fluid wet-into-wet
+    application; each feathered mark blends at its tip into the previous layer.
+    """
+    s = get_style("thomas_gainsborough")
+    assert 0.40 <= s.wet_blend <= 0.70, (
+        f"thomas_gainsborough wet_blend={s.wet_blend:.2f} should be in [0.40, 0.70] "
+        "(fluid wet-into-wet application — thin oil layers, feathery blending)")
+
+
+def test_thomas_gainsborough_crackle():
+    """thomas_gainsborough crackle should be True — aged 18th-century oil on canvas."""
+    s = get_style("thomas_gainsborough")
+    assert s.crackle is True, (
+        "thomas_gainsborough crackle should be True (aged 18th-century oil on canvas)")
+
+
+def test_thomas_gainsborough_no_chromatic_split():
+    """thomas_gainsborough chromatic_split should be False — no Pointillist technique."""
+    s = get_style("thomas_gainsborough")
+    assert s.chromatic_split is False, (
+        "thomas_gainsborough chromatic_split should be False (no divisionist dots)")
+
+
+def test_thomas_gainsborough_famous_works():
+    """thomas_gainsborough should have >= 4 famous works including The Blue Boy."""
+    s = get_style("thomas_gainsborough")
+    assert len(s.famous_works) >= 4, (
+        f"thomas_gainsborough should have >= 4 famous works; got {len(s.famous_works)}")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Blue Boy" in t for t in titles), (
+        "thomas_gainsborough famous_works must include 'The Blue Boy' "
+        "— his most iconic portrait (c. 1770, Huntington Library)")
+
+
+def test_thomas_gainsborough_palette_has_silver_highlight():
+    """thomas_gainsborough palette must contain at least one cool silver-white highlight."""
+    s = get_style("thomas_gainsborough")
+
+    def _is_silver_highlight(rgb):
+        r, g, b = rgb
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        return lum >= 0.75 and b >= r * 0.90   # bright, and not strongly warm
+
+    assert any(_is_silver_highlight(rgb) for rgb in s.palette), (
+        "thomas_gainsborough palette must contain at least one cool silver-white highlight "
+        "(B >= R*0.90 and lum >= 0.75) — his characteristic pearl-grey highlight tone")
+
+
+def test_thomas_gainsborough_palette_has_atmospheric_blue():
+    """thomas_gainsborough palette must contain at least one cool blue-grey (atmospheric haze)."""
+    s = get_style("thomas_gainsborough")
+
+    def _is_atmospheric_blue(rgb):
+        r, g, b = rgb
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        return b > r * 1.15 and 0.30 <= lum <= 0.80   # blue-dominant mid-range
+
+    assert any(_is_atmospheric_blue(rgb) for rgb in s.palette), (
+        "thomas_gainsborough palette must contain at least one cool blue-grey atmospheric "
+        "haze colour (sky, background, drapery cool accents)")
+
+
+def test_thomas_gainsborough_ground_is_pale():
+    """
+    thomas_gainsborough ground must be pale (lum >= 0.55) — he used a light grey-cream
+    preparation, much cooler and lighter than the warm Baroque reddish imprimatura.
+    """
+    s = get_style("thomas_gainsborough")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum >= 0.55, (
+        f"thomas_gainsborough ground luminance={lum:.3f} should be >= 0.55 "
+        "(pale grey-cream ground — far lighter than warm reddish Baroque imprimatura)")
+
+
+def test_thomas_gainsborough_is_british_movement():
+    """thomas_gainsborough movement should reference British style."""
+    s = get_style("thomas_gainsborough")
+    assert "British" in s.movement or "Rococo" in s.movement, (
+        f"thomas_gainsborough movement={s.movement!r} should reference "
+        "'British' or 'Rococo' (British Rococo / Grand Manner Portrait)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ROCOCO_PORTRAIT period enum tests — Thomas Gainsborough (session 40)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_rococo_portrait_period_in_enum():
+    """Period.ROCOCO_PORTRAIT must be a valid member of the Period enum."""
+    assert hasattr(Period, "ROCOCO_PORTRAIT"), (
+        "Period enum is missing ROCOCO_PORTRAIT — add it to scene_schema.py")
+
+
+def test_rococo_portrait_stroke_params_keys():
+    """ROCOCO_PORTRAIT stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.ROCOCO_PORTRAIT).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"ROCOCO_PORTRAIT stroke_params missing key: {key!r}"
+
+
+def test_rococo_portrait_stroke_params_ranges():
+    """ROCOCO_PORTRAIT stroke_params values must be in valid ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.ROCOCO_PORTRAIT).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"ROCOCO_PORTRAIT stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"ROCOCO_PORTRAIT wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"ROCOCO_PORTRAIT edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_rococo_portrait_high_edge_softness():
+    """ROCOCO_PORTRAIT edge_softness should be >= 0.55 — feathery dissolution of edges."""
+    sp = Style(medium=Medium.OIL, period=Period.ROCOCO_PORTRAIT).stroke_params
+    assert sp["edge_softness"] >= 0.55, (
+        f"ROCOCO_PORTRAIT edge_softness={sp['edge_softness']:.2f} should be >= 0.55 "
+        "(Gainsborough's feathery edges require high softness)")
 

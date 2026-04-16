@@ -4980,3 +4980,180 @@ def test_poussin_classical_clarity_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.60, 0.55, 0.45), texture_strength=0.0)
     p.poussin_classical_clarity_pass(shadow_cool=0.10, midtone_lift=0.05, opacity=0.70)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Thomas Gainsborough / ROCOCO_PORTRAIT — Period enum + pass tests (session 40)
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_rococo_portrait_period_in_enum():
+    """Period.ROCOCO_PORTRAIT must be a valid member of the Period enum."""
+    assert hasattr(Period, "ROCOCO_PORTRAIT"), (
+        "Period enum is missing ROCOCO_PORTRAIT — add it to scene_schema.py")
+
+
+def test_rococo_portrait_stroke_params_keys():
+    """ROCOCO_PORTRAIT stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.ROCOCO_PORTRAIT).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"ROCOCO_PORTRAIT stroke_params missing key: {key!r}"
+
+
+def test_rococo_portrait_stroke_params_ranges():
+    """ROCOCO_PORTRAIT stroke_params values must be in valid ranges."""
+    sp = Style(medium=Medium.OIL, period=Period.ROCOCO_PORTRAIT).stroke_params
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"ROCOCO_PORTRAIT stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0.0 <= sp["wet_blend"] <= 1.0, (
+        f"ROCOCO_PORTRAIT wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0.0 <= sp["edge_softness"] <= 1.0, (
+        f"ROCOCO_PORTRAIT edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+def test_rococo_portrait_high_edge_softness():
+    """ROCOCO_PORTRAIT edge_softness should be >= 0.55 — Gainsborough's feathery edges."""
+    sp = Style(medium=Medium.OIL, period=Period.ROCOCO_PORTRAIT).stroke_params
+    assert sp["edge_softness"] >= 0.55, (
+        f"ROCOCO_PORTRAIT edge_softness={sp['edge_softness']:.2f} should be >= 0.55 "
+        "(Gainsborough's hallmark feathery dissolution requires high edge softness)")
+
+
+def test_gainsborough_feathery_pass_exists():
+    """Painter must have a gainsborough_feathery_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "gainsborough_feathery_pass"), (
+        "Painter is missing gainsborough_feathery_pass — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "gainsborough_feathery_pass"))
+
+
+def test_gainsborough_feathery_pass_runs_without_error():
+    """gainsborough_feathery_pass() must run on a small canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.65, 0.60), texture_strength=0.0)
+    p.gainsborough_feathery_pass(opacity=0.78)
+
+
+def test_gainsborough_feathery_pass_modifies_canvas():
+    """gainsborough_feathery_pass() must alter the canvas from its initial state."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Warm-grey ground; the pass should cool and feather it
+    p.tone_ground((0.70, 0.65, 0.58), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.gainsborough_feathery_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert not _np.array_equal(before, after), (
+        "gainsborough_feathery_pass should change the canvas when opacity=1.0")
+
+
+def test_gainsborough_feathery_pass_opacity_zero_is_noop():
+    """gainsborough_feathery_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.65, 0.58), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.gainsborough_feathery_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+
+    assert _np.array_equal(before, after), (
+        "gainsborough_feathery_pass(opacity=0) should be a noop")
+
+
+def test_gainsborough_feathery_pass_cools_highlights():
+    """
+    On a bright near-white canvas (lum ~0.90, well above highlight_thresh=0.68),
+    the B channel should increase and R channel should decrease after
+    gainsborough_feathery_pass — the cool silver push.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Warm bright: R=230, G=220, B=200 → lum ~0.86, above highlight_thresh=0.68
+    p.tone_ground((230/255, 220/255, 200/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    # BGRA: index 0=B, 2=R
+    b_before = before[:, :, 0].astype(_np.float32).mean()
+    r_before = before[:, :, 2].astype(_np.float32).mean()
+
+    p.gainsborough_feathery_pass(
+        silver_strength  = 0.15,
+        feather_spread   = 0.0,    # disable feathering for isolation
+        shimmer_strength = 0.0,    # disable shimmer for isolation
+        shadow_haze      = 0.0,    # disable shadow haze for isolation
+        highlight_thresh = 0.68,
+        opacity          = 1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+    b_after = after[:, :, 0].astype(_np.float32).mean()
+    r_after = after[:, :, 2].astype(_np.float32).mean()
+
+    assert b_after > b_before, (
+        f"gainsborough_feathery_pass should boost B in bright highlights; "
+        f"B before={b_before:.1f}  B after={b_after:.1f}")
+    assert r_after < r_before, (
+        f"gainsborough_feathery_pass should damp R in bright highlights; "
+        f"R before={r_before:.1f}  R after={r_after:.1f}")
+
+
+def test_gainsborough_feathery_pass_cools_shadows():
+    """
+    On a near-black canvas (lum ~0.08, below shadow_thresh=0.35), the B channel
+    should increase after gainsborough_feathery_pass — the atmospheric haze push.
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Warm dark: R=30, G=20, B=10 → lum ~0.09, below shadow_thresh=0.35
+    p.tone_ground((30/255, 20/255, 10/255), texture_strength=0.0)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    b_before = before[:, :, 0].astype(_np.float32).mean()
+
+    p.gainsborough_feathery_pass(
+        silver_strength  = 0.0,    # disable for isolation
+        feather_spread   = 0.0,
+        shimmer_strength = 0.0,
+        shadow_haze      = 0.10,
+        shadow_thresh    = 0.35,
+        opacity          = 1.0,
+    )
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+    b_after = after[:, :, 0].astype(_np.float32).mean()
+
+    assert b_after > b_before, (
+        f"gainsborough_feathery_pass should boost B in shadows (atmospheric haze); "
+        f"B before={b_before:.1f}  B after={b_after:.1f}")
+
+
+def test_gainsborough_feathery_pass_custom_parameters():
+    """gainsborough_feathery_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.62, 0.58), texture_strength=0.0)
+    p.gainsborough_feathery_pass(
+        silver_strength  = 0.12,
+        feather_spread   = 3.0,
+        shimmer_strength = 0.05,
+        shadow_haze      = 0.08,
+        highlight_thresh = 0.65,
+        midtone_lo       = 0.28,
+        midtone_hi       = 0.75,
+        shadow_thresh    = 0.38,
+        opacity          = 0.80,
+    )
+
+
+def test_gainsborough_feathery_pass_large_canvas():
+    """gainsborough_feathery_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.70, 0.65, 0.60), texture_strength=0.0)
+    p.gainsborough_feathery_pass(silver_strength=0.10, feather_spread=2.5, opacity=0.75)

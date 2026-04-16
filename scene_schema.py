@@ -220,6 +220,7 @@ class Period(Enum):
     NORTHERN_RENAISSANCE = auto()    # Dürer — pale silver-white ground, cool engraving-precision, cross-hatch shadows, single-hair detail
     QUATTROCENTO  = auto()           # Fra Angelico — chalk-white gesso, tempera hatching, pure lapis/vermilion, gold-leaf halos
     FRENCH_CLASSICAL = auto()        # Poussin — cool architectural clarity, silver shadows, rational colour zones, saturation discipline
+    ROCOCO_PORTRAIT = auto()         # Gainsborough — feathery edge dissolution, cool silver-blue tonality, figure embedded in landscape
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -701,6 +702,16 @@ class Style:
             # edge_softness=0.42: clear, legible Classical boundaries — forms read as rational sculpture;
             # no sfumato haze, no razor Tenebrist knife-edge; edges are present and considered.
             Period.FRENCH_CLASSICAL: dict(stroke_size_face=7, stroke_size_bg=24, wet_blend=0.38, edge_softness=0.42),
+            # Rococo Portrait (Gainsborough): feathery, fluid British portraiture on a pale grey ground.
+            # stroke_size_face=8: medium-large marks — Gainsborough worked boldly and swiftly with long
+            # flexible brushes, covering large areas in a single pass rather than building up with many
+            # small strokes.  stroke_size_bg=28: the atmospheric landscape backgrounds are painted with
+            # wide, sweeping washes of thin oil.
+            # wet_blend=0.55: moderate-high — the defining feathery quality comes from wet-into-wet
+            # blending at stroke tips; each feathered mark blends slightly into the preceding layer.
+            # edge_softness=0.68: high — Gainsborough's figures dissolve into their backgrounds;
+            # the edge of a shoulder or powdered wig merges with the sky in a cool atmospheric haze.
+            Period.ROCOCO_PORTRAIT: dict(stroke_size_face=8,  stroke_size_bg=28, wet_blend=0.55, edge_softness=0.68),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
