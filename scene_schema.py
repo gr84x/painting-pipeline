@@ -226,6 +226,7 @@ class Period(Enum):
     FRENCH_IMPRESSIONIST = auto()    # Renoir — rich chromatic saturation, warm rose-peach flesh, dappled light, feathery curving brushwork, peach-rose glaze
     NORDIC_EXPRESSIONIST = auto()    # Munch — sinuous swirling lines, raw psychological color, existential anxiety rendered as landscape distortion
     DUTCH_GOLDEN_AGE  = auto()       # Frans Hals — bravura alla prima, broken tone, low wet-blend, crisp directional marks
+    DANISH_INTIMISTE  = auto()       # Hammershøi — near-monochrome silver-grey, diffuse north window light, profound stillness, invisible blending
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -768,6 +769,15 @@ class Style:
             # edge_softness=0.18: crisp, directional edges — each stroke has a clear start and
             # finish; no sfumato dissolving; the edge IS the stroke itself.
             Period.DUTCH_GOLDEN_AGE: dict(stroke_size_face=8, stroke_size_bg=24, wet_blend=0.14, edge_softness=0.18),
+            # Danish Intimisme (Hammershøi): near-monochrome interiors on a cool silver-ash ground.
+            # stroke_size_face=4: Hammershøi's faces are built from extraordinarily fine, seamless
+            # strokes — the marks are invisible; the surface reads as a continuous tone, not individual
+            # brushwork.  stroke_size_bg=18: backgrounds are equally smooth — no visible marks.
+            # wet_blend=0.75: extremely high — the highest in the catalog.  Every stroke is immediately
+            # blended into the wet surface beside it; this is the source of the seamless tonal unity.
+            # edge_softness=0.72: very high — all edges dissolve softly; even the figure-background
+            # boundary is a gradual tone transition, not a line.  The silence of the image lives here.
+            Period.DANISH_INTIMISTE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.75, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

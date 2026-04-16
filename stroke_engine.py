@@ -13793,3 +13793,322 @@ class Painter:
         print(f"    Dali paranoiac-critical pass complete  "
               f"(shadow={n_shadow}px  highlight={n_highlight}px  "
               f"aberration={'on' if chroma_shift > 0 else 'off'})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # hammershoi_grey_silence_pass — Vilhelm Hammershøi near-monochrome silence
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def hammershoi_grey_silence_pass(
+        self,
+        desaturation:   float = 0.82,
+        window_thresh:  float = 0.68,
+        window_cool:    float = 0.08,
+        shadow_thresh:  float = 0.35,
+        shadow_cool:    float = 0.04,
+        opacity:        float = 0.88,
+    ) -> None:
+        """
+        Vilhelm Hammershøi's near-monochrome interior silence pass.
+
+        Hammershøi's Copenhagen interiors are built from a single grey chord
+        modulated across the canvas — almost all colour saturation stripped away,
+        leaving only a ghost of hue.  What little colour survives is the
+        differential between warm ivory (north window light) and cool blue-grey
+        (shadowed wall and floor).  The net effect is a profound, held-breath
+        silence — the room exists outside of ordinary time.
+
+        Three-strategy pass:
+
+        1. **Desaturation toward grey** — Each RGB channel is blended toward
+           its perceptual luminance value at ``desaturation`` rate.  At 0.82,
+           each channel retains only 18 % of its original colour deviation from
+           grey.  The result reads as near-monochrome but is not a mechanical
+           greyscale conversion — a ghost of the original hue survives.
+
+        2. **Window-light cooling** — Bright pixels (``lum > window_thresh``)
+           receive a cool blue-grey shift (B lift, R+G damp) simulating the
+           diffuse north window daylight that illuminates all of Hammershøi's
+           interiors.  The ramp peaks at the brightest pixels and fades to zero
+           at the window threshold boundary.
+
+        3. **Shadow cooling** — Dark pixels (``lum < shadow_thresh``) receive a
+           further subtle blue-grey cool shift (B lift, R damp) simulating the
+           cool reflected sky quality in shadowed room recesses.  Hammershøi
+           never introduces warm bounce light in his shadows — they are simply
+           cooler and darker versions of the wall tone.
+
+        Parameters
+        ----------
+        desaturation : float
+            Fraction of colour deviation from grey to remove (0 = no change,
+            1 = full greyscale).  0.82 retains 18 % of original hue.
+        window_thresh : float
+            Luminance above which the window-light cooling applies.
+        window_cool : float
+            Strength of the cool blue-grey shift in lit zones.
+        shadow_thresh : float
+            Luminance below which the shadow cooling applies.
+        shadow_cool : float
+            Strength of the cool blue-grey shift in shadow zones.
+        opacity : float
+            Global blend weight for all adjustments.  0 = noop, 1 = full.
+
+        Notes
+        -----
+        Call AFTER ``build_form()`` and BEFORE the final ``glaze()``.  Pairs
+        with the cool grey unifying glaze ``(0.78, 0.77, 0.74)`` applied
+        afterward.
+
+        Famous works to study:
+          *Dust Motes Dancing in Sunrays* (1900, Ordrupgaard) — shafts of
+          north-window light fall across an otherwise silent grey interior;
+          the drama is entirely tonal, not chromatic.
+
+          *Interior, Strandgade 30* (1901, Statens Museum for Kunst) — a door
+          stands open into a further room; the recession of grey-on-grey planes
+          into depth is the complete subject; no narrative, no figure.
+        """
+        import numpy as _np
+
+        print(f"  Hammershøi grey silence pass  "
+              f"(desaturation={desaturation:.2f}  "
+              f"window_cool={window_cool:.2f}  "
+              f"shadow_cool={shadow_cool:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Hammershøi grey silence pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Desaturation toward grey ────────────────────────────────────────
+        # Blend each channel toward the luminance value.
+        # At desaturation=0.82: output = 0.18 * channel + 0.82 * luminance.
+        # The ghost of colour (18 %) prevents mechanical greyscale while
+        # achieving the near-monochrome appearance of Hammershøi's palette.
+        r_out = (1.0 - desaturation) * r_f + desaturation * lum
+        g_out = (1.0 - desaturation) * g_f + desaturation * lum
+        b_out = (1.0 - desaturation) * b_f + desaturation * lum
+
+        # ── 2. Window-light cooling (bright zone) ─────────────────────────────
+        # In the lightest tonal zone, push colour toward cool blue-grey to
+        # simulate diffuse north window daylight.  The ramp peaks at lum=1.0
+        # and falls to zero at lum=window_thresh.
+        win_mask = lum > window_thresh
+        win_ramp = _np.where(
+            win_mask,
+            _np.clip((lum - window_thresh) / (1.0 - window_thresh + 1e-6),
+                     0.0, 1.0),
+            0.0)
+
+        # Cool R and G slightly; lift B toward blue-grey
+        r_out = _np.clip(r_out - window_cool * 0.60 * win_ramp, 0.0, 1.0)
+        g_out = _np.clip(g_out - window_cool * 0.30 * win_ramp, 0.0, 1.0)
+        b_out = _np.clip(b_out + window_cool * 0.55 * win_ramp, 0.0, 1.0)
+
+        # ── 3. Shadow cooling (dark zone) ─────────────────────────────────────
+        # In the darkest tonal zone, add a further subtle cool blue-grey push
+        # simulating the cool reflected sky quality in shadowed room recesses.
+        # The ramp peaks at lum=0 and falls to zero at lum=shadow_thresh.
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(
+            sh_mask,
+            _np.clip((shadow_thresh - lum) / (shadow_thresh + 1e-6), 0.0, 1.0),
+            0.0)
+
+        r_out = _np.clip(r_out - shadow_cool * 0.50 * sh_ramp, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_cool * 0.40 * sh_ramp, 0.0, 1.0)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_win = int(win_mask.sum())
+        n_sh  = int(sh_mask.sum())
+        print(f"    Hammershøi grey silence pass complete  "
+              f"(desaturated={h * w}px  window={n_win}px  shadow={n_sh}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # horizon_mist_pass — graduated mid-ground atmospheric haze
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def horizon_mist_pass(
+        self,
+        horizon_y:      float = 0.48,
+        band_height:    float = 0.18,
+        mist_color:     "Color" = (0.78, 0.80, 0.86),
+        mist_strength:  float = 0.28,
+        blur_sigma:     float = 2.5,
+        opacity:        float = 0.72,
+    ) -> None:
+        """
+        Graduated mid-ground atmospheric haze for landscape backgrounds.
+
+        Renaissance portrait masters — Leonardo most famously in the Mona Lisa —
+        placed their figures before imaginary geological landscapes that dissolve
+        into cool atmospheric haze as they recede.  The transition from the
+        warmly lit foreground to the pale blue-grey distant horizon is not
+        linear: the most pronounced haze collects in the *mid-ground transition
+        zone* — roughly at the horizon line — where near and far space meet.
+        This band reads as a silvery veil of distance, thicker than the clear
+        foreground but lighter than the distant sky.
+
+        This pass targets that mid-ground zone.  It identifies a horizontal band
+        centred on ``horizon_y`` (as a fraction of canvas height, measured from
+        the top), applies a Gaussian-blurred cool mist overlay whose strength
+        peaks at the band centre and fades to zero at its edges, then blends
+        that mist over the canvas at ``opacity``.
+
+        Unlike ``atmospheric_depth_pass`` (which applies globally across the
+        full vertical range based on luminance thresholds) this pass acts only
+        on the specified horizontal band.  It is therefore well-suited to
+        portrait backgrounds where the foreground figure must remain unaffected
+        but the mid-ground landscape recedes into haze.
+
+        Strategies
+        ----------
+        1. **Band weighting** — A 1-D Gaussian weight function peaks at
+           ``horizon_y`` and has half-power width ``band_height``.  The weight
+           is broadcast across the full width of the canvas so the mist thins
+           gradually above and below the horizon band.
+
+        2. **Mist overlay** — ``mist_color`` (default cool silver-blue
+           ``(0.78, 0.80, 0.86)``) is blended over the canvas at each pixel
+           with a weight equal to ``band_weight × mist_strength``.  The colour
+           choice models the characteristic pale blue-grey of atmosphere seen
+           against a distant sky — slightly blue (cool scattered light), lighter
+           than mid-tone (atmospheric translucency), with low saturation.
+
+        3. **Edge softening** — The band boundary is Gaussian-smoothed
+           (sigma = ``blur_sigma`` percent of canvas height) so the haze
+           dissolves seamlessly into the clear foreground and clear sky above,
+           avoiding any visible hard boundary at the band edges.
+
+        Parameters
+        ----------
+        horizon_y : float
+            Vertical centre of the haze band, as a fraction of canvas height
+            (0 = top, 1 = bottom).  Default 0.48 places the band just below
+            the canvas mid-line, typical for a half-length portrait.
+        band_height : float
+            Half-width of the haze band as a fraction of canvas height.  0.18
+            gives a band spanning roughly the middle third of the canvas.
+        mist_color : Color
+            RGB colour of the atmospheric mist overlay.  Default (0.78, 0.80,
+            0.86) is a cool silver-blue — characteristic of aerial perspective.
+        mist_strength : float
+            Peak opacity of the mist overlay at the band centre.  0.28 gives
+            a visible but non-dominating haze; raise toward 0.50 for a strongly
+            misty effect.
+        blur_sigma : float
+            Gaussian sigma for edge smoothing of the band weight, expressed as
+            a fraction of canvas height (percent).  2.5 % gives smooth dissolve.
+        opacity : float
+            Global blend weight applied on top of the per-pixel mist weight.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and atmospheric passes, BEFORE the final
+        glaze.  Pairs naturally with ``atmospheric_depth_pass()`` for full
+        landscape recession: ``atmospheric_depth_pass`` handles the overall
+        value/saturation falloff with distance; ``horizon_mist_pass`` adds the
+        specific mid-ground haze band that makes the transition read as deep
+        natural space.
+        """
+        from scipy import ndimage as _ndimage
+        import numpy as _np
+
+        print(f"  Horizon mist pass  "
+              f"(horizon_y={horizon_y:.2f}  band_height={band_height:.2f}  "
+              f"mist_strength={mist_strength:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Horizon mist pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── 1. Build 1-D band weight (Gaussian along Y) ────────────────────────
+        # Peak at horizon_y, half-power radius = band_height.
+        # sigma_px derived from band_height so the 1-sigma point is at the
+        # band edge: sigma = band_height * h / 2 (converts fraction to pixels).
+        sigma_band_px = max(1.0, band_height * h / 2.0)
+        ys        = _np.arange(h, dtype=_np.float32)
+        cy        = horizon_y * h
+        band_1d   = _np.exp(-0.5 * ((ys - cy) / sigma_band_px) ** 2)
+
+        # Apply additional Gaussian blur to soften band edges
+        sigma_blur_px = max(1.0, blur_sigma / 100.0 * h)
+        band_1d = _ndimage.gaussian_filter1d(band_1d, sigma=sigma_blur_px)
+
+        # Clamp to [0, 1] after blur; broadcast to (H, W)
+        band_1d  = _np.clip(band_1d, 0.0, 1.0)
+        band_2d  = band_1d[:, _np.newaxis]   # shape (H, 1) → broadcast to (H, W)
+
+        # Per-pixel blend weight: peak mist_strength at band centre
+        weight = band_2d * mist_strength      # shape (H, W)
+
+        # ── 2. Mist overlay blend ──────────────────────────────────────────────
+        # Blend mist_color over the current pixel at the computed weight.
+        # This is a standard screen-space opacity blend:
+        #   out = (1 - weight) * src + weight * mist
+        mr, mg, mb = mist_color
+
+        r_out = _np.clip((1.0 - weight) * r_f + weight * mr, 0.0, 1.0)
+        g_out = _np.clip((1.0 - weight) * g_f + weight * mg, 0.0, 1.0)
+        b_out = _np.clip((1.0 - weight) * b_f + weight * mb, 0.0, 1.0)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        peak_weight = float(weight.max())
+        print(f"    Horizon mist pass complete  "
+              f"(band_center_px={int(horizon_y * h)}  "
+              f"peak_weight={peak_weight:.3f})")
