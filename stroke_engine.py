@@ -14443,3 +14443,349 @@ class Painter:
         shadow_count = int((shadow_w > 0.05).sum())
         print(f"    Chiaroscuro modelling pass complete  "
               f"(light_pixels={light_count}  shadow_pixels={shadow_count})")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 51 — artist pass: bellini_sacred_light_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def bellini_sacred_light_pass(
+        self,
+        figure_mask:      "Optional[_np.ndarray]" = None,
+        light_thresh:     float = 0.62,
+        shadow_thresh:    float = 0.32,
+        honey_warmth:     float = 0.12,
+        lapis_cool:       float = 0.10,
+        halo_thresh:      float = 0.82,
+        halo_gold:        float = 0.06,
+        opacity:          float = 0.70,
+    ) -> None:
+        """
+        Apply the crystalline sacred luminosity of Giovanni Bellini's glazing technique.
+
+        Bellini was the first Venetian master to fully exploit the transparency of
+        oil paint as a glazing medium.  He adopted the Flemish technique (brought
+        to Venice by Antonello da Messina c. 1475) and transformed it with an
+        unmistakably Italian warm, golden quality.
+
+        His sacred figures — Madonnas, saints, the enthroned Christ — glow with
+        an interior warmth that is both technically and spiritually distinctive.
+        The effect comes from three layered interactions:
+
+        1. **Honey-amber glaze in the light zone** — Bellini applied a warm amber
+           glaze (raw sienna diluted in oil) over the lit passages of flesh and drapery.
+           This warm glaze over the cool white gesso reflector creates the characteristic
+           ivory-gold quality of his lit flesh, distinct from both the cooler Flemish
+           tradition and the more sfumatoed Florentine approach.
+
+        2. **Lapis lazuli depth in shadows** — Deep shadow passages received thin
+           transparent glazes of lapis lazuli or indigo, giving the shadows a cool
+           blue-violet depth that recedes optically.  This warm light / cool shadow
+           contrast generates the three-dimensional solidity that distinguishes his
+           mature altarpieces from his earlier tempera work.
+
+        3. **Golden halo zone in the brightest highlights** — The very brightest
+           pixels — the lit crown of the head, the shoulder peak, the white of the
+           eye, the knuckle highlight — receive a faint golden push toward warm
+           ivory.  This simulates the slight warm lead-white highlight that Bellini
+           applied as final impasto touches over the dried glaze layers, giving the
+           highlights a warm, solid, material quality rather than cold specular glare.
+
+        Strategies
+        ----------
+        1. **Luminance gating** — BT.709 luminance partitions pixels into three
+           zones: light (``lum > light_thresh``), shadow (``lum < shadow_thresh``),
+           and midtone (unchanged).  Soft ramps from the thresholds prevent banding.
+
+        2. **Honey light push** — In the light zone: lift R and G toward warm amber,
+           slight B damp.  Asymmetric weights (R 0.85, G 0.65, B −0.20) reproduce
+           the warm-ivory quality of Bellini's flesh glazes — neither white nor gold,
+           but the precise ivory-honey of his Madonnas.
+
+        3. **Lapis shadow push** — In the shadow zone: lift B (lapis coolness),
+           slight R damp.  The B lift is stronger than the R damp so the net result
+           is a cool but not dark shadow — receding blue depth rather than black mud.
+
+        4. **Golden halo zone** — Pixels with luminance above ``halo_thresh`` receive
+           a further warm push: a gentle R + G lift (``halo_gold``) that turns the
+           brightest white into warm ivory.  Keeps highlights from appearing cold.
+
+        5. **Mask compositing** — When ``figure_mask`` is provided, all three
+           corrections are weighted by the mask so the background is unaffected.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array ``(H, W)`` in [0, 1].  1 = figure, 0 = background.
+        light_thresh : float
+            Luminance threshold for the light zone.  0.62 covers highlights and
+            upper mid-tones without reaching into the deep midtone.
+        shadow_thresh : float
+            Luminance threshold below which a pixel is considered shadow.
+            0.32 catches deep shadows and lower mid-tones.
+        honey_warmth : float
+            Magnitude of the warm honey push in the light zone.  0.12 gives a
+            visible but restrained warm glow without yellowing.
+        lapis_cool : float
+            Magnitude of the blue (lapis) lift in shadow zones.  0.10 gives the
+            cool receding quality of lapis shadow glazes.
+        halo_thresh : float
+            Luminance threshold above which the golden halo push applies.
+            0.82 captures only the brightest highlights.
+        halo_gold : float
+            Strength of the warm ivory push on halo-zone pixels.  0.06 is subtle
+            — a faint gold cast, not a yellow highlight.
+        opacity : float
+            Global blend weight for the pass result over the original canvas.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and before the final glaze.  Pairs naturally
+        with ``venetian_glaze_pass()`` (adds further warm oil depth), ``subsurface_
+        glow_pass()`` (warm SSS reinforces the honey light zone), and
+        ``sfumato_veil_pass()`` (if used — apply sfumato before this pass so the
+        warm glow overlays the softened edges).
+        """
+        import numpy as _np
+
+        print(f"  Bellini sacred light pass  "
+              f"(light_thresh={light_thresh:.2f}  shadow_thresh={shadow_thresh:.2f}  "
+              f"honey_warmth={honey_warmth:.2f}  lapis_cool={lapis_cool:.2f}  "
+              f"halo_thresh={halo_thresh:.2f}  halo_gold={halo_gold:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Bellini sacred light pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance (BT.709) ───────────────────────────────────────────────
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # ── Soft zone weights ────────────────────────────────────────────────
+        light_range = max(1e-6, 1.0 - light_thresh)
+        light_w     = _np.clip((lum - light_thresh) / light_range, 0.0, 1.0)
+
+        shadow_range = max(1e-6, shadow_thresh)
+        shadow_w     = _np.clip(1.0 - lum / shadow_range, 0.0, 1.0)
+
+        halo_range   = max(1e-6, 1.0 - halo_thresh)
+        halo_w       = _np.clip((lum - halo_thresh) / halo_range, 0.0, 1.0)
+
+        # ── Apply figure mask if provided ────────────────────────────────────
+        if figure_mask is not None:
+            fm = _np.asarray(figure_mask, dtype=_np.float32)
+            if fm.shape != (h, w):
+                from scipy.ndimage import zoom as _zoom
+                fm = _zoom(fm, (h / fm.shape[0], w / fm.shape[1]), order=1)
+                fm = _np.clip(fm, 0.0, 1.0)
+            light_w  = light_w  * fm
+            shadow_w = shadow_w * fm
+            halo_w   = halo_w   * fm
+
+        # ── 1. Honey-amber light push ─────────────────────────────────────────
+        r_out = _np.clip(r_f + light_w * honey_warmth * 0.85, 0.0, 1.0)
+        g_out = _np.clip(g_f + light_w * honey_warmth * 0.65, 0.0, 1.0)
+        b_out = _np.clip(b_f - light_w * honey_warmth * 0.20, 0.0, 1.0)
+
+        # ── 2. Lapis lazuli shadow push ───────────────────────────────────────
+        r_out = _np.clip(r_out - shadow_w * lapis_cool * 0.35, 0.0, 1.0)
+        g_out = _np.clip(g_out - shadow_w * lapis_cool * 0.10, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_w * lapis_cool * 1.00, 0.0, 1.0)
+
+        # ── 3. Golden halo zone ───────────────────────────────────────────────
+        r_out = _np.clip(r_out + halo_w * halo_gold * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + halo_w * halo_gold * 0.80, 0.0, 1.0)
+        # B unchanged in halo zone — keep highlights warm ivory, not white
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        light_count  = int((light_w  > 0.05).sum())
+        shadow_count = int((shadow_w > 0.05).sum())
+        halo_count   = int((halo_w   > 0.05).sum())
+        print(f"    Bellini sacred light pass complete  "
+              f"(light_px={light_count}  shadow_px={shadow_count}  halo_px={halo_count})")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 51 — random improvement: penumbra_zone_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def penumbra_zone_pass(
+        self,
+        figure_mask:      "Optional[_np.ndarray]" = None,
+        light_thresh:     float = 0.62,
+        shadow_thresh:    float = 0.35,
+        penumbra_warmth:  float = 0.08,
+        penumbra_chroma:  float = 0.06,
+        opacity:          float = 0.65,
+    ) -> None:
+        """
+        Enrich the penumbra zone — the transition between lit and shadow flesh.
+
+        The penumbra is the soft band of transitional tone between the directly lit
+        surface of a face and the shadowed side.  In life this zone has a subtle
+        but important warm-rosy quality: the blood vessels beneath the skin are
+        most visible in this transitional zone where the surface curves away from
+        the light, and where subsurface scattering is strongest.
+
+        Classical painters understood this empirically.  Rubens called it the
+        *"demitint"* (half-tone); his flesh glazes were warmest not in the full
+        light but in this transitional zone.  Rembrandt's penumbra passages carry
+        a warm amber-brown glow.  Titian's demi-tints are the most celebrated in
+        Western painting: a warm peach-sienna passage that makes his flesh appear
+        genuinely alive rather than painted.
+
+        This pass targets exactly this zone — the luminance band between
+        ``shadow_thresh`` and ``light_thresh`` — and applies a gentle warm blush
+        (slight R and G lift) plus a modest chroma boost (saturation increase in
+        the midtone) to make the transitional flesh more vivid and alive.
+
+        Strategies
+        ----------
+        1. **Penumbra weight** — The weight function is a tent shape: 0 at both
+           the light threshold and the shadow threshold, reaching maximum 1.0 at
+           the midpoint of the two.  This ensures the correction is strongest in
+           the true penumbra centre and fades smoothly to zero at both edges,
+           avoiding any hard step at either boundary.
+
+        2. **Warm blush** — A gentle R lift (``penumbra_warmth × 0.80``) and
+           G lift (``× 0.45``) with no B change pushes toward warm peach-rose
+           in the penumbra.  This reproduces the warm blood-flush visible in life
+           at the light-to-shadow transition of the cheeks and temples.
+
+        3. **Chroma boost** — The penumbra zone also receives a modest saturation
+           increase: the RGB values are pushed away from their luminance (toward
+           their chroma direction) by ``penumbra_chroma``.  This prevents the warm
+           blush from looking washed-out and gives the transitional zone the
+           vibrant living quality of Titian's demi-tints.
+
+        4. **Mask compositing** — When ``figure_mask`` is provided, corrections are
+           weighted by the mask, confining the blush to the figure and leaving the
+           background neutral.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array ``(H, W)`` in [0, 1].  1 = figure, 0 = background.
+        light_thresh : float
+            Upper luminance boundary of the penumbra zone.  Pixels above this
+            are in the full light and receive no blush.  0.62 matches the default
+            light zone threshold of chiaroscuro_modelling_pass().
+        shadow_thresh : float
+            Lower luminance boundary of the penumbra zone.  Pixels below this
+            are in deep shadow and receive no blush.  0.35 catches the upper
+            shadow fringe rather than the deep void.
+        penumbra_warmth : float
+            Magnitude of the warm blush R+G push in the penumbra zone.  0.08
+            is subtly visible — a warm flush, not a paint-bucket fill.
+        penumbra_chroma : float
+            Magnitude of the chroma (saturation) boost in the penumbra.  0.06
+            enriches the blush without over-saturating.
+        opacity : float
+            Global blend weight for the pass result over the original canvas.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` and ``chiaroscuro_modelling_pass()`` (if
+        used) so the warm/cool split is already established before the penumbra
+        enrichment is applied.  Pairs naturally with ``subsurface_glow_pass()``
+        (warm SSS in the light zone extends into the penumbra) and
+        ``reflected_light_pass()`` (the cool shadow bounce sets the dark boundary
+        of the zone this pass enriches).
+        """
+        import numpy as _np
+
+        print(f"  Penumbra zone pass  "
+              f"(light_thresh={light_thresh:.2f}  shadow_thresh={shadow_thresh:.2f}  "
+              f"penumbra_warmth={penumbra_warmth:.2f}  penumbra_chroma={penumbra_chroma:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Penumbra zone pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance (BT.709) ───────────────────────────────────────────────
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # ── Penumbra tent weight ──────────────────────────────────────────────
+        # Tent: peaks at the midpoint of [shadow_thresh, light_thresh], 0 outside.
+        mid = (light_thresh + shadow_thresh) * 0.5
+        half_width = max(1e-6, (light_thresh - shadow_thresh) * 0.5)
+        pen_w = _np.clip(1.0 - _np.abs(lum - mid) / half_width, 0.0, 1.0)
+
+        # ── Apply figure mask if provided ────────────────────────────────────
+        if figure_mask is not None:
+            fm = _np.asarray(figure_mask, dtype=_np.float32)
+            if fm.shape != (h, w):
+                from scipy.ndimage import zoom as _zoom
+                fm = _zoom(fm, (h / fm.shape[0], w / fm.shape[1]), order=1)
+                fm = _np.clip(fm, 0.0, 1.0)
+            pen_w = pen_w * fm
+
+        # ── 1. Warm blush push ────────────────────────────────────────────────
+        r_out = _np.clip(r_f + pen_w * penumbra_warmth * 0.80, 0.0, 1.0)
+        g_out = _np.clip(g_f + pen_w * penumbra_warmth * 0.45, 0.0, 1.0)
+        b_out = b_f.copy()   # B unchanged — a red-gold blush, not orange
+
+        # ── 2. Chroma boost in penumbra zone ──────────────────────────────────
+        # Push RGB away from their luminance toward their chroma direction.
+        # delta = (r, g, b) − lum → normalize, then push outward
+        lum3 = lum[:, :, _np.newaxis] if lum.ndim == 2 else lum
+        rgb  = _np.stack([r_out, g_out, b_out], axis=-1)   # (H, W, 3)
+        lum_s = lum[:, :, None]
+        delta = rgb - lum_s   # colour deviation from grey (H, W, 3)
+        chroma_push = pen_w[:, :, None] * penumbra_chroma
+        rgb_boosted = _np.clip(rgb + delta * chroma_push, 0.0, 1.0)
+        r_out, g_out, b_out = rgb_boosted[..., 0], rgb_boosted[..., 1], rgb_boosted[..., 2]
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        pen_count = int((pen_w > 0.05).sum())
+        print(f"    Penumbra zone pass complete  (penumbra_pixels={pen_count})")
+

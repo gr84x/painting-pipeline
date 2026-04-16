@@ -67,6 +67,7 @@ EXPECTED_ARTISTS = [
     "salvador_dali",
     "vilhelm_hammershoi",
     "john_constable",
+    "giovanni_bellini",
 ]
 
 
@@ -206,6 +207,7 @@ EXPECTED_PERIODS = [
     "PRE_RAPHAELITE",
     "QUATTROCENTO",
     "FRENCH_ROCOCO",
+    "EARLY_VENETIAN_RENAISSANCE",
 ]
 
 
@@ -5548,4 +5550,138 @@ def test_john_constable_in_expected_artists():
     """EXPECTED_ARTISTS list must include john_constable."""
     assert "john_constable" in EXPECTED_ARTISTS, (
         "john_constable missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Giovanni Bellini — session 51 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_giovanni_bellini_in_catalog():
+    """Bellini (session 51) must be present in CATALOG."""
+    assert "giovanni_bellini" in CATALOG
+
+
+def test_giovanni_bellini_movement():
+    """Bellini must be classified as Early Venetian Renaissance."""
+    s = get_style("giovanni_bellini")
+    assert "venetian" in s.movement.lower() or "renaissance" in s.movement.lower(), (
+        f"Bellini movement should reference Venetian Renaissance; got {s.movement!r}")
+
+
+def test_giovanni_bellini_italian():
+    """Bellini must be listed as Italian."""
+    s = get_style("giovanni_bellini")
+    assert s.nationality.lower() == "italian", (
+        f"Giovanni Bellini nationality should be 'Italian'; got {s.nationality!r}")
+
+
+def test_giovanni_bellini_palette_length():
+    """Bellini palette should have at least 6 key colours."""
+    s = get_style("giovanni_bellini")
+    assert len(s.palette) >= 6, (
+        f"Bellini palette should have ≥6 colours; got {len(s.palette)}")
+
+
+def test_giovanni_bellini_lapis_in_palette():
+    """Bellini's palette must include a blue swatch for the Virgin's lapis robe."""
+    s = get_style("giovanni_bellini")
+    has_blue = any(b > r + 0.12 and b > g for r, g, b in s.palette)
+    assert has_blue, (
+        "Bellini palette must include a lapis-blue swatch — lapis lazuli for the Virgin's robe")
+
+
+def test_giovanni_bellini_warm_ground():
+    """Bellini's imprimatura should be warm (R+G > B) — amber-ochre base."""
+    s = get_style("giovanni_bellini")
+    r, g, b = s.ground_color
+    assert (r + g) / 2.0 > b + 0.10, (
+        f"Bellini ground must be warm amber-ochre (R+G > B); got R={r:.2f} G={g:.2f} B={b:.2f}")
+
+
+def test_giovanni_bellini_glazing_warm():
+    """Bellini's glaze must be a warm honey-amber (R > B)."""
+    s = get_style("giovanni_bellini")
+    assert s.glazing is not None, "Bellini must have a glazing colour"
+    r, g, b = s.glazing
+    assert r > b + 0.20, (
+        f"Bellini glazing must be warm amber (R >> B); got R={r:.2f} B={b:.2f}")
+
+
+def test_giovanni_bellini_wet_blend_range():
+    """Bellini wet_blend should be in [0.40, 0.70] — thin glazes blend in halftones."""
+    s = get_style("giovanni_bellini")
+    assert 0.40 <= s.wet_blend <= 0.70, (
+        f"Bellini wet_blend={s.wet_blend:.2f} should be in [0.40, 0.70]")
+
+
+def test_giovanni_bellini_edge_softness_range():
+    """Bellini edge_softness should be in [0.40, 0.70] — soft but architecturally resolved."""
+    s = get_style("giovanni_bellini")
+    assert 0.40 <= s.edge_softness <= 0.70, (
+        f"Bellini edge_softness={s.edge_softness:.2f} should be in [0.40, 0.70] "
+        f"(soft but resolved — not sfumato)")
+
+
+def test_giovanni_bellini_famous_works_include_san_zaccaria():
+    """San Zaccaria Altarpiece (1505) must be in Bellini's famous works."""
+    s = get_style("giovanni_bellini")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("zaccaria" in t or "altarpiece" in t for t in titles), (
+        "Bellini famous works should include San Zaccaria Altarpiece — his greatest mature work")
+
+
+def test_giovanni_bellini_famous_works_count():
+    """Bellini should have at least 5 famous works documented."""
+    s = get_style("giovanni_bellini")
+    assert len(s.famous_works) >= 5, (
+        f"Giovanni Bellini should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_giovanni_bellini_inspiration_references_bellini_sacred_light_pass():
+    """Inspiration text must reference bellini_sacred_light_pass."""
+    s = get_style("giovanni_bellini")
+    assert "bellini_sacred_light" in s.inspiration.lower().replace(" ", "_"), (
+        "Bellini inspiration must reference bellini_sacred_light_pass() — "
+        "the defining sacred luminosity technique pass")
+
+
+def test_giovanni_bellini_in_expected_artists():
+    """EXPECTED_ARTISTS list must include giovanni_bellini."""
+    assert "giovanni_bellini" in EXPECTED_ARTISTS, (
+        "giovanni_bellini missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EARLY_VENETIAN_RENAISSANCE period — session 51 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_early_venetian_renaissance_period_present():
+    """Period.EARLY_VENETIAN_RENAISSANCE must exist (session 51)."""
+    assert hasattr(Period, "EARLY_VENETIAN_RENAISSANCE"), (
+        "Period.EARLY_VENETIAN_RENAISSANCE not found — add it to scene_schema.py")
+    assert Period.EARLY_VENETIAN_RENAISSANCE in list(Period)
+
+
+def test_early_venetian_renaissance_stroke_params_valid():
+    """EARLY_VENETIAN_RENAISSANCE stroke_params must return valid defaults."""
+    style = Style(
+        medium=Medium.OIL,
+        period=Period.EARLY_VENETIAN_RENAISSANCE,
+        palette=PaletteHint.WARM_EARTH,
+    )
+    params = style.stroke_params
+    assert "stroke_size_face" in params
+    assert "stroke_size_bg"   in params
+    assert "wet_blend"        in params
+    assert "edge_softness"    in params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"]   > 0
+    assert 0.0 <= params["wet_blend"]     <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+
+
+def test_early_venetian_renaissance_in_expected_periods():
+    """EXPECTED_PERIODS list must include EARLY_VENETIAN_RENAISSANCE."""
+    assert "EARLY_VENETIAN_RENAISSANCE" in EXPECTED_PERIODS, (
+        "EARLY_VENETIAN_RENAISSANCE missing from EXPECTED_PERIODS — add it to the list")
 

@@ -194,6 +194,7 @@ class Period(Enum):
     SURREALIST    = auto()   # Kahlo — flat folk-art zones, intense saturated palette, dark contour outlines
     ABSTRACT_EXPRESSIONIST = auto()  # Kandinsky — geometric resonance, synesthetic colour theory, floating primitives
     VENETIAN_RENAISSANCE = auto()  # Titian — rich colourism, warm glazing, gestural impasto, luminous depth
+    EARLY_VENETIAN_RENAISSANCE = auto()  # Bellini — crystalline sacred light, honey-amber glazing, serene divine luminosity
     FAUVIST       = auto()   # Matisse — maximum saturation, flat zones, complementary shadows, coloured outlines
     PRIMITIVIST   = auto()   # Modigliani — oval mask faces, almond eyes, elongated necks, warm ochre flesh
     EARLY_NETHERLANDISH = auto()  # Jan van Eyck — stacked transparent oil glazes, chalk-white gesso, Flemish micro-detail
@@ -489,6 +490,21 @@ class Style:
             # Moderate-high edge_softness: edges soften through glazing, but Titian
             # is firmer than Leonardo's pure sfumato — forms are readable.
             Period.VENETIAN_RENAISSANCE: dict(stroke_size_face=12, stroke_size_bg=30, wet_blend=0.72, edge_softness=0.62),
+            # Early Venetian Renaissance (Bellini): the first great Venetian master worked in thin,
+            # precise oil glazes on a warm amber imprimatura — a technique he adopted from Antonello
+            # da Messina (who brought Flemish oil technique to Venice).  Forms are built with deliberate
+            # patient layering rather than broad wet-on-wet passages.
+            # stroke_size_face=5: fine, considered marks — Bellini's faces are constructed with careful,
+            # overlapping semi-transparent oil touches, building tonal richness through accumulated depth.
+            # stroke_size_bg=22: moderate — his altarpiece backgrounds (architectural niches, sky, distant
+            # landscape) are carefully observed but not Flemish-level micro-detail.
+            # wet_blend=0.55: moderate-high — thin oil glazing permits significant wet blending in flesh
+            # halftones, particularly in the soft transitions around the eyes and mouth that give his
+            # Madonnas their characteristic serenity.
+            # edge_softness=0.55: moderate — Bellini's edges are softer than the Northern Renaissance
+            # (Dürer) but firmer than Leonardo's sfumato; forms are clearly resolved and architecturally
+            # sound, with a gentle atmospheric softening at peripheral edges.
+            Period.EARLY_VENETIAN_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.55),
             # Fauvist (Matisse): bold flat colour zones, zero modelling, maximum
             # saturation.  stroke_size_face is the loaded-brush zone fill width —
             # medium (colours are placed in decisive broad patches).  stroke_size_bg
