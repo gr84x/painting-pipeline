@@ -11785,3 +11785,211 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
 
         print(f"    Rubens flesh-vitality pass complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Poussin classical-clarity pass — Nicolas Poussin / French Classicism
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def poussin_classical_clarity_pass(
+            self,
+            shadow_cool:      float = 0.12,
+            midtone_lift:     float = 0.06,
+            saturation_cap:   float = 0.72,
+            highlight_ivory:  float = 0.05,
+            shadow_thresh:    float = 0.32,
+            highlight_thresh: float = 0.72,
+            midtone_lo:       float = 0.32,
+            midtone_hi:       float = 0.68,
+            opacity:          float = 0.80,
+    ):
+        """
+        Poussin classical-clarity pass — inspired by Nicolas Poussin (1594–1665).
+
+        Nicolas Poussin built his paintings on deliberate chromatic principles
+        that distinguished his work from the warm Baroque tradition around him.
+        While Rubens, Rembrandt, and Caravaggio all used warm, earthy shadows,
+        Poussin's shadow areas carry a silvery blue-grey quality derived from
+        his close study of classical marble sculpture in Rome.  This pass
+        approximates three of his defining technical signatures:
+
+        1. **Cool, silver-grey shadows** — Poussin's shadows read as though cast
+           from marble rather than lit by warm transmitted firelight.  Here we
+           apply a cool blue-grey push to the darkest luminance zone (boost B,
+           damp R), whose strength ramps from maximum at lum=0 down to zero at
+           ``shadow_thresh``.  The result is the characteristic silvery depth
+           that separates Poussin from every warm-Baroque painter of his era.
+
+        2. **Mid-tone clarification — opening the tonal structure** — Poussin
+           organised his compositions into clear, readable tonal triads (lights,
+           mid-tones, darks) with crisp transitions between them.  His mid-tones
+           are deliberately lifted away from the shadow zone, giving the painting
+           an architectural clarity — every zone is legible from across a room.
+           A sine ramp peaks at the centre of the mid-tone band
+           (``midtone_lo``..``midtone_hi``) and proportionally lifts all three
+           channels (preserving hue while opening value).
+
+        3. **Cool ivory highlights** — His highest lights have a subtle blue-ivory
+           quality, influenced by the cool reflected light of marble and plaster
+           casts, rather than the warm lead-white cream of Rubens or the pure
+           cadmium white of Academic painting.  A linear ramp applies a slight
+           B boost and mild R damp above ``highlight_thresh``.
+
+        4. **Saturation discipline** — Poussin's palette is radiant but never
+           garish.  No single colour dominates; every hue is placed in a tonal
+           context that gives it value without allowing it to overwhelm the whole.
+           This step caps HSV saturation at ``saturation_cap`` for any pixel
+           whose saturation exceeds that value, reducing chroma toward achromatic
+           while preserving hue and value.
+
+        All four adjustments are blended back at ``opacity`` so the original
+        canvas reading is preserved beneath the chromatic correction.
+
+        Parameters
+        ----------
+        shadow_cool      : strength of the blue-grey cool push in deep shadows
+        midtone_lift     : fractional luminance lift at the centre of the
+                          mid-tone band (0 = no lift, 0.10 = 10% value gain)
+        saturation_cap   : maximum HSV saturation allowed after the pass
+                          (1.0 = no capping; 0.70 = cap vivid pixels to 70%)
+        highlight_ivory  : strength of the cool ivory push at highlight peaks
+        shadow_thresh    : luminance below which the shadow-cool push is applied
+        highlight_thresh : luminance above which the highlight-ivory push begins
+        midtone_lo       : lower luminance bound of the mid-tone clarification
+        midtone_hi       : upper luminance bound of the mid-tone clarification
+        opacity          : global blend weight of the entire adjustment layer
+                          (0 = noop, 1 = full replacement)
+
+        Notes
+        -----
+        Call this AFTER the main style passes and BEFORE the final glaze/finish.
+        Particularly effective after block_in() and build_form() on a painting
+        that reads as too warm or too Baroque — it corrects the tonal register
+        toward Poussin's architectural classical clarity without removing the
+        underlying paint structure.
+
+        Famous works to study:
+          *Et in Arcadia Ego* (c. 1637–1638, Louvre) — definitive azure/vermilion
+          triad, cool marble-grey shadows, crystalline Arcadian light.
+          *The Holy Family on the Steps* (1648, Cleveland) — exemplary mid-tone
+          clarification: light, mid-tone, and shadow read as three distinct zones.
+          *A Dance to the Music of Time* (c. 1634–36, Wallace Collection) — the
+          cool silver-blue of the sky flows into the shadow sides of the figures.
+        """
+        import numpy as _np
+
+        print(f"  Poussin classical-clarity pass  "
+              f"(shadow_cool={shadow_cool:.2f}  midtone_lift={midtone_lift:.2f}  "
+              f"sat_cap={saturation_cap:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Poussin classical-clarity pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance ────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Cool silver-grey push in deep shadows ─────────────────────────
+        # Ramp from full at lum=0 down to zero at shadow_thresh.
+        # Cool push: boost B, damp R — marble-shadow quality.
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(sh_mask,
+                            _np.clip((shadow_thresh - lum)
+                                     / (shadow_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out - shadow_cool * 0.50 * sh_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out + shadow_cool * 0.60 * sh_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 2. Mid-tone clarification — open the tonal structure ─────────────
+        # A sine ramp peaks at the centre of the mid-tone band.
+        # Lift all channels proportionally (preserves hue; opens value).
+        mt_range = max(midtone_hi - midtone_lo, 1e-6)
+        mt_t     = _np.clip((lum - midtone_lo) / mt_range, 0.0, 1.0)
+        mt_scale = _np.sin(_np.pi * mt_t)   # 0 at band edges, 1 at centre
+        mt_mask  = (lum >= midtone_lo) & (lum <= midtone_hi)
+
+        lift = 1.0 + midtone_lift * mt_scale
+        r_out = _np.where(mt_mask, _np.clip(r_out * lift, 0.0, 1.0), r_out)
+        g_out = _np.where(mt_mask, _np.clip(g_out * lift, 0.0, 1.0), g_out)
+        b_out = _np.where(mt_mask, _np.clip(b_out * lift, 0.0, 1.0), b_out)
+
+        # ── 3. Cool ivory push at highlight peaks ────────────────────────────
+        # Linear ramp from zero at highlight_thresh to full at lum=1.0.
+        # Cool ivory: slight B boost, minor R damp (marble-reflected-light quality).
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(hi_mask,
+                            _np.clip((lum - highlight_thresh)
+                                     / (1.0 - highlight_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out - highlight_ivory * 0.40 * hi_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(hi_mask,
+                          _np.clip(b_out + highlight_ivory * 0.35 * hi_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 4. Saturation discipline — cap over-vivid pixels ─────────────────
+        # Vectorised HSV saturation capping.
+        # For each pixel: sat = (max_c - min_c) / max_c.
+        # If sat > saturation_cap, scale the non-max channels toward max_c
+        # (reduce chroma without changing value or hue).
+        max_c  = _np.maximum(_np.maximum(r_out, g_out), b_out)   # value
+        min_c  = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma = max_c - min_c
+
+        sat  = _np.where(max_c > 1e-6, chroma / max_c, 0.0)
+        over = sat > saturation_cap
+
+        # Scale factor: new_chroma = max_c * saturation_cap → scale = new/old
+        # Use safe_chroma to avoid a div-by-zero runtime warning from numpy's
+        # vectorised evaluation (np.where evaluates both branches before selecting).
+        new_chroma  = max_c * saturation_cap
+        safe_chroma = _np.where(chroma > 1e-6, chroma, 1.0)
+        scale = _np.where(over & (chroma > 1e-6), new_chroma / safe_chroma, 1.0)
+
+        # Each channel: new_ch = max_c - (max_c - old_ch) * scale
+        r_out = _np.where(over, _np.clip(max_c - (max_c - r_out) * scale, 0.0, 1.0), r_out)
+        g_out = _np.where(over, _np.clip(max_c - (max_c - g_out) * scale, 0.0, 1.0), g_out)
+        b_out = _np.where(over, _np.clip(max_c - (max_c - b_out) * scale, 0.0, 1.0), b_out)
+
+        # ── Blend adjusted layer back at `opacity` ───────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_shadow    = int(sh_mask.sum())
+        n_midtone   = int(mt_mask.sum())
+        n_highlight = int(hi_mask.sum())
+        n_over_sat  = int(over.sum())
+        print(f"    Poussin classical-clarity pass complete  "
+              f"(shadow={n_shadow}px  midtone={n_midtone}px  "
+              f"highlight={n_highlight}px  sat-capped={n_over_sat}px)")

@@ -55,6 +55,9 @@ EXPECTED_ARTISTS = [
     "vuillard",
     "gustave_moreau",
     "zurbaran",
+    "albrecht_durer",
+    "peter_paul_rubens",
+    "nicolas_poussin",
 ]
 
 
@@ -4031,4 +4034,118 @@ def test_rubens_ground_similar_warmth_to_van_dyck():
         f"peter_paul_rubens ground must be warm (R={r_rb:.3f} > B={b_rb:.3f})")
     assert r_vd > b_vd, (
         f"anthony_van_dyck ground must be warm (R={r_vd:.3f} > B={b_vd:.3f})")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Nicolas Poussin — catalog tests
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_nicolas_poussin_in_catalog():
+    """nicolas_poussin must be present in CATALOG."""
+    assert "nicolas_poussin" in CATALOG, (
+        "nicolas_poussin not found in CATALOG — add the ArtStyle entry")
+
+
+def test_nicolas_poussin_palette_valid():
+    """Every colour in nicolas_poussin palette must have RGB channels in [0, 1]."""
+    s = get_style("nicolas_poussin")
+    for i, rgb in enumerate(s.palette):
+        for j, v in enumerate(rgb):
+            assert 0.0 <= v <= 1.0, (
+                f"nicolas_poussin palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_nicolas_poussin_cool_glazing():
+    """
+    nicolas_poussin glazing must be cool or near-neutral (B >= R) — silver, not warm amber.
+    Poussin's unifying glaze is cool-silvery, the opposite of the warm amber of Rubens/Rembrandt.
+    """
+    s = get_style("nicolas_poussin")
+    assert s.glazing is not None, (
+        "nicolas_poussin glazing should not be None — cool silver-neutral glaze")
+    r, g, b = s.glazing
+    assert b >= r, (
+        f"nicolas_poussin glazing B={b:.3f} should be >= R={r:.3f} "
+        "(cool-silver unifying glaze, NOT warm amber like Rubens/Rembrandt)")
+
+
+def test_nicolas_poussin_moderate_wet_blend():
+    """
+    nicolas_poussin wet_blend should be in [0.25, 0.55] — deliberate layering,
+    neither sfumato (>0.85) nor completely dry (< 0.15).
+    """
+    s = get_style("nicolas_poussin")
+    assert 0.25 <= s.wet_blend <= 0.55, (
+        f"nicolas_poussin wet_blend={s.wet_blend:.2f} should be in [0.25, 0.55] "
+        "(Poussin layered deliberately — moderate blending, not wet-on-wet alla prima)")
+
+
+def test_nicolas_poussin_clear_edges():
+    """
+    nicolas_poussin edge_softness should be in [0.30, 0.55] — classical clarity,
+    neither sfumato haze (>0.85) nor razor-sharp Tenebrist (< 0.20).
+    """
+    s = get_style("nicolas_poussin")
+    assert 0.30 <= s.edge_softness <= 0.55, (
+        f"nicolas_poussin edge_softness={s.edge_softness:.2f} should be in [0.30, 0.55] "
+        "(classical edges read as rational sculpture — present but not sfumato)")
+
+
+def test_nicolas_poussin_crackle():
+    """nicolas_poussin crackle should be True — old master oil on canvas/panel."""
+    s = get_style("nicolas_poussin")
+    assert s.crackle is True, (
+        "nicolas_poussin crackle should be True (aged 17th-century oil on canvas)")
+
+
+def test_nicolas_poussin_no_chromatic_split():
+    """nicolas_poussin chromatic_split should be False — no Pointillist technique."""
+    s = get_style("nicolas_poussin")
+    assert s.chromatic_split is False, (
+        "nicolas_poussin chromatic_split should be False (no Seurat/divisionist dots)")
+
+
+def test_nicolas_poussin_famous_works():
+    """nicolas_poussin should have >= 4 famous works including Et in Arcadia Ego."""
+    s = get_style("nicolas_poussin")
+    assert len(s.famous_works) >= 4, (
+        f"nicolas_poussin should have >= 4 famous works; got {len(s.famous_works)}")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Arcadia" in t for t in titles), (
+        "nicolas_poussin famous_works must include 'Et in Arcadia Ego' "
+        "— his most celebrated and philosophically resonant masterpiece")
+
+
+def test_nicolas_poussin_palette_has_azure():
+    """nicolas_poussin palette must contain at least one blue-dominant colour (the Poussin azure)."""
+    s = get_style("nicolas_poussin")
+
+    def _is_azure(rgb):
+        r, g, b = rgb
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        return b > r * 1.40 and b > 0.35 and lum > 0.20
+
+    assert any(_is_azure(rgb) for rgb in s.palette), (
+        "nicolas_poussin palette must contain at least one azure blue colour "
+        "(his signature garment hue — ultramarine or smalt blue)")
+
+
+def test_nicolas_poussin_cooler_glaze_than_rubens():
+    """
+    nicolas_poussin glaze must be cooler (higher B/R ratio) than peter_paul_rubens glaze.
+    This encodes the fundamental chromatic distinction between French Classicism and Flemish Baroque.
+    """
+    s_poussin = get_style("nicolas_poussin")
+    s_rubens  = get_style("peter_paul_rubens")
+
+    r_p, _, b_p = s_poussin.glazing
+    r_r, _, b_r = s_rubens.glazing
+
+    ratio_poussin = b_p / (r_p + 1e-6)
+    ratio_rubens  = b_r / (r_r + 1e-6)
+
+    assert ratio_poussin > ratio_rubens, (
+        f"nicolas_poussin glaze B/R ratio ({ratio_poussin:.3f}) should exceed "
+        f"peter_paul_rubens ratio ({ratio_rubens:.3f}) — "
+        "Poussin's glaze is cool-silvery; Rubens' is warm amber")
 
