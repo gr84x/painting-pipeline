@@ -3512,6 +3512,87 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Winslow Homer ─────────────────────────────────────────────────────────
+    # Homer was America's greatest marine and genre painter, self-taught in
+    # Gloucester watercolour technique before translating the same chromatic
+    # transparency to large-scale oil.  His mature work (1880–1910, Prouts Neck,
+    # Maine) is characterised by:
+    #   • Brilliant upper-left maritime light striking a lit foreground plane
+    #   • Deep, transparent cool-blue shadows (Atlantic ocean / overcast sky)
+    #   • High tonal contrast — he separated light from shadow decisively,
+    #     with almost no halftone zone between them (influenced by Japanese prints)
+    #   • A "wet-paper" watercolour quality even in oil: thin translucent paint
+    #     over a white gessoed ground so the support glows through the pigment
+    #   • Confident, unretouched brushwork — once placed, a stroke was not corrected
+    #   • Horizontal compositional banding: sea / horizon / sky in thirds
+    # homer_marine_clarity_pass() approximates these qualities.
+    "winslow_homer": ArtStyle(
+        artist="Winslow Homer",
+        movement="American Realism / Marine Painting",
+        nationality="American",
+        period="1865–1910",
+        palette=[
+            (0.95, 0.92, 0.85),   # brilliant maritime white — sunlit foam / sail
+            (0.82, 0.75, 0.58),   # warm ochre — weathered wood, rope, flesh
+            (0.68, 0.58, 0.40),   # raw sienna — mid-tone flesh / hull timber
+            (0.38, 0.28, 0.18),   # warm umber deep shadow — under decks, coat
+            (0.26, 0.40, 0.58),   # slate-blue ocean shadow — Atlantic cold water
+            (0.44, 0.58, 0.72),   # mid-ocean blue — lit wave surface
+            (0.65, 0.75, 0.82),   # pale Atlantic sky — overcast silver-blue
+            (0.18, 0.28, 0.42),   # deep Prussian storm sea — dark wave trough
+            (0.72, 0.64, 0.52),   # warm sand / beach ochre
+        ],
+        ground_color=(0.96, 0.95, 0.93),    # near-white gessoed panel or paper —
+                                             # Homer's most important tonal decision;
+                                             # the white ground glows through every
+                                             # transparent layer, giving his shadows
+                                             # their luminous quality despite being dark
+        stroke_size=9,
+        wet_blend=0.30,                      # moderate — Homer placed strokes
+                                             # decisively and rarely blended; wet-into-wet
+                                             # in the sky and sea, dry-over-dry in detail
+        edge_softness=0.35,                  # moderate — marine edges are present
+                                             # (horizon is crisp), but atmospheric
+                                             # perspective softens far distance;
+                                             # figures have clear silhouette edges
+        jitter=0.030,
+        glazing=(0.44, 0.58, 0.72),          # cool Atlantic blue-grey unifying glaze —
+                                             # binds sky, sea, and shadow into a
+                                             # coherent cool atmosphere; opposite of
+                                             # Leonardo's warm amber — this is cold salt air
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Transparent oil and watercolour over near-white gessoed panel or paper.  "
+            "Brilliant maritime light from upper-left illuminates foreground figures "
+            "and breaking wave crests in warm ochre-white.  Deep shadows are cool "
+            "slate-blue and Prussian (the Atlantic in shadow is cold and deep).  "
+            "High tonal contrast with minimal halftone — Homer learned from Japanese "
+            "woodblock prints to separate light from dark decisively.  Confident, "
+            "unretouched brushwork: each stroke placed once and left.  Thin paint "
+            "over white ground glows with internal luminosity even in dark passages."
+        ),
+        famous_works=[
+            ("The Life Line",                       "1884"),
+            ("Fog Warning (Halibut Fishing)",        "1885"),
+            ("Eight Bells",                         "1886"),
+            ("Breezing Up (A Fair Wind)",            "1876"),
+            ("The Blue Boat",                       "1892"),
+            ("Sloop, Nassau",                       "1899"),
+            ("Kissing the Moon",                    "1904"),
+            ("The Winslow Homer Sponge Fishing",    "1885"),
+        ],
+        inspiration=(
+            "Use homer_marine_clarity_pass() for the hallmark maritime tonal clarity: "
+            "cool Prussian-blue shadows, brilliant near-white maritime highlights, "
+            "and the transparent-wash luminosity of thin paint over white ground.  "
+            "Near-white ground_color (0.96, 0.95, 0.93).  Moderate wet_blend (0.30) "
+            "and edge_softness (0.35) — decisive, unretouched strokes with clear "
+            "silhouette edges.  Cool blue-grey glaze (0.44, 0.58, 0.72) unifies the "
+            "composition in Atlantic salt-air atmosphere."
+        ),
+    ),
+
 }
 
 

@@ -221,6 +221,7 @@ class Period(Enum):
     QUATTROCENTO  = auto()           # Fra Angelico — chalk-white gesso, tempera hatching, pure lapis/vermilion, gold-leaf halos
     FRENCH_CLASSICAL = auto()        # Poussin — cool architectural clarity, silver shadows, rational colour zones, saturation discipline
     ROCOCO_PORTRAIT = auto()         # Gainsborough — feathery edge dissolution, cool silver-blue tonality, figure embedded in landscape
+    AMERICAN_MARINE = auto()         # Homer — brilliant maritime light, cool Prussian shadows, transparent wash over white ground, decisive unretouched strokes
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -712,6 +713,15 @@ class Style:
             # edge_softness=0.68: high — Gainsborough's figures dissolve into their backgrounds;
             # the edge of a shoulder or powdered wig merges with the sky in a cool atmospheric haze.
             Period.ROCOCO_PORTRAIT: dict(stroke_size_face=8,  stroke_size_bg=28, wet_blend=0.55, edge_softness=0.68),
+            # American Marine (Homer): near-white gessoed ground with decisive confident
+            # strokes.  stroke_size_face=9: medium marks — Homer's brushwork was
+            # assured and moderately broad, not fussy Flemish micro-detail.
+            # stroke_size_bg=26: broad sweeping passes for sea and sky (horizontal thirds).
+            # wet_blend=0.30: moderate — strokes are placed and left; limited wet-into-wet
+            # in the sea surface, more separate in the sky and foreground figures.
+            # edge_softness=0.35: present, decisive edges — marine silhouettes and
+            # the horizon line are crisp; only far atmospheric distance softens.
+            Period.AMERICAN_MARINE: dict(stroke_size_face=9, stroke_size_bg=26, wet_blend=0.30, edge_softness=0.35),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

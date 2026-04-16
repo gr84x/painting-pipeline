@@ -12227,3 +12227,337 @@ class Painter:
         print(f"    Gainsborough feathery pass complete  "
               f"(highlight={n_highlight}px  midtone={n_midtone}px  "
               f"shadow={n_shadow}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # homer_marine_clarity_pass — Winslow Homer American Realism / Marine
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def homer_marine_clarity_pass(
+        self,
+        *,
+        highlight_lift: float = 0.12,
+        shadow_cool: float = 0.10,
+        contrast_strength: float = 0.08,
+        wash_luminosity: float = 0.06,
+        highlight_thresh: float = 0.72,
+        shadow_thresh: float = 0.35,
+        opacity: float = 0.72,
+    ) -> None:
+        """
+        Winslow Homer marine clarity pass (session 41 artist pass).
+
+        Homer's Atlantic seascapes and genre paintings are defined by four
+        qualities that this pass approximates:
+
+        1. **Brilliant maritime highlight lift** — Near-white light striking
+           wave crests, sails, and lit figure tops is pushed higher and
+           slightly warmer (warm ivory, not the cool silver of Gainsborough).
+           R and G channels lift proportionally in the brightest zone, giving
+           the sensation of glittering Atlantic noon-sun.
+
+        2. **Cool Prussian shadow** — Shadow zones receive a strong B boost
+           and R damp, pushing them toward the deep slate-blue of the North
+           Atlantic in overcast weather.  Homer's shadows are cold and deep —
+           the opposite of Rembrandt's warm amber shadow glow.
+
+        3. **Tonal contrast push** — Homer separated light from dark decisively
+           (inspired by Japanese woodblock prints).  A gentle S-curve is applied
+           to the luminance channel: values above the midpoint are lifted, values
+           below are pushed down, increasing the tonal spread without clipping.
+
+        4. **Transparent wash luminosity** — In the light and midtone zones,
+           the paint is treated as though it were thin watercolour over a white
+           ground: saturation is very slightly reduced (transparent pigment reads
+           less saturated than opaque body colour) and luminance is lifted subtly
+           to simulate the ground glowing through the pigment film.
+
+        All four adjustments composite back at ``opacity`` over the original
+        canvas, preserving the underlying painterly layer beneath.
+
+        Parameters
+        ----------
+        highlight_lift     : strength of the warm ivory push in highlights
+        shadow_cool        : strength of the cool Prussian push in shadows
+        contrast_strength  : amplitude of the tonal S-curve contrast boost
+        wash_luminosity    : luminance lift in the midtone / light zones
+        highlight_thresh   : luminance above which the highlight lift begins
+        shadow_thresh      : luminance below which the cool shadow push begins
+        opacity            : global blend weight of the entire adjustment
+                             (0 = noop, 1 = full replacement)
+
+        Notes
+        -----
+        Call this AFTER the main style passes and BEFORE the final glaze/finish.
+        Most effective on paintings with a near-white ground where the white
+        support is already contributing luminosity through thin paint layers.
+
+        Famous works to study:
+          *Breezing Up (A Fair Wind)* (1876, National Gallery of Art) — his
+          most beloved oil; the warm ivory of the sails against the cool
+          blue-green sea is the definitive Homer warm-cool contrast.
+          *The Life Line* (1884, Philadelphia Museum of Art) — the orange
+          rescue line against stormy blue-grey sea; tonal clarity at its peak.
+          *Fog Warning* (1885, MFA Boston) — a lone fisherman in a dory,
+          fog-grey distance, the sea almost black in the near-field troughs.
+        """
+        import numpy as _np
+
+        print(f"  Homer marine clarity pass  "
+              f"(highlight_lift={highlight_lift:.2f}  shadow_cool={shadow_cool:.2f}  "
+              f"contrast={contrast_strength:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Homer marine clarity pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Brilliant maritime highlight lift ──────────────────────────────
+        # Linear ramp from zero at highlight_thresh to full at lum=1.0.
+        # Warm ivory push: lift R and G (warm white), slightly boost B less —
+        # maritime noon light is warm, not the cool silver of northern European sky.
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(hi_mask,
+                            _np.clip((lum - highlight_thresh)
+                                     / (1.0 - highlight_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out + highlight_lift * 0.55 * hi_ramp, 0.0, 1.0),
+                          r_out)
+        g_out = _np.where(hi_mask,
+                          _np.clip(g_out + highlight_lift * 0.40 * hi_ramp, 0.0, 1.0),
+                          g_out)
+        b_out = _np.where(hi_mask,
+                          _np.clip(b_out + highlight_lift * 0.15 * hi_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 2. Cool Prussian shadow push ──────────────────────────────────────
+        # Ramp from full at lum=0 down to zero at shadow_thresh.
+        # Atlantic cold: strong B boost, damp R — the opposite of warm Baroque shadow.
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(sh_mask,
+                            _np.clip((shadow_thresh - lum)
+                                     / (shadow_thresh + 1e-6), 0.0, 1.0),
+                            0.0)
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out - shadow_cool * 0.55 * sh_ramp, 0.0, 1.0),
+                          r_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out + shadow_cool * 0.65 * sh_ramp, 0.0, 1.0),
+                          b_out)
+
+        # ── 3. Tonal contrast S-curve ─────────────────────────────────────────
+        # Simple cubic S-curve centred at 0.5:
+        #   lum_new = lum + contrast_strength * sin(pi * lum) * (lum - 0.5)
+        # Pixels above 0.5 lift; pixels below 0.5 drop.
+        # Applied to all channels proportionally (preserves hue).
+        s_curve = contrast_strength * _np.sin(_np.pi * lum) * (lum - 0.5)
+        r_out = _np.clip(r_out + s_curve, 0.0, 1.0)
+        g_out = _np.clip(g_out + s_curve, 0.0, 1.0)
+        b_out = _np.clip(b_out + s_curve, 0.0, 1.0)
+
+        # ── 4. Transparent wash luminosity in midtones / lights ───────────────
+        # For pixels above shadow_thresh (mid-to-bright zone), apply a small
+        # luminance lift simulating thin transparent pigment over a white ground.
+        # The lift is proportional to distance from shadow_thresh — darkest
+        # midtones get the least lift; highlights already lifted in step 1.
+        wash_zone = lum >= shadow_thresh
+        wash_ramp = _np.where(wash_zone,
+                              _np.clip((lum - shadow_thresh)
+                                       / (1.0 - shadow_thresh + 1e-6) * 0.60,
+                                       0.0, 1.0),
+                              0.0)
+        lift = wash_luminosity * wash_ramp
+        r_out = _np.clip(r_out + lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + lift, 0.0, 1.0)
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_highlight = int(hi_mask.sum())
+        n_shadow    = int(sh_mask.sum())
+        print(f"    Homer marine clarity pass complete  "
+              f"(highlight={n_highlight}px  shadow={n_shadow}px)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # wet_on_wet_bleeding_pass — session 41 random improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def wet_on_wet_bleeding_pass(
+        self,
+        *,
+        bleed_radius: float = 2.5,
+        bleed_strength: float = 0.18,
+        edge_sensitivity: float = 0.55,
+        opacity: float = 0.65,
+    ) -> None:
+        """
+        Wet-on-wet paint bleeding pass (session 41 random improvement).
+
+        When oil paint is applied to a still-wet canvas, pigment migrates
+        across colour boundaries — colours from adjacent zones partially
+        invade each other, softening the boundary into a transitional blended
+        strip while leaving the interior of each colour zone intact.  This is
+        fundamentally different from the global blur of sfumato_veil_pass:
+        bleeding is *localised to detected colour boundaries* and only mixes
+        the colours that are physically adjacent.
+
+        Algorithm
+        ---------
+        1. **Edge detection** — Sobel gradient magnitude on the luminance
+           channel identifies zones of high colour change (boundary pixels).
+        2. **Neighbourhood blend** — At each boundary pixel, the colour is
+           replaced with a Gaussian-blurred version (radius = bleed_radius),
+           simulating pigment spreading outward from the loaded brush.
+        3. **Selective composition** — The blended result is composited back
+           only in proportion to the local edge strength × bleed_strength,
+           so the interior of each colour zone is untouched — only the
+           boundary zone softens.
+        4. **Final opacity** — The entire layer is blended at ``opacity``
+           over the original so the effect is subtle and controllable.
+
+        The result gives the canvas a "freshly painted, still-wet" quality:
+        edges that were previously hard become softly transitional, as though
+        a master's palette-knife has just laid adjacent colours wet-to-wet
+        and the pigments are beginning to move into each other.
+
+        Parameters
+        ----------
+        bleed_radius      : Gaussian sigma (pixels) for the cross-boundary spread
+        bleed_strength    : how strongly the blurred colour replaces the
+                            sharp edge colour (0 = no bleed, 1 = full replace)
+        edge_sensitivity  : normalised threshold controlling which gradient
+                            magnitudes register as boundaries (0.0 = very
+                            sensitive / all edges bleed; 1.0 = only strongest
+                            edges bleed)
+        opacity           : global blend weight of the entire pass
+                            (0 = noop, 1 = full replacement of original)
+
+        Notes
+        -----
+        Best applied AFTER the main form-building passes (block_in, build_form)
+        and BEFORE the final highlights (place_lights) — it softens the mid-
+        range boundary edges without removing the fine highlight details added
+        later.  Use low opacity (0.4–0.7) for a subtle living-paint quality;
+        high opacity (0.9+) produces an overly blended academic-school effect.
+
+        References
+        ----------
+        Observable in: Rubens alla-prima passages, Sargent's wet-paper
+        watercolours, Zorn's fluid oil portraits — all artists who prized the
+        chromatic liveliness of paint that had not yet dried.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gauss, convolve as _conv
+
+        print(f"  Wet-on-wet bleeding pass  "
+              f"(bleed_radius={bleed_radius:.1f}  strength={bleed_strength:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Wet-on-wet bleeding pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance for edge detection ──────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── Sobel edge magnitude ──────────────────────────────────────────────
+        sobel_x = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+                             dtype=_np.float32)
+        sobel_y = _np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
+                             dtype=_np.float32)
+        gx = _conv(lum, sobel_x, mode='reflect')
+        gy = _conv(lum, sobel_y, mode='reflect')
+        edge_mag = _np.sqrt(gx * gx + gy * gy)
+
+        # Normalise to [0, 1]
+        edge_max = edge_mag.max()
+        if edge_max > 1e-6:
+            edge_mag = edge_mag / edge_max
+        else:
+            # Flat canvas — nothing to bleed
+            print(f"    Wet-on-wet bleeding pass complete (flat canvas — no edges detected)")
+            return
+
+        # Apply edge sensitivity threshold: only edges above the threshold
+        # contribute; ramp from threshold to 1.0 for smooth roll-off.
+        edge_weight = _np.clip(
+            (edge_mag - (1.0 - edge_sensitivity)) / (edge_sensitivity + 1e-6),
+            0.0, 1.0)
+
+        # ── Gaussian-blurred versions of each channel ─────────────────────────
+        # This is the "bled" colour — what adjacent pigments look like after
+        # migrating across the boundary into the current pixel's zone.
+        r_bleed = _gauss(r_f, sigma=bleed_radius, mode='reflect')
+        g_bleed = _gauss(g_f, sigma=bleed_radius, mode='reflect')
+        b_bleed = _gauss(b_f, sigma=bleed_radius, mode='reflect')
+
+        # ── Selective blending at boundary zones ──────────────────────────────
+        # w_bleed: how much of the blurred colour replaces the original,
+        #          scaled by edge_weight and bleed_strength.
+        w_bleed = _np.clip(edge_weight * bleed_strength, 0.0, 1.0)
+
+        r_out = r_f * (1.0 - w_bleed) + r_bleed * w_bleed
+        g_out = g_f * (1.0 - w_bleed) + g_bleed * w_bleed
+        b_out = b_f * (1.0 - w_bleed) + b_bleed * w_bleed
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_edge = int((edge_weight > 0.01).sum())
+        print(f"    Wet-on-wet bleeding pass complete  "
+              f"(boundary pixels={n_edge}  bleed_radius={bleed_radius:.1f}px)")
