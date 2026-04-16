@@ -4484,6 +4484,82 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 56 ─────────────────────────────────────────────────────────────
+    "bronzino": ArtStyle(
+        artist="Agnolo Bronzino",
+        movement="Florentine Mannerism",
+        nationality="Italian",
+        period="1530–1572",
+        palette=[
+            (0.94, 0.90, 0.84),   # cool pale ivory — enamel-bright lit flesh
+            (0.84, 0.72, 0.58),   # warm ivory — primary mid-tone flesh
+            (0.68, 0.58, 0.50),   # cool grey-rose — desaturated shadow flesh
+            (0.30, 0.26, 0.34),   # cool blue-grey void — deep shadow (purple-cool)
+            (0.18, 0.28, 0.62),   # deep ultramarine — sitter's ceremonial costume
+            (0.10, 0.22, 0.14),   # dark Flemish green — court velvet garments
+            (0.88, 0.78, 0.28),   # Naples gold — jewellery, gilt accessories
+            (0.54, 0.50, 0.58),   # cool silver-violet — neutral background ground
+        ],
+        ground_color=(0.62, 0.58, 0.56),    # cool neutral pale ground — neither warm ochre nor cold lilac
+        stroke_size=4,
+        wet_blend=0.18,                      # very low — precise Florentine marks, no wet diffusion
+        edge_softness=0.22,                  # Florentine drawing precision: found edges, no sfumato
+        jitter=0.008,                        # minimal — court precision demands exact colour consistency
+        glazing=(0.88, 0.86, 0.82),          # cool pale ivory glaze — lifts flesh toward enamel luminosity
+        crackle=True,                        # aged Florentine panel/canvas painting
+        chromatic_split=False,
+        technique=(
+            "Bronzino achieved his characteristic 'enamel flesh' through extreme surface "
+            "refinement: multiple thin, carefully dried oil layers were sanded between "
+            "applications so that the final surface had a smooth, almost polished quality — "
+            "as if the flesh had been lacquered rather than painted.  This effect is "
+            "inseparable from his Mannerist aesthetic: the sitter is cool, contained, and "
+            "psychologically inaccessible, as if behind glass.  "
+            "Unlike his teacher Pontormo's anxious dissonance, Bronzino's palette is "
+            "restrained and aristocratic: cool ivory highlights that approach white, "
+            "deeply desaturated shadow tones (no warm amber in the darks), and a "
+            "characteristic cool silver-violet neutrality in the deepest shadow passages.  "
+            "His light is diffuse and overhead rather than directional — there are "
+            "no Rembrandt triangles or Caravaggio spotlights — and the modelling is "
+            "minimal: the flesh of a Bronzino portrait reads almost flat in the "
+            "midtones, with form suggested by very subtle tonal transitions rather "
+            "than bold shadow masses.  "
+            "He was court painter to Cosimo I de' Medici, and every brushstroke "
+            "communicates the sitter's social distance from the viewer: serene, "
+            "untouchable, perfect.  The Mannerist quality here is not Pontormo's "
+            "psychological anguish but an aristocratic emotional control that is "
+            "its own form of tension."
+        ),
+        famous_works=[
+            ("Portrait of Eleanor of Toledo with Her Son Giovanni", "c. 1545"),
+            ("Portrait of a Young Man",                              "c. 1530–1532"),
+            ("Venus, Cupid, Folly and Time",                         "c. 1545"),
+            ("Portrait of Cosimo I de' Medici",                      "c. 1543"),
+            ("Portrait of Laura Battiferri",                          "c. 1555–1560"),
+            ("Pygmalion and Galatea",                                  "c. 1529–1530"),
+            ("Portrait of Ugolino Martelli",                          "c. 1536–1537"),
+        ],
+        inspiration=(
+            "Use bronzino_enamel_skin_pass() after build_form() to apply Bronzino's "
+            "signature enamel-smooth flesh quality: midtone texture is compressed "
+            "toward a smooth seamless surface (suppressing the tonal texture that "
+            "reads as visible brushwork), the brightest highlights are pushed toward "
+            "cool pale ivory (B lifted, R reduced — the opposite of warm gold "
+            "highlights), and shadow passages are desaturated to remove warm undertones "
+            "(Bronzino's shadows are cool and chromatic, not amber).  "
+            "ground_color=(0.62, 0.58, 0.56) uses a cool neutral pale ground — "
+            "neither the warm ochre of the High Renaissance nor Pontormo's cold lilac: "
+            "a restrained courtly neutrality.  "
+            "wet_blend=0.18 keeps marks precise and non-diffused — Florentine "
+            "drawing tradition demands clean, controlled edges.  "
+            "edge_softness=0.22 preserves the found-edge quality of Florentine "
+            "draughtsmanship without any sfumato dissolution.  "
+            "glazing=(0.88, 0.86, 0.82) uses a cool pale ivory unifying glaze — "
+            "not warm amber (Rembrandt) or deep golden (Leonardo) but a silvery "
+            "coolness that lifts the whole surface toward the enamel register."
+        ),
+    ),
+
     # ── Session 52 ─────────────────────────────────────────────────────────────
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",

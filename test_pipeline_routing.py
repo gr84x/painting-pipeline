@@ -7741,3 +7741,203 @@ def test_sfumato_veil_pass_depth_gradient_zero_unchanged_signature():
     assert np.array_equal(buf1, buf2), (
         "sfumato_veil_pass with depth_gradient=0.0 must produce identical "
         "output to calling without depth_gradient")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 56 — bronzino_enamel_skin_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bronzino_enamel_skin_pass_exists():
+    """bronzino_enamel_skin_pass() must exist on Painter (session 56)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bronzino_enamel_skin_pass"), (
+        "Painter.bronzino_enamel_skin_pass not found — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "bronzino_enamel_skin_pass"))
+
+
+def test_bronzino_enamel_skin_pass_smoke():
+    """bronzino_enamel_skin_pass() must run without error on default canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.58, 0.56), texture_strength=0.0)
+    p.bronzino_enamel_skin_pass()
+
+
+def test_bronzino_enamel_skin_pass_opacity_zero_no_change():
+    """bronzino_enamel_skin_pass(opacity=0) must not change the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.58, 0.56), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.bronzino_enamel_skin_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "Canvas must not change when bronzino_enamel_skin_pass(opacity=0)")
+
+
+def test_bronzino_enamel_skin_pass_midtone_compressed():
+    """bronzino_enamel_skin_pass() must reduce variance in the midtone zone."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with alternating warm/cool horizontal stripes in midtone range.
+    # Even rows: warm mid-tone (high R, low B); odd rows: cool mid-tone (low R, high B).
+    # Both have similar luminance (~0.48) so both fall in the midtone band.
+    # Cairo BGRA: B=idx0, G=idx1, R=idx2
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    for y in range(64):
+        if y % 2 == 0:
+            buf[y, :, 2] = 165   # R high — warm
+            buf[y, :, 1] = 120
+            buf[y, :, 0] = 72    # B low
+        else:
+            buf[y, :, 2] = 98    # R low — cool
+            buf[y, :, 1] = 120
+            buf[y, :, 0] = 148   # B high
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_std_before = float(np.std(buf[:, :, 2].astype(float)))
+
+    p.bronzino_enamel_skin_pass(
+        midtone_low=0.28,
+        midtone_high=0.68,
+        compression_strength=0.80,   # amplified for measurable effect
+        cool_strength=0.0,
+        desaturate_strength=0.0,
+        opacity=1.0,
+    )
+
+    buf_after  = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    r_std_after = float(np.std(buf_after[:, :, 2].astype(float)))
+
+    assert r_std_after < r_std_before, (
+        f"Midtone compression should reduce R-channel std; "
+        f"std_before={r_std_before:.2f}  std_after={r_std_after:.2f}")
+
+
+def test_bronzino_enamel_skin_pass_cool_highlight_push():
+    """bronzino_enamel_skin_pass() must lift B and reduce R in bright highlight zones."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with bright warm colour — high luminance, low B relative to R.
+    # Cairo BGRA: B=idx0, G=idx1, R=idx2
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 240   # R — bright warm highlight
+    buf[:, :, 1] = 215   # G
+    buf[:, :, 0] = 158   # B — relatively low (warm)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+    b_before = float(buf[:, :, 0].mean())
+
+    p.bronzino_enamel_skin_pass(
+        highlight_thresh  = 0.68,
+        cool_strength     = 0.14,    # amplified for measurable shift
+        compression_strength = 0.0,
+        desaturate_strength  = 0.0,
+        opacity           = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert b_after > b_before + 1, (
+        f"Highlight zone B should increase (cool push); "
+        f"B_before={b_before:.1f}  B_after={b_after:.1f}")
+    assert r_after < r_before + 1, (
+        f"Highlight zone R should not increase (cool push reduces R); "
+        f"R_before={r_before:.1f}  R_after={r_after:.1f}")
+
+
+def test_bronzino_enamel_skin_pass_shadow_desaturated():
+    """bronzino_enamel_skin_pass() must reduce saturation (narrow R-B gap) in shadows."""
+    p = _make_small_painter(64, 64)
+
+    # Seed canvas with warm dark colour in the shadow zone (low luminance, high R-B gap).
+    # Cairo BGRA: B=idx0, G=idx1, R=idx2
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 80    # R — warm brown shadow
+    buf[:, :, 1] = 55    # G
+    buf[:, :, 0] = 28    # B — very low (very warm shadow)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # R-B gap before: high (warm undertone)
+    gap_before = float(buf[:, :, 2].mean()) - float(buf[:, :, 0].mean())
+
+    p.bronzino_enamel_skin_pass(
+        shadow_thresh       = 0.55,   # high thresh so these dark pixels are in shadow zone
+        desaturate_strength = 0.80,   # amplified for measurable shift
+        compression_strength = 0.0,
+        cool_strength       = 0.0,
+        opacity             = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    gap_after = float(buf_after[:, :, 2].mean()) - float(buf_after[:, :, 0].mean())
+
+    assert gap_after < gap_before, (
+        f"Shadow R-B gap should narrow after desaturation; "
+        f"gap_before={gap_before:.2f}  gap_after={gap_after:.2f}")
+
+
+def test_bronzino_enamel_skin_pass_with_figure_mask():
+    """bronzino_enamel_skin_pass() with figure_mask must not alter background pixels."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with warm bright colour (triggers highlight zone)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 228
+    buf[:, :, 1] = 200
+    buf[:, :, 0] = 152
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: figure only in top half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:32, :] = 1.0
+
+    p.bronzino_enamel_skin_pass(
+        figure_mask   = mask,
+        cool_strength = 0.20,
+        opacity       = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom half (background, mask=0) must be unchanged
+    assert np.array_equal(buf_after[40:, :, :3], buf[40:, :, :3]), (
+        "Background pixels (mask=0) must not be altered by bronzino_enamel_skin_pass")
+
+
+def test_bronzino_enamel_skin_pass_custom_params():
+    """bronzino_enamel_skin_pass() must accept all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.58, 0.56), texture_strength=0.0)
+    p.bronzino_enamel_skin_pass(
+        midtone_low          = 0.30,
+        midtone_high         = 0.68,
+        compression_strength = 0.12,
+        highlight_thresh     = 0.75,
+        cool_strength        = 0.04,
+        shadow_thresh        = 0.32,
+        desaturate_strength  = 0.18,
+        opacity              = 0.65,
+    )
+
+
+def test_bronzino_enamel_skin_pass_large_canvas():
+    """bronzino_enamel_skin_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.62, 0.58, 0.56), texture_strength=0.0)
+    p.bronzino_enamel_skin_pass(opacity=0.65)
