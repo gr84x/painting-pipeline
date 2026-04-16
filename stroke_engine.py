@@ -15117,5 +15117,5 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
 
         atm_count = int((atm_w.squeeze() > 0.05).sum() * w)
-        print(f"    Aerial perspective pass complete  (affected_px≈{atm_count})")
+        print(f"    Aerial perspective pass complete  (affected_px~{atm_count})")
 
