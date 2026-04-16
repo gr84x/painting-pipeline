@@ -13547,3 +13547,249 @@ class Painter:
 
         print(f"    Hals bravura stroke pass complete  "
               f"({strokes_placed} bravura strokes placed)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # dali_paranoiac_critical_pass — inspired by Salvador Dali
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def dali_paranoiac_critical_pass(
+        self,
+        *,
+        chroma_shift:        int   = 3,
+        shadow_ultramarine:  float = 0.18,
+        highlight_warmth:    float = 0.06,
+        shadow_thresh:       float = 0.28,
+        highlight_thresh:    float = 0.78,
+        figure_sharpen:      float = 0.38,
+        bg_only_aberration:  bool  = True,
+        opacity:             float = 0.82,
+    ) -> None:
+        """
+        Dali Paranoiac-Critical Pass — Salvador Dali's hyper-realist surrealist technique.
+
+        Salvador Dali (1904–1989) called his method the 'Paranoiac-Critical Method':
+        by deliberately inducing a paranoid hallucinatory state, he trained himself
+        to discover hidden double images within compositions — two or more distinct
+        subjects occupying the same visual space, readable depending on the viewer's
+        mental frame.  The painterly technique he applied to these visions was the
+        precise opposite of psychological instability: obsessively photographic,
+        with near-invisible brushwork and seamless enamel-like surfaces he called
+        'hand-painted dream photographs.'
+
+        This pass replicates four defining qualities of Dali's technique:
+
+        1. **Ultramarine shadow deepening** — In the darkest tonal zone (lum <
+           shadow_thresh), shadows are pushed toward deep ultramarine-violet rather
+           than neutral black.  This is the Catalonian light signature: sunlit
+           Mediterranean surfaces against cool ultramarine void — the same quality
+           that appears in Velázquez's Catalan-influenced shadows, intensified by
+           the brilliant overhead sun of the Empordà plain near Dali's home in
+           Cadaqués.  The push is graduated: the deepest shadows get the most
+           ultramarine, while the penumbra edge preserves a warm transition.
+
+        2. **Catalan sunlight warmth** — In the brightest tonal zone (lum >
+           highlight_thresh), lit surfaces are pushed toward warm amber-gold — the
+           colour of Catalan sunlight on ochre stone.  This contrasts with the cool
+           ultramarine shadows to produce the extreme tonal polarity that gives
+           Dali's canvases their almost hallucinogenic vibrancy.
+
+        3. **Chromatic prismatic aberration** — A subtle lateral offset of the R
+           and B channels in background regions simulates the dreamlike out-of-phase
+           quality of Dali's hyper-realist surfaces.  Real optics introduce small
+           chromatic aberrations from lens dispersion; Dali's hyper-realist technique
+           seems to replicate this on canvas, suggesting the image is a photograph
+           of a dream rather than a painting from life.  When bg_only_aberration=True
+           (default), this effect is restricted to regions outside the figure mask,
+           preserving crisp foreground precision while the background shimmers.
+
+        4. **Hyper-realist figure sharpening** — An unsharp-mask pass applied to
+           figure regions reinforces the 'hand-painted photograph' quality.  Dali
+           rendered his subjects with impossible photographic crispness — every pore,
+           every hair, every reflected catch-light resolved with precision.  The
+           figure_sharpen parameter controls the strength of this unsharp mask.
+
+        Parameters
+        ----------
+        chroma_shift : int
+            Lateral pixel offset for chromatic aberration.  3 gives a subtle
+            prismatic fringe at edges; 0 disables aberration entirely.
+        shadow_ultramarine : float
+            Strength of the ultramarine push in the dark zone.  0.18 is faithful
+            to Dali's deep shadow colour; raise toward 0.30 for stronger effect.
+        highlight_warmth : float
+            Strength of the amber-gold warmth in the bright zone.  0.06 is subtle.
+        shadow_thresh : float
+            Luminance below which shadow adjustments apply.
+        highlight_thresh : float
+            Luminance above which highlight adjustments apply.
+        figure_sharpen : float
+            Unsharp-mask strength applied to figure regions.  0.38 gives
+            photographic crispness without artefacts.  0 disables sharpening.
+        bg_only_aberration : bool
+            When True, chromatic aberration is applied only to background
+            regions (figure_mask < 0.5).  When False, applied everywhere.
+        opacity : float
+            Global blend weight for all adjustments.  0 = noop, 1 = full.
+
+        Notes
+        -----
+        Call AFTER block_in() and build_form().  Pairs with a warm amber
+        glaze (0.88, 0.78, 0.42) applied afterward for the final unifying
+        Catalan sunlight quality.
+
+        Famous works to study:
+          *The Persistence of Memory* (1931, MoMA) — the melting watches sit
+          on a table in a hyper-precisely rendered Catalonian cove; every
+          sand grain, every reflective surface is resolved with photographic
+          fidelity; the impossible (melting metal) gains its power from
+          the photographic reality of everything around it.
+
+          *Dream Caused by the Flight of a Bee* (1944, Thyssen-Bornemisza) —
+          Gala floats in mid-air above a sunlit ledge; the tiger emerging
+          from a pomegranate is rendered with the same obsessive precision
+          as Gala's skin; deep ultramarine shadows define the spatial
+          recession behind the brilliant warm-lit foreground.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndimage
+
+        print(f"  Dali paranoiac-critical pass  "
+              f"(chroma_shift={chroma_shift}  "
+              f"shadow_ultramarine={shadow_ultramarine:.2f}  "
+              f"figure_sharpen={figure_sharpen:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Dali paranoiac-critical pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA channel order: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Ultramarine shadow deepening ───────────────────────────────────
+        # In the darkest tonal zone, push colour toward deep ultramarine-violet.
+        # The ramp peaks at lum=0 (maximum adjustment on pure black) and falls
+        # to zero at lum=shadow_thresh (no adjustment at the shadow boundary).
+        sh_mask = lum < shadow_thresh
+        sh_ramp = _np.where(
+            sh_mask,
+            _np.clip((shadow_thresh - lum) / (shadow_thresh + 1e-6), 0.0, 1.0),
+            0.0)
+
+        # Cool R and G down; lift B toward deep ultramarine
+        r_out = _np.where(sh_mask,
+                          _np.clip(r_out - shadow_ultramarine * 0.55 * sh_ramp,
+                                   0.0, 1.0),
+                          r_out)
+        g_out = _np.where(sh_mask,
+                          _np.clip(g_out - shadow_ultramarine * 0.42 * sh_ramp,
+                                   0.0, 1.0),
+                          g_out)
+        b_out = _np.where(sh_mask,
+                          _np.clip(b_out + shadow_ultramarine * 0.70 * sh_ramp,
+                                   0.0, 1.0),
+                          b_out)
+
+        # ── 2. Catalan sunlight warmth in highlights ──────────────────────────
+        # Push bright zones toward warm amber-gold — the colour of Catalan
+        # sunlight on ochre stone and warm ivory flesh.  The ramp peaks at
+        # lum=1.0 and falls to zero at lum=highlight_thresh.
+        hi_mask = lum > highlight_thresh
+        hi_ramp = _np.where(
+            hi_mask,
+            _np.clip((lum - highlight_thresh) / (1.0 - highlight_thresh + 1e-6),
+                     0.0, 1.0),
+            0.0)
+
+        r_out = _np.where(hi_mask,
+                          _np.clip(r_out + highlight_warmth * 0.80 * hi_ramp,
+                                   0.0, 1.0),
+                          r_out)
+        g_out = _np.where(hi_mask,
+                          _np.clip(g_out + highlight_warmth * 0.50 * hi_ramp,
+                                   0.0, 1.0),
+                          g_out)
+        b_out = _np.where(hi_mask,
+                          _np.clip(b_out - highlight_warmth * 0.25 * hi_ramp,
+                                   0.0, 1.0),
+                          b_out)
+
+        # ── 3. Chromatic prismatic aberration ─────────────────────────────────
+        # Shift R right and B left by chroma_shift pixels to simulate the
+        # dreamlike out-of-phase quality of Dali's hyper-realist surfaces.
+        # When bg_only_aberration=True, apply only to background regions so
+        # the crisp foreground precision of his figure rendering is preserved.
+        if chroma_shift > 0:
+            if bg_only_aberration and self._figure_mask is not None:
+                # Background: where figure_mask < 0.5; smooth the edge transition
+                bg_mask_2d = (self._figure_mask < 0.5).astype(_np.float32)
+                bg_mask_2d = _ndimage.gaussian_filter(
+                    bg_mask_2d, sigma=float(chroma_shift))
+            else:
+                bg_mask_2d = _np.ones((h, w), dtype=_np.float32)
+
+            # Lateral shift: R right (+col), B left (-col)
+            r_aberrated = _np.roll(r_out, chroma_shift, axis=1)
+            b_aberrated = _np.roll(b_out, -chroma_shift, axis=1)
+
+            # Remove wrap-around artefacts at canvas edges
+            r_aberrated[:, :chroma_shift] = r_out[:, :chroma_shift]
+            b_aberrated[:, w - chroma_shift:] = b_out[:, w - chroma_shift:]
+
+            # Blend aberrated channels into background area (60% blend weight)
+            blend = bg_mask_2d * 0.60
+            r_out = _np.clip(r_out * (1.0 - blend) + r_aberrated * blend, 0.0, 1.0)
+            b_out = _np.clip(b_out * (1.0 - blend) + b_aberrated * blend, 0.0, 1.0)
+
+        # ── 4. Hyper-realist figure sharpening ────────────────────────────────
+        # Apply an unsharp mask to figure regions to achieve the 'hand-painted
+        # photograph' precision of Dali's subject rendering.  The sigma is
+        # adaptive (0.8% of the shorter canvas dimension) so it scales cleanly
+        # across canvas sizes without requiring manual tuning.
+        if figure_sharpen > 0.0 and self._figure_mask is not None:
+            fig_mask = (self._figure_mask > 0.5).astype(_np.float32)
+            sigma    = max(1.0, float(min(h, w)) * 0.008)
+
+            for ch_arr in (r_out, g_out, b_out):
+                blurred = _ndimage.gaussian_filter(ch_arr, sigma=sigma)
+                unsharp = _np.clip(ch_arr + figure_sharpen * (ch_arr - blurred),
+                                   0.0, 1.0)
+                # In-place update restricted to figure pixels
+                ch_arr[:, :] = ch_arr * (1.0 - fig_mask) + unsharp * fig_mask
+
+        # ── Blend adjusted layer back at `opacity` ────────────────────────────
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - opacity) + r_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - opacity) + g_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - opacity) + b_out * opacity * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]   # alpha unchanged
+
+        # Write back to Cairo surface
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        n_shadow    = int(sh_mask.sum())
+        n_highlight = int(hi_mask.sum())
+        print(f"    Dali paranoiac-critical pass complete  "
+              f"(shadow={n_shadow}px  highlight={n_highlight}px  "
+              f"aberration={'on' if chroma_shift > 0 else 'off'})")

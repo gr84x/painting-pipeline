@@ -6004,3 +6004,134 @@ def test_hals_bravura_stroke_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
     p.hals_bravura_stroke_pass(n_strokes=120, stroke_size=8.0, opacity=0.55)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# dali_paranoiac_critical_pass — Salvador Dali
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_dali_paranoiac_critical_pass_exists():
+    """Painter must have dali_paranoiac_critical_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "dali_paranoiac_critical_pass"), (
+        "dali_paranoiac_critical_pass not found on Painter")
+    assert callable(getattr(Painter, "dali_paranoiac_critical_pass"))
+
+
+def test_dali_paranoiac_critical_pass_runs():
+    """dali_paranoiac_critical_pass() runs without error on a default canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
+    p.dali_paranoiac_critical_pass(opacity=0.80)
+
+
+def test_dali_paranoiac_critical_pass_changes_canvas():
+    """dali_paranoiac_critical_pass() must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.dali_paranoiac_critical_pass(
+        shadow_ultramarine=0.30,
+        shadow_thresh=0.80,    # very high threshold so most pixels get adjusted
+        opacity=0.90,
+        chroma_shift=0,
+        figure_sharpen=0.0,
+    )
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "dali_paranoiac_critical_pass should change the canvas")
+
+
+def test_dali_paranoiac_critical_pass_opacity_zero_is_noop():
+    """dali_paranoiac_critical_pass(opacity=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.dali_paranoiac_critical_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "dali_paranoiac_critical_pass(opacity=0) should be a noop")
+
+
+def test_dali_paranoiac_critical_pass_deepens_shadows_toward_blue():
+    """Dark pixels must become bluer and less red after the ultramarine shadow pass."""
+    p = _make_small_painter(64, 64)
+
+    # Fill canvas with a dark warm-gray (lum ≈ 0.12, well below shadow_thresh)
+    # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 25    # B
+    buf[:, :, 1] = 25    # G
+    buf[:, :, 2] = 35    # R (slightly warm dark)
+    buf[:, :, 3] = 255   # A
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.dali_paranoiac_critical_pass(
+        shadow_ultramarine=0.50,
+        shadow_thresh=0.40,    # threshold comfortably above the dark fill
+        chroma_shift=0,
+        figure_sharpen=0.0,
+        highlight_warmth=0.0,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_after = float(buf_after[:, :, 0].mean())   # Blue channel (BGRA index 0)
+    r_after = float(buf_after[:, :, 2].mean())   # Red channel  (BGRA index 2)
+
+    assert b_after > 25, (
+        f"Dark pixels should have more blue after ultramarine pass; "
+        f"B before=25 after={b_after:.1f}")
+    assert r_after < 35, (
+        f"Dark pixels should have less red after ultramarine pass; "
+        f"R before=35 after={r_after:.1f}")
+
+
+def test_dali_paranoiac_critical_pass_with_figure_mask():
+    """dali_paranoiac_critical_pass() accepts a figure_mask without error."""
+    p    = _make_small_painter(64, 64)
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[10:54, 12:52] = 1.0
+    p._figure_mask = mask
+    p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
+    p.dali_paranoiac_critical_pass(opacity=0.80, chroma_shift=2)
+
+
+def test_dali_paranoiac_critical_pass_no_aberration():
+    """dali_paranoiac_critical_pass(chroma_shift=0) runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
+    p.dali_paranoiac_critical_pass(chroma_shift=0, opacity=0.80)
+
+
+def test_dali_paranoiac_critical_pass_custom_params():
+    """dali_paranoiac_critical_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
+    p.dali_paranoiac_critical_pass(
+        chroma_shift       = 2,
+        shadow_ultramarine = 0.25,
+        highlight_warmth   = 0.08,
+        shadow_thresh      = 0.30,
+        highlight_thresh   = 0.72,
+        figure_sharpen     = 0.50,
+        bg_only_aberration = False,
+        opacity            = 0.75,
+    )
+
+
+def test_dali_paranoiac_critical_pass_large_canvas():
+    """dali_paranoiac_critical_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
+    p.dali_paranoiac_critical_pass(opacity=0.80, chroma_shift=3)

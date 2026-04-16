@@ -64,6 +64,7 @@ EXPECTED_ARTISTS = [
     "pierre_auguste_renoir",
     "munch",
     "frans_hals",
+    "salvador_dali",
 ]
 
 
@@ -5134,6 +5135,115 @@ def test_Frans_hals_low_edge_softness():
     s = get_style("frans_hals")
     assert s.edge_softness <= 0.30, (
         f"Frans Hals edge_softness should be low (≤0.30 for crisp marks); got {s.edge_softness:.2f}")
+
+
+# ── Salvador Dali catalog tests ────────────────────────────────────────────────
+
+def test_salvador_dali_in_catalog():
+    """Salvador Dali must be present in CATALOG under the key 'salvador_dali'."""
+    assert "salvador_dali" in CATALOG, "salvador_dali not found in CATALOG"
+
+
+def test_salvador_dali_style_retrieval():
+    """get_style('salvador_dali') must return an ArtStyle without raising."""
+    s = get_style("salvador_dali")
+    assert s is not None
+    assert s.artist == "Salvador Dali"
+
+
+def test_salvador_dali_movement():
+    """Salvador Dali must be catalogued under Surrealism."""
+    s = get_style("salvador_dali")
+    assert "Surreal" in s.movement, (
+        f"Expected 'Surreal' in movement, got {s.movement!r}")
+
+
+def test_salvador_dali_nationality():
+    """Salvador Dali must be recorded as Spanish."""
+    s = get_style("salvador_dali")
+    assert "Spanish" in s.nationality, (
+        f"Expected 'Spanish' in nationality, got {s.nationality!r}")
+
+
+def test_salvador_dali_palette_length():
+    """Salvador Dali palette must have at least 5 colour entries."""
+    s = get_style("salvador_dali")
+    assert len(s.palette) >= 5, (
+        f"Salvador Dali palette should have ≥5 colours; got {len(s.palette)}")
+
+
+def test_salvador_dali_palette_values_in_range():
+    """All Salvador Dali palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("salvador_dali")
+    for i, rgb in enumerate(s.palette):
+        for c_idx, c in enumerate(rgb):
+            assert 0.0 <= c <= 1.0, (
+                f"Salvador Dali palette[{i}][{c_idx}] = {c:.4f} out of [0, 1]")
+
+
+def test_salvador_dali_crisp_edges():
+    """Dali's hyper-realist technique demands low edge_softness (crisp foreground)."""
+    s = get_style("salvador_dali")
+    assert s.edge_softness <= 0.20, (
+        f"Salvador Dali edge_softness should be ≤0.20 for hyper-realist precision; "
+        f"got {s.edge_softness:.2f}")
+
+
+def test_salvador_dali_low_wet_blend():
+    """Dali's hyper-controlled technique demands low wet_blend."""
+    s = get_style("salvador_dali")
+    assert s.wet_blend <= 0.10, (
+        f"Salvador Dali wet_blend should be ≤0.10 for dry hyper-realist technique; "
+        f"got {s.wet_blend:.2f}")
+
+
+def test_salvador_dali_famous_works_include_persistence_of_memory():
+    """The Persistence of Memory must be in Salvador Dali's famous works."""
+    s = get_style("salvador_dali")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Persistence of Memory" in t for t in titles), (
+        "Salvador Dali famous works should include The Persistence of Memory (1931)")
+
+
+def test_salvador_dali_famous_works_count():
+    """Salvador Dali should have at least 5 famous works documented."""
+    s = get_style("salvador_dali")
+    assert len(s.famous_works) >= 5, (
+        f"Salvador Dali should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_salvador_dali_inspiration_references_dali_pass():
+    """Inspiration text must reference dali_paranoiac_critical_pass."""
+    s = get_style("salvador_dali")
+    assert "dali_paranoiac_critical" in s.inspiration.lower().replace(" ", "_"), (
+        "Salvador Dali inspiration should reference dali_paranoiac_critical_pass() — "
+        "the dedicated chromatic aberration and ultramarine shadow pass")
+
+
+def test_salvador_dali_in_expected_artists():
+    """EXPECTED_ARTISTS list must include salvador_dali."""
+    assert "salvador_dali" in EXPECTED_ARTISTS, (
+        "salvador_dali missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_salvador_dali_ground_color_warm():
+    """Salvador Dali's ground must be warm (R > B) — warm ivory-ochre Catalan light."""
+    s = get_style("salvador_dali")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Salvador Dali ground_color should be warm (R > B); got R={r:.2f} B={b:.2f}")
+    assert 0.0 <= r <= 1.0 and 0.0 <= g <= 1.0 and 0.0 <= b <= 1.0, (
+        "Salvador Dali ground_color values must be in [0, 1]")
+
+
+def test_salvador_dali_has_glazing():
+    """Salvador Dali used a warm amber unifying glaze — glazing must not be None."""
+    s = get_style("salvador_dali")
+    assert s.glazing is not None, (
+        "Salvador Dali glazing should be set to warm amber-gold; got None")
+    r, g, b = s.glazing
+    assert r > b, (
+        f"Dali's unifying glaze should be warm (R > B); got R={r:.2f} B={b:.2f}")
 
 
 def test_Frans_hals_high_jitter():

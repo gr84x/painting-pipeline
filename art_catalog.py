@@ -3988,6 +3988,93 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Salvador Dali ──────────────────────────────────────────────────────────
+    "salvador_dali": ArtStyle(
+        artist       = "Salvador Dali",
+        movement     = "Surrealism",
+        nationality  = "Spanish",
+        period       = "1929–1989",
+        palette      = [
+            (0.82, 0.62, 0.25),   # Catalan amber-gold (sunlit sand)
+            (0.95, 0.78, 0.42),   # bright ochre (Empordà sunlight)
+            (0.12, 0.14, 0.52),   # deep ultramarine (Dali's shadow depths)
+            (0.30, 0.55, 0.82),   # cerulean sky blue (Catalan sky)
+            (0.68, 0.28, 0.10),   # burnt sienna (sun-baked earth)
+            (0.55, 0.35, 0.15),   # raw umber (flesh shadow)
+            (0.92, 0.88, 0.75),   # warm ivory (lit flesh, hyper-realist)
+            (0.35, 0.18, 0.08),   # deep warm brown (darkest darks)
+            (0.72, 0.45, 0.20),   # golden amber (mid-tone)
+            (0.18, 0.12, 0.38),   # violet-ultramarine (very deep shadow)
+        ],
+        ground_color  = (0.88, 0.82, 0.62),   # warm ivory-ochre (Catalan sunlight quality)
+        stroke_size   = 4.0,                   # extremely fine, near-invisible marks
+        wet_blend     = 0.05,                  # near-dry — hyper-controlled, no bleeding
+        edge_softness = 0.08,                  # crisp foreground edges (anti-sfumato)
+        jitter        = 0.02,                  # minimal — precise, almost photographic
+        glazing       = (0.88, 0.78, 0.42),   # warm amber-gold glaze (Catalan sunlight)
+        crackle       = False,
+        chromatic_split = False,
+        technique     = (
+            "Dali employed an extreme hyper-realist technique he called the "
+            "'hand-painted dream photograph' — objects rendered with almost obsessive "
+            "photographic precision placed within physically impossible contexts.  "
+            "Working on a white or ivory-toned ground, he built up extremely thin "
+            "oil glazes with very fine brushes, creating a seamless enamel-like "
+            "surface that paradoxically makes the impossible contents more convincing: "
+            "the more realistic the technique, the more disturbing the subject.  "
+            "His palette is dominated by the warm ochre-amber of the Catalonian "
+            "landscape — particularly the Cap de Creus coastline near his home in "
+            "Cadaqués — set against ultra-deep ultramarine shadows that reach toward "
+            "violet at their darkest.  The sky zones are brilliant cerulean, and the "
+            "overall tonality transitions sharply from warmly lit golden foreground "
+            "to cool deep shadow — a dramatic chiaroscuro applied to dreamlike "
+            "scenes rather than the religious subjects of Baroque predecessors.  "
+            "His Paranoiac-Critical Method involved inducing paranoid states to "
+            "discover hidden double images within compositions — two or more "
+            "distinct subjects that occupy the same visual space, each perceptible "
+            "depending on the viewer's mental frame.  A subtle chromatic prismatic "
+            "aberration — a slight displacement of red and blue channels in "
+            "peripheral and background areas — contributes to the dreamlike "
+            "out-of-phase quality of his most photographically rendered works, "
+            "suggesting the image is seen slightly through the lens of a dreaming "
+            "mind rather than waking perception."
+        ),
+        famous_works  = [
+            ("The Persistence of Memory",
+             "1931"),
+            ("Dream Caused by the Flight of a Bee Around a Pomegranate a Second Before Awakening",
+             "1944"),
+            ("The Elephants",
+             "1948"),
+            ("Metamorphosis of Narcissus",
+             "1937"),
+            ("Swans Reflecting Elephants",
+             "1937"),
+            ("The Temptation of Saint Anthony",
+             "1946"),
+            ("The Sacrament of the Last Supper",
+             "1955"),
+            ("Galatea of the Spheres",
+             "1952"),
+        ],
+        inspiration   = (
+            "Use dali_paranoiac_critical_pass() after block_in() and build_form() "
+            "to introduce the chromatic prismatic aberration, ultramarine shadow "
+            "deepening, and hyper-realist clarity that define Dali's surrealist "
+            "canvases.  The pass applies a subtle RGB channel offset to background "
+            "regions (chroma_shift=3) — creating the dreamlike out-of-phase quality "
+            "of his hyper-realist surfaces — deepens shadows toward deep ultramarine "
+            "(his Catalonian light signature), warms sunlit highlights toward Catalan "
+            "amber-gold, and applies a controlled unsharp-mask sharpening pass over "
+            "figure regions to achieve the 'hand-painted photograph' precision.  "
+            "stroke_size=4.0 and wet_blend=0.05 are essential — Dali worked with "
+            "extremely fine marks and near-zero wet blending.  The warm "
+            "ivory-ochre ground_color must show through in the mid-tone passages.  "
+            "Apply glazing=(0.88, 0.78, 0.42) as the final unifying warm amber "
+            "layer to achieve the golden Catalan light quality."
+        ),
+    ),
+
 }
 
 
