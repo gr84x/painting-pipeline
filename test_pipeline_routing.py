@@ -6135,3 +6135,261 @@ def test_dali_paranoiac_critical_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.88, 0.82, 0.62), texture_strength=0.0)
     p.dali_paranoiac_critical_pass(opacity=0.80, chroma_shift=3)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# hammershoi_grey_silence_pass — Vilhelm Hammershøi
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_hammershoi_grey_silence_pass_exists():
+    """Painter must have hammershoi_grey_silence_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hammershoi_grey_silence_pass"), (
+        "hammershoi_grey_silence_pass not found on Painter")
+    assert callable(getattr(Painter, "hammershoi_grey_silence_pass"))
+
+
+def test_hammershoi_grey_silence_pass_runs():
+    """hammershoi_grey_silence_pass() runs without error on a default canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+    p.hammershoi_grey_silence_pass(opacity=0.88)
+
+
+def test_hammershoi_grey_silence_pass_changes_canvas():
+    """hammershoi_grey_silence_pass() must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    # Fill with a saturated warm colour so desaturation produces a measurable change
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 40    # B
+    buf[:, :, 1] = 80    # G
+    buf[:, :, 2] = 200   # R  (strongly warm red)
+    buf[:, :, 3] = 255   # A
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.hammershoi_grey_silence_pass(desaturation=0.90, opacity=1.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "hammershoi_grey_silence_pass should change the canvas")
+
+
+def test_hammershoi_grey_silence_pass_opacity_zero_is_noop():
+    """hammershoi_grey_silence_pass(opacity=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.hammershoi_grey_silence_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "hammershoi_grey_silence_pass(opacity=0) should be a noop")
+
+
+def test_hammershoi_grey_silence_pass_desaturates_toward_grey():
+    """Saturated pixels must become less saturated (R−B gap narrows) after the pass."""
+    p = _make_small_painter(64, 64)
+
+    # Fill with a strongly warm-red canvas (high R, low B)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 30    # B
+    buf[:, :, 1] = 100   # G
+    buf[:, :, 2] = 200   # R  (highly saturated warm red, lum ≈ 0.63)
+    buf[:, :, 3] = 255   # A
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.hammershoi_grey_silence_pass(desaturation=0.82, opacity=1.0,
+                                   window_cool=0.0, shadow_cool=0.0)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())   # Red channel (BGRA index 2)
+    b_after = float(buf_after[:, :, 0].mean())   # Blue channel (BGRA index 0)
+
+    # After desaturation, the R−B gap should be smaller (both converge toward grey)
+    gap_before = 200 - 30   # = 170
+    gap_after  = r_after - b_after
+    assert gap_after < gap_before * 0.50, (
+        f"Desaturation should substantially narrow R-B gap; "
+        f"before={gap_before:.0f} after={gap_after:.1f}")
+
+
+def test_hammershoi_grey_silence_pass_cools_bright_highlights():
+    """Bright pixels must become cooler (B increases relative to R) after the pass."""
+    p = _make_small_painter(64, 64)
+
+    # Fill with a bright near-white warm canvas (lum > window_thresh=0.68)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 190   # B
+    buf[:, :, 1] = 200   # G
+    buf[:, :, 2] = 220   # R  (bright, slightly warm — lum ≈ 0.82)
+    buf[:, :, 3] = 255   # A
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.hammershoi_grey_silence_pass(
+        desaturation=0.0,   # disable desaturation to isolate window cooling
+        window_thresh=0.70,
+        window_cool=0.20,
+        shadow_cool=0.0,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_after = float(buf_after[:, :, 0].mean())
+    r_after = float(buf_after[:, :, 2].mean())
+
+    assert b_after > 190, (
+        f"Bright pixels should have more blue after window cooling; "
+        f"B before=190 after={b_after:.1f}")
+    assert r_after < 220, (
+        f"Bright pixels should have less red after window cooling; "
+        f"R before=220 after={r_after:.1f}")
+
+
+def test_hammershoi_grey_silence_pass_custom_params():
+    """hammershoi_grey_silence_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+    p.hammershoi_grey_silence_pass(
+        desaturation  = 0.75,
+        window_thresh = 0.72,
+        window_cool   = 0.10,
+        shadow_thresh = 0.30,
+        shadow_cool   = 0.06,
+        opacity       = 0.80,
+    )
+
+
+def test_hammershoi_grey_silence_pass_large_canvas():
+    """hammershoi_grey_silence_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.68, 0.67, 0.65), texture_strength=0.0)
+    p.hammershoi_grey_silence_pass(opacity=0.88)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# horizon_mist_pass — graduated mid-ground atmospheric haze (random improvement)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_horizon_mist_pass_exists():
+    """Painter must have horizon_mist_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "horizon_mist_pass"), (
+        "horizon_mist_pass not found on Painter")
+    assert callable(getattr(Painter, "horizon_mist_pass"))
+
+
+def test_horizon_mist_pass_runs():
+    """horizon_mist_pass() runs without error on a default canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
+    p.horizon_mist_pass(opacity=0.72)
+
+
+def test_horizon_mist_pass_changes_canvas():
+    """horizon_mist_pass() must modify the canvas when mist_strength > 0."""
+    p = _make_small_painter(64, 64)
+    # Tone a dark canvas so the mist overlay produces a clear change
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = 30   # very dark (all channels)
+    buf[:, :, 3]  = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.horizon_mist_pass(
+        horizon_y     = 0.5,
+        band_height   = 0.40,   # wide band so the small 64-px canvas is fully covered
+        mist_strength = 0.60,
+        opacity       = 1.0,
+    )
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert not np.array_equal(buf_before, buf_after), (
+        "horizon_mist_pass should change the canvas")
+
+
+def test_horizon_mist_pass_opacity_zero_is_noop():
+    """horizon_mist_pass(opacity=0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.horizon_mist_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "horizon_mist_pass(opacity=0) should be a noop")
+
+
+def test_horizon_mist_pass_lightens_band_center():
+    """The band centre must become lighter/cooler after mist pass on a dark canvas."""
+    p = _make_small_painter(64, 64)
+
+    # Fill canvas with a uniformly dark warm canvas
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 0] = 20   # B
+    buf[:, :, 1] = 20   # G
+    buf[:, :, 2] = 30   # R (dark warm)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.horizon_mist_pass(
+        horizon_y     = 0.5,
+        band_height   = 0.40,
+        mist_color    = (0.78, 0.80, 0.86),   # cool silver-blue mist
+        mist_strength = 0.70,
+        blur_sigma    = 0.0,
+        opacity       = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    # Sample the centre row
+    centre_row = buf_after[32, :, :]
+    b_centre = float(centre_row[:, 0].mean())  # B
+    r_centre = float(centre_row[:, 2].mean())  # R
+
+    # Band centre should be brighter (blue mist lifts B significantly above 20)
+    assert b_centre > 40, (
+        f"Band centre B should be > 40 after cool mist overlay; got {b_centre:.1f}")
+    # And cooler (B should be greater than R after the cool mist)
+    assert b_centre > r_centre, (
+        f"Band centre should be cooler (B > R) after cool mist; "
+        f"B={b_centre:.1f} R={r_centre:.1f}")
+
+
+def test_horizon_mist_pass_custom_params():
+    """horizon_mist_pass() accepts all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
+    p.horizon_mist_pass(
+        horizon_y     = 0.42,
+        band_height   = 0.22,
+        mist_color    = (0.82, 0.84, 0.90),
+        mist_strength = 0.35,
+        blur_sigma    = 3.0,
+        opacity       = 0.65,
+    )
+
+
+def test_horizon_mist_pass_large_canvas():
+    """horizon_mist_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
+    p.horizon_mist_pass(opacity=0.72)
