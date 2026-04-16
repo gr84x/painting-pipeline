@@ -4360,3 +4360,119 @@ def test_quattrocento_mutually_exclusive_with_northern_renaissance():
     assert not flags_q["is_northern_renaissance"]
     assert     flags_n["is_northern_renaissance"]
     assert not flags_n["is_quattrocento"]
+
+
+# ── holbein_jewel_glaze_pass (session 36 random improvement) ─────────────────
+
+def test_holbein_jewel_glaze_pass_exists():
+    """Painter must expose holbein_jewel_glaze_pass() after session 36."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "holbein_jewel_glaze_pass"), (
+        "holbein_jewel_glaze_pass not found on Painter — expected after session 36")
+    assert callable(getattr(Painter, "holbein_jewel_glaze_pass"))
+
+
+def test_holbein_jewel_glaze_pass_no_error():
+    """holbein_jewel_glaze_pass() must complete without exception on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.85, 0.78), texture_strength=0.04)
+    p.holbein_jewel_glaze_pass()
+
+
+def test_holbein_jewel_glaze_pass_modifies_canvas():
+    """holbein_jewel_glaze_pass() must change canvas pixel data at non-zero opacity."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Use a richly coloured reference so the jewel pass has chrominance to boost.
+    ref = _np.zeros((64, 64, 3), dtype=_np.uint8)
+    ref[:, :, 0] = 160   # moderate red — sits in jewel zone
+    ref[:, :, 1] = 90
+    ref[:, :, 2] = 40
+    from PIL import Image as _Image
+    img = _Image.fromarray(ref, "RGB")
+    p.tone_ground((0.55, 0.38, 0.20), texture_strength=0.04)
+    p.block_in(img, stroke_size=16, n_strokes=80)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.holbein_jewel_glaze_pass(chroma_boost=0.40, opacity=0.90)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).max()
+    assert diff > 0, (
+        "holbein_jewel_glaze_pass() made no changes to canvas — "
+        "saturation and luminance adjustments must be applied")
+
+
+def test_holbein_jewel_glaze_pass_opacity_zero_is_noop():
+    """holbein_jewel_glaze_pass() with opacity=0 must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.35), texture_strength=0.04)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.holbein_jewel_glaze_pass(opacity=0.0)
+    after  = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4)
+
+    _np.testing.assert_array_equal(before, after,
+        err_msg="holbein_jewel_glaze_pass with opacity=0 must be a no-op")
+
+
+def test_holbein_jewel_glaze_pass_custom_parameters():
+    """holbein_jewel_glaze_pass() accepts custom zone boundaries and strengths."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.60, 0.45), texture_strength=0.04)
+    p.holbein_jewel_glaze_pass(
+        chroma_boost      = 0.18,
+        jewel_lo          = 0.30,
+        jewel_hi          = 0.65,
+        shadow_cool_shift = 0.05,
+        highlight_pale    = 0.10,
+        shadow_desat      = 0.12,
+        opacity           = 0.60,
+    )
+
+
+def test_holbein_jewel_glaze_pass_large_canvas():
+    """holbein_jewel_glaze_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(128, 160)
+    p.tone_ground((0.82, 0.78, 0.66), texture_strength=0.04)
+    p.holbein_jewel_glaze_pass(chroma_boost=0.25, opacity=0.75)
+
+
+def test_holbein_jewel_glaze_pass_jewel_zone_boosts_saturation():
+    """
+    On a canvas toned to mid-luminance (jewel zone), holbein_jewel_glaze_pass
+    should increase or maintain saturation — never reduce it in that zone.
+    """
+    import numpy as _np
+    import colorsys as _cs
+
+    p = _make_small_painter(64, 64)
+    # Tone with a moderately saturated mid-grey-green that sits in the jewel zone
+    p.tone_ground((0.38, 0.55, 0.30), texture_strength=0.0)  # lum ≈ 0.48
+
+    def _mean_sat() -> float:
+        buf = _np.frombuffer(p.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(64, 64, 4)
+        sats = []
+        for y in range(0, 64, 4):
+            for x in range(0, 64, 4):
+                r = buf[y, x, 2] / 255.0
+                g = buf[y, x, 1] / 255.0
+                b = buf[y, x, 0] / 255.0
+                _, s, _ = _cs.rgb_to_hsv(r, g, b)
+                sats.append(s)
+        return float(_np.mean(sats))
+
+    sat_before = _mean_sat()
+    p.holbein_jewel_glaze_pass(chroma_boost=0.30, jewel_lo=0.20, jewel_hi=0.80,
+                               opacity=0.95)
+    sat_after  = _mean_sat()
+
+    assert sat_after >= sat_before - 0.02, (
+        f"holbein_jewel_glaze_pass should boost or maintain saturation in the jewel "
+        f"zone; before={sat_before:.3f}  after={sat_after:.3f}")

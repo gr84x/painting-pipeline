@@ -3044,6 +3044,77 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Hans Holbein the Younger ─────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Hans Holbein the Younger (c. 1497–1543) — German-Swiss master of the
+    # Tudor court.  Working in Basel then London under Henry VIII, Holbein
+    # brought the Northern panel tradition — superb draughtsmanship, silverpoint
+    # underdrawings transferred by pouncing, thin oil-and-resin glazes over a
+    # pale white ground — to a new plateau of objective fidelity.  His portraits
+    # achieve an almost unsettling verisimilitude: the light falls without drama,
+    # the surfaces are completely without visible brushwork, and every texture
+    # (silk damask, ermine, gold chain) is rendered with equal, almost inhuman
+    # attention.  Unlike his Italian contemporaries, who used warm amber varnishes
+    # and sfumato to create atmospheric unity, Holbein kept each colour zone
+    # independent — the crimson of a sleeve, the forest green of a gown, the
+    # pale ivory of a face remain distinct, jewel-like, and saturated.  The
+    # overall impression is that of a coloured miniature blown up to life scale.
+    "holbein_the_younger": ArtStyle(
+        artist="Hans Holbein the Younger",
+        movement="Northern Renaissance / Tudor Court",
+        nationality="German-Swiss",
+        period="c. 1497–1543",
+        palette=[
+            (0.88, 0.78, 0.62),   # cool ivory flesh — pale, Flemish-influence skin
+            (0.56, 0.40, 0.26),   # raw umber shadow — mid-tone shadow flesh
+            (0.64, 0.08, 0.12),   # crimson lake — deep jewel red (madder)
+            (0.18, 0.28, 0.60),   # azurite / smalt blue — cold, mineral blue
+            (0.06, 0.22, 0.12),   # malachite / sap green — forest green
+            (0.10, 0.10, 0.08),   # ivory black — deep neutral dark
+            (0.84, 0.80, 0.68),   # lead-white highlight — warm but pale
+            (0.72, 0.56, 0.18),   # gold-chain amber — burnished metal ornament
+        ],
+        ground_color=(0.88, 0.85, 0.78),    # near-white buff ground — all colours read independently
+        stroke_size=4,
+        wet_blend=0.12,                      # minimal blending — thin oil-glaze on dry ground
+        edge_softness=0.18,                  # very crisp outline — no sfumato
+        jitter=0.008,                        # near-photographic precision, minimal colour variation
+        glazing=None,                        # no warm amber unifier — colours stay jewel-pure
+        crackle=True,                        # aged oak-panel paintings crackle
+        chromatic_split=False,               # no Seurat-style divisionism
+        technique=(
+            "Silverpoint underdrawing on sized paper, then transferred by pouncing "
+            "to a pale white-ground panel (or vellum for miniatures).  Thin, resin-rich "
+            "oil glazes applied over completely dry underlayers: no wet-into-wet blending. "
+            "Each colour zone is built individually — crimson sleeve, green gown, ivory face "
+            "— and kept distinct.  No warm amber varnish unifies the surface: each hue "
+            "retains its full chromatic identity, producing the 'jewel' quality that "
+            "distinguishes Holbein's palette from the warm, atmospheric unity of the Italian "
+            "schools.  Skin modelling is extremely subtle — the light source is diffused "
+            "and almost frontal, creating smooth tonal transitions without drama or chiaroscuro. "
+            "Hands, fabrics, and accessories receive the same minute attention as the face."
+        ),
+        famous_works=[
+            ("The Ambassadors",                  "1533"),
+            ("Portrait of Henry VIII",            "c. 1536–1537"),
+            ("Christina of Denmark",              "1538"),
+            ("Portrait of Jane Seymour",          "c. 1536"),
+            ("Portrait of Erasmus of Rotterdam",  "1523"),
+            ("Portrait of Thomas More",           "1527"),
+            ("Anne of Cleves",                    "c. 1539"),
+        ],
+        inspiration=(
+            "Use pale buff ground (ground_color ≈ (0.88, 0.85, 0.78)).  "
+            "holbein_jewel_glaze_pass() to boost mid-tone chroma and cool/warm the "
+            "luminance extremes — the defining jewel-depth quality of his surfaces.  "
+            "Low wet_blend and low edge_softness: colours and contours stay precise.  "
+            "porcelain_skin_pass() for seamless, nearly-shadowless flesh rendering.  "
+            "micro_detail_pass() for fabric textures and chain links.  "
+            "No sfumato_veil_pass — Holbein's edges never dissolve into atmosphere.  "
+            "Final glaze with near-neutral cool veil rather than warm amber."
+        ),
+    ),
+
     # ── Fra Angelico ──────────────────────────────────────────────────────────
     # Randomly selected artist for this session's inspiration.
     # Fra Angelico (c. 1395–1455) — "Beato Angelico" — bridges the International
