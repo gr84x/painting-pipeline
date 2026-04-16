@@ -72,6 +72,7 @@ EXPECTED_ARTISTS = [
     "rogier_van_der_weyden",
     "hans_memling",
     "bronzino",
+    "tintoretto",
 ]
 
 
@@ -6140,4 +6141,120 @@ def test_bronzino_glazing_cool():
     assert b >= r - 0.08, (
         f"Bronzino glazing should be cool-toned (B ≥ R−0.08); "
         f"got R={r:.2f}  B={b:.2f} — glazing should be silvery ivory, not warm amber")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tintoretto (session 53)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_tintoretto_in_catalog():
+    """Tintoretto (session 53) must be present in CATALOG."""
+    assert "tintoretto" in CATALOG
+
+
+def test_tintoretto_in_expected_artists():
+    """EXPECTED_ARTISTS list must include tintoretto."""
+    assert "tintoretto" in EXPECTED_ARTISTS, (
+        "tintoretto missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_tintoretto_movement():
+    """Tintoretto movement must reference Venetian and Mannerism."""
+    s = get_style("tintoretto")
+    movement_lower = s.movement.lower()
+    assert "venetian" in movement_lower or "mannerist" in movement_lower.replace("mannerism", "mannerist"), (
+        f"Tintoretto movement should reference Venetian or Mannerism; got: {s.movement!r}")
+
+
+def test_tintoretto_palette_length():
+    """Tintoretto palette should have at least 6 colours."""
+    s = get_style("tintoretto")
+    assert len(s.palette) >= 6, (
+        f"Tintoretto palette should have ≥6 colours; got {len(s.palette)}")
+
+
+def test_tintoretto_palette_values_in_range():
+    """All Tintoretto palette RGB values must be in [0, 1]."""
+    s = get_style("tintoretto")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Tintoretto palette entry not 3-tuple: {rgb}"
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Tintoretto palette {rgb}")
+
+
+def test_tintoretto_ground_very_dark():
+    """Tintoretto ground_color must be very dark (luminance ≤ 0.12) — near-black Venetian void."""
+    s = get_style("tintoretto")
+    r, g, b = s.ground_color
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    assert lum <= 0.12, (
+        f"Tintoretto ground_color luminance={lum:.3f} should be ≤ 0.12 "
+        f"— near-black Venetian void ground is the defining technical condition "
+        f"for his dramatic silver highlights to read against")
+
+
+def test_tintoretto_wet_blend_moderate():
+    """Tintoretto wet_blend must be in 0.25–0.50 — impasted marks, semi-wet but not Titian fluid."""
+    s = get_style("tintoretto")
+    assert 0.25 <= s.wet_blend <= 0.50, (
+        f"Tintoretto wet_blend={s.wet_blend:.2f} should be 0.25–0.50 "
+        f"— impasted, semi-wet marks that stay directional but allow slight blending")
+
+
+def test_tintoretto_famous_works_count():
+    """Tintoretto should have at least 5 famous works documented."""
+    s = get_style("tintoretto")
+    assert len(s.famous_works) >= 5, (
+        f"Tintoretto should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_tintoretto_famous_works_include_miracle():
+    """Tintoretto must list The Miracle of the Slave as a famous work."""
+    s = get_style("tintoretto")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("miracle" in t or "slave" in t for t in titles), (
+        "Tintoretto famous works should include The Miracle of the Slave (1548) "
+        "— his career-making public masterwork")
+
+
+def test_tintoretto_inspiration_references_dynamic_light_pass():
+    """Tintoretto inspiration must reference tintoretto_dynamic_light_pass."""
+    s = get_style("tintoretto")
+    assert "tintoretto_dynamic_light" in s.inspiration.lower().replace(" ", "_"), (
+        "Tintoretto inspiration must reference tintoretto_dynamic_light_pass() — "
+        "the defining silver lightning-highlight technique pass")
+
+
+def test_tintoretto_glazing_amber():
+    """Tintoretto glazing must be warm amber (R ≥ B + 0.15) — deep Venetian varnish."""
+    s = get_style("tintoretto")
+    assert s.glazing is not None, (
+        "Tintoretto.glazing should not be None — he used a deep amber Venetian varnish")
+    r, g, b = s.glazing
+    assert r >= b + 0.15, (
+        f"Tintoretto glazing should be warm amber (R ≥ B+0.15); "
+        f"got R={r:.2f}  B={b:.2f} — glazing must be deep amber, not silver-cool")
+
+
+def test_venetian_mannerist_period_in_enum():
+    """Period.VENETIAN_MANNERIST must exist in the Period enum."""
+    assert hasattr(Period, "VENETIAN_MANNERIST"), (
+        "Period.VENETIAN_MANNERIST not found — add it to the Period enum in scene_schema.py")
+
+
+def test_venetian_mannerist_stroke_params():
+    """Style with Period.VENETIAN_MANNERIST must return valid stroke_params."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_MANNERIST)
+    params = style.stroke_params
+    assert "stroke_size_face" in params
+    assert "wet_blend" in params
+    assert "edge_softness" in params
+    # Tintoretto: bold face strokes (≥8), high drama
+    assert params["stroke_size_face"] >= 8, (
+        f"VENETIAN_MANNERIST stroke_size_face should be ≥8 for bold impasto; "
+        f"got {params['stroke_size_face']}")
+    # Venetian Mannerist: moderate wet_blend (semi-impasted)
+    assert 0.20 <= params["wet_blend"] <= 0.55, (
+        f"VENETIAN_MANNERIST wet_blend should be 0.20–0.55; got {params['wet_blend']:.2f}")
 

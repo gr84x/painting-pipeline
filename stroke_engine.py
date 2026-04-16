@@ -15755,3 +15755,199 @@ class Painter:
               f"(midtone_px={midtone_count}  highlight_px={highlight_count}  "
               f"shadow_px={shadow_count})")
 
+    def tintoretto_dynamic_light_pass(
+        self,
+        figure_mask:         "Optional[_np.ndarray]" = None,
+        contrast_strength:   float = 0.22,
+        highlight_thresh:    float = 0.68,
+        silver_strength:     float = 0.08,
+        shadow_thresh:       float = 0.30,
+        shadow_depth_push:   float = 0.18,
+        opacity:             float = 0.75,
+    ) -> None:
+        """
+        Apply Jacopo Tintoretto's silver lightning-highlight and dramatic void quality.
+
+        Tintoretto (Jacopo Robusti, 1518–1594) — Il Furioso — transformed Venetian
+        painting by combining the Venetian tradition of rich colourism with a
+        Michelangelesque command of dramatic light.  Where his teacher Titian built
+        luminosity through patient transparent glazing on warm ochre grounds,
+        Tintoretto slashed silver-white impasto directly onto near-black grounds,
+        creating a quality of light that reads less like warm sunlight and more like
+        a sudden bolt of lightning cutting across absolute darkness.
+
+        His technique in the Scuola Grande di San Rocco — the largest body of
+        paintings by a single artist in any single building — represents the extreme
+        development of this approach: figures emerge from near-absolute void, lit by
+        cool, directional, electric-silver highlights rather than warm diffuse glow.
+        The tonal range from darkest shadow to brightest highlight is among the widest
+        in Italian Renaissance painting; the drama lives in that gap.
+
+        This pass applies three layered operations:
+
+        1. **Contrast amplification** (global): Expands the tonal range by darkening
+           shadows and brightening highlights simultaneously.  Applies a mild S-curve
+           to luminance — the midpoint is held, but both ends are pushed outward.
+           This models the quality of Tintoretto's extreme ground-to-highlight range.
+           Controlled by ``contrast_strength``.
+
+        2. **Silver highlight push** (``lum > highlight_thresh``): The brightest
+           pixels are cooled toward silver-white — B is lifted, R is slightly reduced.
+           This is the inverse of Rembrandt or Titian warm gold highlights: Tintoretto's
+           impasto peaks read as cool, metallic, almost electrically bright.  The effect
+           scales with distance above the threshold (brightest pixels receive full push).
+           Controlled by ``silver_strength``.
+
+        3. **Shadow void deepening** (``lum < shadow_thresh``): Dark pixels are pulled
+           further toward the near-black Venetian ground.  This widens the luminance gap
+           between lit and unlit areas, reinforcing the drama of sudden emergence from
+           darkness.  Strength scales with depth: deepest shadows receive the full push.
+           Controlled by ``shadow_depth_push``.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array ``(H, W)`` in [0, 1].  1 = figure, 0 = background.
+            When provided, all corrections are confined to the figure region.
+        contrast_strength : float
+            Amplitude of the S-curve contrast expansion.  0 = no change; 0.22 = visible
+            dramatic extension of tonal range.  Values > 0.40 will crush shadows and
+            blow highlights; use with care.
+        highlight_thresh : float
+            Luminance above which the silver cool-push is applied.  Default 0.68.
+            Only genuine impasto highlights should receive the silver treatment.
+        silver_strength : float
+            Magnitude of the silver push: B lifted, R reduced.  Default 0.08 — subtle
+            but perceptible; stacks with contrast amplification to produce the
+            characteristic electric-silver impasto quality.
+        shadow_thresh : float
+            Luminance below which shadow void deepening is applied.  Default 0.30.
+        shadow_depth_push : float
+            How strongly shadows are pushed toward absolute black.  0 = no change;
+            1 = full push to zero.  Default 0.18.  Preserves the slight warm-brown
+            undertone of Tintoretto's ground rather than crushing to pure black.
+        opacity : float
+            Global blend factor: 0 = no effect, 1 = full correction applied.
+
+        Notes
+        -----
+        Apply AFTER ``build_form()`` — contrast amplification acts on the modelled
+        tonal structure, not the unformed underpainting.  Works well before ``glaze()``
+        with a deep amber Venetian glaze: the silver highlights read through the amber
+        as a warm-then-cool flicker, reproducing the Tintoretto luminosity exactly.
+        Pairs well with ``chiaroscuro_modelling_pass()`` (to establish the initial
+        tonal drama) and ``reflected_light_pass()`` (the secondary silver reflection
+        in shadow areas that Tintoretto used to animate his void backgrounds).
+        Does NOT pair well with ``bronzino_enamel_skin_pass()`` — they are
+        aesthetically opposite techniques (seamless surface vs. slashed impasto).
+        """
+        import numpy as _np
+
+        print(f"  Tintoretto dynamic-light pass  "
+              f"(contrast={contrast_strength:.3f}  silver={silver_strength:.3f}  "
+              f"shadow_push={shadow_depth_push:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Tintoretto dynamic-light pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Acquire raw BGRA buffer ───────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape(h, w, 4).copy()
+        orig = buf.copy()
+
+        # Cairo BGRA: index 0=B, 1=G, 2=R, 3=A
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f   # (H, W)
+
+        # ── Figure mask weight ────────────────────────────────────────────────
+        if figure_mask is not None:
+            mask_w = _np.clip(
+                _np.array(figure_mask, dtype=_np.float32), 0.0, 1.0
+            )
+            if mask_w.shape != (h, w):
+                from PIL import Image as _Img
+                mask_w = _np.array(
+                    _Img.fromarray((mask_w * 255).astype(_np.uint8)).resize(
+                        (w, h), _Img.BILINEAR
+                    ), dtype=_np.float32
+                ) / 255.0
+        else:
+            mask_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Contrast amplification (S-curve centred at 0.5) ───────────────
+        # A mild S-curve pushes darks darker and brights brighter simultaneously.
+        # Implementation: lum_new = 0.5 + (lum - 0.5) * (1 + contrast_strength)
+        # We compute a luminance delta and apply it proportionally to each channel
+        # so that hue is preserved while the tonal range is expanded.
+        if contrast_strength > 0.0:
+            scale = 1.0 + contrast_strength
+            lum_new = _np.clip(0.5 + (lum - 0.5) * scale, 0.0, 1.0)
+            lum_safe = _np.where(lum > 1e-6, lum, 1e-6)
+            ratio = lum_new / lum_safe
+            # Clamp ratio so no channel exceeds [0, 1]
+            ratio = _np.clip(ratio, 0.0, 1.0 / _np.maximum(
+                _np.stack([r_out, g_out, b_out], axis=-1).max(axis=-1), 1e-6
+            ))
+            r_out = _np.clip(r_out * ratio, 0.0, 1.0)
+            g_out = _np.clip(g_out * ratio, 0.0, 1.0)
+            b_out = _np.clip(b_out * ratio, 0.0, 1.0)
+            # Recompute luminance after contrast step for subsequent operations
+            lum = 0.2126 * r_out + 0.7152 * g_out + 0.0722 * b_out
+
+        # ── 2. Silver highlight push (lum > highlight_thresh) ────────────────
+        # The brightest impasto ridges are cooled toward silver-white:
+        # B is lifted, R is slightly reduced.  This is Tintoretto's cool electric
+        # highlight — neither Rembrandt's warm amber glow nor Leonardo's sfumato.
+        # Strength scales with excess luminance above the threshold.
+        highlight_excess = _np.clip(
+            (lum - highlight_thresh) / max(1.0 - highlight_thresh, 1e-6),
+            0.0, 1.0
+        )
+        hi_w = highlight_excess * silver_strength
+        b_out = _np.clip(b_out + hi_w,         0.0, 1.0)
+        r_out = _np.clip(r_out - hi_w * 0.55,  0.0, 1.0)
+
+        # ── 3. Shadow void deepening (lum < shadow_thresh) ───────────────────
+        # Dark pixels are pulled further toward black — widening the tonal gap
+        # between Tintoretto's lit impasto peaks and his near-black Venetian void.
+        # Strength scales with how deep the shadow is (deepest = full push).
+        shadow_depth = _np.clip(
+            (shadow_thresh - lum) / max(shadow_thresh, 1e-6), 0.0, 1.0
+        )
+        push_w = shadow_depth * shadow_depth_push
+        r_out  = _np.clip(r_out * (1.0 - push_w), 0.0, 1.0)
+        g_out  = _np.clip(g_out * (1.0 - push_w), 0.0, 1.0)
+        b_out  = _np.clip(b_out * (1.0 - push_w), 0.0, 1.0)
+
+        # ── Blend corrected layer back at `opacity`, weighted by mask ─────────
+        blend = opacity * mask_w
+
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2] * (1.0 - blend) + r_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1] * (1.0 - blend) + g_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0] * (1.0 - blend) + b_out * blend * 255.0,
+            0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        highlight_count = int((highlight_excess > 0.05).sum())
+        shadow_count    = int((shadow_depth     > 0.05).sum())
+        print(f"    Tintoretto dynamic-light pass complete  "
+              f"(highlight_px={highlight_count}  shadow_px={shadow_count})")
+
+

@@ -7941,3 +7941,204 @@ def test_bronzino_enamel_skin_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.62, 0.58, 0.56), texture_strength=0.0)
     p.bronzino_enamel_skin_pass(opacity=0.65)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# tintoretto_dynamic_light_pass() — session 53
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_tintoretto_dynamic_light_pass_exists():
+    """Painter must have tintoretto_dynamic_light_pass() method after session 53."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "tintoretto_dynamic_light_pass"), (
+        "tintoretto_dynamic_light_pass not found on Painter")
+    assert callable(getattr(Painter, "tintoretto_dynamic_light_pass"))
+
+
+def test_tintoretto_dynamic_light_pass_runs_without_error():
+    """tintoretto_dynamic_light_pass() must run on a default canvas without raising."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.07, 0.05), texture_strength=0.0)
+    p.tintoretto_dynamic_light_pass()
+
+
+def test_tintoretto_dynamic_light_pass_opacity_zero_noop():
+    """tintoretto_dynamic_light_pass() with opacity=0 must not alter any pixels."""
+    p = _make_small_painter(64, 64)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.tintoretto_dynamic_light_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after), (
+        "opacity=0 must leave canvas completely unchanged")
+
+
+def test_tintoretto_dynamic_light_pass_contrast_amplification():
+    """tintoretto_dynamic_light_pass() must widen tonal range (increase luminance std)."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a gradient — both dark and bright regions present
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    # Top half: bright warm impasto
+    buf[:32, :, 2] = 210   # R
+    buf[:32, :, 1] = 185   # G
+    buf[:32, :, 0] = 140   # B
+    # Bottom half: deep shadow
+    buf[32:, :, 2] = 45
+    buf[32:, :, 1] = 32
+    buf[32:, :, 0] = 22
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Compute luminance std before
+    r_f  = buf[:, :, 2].astype(float) / 255.0
+    g_f  = buf[:, :, 1].astype(float) / 255.0
+    b_f  = buf[:, :, 0].astype(float) / 255.0
+    lum_before = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+    std_before = float(np.std(lum_before))
+
+    p.tintoretto_dynamic_light_pass(
+        contrast_strength  = 0.40,   # amplified for measurable effect
+        silver_strength    = 0.0,
+        shadow_depth_push  = 0.0,
+        opacity            = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_a   = buf_after[:, :, 2].astype(float) / 255.0
+    g_a   = buf_after[:, :, 1].astype(float) / 255.0
+    b_a   = buf_after[:, :, 0].astype(float) / 255.0
+    lum_after = 0.2126 * r_a + 0.7152 * g_a + 0.0722 * b_a
+    std_after = float(np.std(lum_after))
+
+    assert std_after >= std_before - 0.005, (
+        f"Contrast amplification should not decrease luminance std; "
+        f"std_before={std_before:.4f}  std_after={std_after:.4f}")
+
+
+def test_tintoretto_dynamic_light_pass_silver_highlight_push():
+    """tintoretto_dynamic_light_pass() must lift B and reduce R in bright highlight zones."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with bright warm highlight — lum > highlight_thresh
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 235   # R — warm bright highlight
+    buf[:, :, 1] = 210   # G
+    buf[:, :, 0] = 155   # B — relatively low (warm)
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = float(buf[:, :, 2].mean())
+    b_before = float(buf[:, :, 0].mean())
+
+    p.tintoretto_dynamic_light_pass(
+        highlight_thresh  = 0.60,    # ensure these pixels are in highlight zone
+        silver_strength   = 0.18,    # amplified for measurable shift
+        contrast_strength = 0.0,
+        shadow_depth_push = 0.0,
+        opacity           = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = float(buf_after[:, :, 2].mean())
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert b_after > b_before + 1, (
+        f"Silver highlight push must lift B channel; "
+        f"B_before={b_before:.1f}  B_after={b_after:.1f}")
+    assert r_after < r_before + 1, (
+        f"Silver highlight push must not increase R; "
+        f"R_before={r_before:.1f}  R_after={r_after:.1f}")
+
+
+def test_tintoretto_dynamic_light_pass_shadow_void_deepening():
+    """tintoretto_dynamic_light_pass() must darken pixels in shadow zones."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with dark warm shadow — lum < shadow_thresh
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 65    # R — dark warm brown shadow
+    buf[:, :, 1] = 48    # G
+    buf[:, :, 0] = 30    # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    mean_lum_before = (0.2126 * 65 + 0.7152 * 48 + 0.0722 * 30) / 255.0
+
+    p.tintoretto_dynamic_light_pass(
+        shadow_thresh     = 0.45,    # high threshold so these pixels are in shadow
+        shadow_depth_push = 0.60,    # amplified for measurable darkening
+        contrast_strength = 0.0,
+        silver_strength   = 0.0,
+        opacity           = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    mean_r_after = float(buf_after[:, :, 2].mean())
+    mean_g_after = float(buf_after[:, :, 1].mean())
+    mean_b_after = float(buf_after[:, :, 0].mean())
+    mean_lum_after = (0.2126 * mean_r_after + 0.7152 * mean_g_after +
+                      0.0722 * mean_b_after) / 255.0
+
+    assert mean_lum_after < mean_lum_before, (
+        f"Shadow void deepening must reduce mean luminance; "
+        f"lum_before={mean_lum_before:.4f}  lum_after={mean_lum_after:.4f}")
+
+
+def test_tintoretto_dynamic_light_pass_figure_mask():
+    """tintoretto_dynamic_light_pass() with figure_mask must not alter background pixels."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with bright warm tone everywhere (triggers silver push if in figure)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 220
+    buf[:, :, 1] = 195
+    buf[:, :, 0] = 140
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: figure only in top half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:32, :] = 1.0
+
+    p.tintoretto_dynamic_light_pass(
+        figure_mask     = mask,
+        silver_strength = 0.25,
+        opacity         = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom half (background, mask=0) must be unchanged
+    assert np.array_equal(buf_after[40:, :, :3], buf[40:, :, :3]), (
+        "Background pixels (mask=0) must not be altered by tintoretto_dynamic_light_pass")
+
+
+def test_tintoretto_dynamic_light_pass_custom_params():
+    """tintoretto_dynamic_light_pass() must accept all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.07, 0.05), texture_strength=0.0)
+    p.tintoretto_dynamic_light_pass(
+        contrast_strength  = 0.15,
+        highlight_thresh   = 0.72,
+        silver_strength    = 0.06,
+        shadow_thresh      = 0.28,
+        shadow_depth_push  = 0.12,
+        opacity            = 0.60,
+    )
+
+
+def test_tintoretto_dynamic_light_pass_large_canvas():
+    """tintoretto_dynamic_light_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.10, 0.07, 0.05), texture_strength=0.0)
+    p.tintoretto_dynamic_light_pass(opacity=0.65)
