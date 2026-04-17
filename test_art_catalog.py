@@ -87,6 +87,7 @@ EXPECTED_ARTISTS = [
     "claude_lorrain",
     "jacques_louis_david",
     "guido_reni",
+    "correggio",
 ]
 
 
@@ -232,6 +233,7 @@ EXPECTED_PERIODS = [
     "CLASSICAL_LANDSCAPE",
     "FRENCH_NEOCLASSICAL",
     "BOLOGNESE_BAROQUE",
+    "PARMA_RENAISSANCE",
 ]
 
 
@@ -8302,3 +8304,143 @@ def test_bolognese_baroque_stroke_params_moderate_edge_softness():
     assert 0.38 <= p["edge_softness"] <= 0.72, (
         f"BOLOGNESE_BAROQUE edge_softness should be in [0.38, 0.72] — soft Baroque "
         f"blending without full sfumato dissolution; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Correggio — session 71 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_correggio_in_catalog():
+    """Session 71: correggio must be present in CATALOG."""
+    assert "correggio" in CATALOG, (
+        "correggio missing from CATALOG — add it to art_catalog.py")
+
+
+def test_correggio_movement():
+    """Correggio's movement should reference Parma or Proto-Baroque."""
+    s = get_style("correggio")
+    assert ("Parma" in s.movement or "Proto" in s.movement
+            or "Renaissance" in s.movement), (
+        f"correggio movement should reference Parma or Proto-Baroque; got {s.movement!r}")
+
+
+def test_correggio_palette_length():
+    s = get_style("correggio")
+    assert len(s.palette) >= 6, (
+        f"correggio palette should have at least 6 key colours; got {len(s.palette)}")
+
+
+def test_correggio_palette_values_in_range():
+    """All Correggio palette RGB values must be in [0, 1]."""
+    s = get_style("correggio")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Correggio palette {rgb}")
+
+
+def test_correggio_high_wet_blend():
+    """Correggio's melting transitions require very high wet_blend (>= 0.60)."""
+    s = get_style("correggio")
+    assert s.wet_blend >= 0.60, (
+        f"correggio wet_blend should be >= 0.60 for the signature melting "
+        f"Correggesque transitions; got {s.wet_blend}")
+
+
+def test_correggio_high_edge_softness():
+    """Correggio's proto-sfumato requires very high edge_softness (>= 0.60)."""
+    s = get_style("correggio")
+    assert s.edge_softness >= 0.60, (
+        f"correggio edge_softness should be >= 0.60 for proto-sfumato softness; "
+        f"got {s.edge_softness}")
+
+
+def test_correggio_warm_palette():
+    """Correggio's palette must contain warm golden/amber highlights (R > B, high lum)."""
+    s = get_style("correggio")
+    warm_highlights = [
+        rgb for rgb in s.palette
+        if rgb[0] > 0.75 and rgb[0] > rgb[2] + 0.15
+    ]
+    assert len(warm_highlights) >= 2, (
+        "correggio palette must contain at least 2 warm golden/amber colours — "
+        "his defining warm ivory and amber-gold flesh tones")
+
+
+def test_correggio_famous_works_include_assumption():
+    """Correggio's famous works must include the Assumption of the Virgin."""
+    s = get_style("correggio")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Assumption" in t for t in titles), (
+        "correggio famous works should include Assumption of the Virgin — "
+        "his supreme illusionistic ceiling fresco in Parma Cathedral")
+
+
+def test_correggio_famous_works_include_jupiter_io():
+    """Correggio's famous works must include Jupiter and Io."""
+    s = get_style("correggio")
+    titles = [w[0] for w in s.famous_works]
+    assert any(("Jupiter" in t or "Io" in t) for t in titles), (
+        "correggio famous works should include Jupiter and Io — "
+        "the supreme demonstration of the Correggesque golden flesh ideal")
+
+
+def test_correggio_famous_works_count():
+    """Correggio should have at least 4 famous works documented."""
+    s = get_style("correggio")
+    assert len(s.famous_works) >= 4, (
+        f"correggio should have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_correggio_inspiration_references_tenderness_pass():
+    """Correggio inspiration must reference correggio_golden_tenderness_pass()."""
+    s = get_style("correggio")
+    assert "correggio_golden_tenderness_pass()" in s.inspiration, (
+        "correggio inspiration must reference correggio_golden_tenderness_pass() — "
+        "the defining pipeline pass for his amber-gold luminosity technique")
+
+
+def test_correggio_inspiration_references_luminous_haze_pass():
+    """Correggio inspiration must reference luminous_haze_pass()."""
+    s = get_style("correggio")
+    assert "luminous_haze_pass()" in s.inspiration, (
+        "correggio inspiration must reference luminous_haze_pass() — "
+        "the session 71 artistic improvement pass")
+
+
+def test_correggio_in_expected_artists():
+    """EXPECTED_ARTISTS list must include correggio."""
+    assert "correggio" in EXPECTED_ARTISTS, (
+        "correggio missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.PARMA_RENAISSANCE — session 71 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_parma_renaissance_period_present():
+    """Session 71: PARMA_RENAISSANCE must exist in Period enum."""
+    assert hasattr(Period, "PARMA_RENAISSANCE"), (
+        "Period.PARMA_RENAISSANCE not found — add it to scene_schema.py")
+    assert Period.PARMA_RENAISSANCE in list(Period)
+
+
+def test_parma_renaissance_stroke_params_high_wet_blend():
+    """PARMA_RENAISSANCE should have very high wet_blend (melting Correggesque transitions)."""
+    style = Style(medium=Medium.OIL, period=Period.PARMA_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.55, (
+        f"PARMA_RENAISSANCE wet_blend should be >= 0.55 for Correggio's melting "
+        f"transitions; got {p['wet_blend']}")
+
+
+def test_parma_renaissance_stroke_params_high_edge_softness():
+    """PARMA_RENAISSANCE should have very high edge_softness (proto-sfumato)."""
+    style = Style(medium=Medium.OIL, period=Period.PARMA_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.55, (
+        f"PARMA_RENAISSANCE edge_softness should be >= 0.55 for proto-sfumato "
+        f"softness; got {p['edge_softness']}")

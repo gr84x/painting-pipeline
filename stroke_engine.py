@@ -19603,3 +19603,268 @@ class Painter:
 
         bloom_px = int((inner_bloom > 0.05).sum())
         print(f"    Highlight bloom pass complete  (bloom_px={bloom_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 71 — Correggio golden tenderness pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def correggio_golden_tenderness_pass(self,
+                                         midtone_low:     float = 0.30,
+                                         midtone_high:    float = 0.78,
+                                         gold_lift:       float = 0.06,
+                                         amber_shadow:    float = 0.05,
+                                         face_cx:         float = 0.515,
+                                         face_cy:         float = 0.210,
+                                         face_rx:         float = 0.140,
+                                         face_ry:         float = 0.190,
+                                         glow_strength:   float = 0.05,
+                                         blur_radius:     float = 10.0,
+                                         opacity:         float = 0.46) -> None:
+        """
+        Correggio golden tenderness pass — session 71 artist inspiration.
+
+        Antonio Allegri da Correggio (1489–1534) developed the warmest, most
+        honeyed rendering of human flesh in the entire Italian Renaissance.
+        Unlike Leonardo's cool sfumato or Raphael's clear idealisation, Correggio
+        suffuses every passage — highlights, midtones, and shadows alike — with
+        a warm amber-gold luminosity that makes his figures appear to glow from
+        within.  His shadows are amber-brown, never grey-violet; his highlights
+        are warm ivory rather than cool pearl.  This creates the 'Correggesque'
+        quality: a tenderness of light that anticipates the entire Flemish
+        Baroque tradition.
+
+        This pass applies three operations:
+
+          1. Golden midtone lift — nudges the midtone band (midtone_low to
+             midtone_high) toward a warm amber-gold by boosting red, slightly
+             boosting green, and gently damping blue.  This warms the skin
+             without making it look sunburned.
+
+          2. Warm shadow resistance — in the shadow zones (below midtone_low),
+             adds a subtle amber warmth that prevents shadows from reading as
+             cool or grey.  Correggio's shadows are always warm — this is the
+             most distinctive Correggesque signature.
+
+          3. Face glow — applies a radial warm glow centred on the face ellipse,
+             simulating the concentration of warm light on the primary subject
+             that appears in Jupiter and Io and The Holy Night.
+
+        Parameters
+        ----------
+        midtone_low    : luminance threshold below which shadow warm-resistance applies
+        midtone_high   : luminance threshold above which highlights are excluded
+        gold_lift      : strength of the amber-gold midtone boost (0–0.15)
+        amber_shadow   : warmth added to shadow zones (0–0.10)
+        face_cx        : face centre X as fraction of canvas width
+        face_cy        : face centre Y as fraction of canvas height
+        face_rx        : face ellipse half-width X as fraction of canvas width
+        face_ry        : face ellipse half-height Y as fraction of canvas height
+        glow_strength  : opacity of the radial warm face glow (0–0.15)
+        blur_radius    : Gaussian blur radius for the glow mask
+        opacity        : overall pass opacity blended against the input (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Correggio golden tenderness pass "
+              f"(gold_lift={gold_lift:.3f}  amber_shadow={amber_shadow:.3f}  "
+              f"glow={glow_strength:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Correggio pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Golden midtone lift ─────────────────────────────────────────────
+        # Weight is 1.0 in the midtone band, fading to 0 at boundaries.
+        mt_range = max(0.01, midtone_high - midtone_low)
+        mt_weight = _np.clip((lum - midtone_low) / (mt_range * 0.4), 0.0, 1.0)
+        mt_weight *= _np.clip((midtone_high - lum) / (mt_range * 0.4), 0.0, 1.0)
+
+        # Gold = boost R, slight G, damp B
+        r_out = _np.clip(r_out + mt_weight * gold_lift * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + mt_weight * gold_lift * 0.35, 0.0, 1.0)
+        b_out = _np.clip(b_out - mt_weight * gold_lift * 0.40, 0.0, 1.0)
+
+        # ── 2. Warm shadow resistance ──────────────────────────────────────────
+        # Shadow zones (lum < midtone_low): add amber warmth, resist cool lean.
+        sh_weight = _np.clip((midtone_low - lum) / max(0.01, midtone_low), 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_weight * amber_shadow * 0.80, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_weight * amber_shadow * 0.30, 0.0, 1.0)
+        b_out = _np.clip(b_out - sh_weight * amber_shadow * 0.20, 0.0, 1.0)
+
+        # ── 3. Radial warm face glow ───────────────────────────────────────────
+        # Build a soft Gaussian-blurred elliptical mask centred on the face.
+        ys = _np.arange(h, dtype=_np.float32) / h
+        xs = _np.arange(w, dtype=_np.float32) / w
+        xx, yy = _np.meshgrid(xs, ys)
+        dx_face = (xx - face_cx) / max(0.001, face_rx * 1.5)
+        dy_face = (yy - face_cy) / max(0.001, face_ry * 1.5)
+        face_dist = dx_face * dx_face + dy_face * dy_face
+        face_mask = _np.clip(1.0 - face_dist, 0.0, 1.0).astype(_np.float32)
+        face_mask = _gf(face_mask, sigma=blur_radius)
+        face_mask = _np.clip(face_mask / max(1e-6, face_mask.max()), 0.0, 1.0)
+
+        gw = face_mask * glow_strength
+        r_out = _np.clip(r_out + gw * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + gw * 0.60, 0.0, 1.0)
+        b_out = _np.clip(b_out + gw * 0.10, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r_f * (1.0 - opacity) + r_out * opacity
+        g_final = g_f * (1.0 - opacity) + g_out * opacity
+        b_final = b_f * (1.0 - opacity) + b_out * opacity
+
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Correggio golden tenderness pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 71 — Luminous haze pass (artistic improvement)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def luminous_haze_pass(self,
+                           haze_warmth:    float = 0.04,
+                           haze_opacity:   float = 0.12,
+                           haze_color:     "Optional[tuple]" = None,
+                           soften_radius:  float = 3.0,
+                           contrast_damp:  float = 0.06,
+                           shadow_lift:    float = 0.018,
+                           opacity:        float = 0.48) -> None:
+        """
+        Luminous haze pass — session 71 artistic improvement.
+
+        Inspired by Correggio's extraordinary ability to suffuse an entire
+        composition with a warm, unifying atmospheric light — a quality that
+        distinguishes his work from every other Renaissance painter.  In physical
+        terms this arises from two sources:
+
+          1. Aged golden varnish: old master oil paintings are coated with natural
+             resin varnishes (mastic, damar) that yellow and warm over centuries.
+             This gives the entire painting a subtle amber-honey tone that unifies
+             disparate passages into a single coherent palette.
+
+          2. Atmospheric diffusion: interior scenes lit by candle or diffused
+             window light have a soft, low-contrast quality — the darkest shadows
+             are lifted by ambient scatter, and the highlights are softened by the
+             same diffusion.  The overall effect is a gentle compression of the
+             tonal scale toward the midtone.
+
+        This pass simulates both effects:
+
+          1. Warm haze overlay — blends a soft, warm haze color (default: amber-
+             honey) over the image at low opacity.  This is the varnish effect:
+             everything shifted fractionally toward amber without losing colour.
+
+          2. Shadow lift — gently raises the luminance floor of the darkest areas
+             by a fixed amount, simulating ambient scatter that prevents deep
+             blacks from appearing truly dead.
+
+          3. Contrast damping — reduces the overall luminance range by pulling
+             values fractionally toward the midpoint, creating the softer, more
+             unified tonal scale of an interior lit by diffused warm light.
+
+          4. Softening — applies a very gentle Gaussian blur before compositing
+             to simulate the slight optical softening that occurs when light
+             scatters through old varnish and aged glazes.
+
+        Parameters
+        ----------
+        haze_warmth    : amber-shift added uniformly across all tones (0–0.10)
+        haze_opacity   : opacity of the warm haze color overlay (0–0.25)
+        haze_color     : (R, G, B) of the haze; None defaults to warm honey amber
+        soften_radius  : Gaussian sigma for the pre-composite softening blur
+        contrast_damp  : amount to compress tonal range toward midpoint (0–0.15)
+        shadow_lift    : luminance floor lift for the darkest areas (0–0.05)
+        opacity        : overall pass opacity blended against the input (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Luminous haze pass "
+              f"(haze_warmth={haze_warmth:.3f}  haze_opacity={haze_opacity:.2f}  "
+              f"contrast_damp={contrast_damp:.3f}  shadow_lift={shadow_lift:.3f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Luminous haze pass skipped (opacity=0)")
+            return
+
+        # Default haze colour: warm honey amber — aged varnish tone
+        if haze_color is None:
+            haze_color = (0.86, 0.74, 0.48)
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Optional softening blur ────────────────────────────────────────────
+        if soften_radius > 0.5:
+            r_soft = _gf(r_f, sigma=soften_radius)
+            g_soft = _gf(g_f, sigma=soften_radius)
+            b_soft = _gf(b_f, sigma=soften_radius)
+        else:
+            r_soft, g_soft, b_soft = r_f.copy(), g_f.copy(), b_f.copy()
+
+        # ── Contrast damp — pull all values fractionally toward 0.5 ───────────
+        r_out = r_soft + (0.5 - r_soft) * contrast_damp
+        g_out = g_soft + (0.5 - g_soft) * contrast_damp
+        b_out = b_soft + (0.5 - b_soft) * contrast_damp
+
+        # ── Shadow lift — raise luminance floor of darkest areas ──────────────
+        lum = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        dark_weight = _np.clip(1.0 - lum / max(0.01, shadow_lift * 8.0), 0.0, 1.0)
+        r_out = _np.clip(r_out + dark_weight * shadow_lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + dark_weight * shadow_lift * 0.75, 0.0, 1.0)
+        b_out = _np.clip(b_out + dark_weight * shadow_lift * 0.50, 0.0, 1.0)
+
+        # ── Uniform amber-warmth shift ─────────────────────────────────────────
+        r_out = _np.clip(r_out + haze_warmth * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + haze_warmth * 0.50, 0.0, 1.0)
+        b_out = _np.clip(b_out - haze_warmth * 0.30, 0.0, 1.0)
+
+        # ── Warm haze color overlay ────────────────────────────────────────────
+        hc_r, hc_g, hc_b = float(haze_color[0]), float(haze_color[1]), float(haze_color[2])
+        r_out = _np.clip(r_out + haze_opacity * (hc_r - r_out), 0.0, 1.0)
+        g_out = _np.clip(g_out + haze_opacity * (hc_g - g_out), 0.0, 1.0)
+        b_out = _np.clip(b_out + haze_opacity * (hc_b - b_out), 0.0, 1.0)
+
+        # ── Composite at opacity against original ─────────────────────────────
+        r_final = r_f * (1.0 - opacity) + r_out * opacity
+        g_final = g_f * (1.0 - opacity) + g_out * opacity
+        b_final = b_f * (1.0 - opacity) + b_out * opacity
+
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Luminous haze pass complete.")
