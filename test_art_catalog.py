@@ -81,6 +81,7 @@ EXPECTED_ARTISTS = [
     "parmigianino",
     "canaletto",
     "vigee_le_brun",
+    "alma_tadema",
 ]
 
 
@@ -7570,4 +7571,92 @@ def test_vigee_le_brun_in_expected_artists():
     """EXPECTED_ARTISTS list must include vigee_le_brun."""
     assert "vigee_le_brun" in EXPECTED_ARTISTS, (
         "vigee_le_brun missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Alma-Tadema — session 65 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_alma_tadema_in_catalog():
+    """Alma-Tadema (session 65) must be present in CATALOG."""
+    assert "alma_tadema" in CATALOG, (
+        "alma_tadema missing from CATALOG — add it to art_catalog.py")
+
+
+def test_alma_tadema_movement():
+    """alma_tadema movement must reference Academicism or Victorian."""
+    s = get_style("alma_tadema")
+    mv = s.movement.lower()
+    assert "academ" in mv or "victorian" in mv or "classical" in mv, (
+        f"alma_tadema movement should reference Academicism, Victorian, or Classical; "
+        f"got: {s.movement!r}")
+
+
+def test_alma_tadema_nationality_dutch_british():
+    """alma_tadema nationality must reference Dutch or British."""
+    s = get_style("alma_tadema")
+    nat = s.nationality.lower()
+    assert "dutch" in nat or "british" in nat, (
+        f"alma_tadema nationality should reference Dutch or British (was Dutch-born, "
+        f"naturalised British); got: {s.nationality!r}")
+
+
+def test_alma_tadema_palette_length():
+    """alma_tadema palette must have at least 6 entries."""
+    s = get_style("alma_tadema")
+    assert len(s.palette) >= 6, (
+        f"alma_tadema palette has only {len(s.palette)} entries; expected >= 6")
+
+
+def test_alma_tadema_palette_values_in_range():
+    """alma_tadema palette values must all be in [0.0, 1.0]."""
+    s = get_style("alma_tadema")
+    for i, color in enumerate(s.palette):
+        for j, v in enumerate(color):
+            assert 0.0 <= v <= 1.0, (
+                f"alma_tadema palette[{i}][{j}]={v:.4f} is out of [0,1]")
+
+
+def test_alma_tadema_edge_softness_crisp():
+    """alma_tadema edge_softness must be <= 0.35 (photographic crispness)."""
+    s = get_style("alma_tadema")
+    assert s.edge_softness <= 0.35, (
+        f"alma_tadema edge_softness={s.edge_softness:.3f} should be <= 0.35 — "
+        f"his marble edges are photographically crisp, the defining quality "
+        f"that distinguishes his surfaces from Impressionist or sfumato softness")
+
+
+def test_alma_tadema_high_key_palette():
+    """alma_tadema palette average luminance must be > 0.60 (high-key)."""
+    s = get_style("alma_tadema")
+    avg_lum = sum(
+        0.2126 * r + 0.7152 * g + 0.0722 * b
+        for r, g, b in s.palette
+    ) / len(s.palette)
+    assert avg_lum > 0.60, (
+        f"alma_tadema palette avg luminance={avg_lum:.3f} should be > 0.60 — "
+        f"his paintings are extremely high-key: marble, noon light, pale silk, "
+        f"and Mediterranean sky dominate the palette")
+
+
+def test_alma_tadema_inspiration_references_marble_pass():
+    """alma_tadema inspiration must reference alma_tadema_marble_luminance_pass()."""
+    s = get_style("alma_tadema")
+    assert "alma_tadema_marble_luminance_pass()" in s.inspiration, (
+        "alma_tadema inspiration must reference alma_tadema_marble_luminance_pass() — "
+        "the defining pipeline pass for his crystalline marble technique")
+
+
+def test_alma_tadema_inspiration_references_crystalline_pass():
+    """alma_tadema inspiration must reference crystalline_surface_pass()."""
+    s = get_style("alma_tadema")
+    assert "crystalline_surface_pass()" in s.inspiration, (
+        "alma_tadema inspiration must reference crystalline_surface_pass() — "
+        "the session 65 artistic improvement inspired by his glass-like precision")
+
+
+def test_alma_tadema_in_expected_artists():
+    """EXPECTED_ARTISTS list must include alma_tadema."""
+    assert "alma_tadema" in EXPECTED_ARTISTS, (
+        "alma_tadema missing from EXPECTED_ARTISTS — add it to the list")
 

@@ -5483,6 +5483,73 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Lawrence Alma-Tadema ───────────────────────────────────────────────────
+    "alma_tadema": ArtStyle(
+        artist="Lawrence Alma-Tadema",
+        movement="Academicism / Victorian Classical",
+        nationality="Dutch-British",
+        period="1870–1912",
+        palette=[
+            (0.96, 0.94, 0.88),   # crystalline marble white — Pentelic with warm cast
+            (0.88, 0.80, 0.62),   # warm Giallo Antico stone — Roman golden marble
+            (0.72, 0.85, 0.92),   # Mediterranean sky — Aegean blue over marble
+            (0.94, 0.88, 0.70),   # alabaster warm cream — translucent stone glow
+            (0.82, 0.60, 0.44),   # terracotta Roman tile — warm reddish-brown
+            (0.56, 0.72, 0.58),   # laurel and olive — muted classical green
+            (0.90, 0.82, 0.68),   # silk ivory — draped Classical costume
+            (0.38, 0.52, 0.68),   # Aegean deep water — distant sea blue-grey
+            (0.95, 0.90, 0.82),   # noon light on marble — bleached Mediterranean
+        ],
+        ground_color=(0.88, 0.82, 0.68),    # warm cream imprimatura — light marble ground
+        stroke_size=3,
+        wet_blend=0.30,          # primarily optical — not relying on wet blending
+        edge_softness=0.22,      # very crisp edges — photographic precision
+        jitter=0.008,            # extremely low jitter — near-photographic detail
+        glazing=(0.92, 0.86, 0.68),   # warm golden glaze — Mediterranean noon
+        crackle=False,           # Victorian oil on panel — typically well-preserved
+        chromatic_split=False,
+        technique=(
+            "Photographic precision with an almost enamelled surface — Alma-Tadema "
+            "built up thin, glazed layers over a smooth, light-coloured ground, "
+            "achieving a luminosity in his marble that seems to glow from within.  "
+            "His marble is not merely white: it is translucent, veined, and selectively "
+            "warm — absorbing light in the depths and radiating it from the surface.  "
+            "Specular highlights on polished marble are pure, concentrated, and sharply "
+            "bounded — like reflections in glass, not the diffuse highlights of Impressionism.  "
+            "Silk and linen draperies show fine, coherent folds — each crease a precise "
+            "cast shadow with a clean penumbra.  Flesh tones are cool ivory — Roman marble "
+            "light reflected back onto skin.  The overall palette is extremely high in "
+            "key: his paintings read as bright, sun-flooded interiors where the dominant "
+            "optical fact is light bouncing between marble surfaces."
+        ),
+        famous_works=[
+            ("The Roses of Heliogabalus",         "1888"),
+            ("Spring (A Coign of Vantage)",        "1895"),
+            ("Tepidarium",                         "1881"),
+            ("The Finding of Moses",               "1904"),
+            ("A Favourite Custom",                 "1909"),
+            ("In the Tepidarium",                  "1881"),
+            ("Phidias and the Frieze of the Parthenon", "1868"),
+        ],
+        inspiration=(
+            "Apply alma_tadema_marble_luminance_pass() to bright surfaces to introduce "
+            "the characteristic crystalline specular quality of polished Roman marble — "
+            "concentrated pure-white highlights with a subtle cool shift, surrounded by "
+            "the warm cream glow of translucent stone lit from within.  "
+            "Follow with crystalline_surface_pass() (session 65 artistic improvement) "
+            "to sharpen and concentrate specular peaks across the whole image — this "
+            "universal surface-quality improvement was inspired directly by Alma-Tadema's "
+            "glass-like precision.  "
+            "ground_color=(0.88, 0.82, 0.68) uses a very light, warm cream ground — "
+            "Alma-Tadema often worked on panel or prepared a light ground so that the "
+            "thin glazes would transmit maximum luminosity.  "
+            "edge_softness=0.22 is the lowest in the catalog after Holbein — his edges "
+            "are photographically crisp, a defining quality that separates his work from "
+            "academic contemporaries like Bouguereau (soft-edged) or Ingres (sharp but "
+            "not photographic)."
+        ),
+    ),
+
 }
 
 
