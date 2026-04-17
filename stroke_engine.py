@@ -18616,3 +18616,312 @@ class Painter:
         shd_px = int((shd_mask > 0.05).sum())
         print(f"    Warm/cool form duality pass complete  "
               f"(lit_px={lit_px}  shadow_px={shd_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Mantegna sculptural form pass — session 67 artist pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def mantegna_sculptural_form_pass(self,
+                                      highlight_lift:   float = 0.10,
+                                      shadow_deepen:    float = 0.08,
+                                      edge_crisp:       float = 0.06,
+                                      blur_radius:      float = 4.0,
+                                      opacity:          float = 0.50) -> None:
+        """
+        Mantegna sculptural form pass.
+
+        Andrea Mantegna (1431–1506) rendered the human figure as if it were
+        carved from cold stone or cast in bronze.  Where Leonardo dissolved
+        forms into sfumato smoke, Mantegna engraved them into mineral clarity.
+
+        This pass detects ridge-form geometry by computing a local luminance
+        gradient magnitude map.  Pixels that sit at the peak of a bright ridge
+        (high luminance, surrounded by falling-away shadow) receive a pale
+        chalk-cool highlight lift — the characteristic Mantegna highlight on
+        the brow bone, cheekbone arc, nose bridge, and chin.  Pixels that sit
+        in shadow troughs flanking these ridges receive a mild further deepening.
+
+        Additionally, a very light sharpening kernel is applied to high-contrast
+        edges in the mid-luminance range, reinforcing the engraved, graphic
+        quality of Mantegna's form language.
+
+        Parameters
+        ----------
+        highlight_lift  : pale chalk highlight intensity on ridge peaks
+        shadow_deepen   : additional depth in shadow troughs adjacent to ridges
+        edge_crisp      : unsharp-mask strength for edge reinforcement
+        blur_radius     : Gaussian radius (px) for ridge peak detection
+        opacity         : overall blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Mantegna sculptural form pass "
+              f"(hl={highlight_lift:.3f}  sd={shadow_deepen:.3f}  "
+              f"ec={edge_crisp:.3f}  blur={blur_radius:.1f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Mantegna sculptural form pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Ridge peak detection ──────────────────────────────────────────────
+        # Blur luminance to find local average; pixels brighter than blur-average
+        # by a margin are ridge peaks.
+        lum_uint8 = _np.clip(lum * 255, 0, 255).astype(_np.uint8)
+        lum_img   = _Image.fromarray(lum_uint8, "L")
+        lum_blur  = _np.array(
+            lum_img.filter(_ImageFilter.GaussianBlur(radius=blur_radius)),
+            dtype=_np.float32) / 255.0
+
+        # Ridge peak: local brightness above blurred neighbour average
+        ridge_raw = _np.clip((lum - lum_blur) / max(0.10, 1e-8), 0.0, 1.0)
+        ridge_raw = ridge_raw * (lum > 0.40).astype(_np.float32)  # only lit areas
+
+        # Shadow trough: local darkness below blurred neighbour average
+        trough_raw = _np.clip((lum_blur - lum) / max(0.10, 1e-8), 0.0, 1.0)
+        trough_raw = trough_raw * (lum < 0.60).astype(_np.float32)  # only shadow areas
+
+        # ── Pale chalk-cool highlight on ridge peaks (R↑ G↑ B↑↑) ────────────
+        # Mantegna's highlights are slightly cool — whiter-grey rather than warm ivory
+        hl = ridge_raw * highlight_lift * opacity
+        r_out = _np.clip(r_out + hl * 0.82, 0.0, 1.0)
+        g_out = _np.clip(g_out + hl * 0.86, 0.0, 1.0)
+        b_out = _np.clip(b_out + hl * 0.95, 0.0, 1.0)   # slightly bluer → cool chalk
+
+        # ── Shadow trough deepening ───────────────────────────────────────────
+        # Deepen shadows at the flanks of ridge-forms (warm umber deepening)
+        sd = trough_raw * shadow_deepen * opacity
+        r_out = _np.clip(r_out - sd * 0.40, 0.0, 1.0)
+        g_out = _np.clip(g_out - sd * 0.50, 0.0, 1.0)
+        b_out = _np.clip(b_out - sd * 0.60, 0.0, 1.0)
+
+        # ── Edge crispening (unsharp-mask on mid-luminance) ───────────────────
+        # Reinforces the engraved graphic quality of Mantegna's contour lines.
+        # Applied only in the mid-luminance band (0.25–0.75) to avoid blowing
+        # out highlights or crushing shadows.
+        if edge_crisp > 0.0:
+            for ch_out, ch_f in [(r_out, r_f), (g_out, g_f), (b_out, b_f)]:
+                # Per-channel unsharp mask
+                ch_uint8 = _np.clip(ch_f * 255, 0, 255).astype(_np.uint8)
+                ch_img   = _Image.fromarray(ch_uint8, "L")
+                ch_blur  = _np.array(
+                    ch_img.filter(_ImageFilter.GaussianBlur(radius=2.0)),
+                    dtype=_np.float32) / 255.0
+                detail = ch_f - ch_blur
+                mid_mask = 1.0 - _np.abs(lum - 0.50) / 0.25   # peaks at lum=0.50
+                mid_mask = _np.clip(mid_mask, 0.0, 1.0)
+                # write sharpened result back into ch_out in-place via +=
+                ch_out += detail * edge_crisp * opacity * mid_mask
+                _np.clip(ch_out, 0.0, 1.0, out=ch_out)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        ridge_px  = int((ridge_raw  > 0.05).sum())
+        trough_px = int((trough_raw > 0.05).sum())
+        print(f"    Mantegna sculptural form pass complete  "
+              f"(ridge_px={ridge_px}  trough_px={trough_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Skin zone temperature pass — session 67 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def skin_zone_temperature_pass(self,
+                                   face_cx:         float = 0.50,
+                                   face_cy:         float = 0.20,
+                                   face_rx:         float = 0.13,
+                                   face_ry:         float = 0.18,
+                                   forehead_warm:   float = 0.04,
+                                   temple_cool:     float = 0.03,
+                                   nose_pink:       float = 0.04,
+                                   lip_rose:        float = 0.03,
+                                   jaw_cool:        float = 0.03,
+                                   blur_radius:     float = 8.0,
+                                   opacity:         float = 0.55) -> None:
+        """
+        Skin zone temperature pass — session 67 artistic improvement.
+
+        Every human face is not a uniform colour field.  Traditional painters
+        from Rubens to Sargent exploited the anatomical fact that different
+        facial zones have different colour temperatures:
+
+          Forehead / brow bone:
+              Slightly warmer (golden-amber).  The skin is thickest here;
+              the underlying blood vessels are closer to the surface across a
+              wide area.  Great portrait painters subtly warm the forehead
+              relative to the cheek plane.
+
+          Temples / eye sockets:
+              Slightly cooler (blue-grey).  The skin is thinner, the bone is
+              close, and small surface veins show through.  Velázquez and
+              Rembrandt both added a faint cool-blue-grey tone to the temple
+              zone of their portrait sitters.
+
+          Nose tip and alar wings:
+              Slightly warmer-pink (rosacea zone).  Capillaries are dense
+              here; the nose picks up warmth and pink even in pale skin.
+
+          Lips and surrounding zone (oral zone):
+              Rose-pink.  Lip mucosa is supplied by dense capillary networks.
+              The skin around the mouth has a slight greenish-neutral undertone
+              (the orbicularis oris muscle close to surface), but the lips
+              themselves are distinctly rose.
+
+          Chin and jaw plane:
+              Slightly cooler (violet-grey).  The jaw plane faces away from
+              the dominant overhead light source; it receives more cool skylight
+              and the bone mass cools the overlying skin.
+
+        Algorithm
+        ---------
+        1. Build normalised (x, y) coordinate maps relative to the face centre.
+        2. Create five Gaussian-shaped region masks — one per zone above.
+        3. Apply a targeted RGB colour push to each mask, with Gaussian blur
+           to soften zone boundaries so the transition is imperceptible.
+        4. Blend at the specified opacity so the effect reinforces rather
+           than overrides the existing painting.
+
+        Parameters
+        ----------
+        face_cx        : face centre X as fraction of canvas width
+        face_cy        : face centre Y as fraction of canvas height
+        face_rx        : face half-width as fraction of canvas width
+        face_ry        : face half-height as fraction of canvas height
+        forehead_warm  : golden-warm push strength on forehead / brow
+        temple_cool    : cool blue-grey push strength on temples / eye sockets
+        nose_pink      : warm-pink push strength on nose tip
+        lip_rose       : rose push strength on the oral zone / lips
+        jaw_cool       : cool violet-grey push strength on chin / jaw plane
+        blur_radius    : Gaussian radius (px) for zone mask softening
+        opacity        : overall blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Skin zone temperature pass "
+              f"(face_cx={face_cx:.2f}  face_cy={face_cy:.2f}  "
+              f"rx={face_rx:.2f}  ry={face_ry:.2f}  "
+              f"fwarm={forehead_warm:.3f}  tcool={temple_cool:.3f}  "
+              f"npink={nose_pink:.3f}  lrose={lip_rose:.3f}  "
+              f"jcool={jaw_cool:.3f}  blur={blur_radius:.1f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Skin zone temperature pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Coordinate grids ──────────────────────────────────────────────────
+        cx_px = int(face_cx * w)
+        cy_px = int(face_cy * h)
+        rx_px = max(1, int(face_rx * w))
+        ry_px = max(1, int(face_ry * h))
+
+        ys = (_np.arange(h, dtype=_np.float32) - cy_px) / ry_px
+        xs = (_np.arange(w, dtype=_np.float32) - cx_px) / rx_px
+        yy, xx = _np.meshgrid(ys, xs, indexing="ij")  # (H, W)
+
+        # Elliptical face mask — only pixels inside the face ellipse get treated.
+        face_dist = xx ** 2 + yy ** 2
+        face_mask = _np.clip(1.0 - (face_dist - 0.70) / 0.30, 0.0, 1.0)
+
+        def _zone_mask(x0: float, y0: float, sigma: float) -> _np.ndarray:
+            """Gaussian blob centred at (x0, y0) in normalised face coords."""
+            raw = _np.exp(-((xx - x0) ** 2 + (yy - y0) ** 2) / (2 * sigma ** 2))
+            raw = raw * face_mask
+            img = _Image.fromarray(
+                _np.clip(raw * 255, 0, 255).astype(_np.uint8), "L")
+            blurred = _np.array(
+                img.filter(_ImageFilter.GaussianBlur(radius=blur_radius)),
+                dtype=_np.float32) / 255.0
+            return blurred
+
+        # ── Zone 1: Forehead — warm golden-amber (R↑ G↑ B- slight) ─────────
+        # Centred at top of face ellipse (y ≈ -0.55 normalised)
+        fh_mask = _zone_mask(0.0, -0.55, sigma=0.38)
+        fw = fh_mask * forehead_warm * opacity
+        r_out = _np.clip(r_out + fw * 0.85, 0.0, 1.0)
+        g_out = _np.clip(g_out + fw * 0.48, 0.0, 1.0)
+        b_out = _np.clip(b_out - fw * 0.18, 0.0, 1.0)
+
+        # ── Zone 2: Temples / eye sockets — cool blue-grey (R↓ B↑) ─────────
+        # Two lobes, left and right temple
+        for temple_x in (-0.72, 0.72):
+            t_mask = _zone_mask(temple_x, -0.10, sigma=0.28)
+            tw = t_mask * temple_cool * opacity
+            r_out = _np.clip(r_out - tw * 0.35, 0.0, 1.0)
+            g_out = _np.clip(g_out - tw * 0.10, 0.0, 1.0)
+            b_out = _np.clip(b_out + tw * 0.42, 0.0, 1.0)
+
+        # ── Zone 3: Nose tip — warm pink (R↑ G slight↑ B slight↑) ──────────
+        # Centred slightly below face centre (y ≈ +0.28 normalised)
+        n_mask = _zone_mask(0.05, 0.28, sigma=0.14)
+        nw = n_mask * nose_pink * opacity
+        r_out = _np.clip(r_out + nw * 0.90, 0.0, 1.0)
+        g_out = _np.clip(g_out + nw * 0.30, 0.0, 1.0)
+        b_out = _np.clip(b_out + nw * 0.15, 0.0, 1.0)
+
+        # ── Zone 4: Lips / oral zone — rose (R↑ G↓ slight B slight) ────────
+        # Centred at y ≈ +0.50 normalised
+        l_mask = _zone_mask(0.04, 0.50, sigma=0.18)
+        lw = l_mask * lip_rose * opacity
+        r_out = _np.clip(r_out + lw * 0.80, 0.0, 1.0)
+        g_out = _np.clip(g_out - lw * 0.12, 0.0, 1.0)
+        b_out = _np.clip(b_out + lw * 0.22, 0.0, 1.0)
+
+        # ── Zone 5: Chin / jaw plane — cool violet-grey (R↓ slight B↑) ─────
+        # Centred at y ≈ +0.82 normalised
+        j_mask = _zone_mask(0.0, 0.82, sigma=0.30)
+        jw = j_mask * jaw_cool * opacity
+        r_out = _np.clip(r_out - jw * 0.30, 0.0, 1.0)
+        g_out = _np.clip(g_out - jw * 0.12, 0.0, 1.0)
+        b_out = _np.clip(b_out + jw * 0.38, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        active_px = int((face_mask > 0.05).sum())
+        print(f"    Skin zone temperature pass complete  "
+              f"(face_px={active_px})")
