@@ -17388,7 +17388,7 @@ class Painter:
         from PIL import Image as _Image, ImageFilter as _ImageFilter
 
         print(f"  Translucent gauze pass  "
-              f"(zone={zone_top:.2f}→{zone_bottom:.2f}  opacity={opacity:.2f}  "
+              f"(zone={zone_top:.2f}->{zone_bottom:.2f}  opacity={opacity:.2f}  "
               f"cool={cool_shift:.3f}  weave={weave_strength:.3f}) ...")
 
         if opacity <= 0.0:
