@@ -82,6 +82,7 @@ EXPECTED_ARTISTS = [
     "canaletto",
     "vigee_le_brun",
     "alma_tadema",
+    "patinir",
 ]
 
 
