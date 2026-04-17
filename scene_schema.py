@@ -237,6 +237,7 @@ class Period(Enum):
     BARBIZON      = auto()   # Corot — silvery atmospheric veil, soft cool greens, proto-Impressionist dissolved edges, lyrical landscape intimacy
     VEDUTISMO     = auto()   # Canaletto — crystal-clear Venetian light, precise architectural perspective, cool cerulean sky, warm honey-stone buildings, silver canal water
     PADUAN_RENAISSANCE = auto()  # Mantegna — cold stone-mineral palette, sculptural grisaille clarity, engraved archaeological precision, pale chalk highlights on ridge-forms
+    CLASSICAL_LANDSCAPE = auto()  # Claude Lorrain — golden horizon contre-jour, warm amber glaze, soft atmospheric dissolution, dark repoussoir foreground trees
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -875,6 +876,11 @@ class Style:
             # for the engraved, stone-like clarity of his forms; low edge_softness for
             # the archaeological crispness that distinguishes him from Leonardo's sfumato.
             Period.PADUAN_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=16, wet_blend=0.12, edge_softness=0.20),
+            # CLASSICAL_LANDSCAPE (Claude Lorrain) — golden atmospheric dissolution:
+            # high wet_blend for the soft contre-jour horizon glow that melts sky into water;
+            # high edge_softness for the atmospheric haze that dissolves distant forms;
+            # large stroke_size_bg for the broad luminous sweeps of sky and far landscape.
+            Period.CLASSICAL_LANDSCAPE: dict(stroke_size_face=7, stroke_size_bg=32, wet_blend=0.72, edge_softness=0.75),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

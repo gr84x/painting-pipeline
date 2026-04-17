@@ -84,6 +84,7 @@ EXPECTED_ARTISTS = [
     "alma_tadema",
     "patinir",
     "andrea_mantegna",
+    "claude_lorrain",
 ]
 
 
@@ -7821,3 +7822,143 @@ def test_paduan_renaissance_stroke_params_low_edge_softness():
         f"PADUAN_RENAISSANCE edge_softness should be <= 0.28 for crisp engraved "
         f"archaeological edges; got {p['edge_softness']}")
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Claude Lorrain — session 68 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_claude_lorrain_in_catalog():
+    """claude_lorrain must exist in CATALOG (session 68 addition)."""
+    assert "claude_lorrain" in CATALOG, (
+        "claude_lorrain missing from CATALOG — add the entry to art_catalog.py")
+
+
+def test_claude_lorrain_movement():
+    """claude_lorrain movement must reference Classical Landscape."""
+    s = get_style("claude_lorrain")
+    assert "Classical" in s.movement or "classical" in s.movement.lower() or "Landscape" in s.movement, (
+        f"claude_lorrain movement should reference Classical Landscape; got {s.movement!r}")
+
+
+def test_claude_lorrain_palette_has_golden_horizon():
+    """claude_lorrain palette must contain a warm golden-amber horizon tone."""
+    s = get_style("claude_lorrain")
+    # Warm golden amber: R high, G moderately high, B significantly lower
+    has_golden = any(r > 0.85 and g > 0.65 and b < 0.60
+                     for r, g, b in s.palette)
+    assert has_golden, (
+        "claude_lorrain palette must contain a warm golden-amber horizon tone — "
+        "the signature contre-jour glow that floods the sky in his landscapes")
+
+
+def test_claude_lorrain_palette_has_cool_sky():
+    """claude_lorrain palette must contain a cool cerulean upper sky tone."""
+    s = get_style("claude_lorrain")
+    # Cool sky: B dominant, moderate G, lower R
+    has_cool_sky = any(b > r and b > 0.75 and r < 0.75
+                       for r, g, b in s.palette)
+    assert has_cool_sky, (
+        "claude_lorrain palette must contain a cool cerulean sky tone — "
+        "the upper sky that contrasts with the warm golden horizon below")
+
+
+def test_claude_lorrain_palette_has_dark_repoussoir():
+    """claude_lorrain palette must contain a dark foreground shadow tone."""
+    s = get_style("claude_lorrain")
+    has_dark = any(r < 0.35 and g < 0.40 and b < 0.30
+                   for r, g, b in s.palette)
+    assert has_dark, (
+        "claude_lorrain palette must contain a dark shadow tone for foreground "
+        "repoussoir trees — the dark flanking elements that frame the luminous distance")
+
+
+def test_claude_lorrain_high_edge_softness():
+    """claude_lorrain edge_softness should be >= 0.65 (atmospheric dissolution)."""
+    s = get_style("claude_lorrain")
+    assert s.edge_softness >= 0.65, (
+        f"claude_lorrain edge_softness={s.edge_softness:.2f} should be >= 0.65 — "
+        f"Lorrain's distant forms dissolve in atmospheric haze; crisp edges would "
+        f"contradict his characteristic proto-sfumato aerial perspective")
+
+
+def test_claude_lorrain_high_wet_blend():
+    """claude_lorrain wet_blend should be >= 0.60 (soft luminous transitions)."""
+    s = get_style("claude_lorrain")
+    assert s.wet_blend >= 0.60, (
+        f"claude_lorrain wet_blend={s.wet_blend:.2f} should be >= 0.60 — "
+        f"the golden horizon glow requires heavily blended, seamless sky transitions")
+
+
+def test_claude_lorrain_has_glazing():
+    """claude_lorrain glazing should not be None (unifying amber glaze)."""
+    s = get_style("claude_lorrain")
+    assert s.glazing is not None, (
+        "claude_lorrain glazing should not be None — the warm amber unifying glaze "
+        "bathes all elements in the characteristic golden Lorrain light")
+    r, g, b = s.glazing
+    assert r > g > b, (
+        f"claude_lorrain glazing={s.glazing} should be warm amber (R > G > B) — "
+        f"the golden unity glaze that warms the entire landscape surface")
+
+
+def test_claude_lorrain_famous_works_include_queen_of_sheba():
+    """claude_lorrain famous works should include Embarkation of the Queen of Sheba."""
+    s = get_style("claude_lorrain")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Sheba" in t or "Queen" in t or "Embarkation" in t
+               for t in titles), (
+        "claude_lorrain famous works should include Embarkation of the Queen of Sheba "
+        "— his most celebrated and technically accomplished composition")
+
+
+def test_claude_lorrain_famous_works_count():
+    """claude_lorrain should have at least 4 famous works documented."""
+    s = get_style("claude_lorrain")
+    assert len(s.famous_works) >= 4, (
+        f"claude_lorrain should have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_claude_lorrain_inspiration_references_golden_light_pass():
+    """claude_lorrain inspiration must reference claude_lorrain_golden_light_pass()."""
+    s = get_style("claude_lorrain")
+    assert "claude_lorrain_golden_light_pass()" in s.inspiration, (
+        "claude_lorrain inspiration must reference claude_lorrain_golden_light_pass() — "
+        "the defining pipeline pass for his golden contre-jour horizon technique")
+
+
+def test_claude_lorrain_in_expected_artists():
+    """EXPECTED_ARTISTS list must include claude_lorrain."""
+    assert "claude_lorrain" in EXPECTED_ARTISTS, (
+        "claude_lorrain missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.CLASSICAL_LANDSCAPE — session 68 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_classical_landscape_period_present():
+    """Session 68: CLASSICAL_LANDSCAPE must exist in Period enum."""
+    assert hasattr(Period, "CLASSICAL_LANDSCAPE"), (
+        "Period.CLASSICAL_LANDSCAPE not found — add it to scene_schema.py")
+    assert Period.CLASSICAL_LANDSCAPE in list(Period)
+
+
+def test_classical_landscape_stroke_params_high_wet_blend():
+    """CLASSICAL_LANDSCAPE should have high wet_blend (soft atmospheric glow)."""
+    style = Style(medium=Medium.OIL, period=Period.CLASSICAL_LANDSCAPE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"CLASSICAL_LANDSCAPE wet_blend should be >= 0.60 for Lorrain's luminous "
+        f"atmospheric transitions; got {p['wet_blend']}")
+
+
+def test_classical_landscape_stroke_params_high_edge_softness():
+    """CLASSICAL_LANDSCAPE should have high edge_softness (atmospheric dissolution)."""
+    style = Style(medium=Medium.OIL, period=Period.CLASSICAL_LANDSCAPE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.65, (
+        f"CLASSICAL_LANDSCAPE edge_softness should be >= 0.65 for Lorrain's dissolved "
+        f"atmospheric edges in distant landscape forms; got {p['edge_softness']}")

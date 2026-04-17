@@ -18621,6 +18621,126 @@ class Painter:
     # Mantegna sculptural form pass — session 67 artist pass
     # ─────────────────────────────────────────────────────────────────────────
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Claude Lorrain golden light pass — session 68 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def claude_lorrain_golden_light_pass(self,
+                                         horizon_y:      float = 0.60,
+                                         glow_spread:    float = 0.45,
+                                         warmth:         float = 0.18,
+                                         sky_cool:       float = 0.10,
+                                         water_shimmer:  float = 0.08,
+                                         opacity:        float = 0.55) -> None:
+        """
+        Claude Lorrain golden light pass.
+
+        Claude Lorrain (1600–1682) was the supreme master of contre-jour landscape
+        light: a low sun on the horizon floods the sky with warm amber-gold while
+        the upper sky remains cool cerulean blue.  The same golden glow is mirrored
+        in water below the horizon.  Distant forms dissolve in the atmospheric haze.
+
+        This pass applies a vertical luminance gradient that:
+
+        1.  Warms the lower sky and horizon band with amber-gold (R↑ G↑ B↓).
+            The maximum warm shift is at horizon_y; it falls off with a Gaussian
+            envelope of width glow_spread * image_height above and below.
+
+        2.  Cools the upper sky region (above the horizon) with a gentle blue shift
+            (R↓ B↑), reinforcing the temperature contrast that defines Lorrain's
+            palette: warm horizon against cool zenith.
+
+        3.  Adds a subtle shimmer on the lower portion of the image (water / earth
+            below the horizon): a faint warm-gold lift that suggests reflected light.
+
+        Parameters
+        ----------
+        horizon_y      : normalised Y position of the horizon (0=top, 1=bottom).
+                         0.60 places the horizon in the lower third — typical Lorrain.
+        glow_spread    : standard-deviation of the horizon glow in normalised Y units.
+                         Larger values spread the warm glow further up the sky.
+        warmth         : maximum warm shift magnitude at the horizon centre.
+        sky_cool       : cool blue shift applied to upper sky above the glow.
+        water_shimmer  : additional warm lift on water/earth below the horizon.
+        opacity        : overall blend weight (0=no effect, 1=full replacement).
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Claude Lorrain golden light pass "
+              f"(horizon_y={horizon_y:.2f}  spread={glow_spread:.2f}  "
+              f"warmth={warmth:.3f}  sky_cool={sky_cool:.3f}  "
+              f"shimmer={water_shimmer:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Claude Lorrain golden light pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Vertical coordinate (0=top, 1=bottom) ────────────────────────────
+        ys = _np.linspace(0.0, 1.0, h, dtype=_np.float32)  # (H,)
+        # Broadcast to (H, W)
+        yy = _np.tile(ys[:, _np.newaxis], (1, w))           # (H, W)
+
+        # ── 1. Horizon warm glow — Gaussian centred on horizon_y ─────────────
+        # The glow is strongest at horizon_y and falls off symmetrically above/below.
+        sigma = max(glow_spread, 0.05)
+        horizon_glow = _np.exp(-0.5 * ((yy - horizon_y) / sigma) ** 2)  # (H, W)
+
+        # Warm amber-gold: R↑ strongly, G↑ moderately, B↓ slightly
+        w_factor = horizon_glow * warmth * opacity
+        r_out = _np.clip(r_out + w_factor * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + w_factor * 0.62, 0.0, 1.0)
+        b_out = _np.clip(b_out - w_factor * 0.30, 0.0, 1.0)
+
+        # ── 2. Upper sky cooling (above horizon) ─────────────────────────────
+        # Linear ramp: maximum cool shift at the very top, zero at horizon_y
+        sky_ramp = _np.clip((horizon_y - yy) / max(horizon_y, 0.01), 0.0, 1.0)
+        c_factor = sky_ramp * sky_cool * opacity
+        r_out = _np.clip(r_out - c_factor * 0.45, 0.0, 1.0)
+        g_out = _np.clip(g_out - c_factor * 0.10, 0.0, 1.0)
+        b_out = _np.clip(b_out + c_factor * 0.60, 0.0, 1.0)
+
+        # ── 3. Water / earth shimmer below the horizon ───────────────────────
+        # Gentle warm-gold lift on everything below horizon_y, attenuating with depth.
+        water_ramp = _np.clip((yy - horizon_y) / max(1.0 - horizon_y, 0.01),
+                              0.0, 1.0)
+        # Soft sinusoidal: maximum shimmer just below horizon, fading to near-zero at bottom
+        shimmer_mask = _np.sin(water_ramp * _np.pi * 0.5)
+        s_factor = shimmer_mask * water_shimmer * opacity
+        r_out = _np.clip(r_out + s_factor * 0.90, 0.0, 1.0)
+        g_out = _np.clip(g_out + s_factor * 0.55, 0.0, 1.0)
+        b_out = _np.clip(b_out - s_factor * 0.15, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        # Alpha channel untouched
+        buf[:, :, 3] = _np.frombuffer(self.canvas.surface.get_data(),
+                                      dtype=_np.uint8).reshape((h, w, 4))[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        warm_px = int((horizon_glow > 0.10).sum())
+        print(f"    Claude Lorrain golden light pass complete  "
+              f"(warm_px={warm_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+
     def mantegna_sculptural_form_pass(self,
                                       highlight_lift:   float = 0.10,
                                       shadow_deepen:    float = 0.08,

@@ -5602,6 +5602,66 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
     # ── Andrea Mantegna ───────────────────────────────────────────────────────
+    # ── Claude Lorrain ────────────────────────────────────────────────────────
+    "claude_lorrain": ArtStyle(
+        artist="Claude Lorrain",
+        movement="Classical Landscape Baroque",
+        nationality="French (worked in Rome)",
+        period="1600–1682",
+        palette=[
+            (0.95, 0.82, 0.48),   # warm golden-amber horizon glow — the signature Lorrain light
+            (0.88, 0.72, 0.38),   # deep golden ochre — sunlit sky above horizon
+            (0.62, 0.72, 0.85),   # cool cerulean upper sky — high atmospheric blue
+            (0.78, 0.82, 0.90),   # pale blue-white zenith — cloud-lit sky
+            (0.40, 0.35, 0.20),   # warm dark sienna — foreground shadow earth
+            (0.25, 0.32, 0.18),   # deep cool green — dark foreground trees
+            (0.52, 0.60, 0.42),   # muted sage — mid-distance foliage
+            (0.70, 0.75, 0.80),   # silver-blue water / river light
+            (0.82, 0.78, 0.62),   # warm cream limestone — classical ruins / architecture
+        ],
+        ground_color=(0.65, 0.58, 0.35),    # warm golden-ochre primed ground
+        stroke_size=7,
+        wet_blend=0.72,                      # high blending — luminous dissolved transitions
+        edge_softness=0.75,                  # soft edges — atmosphere dissolves all forms at distance
+        jitter=0.022,
+        glazing=(0.88, 0.72, 0.35),          # deep golden amber glaze — the Lorrain golden unity
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Idealized classical landscape — the natural world reimagined as a serene, "
+            "golden-lit Arcadia.  Claude Lorrain (born Claude Gellée) was the supreme master "
+            "of landscape as mood: every element — ruined temples, dark repoussoir trees, "
+            "shimmering water, tiny epic figures — serves the single purpose of conveying light. "
+            "His signature achievement is the contre-jour sun on the horizon, flooding the lower "
+            "sky and water with warm amber-gold while the upper sky recedes into cool cerulean. "
+            "Foreground trees act as dark repoussoir flanking wings that frame the luminous "
+            "distance beyond; the eye travels in from dark foreground warmth, through cool "
+            "middle-distance haze, toward the incandescent golden horizon.  Forms dissolve in "
+            "atmospheric haze as they recede — a proto-Impressionist aerial perspective that "
+            "predates Monet by two centuries.  Claude made extensive open-air studies in chalk "
+            "(Liber Veritatis) but always painted finished works in the studio, refining the "
+            "golden hour from observation into ideal.  His influence on the English Romantic "
+            "landscape — Turner, Constable — was profound and direct."
+        ),
+        famous_works=[
+            ("Embarkation of the Queen of Sheba",    "1648"),
+            ("Seaport at Sunset",                    "c. 1639"),
+            ("The Mill",                             "1648"),
+            ("Landscape with the Marriage of Isaac and Rebekah", "1648"),
+            ("Pastoral Landscape with the Ponte Molle", "1645"),
+        ],
+        inspiration=(
+            "Apply claude_lorrain_golden_light_pass() to flood the lower sky and "
+            "horizon with warm amber-gold light while preserving the cool cerulean upper "
+            "sky.  The pass creates the signature contre-jour gradient: maximum golden "
+            "warmth at the horizon, cooling and darkening toward the zenith.  Use "
+            "edge_softness=0.75 and wet_blend=0.72 so distant forms dissolve into the "
+            "atmospheric haze — the entire landscape breathes with diffused golden light "
+            "rather than crisp, individually readable elements."
+        ),
+    ),
+
+    # ── Andrea Mantegna ───────────────────────────────────────────────────────
     "andrea_mantegna": ArtStyle(
         artist="Andrea Mantegna",
         movement="Paduan Renaissance",

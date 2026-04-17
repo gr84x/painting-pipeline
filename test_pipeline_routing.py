@@ -9665,3 +9665,95 @@ def test_skin_zone_temperature_pass_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# claude_lorrain_golden_light_pass() — session 68 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_claude_lorrain_golden_light_pass_exists():
+    """Painter must have claude_lorrain_golden_light_pass() after session 68."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "claude_lorrain_golden_light_pass"), (
+        "claude_lorrain_golden_light_pass not found on Painter")
+    assert callable(getattr(Painter, "claude_lorrain_golden_light_pass"))
+
+
+def test_claude_lorrain_golden_light_pass_no_error():
+    """claude_lorrain_golden_light_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.58, 0.35), texture_strength=0.0)
+    p.claude_lorrain_golden_light_pass(
+        horizon_y=0.60,
+        glow_spread=0.45,
+        warmth=0.18,
+        sky_cool=0.10,
+        water_shimmer=0.08,
+        opacity=0.55,
+    )
+
+
+def test_claude_lorrain_golden_light_pass_zero_opacity_no_change():
+    """claude_lorrain_golden_light_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.58, 0.35), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.claude_lorrain_golden_light_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "claude_lorrain_golden_light_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_claude_lorrain_golden_light_pass_warms_horizon():
+    """
+    claude_lorrain_golden_light_pass() must warm the horizon band (increase R
+    near horizon_y relative to top of canvas).
+    """
+    import numpy as np
+    p = _make_small_painter(100, 100)
+    # Neutral mid-grey ground so colour shifts are easy to detect
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.0)
+
+    p.claude_lorrain_golden_light_pass(
+        horizon_y=0.60,
+        glow_spread=0.20,
+        warmth=0.30,
+        sky_cool=0.0,
+        water_shimmer=0.0,
+        opacity=1.0,
+    )
+
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape((100, 100, 4))
+
+    # Horizon row: y ≈ 60
+    horizon_row = 60
+    r_horizon = buf[horizon_row, :, 2].astype(float).mean()  # BGRA: channel 2 = R
+
+    # Top row: y = 5 (well above horizon glow)
+    top_row = 5
+    r_top = buf[top_row, :, 2].astype(float).mean()
+
+    assert r_horizon > r_top, (
+        f"claude_lorrain_golden_light_pass() must warm horizon band more than top "
+        f"of canvas; horizon R={r_horizon:.1f}  top R={r_top:.1f}")
+
+
+def test_claude_lorrain_golden_light_pass_pixels_in_range():
+    """claude_lorrain_golden_light_pass() must not produce out-of-range pixel values."""
+    import numpy as np
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.60, 0.55, 0.35), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.claude_lorrain_golden_light_pass(
+        horizon_y=0.60,
+        glow_spread=0.40,
+        warmth=0.25,
+        sky_cool=0.15,
+        water_shimmer=0.12,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
