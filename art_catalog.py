@@ -5223,6 +5223,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "canaletto": ArtStyle(
+        artist="Giovanni Antonio Canal (Canaletto)",
+        movement="Venetian Vedutismo",
+        nationality="Italian",
+        period="1697–1768",
+        palette=[
+            (0.62, 0.78, 0.90),   # cerulean sky — the luminous Venetian sky, pure and clear
+            (0.82, 0.72, 0.48),   # warm honey-stone — Venetian palazzo masonry in direct sun
+            (0.52, 0.62, 0.70),   # cool canal silver — Canal Grande water reflections
+            (0.90, 0.86, 0.68),   # pale sunlit plaster — sunlit façades, bleached white near zenith
+            (0.28, 0.24, 0.18),   # dark warm umber — deep shadow under arcades, gondola hulls
+            (0.68, 0.52, 0.30),   # warm sienna — terracotta rooftiles, sunlit stonework shadow face
+            (0.76, 0.82, 0.86),   # silver-grey haze — atmospheric distance, receding architecture
+            (0.14, 0.18, 0.28),   # deep indigo shadow — coolest canal shadow, under bridges
+        ],
+        ground_color=(0.72, 0.68, 0.52),   # warm pale ochre: Venetian afternoon light
+        stroke_size=5,
+        wet_blend=0.20,
+        edge_softness=0.18,
+        jitter=0.018,
+        glazing=(0.88, 0.84, 0.64),        # warm pale ivory unifying glaze — afternoon sun
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Canaletto perfected the veduta — the topographically precise urban view — "
+            "to a degree unequalled before or since.  His Venice is not the Venice of "
+            "atmospheric impression (Turner's approach, a century later) but of lucid, "
+            "crystalline fact: every stone course counted, every arcade measured, every "
+            "gondola prow anatomised with the care of an architectural draughtsman.  "
+            "He was trained as a theatrical scenographer, and that training is inseparable "
+            "from his mature style: his compositions are staged with the precision of a "
+            "set designer — viewpoints chosen for maximum spatial drama, foreground shadows "
+            "framing a sunlit distance, the eye led back through layers of architecture into "
+            "a pale, luminous sky.  "
+            "His sky is one of the most immediately recognisable qualities of his work: "
+            "a clear Venetian cerulean, often with small fleecy clouds, lit from above with "
+            "an absolute directness.  Where Claude Lorrain's sky dissolves at the horizon "
+            "into warm haze, Canaletto's remains a pure, saturated blue almost to the roofline.  "
+            "The light in his paintings is high and direct — southern summer noon or early "
+            "afternoon — casting short, crisp shadows and creating the extreme value contrast "
+            "between sunlit stone and shadow arcade that is the structural skeleton of his "
+            "compositions.  "
+            "He used a camera obscura as a compositional aid, and the slightly wide-angle, "
+            "slightly exaggerated perspective of his views reflects this: the Grand Canal "
+            "widens, the Piazza San Marco deepens, everything is slightly more than real, "
+            "more legible, more theatrical.  "
+            "His palette is narrow but brilliantly deployed: warm honey-stone for sunlit "
+            "masonry, cool silver for canal water, deep warm umber for shadow, and the "
+            "ever-present cerulean sky.  The figures that populate his vedute are tiny, "
+            "summary, gestural — not portraits but staffage, colour notes that confirm "
+            "scale and animate the scene without competing with the architecture."
+        ),
+        famous_works=[
+            ("The Grand Canal from Santa Croce to San Simeone Piccolo",  "c. 1738"),
+            ("The Stonemason's Yard",                                     "c. 1725–30"),
+            ("View of the Bacino di San Marco",                           "c. 1735"),
+            ("Venice: The Piazza San Marco",                              "c. 1720s"),
+            ("A Regatta on the Grand Canal",                              "c. 1735"),
+            ("The Grand Canal from Palazzo Balbi",                        "c. 1724"),
+            ("Eton College",                                              "1754"),
+            ("The Thames and the City of London from Richmond House",     "1746"),
+        ],
+        inspiration=(
+            "Use canaletto_luminous_veduta_pass() after build_form() and before glaze() "
+            "to apply Canaletto's defining atmospheric clarity: the warm honey-stone "
+            "sunlit façades are pushed toward bright warm ochre, canal-water zones are "
+            "pulled toward cool silver-blue, and the sky zone receives a saturated cerulean "
+            "lift — the three chromatic pillars of the Venetian veduta.  "
+            "Optionally follow with old_master_varnish_pass() at very low opacity (0.15–0.20) "
+            "to add the aged amber patina of a Canaletto panel viewed in a museum collection: "
+            "this subtly warms the whole image and adds the slightly honeyed quality of "
+            "three centuries of varnish oxidation without obscuring the architectural clarity.  "
+            "ground_color=(0.72, 0.68, 0.52) — a warm pale ochre ground that pre-establishes "
+            "the afternoon sunlight reading before any paint is applied; Canaletto's warm "
+            "Venetian light is the dominant key.  "
+            "stroke_size=5 — small and precise; Canaletto's fine architectural detail "
+            "demands controlled marks, not broad gestural ones.  "
+            "wet_blend=0.20, edge_softness=0.18 — his edges are crisp by the standards of "
+            "oil painting; the hard light of the Venetian noon makes shadows sharp-edged, "
+            "and his architectural precision requires legible stone courses and window "
+            "openings, not sfumato dissolution.  "
+            "glazing=(0.88, 0.84, 0.64) — a very pale warm ivory unifying glaze that gives "
+            "the characteristic golden-afternoon quality of his finished works."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",

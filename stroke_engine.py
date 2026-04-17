@@ -17588,3 +17588,237 @@ class Painter:
         foliage_px_count = int(foliage_px.sum())
         print(f"    Corot silver veil pass complete  "
               f"(foliage_px={foliage_px_count})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 63 — Canaletto luminous veduta pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def canaletto_luminous_veduta_pass(
+        self,
+        sky_lift: float = 0.18,
+        stone_warm: float = 0.14,
+        water_cool: float = 0.12,
+        sky_band: float = 0.38,
+        opacity: float = 0.65,
+    ) -> None:
+        """
+        Apply Canaletto's defining chromatic clarity: the three-register
+        Venetian veduta palette.
+
+        Three operations applied to distinct luminance/hue zones:
+
+        1. **Sky cerulean lift** — the upper canvas (above sky_band) receives a
+           blue-channel boost and slight desaturation toward cerulean.  Canaletto's
+           skies are the clearest in the whole Western landscape tradition: no
+           warm haze at the horizon, just saturated, direct Venetian blue.
+
+        2. **Warm honey-stone push** — sunlit mid-tones (moderate luminance with
+           warm R>G>B dominance) are pushed further toward warm ochre-honey.
+           This is the warm masonry that fills the centre of every veduta —
+           the Doge's Palace, the Procuratie, the Rialto stone.
+
+        3. **Canal silver-blue pull** — cool mid-tones (B ≥ R, moderate luminance)
+           are pulled further toward cool silver-blue.  This distinguishes the
+           canal-water reflections from the stone architecture in every painting
+           Canaletto made of the Grand Canal.
+
+        Parameters
+        ----------
+        sky_lift      : strength of the cerulean blue push in the sky zone
+        stone_warm    : strength of the warm ochre push in sunlit stone zones
+        water_cool    : strength of the cool silver-blue pull in water/shadow zones
+        sky_band      : canvas fraction (from top) treated as sky zone (0 = top)
+        opacity       : overall pass blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Canaletto luminous veduta pass "
+              f"(sky_lift={sky_lift:.3f} stone_warm={stone_warm:.3f} "
+              f"water_cool={water_cool:.3f} opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Canaletto luminous veduta pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Sky cerulean lift ──────────────────────────────────────────────
+        sky_y = int(h * sky_band)
+        sky_mask = _np.zeros((h, w), dtype=_np.float32)
+        if sky_y > 0:
+            # linear falloff: full at top row, zero at sky_y
+            for yi in range(sky_y):
+                sky_mask[yi, :] = 1.0 - yi / float(sky_y)
+
+        sky_w = sky_mask * sky_lift * opacity
+        # cerulean = boost B, slight boost G, restrain R
+        r_out = _np.clip(r_out - sky_w * 0.30, 0.0, 1.0)
+        g_out = _np.clip(g_out + sky_w * 0.12, 0.0, 1.0)
+        b_out = _np.clip(b_out + sky_w * 0.85, 0.0, 1.0)
+
+        # ── 2. Warm stone push (sunlit masonry) ───────────────────────────────
+        # Pixels where R > G > B (warm hue) and mid-high luminance (sunlit)
+        warm_dom  = (r_out > g_out) & (g_out > b_out * 1.08)
+        sunlit    = (lum > 0.38) & (lum < 0.88)
+        stone_px  = warm_dom & sunlit & (sky_mask < 0.25)   # below sky zone
+        stone_w   = _np.where(stone_px, stone_warm * opacity, 0.0).astype(_np.float32)
+        # warm ochre push: lift R, gentle G, suppress B
+        r_out = _np.clip(r_out + stone_w * 0.70, 0.0, 1.0)
+        g_out = _np.clip(g_out + stone_w * 0.30, 0.0, 1.0)
+        b_out = _np.clip(b_out - stone_w * 0.40, 0.0, 1.0)
+
+        # ── 3. Canal silver-blue pull (water and cool shadow) ─────────────────
+        # Pixels where B ≥ R (cool hue) and moderate luminance (not deepest shadow)
+        cool_dom  = b_out >= r_out
+        water_lum = (lum > 0.20) & (lum < 0.72)
+        water_px  = cool_dom & water_lum & (sky_mask < 0.25)
+        water_w   = _np.where(water_px, water_cool * opacity, 0.0).astype(_np.float32)
+        # silver-blue: slight desaturation + blue tint
+        r_out = _np.clip(r_out * (1.0 - water_w * 0.35) + lum * water_w * 0.35
+                         - water_w * 0.06, 0.0, 1.0)
+        g_out = _np.clip(g_out * (1.0 - water_w * 0.20) + lum * water_w * 0.20, 0.0, 1.0)
+        b_out = _np.clip(b_out + water_w * 0.18, 0.0, 1.0)
+
+        # Write back (BGRA)
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        stone_count = int(stone_px.sum())
+        water_count = int(water_px.sum())
+        print(f"    Canaletto luminous veduta pass complete  "
+              f"(stone_px={stone_count}  water_px={water_count})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 63 — Artistic improvement: old-master varnish patina pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def old_master_varnish_pass(
+        self,
+        amber_strength: float = 0.18,
+        edge_darken: float = 0.12,
+        highlight_desat: float = 0.08,
+        opacity: float = 0.55,
+    ) -> None:
+        """
+        Simulate three centuries of aged amber varnish on an old master painting.
+
+        Museum-quality old master paintings (Rembrandt, Vermeer, Titian, Leonardo)
+        have accumulated multiple layers of natural resin varnish that has yellowed
+        and darkened over centuries.  The visible effect is:
+
+        1. **Amber tint** — a warm yellow-brown cast over the entire surface.
+           The blue channel is most suppressed; red and green are gently boosted.
+           This is the most immediately recognisable quality of a varnished old
+           master: colours that were once cooler now read as warmer, and the
+           overall key is slightly lower.
+
+        2. **Edge oxidation darkening** — varnish on the edges and corners of a
+           panel or canvas oxidizes faster than the centre (less UV exposure at
+           margins, but more moisture ingress).  A radial darkening mask is applied
+           with a cos² falloff that is strongest at the canvas border and zero
+           toward the centre.  This subtly reinforces a vignette effect.
+
+        3. **Highlight desaturation** — the brightest specular highlights on skin,
+           drapery, and metalwork are slightly desaturated by the amber overlay.
+           Where a freshly-painted Titian might have pure white highlights, a
+           varnished Titian has warm ivory highlights.
+
+        This pass is intentionally subtle at default opacity (0.55) — it should
+        add the sense of age and museum authenticity without noticeably distorting
+        colour relationships.  Use opacity=0.20–0.35 for a barely-perceptible
+        museum patina; 0.55–0.75 for a heavily varnished look.
+
+        Parameters
+        ----------
+        amber_strength   : strength of the warm amber tint (R+G↑, B↓)
+        edge_darken      : strength of the edge/corner darkening vignette
+        highlight_desat  : desaturation of the brightest highlights
+        opacity          : overall pass blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Old-master varnish pass "
+              f"(amber={amber_strength:.3f} edge_darken={edge_darken:.3f} "
+              f"highlight_desat={highlight_desat:.3f} opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Old-master varnish pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Amber tint (yellowed varnish) ──────────────────────────────────
+        # Natural resin varnish yellows: suppresses B channel most, boosts R+G
+        amb = amber_strength * opacity
+        r_out = _np.clip(r_out + amb * 0.22, 0.0, 1.0)
+        g_out = _np.clip(g_out + amb * 0.12, 0.0, 1.0)
+        b_out = _np.clip(b_out - amb * 0.38, 0.0, 1.0)
+
+        # ── 2. Edge oxidation darkening ───────────────────────────────────────
+        # cos² radial falloff: 1.0 at border, 0.0 at centre
+        ys = _np.linspace(-1.0, 1.0, h)[:, _np.newaxis]
+        xs = _np.linspace(-1.0, 1.0, w)[_np.newaxis, :]
+        r2 = _np.clip(ys ** 2 + xs ** 2, 0.0, None)
+        edge_mask = _np.clip((r2 - 0.55) / 0.45, 0.0, 1.0).astype(_np.float32)
+        edge_w = edge_mask * edge_darken * opacity
+        r_out = _np.clip(r_out * (1.0 - edge_w), 0.0, 1.0)
+        g_out = _np.clip(g_out * (1.0 - edge_w), 0.0, 1.0)
+        b_out = _np.clip(b_out * (1.0 - edge_w), 0.0, 1.0)
+
+        # ── 3. Highlight desaturation (amber wash dulls pure whites) ─────────
+        bright_px = lum > 0.78
+        desat_w   = _np.where(bright_px, highlight_desat * opacity, 0.0).astype(_np.float32)
+        r_out = r_out * (1.0 - desat_w) + lum * desat_w
+        g_out = g_out * (1.0 - desat_w) + lum * desat_w
+        b_out = b_out * (1.0 - desat_w) + lum * desat_w
+        # Re-apply a gentle amber tint to desaturated highlights
+        r_out = _np.clip(r_out + desat_w * 0.04, 0.0, 1.0)
+        b_out = _np.clip(b_out - desat_w * 0.06, 0.0, 1.0)
+
+        # Write back (BGRA)
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        bright_count = int(bright_px.sum())
+        print(f"    Old-master varnish pass complete  "
+              f"(bright_px={bright_count})")
