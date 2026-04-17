@@ -85,6 +85,7 @@ EXPECTED_ARTISTS = [
     "patinir",
     "andrea_mantegna",
     "claude_lorrain",
+    "jacques_louis_david",
 ]
 
 
@@ -227,6 +228,8 @@ EXPECTED_PERIODS = [
     "EARLY_VENETIAN_RENAISSANCE",
     "FLORENTINE_MANNERIST",
     "PADUAN_RENAISSANCE",
+    "CLASSICAL_LANDSCAPE",
+    "FRENCH_NEOCLASSICAL",
 ]
 
 
@@ -7962,3 +7965,163 @@ def test_classical_landscape_stroke_params_high_edge_softness():
     assert p["edge_softness"] >= 0.65, (
         f"CLASSICAL_LANDSCAPE edge_softness should be >= 0.65 for Lorrain's dissolved "
         f"atmospheric edges in distant landscape forms; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Jacques-Louis David — session 69 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_jacques_louis_david_in_catalog():
+    """Session 69: Jacques-Louis David must be present in CATALOG."""
+    assert "jacques_louis_david" in CATALOG, (
+        "jacques_louis_david missing from CATALOG — add it to art_catalog.py")
+
+
+def test_jacques_louis_david_movement():
+    """David's movement must reference Neoclassic."""
+    s = get_style("jacques_louis_david")
+    movement_lower = s.movement.lower()
+    assert "neoclassic" in movement_lower or "classical" in movement_lower, (
+        f"Jacques-Louis David movement should reference Neoclassicism; got {s.movement!r}")
+
+
+def test_jacques_louis_david_nationality():
+    """David was French."""
+    s = get_style("jacques_louis_david")
+    assert "French" in s.nationality, (
+        f"Jacques-Louis David nationality should be French; got {s.nationality!r}")
+
+
+def test_jacques_louis_david_palette_length():
+    """David palette must have at least 6 entries."""
+    s = get_style("jacques_louis_david")
+    assert len(s.palette) >= 6, (
+        f"jacques_louis_david palette has only {len(s.palette)} entries; expected >= 6")
+
+
+def test_jacques_louis_david_palette_values_in_range():
+    """All David palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("jacques_louis_david")
+    for i, rgb in enumerate(s.palette):
+        assert len(rgb) == 3, f"palette[{i}] is not a 3-tuple"
+        for j, v in enumerate(rgb):
+            assert 0.0 <= v <= 1.0, (
+                f"jacques_louis_david palette[{i}][{j}]={v:.4f} is out of [0,1]")
+
+
+def test_jacques_louis_david_moderate_wet_blend():
+    """David uses moderate wet_blend — smooth flesh but not sfumato."""
+    s = get_style("jacques_louis_david")
+    assert 0.15 <= s.wet_blend <= 0.45, (
+        f"jacques_louis_david wet_blend={s.wet_blend:.3f} should be in [0.15, 0.45] — "
+        "moderate smoothness without sfumato haze")
+
+
+def test_jacques_louis_david_moderate_edge_softness():
+    """David uses moderately crisp edges — classical contour, not sfumato."""
+    s = get_style("jacques_louis_david")
+    assert s.edge_softness <= 0.50, (
+        f"jacques_louis_david edge_softness={s.edge_softness:.3f} should be <= 0.50 — "
+        "crisp neoclassical contour")
+
+
+def test_jacques_louis_david_has_glazing():
+    """David applied a warm amber unifying glaze — glazing must not be None."""
+    s = get_style("jacques_louis_david")
+    assert s.glazing is not None, (
+        "jacques_louis_david glazing should not be None — David applied a warm amber "
+        "glaze over his portraits to unify the flesh tones")
+
+
+def test_jacques_louis_david_palette_has_stone_grey():
+    """David palette must contain a cool stone-grey for his architectural backgrounds."""
+    s = get_style("jacques_louis_david")
+    has_stone_grey = any(
+        0.40 <= r <= 0.85 and 0.40 <= g <= 0.85 and 0.40 <= b <= 0.85
+        and abs(r - g) < 0.15 and abs(g - b) < 0.15
+        for r, g, b in s.palette
+    )
+    assert has_stone_grey, (
+        "jacques_louis_david palette must contain a cool stone-grey tone — "
+        "David's backgrounds are cool neutral stone, not warm")
+
+
+def test_jacques_louis_david_famous_works_include_marat():
+    """David's famous works must include The Death of Marat."""
+    s = get_style("jacques_louis_david")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Marat" in t for t in titles), (
+        "jacques_louis_david famous works should include The Death of Marat — "
+        "his most celebrated and politically radical painting")
+
+
+def test_jacques_louis_david_famous_works_include_horatii():
+    """David's famous works must include Oath of the Horatii."""
+    s = get_style("jacques_louis_david")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Horat" in t for t in titles), (
+        "jacques_louis_david famous works should include Oath of the Horatii — "
+        "the defining manifesto of French Neoclassicism")
+
+
+def test_jacques_louis_david_famous_works_count():
+    """David should have at least 4 famous works documented."""
+    s = get_style("jacques_louis_david")
+    assert len(s.famous_works) >= 4, (
+        f"jacques_louis_david should have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_jacques_louis_david_inspiration_references_david_pass():
+    """David inspiration must reference david_neoclassical_clarity_pass()."""
+    s = get_style("jacques_louis_david")
+    assert "david_neoclassical_clarity_pass()" in s.inspiration, (
+        "jacques_louis_david inspiration must reference david_neoclassical_clarity_pass() — "
+        "the defining pipeline pass for his heroic clarity technique")
+
+
+def test_jacques_louis_david_inspiration_references_recession_pass():
+    """David inspiration must reference ground_tone_recession_pass()."""
+    s = get_style("jacques_louis_david")
+    assert "ground_tone_recession_pass()" in s.inspiration, (
+        "jacques_louis_david inspiration must reference ground_tone_recession_pass() — "
+        "the session 69 artistic improvement pass")
+
+
+def test_jacques_louis_david_in_expected_artists():
+    """EXPECTED_ARTISTS list must include jacques_louis_david."""
+    assert "jacques_louis_david" in EXPECTED_ARTISTS, (
+        "jacques_louis_david missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.FRENCH_NEOCLASSICAL — session 69 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_french_neoclassical_period_present():
+    """Session 69: FRENCH_NEOCLASSICAL must exist in Period enum."""
+    assert hasattr(Period, "FRENCH_NEOCLASSICAL"), (
+        "Period.FRENCH_NEOCLASSICAL not found — add it to scene_schema.py")
+    assert Period.FRENCH_NEOCLASSICAL in list(Period)
+
+
+def test_french_neoclassical_stroke_params_moderate_wet_blend():
+    """FRENCH_NEOCLASSICAL should have moderate wet_blend (smooth flesh, not sfumato)."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_NEOCLASSICAL,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.40, (
+        f"FRENCH_NEOCLASSICAL wet_blend should be <= 0.40 for controlled smoothness; "
+        f"got {p['wet_blend']}")
+    assert p["wet_blend"] >= 0.15, (
+        f"FRENCH_NEOCLASSICAL wet_blend should be >= 0.15 (not a dry technique); "
+        f"got {p['wet_blend']}")
+
+
+def test_french_neoclassical_stroke_params_moderate_edge_softness():
+    """FRENCH_NEOCLASSICAL should have moderate edge_softness (classical contour)."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_NEOCLASSICAL,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.50, (
+        f"FRENCH_NEOCLASSICAL edge_softness should be <= 0.50 for crisp classical "
+        f"contours; got {p['edge_softness']}")

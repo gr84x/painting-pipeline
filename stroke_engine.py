@@ -19045,3 +19045,274 @@ class Painter:
         active_px = int((face_mask > 0.05).sum())
         print(f"    Skin zone temperature pass complete  "
               f"(face_px={active_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # David neoclassical clarity pass — session 69 (Jacques-Louis David)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def david_neoclassical_clarity_pass(self,
+                                        figure_cx:       float = 0.50,
+                                        figure_top:      float = 0.02,
+                                        figure_bottom:   float = 0.85,
+                                        figure_rx:       float = 0.28,
+                                        bg_cool_shift:   float = 0.06,
+                                        contour_crisp:   float = 0.05,
+                                        amber_glaze:     float = 0.04,
+                                        blur_radius:     float = 6.0,
+                                        opacity:         float = 0.50) -> None:
+        """
+        David neoclassical clarity pass — session 69.
+
+        Jacques-Louis David (1748–1825) is the supreme master of the French
+        Neoclassical school.  Where Ingres pursued sensuous surface perfection,
+        David sought civic heroism — the painting as a rational argument.  His
+        visual language has three defining characteristics that this pass
+        reinforces:
+
+          1.  Cool, receding stone-grey backgrounds.
+              David systematically pushed his backgrounds toward neutral grey
+              and near-black to maximise the contrast between the lit heroic
+              figure and the architectural void behind it.  The background is
+              not a landscape or atmosphere — it is a political stage flat.
+
+          2.  Crisp classical figure contours.
+              David trained as a draughtsman before he painted.  His figures
+              have a precise, sculptor's edge — clear and decisive but not
+              hard like an engraving.  This pass detects high-contrast edges
+              in the mid-luminance region and applies a mild sharpening to
+              reinforce that decisive contour.
+
+          3.  Warm amber glaze over the flesh zone.
+              Despite his cool backgrounds, David's flesh is warm and luminous.
+              He applied a thin unifying amber glaze over portraits, warming
+              the midtones without tinting the pale highlights.  This pass
+              applies a mild warm glaze restricted to the estimated figure
+              zone, reproducing that characteristic warmth.
+
+        Algorithm
+        ---------
+        1. Build a figure ellipse mask (the warm foreground zone) and its
+           inverse (the cool background zone) using the supplied parameters.
+        2. Apply a cool grey desaturation shift to the background zone,
+           pushing it toward the neutral stone-grey of David's architectural
+           settings.
+        3. Apply a mild unsharp-mask edge enhancement across the boundary
+           between figure and background, reinforcing David's crisp contour.
+        4. Apply a warm amber tint restricted to the figure zone, reproducing
+           the final unifying glaze of his portrait technique.
+
+        Parameters
+        ----------
+        figure_cx      : figure centre X as fraction of canvas width
+        figure_top     : figure top edge as fraction of canvas height
+        figure_bottom  : figure bottom edge as fraction of canvas height
+        figure_rx      : figure half-width as fraction of canvas width
+        bg_cool_shift  : strength of cool-grey desaturation on background
+        contour_crisp  : unsharp-mask strength at figure/background boundary
+        amber_glaze    : warm amber glaze strength on flesh/figure zone
+        blur_radius    : Gaussian radius (px) for mask softening
+        opacity        : overall blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  David neoclassical clarity pass "
+              f"(fx={figure_cx:.2f}  ft={figure_top:.2f}  fb={figure_bottom:.2f}  "
+              f"frx={figure_rx:.2f}  bg_cool={bg_cool_shift:.3f}  "
+              f"crisp={contour_crisp:.3f}  amber={amber_glaze:.3f}  "
+              f"blur={blur_radius:.1f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    David neoclassical clarity pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Figure ellipse mask ───────────────────────────────────────────────
+        cy_px  = int(((figure_top + figure_bottom) / 2.0) * h)
+        ry_px  = max(1, int(((figure_bottom - figure_top) / 2.0) * h))
+        cx_px  = int(figure_cx * w)
+        rx_px  = max(1, int(figure_rx * w))
+
+        ys = (_np.arange(h, dtype=_np.float32) - cy_px) / ry_px
+        xs = (_np.arange(w, dtype=_np.float32) - cx_px) / rx_px
+        yy, xx = _np.meshgrid(ys, xs, indexing="ij")
+
+        fig_dist   = xx ** 2 + yy ** 2
+        fig_mask_hard = _np.clip(1.5 - fig_dist, 0.0, 1.0)
+
+        fig_uint8 = _np.clip(fig_mask_hard * 255, 0, 255).astype(_np.uint8)
+        fig_img   = _Image.fromarray(fig_uint8, "L")
+        fig_mask  = _np.array(
+            fig_img.filter(_ImageFilter.GaussianBlur(radius=blur_radius)),
+            dtype=_np.float32) / 255.0
+
+        bg_mask = 1.0 - fig_mask
+
+        # ── 1. Cool grey shift on background (R↓ G slight↓ B slight↑) ────────
+        bg_w = bg_mask * bg_cool_shift * opacity
+        r_out = _np.clip(r_out - bg_w * 0.60, 0.0, 1.0)
+        g_out = _np.clip(g_out - bg_w * 0.30, 0.0, 1.0)
+        b_out = _np.clip(b_out + bg_w * 0.10, 0.0, 1.0)
+
+        # ── 2. Edge crispening at figure/background boundary ──────────────────
+        if contour_crisp > 0.0:
+            boundary_mask = 1.0 - _np.abs(fig_mask - 0.50) / 0.30
+            boundary_mask = _np.clip(boundary_mask, 0.0, 1.0)
+            mid_lum_mask  = 1.0 - _np.abs(lum - 0.45) / 0.30
+            mid_lum_mask  = _np.clip(mid_lum_mask, 0.0, 1.0)
+            combined_edge = boundary_mask * mid_lum_mask
+
+            for ch_out, ch_f in [(r_out, r_f), (g_out, g_f), (b_out, b_f)]:
+                ch_uint8 = _np.clip(ch_f * 255, 0, 255).astype(_np.uint8)
+                ch_img   = _Image.fromarray(ch_uint8, "L")
+                ch_blur  = _np.array(
+                    ch_img.filter(_ImageFilter.GaussianBlur(radius=2.0)),
+                    dtype=_np.float32) / 255.0
+                detail = ch_f - ch_blur
+                ch_out += detail * contour_crisp * opacity * combined_edge
+                _np.clip(ch_out, 0.0, 1.0, out=ch_out)
+
+        # ── 3. Warm amber glaze on figure zone (R↑↑ G↑ slight B-) ───────────
+        mid_lum = 1.0 - _np.abs(lum - 0.50) / 0.35
+        mid_lum = _np.clip(mid_lum, 0.0, 1.0)
+        glaze_w  = fig_mask * mid_lum * amber_glaze * opacity
+        r_out = _np.clip(r_out + glaze_w * 0.90, 0.0, 1.0)
+        g_out = _np.clip(g_out + glaze_w * 0.52, 0.0, 1.0)
+        b_out = _np.clip(b_out - glaze_w * 0.12, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        fig_px = int((fig_mask > 0.05).sum())
+        bg_px  = int((bg_mask  > 0.05).sum())
+        print(f"    David neoclassical clarity pass complete  "
+              f"(fig_px={fig_px}  bg_px={bg_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Ground tone recession pass — session 69 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def ground_tone_recession_pass(self,
+                                   horizon_y:       float = 0.55,
+                                   fg_warm_lift:    float = 0.03,
+                                   bg_cool_lift:    float = 0.04,
+                                   transition_band: float = 0.25,
+                                   opacity:         float = 0.45) -> None:
+        """
+        Ground tone recession pass — session 69 artistic improvement.
+
+        Old Master painters prepared their canvases with a coloured imprimatura
+        (ground tone) that was not uniform but varied in colour temperature from
+        foreground to background.  This subtle pre-existing warmth gradient
+        does two things simultaneously:
+
+          Foreground warms:
+              The warm ochre or raw umber of the imprimatura shows through
+              thin glazes in the foreground, tying the near ground to the
+              flesh tones of the figure and giving the whole composition a
+              unified warmth in the immediate space around the subject.
+
+          Background cools:
+              As depth increases, painters applied progressively cooler tones
+              — grey, blue-grey, neutral — over the warm ground, suppressing
+              its warmth and creating a natural atmospheric recession without
+              requiring explicit aerial-perspective blue hazing.  Rembrandt,
+              Velázquez, and Vermeer all used this principle: the background is
+              not painted over a warm ground but over a cool mid-tone.
+
+        This pass implements that principle post-hoc by applying a smooth
+        vertical gradient of colour temperature.  The foreground (below the
+        horizon) receives a mild warm push; the background (above the horizon)
+        receives a mild cool push.  The transition is Gaussian-blended so the
+        effect is imperceptible at first glance but measurably improves the
+        depth reading of the composition.
+
+        Parameters
+        ----------
+        horizon_y        : Y position of the horizon as fraction of canvas height
+        fg_warm_lift     : strength of the warm (amber) push in the foreground
+        bg_cool_lift     : strength of the cool (blue-grey) push in the background
+        transition_band  : half-width of the transition zone in Y (fraction of h)
+        opacity          : overall blend weight
+        """
+        import numpy as _np
+
+        print(f"  Ground tone recession pass "
+              f"(horizon_y={horizon_y:.2f}  fg_warm={fg_warm_lift:.3f}  "
+              f"bg_cool={bg_cool_lift:.3f}  band={transition_band:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Ground tone recession pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Vertical gradient masks ───────────────────────────────────────────
+        hz_px    = int(horizon_y * h)
+        sigma_px = max(1.0, transition_band * h)
+
+        ys = _np.arange(h, dtype=_np.float32)
+
+        fg_mask = 1.0 / (1.0 + _np.exp(-(ys - hz_px) / (sigma_px * 0.5)))
+        fg_mask = fg_mask[:, _np.newaxis]  # broadcast across width
+
+        bg_mask = 1.0 - fg_mask
+
+        # ── Foreground: warm amber lift (R↑ G slight↑ B slight↓) ─────────────
+        fw = fg_mask * fg_warm_lift * opacity
+        r_out = _np.clip(r_out + fw * 0.80, 0.0, 1.0)
+        g_out = _np.clip(g_out + fw * 0.42, 0.0, 1.0)
+        b_out = _np.clip(b_out - fw * 0.15, 0.0, 1.0)
+
+        # ── Background: cool grey-blue lift (R slight↓ G slight↓ B↑) ─────────
+        bw = bg_mask * bg_cool_lift * opacity
+        r_out = _np.clip(r_out - bw * 0.35, 0.0, 1.0)
+        g_out = _np.clip(g_out - bw * 0.18, 0.0, 1.0)
+        b_out = _np.clip(b_out + bw * 0.30, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        fg_px = int((fg_mask > 0.10).sum())
+        bg_px = int((bg_mask > 0.10).sum())
+        print(f"    Ground tone recession pass complete  "
+              f"(fg_px={fg_px}  bg_px={bg_px})")

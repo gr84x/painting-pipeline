@@ -238,6 +238,7 @@ class Period(Enum):
     VEDUTISMO     = auto()   # Canaletto — crystal-clear Venetian light, precise architectural perspective, cool cerulean sky, warm honey-stone buildings, silver canal water
     PADUAN_RENAISSANCE = auto()  # Mantegna — cold stone-mineral palette, sculptural grisaille clarity, engraved archaeological precision, pale chalk highlights on ridge-forms
     CLASSICAL_LANDSCAPE = auto()  # Claude Lorrain — golden horizon contre-jour, warm amber glaze, soft atmospheric dissolution, dark repoussoir foreground trees
+    FRENCH_NEOCLASSICAL = auto()  # David — heroic civic clarity, cool stone-grey backgrounds, smooth luminous flesh, crisp classical contours, restrained palette
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -881,6 +882,11 @@ class Style:
             # high edge_softness for the atmospheric haze that dissolves distant forms;
             # large stroke_size_bg for the broad luminous sweeps of sky and far landscape.
             Period.CLASSICAL_LANDSCAPE: dict(stroke_size_face=7, stroke_size_bg=32, wet_blend=0.72, edge_softness=0.75),
+            # FRENCH_NEOCLASSICAL (David) — heroic civic clarity: moderate wet_blend for smooth
+            # luminous flesh without heavy glazing; moderate edge_softness for crisp classical
+            # contours that are clear but not as hard as engraving; large bg strokes for cool
+            # architectural stone backgrounds.
+            Period.FRENCH_NEOCLASSICAL: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.25, edge_softness=0.32),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

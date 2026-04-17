@@ -5661,6 +5661,70 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jacques-Louis David ───────────────────────────────────────────────────
+    "jacques_louis_david": ArtStyle(
+        artist="Jacques-Louis David",
+        movement="French Neoclassicism",
+        nationality="French",
+        period="1748–1825",
+        palette=[
+            (0.85, 0.78, 0.65),   # warm ivory flesh — smooth, porcelain-luminous skin
+            (0.70, 0.60, 0.45),   # mid-tone flesh — warm shadow on cheek and neck
+            (0.45, 0.38, 0.28),   # deep warm-ochre shadow — under jaw, collar bone
+            (0.72, 0.72, 0.70),   # cool stone-grey — classical architectural background
+            (0.55, 0.55, 0.52),   # mid stone — mid-value column or draped fabric
+            (0.30, 0.30, 0.28),   # dark stone-grey — deep architectural shadow
+            (0.62, 0.42, 0.22),   # warm amber — Roman drapery, military uniform
+            (0.22, 0.26, 0.38),   # Prussian blue-grey — military costume or sky
+        ],
+        ground_color=(0.65, 0.60, 0.48),    # warm grey-ochre imprimatura — classical preparation
+        stroke_size=5,
+        wet_blend=0.25,                      # moderate — smooth flesh without deep blending haze
+        edge_softness=0.32,                  # moderate — crisp classical contour, not sfumato
+        jitter=0.012,
+        glazing=(0.68, 0.60, 0.42),          # warm amber unifying glaze — old-master warmth
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Heroic Neoclassical clarity — David subordinated every pictorial element "
+            "to rational, sculptural legibility.  Trained under Vien in the French "
+            "Academy, he absorbed the cool geometry of Poussin and the civic grandeur "
+            "of Roman relief sculpture, then fused these with the direct observation "
+            "of Caravaggio's dramatic lighting.  His flesh is luminously smooth — "
+            "closer to polished marble than living skin — achieved through a warm "
+            "imprimatura, careful layered lean-to-fat construction, and a final amber "
+            "glaze that unifies the surface without obscuring the precise contour "
+            "drawing beneath it.  Backgrounds are characteristically cool and "
+            "architectural: grey stone columns, receding arches, dark curtains that "
+            "frame the heroic figure without competing for attention.  The Death of "
+            "Marat (1793) demonstrates his supreme mastery: a radical horizontal "
+            "composition with a near-black upper void, the body lit by a raking upper-"
+            "left source, with all sentimental detail excised for political power.  "
+            "Napoleon Crossing the Alps (1800–1801) shows his command of heroic "
+            "vertical scale — the figure painted five times for different patrons, "
+            "each variant calibrated for a different court's taste.  David never "
+            "confused drama with excess: his restraint is a political act."
+        ),
+        famous_works=[
+            ("Oath of the Horatii",              "1784"),
+            ("The Death of Marat",               "1793"),
+            ("Napoleon Crossing the Alps",        "1801"),
+            ("Coronation of Napoleon",            "1807"),
+            ("The Intervention of the Sabine Women", "1799"),
+            ("Madame Récamier",                   "1800"),
+        ],
+        inspiration=(
+            "Apply david_neoclassical_clarity_pass() to reinforce David's heroic "
+            "sculptural legibility: cool the background toward stone-grey, crisp the "
+            "figure contours with a mild edge-enhancement, and add a subtle warm-"
+            "amber glaze over the flesh to achieve the luminous but controlled "
+            "surface that defines his portrait and history painting.  Use "
+            "ground_tone_recession_pass() to push the background into deeper "
+            "cool shadow, reinforcing the spatial separation between the lit heroic "
+            "figure in the foreground and the architectural void behind it."
+        ),
+    ),
+
     # ── Andrea Mantegna ───────────────────────────────────────────────────────
     "andrea_mantegna": ArtStyle(
         artist="Andrea Mantegna",
