@@ -6456,3 +6456,129 @@ def test_venetian_mannerist_stroke_params():
     assert 0.20 <= params["wet_blend"] <= 0.55, (
         f"VENETIAN_MANNERIST wet_blend should be 0.20–0.55; got {params['wet_blend']:.2f}")
 
+
+# ── Veronese (Session 59) ─────────────────────────────────────────────────────
+
+def test_veronese_in_catalog():
+    """Veronese must be present in CATALOG."""
+    assert "veronese" in CATALOG, (
+        "veronese not found in CATALOG — add the entry to art_catalog.py")
+
+
+def test_veronese_artist_name():
+    """Veronese artist name must include Paolo Caliari or Paolo Veronese."""
+    s = get_style("veronese")
+    assert "Paolo" in s.artist and ("Veronese" in s.artist or "Caliari" in s.artist), (
+        f"Veronese artist name incorrect: {s.artist!r} — "
+        f"should reference Paolo Caliari / Paolo Veronese")
+
+
+def test_veronese_ground_color_warm_ochre():
+    """Veronese ground_color must be warm (R > B) — warm ochre-light panel."""
+    s = get_style("veronese")
+    r, g, b = s.ground_color
+    assert r > b + 0.20, (
+        f"Veronese ground must be warm ochre; got R={r:.2f} B={b:.2f} — "
+        f"not as dark as Tintoretto, lighter than Giorgione's honey amber")
+
+
+def test_veronese_stroke_size_moderate():
+    """Veronese stroke_size should be 7–11 — confident marks, not micro-detail."""
+    s = get_style("veronese")
+    assert 7 <= s.stroke_size <= 11, (
+        f"Veronese stroke_size should be 7–11 for confident Venetian impasto; "
+        f"got {s.stroke_size}")
+
+
+def test_veronese_wet_blend_moderate():
+    """Veronese wet_blend must be in 0.35–0.62 — decisive wet-on-wet, not full tonal pooling."""
+    s = get_style("veronese")
+    assert 0.35 <= s.wet_blend <= 0.62, (
+        f"Veronese wet_blend should be 0.35–0.62; got {s.wet_blend:.2f} — "
+        f"confident fresh marks, less dissolved than Giorgione (0.62)")
+
+
+def test_veronese_edge_softness_crisp():
+    """Veronese edge_softness must be ≤ 0.55 — figures stand in clear light, not dissolved."""
+    s = get_style("veronese")
+    assert s.edge_softness <= 0.55, (
+        f"Veronese edge_softness should be ≤0.55; got {s.edge_softness:.2f} — "
+        f"Veronese's clear architecture and confident forms demand readable edges")
+
+
+def test_veronese_chromatic_split_false():
+    """Veronese chromatic_split must be False — Venetian colourism, not Seuratian divisionism."""
+    s = get_style("veronese")
+    assert s.chromatic_split is False, (
+        "Veronese chromatic_split should be False — his brilliant palette is achieved "
+        "through direct colour zones, not complementary-dot splitting")
+
+
+def test_veronese_crackle():
+    """Veronese crackle must be True — old Venetian canvas paintings show craquelure."""
+    s = get_style("veronese")
+    assert s.crackle is True, (
+        "Veronese.crackle should be True — 16th-century Venetian canvases develop "
+        "craquelure over centuries")
+
+
+def test_veronese_famous_works_count():
+    """Veronese must have at least 5 famous works documented."""
+    s = get_style("veronese")
+    assert len(s.famous_works) >= 5, (
+        f"Veronese should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_veronese_famous_works_include_wedding_at_cana():
+    """Veronese must list The Wedding at Cana as a famous work."""
+    s = get_style("veronese")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("cana" in t or "wedding" in t for t in titles), (
+        "Veronese famous works should include The Wedding at Cana (1563) — "
+        "his largest canvas and most celebrated feast scene")
+
+
+def test_veronese_technique_mentions_colour_or_luminous():
+    """Veronese technique description must reference his luminous colour quality."""
+    s = get_style("veronese")
+    lower = s.technique.lower()
+    assert any(kw in lower for kw in ("luminous", "colour", "color", "palette", "saturated")), (
+        "Veronese technique must describe his luminous colour quality — "
+        "the defining characteristic that distinguishes him from Titian and Tintoretto")
+
+
+def test_veronese_inspiration_references_luminous_feast_pass():
+    """Veronese inspiration must reference veronese_luminous_feast_pass()."""
+    s = get_style("veronese")
+    assert "veronese_luminous_feast_pass()" in s.inspiration, (
+        "Veronese inspiration must reference veronese_luminous_feast_pass() — "
+        "see Giorgione or Tintoretto for the expected format")
+
+
+# ── Venetian Colorist period ──────────────────────────────────────────────────
+
+def test_venetian_colorist_period_in_enum():
+    """Period.VENETIAN_COLORIST must exist in the Period enum."""
+    assert hasattr(Period, "VENETIAN_COLORIST"), (
+        "Period.VENETIAN_COLORIST not found — add it to the Period enum in scene_schema.py")
+
+
+def test_venetian_colorist_stroke_params():
+    """Style with Period.VENETIAN_COLORIST must return valid stroke_params."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_COLORIST)
+    params = style.stroke_params
+    assert "stroke_size_face" in params
+    assert "wet_blend" in params
+    assert "edge_softness" in params
+    # Veronese: confident face strokes (7–11), clear architectural quality
+    assert 7 <= params["stroke_size_face"] <= 11, (
+        f"VENETIAN_COLORIST stroke_size_face should be 7–11; "
+        f"got {params['stroke_size_face']}")
+    # Moderate wet_blend: decisive wet-on-wet but not tonal pooling
+    assert 0.35 <= params["wet_blend"] <= 0.62, (
+        f"VENETIAN_COLORIST wet_blend should be 0.35–0.62; got {params['wet_blend']:.2f}")
+    # Crisper edges than Giorgione: figures stand clearly in light
+    assert params["edge_softness"] <= 0.55, (
+        f"VENETIAN_COLORIST edge_softness should be ≤0.55 for Veronese's "
+        f"clear confident forms; got {params['edge_softness']:.2f}")
+

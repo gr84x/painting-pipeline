@@ -8296,3 +8296,139 @@ def test_giorgione_tonal_poetry_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.68, 0.56, 0.38), texture_strength=0.0)
     p.giorgione_tonal_poetry_pass(opacity=0.70)
+
+
+# ── veronese_luminous_feast_pass (Session 59) ─────────────────────────────────
+
+def test_veronese_luminous_feast_pass_exists():
+    """Painter must expose veronese_luminous_feast_pass() as a callable method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "veronese_luminous_feast_pass"), (
+        "Painter.veronese_luminous_feast_pass not found — add it to stroke_engine.py")
+    assert callable(Painter.veronese_luminous_feast_pass)
+
+
+def test_veronese_luminous_feast_pass_runs_without_error():
+    """veronese_luminous_feast_pass() must complete without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.54, 0.36), texture_strength=0.0)
+    p.veronese_luminous_feast_pass()
+
+
+def test_veronese_luminous_feast_pass_boosts_saturation_in_midtones():
+    """veronese_luminous_feast_pass() must increase colour saturation on a saturated mid-grey canvas."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a mid-luminance saturated red to test saturation boost
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    # R=160, G=80, B=60 → mid-luminance, warm-red, clearly saturated
+    buf[:, :, 2] = 160   # R
+    buf[:, :, 1] = 80    # G
+    buf[:, :, 0] = 60    # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Compute saturation before (cmax - cmin) / cmax in float
+    r0, g0, b0 = 160 / 255.0, 80 / 255.0, 60 / 255.0
+    cmax0 = max(r0, g0, b0)
+    cmin0 = min(r0, g0, b0)
+    sat_before = (cmax0 - cmin0) / cmax0
+
+    p.veronese_luminous_feast_pass(saturation_boost=0.20, opacity=1.0)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r1 = buf_after[:, :, 2].astype(np.float32).mean() / 255.0
+    g1 = buf_after[:, :, 1].astype(np.float32).mean() / 255.0
+    b1 = buf_after[:, :, 0].astype(np.float32).mean() / 255.0
+    cmax1 = max(r1, g1, b1)
+    cmin1 = min(r1, g1, b1)
+    sat_after = (cmax1 - cmin1) / (cmax1 + 1e-8)
+
+    assert sat_after >= sat_before, (
+        f"veronese_luminous_feast_pass() saturation boost must not reduce saturation on "
+        f"a mid-tone saturated input; sat_before={sat_before:.4f}  sat_after={sat_after:.4f}")
+
+
+def test_veronese_luminous_feast_pass_cool_highlight_adds_blue():
+    """veronese_luminous_feast_pass() must add blue to bright pixels (cool highlight push)."""
+    p = _make_small_painter(64, 64)
+
+    # Fill with very bright near-white — triggers cool highlight zone
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 230   # R — very bright
+    buf[:, :, 1] = 215   # G
+    buf[:, :, 0] = 190   # B — start warm to make cool push detectable
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    b_before = float(buf[:, :, 0].mean())
+
+    p.veronese_luminous_feast_pass(
+        cool_highlight_strength=0.15,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    b_after = float(buf_after[:, :, 0].mean())
+
+    assert b_after > b_before, (
+        f"veronese_luminous_feast_pass() cool highlight push must raise the B channel "
+        f"on bright pixels; B_before={b_before:.1f}  B_after={b_after:.1f} — "
+        f"Veronese's cool silver-ivory highlights, not Titian's warm gold")
+
+
+def test_veronese_luminous_feast_pass_figure_mask_background_unchanged():
+    """veronese_luminous_feast_pass() with figure_mask must not alter background pixels."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with uniform mid-tone saturated colour
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 140   # R
+    buf[:, :, 1] = 100   # G
+    buf[:, :, 0] = 80    # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: figure only in top half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:32, :] = 1.0
+
+    p.veronese_luminous_feast_pass(
+        figure_mask      = mask,
+        saturation_boost = 0.30,
+        opacity          = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom rows (mask=0, pure background) must be unchanged
+    assert np.array_equal(buf_after[50:, :, :3], buf[50:, :, :3]), (
+        "veronese_luminous_feast_pass() with figure_mask must not alter pixels where "
+        "mask=0 — saturation boost must be gated to the figure interior only")
+
+
+def test_veronese_luminous_feast_pass_custom_params():
+    """veronese_luminous_feast_pass() must accept all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.54, 0.36), texture_strength=0.0)
+    p.veronese_luminous_feast_pass(
+        midtone_low             = 0.30,
+        midtone_high            = 0.70,
+        saturation_boost        = 0.10,
+        cool_highlight_strength = 0.04,
+        shadow_chroma_preserve  = 0.06,
+        opacity                 = 0.60,
+    )
+
+
+def test_veronese_luminous_feast_pass_large_canvas():
+    """veronese_luminous_feast_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.62, 0.54, 0.36), texture_strength=0.0)
+    p.veronese_luminous_feast_pass(opacity=0.72)

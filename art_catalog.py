@@ -4724,6 +4724,86 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 59 ─────────────────────────────────────────────────────────────
+    "veronese": ArtStyle(
+        artist="Paolo Veronese (Paolo Caliari)",
+        movement="Venetian Colorism",
+        nationality="Italian",
+        period="1528–1588",
+        palette=[
+            (0.94, 0.88, 0.74),   # warm ivory — primary lit flesh
+            (0.84, 0.74, 0.58),   # warm peach — mid-tone flesh
+            (0.60, 0.48, 0.34),   # warm umber — shadow flesh
+            (0.74, 0.80, 0.88),   # cool silver-grey — stone architecture, columns
+            (0.78, 0.28, 0.34),   # brilliant rose-crimson — his signature drapery colour
+            (0.34, 0.52, 0.44),   # cool grey-green — second drapery, verdant shade
+            (0.90, 0.82, 0.38),   # clear warm yellow-gold — brilliant festive fabric
+            (0.10, 0.08, 0.08),   # near-black — deepest shadow, concentrated void
+        ],
+        ground_color=(0.62, 0.54, 0.36),
+        stroke_size=9,
+        wet_blend=0.48,
+        edge_softness=0.40,
+        jitter=0.030,
+        glazing=(0.68, 0.60, 0.42),
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Paolo Veronese stands apart from his great Venetian contemporaries — "
+            "Titian and Tintoretto — through a quality of luminous, airborne clarity.  "
+            "Where Titian built surface through layered glazes that accumulate deep warmth, "
+            "and Tintoretto plunged his canvases into near-black Venetian void, Veronese "
+            "bathed his enormous compositions in an even, silvery-clear light that seems to "
+            "belong to outdoor festivals and marble-colonnaded loggias.  His palette is the "
+            "brightest of the three: rose-crimson, cool grey-green, warm yellow-gold, and "
+            "pale ivory flesh — saturated colours placed with architectural confidence rather "
+            "than atmospheric dissolution.  "
+            "His paint surface has a fresh, decisive quality: colours are often applied in "
+            "broad, confident wet-on-wet passages that retain visible direction without the "
+            "violent urgency of Tintoretto's slash-and-drag.  Flesh is warm ivory in the lights "
+            "with cool silver-grey highlights — unlike the warm gold of Titian — and umber in "
+            "the shadows, but shadows remain relatively light-filled; his compositions rarely "
+            "deploy the crushing near-black of Caravaggio or Tintoretto.  "
+            "His architecture and fabric textures are rendered with a near-decorative richness: "
+            "brocades, silks, and damasks are differentiated not through minute Flemish detail "
+            "but through broad colour zones and directional light that imply luxurious material "
+            "without slavish illusionism.  His handling of space is assured — figures move with "
+            "ease through deep architectural settings, yet the surface always retains the "
+            "brilliance and freshness of a painter in full command of his material.  "
+            "The Inquisition summoned him in 1573 to justify the irreverent content of what "
+            "he had titled The Last Supper — Veronese simply renamed it Feast in the House of "
+            "Levi and kept painting exactly as he pleased.  The episode crystallises his "
+            "temperament: exuberant, untroubled, luminously sensuous."
+        ),
+        famous_works=[
+            ("The Wedding at Cana",                   "1563"),
+            ("Feast in the House of Levi",             "1573"),
+            ("Mars and Venus United by Love",          "c. 1578"),
+            ("The Rape of Europa",                     "1580"),
+            ("Triumph of Venice",                      "c. 1582"),
+            ("Portrait of a Lady (La Bella Nani)",     "c. 1560"),
+            ("Allegory of Love I–IV",                  "c. 1575–80"),
+        ],
+        inspiration=(
+            "Use veronese_luminous_feast_pass() after build_form() to apply Veronese's "
+            "signature luminous colour quality: a saturation boost in the mid-tone band that "
+            "intensifies brilliant fabric and flesh colours without oversaturating highlights "
+            "or muddying shadows.  The pass also applies a cool silver-ivory push to the "
+            "brightest lit surfaces (Veronese's cool north-light highlights, distinct from "
+            "Titian's warm gold) and a gentle shadow chroma preservation that keeps "
+            "Veronese's shadows luminous and colour-filled rather than collapsing toward black.  "
+            "ground_color=(0.62, 0.54, 0.36) is a warm ochre-light panel — lighter than "
+            "Tintoretto's near-black, not as deeply amber as Giorgione's honey ground; it "
+            "gives the painting a sunny, open base that supports the brilliant palette.  "
+            "wet_blend=0.48 gives confident, fresh wet-into-wet marks without the tonal "
+            "pooling of Giorgione (0.62) — colours blend at edges but retain directional "
+            "clarity.  "
+            "edge_softness=0.40 produces Veronese's characteristic confident, readable edges: "
+            "figures stand clearly in light, not dissolved into atmosphere; architectural "
+            "elements read with spatial clarity."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",
