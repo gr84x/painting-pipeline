@@ -9481,3 +9481,187 @@ def test_warm_cool_form_duality_pass_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# mantegna_sculptural_form_pass() — session 67
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_mantegna_sculptural_form_pass_exists():
+    """Painter must have mantegna_sculptural_form_pass() after session 67."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "mantegna_sculptural_form_pass"), (
+        "mantegna_sculptural_form_pass not found on Painter")
+    assert callable(getattr(Painter, "mantegna_sculptural_form_pass"))
+
+
+def test_mantegna_sculptural_form_pass_no_error():
+    """mantegna_sculptural_form_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.55), texture_strength=0.0)
+    p.mantegna_sculptural_form_pass(opacity=0.50)
+
+
+def test_mantegna_sculptural_form_pass_zero_opacity_no_change():
+    """mantegna_sculptural_form_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.68, 0.55), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.mantegna_sculptural_form_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "mantegna_sculptural_form_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_mantegna_sculptural_form_pass_lifts_bright_ridges():
+    """
+    mantegna_sculptural_form_pass() must lift bright ridge-form pixels:
+    on a canvas with varied luminance, the average of already-bright pixels
+    should increase (the chalk highlight lift).
+    """
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((80, 80, 4)).copy()
+    # Consider pixels with high luminance (bright ridge candidates)
+    r_b = buf_before[:, :, 2].astype(float) / 255.0
+    g_b = buf_before[:, :, 1].astype(float) / 255.0
+    b_b = buf_before[:, :, 0].astype(float) / 255.0
+    lum_b = 0.2126 * r_b + 0.7152 * g_b + 0.0722 * b_b
+    bright_mask = lum_b > 0.55
+
+    p.mantegna_sculptural_form_pass(
+        highlight_lift = 0.20,
+        shadow_deepen  = 0.05,
+        edge_crisp     = 0.0,
+        blur_radius    = 4.0,
+        opacity        = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((80, 80, 4)).copy()
+    lum_a_bright = (
+        0.2126 * buf_after[:, :, 2][bright_mask].astype(float) / 255.0 +
+        0.7152 * buf_after[:, :, 1][bright_mask].astype(float) / 255.0 +
+        0.0722 * buf_after[:, :, 0][bright_mask].astype(float) / 255.0
+    )
+    lum_b_bright = lum_b[bright_mask]
+    assert lum_a_bright.mean() >= lum_b_bright.mean() - 0.01, (
+        f"mantegna_sculptural_form_pass() should not darken bright ridge pixels; "
+        f"mean lum before={lum_b_bright.mean():.4f} after={lum_a_bright.mean():.4f}")
+
+
+def test_mantegna_sculptural_form_pass_pixels_in_range():
+    """mantegna_sculptural_form_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.72, 0.68, 0.55), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.mantegna_sculptural_form_pass(
+        highlight_lift=0.25, shadow_deepen=0.25, edge_crisp=0.10, opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# skin_zone_temperature_pass() — session 67 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_skin_zone_temperature_pass_exists():
+    """Painter must have skin_zone_temperature_pass() after session 67."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "skin_zone_temperature_pass"), (
+        "skin_zone_temperature_pass not found on Painter")
+    assert callable(getattr(Painter, "skin_zone_temperature_pass"))
+
+
+def test_skin_zone_temperature_pass_no_error():
+    """skin_zone_temperature_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.skin_zone_temperature_pass(
+        face_cx=0.50, face_cy=0.50,
+        face_rx=0.30, face_ry=0.30,
+        opacity=0.55,
+    )
+
+
+def test_skin_zone_temperature_pass_zero_opacity_no_change():
+    """skin_zone_temperature_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.skin_zone_temperature_pass(
+        face_cx=0.50, face_cy=0.50,
+        face_rx=0.30, face_ry=0.30,
+        opacity=0.0,
+    )
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "skin_zone_temperature_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_skin_zone_temperature_pass_warms_forehead():
+    """
+    skin_zone_temperature_pass() must warm the forehead zone (increase R
+    relative to B at the top of the face ellipse).
+    """
+    p = _make_small_painter(100, 100)
+    # Neutral mid-tone ground so colour shifts are easy to detect
+    p.tone_ground((0.60, 0.60, 0.60), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((100, 100, 4)).copy()
+
+    # Forehead zone: y ≈ face_cy - face_ry * 0.55 * ry_px, x ≈ face_cx
+    # With face_cx=0.50, face_cy=0.40, face_rx=0.25, face_ry=0.30
+    # ry_px = 30 → top of forehead ≈ y=40-16=24, centre = y=28 (28/100=0.28)
+    p.skin_zone_temperature_pass(
+        face_cx=0.50, face_cy=0.40,
+        face_rx=0.25, face_ry=0.30,
+        forehead_warm=0.25,
+        temple_cool=0.0,
+        nose_pink=0.0,
+        lip_rose=0.0,
+        jaw_cool=0.0,
+        blur_radius=4.0,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((100, 100, 4)).copy()
+
+    # Sample top-centre of face (forehead area)
+    fy0 = max(0, int(100 * 0.40 - int(100 * 0.30) * 0.80))
+    fy1 = max(fy0 + 1, int(100 * 0.40 - int(100 * 0.30) * 0.30))
+    fx0 = max(0, int(100 * 0.50) - 10)
+    fx1 = min(100, int(100 * 0.50) + 10)
+
+    r_before = buf_before[fy0:fy1, fx0:fx1, 2].astype(float).mean()
+    r_after  = buf_after [fy0:fy1, fx0:fx1, 2].astype(float).mean()
+
+    assert r_after >= r_before, (
+        f"skin_zone_temperature_pass() must warm forehead (R↑ or unchanged); "
+        f"R before={r_before:.2f}  after={r_after:.2f}")
+
+
+def test_skin_zone_temperature_pass_pixels_in_range():
+    """skin_zone_temperature_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.skin_zone_temperature_pass(
+        face_cx=0.50, face_cy=0.40,
+        face_rx=0.28, face_ry=0.32,
+        forehead_warm=0.25, temple_cool=0.20,
+        nose_pink=0.20, lip_rose=0.20, jaw_cool=0.20,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

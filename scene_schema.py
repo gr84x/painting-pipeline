@@ -236,6 +236,7 @@ class Period(Enum):
     VENETIAN_ROCOCO    = auto()     # Tiepolo — celestial overhead light, brilliant azure sky, Naples yellow flesh, pearl-white highlights, aerial luminosity
     BARBIZON      = auto()   # Corot — silvery atmospheric veil, soft cool greens, proto-Impressionist dissolved edges, lyrical landscape intimacy
     VEDUTISMO     = auto()   # Canaletto — crystal-clear Venetian light, precise architectural perspective, cool cerulean sky, warm honey-stone buildings, silver canal water
+    PADUAN_RENAISSANCE = auto()  # Mantegna — cold stone-mineral palette, sculptural grisaille clarity, engraved archaeological precision, pale chalk highlights on ridge-forms
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -870,6 +871,10 @@ class Style:
             # VEDUTISMO (Canaletto) — crisp architectural precision: low wet_blend for clear-cut stone edges,
             # very low edge_softness for defined architectural forms, small stroke for fine detail
             Period.VEDUTISMO:     dict(stroke_size_face=4,  stroke_size_bg=14, wet_blend=0.20, edge_softness=0.18),
+            # PADUAN_RENAISSANCE (Mantegna) — cold sculptural precision: very low wet_blend
+            # for the engraved, stone-like clarity of his forms; low edge_softness for
+            # the archaeological crispness that distinguishes him from Leonardo's sfumato.
+            Period.PADUAN_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=16, wet_blend=0.12, edge_softness=0.20),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -83,6 +83,7 @@ EXPECTED_ARTISTS = [
     "vigee_le_brun",
     "alma_tadema",
     "patinir",
+    "andrea_mantegna",
 ]
 
 
@@ -224,6 +225,7 @@ EXPECTED_PERIODS = [
     "FRENCH_ROCOCO",
     "EARLY_VENETIAN_RENAISSANCE",
     "FLORENTINE_MANNERIST",
+    "PADUAN_RENAISSANCE",
 ]
 
 
@@ -7660,4 +7662,162 @@ def test_alma_tadema_in_expected_artists():
     """EXPECTED_ARTISTS list must include alma_tadema."""
     assert "alma_tadema" in EXPECTED_ARTISTS, (
         "alma_tadema missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Andrea Mantegna — session 67 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_andrea_mantegna_in_catalog():
+    """Andrea Mantegna (session 67) must be present in CATALOG."""
+    assert "andrea_mantegna" in CATALOG, (
+        "andrea_mantegna missing from CATALOG — add it to art_catalog.py")
+
+
+def test_andrea_mantegna_movement():
+    """andrea_mantegna movement must reference Paduan or Renaissance."""
+    s = get_style("andrea_mantegna")
+    mv = s.movement.lower()
+    assert "paduan" in mv or "renaissance" in mv, (
+        f"andrea_mantegna movement should reference Paduan or Renaissance; "
+        f"got: {s.movement!r}")
+
+
+def test_andrea_mantegna_nationality_italian():
+    """andrea_mantegna nationality must be Italian."""
+    s = get_style("andrea_mantegna")
+    assert "italian" in s.nationality.lower(), (
+        f"andrea_mantegna nationality should be Italian; got: {s.nationality!r}")
+
+
+def test_andrea_mantegna_palette_length():
+    """andrea_mantegna palette must have at least 6 entries."""
+    s = get_style("andrea_mantegna")
+    assert len(s.palette) >= 6, (
+        f"andrea_mantegna palette has only {len(s.palette)} entries; expected >= 6")
+
+
+def test_andrea_mantegna_palette_values_in_range():
+    """All andrea_mantegna palette RGB values must be in [0, 1]."""
+    s = get_style("andrea_mantegna")
+    for i, rgb in enumerate(s.palette):
+        assert len(rgb) == 3
+        for j, ch in enumerate(rgb):
+            assert 0.0 <= ch <= 1.0, (
+                f"andrea_mantegna palette[{i}][{j}]={ch:.4f} is out of [0,1]")
+
+
+def test_andrea_mantegna_low_wet_blend():
+    """andrea_mantegna wet_blend must be <= 0.20 (stone does not bleed)."""
+    s = get_style("andrea_mantegna")
+    assert s.wet_blend <= 0.20, (
+        f"andrea_mantegna wet_blend={s.wet_blend:.3f} should be <= 0.20 — "
+        f"Mantegna's surfaces are stone-hard, not liquid-blended")
+
+
+def test_andrea_mantegna_low_edge_softness():
+    """andrea_mantegna edge_softness must be <= 0.25 (engraved archaeological crispness)."""
+    s = get_style("andrea_mantegna")
+    assert s.edge_softness <= 0.25, (
+        f"andrea_mantegna edge_softness={s.edge_softness:.3f} should be <= 0.25 — "
+        f"Mantegna's contours are engraved-crisp, the opposite of Leonardo's sfumato")
+
+
+def test_andrea_mantegna_palette_has_cool_pale_highlight():
+    """andrea_mantegna palette must contain a cool pale chalk highlight."""
+    s = get_style("andrea_mantegna")
+    # Cool pale highlight: all channels high, B slightly dominant over R
+    has_cool_highlight = any(r > 0.75 and g > 0.75 and b > 0.70
+                             for r, g, b in s.palette)
+    assert has_cool_highlight, (
+        "andrea_mantegna palette must contain a cool pale chalk highlight tone — "
+        "the stone-lit ridge-form highlight that defines his sculptural modelling")
+
+
+def test_andrea_mantegna_palette_has_deep_shadow():
+    """andrea_mantegna palette must contain a near-black deep shadow."""
+    s = get_style("andrea_mantegna")
+    has_deep_shadow = any(r < 0.20 and g < 0.20 and b < 0.15
+                          for r, g, b in s.palette)
+    assert has_deep_shadow, (
+        "andrea_mantegna palette must contain a near-black shadow — "
+        "Mantegna used deep warm-umber voids at shadow troughs")
+
+
+def test_andrea_mantegna_crackle():
+    """andrea_mantegna crackle should be True (aged Renaissance panel/canvas)."""
+    s = get_style("andrea_mantegna")
+    assert s.crackle is True, (
+        f"andrea_mantegna crackle={s.crackle} should be True — "
+        f"his works on panel and canvas show characteristic aged craquelure")
+
+
+def test_andrea_mantegna_no_glazing():
+    """andrea_mantegna glazing should be None (tempera on panel, not oil glaze)."""
+    s = get_style("andrea_mantegna")
+    assert s.glazing is None, (
+        "andrea_mantegna glazing should be None — Mantegna predominantly used "
+        "tempera on panel; no oil-glaze unification layer")
+
+
+def test_andrea_mantegna_famous_works_include_dead_christ():
+    """andrea_mantegna famous works should include the Lamentation / Dead Christ."""
+    s = get_style("andrea_mantegna")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Christ" in t or "Dead" in t or "Lamentation" in t
+               for t in titles), (
+        "andrea_mantegna famous works should include the Lamentation over the Dead "
+        "Christ — his most famous and technically radical work")
+
+
+def test_andrea_mantegna_famous_works_count():
+    """andrea_mantegna should have at least 4 famous works documented."""
+    s = get_style("andrea_mantegna")
+    assert len(s.famous_works) >= 4, (
+        f"andrea_mantegna should have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_andrea_mantegna_inspiration_references_sculptural_pass():
+    """andrea_mantegna inspiration must reference mantegna_sculptural_form_pass()."""
+    s = get_style("andrea_mantegna")
+    assert "mantegna_sculptural_form_pass()" in s.inspiration, (
+        "andrea_mantegna inspiration must reference mantegna_sculptural_form_pass() — "
+        "the defining pipeline pass for his engraved stone-form technique")
+
+
+def test_andrea_mantegna_in_expected_artists():
+    """EXPECTED_ARTISTS list must include andrea_mantegna."""
+    assert "andrea_mantegna" in EXPECTED_ARTISTS, (
+        "andrea_mantegna missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.PADUAN_RENAISSANCE — session 67 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_paduan_renaissance_period_present():
+    """Session 67: PADUAN_RENAISSANCE must exist in Period enum."""
+    assert hasattr(Period, "PADUAN_RENAISSANCE"), (
+        "Period.PADUAN_RENAISSANCE not found — add it to scene_schema.py")
+    assert Period.PADUAN_RENAISSANCE in list(Period)
+
+
+def test_paduan_renaissance_stroke_params_low_wet_blend():
+    """PADUAN_RENAISSANCE should have very low wet_blend (stone does not bleed)."""
+    style = Style(medium=Medium.OIL, period=Period.PADUAN_RENAISSANCE,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.20, (
+        f"PADUAN_RENAISSANCE wet_blend should be <= 0.20 for stone-hard surfaces; "
+        f"got {p['wet_blend']}")
+
+
+def test_paduan_renaissance_stroke_params_low_edge_softness():
+    """PADUAN_RENAISSANCE should have low edge_softness (engraved precision)."""
+    style = Style(medium=Medium.OIL, period=Period.PADUAN_RENAISSANCE,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.28, (
+        f"PADUAN_RENAISSANCE edge_softness should be <= 0.28 for crisp engraved "
+        f"archaeological edges; got {p['edge_softness']}")
 

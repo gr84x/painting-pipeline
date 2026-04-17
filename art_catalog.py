@@ -5601,6 +5601,63 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Andrea Mantegna ───────────────────────────────────────────────────────
+    "andrea_mantegna": ArtStyle(
+        artist="Andrea Mantegna",
+        movement="Paduan Renaissance",
+        nationality="Italian",
+        period="1431–1506",
+        palette=[
+            (0.85, 0.82, 0.74),   # pale chalk-white highlight — stone lit in raking light
+            (0.65, 0.62, 0.54),   # cool mid stone — the dominant Mantegna mineral tone
+            (0.48, 0.45, 0.36),   # warm grey-ochre shadow on carved form
+            (0.30, 0.27, 0.20),   # deep warm-umber shadow trough
+            (0.14, 0.12, 0.08),   # near-black void — Mantegna's deepest shadows
+            (0.72, 0.68, 0.58),   # parchment ground — warm cream-grey imprimatura
+            (0.42, 0.52, 0.64),   # cool sky-blue distance — archaeological sky
+            (0.35, 0.42, 0.30),   # dull muted green — rocky landscape vegetation
+        ],
+        ground_color=(0.72, 0.68, 0.55),    # warm cream-grey gesso ground
+        stroke_size=4,
+        wet_blend=0.12,                      # very dry — stone does not bleed; forms carved, not melted
+        edge_softness=0.20,                  # crisp archaeological edges — opposite of Leonardo sfumato
+        jitter=0.018,
+        glazing=None,                        # no oil glazing — Mantegna used tempera on canvas or panel
+        crackle=True,                        # aged Renaissance panel/canvas
+        chromatic_split=False,
+        technique=(
+            "Sculptural grisaille precision — figures rendered as if carved from cold marble or "
+            "cast in bronze.  Mantegna trained in the workshop of Francesco Squarcione, who "
+            "immersed his pupils in Greco-Roman antiquity; every figure in Mantegna's work "
+            "reads as a three-dimensional sculpture seen from a low, theatrical viewpoint.  "
+            "His colour is characteristically cool and mineral: pale chalk-white highlights, "
+            "cold grey-stone midtones, warm umber shadows.  The grisaille quality is most "
+            "explicit in the Camera degli Sposi ceiling trompe-l'oeil and the series of "
+            "canvases depicting the Triumphs of Caesar.  Edges are engraved-crisp — never "
+            "sfumato — giving his forms the quality of relief sculpture.  Perspective "
+            "is rigorously foreshortened: the Dead Christ experiments with extreme sotto in "
+            "sù (from below) foreshortening that would influence every subsequent master "
+            "of the figure, including Michelangelo."
+        ),
+        famous_works=[
+            ("Camera degli Sposi (Bridal Chamber)", "1465–1474"),
+            ("Lamentation over the Dead Christ",    "c. 1480"),
+            ("Triumphs of Caesar",                  "1484–1492"),
+            ("Saint Sebastian",                     "c. 1480"),
+            ("Agony in the Garden",                 "c. 1455"),
+        ],
+        inspiration=(
+            "Apply mantegna_sculptural_form_pass() to push the rendered figure toward the "
+            "cold, engraved-stone quality that defines Mantegna.  The pass detects facial "
+            "ridge-forms (brow bone, cheekbone, nose bridge, chin) using luminance gradients "
+            "and adds a pale chalk-cool highlight on their lit surfaces while deepening the "
+            "shadow troughs.  This gives the face the three-dimensional carved relief quality "
+            "that separates Mantegna from Leonardo's melted-smoke approach.  Use edge_softness=0.20 "
+            "and wet_blend=0.12 — the antithesis of sfumato — to preserve the archaeological "
+            "crispness that makes his forms feel permanently solid."
+        ),
+    ),
+
 }
 
 
