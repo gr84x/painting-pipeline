@@ -5309,6 +5309,106 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Élisabeth Louise Vigée Le Brun ────────────────────────────────────────
+    # Élisabeth Louise Vigée Le Brun (1755–1842) was the most celebrated
+    # portraitist of the ancien régime — court painter to Marie Antoinette,
+    # sought after across Europe by royalty, nobility, and intelligentsia.
+    # Her portraits are immediately recognisable by a quality difficult to name
+    # precisely but instantly felt: the sitter appears to glow from within.
+    # This is not the smoky inner light of Leonardo, nor the self-illuminating
+    # warm amber glow of Raphael, nor even the pure pearl radiance of Bouguereau.
+    # It is something more specifically feminine and 18th-century: a warm
+    # rose-ivory iridescence — the colour of good skin in candlelight, or of
+    # a complexion viewed through very fine muslin.
+    #
+    # The technical secret lies in her midtone handling.  Where academic
+    # painters built flesh from dark to light (shadow → midtone → highlight),
+    # Vigée Le Brun worked from the *midtone outward* — her typical portrait
+    # session began with a warm, rosy middle tone laid in across the whole face,
+    # and then darkened toward shadow and lightened toward highlight *from that
+    # pink centre*.  The result is that even her deepest shadows retain a
+    # rose-warm quality — they are not grey, not cold violet, but inhabited,
+    # warm, living.  And her highlights, instead of pure white, reach toward a
+    # cool pearl — the slight blue-cool shimmer of nacre, not the warm ivory of
+    # a glazed Raphael.
+    #
+    # This combination — warm rose body with cool pearl highlights and warm
+    # rose-violet shadows — is unique in 18th-century painting.  It gives her
+    # female sitters in particular an air of radiant vitality that no
+    # contemporary could quite match.  Her famous self-portraits (the one
+    # with the straw hat, 1782; the one with her daughter, 1786) are the
+    # most complete demonstrations of this quality.
+    "vigee_le_brun": ArtStyle(
+        artist="Élisabeth Louise Vigée Le Brun",
+        movement="French Neoclassical / Late Rococo Portraiture",
+        nationality="French",
+        period="1778–1842",
+        palette=[
+            (0.96, 0.88, 0.76),   # luminous warm-ivory pearl — the lit highlight
+            (0.90, 0.74, 0.60),   # warm rose-ivory midflesh — her signature skin tone
+            (0.80, 0.60, 0.46),   # golden pink midtone — deeper lit flesh
+            (0.60, 0.42, 0.30),   # warm raw umber shadow — transparent, rose-warm
+            (0.38, 0.28, 0.42),   # cool violet-rose deep shadow — the coldest passage
+            (0.78, 0.32, 0.30),   # deep vermillion — drapery accent, rose-red fabric
+            (0.20, 0.22, 0.44),   # deep French ultramarine — dark portrait backdrop
+            (0.94, 0.86, 0.80),   # pearl near-highlight — the nacre shimmer
+        ],
+        ground_color=(0.62, 0.50, 0.34),    # warm medium ochre imprimatura
+        stroke_size=4,
+        wet_blend=0.88,                      # near-seamless; no visible brushwork on flesh
+        edge_softness=0.72,                  # soft but not sfumato — forms are legible
+        jitter=0.015,
+        glazing=(0.82, 0.62, 0.40),          # warm amber-rose unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "French Neoclassical / Late Rococo portraiture — the luminous pearlescent "
+            "skin technique of the ancien régime's greatest portraitist.  Vigée Le Brun "
+            "worked from the midtone outward: a warm rose-ivory foundation across the "
+            "whole face, then darkened toward shadow and lightened toward highlight from "
+            "that pink centre.  The characteristic result is that shadows are never "
+            "grey or cold — they are warm rose-violet, inhabited, alive — while highlights "
+            "reach toward a cool pearl iridescence (not warm ivory) in the brightest "
+            "specular zone.  This combination of warm rose body, cool pearl surface, and "
+            "warm rose-violet shadows is unique in 18th-century painting.  Drapery and "
+            "costume are rendered with jewel-like saturated colour — deep French blues, "
+            "vermillion reds, warm gold accents — set against a typically dark, almost "
+            "tonally neutral backdrop.  Her edges are soft but not dissolved: each form "
+            "is rounded through controlled gradients, not sfumato blur.  Unlike Leonardo "
+            "or Raphael, she does not suppress individual features into atmospheric unity; "
+            "instead each face retains its specific character within the warm, glowing key."
+        ),
+        famous_works=[
+            ("Self-Portrait with Straw Hat",       "1782"),
+            ("Self-Portrait with Her Daughter",    "1786"),
+            ("Portrait of Marie Antoinette",        "1783"),
+            ("Marie Antoinette with a Rose",        "1783"),
+            ("La Paix ramenant l'Abondance",        "1780"),
+            ("Portrait of Hubert Robert",           "1788"),
+            ("Portrait of Lady Hamilton",           "1791–92"),
+            ("Portrait of Anna Pitt as Hebe",       "1792"),
+        ],
+        inspiration=(
+            "Use vigee_le_brun_pearlescent_grace_pass() after build_form() and before "
+            "final glazing to apply her signature skin quality: warm rose bloom in the "
+            "lit midtones (the dominant quality — not orange-warm like Old Masters but "
+            "pink-rose like candlelit aristocratic skin), cool pearl shift in the very "
+            "brightest highlights (B+ slight, R- slight — nacre not ivory), and warm "
+            "rose-violet warmth injected into the deepest shadows.  "
+            "Combine with subsurface_scatter_pass() at lower opacity (0.40–0.55) to "
+            "add the physiologically accurate SSS red-orange bloom beneath the rose "
+            "surface quality — the combination of SSS depth + pearlescent surface is "
+            "the full Vigée Le Brun skin model.  "
+            "ground_color=(0.62, 0.50, 0.34) — warm medium ochre; her grounds are warmer "
+            "and more pink than Leonardo's cool imprimatura.  "
+            "wet_blend=0.88, edge_softness=0.72 — highly blended but not sfumato: her "
+            "edges are soft and rounded, but each form remains legible and specific.  "
+            "glazing=(0.82, 0.62, 0.40) — a warm amber-rose glaze that unifies the whole "
+            "portrait into a single warm, rose-tinted key.  Dark blue-ultramarine backdrop "
+            "(ground_color contrast) makes the glowing warm flesh read as even more luminous."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",

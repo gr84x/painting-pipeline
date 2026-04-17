@@ -17822,3 +17822,266 @@ class Painter:
         bright_count = int(bright_px.sum())
         print(f"    Old-master varnish pass complete  "
               f"(bright_px={bright_count})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 64 — New artist: Vigée Le Brun pearlescent grace pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def vigee_le_brun_pearlescent_grace_pass(
+        self,
+        rose_bloom_strength: float = 0.10,
+        pearl_highlight:     float = 0.06,
+        shadow_warmth:       float = 0.04,
+        midtone_low:         float = 0.48,
+        midtone_high:        float = 0.82,
+        opacity:             float = 0.65,
+    ) -> None:
+        """
+        Apply Élisabeth Louise Vigée Le Brun's defining skin quality.
+
+        Vigée Le Brun (1755–1842), court portraitist to Marie Antoinette and
+        the European aristocracy, developed a skin-rendering technique unique
+        among her contemporaries: a warm pearlescent iridescence that makes her
+        sitters appear lit from within rather than merely lit from without.
+
+        She worked from the midtone outward — establishing a warm rose-ivory
+        foundation across the whole face, then modulating toward shadow and
+        highlight from that pink centre.  The result is that even her deepest
+        shadows retain rose-warm quality; and her highlights, rather than
+        reaching warm ivory, attain a cool pearl iridescence — the slight
+        blue-cool shimmer of nacre.
+
+        Three operations:
+
+        1. **Rose bloom in warm midtones** — pixels with luminance in
+           [midtone_low, midtone_high] receive a warm rose-ivory push
+           (R+ strongly, G+ modestly, B+ very slightly).  This is the primary
+           characteristic: not the red-orange of SSS but the pink-ivory of
+           18th-century French aristocratic skin.
+
+        2. **Pearl highlight** — very bright pixels (lum > midtone_high)
+           receive a slight cool pearl shift (B+ slight, R- slight), converting
+           pure white specular highlights to the characteristic nacre quality.
+           Pearl reflects slightly cool-blue — not the warm ivory of Raphael.
+
+        3. **Shadow warmth injection** — deepest shadow pixels (lum < 0.30)
+           receive a subtle warm rose-violet push.  Vigée Le Brun's shadows are
+           never cold grey — they are warm, inhabited, alive.
+
+        Parameters
+        ----------
+        rose_bloom_strength : warm rose push in the lit midtone zone
+        pearl_highlight     : cool pearl shift in the brightest highlights
+        shadow_warmth       : warm rose-violet push in the deepest shadows
+        midtone_low         : lower luminance boundary of the midtone bloom zone
+        midtone_high        : upper luminance boundary of the midtone bloom zone
+        opacity             : overall blend weight
+        """
+        import numpy as _np
+
+        print(f"  Vigée Le Brun pearlescent grace pass "
+              f"(rose={rose_bloom_strength:.3f}  pearl={pearl_highlight:.3f}  "
+              f"shadow_warm={shadow_warmth:.3f}  "
+              f"lum=[{midtone_low:.2f},{midtone_high:.2f}]  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Vigée Le Brun pearlescent grace pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Rose bloom in warm midtones ────────────────────────────────────
+        # Tent mask peaking at the centre of [midtone_low, midtone_high]
+        mid_c = (midtone_low + midtone_high) * 0.5
+        mid_h = (midtone_high - midtone_low) * 0.5
+        midtone_mask = _np.clip(1.0 - _np.abs(lum - mid_c) / max(mid_h, 1e-8),
+                                0.0, 1.0)
+
+        rose_w = midtone_mask * rose_bloom_strength * opacity
+        r_out = _np.clip(r_out + rose_w * 0.85, 0.0, 1.0)   # strong pink-rose
+        g_out = _np.clip(g_out + rose_w * 0.32, 0.0, 1.0)   # modest — keeps it rose not orange
+        b_out = _np.clip(b_out + rose_w * 0.10, 0.0, 1.0)   # tiny — prevents pure red cast
+
+        # ── 2. Pearl highlight ────────────────────────────────────────────────
+        # Pixels above midtone_high receive the cool nacre shimmer
+        pearl_mask = _np.clip(
+            (lum - midtone_high) / max(1.0 - midtone_high, 1e-8), 0.0, 1.0)
+        pearl_w = pearl_mask * pearl_highlight * opacity
+        r_out = _np.clip(r_out - pearl_w * 0.30, 0.0, 1.0)   # slight R pull → cooler
+        b_out = _np.clip(b_out + pearl_w * 0.40, 0.0, 1.0)   # slight B lift → pearl shimmer
+
+        # ── 3. Shadow warmth injection ────────────────────────────────────────
+        # Pixels below lum=0.30 — Vigée Le Brun shadows are rose-warm, not cold
+        shadow_mask = _np.clip(1.0 - lum / 0.30, 0.0, 1.0)
+        shadow_w = shadow_mask * shadow_warmth * opacity
+        r_out = _np.clip(r_out + shadow_w * 0.55, 0.0, 1.0)   # warm rose
+        g_out = _np.clip(g_out + shadow_w * 0.15, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_w * 0.25, 0.0, 1.0)   # slight violet cast
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        midtone_px = int((midtone_mask > 0.05).sum())
+        print(f"    Vigée Le Brun pearlescent grace pass complete  "
+              f"(midtone_px={midtone_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 64 — Artistic improvement: subsurface scatter pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def subsurface_scatter_pass(
+        self,
+        scatter_strength:  float = 0.14,
+        scatter_radius:    float = 8.0,
+        scatter_low:       float = 0.42,
+        scatter_high:      float = 0.82,
+        penumbra_warm:     float = 0.06,
+        shadow_cool:       float = 0.04,
+        opacity:           float = 0.65,
+    ) -> None:
+        """
+        Simulate subsurface light scattering through human skin.
+
+        When light strikes skin, a significant fraction penetrates the epidermis
+        and scatters through the layers beneath — dermis, subcutaneous fat,
+        capillary beds — before re-emerging at the surface displaced a few
+        millimetres from the entry point.  This scattering is strongly
+        wavelength-dependent: long wavelengths (red, orange) penetrate deepest
+        and scatter furthest; short wavelengths (blue, violet) are absorbed near
+        the surface.
+
+        The result is the warm red-orange inner glow that distinguishes real
+        skin from any painted imitation — most visible in three zones:
+
+        1. **Lit midtones** (luminance scatter_low–scatter_high): the lit-but-
+           not-specular zone where scatter path length is greatest.  These pixels
+           receive a diffuse warm red-orange bloom — R+ most, G+ modest, B-.
+           The bloom is softened with a Gaussian (radius ~8px) because the
+           scatter path is non-directional and covers a finite skin area.
+
+        2. **Penumbra / shadow edge** (luminance 0.28–scatter_low): the zone
+           where light entering from the adjacent lit surface has scattered
+           sideways into the shadow edge — the warm "inner light" that curves
+           around the terminator.  A subtler deep-red warmth without bloom.
+
+        3. **Deep shadow cool recovery** (luminance < 0.28): subsurface scatter
+           fails in the deepest shadows — no light penetrates here.  A slight
+           cool push (R-, B+) reinforces shadow colour separation from the warm
+           lit zones, increasing perceived luminosity by contrast.
+
+        This pass should be applied *before* final glazing and artist-specific
+        passes.  At default opacity (0.65) it is visibly present but natural.
+        Use opacity=0.35–0.50 for a barely-perceptible glow; 0.80–1.0 for the
+        jewel-like Bouguereau/Vigée Le Brun hyper-real effect.
+
+        Parameters
+        ----------
+        scatter_strength  : peak red-orange scatter boost in lit midtones
+        scatter_radius    : Gaussian blur radius of scatter bloom (pixels)
+        scatter_low       : lower luminance boundary of the lit-midtone zone
+        scatter_high      : upper luminance boundary (above = specular, not scatter)
+        penumbra_warm     : warm push in the penumbra zone (0.28–scatter_low)
+        shadow_cool       : cool push in deepest shadows (lum < 0.28)
+        opacity           : overall blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Subsurface scatter pass "
+              f"(scatter={scatter_strength:.3f}  radius={scatter_radius:.1f}  "
+              f"lum=[{scatter_low:.2f},{scatter_high:.2f}]  "
+              f"penumbra={penumbra_warm:.3f}  shadow_cool={shadow_cool:.3f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Subsurface scatter pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Lit-midtone scatter bloom ──────────────────────────────────────
+        # Build a ramp mask over the lit-midtone range
+        scatter_range = max(scatter_high - scatter_low, 1e-8)
+        scatter_raw = _np.clip((lum - scatter_low) / scatter_range, 0.0, 1.0)
+        scatter_raw = _np.where(lum > scatter_high, 0.0, scatter_raw)  # clamp above specular
+
+        # Soften with Gaussian to simulate the non-local scatter path length
+        scatter_img = _Image.fromarray(
+            _np.clip(scatter_raw * 255, 0, 255).astype(_np.uint8), mode="L")
+        scatter_blurred = _np.asarray(
+            scatter_img.filter(_ImageFilter.GaussianBlur(radius=float(scatter_radius))),
+            dtype=_np.float32) / 255.0
+
+        # Apply warm red-orange bloom (R >> G > 0 > B)
+        s_w = scatter_blurred * scatter_strength * opacity
+        r_out = _np.clip(r_out + s_w * 0.90, 0.0, 1.0)   # strong red
+        g_out = _np.clip(g_out + s_w * 0.28, 0.0, 1.0)   # modest green (orange component)
+        b_out = _np.clip(b_out - s_w * 0.45, 0.0, 1.0)   # damp blue
+
+        # ── 2. Penumbra warmth ────────────────────────────────────────────────
+        # Tent mask centred on the midpoint of [0.28, scatter_low]
+        pen_lo  = 0.28
+        pen_mid = (pen_lo + scatter_low) * 0.5
+        pen_h   = max((scatter_low - pen_lo) * 0.5, 1e-8)
+        penumbra_mask = _np.clip(
+            1.0 - _np.abs(lum - pen_mid) / pen_h, 0.0, 1.0)
+
+        p_w = penumbra_mask * penumbra_warm * opacity
+        r_out = _np.clip(r_out + p_w * 0.70, 0.0, 1.0)   # deep red
+        g_out = _np.clip(g_out + p_w * 0.15, 0.0, 1.0)
+        b_out = _np.clip(b_out - p_w * 0.20, 0.0, 1.0)
+
+        # ── 3. Deep shadow cool recovery ─────────────────────────────────────
+        # Subsurface scatter fails in the deepest shadows
+        shadow_mask = _np.clip(1.0 - lum / 0.28, 0.0, 1.0)
+        sc_w = shadow_mask * shadow_cool * opacity
+        r_out = _np.clip(r_out - sc_w * 0.50, 0.0, 1.0)
+        b_out = _np.clip(b_out + sc_w * 0.60, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        scatter_px = int((scatter_blurred > 0.05).sum())
+        print(f"    Subsurface scatter pass complete  "
+              f"(scatter_px={scatter_px})")
