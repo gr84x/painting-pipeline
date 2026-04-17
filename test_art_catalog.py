@@ -6948,4 +6948,126 @@ def test_aerial_perspective_warm_foreground_push_defaults_zero():
     assert param.default == 0.0, (
         f"warm_foreground_push default should be 0.0 (backwards compatible); "
         f"got {param.default!r}")
+# ── Francisco de Zurbarán ──────────────────────────────────────────────────────
+
+def test_zurbaran_in_catalog():
+    """CATALOG must contain 'zurbaran' as a valid artist key."""
+    assert "zurbaran" in CATALOG, (
+        "'zurbaran' not found in CATALOG — add Francisco de Zurbarán to art_catalog.py")
+
+
+def test_zurbaran_fields_complete():
+    """Zurbarán ArtStyle must have all required fields populated."""
+    s = get_style("zurbaran")
+    assert s.artist,      "zurbaran.artist must be a non-empty string"
+    assert s.movement,    "zurbaran.movement must be a non-empty string"
+    assert s.nationality, "zurbaran.nationality must be a non-empty string"
+    assert s.period,      "zurbaran.period must be a non-empty string"
+    assert s.technique,   "zurbaran.technique must be a non-empty string"
+    assert s.inspiration, "zurbaran.inspiration must be a non-empty string"
+    assert len(s.palette) >= 6, (
+        f"zurbaran palette must have ≥6 colours; got {len(s.palette)}")
+    assert len(s.famous_works) >= 4, (
+        f"zurbaran.famous_works must list ≥4 works; got {len(s.famous_works)}")
+
+
+def test_zurbaran_palette_in_range():
+    """All Zurbarán palette colours must have R, G, B values in [0, 1]."""
+    s = get_style("zurbaran")
+    for i, (r, g, b) in enumerate(s.palette):
+        assert 0.0 <= r <= 1.0, f"zurbaran palette[{i}] R={r:.3f} out of [0, 1]"
+        assert 0.0 <= g <= 1.0, f"zurbaran palette[{i}] G={g:.3f} out of [0, 1]"
+        assert 0.0 <= b <= 1.0, f"zurbaran palette[{i}] B={b:.3f} out of [0, 1]"
+
+
+def test_zurbaran_dark_ground():
+    """Zurbarán ground_color must be very dark (luminance < 0.12) — the cold void imprimatura."""
+    s   = get_style("zurbaran")
+    r, g, b = s.ground_color
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    assert lum < 0.12, (
+        f"zurbaran ground_color luminance={lum:.3f} must be <0.12 — "
+        f"the near-black cold void is the defining ground for Zurbarán's devotional work")
+
+
+def test_zurbaran_low_wet_blend():
+    """Zurbarán wet_blend must be ≤ 0.30 — dry, sculptural mark-making."""
+    s = get_style("zurbaran")
+    assert s.wet_blend <= 0.30, (
+        f"zurbaran wet_blend={s.wet_blend:.2f} must be ≤0.30 — "
+        f"Zurbarán's marks are crisp and dry, not vaporous; "
+        f"he is the polar opposite of Murillo's estilo vaporoso")
+
+
+def test_zurbaran_low_edge_softness():
+    """Zurbarán edge_softness must be ≤ 0.30 — hard devotional clarity."""
+    s = get_style("zurbaran")
+    assert s.edge_softness <= 0.30, (
+        f"zurbaran edge_softness={s.edge_softness:.2f} must be ≤0.30 — "
+        f"Zurbarán's forms emerge from the void with hard, precise edges; "
+        f"no sfumato, no atmospheric ambiguity")
+
+
+def test_zurbaran_inspiration_references_zurbaran_stark_devotion_pass():
+    """Zurbarán inspiration must reference zurbaran_stark_devotion_pass()."""
+    s = get_style("zurbaran")
+    assert "zurbaran_stark_devotion_pass()" in s.inspiration, (
+        "Zurbarán inspiration must reference zurbaran_stark_devotion_pass() — "
+        "this is the defining pipeline pass for his cold void tonal polarity")
+
+
+def test_zurbaran_palette_includes_near_black():
+    """Zurbarán palette must include at least one near-black colour (luminance < 0.10)."""
+    s = get_style("zurbaran")
+    near_blacks = [
+        (r, g, b) for (r, g, b) in s.palette
+        if (0.2126 * r + 0.7152 * g + 0.0722 * b) < 0.10
+    ]
+    assert len(near_blacks) >= 1, (
+        "Zurbarán palette must include at least one near-black colour (lum < 0.10) — "
+        "the cold void is the defining feature of his tonal world")
+
+
+def test_zurbaran_palette_includes_near_white():
+    """Zurbarán palette must include at least one near-white colour (luminance > 0.80)."""
+    s = get_style("zurbaran")
+    near_whites = [
+        (r, g, b) for (r, g, b) in s.palette
+        if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.80
+    ]
+    assert len(near_whites) >= 1, (
+        "Zurbarán palette must include at least one near-white colour (lum > 0.80) — "
+        "the crystalline white habit is the signature subject of his career")
+
+
+def test_zurbaran_drier_than_murillo():
+    """Zurbarán wet_blend must be less than Murillo's (austerity vs tenderness)."""
+    zb = get_style("zurbaran")
+    mu = get_style("murillo")
+    assert zb.wet_blend < mu.wet_blend, (
+        f"Zurbarán wet_blend ({zb.wet_blend:.2f}) must be less than "
+        f"Murillo's ({mu.wet_blend:.2f}) — "
+        f"Zurbarán's sculptural dryness is the polar opposite of Murillo's estilo vaporoso")
+
+
+def test_zurbaran_crisper_than_murillo():
+    """Zurbarán edge_softness must be less than Murillo's (hard void vs vaporous dissolution)."""
+    zb = get_style("zurbaran")
+    mu = get_style("murillo")
+    assert zb.edge_softness < mu.edge_softness, (
+        f"Zurbarán edge_softness ({zb.edge_softness:.2f}) must be less than "
+        f"Murillo's ({mu.edge_softness:.2f}) — "
+        f"hard devotional edges vs vaporous soft dissolution")
+
+
+# ── TENEBRIST vs SPANISH_BAROQUE polarity ─────────────────────────────────────
+
+def test_tenebrist_crisper_than_spanish_baroque():
+    """TENEBRIST edge_softness must be less than SPANISH_BAROQUE (Zurbarán < Murillo)."""
+    ten  = Style(medium=Medium.OIL, period=Period.TENEBRIST).stroke_params
+    baro = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
+    assert ten["edge_softness"] < baro["edge_softness"], (
+        f"TENEBRIST edge_softness ({ten['edge_softness']:.2f}) must be less than "
+        f"SPANISH_BAROQUE ({baro['edge_softness']:.2f}) — "
+        f"Zurbarán's hard devotional precision is the polar opposite of Murillo's vaporous softness")
 

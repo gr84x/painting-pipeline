@@ -4982,6 +4982,79 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "zurbaran": ArtStyle(
+        artist="Francisco de Zurbarán",
+        movement="Spanish Baroque Tenebrism",
+        nationality="Spanish",
+        period="1598–1664",
+        palette=[
+            (0.95, 0.95, 0.93),   # pure cold white — the luminous monk's habit
+            (0.82, 0.80, 0.78),   # warm-grey upper mid-light on white drapery
+            (0.60, 0.60, 0.65),   # cool blue-grey — shadow on white fabric
+            (0.72, 0.56, 0.32),   # warm ochre — flesh in clear northern light
+            (0.42, 0.28, 0.18),   # dark burnt sienna — flesh receding into shadow
+            (0.30, 0.22, 0.14),   # raw umber — deep mid-shadow on drapery folds
+            (0.12, 0.09, 0.07),   # near-black cold void — the dominant dark
+            (0.06, 0.04, 0.04),   # absolute black void — deepest recession
+        ],
+        ground_color=(0.08, 0.06, 0.05),
+        stroke_size=5,
+        wet_blend=0.18,
+        edge_softness=0.22,
+        jitter=0.010,
+        glazing=None,
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Zurbarán is the supreme painter of austere devotion — known as 'the painter "
+            "of monks' and 'the Spanish Caravaggio', though his light is contemplative "
+            "rather than theatrical.  Where Caravaggio uses darkness as drama, Zurbarán "
+            "uses it as silence.  His white habits are among the most astonishing passages "
+            "in Western painting: rendered with cool, almost sculptural clarity, the fabric "
+            "modelled purely in blue-grey shadows and near-pure cold-white highlights that "
+            "read as marble or alabaster rather than cloth.  "
+            "His tonal range is maximally polarised: forms leap from near-black ground "
+            "directly to brilliant white with minimal midtone transition — a binary "
+            "devotional clarity that has no warmth, no atmospheric haze, no sfumato.  "
+            "Unlike Murillo (his contemporary), Zurbarán's shadows offer no warmth: "
+            "the darkness is cold, absent, void.  Light does not glow or bloom — it "
+            "simply falls, sharp and singular, as if through a high monastery window.  "
+            "His still lifes (pottery jars, lambs, citrus) carry the same austere "
+            "holiness as his saints — objects rendered with an almost sacred specificity.  "
+            "He was the preferred painter of the Sevillian monasteries and the Spanish "
+            "colonial trade, and his work shaped the visual identity of Counter-Reformation "
+            "piety across two continents."
+        ),
+        famous_works=[
+            ("Saint Francis in Meditation",            "c. 1635–40"),
+            ("The Apotheosis of Saint Thomas Aquinas", "1631"),
+            ("Still Life with Pottery Jars",            "c. 1636"),
+            ("Christ on the Cross",                     "1627"),
+            ("Agnus Dei (Lamb of God)",                 "c. 1635–40"),
+            ("Saint Serapion",                          "1628"),
+            ("The Battle of Christians and Moors at El Sotillo", "1638"),
+            ("The Supper at Emmaus",                    "c. 1620"),
+        ],
+        inspiration=(
+            "Use zurbaran_stark_devotion_pass() after build_form() and before glaze() "
+            "to apply Zurbarán's defining tonal polarity: cold void deepening in the "
+            "darkest shadows (desaturating and cooling toward near-black), brilliant "
+            "cool-white crystalline push in the highest highlights (especially white "
+            "drapery with blue-grey shadow modelling), and midtone compression that "
+            "creates the stark binary contrast of his devotional work.  "
+            "ground_color=(0.08, 0.06, 0.05) — the near-black imprimatura is essential: "
+            "Zurbarán's forms emerge FROM the void, not against a warm ground.  "
+            "wet_blend=0.18 — crisp, controlled, almost sculptural mark-making; "
+            "the polar opposite of Murillo's vaporous wet-on-wet blending.  "
+            "edge_softness=0.22 — hard, precise edges against the black ground define "
+            "the devotional clarity: objects and figures in Zurbarán are absolutely present "
+            "or absolutely absent, with no atmospheric ambiguity between them.  "
+            "glazing=(0.68, 0.62, 0.50) at very low opacity (0.04) — a barely perceptible "
+            "unifying amber applied only to warm the flesh passages; the white drapery "
+            "must remain cold and pure."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",

@@ -16734,4 +16734,396 @@ class Painter:
         print(f"    Tiepolo celestial light pass complete  "
               f"(sky_px={sky_px_count}  naples_px={naples_px}  pearl_px={pearl_px})")
 
+    def zurbaran_stark_devotion_pass(
+        self,
+        figure_mask:          "Optional[_np.ndarray]" = None,
+        void_depth:           float = 0.22,
+        crystalline_strength: float = 0.16,
+        midtone_compression:  float = 0.12,
+        opacity:              float = 0.72,
+    ) -> None:
+        """
+        Apply Francisco de Zurbarán's 'stark devotion' tonal polarity to the canvas.
+
+        Zurbarán (1598–1664) — Spanish Golden Age — is the supreme painter of austere
+        monasticism.  Known as 'the painter of monks', he polarises his tonal range into
+        cold, near-black voids and crystalline cold-white highlights with minimal midtone
+        transition.  Where Murillo suffuses every shadow with warm amber-rose tenderness,
+        Zurbarán's darkness is cold, silent, absent — a void from which forms emerge with
+        sculptural clarity.  His white habits are rendered in pure cold-white light
+        modelled by cool blue-grey shadows, reading as marble rather than fabric.
+
+        This pass applies three distinct operations that together produce Zurbarán's
+        devotional austerity:
+
+        1. **Cold void deepening** (lum < 0.28):
+           The darkest shadow zones are cooled and slightly desaturated, pushing them
+           toward the near-black cold void that defines Zurbarán's backgrounds.  Unlike
+           Murillo's warm shadow warmth (+R, +G), this operation withdraws warmth from
+           dark regions: a small red-channel reduction and slight blue-channel lift
+           creates cold darkness rather than warm amber shadow.  Controlled by void_depth.
+
+        2. **Crystalline white drapery push** (lum > 0.70):
+           The brightest highlight zones receive a cool-white crystalline push: a subtle
+           blue-channel lift and slight green-channel lift with no red addition, producing
+           the cold, almost alabaster quality of Zurbarán's white habits.  This is the
+           polar opposite of Murillo's warm pearl highlight push.  Controlled by
+           crystalline_strength.
+
+        3. **Midtone compression** (0.28 < lum < 0.70):
+           The midtone register is gently darkened — a slight overall luminance reduction
+           that compresses the middle tones toward the dark end, accentuating the stark
+           polarity between void-black and crystalline-white.  The near-zero midtone
+           transition is what gives Zurbarán's work its devotional sharpness: forms do
+           not graduate through grey; they are present or absent.  Controlled by
+           midtone_compression.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 (H, W) array in [0, 1].  1 = figure interior, 0 = background.
+            When provided, all operations are gated to figure pixels — background
+            pixels (mask=0) are left unchanged.  If None, applies globally.
+        void_depth : float
+            Magnitude of the cold void deepening in shadows (lum < 0.28).  0 = no
+            darkening; 0.30+ produces very deep cold near-black voids.  Default 0.22 —
+            perceptible cold absence without losing all shadow detail.
+        crystalline_strength : float
+            Magnitude of the cool-white push in brightest highlights (lum > 0.70).
+            0 = no change; 0.25+ produces visible blue-white alabaster quality.
+            Default 0.16 — clear crystalline quality without colour cast.
+        midtone_compression : float
+            Darkening applied to the midtone register (0.28–0.70 lum).  Compresses
+            mid-grey toward the dark end, accentuating tonal polarity.  Default 0.12 —
+            perceptible compression without washing out midtone detail entirely.
+        opacity : float
+            Global blend factor.  0 = no effect; 1 = full operations.  Default 0.72.
+
+        Notes
+        -----
+        Apply AFTER build_form() and BEFORE the final glaze().  The void deepening and
+        crystalline push work best once form is fully established; applying earlier can
+        collapse the structural underpainting.
+
+        Pairs naturally with:
+        - chiaroscuro_modelling_pass() for further tonal range extension
+        - scumble_pass() over the white drapery zones for subtle fabric texture
+
+        Does NOT pair with:
+        - murillo_vapor_pass() — Murillo's warm shadow warmth directly opposes
+          Zurbarán's cold void deepening; the two cancel each other out.
+        - sfumato_veil_pass() — Zurbarán's crisp edges are incompatible with
+          sfumato's deliberate edge dissolution.
+        """
+        import numpy as _np
+
+        print(f"  Zurbarán stark devotion pass  "
+              f"(void={void_depth:.3f}  crystal={crystalline_strength:.3f}  "
+              f"compress={midtone_compression:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Zurbarán stark devotion pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Normalise to float [0, 1] — cairo surface is BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # Perceived luminance
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # Spatial gating weight from figure_mask
+        if figure_mask is not None:
+            fig_w = _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+        else:
+            fig_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Operation 1: Cold void deepening ─────────────────────────────────
+        # In the darkest zones, withdraw warmth and add a fractional cool-blue lift.
+        # This produces cold darkness — the silent void of a monastery interior.
+        shadow_thresh = 0.28
+        in_shadow = lum < shadow_thresh
+        shadow_w  = _np.where(in_shadow,
+                              (1.0 - lum / (shadow_thresh + 1e-8)) * fig_w,
+                              0.0).astype(_np.float32)
+        cold_pull = shadow_w * void_depth * opacity
+        # Withdraw warmth (reduce R), add cold blue-black quality (slight +B)
+        r_out = _np.clip(r_out - cold_pull * 0.80, 0.0, 1.0)
+        g_out = _np.clip(g_out - cold_pull * 0.55, 0.0, 1.0)
+        b_out = _np.clip(b_out - cold_pull * 0.20, 0.0, 1.0)
+
+        # ── Operation 2: Crystalline white drapery push ───────────────────────
+        # In the brightest zones, add a cool blue-white lift — marble/alabaster quality.
+        # No red channel addition: keeps the whites cold, not warm like Murillo or Titian.
+        hi_thresh = 0.70
+        in_hi  = lum > hi_thresh
+        hi_w   = _np.where(in_hi,
+                           (lum - hi_thresh) / (1.0 - hi_thresh + 1e-8) * fig_w,
+                           0.0).astype(_np.float32)
+        crystal_push = hi_w * crystalline_strength * opacity
+        # Cool alabaster: slight G lift, stronger B lift, no R addition
+        r_out = _np.clip(r_out + crystal_push * 0.10, 0.0, 1.0)
+        g_out = _np.clip(g_out + crystal_push * 0.55, 0.0, 1.0)
+        b_out = _np.clip(b_out + crystal_push * 1.00, 0.0, 1.0)
+
+        # ── Operation 3: Midtone compression ─────────────────────────────────
+        # The midtone register (28–70% lum) is slightly darkened, compressing it
+        # toward the dark end.  This accentuates the stark polarity between void and
+        # crystalline highlight — the characteristic Zurbarán tonal binary.
+        lo, hi = 0.28, 0.70
+        in_mid = (lum >= lo) & (lum <= hi)
+        # Weight peaks at 0.50 luminance, falls off toward both thresholds
+        mid_w  = _np.where(in_mid,
+                           (1.0 - _np.abs(lum - 0.49) / (0.21 + 1e-8)) * fig_w,
+                           0.0).astype(_np.float32)
+        mid_w  = _np.clip(mid_w, 0.0, 1.0)
+        compress_pull = mid_w * midtone_compression * opacity
+        # Uniform darkening across all channels — pure tonal compression, not a hue shift
+        r_out = _np.clip(r_out - compress_pull * 0.90, 0.0, 1.0)
+        g_out = _np.clip(g_out - compress_pull * 0.90, 0.0, 1.0)
+        b_out = _np.clip(b_out - compress_pull * 0.90, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        void_px    = int(in_shadow.sum())
+        crystal_px = int(in_hi.sum())
+        mid_px     = int(in_mid.sum())
+        print(f"    Zurbarán stark devotion pass complete  "
+              f"(void_px={void_px}  crystal_px={crystal_px}  mid_px={mid_px})")
+
+    def sfumato_thermal_gradient_pass(
+        self,
+        figure_mask:        "Optional[_np.ndarray]" = None,
+        warm_strength:      float = 0.06,
+        cool_strength:      float = 0.08,
+        horizon_y:          float = 0.55,
+        gradient_width:     float = 0.30,
+        edge_soften_radius: int   = 8,
+        opacity:            float = 0.55,
+    ) -> None:
+        """
+        Apply Leonardo da Vinci's sfumato atmospheric thermal gradient to the canvas.
+
+        This pass models the warm-to-cool color temperature depth gradient that Leonardo
+        perfected in his landscape backgrounds — most visibly in the Mona Lisa and
+        Virgin of the Rocks.  The technique is distinct from simple aerial perspective
+        (which only adds blue atmospheric haze) in that it simultaneously:
+
+        (a) Warms the lower-foreground zone with subtle ochre-earth tones, simulating
+            the warm reflected light of the earth plane and near-ground atmosphere.
+        (b) Cools the upper-distance zone with cool blue-grey, simulating atmospheric
+            scattering of short-wavelength light at depth.
+        (c) Softens edges in the transitional atmospheric zone (around the horizon
+            line) using Gaussian blurring — the sfumato dissolution where forms lose
+            their boundaries as they recede.
+
+        This combination produces the dreamlike atmospheric depth of Leonardo's
+        backgrounds: foreground earth feels grounded and warm; middle-distance forms
+        begin to lose definition; the horizon and distance dissolve into a cool,
+        luminous blue-grey haze that is neither sky nor land but a nameless atmospheric
+        zone.  The effect is deliberately subtle — power lives in the accumulation of
+        thin, nearly imperceptible layers.
+
+        Three operations are applied:
+
+        1. **Foreground warm zone** (canvas rows below horizon_y):
+           A radial-weighted warm earth lift (soft ochre: +R, +G-dim, slight -B) is
+           applied strongest at the very bottom of the canvas, fading to zero at the
+           horizon line.  This warms the earth plane and the base of the figure as if
+           light bounced upward from warm ground.
+
+        2. **Distance cool zone** (canvas rows above horizon_y):
+           A linear cool lift (atmospheric blue-grey: -R-dim, -G-dim, +B) is applied
+           strongest at the top of the canvas, fading to zero at the horizon line.
+           This simulates Rayleigh scattering — distant forms shift toward cool blue-grey.
+
+        3. **Atmospheric edge dissolution** (transition zone around horizon_y):
+           A Gaussian-blurred version of the original canvas is blended into the
+           transition zone weighted by the horizon proximity.  This produces sfumato's
+           characteristic edge dissolution where forms lose sharp boundaries as they
+           recede into the atmospheric middle distance.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 (H, W) array in [0, 1].  1 = figure interior, 0 = background.
+            When provided, the warm/cool gradient operations are gated to background
+            pixels only — the figure is protected from the atmospheric gradient (the
+            figure sits in front of the landscape, not within it).
+            Edge dissolution applies to background only when mask is provided.
+            If None, applies globally (useful for full-canvas landscape passes).
+        warm_strength : float
+            Magnitude of the warm earth lift in the foreground zone.  0 = no warming;
+            0.12+ produces a visible warm ochre bloom at the canvas base.  Default 0.06
+            — subtly warm without visibly tinting the lower figure region.
+        cool_strength : float
+            Magnitude of the cool blue-grey lift in the distance zone.  0 = no cooling;
+            0.15+ produces a visible atmospheric haze at the canvas top.  Default 0.08
+            — light atmospheric blue without an artificial sky colour cast.
+        horizon_y : float
+            Vertical position of the horizon line as a fraction of canvas height.
+            0.0 = top of canvas; 1.0 = bottom.  Default 0.55 — slightly below centre,
+            as in many three-quarter portrait compositions where the figure's shoulders
+            align with the mid-canvas and the landscape extends above.
+        gradient_width : float
+            Width of the transition zone as a fraction of canvas height.  Larger values
+            produce a wider, smoother gradient; smaller values sharpen the warm/cool
+            boundary.  Default 0.30 — a broad, smooth atmospheric transition.
+        edge_soften_radius : int
+            Gaussian blur radius (pixels) for the atmospheric edge dissolution in the
+            transition zone.  Larger values produce a wider sfumato dissolution.
+            Default 8 — appropriate for a 780×1080 canvas.
+        opacity : float
+            Global blend factor.  0 = no effect; 1 = full operations.  Default 0.55.
+
+        Notes
+        -----
+        Apply AFTER build_form() and artist-specific passes, BEFORE the final glaze().
+        This pass is most effective on images that already have an established background
+        landscape — applying it to a blank canvas produces the gradient with no structural
+        content to dissolve.
+
+        Pairs naturally with:
+        - aerial_perspective_pass() for combined haze + thermal gradient
+        - sfumato_veil_pass() for further figure-edge dissolution
+        - glaze(color=(0.72, 0.78, 0.88), opacity=0.04) — cool blue glaze that
+          unifies the distant zone with the figure's atmospheric context.
+
+        Does NOT pair with:
+        - pontormo_dissonance_pass() — the dissonant acid palette is incompatible
+          with atmospheric naturalness.
+        - fauvist_mosaic_pass() — fauvism rejects atmospheric depth entirely.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Sfumato thermal gradient pass  "
+              f"(warm={warm_strength:.3f}  cool={cool_strength:.3f}  "
+              f"horizon_y={horizon_y:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Sfumato thermal gradient pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Normalise to float [0, 1] — cairo surface is BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build vertical gradient maps ──────────────────────────────────────
+        # Row index as fraction of canvas height, 0 = top, 1 = bottom
+        row_frac = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, None]  # (H, 1)
+
+        horizon_px    = horizon_y
+        half_grad     = gradient_width / 2.0
+
+        # Foreground warm weight: 1 at bottom, 0 at horizon, 0 above horizon
+        warm_raw = (row_frac - horizon_px) / (1.0 - horizon_px + 1e-8)
+        warm_raw = _np.clip(warm_raw, 0.0, 1.0)                           # (H, 1)
+        warm_map = _np.broadcast_to(warm_raw, (h, w)).copy()              # (H, W)
+
+        # Distance cool weight: 1 at top, 0 at horizon, 0 below horizon
+        cool_raw = (horizon_px - row_frac) / (horizon_px + 1e-8)
+        cool_raw = _np.clip(cool_raw, 0.0, 1.0)                           # (H, 1)
+        cool_map = _np.broadcast_to(cool_raw, (h, w)).copy()              # (H, W)
+
+        # Transition zone weight: peaks at horizon, falls off with gradient_width
+        dist_to_horiz = _np.abs(row_frac - horizon_px)                    # (H, 1)
+        trans_raw     = 1.0 - _np.clip(dist_to_horiz / (half_grad + 1e-8), 0.0, 1.0)
+        trans_map     = _np.broadcast_to(trans_raw, (h, w)).copy()        # (H, W)
+
+        # Spatial gating: if figure_mask provided, apply gradient to background only
+        if figure_mask is not None:
+            fig_w  = _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+            bg_w   = 1.0 - fig_w
+        else:
+            bg_w   = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Operation 1: Foreground warm earth lift ───────────────────────────
+        # Soft warm ochre: strong R, moderate G, slight negative B
+        # Weighted by luminance complement — darker areas receive proportionally less
+        # (avoids tinting near-black shadow zones which should remain colour-neutral)
+        lum   = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+        lum_w = _np.clip(lum + 0.30, 0.0, 1.0)   # allow even mid-darks some warmth
+
+        warm_contrib = warm_map * bg_w * lum_w * warm_strength * opacity
+        r_out = _np.clip(r_out + warm_contrib * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + warm_contrib * 0.62, 0.0, 1.0)
+        b_out = _np.clip(b_out - warm_contrib * 0.18, 0.0, 1.0)
+
+        # ── Operation 2: Distance cool atmospheric lift ───────────────────────
+        # Cool blue-grey: slight R reduction, slight G reduction, stronger B addition
+        cool_contrib = cool_map * bg_w * cool_strength * opacity
+        r_out = _np.clip(r_out - cool_contrib * 0.30, 0.0, 1.0)
+        g_out = _np.clip(g_out - cool_contrib * 0.10, 0.0, 1.0)
+        b_out = _np.clip(b_out + cool_contrib * 1.00, 0.0, 1.0)
+
+        # ── Operation 3: Atmospheric edge dissolution in transition zone ──────
+        # Gaussian blur of the current (post-gradient) working buffer in transition zone
+        # Blend blurred version into the output weighted by trans_map * bg_w
+        r_work = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        g_work = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        b_work = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+
+        # Build blurred versions of each channel
+        def _blur_channel(arr_u8: "_np.ndarray") -> "_np.ndarray":
+            img    = _Image.fromarray(arr_u8, mode="L")
+            blurred = img.filter(_ImageFilter.GaussianBlur(radius=float(edge_soften_radius)))
+            return _np.asarray(blurred, dtype=_np.float32) / 255.0
+
+        r_blur = _blur_channel(r_work)
+        g_blur = _blur_channel(g_work)
+        b_blur = _blur_channel(b_work)
+
+        # Blend factor: transition zone weight × background mask × opacity × 0.45
+        # (0.45 keeps dissolution subtle — sfumato is never a hard blur)
+        blend_w = trans_map * bg_w * opacity * 0.45
+
+        r_out = r_out * (1.0 - blend_w) + r_blur * blend_w
+        g_out = g_out * (1.0 - blend_w) + g_blur * blend_w
+        b_out = b_out * (1.0 - blend_w) + b_blur * blend_w
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        warm_px  = int((warm_map * bg_w > 0.05).sum())
+        cool_px  = int((cool_map * bg_w > 0.05).sum())
+        trans_px = int((trans_map * bg_w > 0.05).sum())
+        print(f"    Sfumato thermal gradient pass complete  "
+              f"(warm_px={warm_px}  cool_px={cool_px}  trans_px={trans_px})")
+
 

@@ -43,6 +43,14 @@ def _solid_reference(w: int = 64, h: int = 64):
 # Pass existence
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _canvas_bytes(p) -> bytes:
+    """Return a snapshot of the canvas buffer as bytes for comparison."""
+    import numpy as _np
+    h, w = p.h, p.w
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((h, w, 4)).copy()
+    return buf.tobytes()
+
+
 def test_elongation_distortion_pass_exists():
     """Painter must have elongation_distortion_pass() method after session 11."""
     from stroke_engine import Painter
@@ -8582,3 +8590,234 @@ def test_spanish_baroque_high_edge_softness():
     p = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
     assert p["edge_softness"] >= 0.60, (
         f"SPANISH_BAROQUE edge_softness should be ≥0.60; got {p['edge_softness']:.2f}")
+
+
+# ── zurbaran_stark_devotion_pass ──────────────────────────────────────────────
+
+def test_zurbaran_stark_devotion_pass_exists():
+    """Painter must expose zurbaran_stark_devotion_pass() as a callable method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "zurbaran_stark_devotion_pass"), (
+        "Painter is missing zurbaran_stark_devotion_pass() — add the method to stroke_engine.py")
+    assert callable(Painter.zurbaran_stark_devotion_pass)
+
+
+def test_zurbaran_stark_devotion_pass_runs():
+    """zurbaran_stark_devotion_pass() must complete without error on a small canvas."""
+    p = _make_small_painter(80, 80)
+    p.tone_ground((0.08, 0.06, 0.05), texture_strength=0.0)
+    p.zurbaran_stark_devotion_pass(opacity=0.72)
+
+
+def test_zurbaran_stark_devotion_pass_skipped_at_zero_opacity():
+    """zurbaran_stark_devotion_pass() must leave canvas unchanged when opacity=0."""
+    p = _make_small_painter(40, 40)
+    p.tone_ground((0.50, 0.40, 0.35), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.zurbaran_stark_devotion_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, "Canvas must not change when opacity=0"
+
+
+def test_zurbaran_stark_devotion_pass_deepens_dark_shadows():
+    """zurbaran_stark_devotion_pass() must reduce luminance in near-black zones."""
+    import numpy as _np
+    p = _make_small_painter(60, 60)
+    # Fill with a dark-shadow tone (lum ≈ 0.14) — within Zurbarán void zone (<0.28)
+    p.tone_ground((0.14, 0.10, 0.08), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((60, 60, 4)).copy()
+    r_before = buf_before[:, :, 2].astype(float).mean()
+
+    p.zurbaran_stark_devotion_pass(void_depth=0.30, opacity=1.0)
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((60, 60, 4)).copy()
+    r_after = buf_after[:, :, 2].astype(float).mean()
+
+    assert r_after < r_before, (
+        f"zurbaran_stark_devotion_pass() must reduce red channel in shadow zones "
+        f"(cold void deepening); before={r_before:.1f} after={r_after:.1f}")
+
+
+def test_zurbaran_stark_devotion_pass_cools_highlights():
+    """zurbaran_stark_devotion_pass() must add blue channel in very bright zones."""
+    import numpy as _np
+    p = _make_small_painter(60, 60)
+    # Fill with near-white (lum > 0.70) — within crystalline drapery zone
+    p.tone_ground((0.90, 0.90, 0.88), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((60, 60, 4)).copy()
+    b_before = buf_before[:, :, 0].astype(float).mean()   # BGRA: channel 0 = blue
+
+    p.zurbaran_stark_devotion_pass(crystalline_strength=0.25, opacity=1.0)
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((60, 60, 4)).copy()
+    b_after = buf_after[:, :, 0].astype(float).mean()
+
+    assert b_after >= b_before, (
+        f"zurbaran_stark_devotion_pass() must increase blue channel in bright zones "
+        f"(crystalline cool-white push); before={b_before:.1f} after={b_after:.1f}")
+
+
+def test_zurbaran_stark_devotion_pass_with_figure_mask():
+    """zurbaran_stark_devotion_pass() with figure_mask=1 must modify the canvas."""
+    import numpy as _np
+    p = _make_small_painter(60, 60)
+    # Dark shadow canvas — void zone should be deepened
+    p.tone_ground((0.12, 0.09, 0.07), texture_strength=0.0)
+    mask = _np.ones((60, 60), dtype=_np.float32)  # full figure mask
+    before = _canvas_bytes(p)
+    p.zurbaran_stark_devotion_pass(figure_mask=mask, void_depth=0.30, opacity=1.0)
+    after  = _canvas_bytes(p)
+    assert before != after, "Canvas must change when figure_mask=1 and opacity>0"
+
+
+def test_zurbaran_stark_devotion_pass_background_protected_by_mask():
+    """zurbaran_stark_devotion_pass() must not modify background pixels when mask=0."""
+    import numpy as _np
+    p = _make_small_painter(60, 60)
+    # Dark shadow canvas — void zone would normally be deepened
+    p.tone_ground((0.12, 0.09, 0.07), texture_strength=0.0)
+    mask = _np.zeros((60, 60), dtype=_np.float32)   # zero mask — no figure region
+    before = _canvas_bytes(p)
+    p.zurbaran_stark_devotion_pass(figure_mask=mask, opacity=1.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "Canvas must be unchanged when figure_mask=0 everywhere — "
+        "background pixels must be protected from zurbaran_stark_devotion_pass()")
+
+
+def test_zurbaran_stark_devotion_pass_large_canvas():
+    """zurbaran_stark_devotion_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.08, 0.06, 0.05), texture_strength=0.0)
+    p.zurbaran_stark_devotion_pass(opacity=0.72)
+
+
+# ── TENEBRIST vs SPANISH_BAROQUE polarity checks ─────────────────────────────
+
+def test_tenebrist_crisper_than_spanish_baroque():
+    """TENEBRIST edge_softness must be less than SPANISH_BAROQUE (Zurbarán < Murillo)."""
+    ten  = Style(medium=Medium.OIL, period=Period.TENEBRIST).stroke_params
+    baro = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
+    assert ten["edge_softness"] < baro["edge_softness"], (
+        f"TENEBRIST edge_softness ({ten['edge_softness']:.2f}) must be less than "
+        f"SPANISH_BAROQUE ({baro['edge_softness']:.2f}) — "
+        f"Zurbarán's hard devotional edges are the polar opposite of Murillo's vaporous dissolution")
+
+
+def test_tenebrist_drier_than_spanish_baroque():
+    """TENEBRIST wet_blend must be less than SPANISH_BAROQUE (Zurbarán drier than Murillo)."""
+    ten  = Style(medium=Medium.OIL, period=Period.TENEBRIST).stroke_params
+    baro = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
+    assert ten["wet_blend"] < baro["wet_blend"], (
+        f"TENEBRIST wet_blend ({ten['wet_blend']:.2f}) must be less than "
+        f"SPANISH_BAROQUE ({baro['wet_blend']:.2f}) — "
+        f"Zurbarán's sculptural dryness contrasts sharply with Murillo's vaporous wet-on-wet")
+
+
+# ── sfumato_thermal_gradient_pass ────────────────────────────────────────────
+
+def test_sfumato_thermal_gradient_pass_exists():
+    """Painter must expose sfumato_thermal_gradient_pass() as a callable method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "sfumato_thermal_gradient_pass"), (
+        "Painter is missing sfumato_thermal_gradient_pass() — add the method to stroke_engine.py")
+    assert callable(Painter.sfumato_thermal_gradient_pass)
+
+
+def test_sfumato_thermal_gradient_pass_runs():
+    """sfumato_thermal_gradient_pass() must complete without error on a small canvas."""
+    p = _make_small_painter(80, 80)
+    p.tone_ground((0.50, 0.48, 0.42), texture_strength=0.0)
+    p.sfumato_thermal_gradient_pass(opacity=0.55)
+
+
+def test_sfumato_thermal_gradient_pass_skipped_at_zero_opacity():
+    """sfumato_thermal_gradient_pass() must leave canvas unchanged when opacity=0."""
+    p = _make_small_painter(40, 40)
+    p.tone_ground((0.50, 0.48, 0.42), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.sfumato_thermal_gradient_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, "Canvas must not change when opacity=0"
+
+
+def test_sfumato_thermal_gradient_pass_cools_upper_region():
+    """sfumato_thermal_gradient_pass() must increase blue in upper canvas rows."""
+    import numpy as _np
+    p = _make_small_painter(80, 80)
+    # Neutral mid-tone ground
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    # Measure mean blue in top quarter (distance zone)
+    b_top_before = buf_before[:20, :, 0].astype(float).mean()
+
+    p.sfumato_thermal_gradient_pass(
+        cool_strength=0.15, warm_strength=0.0, horizon_y=0.70,
+        gradient_width=0.20, edge_soften_radius=3, opacity=1.0
+    )
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    b_top_after = buf_after[:20, :, 0].astype(float).mean()
+
+    assert b_top_after > b_top_before, (
+        f"sfumato_thermal_gradient_pass() must increase blue in upper (distance) zone; "
+        f"before={b_top_before:.1f} after={b_top_after:.1f}")
+
+
+def test_sfumato_thermal_gradient_pass_warms_lower_region():
+    """sfumato_thermal_gradient_pass() must increase red in lower canvas rows."""
+    import numpy as _np
+    p = _make_small_painter(80, 80)
+    # Neutral mid-tone ground
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    # Measure mean red in bottom quarter (foreground zone)
+    r_bot_before = buf_before[60:, :, 2].astype(float).mean()
+
+    p.sfumato_thermal_gradient_pass(
+        warm_strength=0.15, cool_strength=0.0, horizon_y=0.30,
+        gradient_width=0.20, edge_soften_radius=3, opacity=1.0
+    )
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    r_bot_after = buf_after[60:, :, 2].astype(float).mean()
+
+    assert r_bot_after > r_bot_before, (
+        f"sfumato_thermal_gradient_pass() must increase red in lower (foreground) zone; "
+        f"before={r_bot_before:.1f} after={r_bot_after:.1f}")
+
+
+def test_sfumato_thermal_gradient_pass_background_only_with_mask():
+    """sfumato_thermal_gradient_pass() with full figure mask must not change the canvas."""
+    import numpy as _np
+    p = _make_small_painter(60, 60)
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.0)
+    # A fully-figure mask means the background mask is zero everywhere
+    full_fig_mask = _np.ones((60, 60), dtype=_np.float32)
+    before = _canvas_bytes(p)
+    p.sfumato_thermal_gradient_pass(
+        figure_mask=full_fig_mask, warm_strength=0.15, cool_strength=0.15, opacity=1.0
+    )
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "Canvas must not change when figure_mask=1 everywhere — the thermal gradient "
+        "applies to background only; a pure-figure canvas has no background to modify")
+
+
+def test_sfumato_thermal_gradient_pass_large_canvas():
+    """sfumato_thermal_gradient_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.50, 0.48, 0.42), texture_strength=0.0)
+    p.sfumato_thermal_gradient_pass(opacity=0.55)
