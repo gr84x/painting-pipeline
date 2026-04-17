@@ -233,6 +233,7 @@ class Period(Enum):
     VENETIAN_MANNERIST = auto()     # Tintoretto — near-black void ground, silver lightning highlights, violent diagonal composition, Venetian-cool impasto
     VENETIAN_COLORIST  = auto()     # Veronese — luminous clear palette, saturated brilliant colour, cool silver highlights, monumental architectural setting
     SPANISH_BAROQUE    = auto()     # Murillo — estilo vaporoso, warm amber-rose luminosity, soft dissolved edges, tender spiritual warmth
+    VENETIAN_ROCOCO    = auto()     # Tiepolo — celestial overhead light, brilliant azure sky, Naples yellow flesh, pearl-white highlights, aerial luminosity
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -850,6 +851,16 @@ class Style:
             # wet_blend=0.65: high blending — Murillo's warm vaporous transitions require it
             # edge_softness=0.70: near-sfumato softness, but warmer and more tender than Leonardo's cool smoke
             Period.SPANISH_BAROQUE:    dict(stroke_size_face=6,  stroke_size_bg=28, wet_blend=0.65, edge_softness=0.74),
+            # VENETIAN_ROCOCO (Tiepolo) — celestial overhead light, high aerial luminosity.
+            # stroke_size_face=9: confident Venetian wet-into-wet broad marks — not as tight
+            #   as Renaissance masters but more refined than Impressionist dabs.
+            # stroke_size_bg=34: Tiepolo's vast ceiling skies need very large, sweeping strokes
+            #   to achieve the atmospheric aerial depth that characterises his compositions.
+            # wet_blend=0.68: high — the Venetian tradition of painting into a moist ground;
+            #   colour zones flow into each other to create the warm-to-cool flesh transitions.
+            # edge_softness=0.52: moderate — forms are clear and readable (unlike sfumato)
+            #   but softened by the aerial luminosity that permeates his compositions.
+            Period.VENETIAN_ROCOCO:    dict(stroke_size_face=9,  stroke_size_bg=34, wet_blend=0.68, edge_softness=0.52),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

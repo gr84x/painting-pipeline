@@ -15003,12 +15003,14 @@ class Painter:
 
     def aerial_perspective_pass(
         self,
-        sky_band:         float = 0.45,
-        fade_power:       float = 2.2,
-        desaturation:     float = 0.55,
-        cool_push:        float = 0.10,
-        haze_lift:        float = 0.06,
-        opacity:          float = 0.72,
+        sky_band:             float = 0.45,
+        fade_power:           float = 2.2,
+        desaturation:         float = 0.55,
+        cool_push:            float = 0.10,
+        haze_lift:            float = 0.06,
+        opacity:              float = 0.72,
+        warm_foreground_push: float = 0.0,
+        fg_band:              float = 0.35,
     ) -> None:
         """
         Apply systematic aerial (atmospheric) perspective to the upper canvas zone.
@@ -15072,6 +15074,28 @@ class Painter:
             out foreground tones (which receive near-zero weight).
         opacity : float
             Global blend weight for the pass result over the original canvas.
+        warm_foreground_push : float
+            **Improvement (session 59+):** When > 0, applies a complementary
+            warm push to the lower foreground zone — the inverse of the cool
+            atmospheric push applied to the sky.  This implements the complete
+            atmospheric perspective principle: not only does distance make
+            objects cooler and more desaturated, but proximity makes them
+            comparatively warmer and more saturated.  Venetian painters —
+            Titian, Tiepolo, Veronese — consistently exploited this contrast:
+            foreground figures glow with warm ochre and vermilion while the
+            background recedes into cool grey-blue haze.
+
+            The warm push boosts R slightly and suppresses B slightly in the
+            lower ``fg_band`` fraction of the canvas, weighted by a gradient
+            that peaks at the bottom edge and fades to zero at ``fg_band * H``.
+            At ``warm_foreground_push=0.08`` the foreground receives a subtle
+            but perceptible warmth relative to the sky zone; at 0.15 the
+            contrast is more theatrical (appropriate for Tiepolo or Rubens).
+            Default 0.0 preserves the existing behaviour exactly.
+        fg_band : float
+            Fractional height from the bottom of the canvas over which the
+            warm foreground push is applied.  0.35 = lower 35% of the image.
+            Has no effect if ``warm_foreground_push`` is 0.
 
         Notes
         -----
@@ -15088,7 +15112,8 @@ class Painter:
         print(f"  Aerial perspective pass  "
               f"(sky_band={sky_band:.2f}  fade_power={fade_power:.2f}  "
               f"desaturation={desaturation:.2f}  cool_push={cool_push:.2f}  "
-              f"haze_lift={haze_lift:.2f}  opacity={opacity:.2f}) ...")
+              f"haze_lift={haze_lift:.2f}  opacity={opacity:.2f}  "
+              f"warm_fg={warm_foreground_push:.3f}) ...")
 
         if opacity <= 0.0:
             print("    Aerial perspective pass skipped (opacity=0)")
@@ -15135,6 +15160,27 @@ class Painter:
         r_out = _np.clip(r_out + haze, 0.0, 1.0)
         g_out = _np.clip(g_out + haze, 0.0, 1.0)
         b_out = _np.clip(b_out + haze, 0.0, 1.0)
+
+        # ── 4. Warm foreground push (session 59 improvement) ─────────────────
+        # Applies the complementary half of atmospheric perspective: not only
+        # does distance cool and desaturate, but proximity comparatively warms
+        # and saturates.  Venetian masters (Titian, Tiepolo, Veronese) relied
+        # on this contrast.  The gradient mirrors the sky band — maximum weight
+        # at the bottom row, fading to zero at fg_band * H from the bottom.
+        if warm_foreground_push > 0.0:
+            fg_px = max(1, int(h * fg_band))
+            # ys_fg: 0 at the bottom row, 1 at the top of the fg_band
+            ys_fg = _np.linspace(0.0, 1.0, fg_px, dtype=_np.float32)
+            fg_weight_1d = _np.clip(1.0 - ys_fg, 0.0, 1.0) ** fade_power
+            fg_w = _np.zeros((h,), dtype=_np.float32)
+            # fg_weight_1d[0] = bottom-most row of the fg_band → maps to h-1
+            fg_w[h - fg_px:] = fg_weight_1d[::-1]
+            fg_w = fg_w[:, _np.newaxis]   # (H, 1) — broadcast over W
+            warm = fg_w * warm_foreground_push
+            # Warm push: boost R, modest G, suppress B — Naples yellow / ochre push
+            r_out = _np.clip(r_out + warm * 0.85, 0.0, 1.0)
+            g_out = _np.clip(g_out + warm * 0.30, 0.0, 1.0)
+            b_out = _np.clip(b_out - warm * 0.45, 0.0, 1.0)
 
         # ── Blend adjusted layer back at `opacity` ────────────────────────────
         buf[:, :, 2] = _np.clip(
@@ -16503,5 +16549,189 @@ class Painter:
         hi_px      = int(in_hi.sum())
         print(f"    Murillo vapor pass complete  "
               f"(bloom_px={bloom_px}  shadow_px={shadow_px}  hi_px={hi_px})")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 59 — new artist: Giovanni Battista Tiepolo / tiepolo_celestial_light_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def tiepolo_celestial_light_pass(
+        self,
+        figure_mask:       "Optional[_np.ndarray]" = None,
+        azure_push:        float = 0.12,
+        naples_glow:       float = 0.10,
+        pearl_bloom:       float = 0.08,
+        azure_band:        float = 0.50,
+        bloom_radius:      int   = 18,
+        opacity:           float = 0.70,
+    ) -> None:
+        """
+        Apply Giovanni Battista Tiepolo's defining celestial light effect.
+
+        Tiepolo (1696–1770) was the supreme master of the Venetian Rococo and
+        the last great fresco painter of the Western tradition.  His signature
+        visual quality — a vast luminous sky from which overhead celestial
+        light descends onto figures below — depends on three simultaneous
+        colour operations that this pass implements:
+
+        1. **Azure sky push** (upper canvas zone): The upper ``azure_band``
+           fraction of the canvas is pushed toward Tiepolo's characteristic
+           brilliant azure-cerulean sky.  Unlike the muted grey-blue of
+           ordinary atmospheric perspective, Tiepolo's skies are saturated
+           and vibrant — a positive chromatic assertion, not merely a
+           desaturated haze.  The push boosts B, reduces R, and very slightly
+           lifts G in the sky zone, weighted by a gradient that is maximum at
+           the top of the canvas and fades to zero at ``azure_band * H``.
+
+        2. **Naples yellow warm glow** (figure zone): Within the figure_mask —
+           or globally if none is provided — the lit tops of forms (pixels
+           above the luminance midpoint) receive a warm Naples-yellow bloom.
+           Tiepolo's flesh is modelled from a warm Naples yellow base:
+           highlights lean warm-gold rather than the cool pearl of Ingres or
+           the ivory of Leonardo.  The glow adds R and G in proportion to
+           luminance, creating the self-luminous quality of his figures
+           standing in direct overhead light.
+
+        3. **Pearl-white zenith bloom**: The highest-luminance pixels (above
+           0.75 lum) receive a brilliant near-white bloom — boosting all
+           channels toward equal, pure white — simulating the dazzling zenith
+           highlights on drapery, metallic armour, and upturned faces.
+           Tiepolo's whites are not warm ivory (Rembrandt) nor cool silver
+           (Velázquez) but a neutral brilliant pearl that reads as direct
+           exposure to celestial light.
+
+        Together these three operations recreate the distinctive quality of a
+        Tiepolo fresco seen from below: figures in brilliant natural overhead
+        light against a vivid azure sky, with both the sky and the figures
+        appearing to radiate rather than merely reflect the light.
+
+        Parameters
+        ----------
+        figure_mask : ndarray or None
+            Float mask [0, 1] restricting the Naples-yellow glow to the
+            figure zone.  If None, the glow applies globally.
+        azure_push : float
+            Strength of the azure-cerulean push in the sky zone.  0.12
+            produces the clear, saturated Tiepolo sky; 0.0 disables it.
+        naples_glow : float
+            Strength of the Naples-yellow warm glow on lit figure surfaces.
+        pearl_bloom : float
+            Strength of the brilliant pearl-white bloom on the highest
+            highlights.  Keep low (0.06–0.10) to avoid washing out.
+        azure_band : float
+            Fractional height from the top of the canvas over which the
+            azure sky push is applied.  0.50 = upper half.
+        bloom_radius : int
+            Gaussian blur radius for the pearl bloom kernel, in pixels.
+        opacity : float
+            Global blend weight for the combined result over the original.
+
+        Pairs with
+        ----------
+        - ``aerial_perspective_pass()`` — set ``warm_foreground_push > 0``
+          to complement the azure sky with a warm foreground (the complete
+          Tiepolo atmospheric contrast).
+        - ``sfumato_veil_pass()`` — NOT recommended at high warmth values;
+          sfumato's warm amber haze conflicts with the cool azure sky.
+        - ``veronese_luminous_feast_pass()`` — Veronese's cool silver
+          highlights share the same Venetian chromatic family as Tiepolo;
+          the two passes may be sequenced for a combined Venetian luminosity.
+
+        Does NOT pair with
+        ------------------
+        - ``murillo_vapor_pass()`` — Murillo's warm amber-rose glow
+          opposes Tiepolo's brilliant azure-pearl light system.
+        - ``tintoretto_dynamic_light_pass()`` — Tintoretto's near-black
+          void ground conflicts with Tiepolo's pale, luminous imprimatura.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Tiepolo celestial light pass  "
+              f"(azure={azure_push:.3f}  naples={naples_glow:.3f}  "
+              f"pearl={pearl_bloom:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Tiepolo celestial light pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Normalise to float [0, 1] — cairo surface is BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # Perceived luminance (BT.709)
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Operation 1: Azure sky push ───────────────────────────────────────
+        # Vertical weight gradient — max at top row, fades to 0 at azure_band * H
+        sky_px = max(1, int(h * azure_band))
+        ys = _np.linspace(0.0, 1.0, sky_px, dtype=_np.float32)
+        sky_w_1d = _np.clip(1.0 - ys, 0.0, 1.0) ** 2.0
+        sky_w = _np.zeros((h,), dtype=_np.float32)
+        sky_w[:sky_px] = sky_w_1d
+        sky_w = sky_w[:, _np.newaxis]   # (H, 1) broadcast over W
+
+        az = sky_w * azure_push * opacity
+        # Azure-cerulean: boost B strongly, slight G lift, reduce R
+        r_out = _np.clip(r_out - az * 0.60, 0.0, 1.0)
+        g_out = _np.clip(g_out + az * 0.10, 0.0, 1.0)
+        b_out = _np.clip(b_out + az * 0.85, 0.0, 1.0)
+
+        # ── Operation 2: Naples yellow warm glow on figure highlights ─────────
+        if figure_mask is not None:
+            fig_w = _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+        else:
+            fig_w = _np.ones((h, w), dtype=_np.float32)
+
+        # Target: mid-to-high luminance pixels in the figure zone
+        midlit = _np.clip((lum - 0.35) / (0.65 + 1e-8), 0.0, 1.0) * fig_w
+        naples = midlit * naples_glow * opacity
+        # Naples yellow: R strong, G moderate, minimal B
+        r_out = _np.clip(r_out + naples * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + naples * 0.72, 0.0, 1.0)
+        b_out = _np.clip(b_out + naples * 0.08, 0.0, 1.0)
+
+        # ── Operation 3: Pearl-white bloom on highest highlights ──────────────
+        # Build bloom from the brightest pixels via Gaussian blur
+        lum_img = _Image.fromarray(
+            _np.clip(lum * 255.0, 0, 255).astype(_np.uint8), mode="L"
+        )
+        bloom_img = lum_img.filter(
+            _ImageFilter.GaussianBlur(radius=float(bloom_radius))
+        )
+        bloom_arr = _np.asarray(bloom_img, dtype=_np.float32) / 255.0
+
+        # Gate bloom to the very bright highlights only
+        highlight_gate = _np.clip((lum - 0.72) / (0.28 + 1e-8), 0.0, 1.0) * fig_w
+        pearl = highlight_gate * bloom_arr * pearl_bloom * opacity
+        # Pearl white: equal R, G, B push toward neutral brilliant white
+        r_out = _np.clip(r_out + pearl * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + pearl * 0.95, 0.0, 1.0)
+        b_out = _np.clip(b_out + pearl * 0.88, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        sky_px_count   = int((sky_w.squeeze() > 0.05).sum() * w)
+        naples_px      = int((midlit * fig_w > 0.05).sum())
+        pearl_px       = int((highlight_gate > 0.05).sum())
+        print(f"    Tiepolo celestial light pass complete  "
+              f"(sky_px={sky_px_count}  naples_px={naples_px}  pearl_px={pearl_px})")
 
 

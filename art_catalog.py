@@ -4885,6 +4885,103 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "tiepolo": ArtStyle(
+        artist="Giovanni Battista Tiepolo",
+        movement="Venetian Rococo",
+        nationality="Italian",
+        period="1696–1770",
+        palette=[
+            (0.42, 0.68, 0.88),   # brilliant azure — the signature Tiepolo sky
+            (0.98, 0.92, 0.72),   # Naples yellow — his defining warm light tone
+            (0.96, 0.94, 0.90),   # pearl white — dazzling celestial highlight
+            (0.88, 0.46, 0.34),   # coral vermilion — warm drapery accent
+            (0.82, 0.70, 0.48),   # warm ochre — flesh mid-tone, imprimatura tone
+            (0.72, 0.80, 0.90),   # pale sky blue — aerial distance
+            (0.78, 0.62, 0.74),   # soft lavender-violet — drapery shadow
+            (0.36, 0.26, 0.18),   # warm dark umber — deep shadow accent
+        ],
+        ground_color=(0.90, 0.86, 0.76),
+        stroke_size=9,
+        wet_blend=0.68,
+        edge_softness=0.52,
+        jitter=0.032,
+        glazing=(0.94, 0.88, 0.72),
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Giovanni Battista Tiepolo was the supreme master of the Venetian Rococo "
+            "and the last great fresco painter of the Western tradition.  Working across "
+            "ceilings, altarpieces, and cabinet paintings from Venice to Würzburg to "
+            "Madrid, he perfected a system of aerial luminosity that no subsequent painter "
+            "has matched: figures seem to inhabit real sky, to float in brilliant "
+            "atmosphere lit from directly overhead by an invisible celestial source.  "
+            "His palette is the defining feature of the Venetian Rococo.  Where Titian "
+            "built richness through warm amber glazing and Tintoretto through violent "
+            "contrast, Tiepolo worked in a higher key: brilliant azure, Naples yellow, "
+            "pearl white, coral vermilion — colours that appear to absorb and re-emit "
+            "light rather than merely reflect it.  His skies are not blue smears but "
+            "luminous atmospheric phenomena, differentiated through subtle gradations "
+            "of azure, pale cerulean, and near-white zenith that give them a "
+            "convincing three-dimensional depth.  "
+            "The technique behind this aerial quality is rooted in the Venetian tradition "
+            "of painting into a wet ground.  Tiepolo toned his plaster or canvas with "
+            "a warm pale cream — not the dark grounds of Rembrandt or Caravaggio — so "
+            "that every subsequent colour note reads lighter and more luminous than it "
+            "would on a neutral or dark preparation.  Flesh tones are modelled from a "
+            "warm Naples yellow base through coral rose midtones to brilliant pearl "
+            "white highlights, with deep warm umber only in the most recessed shadows.  "
+            "The characteristic effect — visible especially in the Würzburg Residenz "
+            "ceiling (1750–53) and the Villa Valmarana 'Foresteria' frescoes (1757) — "
+            "is a flesh that seems self-luminous: as if the figures have absorbed the "
+            "celestial light and radiate it from within.  "
+            "His brushwork is both confident and refined: large decisive strokes lay in "
+            "the broad colour zones (the wet-into-wet Venetian tradition), while final "
+            "touches of pure Naples yellow and pearl white, applied almost dry with a "
+            "loaded fine brush, create the dazzling highlights on drapery folds, "
+            "metallic armour, and upturned faces.  The transition from highlight to "
+            "deep shadow is rapid by Renaissance standards — Tiepolo is a Rococo "
+            "master and embraces theatrical contrast — but always mediated by a "
+            "characteristic warm coral-rose midtone that prevents the drama from "
+            "reading as Baroque gloom.  "
+            "Technically the celestial-light effect depends on three decisions: "
+            "(1) a pale warm imprimatura that pre-luminifies every subsequent layer; "
+            "(2) overhead light direction — almost vertical — so that the tops of "
+            "forms are maximally lit and the undersides recede into warm shadow "
+            "(the opposite of candlelight or single-window studio lighting); "
+            "(3) the restraint to leave the sky itself nearly unpainted — the palest "
+            "azure washes over bare cream ground — so that the figures, despite "
+            "their brilliant colours, read as darker than the air that surrounds them."
+        ),
+        famous_works=[
+            ("Würzburg Residenz ceiling frescoes",          "1750–53"),
+            ("Villa Valmarana — Foresteria frescoes",       "1757"),
+            ("The Banquet of Cleopatra",                    "1743–44"),
+            ("The Triumph of Zephyr and Flora",             "c. 1734–35"),
+            ("Apotheosis of the Pisani Family",             "c. 1761–62"),
+            ("Allegory of the Planets and Continents",     "1752"),
+            ("The Investiture of Bishop Harold",            "1751–52"),
+            ("St Thecla Liberating Este from the Plague",  "1759"),
+        ],
+        inspiration=(
+            "Use tiepolo_celestial_light_pass() after build_form() and before glaze() "
+            "to apply Tiepolo's defining overhead-celestial luminosity: a brilliant "
+            "pearl-white bloom from above, an azure push into the upper canvas zone, "
+            "and a warm Naples-yellow glow into the lit tops of figure forms.  "
+            "ground_color=(0.90, 0.86, 0.76) is the pale warm cream imprimatura that "
+            "pre-luminifies every colour layer — the foundation of the celestial light "
+            "effect.  Without this warm pale ground the characteristic aerial luminosity "
+            "cannot be achieved: every colour note reads lighter, more aerial, more "
+            "self-luminous than it would on a neutral or dark preparation.  "
+            "wet_blend=0.68 honours the Venetian wet-into-wet tradition: broad colour "
+            "zones are worked into each other while the ground is still moist, producing "
+            "the soft warm-to-cool transitions that give Tiepolo's flesh its three- "
+            "dimensional roundness without sfumato-level dissolution.  "
+            "glazing=(0.94, 0.88, 0.72) — warm Naples-pearl final glaze that shifts "
+            "all tones toward the characteristic Tiepolo golden-white aerial harmony "
+            "without the amber weight of Rembrandt's amber glazing."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",

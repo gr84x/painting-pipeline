@@ -76,6 +76,7 @@ EXPECTED_ARTISTS = [
     "giorgione",
     "veronese",
     "murillo",
+    "tiepolo",
 ]
 
 
@@ -6785,4 +6786,166 @@ def test_spanish_baroque_more_blended_than_baroque():
         f"SPANISH_BAROQUE wet_blend ({sp_bq['wet_blend']:.2f}) must exceed "
         f"BAROQUE ({bq['wet_blend']:.2f}) — "
         f"the estilo vaporoso is built on extensive wet blending, not Baroque's dry drama")
+
+
+# ── TIEPOLO ────────────────────────────────────────────────────────────────────
+
+def test_tiepolo_in_catalog():
+    """Tiepolo must be present in the art catalog (session 59 addition)."""
+    assert "tiepolo" in CATALOG, "tiepolo not found in CATALOG"
+
+
+def test_tiepolo_movement():
+    """Tiepolo's movement must identify him as Venetian Rococo."""
+    s = get_style("tiepolo")
+    lower = s.movement.lower()
+    assert "venetian" in lower or "rococo" in lower, (
+        f"tiepolo movement should mention 'Venetian' or 'Rococo'; got {s.movement!r}")
+
+
+def test_tiepolo_palette_includes_azure():
+    """Tiepolo's palette must contain a brilliant azure (high B, moderate G, low R)."""
+    s = get_style("tiepolo")
+    # Azure: B > 0.75, B > R by a significant margin
+    has_azure = any(b > 0.75 and b > r + 0.35 for r, g, b in s.palette)
+    assert has_azure, (
+        "tiepolo palette must include a brilliant azure swatch — "
+        "the azure sky is his most distinctive chromatic signature")
+
+
+def test_tiepolo_palette_includes_naples_yellow():
+    """Tiepolo's palette must contain a Naples yellow (high R and G, low B)."""
+    s = get_style("tiepolo")
+    has_naples = any(r > 0.85 and g > 0.80 and b < 0.80 for r, g, b in s.palette)
+    assert has_naples, (
+        "tiepolo palette must include Naples yellow — "
+        "his defining warm flesh-light tone that gives figures their self-luminous quality")
+
+
+def test_tiepolo_famous_works_count():
+    """Tiepolo must have at least 5 famous works documented."""
+    s = get_style("tiepolo")
+    assert len(s.famous_works) >= 5, (
+        f"tiepolo should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_tiepolo_famous_works_include_wurzburg():
+    """Tiepolo's most celebrated commission (Würzburg frescoes) must appear in famous_works."""
+    s = get_style("tiepolo")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("w" in t and ("rzburg" in t or "urzburg" in t or "rzb" in t) for t in titles), (
+        "tiepolo famous_works must include the Würzburg Residenz frescoes — "
+        "his greatest and most technically ambitious commission")
+
+
+def test_tiepolo_technique_mentions_celestial():
+    """Tiepolo technique description must reference his defining aerial/celestial light quality."""
+    s = get_style("tiepolo")
+    lower = s.technique.lower()
+    assert any(kw in lower for kw in ("celestial", "aerial", "luminous", "azure", "naples")), (
+        "tiepolo technique must describe his celestial light system — "
+        "the overhead luminosity and azure sky that define his Rococo fresco style")
+
+
+def test_tiepolo_inspiration_references_tiepolo_celestial_light_pass():
+    """Tiepolo inspiration must reference tiepolo_celestial_light_pass()."""
+    s = get_style("tiepolo")
+    assert "tiepolo_celestial_light_pass()" in s.inspiration, (
+        "tiepolo inspiration must reference tiepolo_celestial_light_pass() — "
+        "the dedicated pass implementing his celestial overhead luminosity")
+
+
+def test_tiepolo_lighter_ground_than_tintoretto():
+    """Tiepolo's ground must be much lighter than Tintoretto's (pale luminous vs. near-black void)."""
+    tiepolo   = get_style("tiepolo")
+    tintoretto = get_style("tintoretto")
+    tiepolo_lum   = sum(tiepolo.ground_color) / 3
+    tintoretto_lum = sum(tintoretto.ground_color) / 3
+    assert tiepolo_lum > tintoretto_lum + 0.5, (
+        f"tiepolo ground ({tiepolo_lum:.2f}) must be substantially lighter than "
+        f"tintoretto ({tintoretto_lum:.2f}) — "
+        f"Tiepolo's pale cream imprimatura is the foundation of his aerial luminosity; "
+        f"Tintoretto used a near-black void ground for opposite dramatic effect")
+
+
+def test_tiepolo_higher_wet_blend_than_bronzino():
+    """Tiepolo's wet_blend must exceed Bronzino's (Venetian blending vs. Mannerist enamel precision)."""
+    tiepolo  = get_style("tiepolo")
+    bronzino = get_style("bronzino")
+    assert tiepolo.wet_blend > bronzino.wet_blend, (
+        f"tiepolo wet_blend ({tiepolo.wet_blend:.2f}) must exceed "
+        f"bronzino ({bronzino.wet_blend:.2f}) — "
+        f"Tiepolo's Venetian wet-into-wet tradition requires high blending; "
+        f"Bronzino's enamel-smooth Mannerist surface demands very low blending")
+
+
+# ── VENETIAN_ROCOCO period ─────────────────────────────────────────────────────
+
+def test_venetian_rococo_period_in_enum():
+    """Period.VENETIAN_ROCOCO must exist in the Period enum."""
+    assert hasattr(Period, "VENETIAN_ROCOCO"), (
+        "Period.VENETIAN_ROCOCO not found — add it to the Period enum in scene_schema.py")
+
+
+def test_venetian_rococo_stroke_params():
+    """Style with Period.VENETIAN_ROCOCO must return valid stroke_params."""
+    style  = Style(medium=Medium.OIL, period=Period.VENETIAN_ROCOCO)
+    params = style.stroke_params
+    assert "stroke_size_face" in params
+    assert "wet_blend" in params
+    assert "edge_softness" in params
+    # Tiepolo: confident broad marks (not Northern micro-detail, not loose Impressionism)
+    assert 7 <= params["stroke_size_face"] <= 12, (
+        f"VENETIAN_ROCOCO stroke_size_face should be 7–12; got {params['stroke_size_face']}")
+    # High wet_blend: Tiepolo's Venetian wet-into-wet tradition requires it
+    assert params["wet_blend"] >= 0.60, (
+        f"VENETIAN_ROCOCO wet_blend should be ≥0.60 (Venetian wet-into-wet); "
+        f"got {params['wet_blend']:.2f}")
+    # Moderate edge_softness: forms clear but aerial
+    assert 0.40 <= params["edge_softness"] <= 0.70, (
+        f"VENETIAN_ROCOCO edge_softness should be 0.40–0.70 (aerial but resolved); "
+        f"got {params['edge_softness']:.2f}")
+
+
+def test_venetian_rococo_broader_bg_than_venetian_renaissance():
+    """VENETIAN_ROCOCO stroke_size_bg must exceed VENETIAN_RENAISSANCE (vast sky vs. portrait bg)."""
+    rococo     = Style(medium=Medium.OIL, period=Period.VENETIAN_ROCOCO).stroke_params
+    renaissance = Style(medium=Medium.OIL, period=Period.VENETIAN_RENAISSANCE).stroke_params
+    assert rococo["stroke_size_bg"] >= renaissance["stroke_size_bg"], (
+        f"VENETIAN_ROCOCO stroke_size_bg ({rococo['stroke_size_bg']}) must be ≥ "
+        f"VENETIAN_RENAISSANCE ({renaissance['stroke_size_bg']}) — "
+        f"Tiepolo's vast ceiling frescoes need much larger background strokes than Titian's portraits")
+
+
+# ── aerial_perspective_pass improvement (session 59) ──────────────────────────
+
+def test_aerial_perspective_warm_foreground_push_parameter_exists():
+    """aerial_perspective_pass must accept a warm_foreground_push keyword parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.aerial_perspective_pass)
+    assert "warm_foreground_push" in sig.parameters, (
+        "aerial_perspective_pass missing warm_foreground_push parameter — "
+        "session 59 adds warm foreground complementary push to complete atmospheric perspective")
+
+
+def test_aerial_perspective_fg_band_parameter_exists():
+    """aerial_perspective_pass must accept a fg_band keyword parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.aerial_perspective_pass)
+    assert "fg_band" in sig.parameters, (
+        "aerial_perspective_pass missing fg_band parameter — "
+        "controls the lower canvas zone for warm foreground push")
+
+
+def test_aerial_perspective_warm_foreground_push_defaults_zero():
+    """warm_foreground_push must default to 0.0 for full backwards compatibility."""
+    import inspect
+    from stroke_engine import Painter
+    sig   = inspect.signature(Painter.aerial_perspective_pass)
+    param = sig.parameters["warm_foreground_push"]
+    assert param.default == 0.0, (
+        f"warm_foreground_push default should be 0.0 (backwards compatible); "
+        f"got {param.default!r}")
 
