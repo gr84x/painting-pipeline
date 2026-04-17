@@ -5055,6 +5055,84 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jean-Baptiste-Camille Corot ───────────────────────────────────────────
+    "corot": ArtStyle(
+        artist="Jean-Baptiste-Camille Corot",
+        movement="Barbizon School / Proto-Impressionism",
+        nationality="French",
+        period="1820–1875",
+        palette=[
+            (0.72, 0.75, 0.62),   # silvery sage green — foliage in diffuse light
+            (0.62, 0.66, 0.58),   # muted grey-green — mid-distance tree mass
+            (0.80, 0.80, 0.74),   # pale silver-grey — sky and bright foliage highlight
+            (0.52, 0.55, 0.50),   # cool grey-green — shadow zone under trees
+            (0.70, 0.68, 0.55),   # warm ochre — sun-touched open ground
+            (0.42, 0.45, 0.52),   # cool blue-grey — atmospheric distance
+            (0.88, 0.86, 0.78),   # pearl white — brightest sky or water reflection
+            (0.32, 0.34, 0.28),   # dark olive — deepest shadow in foliage mass
+        ],
+        ground_color=(0.62, 0.60, 0.50),    # warm ochre-grey imprimatura — Corot often
+                                             # used a mid-toned warm ground for landscapes
+        stroke_size=8,
+        wet_blend=0.72,                      # high — blended transitions for atmospheric softness
+        edge_softness=0.78,                  # very high — the silvery veil dissolves boundaries
+        jitter=0.022,
+        glazing=(0.76, 0.78, 0.70),          # pale cool silver glaze — the unifying veil
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Corot's signature is the 'silver veil' — an atmospheric dissolution "
+            "of form and colour that anticipates Impressionism by two decades.  "
+            "Working outdoors in the Barbizon forest, the Roman Campagna, and at "
+            "Ville-d'Avray, he developed a systematic approach to atmospheric depth: "
+            "forms in the distance lose not only detail but colour identity, shifting "
+            "toward a unified cool silver-grey that reads as light itself suspended "
+            "in air.  His greens are never the saturated greens of Constable or "
+            "Gainsborough — they are muted, slightly grey, as if seen through a "
+            "morning mist.  His skies and his foliage share the same tonal "
+            "register — this deliberate tonal compression is what gives his "
+            "landscapes their lyrical, dreamlike quality.  "
+            "Unlike the Impressionists who followed him, Corot retained a "
+            "structural firmness in his tree trunks and architecture — the "
+            "dissolved quality is in the atmosphere, not in the drawing.  "
+            "His brushwork in the foliage masses uses stippling and dabbing "
+            "motions that create vibrating surface texture without the colour "
+            "divisionism of Seurat — the surface shimmers but the palette "
+            "remains tonal.  He was famous among younger painters (Pissarro, "
+            "Morisot, Sisley all considered him a father figure) for his "
+            "absolute control of tonal values — his ability to render the exact "
+            "luminosity of open air without resorting to high key colour."
+        ),
+        famous_works=[
+            ("The Bridge at Narni",                       "1826"),
+            ("Souvenir de Mortefontaine",                 "1864"),
+            ("The Church of Marissel",                    "1866"),
+            ("Ville-d'Avray",                             "c. 1867"),
+            ("Dance of the Nymphs",                       "c. 1850–1860"),
+            ("Agostina",                                  "1866"),
+            ("A Woman Reading",                           "c. 1869"),
+        ],
+        inspiration=(
+            "Use corot_silver_veil_pass() after build_form() to apply the "
+            "characteristic silvery atmospheric desaturation: all colours are "
+            "pulled gently toward a cool silver-grey — saturated greens lose "
+            "their assertiveness, warm tones are cooled by fractional amounts, "
+            "and the whole canvas acquires the luminous tonal unity of open-air "
+            "diffuse light.  "
+            "ground_color=(0.62, 0.60, 0.50) — a warm ochre-grey imprimatura "
+            "that reads as neither warm nor cool under the final pale glaze.  "
+            "edge_softness=0.78 — the silver veil softens foliage boundaries "
+            "against sky; tree edges are feathered, not crisp.  "
+            "glazing=(0.76, 0.78, 0.70) at low opacity (0.05–0.08) — the "
+            "unifying pale silver glaze applied at the very end to merge all "
+            "tones into a single luminous atmosphere; this is the essential "
+            "final operation that achieves the characteristic Corot unity.  "
+            "Pairs naturally with atmospheric_depth_pass() for the landscape "
+            "distance recession, and north_light_diffusion_pass() for the "
+            "soft, directionless light quality of his studio figure paintings."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",

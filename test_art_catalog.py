@@ -7071,3 +7071,110 @@ def test_tenebrist_crisper_than_spanish_baroque():
         f"SPANISH_BAROQUE ({baro['edge_softness']:.2f}) — "
         f"Zurbarán's hard devotional precision is the polar opposite of Murillo's vaporous softness")
 
+
+
+# ── Jean-Baptiste-Camille Corot ───────────────────────────────────────────────
+
+def test_corot_in_catalog():
+    """corot must exist as a key in the CATALOG."""
+    assert "corot" in CATALOG, "CATALOG must contain a 'corot' entry"
+
+
+def test_corot_get_style():
+    """get_style('corot') must return an ArtStyle with the correct artist name."""
+    s = get_style("corot")
+    assert "Corot" in s.artist, f"Expected 'Corot' in artist name, got: {s.artist}"
+
+
+def test_corot_movement_barbizon():
+    """Corot movement must reference Barbizon or Proto-Impressionism."""
+    s = get_style("corot")
+    lower = s.movement.lower()
+    assert "barbizon" in lower or "proto" in lower or "impressionism" in lower.replace("-", ""), (
+        f"Corot movement should reference Barbizon or Proto-Impressionism; got: {s.movement}")
+
+
+def test_corot_palette_in_range():
+    """All Corot palette colours must have R, G, B values in [0, 1]."""
+    s = get_style("corot")
+    for i, (r, g, b) in enumerate(s.palette):
+        assert 0.0 <= r <= 1.0, f"corot palette[{i}] R={r:.3f} out of [0, 1]"
+        assert 0.0 <= g <= 1.0, f"corot palette[{i}] G={g:.3f} out of [0, 1]"
+        assert 0.0 <= b <= 1.0, f"corot palette[{i}] B={b:.3f} out of [0, 1]"
+
+
+def test_corot_high_wet_blend():
+    """Corot wet_blend must be >= 0.60 — silvery atmospheric blending."""
+    s = get_style("corot")
+    assert s.wet_blend >= 0.60, (
+        f"corot wet_blend={s.wet_blend:.2f} must be >=0.60 — "
+        f"the silver veil requires highly blended tonal transitions")
+
+
+def test_corot_high_edge_softness():
+    """Corot edge_softness must be >= 0.70 — dissolved misty edges."""
+    s = get_style("corot")
+    assert s.edge_softness >= 0.70, (
+        f"corot edge_softness={s.edge_softness:.2f} must be >=0.70 — "
+        f"foliage and sky boundaries dissolve in Corot's atmospheric veil")
+
+
+def test_corot_palette_includes_silvery_tone():
+    """Corot palette must include at least one silvery-grey tone (low chroma, mid-high lum)."""
+    s = get_style("corot")
+    silvery = []
+    for (r, g, b) in s.palette:
+        lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        chroma = max(r, g, b) - min(r, g, b)
+        if lum > 0.45 and chroma < 0.20:
+            silvery.append((r, g, b))
+    assert len(silvery) >= 1, (
+        "Corot palette must include at least one silvery-grey mid-to-high luminance tone "
+        "(lum > 0.45, chroma < 0.20) — the silver veil is the defining quality")
+
+
+def test_corot_palette_includes_muted_green():
+    """Corot palette must include at least one muted green (green dominant, low chroma)."""
+    s = get_style("corot")
+    muted_greens = [
+        (r, g, b) for (r, g, b) in s.palette
+        if g > r and g > b and (max(r, g, b) - min(r, g, b)) < 0.30
+    ]
+    assert len(muted_greens) >= 1, (
+        "Corot palette must include at least one muted green (green dominant, chroma <0.30) — "
+        "his foliage greens are characteristically desaturated and silvery")
+
+
+def test_corot_inspiration_references_corot_silver_veil_pass():
+    """Corot inspiration must reference corot_silver_veil_pass()."""
+    s = get_style("corot")
+    assert "corot_silver_veil_pass()" in s.inspiration, (
+        "Corot inspiration must reference corot_silver_veil_pass() — "
+        "this is the defining pipeline pass for his atmospheric silvery veil")
+
+
+def test_corot_famous_works_not_empty():
+    """Corot must have at least three famous works listed."""
+    s = get_style("corot")
+    assert len(s.famous_works) >= 3, (
+        f"Corot should have at least 3 famous works; got {len(s.famous_works)}")
+
+
+def test_corot_softer_than_zurbaran():
+    """Corot edge_softness must be greater than Zurbarán's (atmospheric veil vs hard devotional void)."""
+    co = get_style("corot")
+    zu = get_style("zurbaran")
+    assert co.edge_softness > zu.edge_softness, (
+        f"Corot edge_softness ({co.edge_softness:.2f}) must be greater than "
+        f"Zurbarán's ({zu.edge_softness:.2f}) — "
+        f"atmospheric silver veil vs hard devotional precision")
+
+
+def test_corot_more_blended_than_hals():
+    """Corot wet_blend must be greater than Frans Hals (atmospheric softness vs bravura dryness)."""
+    co = get_style("corot")
+    ha = get_style("frans_hals")
+    assert co.wet_blend > ha.wet_blend, (
+        f"Corot wet_blend ({co.wet_blend:.2f}) must be greater than "
+        f"Hals ({ha.wet_blend:.2f}) — "
+        f"silvery atmospheric blending vs bravura alla prima dryness")

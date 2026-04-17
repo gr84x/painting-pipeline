@@ -196,6 +196,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_florentine_renaissance":     period == Period.FLORENTINE_RENAISSANCE,
         "is_northern_renaissance":       period == Period.NORTHERN_RENAISSANCE,
         "is_quattrocento":               period == Period.QUATTROCENTO,
+        "is_barbizon":                   period == Period.BARBIZON,
         "is_renaissance_soft":           (period == Period.RENAISSANCE
                                           and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -8821,3 +8822,145 @@ def test_sfumato_thermal_gradient_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.50, 0.48, 0.42), texture_strength=0.0)
     p.sfumato_thermal_gradient_pass(opacity=0.55)
+
+
+# ── BARBIZON period routing ────────────────────────────────────────────────────
+
+def test_barbizon_period_exists():
+    """Period.BARBIZON must exist in the Period enum."""
+    assert hasattr(Period, "BARBIZON"), (
+        "Period.BARBIZON not found in scene_schema.py — add the enum value")
+
+
+def test_barbizon_stroke_params_valid():
+    """Style(period=BARBIZON).stroke_params must return a complete dict."""
+    style  = Style(medium=Medium.OIL, period=Period.BARBIZON)
+    params = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in params, f"BARBIZON stroke_params missing key: {key}"
+
+
+def test_barbizon_high_wet_blend():
+    """BARBIZON wet_blend must be >= 0.60 — silvery atmospheric blending."""
+    p = Style(medium=Medium.OIL, period=Period.BARBIZON).stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"BARBIZON wet_blend should be >=0.60 (atmospheric blending); "
+        f"got {p['wet_blend']:.2f}")
+
+
+def test_barbizon_high_edge_softness():
+    """BARBIZON edge_softness must be >= 0.70 — dissolved misty foliage edges."""
+    p = Style(medium=Medium.OIL, period=Period.BARBIZON).stroke_params
+    assert p["edge_softness"] >= 0.70, (
+        f"BARBIZON edge_softness should be >=0.70; got {p['edge_softness']:.2f}")
+
+
+def test_barbizon_softer_than_zurbaran():
+    """BARBIZON edge_softness must exceed TENEBRIST (silver veil vs hard void)."""
+    barb = Style(medium=Medium.OIL, period=Period.BARBIZON).stroke_params
+    tenb = Style(medium=Medium.OIL, period=Period.TENEBRIST).stroke_params
+    assert barb["edge_softness"] > tenb["edge_softness"], (
+        f"BARBIZON edge_softness ({barb['edge_softness']:.2f}) must exceed "
+        f"TENEBRIST ({tenb['edge_softness']:.2f}) — "
+        f"Corot's atmospheric dissolution vs Zurbarán's hard devotional edges")
+
+
+# ── corot_silver_veil_pass() tests ─────────────────────────────────────────────
+
+def _buf(p):
+    """Return canvas as (H, W, 4) uint8 numpy array (BGRA)."""
+    import numpy as _np
+    h, w = p.h, p.w
+    return _np.frombuffer(p.canvas.surface.get_data(),
+                          dtype=_np.uint8).reshape((h, w, 4)).copy()
+
+
+def test_corot_silver_veil_pass_exists():
+    """Painter must have a corot_silver_veil_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "corot_silver_veil_pass"), (
+        "Painter class is missing corot_silver_veil_pass() — "
+        "add the method to stroke_engine.py")
+
+
+def test_corot_silver_veil_pass_runs():
+    """corot_silver_veil_pass() must run without error on a small canvas."""
+    p = _make_small_painter(40, 40)
+    p.corot_silver_veil_pass(opacity=0.50)
+
+
+def test_corot_silver_veil_pass_skipped_at_zero_opacity():
+    """corot_silver_veil_pass() must be a no-op when opacity=0."""
+    import numpy as np
+    p      = _make_small_painter(40, 40)
+    before = _buf(p).copy()
+    p.corot_silver_veil_pass(opacity=0.0)
+    after  = _buf(p)
+    assert np.array_equal(before, after), (
+        "corot_silver_veil_pass with opacity=0 must leave the canvas unchanged")
+
+
+def test_corot_silver_veil_pass_desaturates():
+    """corot_silver_veil_pass() must reduce overall colour saturation."""
+    import numpy as np
+    p = _make_small_painter(60, 60)
+    # Use tone_ground to fill with a vivid warm-red canvas (high chroma)
+    p.tone_ground((0.80, 0.12, 0.08), texture_strength=0.0)
+    before      = _buf(p).astype(np.float32) / 255.0
+    # In BGRA layout: channel 2=R, channel 1=G, channel 0=B
+    before_chroma = (before[:, :, :3].max(axis=2) - before[:, :, :3].min(axis=2)).mean()
+    p.corot_silver_veil_pass(desaturation=0.60, opacity=1.0)
+    after         = _buf(p).astype(np.float32) / 255.0
+    after_chroma  = (after[:, :, :3].max(axis=2) - after[:, :, :3].min(axis=2)).mean()
+    assert after_chroma < before_chroma, (
+        f"corot_silver_veil_pass must reduce colour chroma; "
+        f"before={before_chroma:.4f}, after={after_chroma:.4f}")
+
+
+def test_corot_silver_veil_pass_cools_palette():
+    """corot_silver_veil_pass() must reduce R relative to B on a warm canvas."""
+    import numpy as np
+    p = _make_small_painter(60, 60)
+    # Fill with warm ochre tone using tone_ground
+    p.tone_ground((0.82, 0.52, 0.14), texture_strength=0.0)
+    before    = _buf(p).astype(np.float32) / 255.0
+    # BGRA: ch2=R, ch0=B — measure R-B gap
+    before_rb = before[:, :, 2].mean() - before[:, :, 0].mean()
+    p.corot_silver_veil_pass(cool_shift=0.10, desaturation=0.0, green_silver=0.0, opacity=1.0)
+    after     = _buf(p).astype(np.float32) / 255.0
+    after_rb  = after[:, :, 2].mean() - after[:, :, 0].mean()
+    # After the cool shift, R-B gap should be smaller (R reduced and/or B increased)
+    assert after_rb < before_rb, (
+        f"corot_silver_veil_pass must cool the palette (reduce R-B gap); "
+        f"before R-B={before_rb:.4f}, after R-B={after_rb:.4f}")
+
+
+def test_corot_silver_veil_pass_with_figure_mask():
+    """With a full figure mask (all 1s = all figure), canvas must be unchanged."""
+    import numpy as np
+    p = _make_small_painter(40, 40)
+    p.tone_ground((0.18, 0.70, 0.18), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    mask   = np.ones((40, 40), dtype=np.float32)
+    p.corot_silver_veil_pass(figure_mask=mask, opacity=1.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "corot_silver_veil_pass with a full figure mask must not alter any pixel")
+
+
+def test_corot_silver_veil_pass_background_altered_no_mask():
+    """Without a figure mask, corot_silver_veil_pass() must modify a vivid-green canvas."""
+    import numpy as np
+    p = _make_small_painter(40, 40)
+    p.tone_ground((0.10, 0.78, 0.10), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.corot_silver_veil_pass(opacity=0.80)
+    after  = _canvas_bytes(p)
+    assert before != after, (
+        "corot_silver_veil_pass with no mask on a vivid-green canvas must change pixels")
+
+
+def test_corot_silver_veil_pass_large_canvas():
+    """corot_silver_veil_pass() must run without error on a 200x160 canvas."""
+    p = _make_small_painter(200, 160)
+    p.corot_silver_veil_pass(opacity=0.50)

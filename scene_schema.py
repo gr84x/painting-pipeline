@@ -234,6 +234,7 @@ class Period(Enum):
     VENETIAN_COLORIST  = auto()     # Veronese — luminous clear palette, saturated brilliant colour, cool silver highlights, monumental architectural setting
     SPANISH_BAROQUE    = auto()     # Murillo — estilo vaporoso, warm amber-rose luminosity, soft dissolved edges, tender spiritual warmth
     VENETIAN_ROCOCO    = auto()     # Tiepolo — celestial overhead light, brilliant azure sky, Naples yellow flesh, pearl-white highlights, aerial luminosity
+    BARBIZON      = auto()   # Corot — silvery atmospheric veil, soft cool greens, proto-Impressionist dissolved edges, lyrical landscape intimacy
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -861,6 +862,10 @@ class Style:
             # edge_softness=0.52: moderate — forms are clear and readable (unlike sfumato)
             #   but softened by the aerial luminosity that permeates his compositions.
             Period.VENETIAN_ROCOCO:    dict(stroke_size_face=9,  stroke_size_bg=34, wet_blend=0.68, edge_softness=0.52),
+            # BARBIZON (Corot) — silvery atmospheric: high wet_blend for soft tonal transitions,
+            # high edge_softness for the dissolved, misty quality of foliage against sky.
+            # stroke_size_bg=36: large landscape strokes for the feathery silvery foliage masses.
+            Period.BARBIZON:      dict(stroke_size_face=7,  stroke_size_bg=36, wet_blend=0.70, edge_softness=0.78),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -17127,3 +17127,114 @@ class Painter:
               f"(warm_px={warm_px}  cool_px={cool_px}  trans_px={trans_px})")
 
 
+
+    def corot_silver_veil_pass(
+        self,
+        figure_mask:       "Optional[_np.ndarray]" = None,
+        desaturation:      float = 0.38,
+        cool_shift:        float = 0.04,
+        green_silver:      float = 0.22,
+        edge_blur_radius:  int   = 5,
+        opacity:           float = 0.60,
+    ) -> None:
+        """
+        Apply Jean-Baptiste-Camille Corot's silver veil atmospheric effect.
+
+        Corot (1796-1875), Barbizon School / Proto-Impressionism, developed a
+        systematic atmospheric technique: an all-pervading tonal unity achieved by
+        desaturating all colours toward a cool silver-grey register.  His greens are
+        never richly saturated - they are muted, silvery, as if seen through morning
+        mist.  Skies and foliage occupy the same tonal register; this tonal
+        compression is the essence of his lyrical landscape vision.
+
+        Four operations:
+        1. Chromatic desaturation toward silver-grey (global)
+        2. Cool temperature shift (subtle blue lift, red reduction)
+        3. Green-to-silver conversion (foliage zones)
+        4. Atmospheric edge dissolution (soft blur blend)
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Corot silver veil pass  "
+              f"(desat={desaturation:.3f}  cool={cool_shift:.3f}  "
+              f"green_silver={green_silver:.3f}  blur_r={edge_blur_radius}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Corot silver veil pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        if figure_mask is not None:
+            bg_w = 1.0 - _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+        else:
+            bg_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        desat_w = bg_w * desaturation * opacity
+        r_out = r_out * (1.0 - desat_w) + lum * desat_w
+        g_out = g_out * (1.0 - desat_w) + lum * desat_w
+        b_out = b_out * (1.0 - desat_w) + lum * desat_w
+
+        cool_w = bg_w * cool_shift * opacity
+        r_out = _np.clip(r_out - cool_w * 0.60, 0.0, 1.0)
+        g_out = _np.clip(g_out - cool_w * 0.15, 0.0, 1.0)
+        b_out = _np.clip(b_out + cool_w * 1.00, 0.0, 1.0)
+
+        green_dom  = (g_out > r_out) & (g_out > b_out)
+        mid_lum    = (lum > 0.25) & (lum < 0.75)
+        foliage_px = green_dom & mid_lum
+        gs_w       = _np.where(foliage_px, bg_w * green_silver * opacity, 0.0).astype(_np.float32)
+        r_out = r_out * (1.0 - gs_w) + lum * gs_w
+        g_out = g_out * (1.0 - gs_w * 0.90) + lum * gs_w * 0.90
+        b_out = b_out * (1.0 - gs_w) + (lum + 0.04) * gs_w
+
+        r_out = _np.clip(r_out, 0.0, 1.0)
+        g_out = _np.clip(g_out, 0.0, 1.0)
+        b_out = _np.clip(b_out, 0.0, 1.0)
+
+        r_u8 = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        g_u8 = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        b_u8 = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+
+        def _blur_ch(arr):
+            img = _Image.fromarray(arr, mode="L")
+            return _np.asarray(
+                img.filter(_ImageFilter.GaussianBlur(radius=float(edge_blur_radius))),
+                dtype=_np.float32
+            ) / 255.0
+
+        r_blur = _blur_ch(r_u8)
+        g_blur = _blur_ch(g_u8)
+        b_blur = _blur_ch(b_u8)
+
+        blur_w = bg_w * opacity * 0.22
+        r_out = r_out * (1.0 - blur_w) + r_blur * blur_w
+        g_out = g_out * (1.0 - blur_w) + g_blur * blur_w
+        b_out = b_out * (1.0 - blur_w) + b_blur * blur_w
+
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        foliage_px_count = int(foliage_px.sum())
+        print(f"    Corot silver veil pass complete  "
+              f"(foliage_px={foliage_px_count})")
