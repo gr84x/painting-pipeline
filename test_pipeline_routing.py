@@ -9294,3 +9294,190 @@ def test_subsurface_scatter_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
     p.subsurface_scatter_pass(scatter_radius=12.0, opacity=0.60)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# patinir_weltlandschaft_pass() — session 66
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_patinir_weltlandschaft_pass_exists():
+    """Painter must have patinir_weltlandschaft_pass() after session 66."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "patinir_weltlandschaft_pass"), (
+        "patinir_weltlandschaft_pass not found on Painter")
+    assert callable(getattr(Painter, "patinir_weltlandschaft_pass"))
+
+
+def test_patinir_weltlandschaft_pass_no_error():
+    """patinir_weltlandschaft_pass() runs without error on a small canvas."""
+    p = _make_small_painter(80, 80)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.patinir_weltlandschaft_pass(opacity=0.55)
+
+
+def test_patinir_weltlandschaft_pass_zero_opacity_no_change():
+    """patinir_weltlandschaft_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.patinir_weltlandschaft_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "patinir_weltlandschaft_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_patinir_weltlandschaft_pass_cool_distance():
+    """
+    patinir_weltlandschaft_pass() must increase blue in the far distance
+    (top of canvas, above horizon_far).  Use a wide, tall canvas so the
+    far zone contains many pixels; verify mean B rises in that zone.
+    """
+    p = _make_small_painter(80, 120)
+    # Ground with a warm tone so initial B is lower than R
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+
+    # Sample the far-distance zone before (top 20% of canvas)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((120, 80, 4)).copy()
+    b_before = buf_before[:24, :, 0].astype(float).mean()   # BGRA → B channel
+
+    p.patinir_weltlandschaft_pass(
+        warm_foreground=0.10,
+        green_midground=0.08,
+        cool_distance=0.20,
+        horizon_near=0.55,
+        horizon_far=0.72,
+        transition_blur=6.0,
+        opacity=0.90,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((120, 80, 4)).copy()
+    b_after = buf_after[:24, :, 0].astype(float).mean()
+
+    assert b_after > b_before, (
+        f"patinir_weltlandschaft_pass() must push blue up in far distance; "
+        f"B before={b_before:.1f}  after={b_after:.1f}")
+
+
+def test_patinir_weltlandschaft_pass_pixels_in_range():
+    """patinir_weltlandschaft_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.patinir_weltlandschaft_pass(
+        warm_foreground=0.20,
+        cool_distance=0.20,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# warm_cool_form_duality_pass() — session 66 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_warm_cool_form_duality_pass_exists():
+    """Painter must have warm_cool_form_duality_pass() after session 66."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "warm_cool_form_duality_pass"), (
+        "warm_cool_form_duality_pass not found on Painter")
+    assert callable(getattr(Painter, "warm_cool_form_duality_pass"))
+
+
+def test_warm_cool_form_duality_pass_no_error():
+    """warm_cool_form_duality_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.warm_cool_form_duality_pass(opacity=0.55)
+
+
+def test_warm_cool_form_duality_pass_zero_opacity_no_change():
+    """warm_cool_form_duality_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.warm_cool_form_duality_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "warm_cool_form_duality_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_warm_cool_form_duality_pass_warms_highlights():
+    """
+    warm_cool_form_duality_pass() must warm highlights: on a bright canvas
+    (lum > 0.68), R should increase relative to B after the pass.
+    """
+    p = _make_small_painter(80, 80)
+    # Bright neutral grey — both R and B near 0.80 initially
+    p.tone_ground((0.80, 0.80, 0.80), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((80, 80, 4)).copy()
+    r_before = buf_before[:, :, 2].astype(float).mean()
+    b_before = buf_before[:, :, 0].astype(float).mean()
+
+    p.warm_cool_form_duality_pass(
+        warm_strength=0.15,
+        cool_strength=0.10,
+        midtone=0.50,
+        transition_width=0.15,
+        blur_radius=3.0,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((80, 80, 4)).copy()
+    r_after = buf_after[:, :, 2].astype(float).mean()
+    b_after = buf_after[:, :, 0].astype(float).mean()
+
+    assert r_after > r_before, (
+        f"warm_cool_form_duality_pass() must warm highlights (R↑); "
+        f"R before={r_before:.1f}  after={r_after:.1f}")
+    assert b_after < b_before, (
+        f"warm_cool_form_duality_pass() must reduce B in highlights; "
+        f"B before={b_before:.1f}  after={b_after:.1f}")
+
+
+def test_warm_cool_form_duality_pass_cools_shadows():
+    """
+    warm_cool_form_duality_pass() must cool shadows: on a dark canvas
+    (lum < 0.32), B should increase after the pass.
+    """
+    p = _make_small_painter(80, 80)
+    # Dark neutral — shadows
+    p.tone_ground((0.20, 0.20, 0.20), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((80, 80, 4)).copy()
+    b_before = buf_before[:, :, 0].astype(float).mean()
+
+    p.warm_cool_form_duality_pass(
+        warm_strength=0.10,
+        cool_strength=0.18,
+        midtone=0.50,
+        transition_width=0.15,
+        blur_radius=3.0,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((80, 80, 4)).copy()
+    b_after = buf_after[:, :, 0].astype(float).mean()
+
+    assert b_after > b_before, (
+        f"warm_cool_form_duality_pass() must cool shadows (B↑); "
+        f"B before={b_before:.1f}  after={b_after:.1f}")
+
+
+def test_warm_cool_form_duality_pass_pixels_in_range():
+    """warm_cool_form_duality_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.warm_cool_form_duality_pass(warm_strength=0.25, cool_strength=0.25, opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

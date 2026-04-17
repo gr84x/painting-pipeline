@@ -18359,3 +18359,260 @@ class Painter:
         halo_px     = int((halo_soft > 0.05).sum())
         print(f"    Crystalline surface pass complete  "
               f"(specular_px={specular_px}  halo_px={halo_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Patinir world-landscape atmospheric recession pass (session 66)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def patinir_weltlandschaft_pass(self,
+                                    warm_foreground:  float = 0.10,
+                                    green_midground:  float = 0.08,
+                                    cool_distance:    float = 0.12,
+                                    horizon_near:     float = 0.55,
+                                    horizon_far:      float = 0.72,
+                                    transition_blur:  float = 18.0,
+                                    opacity:          float = 0.55) -> None:
+        """
+        Patinir Weltlandschaft three-zone atmospheric recession pass.
+
+        Joachim Patinir (c. 1480–1524) established the 'world landscape'
+        (Weltlandschaft) as an independent genre: vast panoramic terrain viewed
+        from a high vantage point, with systematic colour recession across three
+        distinct atmospheric zones.
+
+        Zone 1 — Foreground (below horizon_near):
+            Push toward warm sandy ochre.  Rocks and earth read as warm brown,
+            sunlit and textured.  Geological crispness: no aerial softening.
+
+        Zone 2 — Middle distance (horizon_near → horizon_far):
+            Push toward muted olive-green.  Foliage, water, and terrain shift to
+            the characteristic Patinir sage-green hue that separates foreground
+            brown from distant blue.
+
+        Zone 3 — Far distance (above horizon_far):
+            Push toward pale cool blue-grey.  The far distance dissolves into
+            sky-like aerial haze — Patinir's skies and distant mountains share
+            the same pale cerulean tint.
+
+        Transition between zones is Gaussian-blurred so the colour bands
+        dissolve into one another rather than producing hard horizontal seams.
+
+        Parameters
+        ----------
+        warm_foreground  : strength of warm ochre push in foreground zone
+        green_midground  : strength of olive-green push in middle zone
+        cool_distance    : strength of cool blue-grey push in far zone
+        horizon_near     : canvas Y fraction where foreground ends (0=top, 1=bottom)
+        horizon_far      : canvas Y fraction where middle zone ends
+        transition_blur  : Gaussian radius (px) to soften zone boundaries
+        opacity          : overall blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+        from scipy import ndimage as _ndimage
+
+        print(f"  Patinir Weltlandschaft pass "
+              f"(warm={warm_foreground:.3f}  green={green_midground:.3f}  "
+              f"cool={cool_distance:.3f}  hn={horizon_near:.2f}  "
+              f"hf={horizon_far:.2f}  blur={transition_blur:.1f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Patinir Weltlandschaft pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # Build per-pixel Y-fraction array (0=top, 1=bottom)
+        y_frac = (_np.arange(h, dtype=_np.float32) / max(h - 1, 1))[:, _np.newaxis]
+        y_frac = _np.broadcast_to(y_frac, (h, w)).copy()
+
+        # ── Zone masks (soft-edged via Gaussian blur) ─────────────────────────
+        # Foreground mask: peaks at bottom, falls off above horizon_near
+        fg_raw = _np.clip((y_frac - horizon_near) / max(1.0 - horizon_near, 1e-8),
+                          0.0, 1.0)
+        fg_img  = _Image.fromarray(
+            _np.clip(fg_raw * 255, 0, 255).astype(_np.uint8), "L")
+        fg_mask = _np.array(
+            fg_img.filter(_ImageFilter.GaussianBlur(radius=transition_blur)),
+            dtype=_np.float32) / 255.0
+
+        # Far-distance mask: peaks at top, falls off below horizon_far
+        far_raw = _np.clip((horizon_far - y_frac) / max(horizon_far, 1e-8),
+                           0.0, 1.0)
+        far_img  = _Image.fromarray(
+            _np.clip(far_raw * 255, 0, 255).astype(_np.uint8), "L")
+        far_mask = _np.array(
+            far_img.filter(_ImageFilter.GaussianBlur(radius=transition_blur)),
+            dtype=_np.float32) / 255.0
+
+        # Middle-ground mask: complement of the other two
+        mid_mask = _np.clip(1.0 - fg_mask - far_mask, 0.0, 1.0)
+
+        # ── Zone 1: Foreground warm ochre push ────────────────────────────────
+        # Warm sandy ochre: R↑ G slight↑ B↓
+        w1 = fg_mask * warm_foreground * opacity
+        r_out = _np.clip(r_out + w1 * 0.72, 0.0, 1.0)
+        g_out = _np.clip(g_out + w1 * 0.32, 0.0, 1.0)
+        b_out = _np.clip(b_out - w1 * 0.28, 0.0, 1.0)
+
+        # ── Zone 2: Middle-distance olive-green push ──────────────────────────
+        # Muted olive green: G↑ R slight↑ B slight↓
+        w2 = mid_mask * green_midground * opacity
+        r_out = _np.clip(r_out + w2 * 0.12, 0.0, 1.0)
+        g_out = _np.clip(g_out + w2 * 0.65, 0.0, 1.0)
+        b_out = _np.clip(b_out - w2 * 0.10, 0.0, 1.0)
+
+        # ── Zone 3: Far-distance cool blue-grey push ──────────────────────────
+        # Pale cool blue-grey: B↑ R↓ G slight↑
+        w3 = far_mask * cool_distance * opacity
+        r_out = _np.clip(r_out - w3 * 0.30, 0.0, 1.0)
+        g_out = _np.clip(g_out + w3 * 0.15, 0.0, 1.0)
+        b_out = _np.clip(b_out + w3 * 0.55, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        fg_px  = int((fg_mask  > 0.05).sum())
+        mid_px = int((mid_mask > 0.05).sum())
+        far_px = int((far_mask > 0.05).sum())
+        print(f"    Patinir Weltlandschaft pass complete  "
+              f"(fg_px={fg_px}  mid_px={mid_px}  far_px={far_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Warm/cool form duality pass — session 66 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def warm_cool_form_duality_pass(self,
+                                    warm_strength:      float = 0.08,
+                                    cool_strength:      float = 0.07,
+                                    midtone:            float = 0.50,
+                                    transition_width:   float = 0.18,
+                                    blur_radius:        float = 6.0,
+                                    opacity:            float = 0.55) -> None:
+        """
+        Warm-light / cool-shadow form duality pass.
+
+        The single most universal principle of traditional oil painting technique:
+        lit surfaces are warmer than shadow surfaces.  This emerges from the
+        physical reality of outdoor light — the warm yellow sun heats the lit side
+        while the cool blue sky fills the shadow — but virtually all portrait and
+        figure painters apply it indoors too as a formal device for creating the
+        sensation of rounded, three-dimensional form.
+
+        Zorn, Sargent, Velázquez, and Rembrandt all employed this principle.
+        Leonardo's warm amber glaze over the lit flesh and cooler deep-shadow
+        umbers is essentially the same idea at a larger tonal scale.
+
+        Algorithm
+        ---------
+        1. Compute per-pixel luminance.
+        2. Lit zone (lum > midtone + transition_width/2):
+             push toward warm — R↑, slight G↑, B↓.
+        3. Shadow zone (lum < midtone - transition_width/2):
+             push toward cool — R↓, B↑.
+        4. Transition zone: blend linearly between warm and cool pushes.
+        5. Apply Gaussian softening to the zone mask to avoid banding.
+
+        This pass is placed after artist-specific colour passes but before the
+        final varnish.  It acts as a tonal unifier that reinforces three-
+        dimensionality without overriding any artist-specific colour decisions.
+
+        Parameters
+        ----------
+        warm_strength    : warm push magnitude in lit zone (R+/B- scale)
+        cool_strength    : cool push magnitude in shadow zone (B+/R- scale)
+        midtone          : luminance pivot point (default 0.50)
+        transition_width : width of the cross-fade zone around midtone
+        blur_radius      : Gaussian radius (px) for mask softening
+        opacity          : overall blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Warm/cool form duality pass "
+              f"(warm={warm_strength:.3f}  cool={cool_strength:.3f}  "
+              f"mid={midtone:.2f}  tw={transition_width:.2f}  "
+              f"blur={blur_radius:.1f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Warm/cool form duality pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Lit-zone mask: ramps from 0 at midtone to 1 in bright highlights ─
+        half_tw = transition_width / 2.0
+        lit_raw = _np.clip((lum - (midtone + half_tw)) / max(half_tw, 1e-8),
+                           0.0, 1.0)
+        lit_img  = _Image.fromarray(
+            _np.clip(lit_raw * 255, 0, 255).astype(_np.uint8), "L")
+        lit_mask = _np.array(
+            lit_img.filter(_ImageFilter.GaussianBlur(radius=blur_radius)),
+            dtype=_np.float32) / 255.0
+
+        # ── Shadow-zone mask: ramps from 0 at midtone to 1 in deepest shadows ─
+        shd_raw = _np.clip(((midtone - half_tw) - lum) / max(half_tw, 1e-8),
+                           0.0, 1.0)
+        shd_img  = _Image.fromarray(
+            _np.clip(shd_raw * 255, 0, 255).astype(_np.uint8), "L")
+        shd_mask = _np.array(
+            shd_img.filter(_ImageFilter.GaussianBlur(radius=blur_radius)),
+            dtype=_np.float32) / 255.0
+
+        # ── Apply warm push in lit zone (R↑ G slight↑ B↓) ────────────────────
+        lw = lit_mask * warm_strength * opacity
+        r_out = _np.clip(r_out + lw * 0.80, 0.0, 1.0)
+        g_out = _np.clip(g_out + lw * 0.25, 0.0, 1.0)
+        b_out = _np.clip(b_out - lw * 0.35, 0.0, 1.0)
+
+        # ── Apply cool push in shadow zone (R↓ B↑) ───────────────────────────
+        sw = shd_mask * cool_strength * opacity
+        r_out = _np.clip(r_out - sw * 0.40, 0.0, 1.0)
+        b_out = _np.clip(b_out + sw * 0.55, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        lit_px = int((lit_mask > 0.05).sum())
+        shd_px = int((shd_mask > 0.05).sum())
+        print(f"    Warm/cool form duality pass complete  "
+              f"(lit_px={lit_px}  shadow_px={shd_px})")

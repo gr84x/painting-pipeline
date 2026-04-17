@@ -5550,6 +5550,57 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Joachim Patinir ────────────────────────────────────────────────────────
+    "patinir": ArtStyle(
+        artist="Joachim Patinir",
+        movement="Flemish World Landscape (Weltlandschaft)",
+        nationality="Flemish",
+        period="c. 1480–1524",
+        palette=[
+            (0.72, 0.58, 0.32),   # warm sandy ochre foreground earth
+            (0.50, 0.38, 0.22),   # mid brown warm earth / rocks
+            (0.42, 0.52, 0.32),   # muted olive green middle-distance foliage
+            (0.52, 0.58, 0.42),   # pale sage green far-middle terrain
+            (0.55, 0.62, 0.72),   # dusty cool blue far distance
+            (0.72, 0.76, 0.82),   # pale blue-grey sky and horizon haze
+            (0.22, 0.16, 0.08),   # dark warm umber shadow rock
+            (0.38, 0.52, 0.68),   # cool river-water silver-blue
+        ],
+        ground_color=(0.65, 0.55, 0.32),    # warm mid-ochre panel ground
+        stroke_size=4,
+        wet_blend=0.25,                      # relatively dry — precise gem-like detail
+        edge_softness=0.30,                  # reasonably crisp edges for geological forms
+        jitter=0.020,
+        glazing=(0.70, 0.68, 0.52),          # warm amber-gold unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Weltlandschaft ('world landscape') — panoramic imaginary terrain viewed "
+            "from a high, elevated vantage point.  The defining signature is a systematic "
+            "three-zone atmospheric recession: (1) warm brown-ochre foreground with crisp "
+            "geological rock detail; (2) muted olive-green middle distance with winding "
+            "rivers, paths, and tiny figures; (3) cool blue-grey far distance dissolving "
+            "into pale sky.  Patinir was the first Western painter to establish landscape "
+            "as an independent genre — his figures are biblical pretexts for the vista.  "
+            "Surfaces are gem-like and enamelled, painted on panel with fine brushwork."
+        ),
+        famous_works=[
+            ("Landscape with Charon Crossing the Styx", "c. 1515–1524"),
+            ("Rest on the Flight into Egypt",           "c. 1515"),
+            ("Landscape with the Baptism of Christ",    "c. 1515"),
+            ("Saint Jerome in a Rocky Landscape",       "c. 1515"),
+        ],
+        inspiration=(
+            "Apply patinir_weltlandschaft_pass() to enforce the three-zone warm→green→cool "
+            "atmospheric recession that defines Weltlandschaft painting.  The foreground is "
+            "pushed toward warm sandy ochre, the middle distance toward muted olive-green, "
+            "and the far distance toward pale cool blue-grey.  Use edge_softness=0.30 (not "
+            "sfumato — Patinir's edges are precise, not dissolved) with a low wet_blend=0.25 "
+            "to preserve the gem-like, enamel surface quality of Flemish panel painting.  "
+            "The warm amber glaze unifies across all three recession zones."
+        ),
+    ),
+
 }
 
 
