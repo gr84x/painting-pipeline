@@ -18085,3 +18085,277 @@ class Painter:
         scatter_px = int((scatter_blurred > 0.05).sum())
         print(f"    Subsurface scatter pass complete  "
               f"(scatter_px={scatter_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 65 — Alma-Tadema marble luminance pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def alma_tadema_marble_luminance_pass(
+        self,
+        marble_warm_strength: float = 0.08,
+        specular_cool_shift:  float = 0.06,
+        specular_thresh:      float = 0.86,
+        translucent_low:      float = 0.52,
+        translucent_high:     float = 0.86,
+        opacity:              float = 0.60,
+    ) -> None:
+        """
+        Apply Lawrence Alma-Tadema's characteristic marble luminance quality.
+
+        Alma-Tadema (1836–1912), Dutch-British painter of ancient Greco-Roman
+        scenes, became the foremost renderer of marble in the history of Western
+        painting.  His marble is not a grey-white inert solid: it is a translucent
+        material that absorbs light at the surface and radiates it from within,
+        simultaneously warm in the body and cool at the sharpest specular peaks.
+
+        Three mechanisms drive his marble luminosity:
+
+        1. **Warm translucent body** — marble in the mid-luminance range
+           (translucent_low–translucent_high) receives a warm cream-gold push
+           (R+ strong, G+ moderate, B-).  Pentelic and Giallo Antico marble
+           contain iron impurities that give the stone a warm cast when
+           backlit or side-lit.  This is the "glow from within" quality — the
+           opposite of the cold grey of plaster.
+
+        2. **Cool crystalline specular** — very bright pixels above
+           specular_thresh receive a slight cool shift (B+, R-).  This is
+           the direct specular reflection off the polished marble surface.
+           Polished marble acts as a near-perfect mirror for the coolest
+           component of daylight (skylight, not sunlight), so the very
+           brightest highlights are distinctly cooler than the warm marble body.
+           The contrast between warm body and cool peak creates the crystalline
+           quality that sets his marble apart from Bouguereau's ivory skin.
+
+        3. **Shadow depth** — deep shadows (lum < translucent_low * 0.5)
+           receive a slight warm ochre push.  Marble shadow is not neutral grey —
+           the warm stone body colours the shadow from within.
+
+        Parameters
+        ----------
+        marble_warm_strength : warm cream-gold push in the marble body zone
+        specular_cool_shift  : cool (B+/R-) shift in the sharpest specular peaks
+        specular_thresh      : luminance threshold above which specular cooling applies
+        translucent_low      : lower luminance of the warm-body translucency zone
+        translucent_high     : upper luminance of the warm-body zone (below specular peak)
+        opacity              : overall blend weight
+        """
+        import numpy as _np
+
+        print(f"  Alma-Tadema marble luminance pass "
+              f"(marble_warm={marble_warm_strength:.3f}  "
+              f"specular_cool={specular_cool_shift:.3f}  "
+              f"specular_thresh={specular_thresh:.2f}  "
+              f"lum=[{translucent_low:.2f},{translucent_high:.2f}]  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Alma-Tadema marble luminance pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Warm translucent marble body ───────────────────────────────────
+        # Tent mask peaking at centre of [translucent_low, translucent_high]
+        mid_c = (translucent_low + translucent_high) * 0.5
+        mid_h = (translucent_high - translucent_low) * 0.5
+        body_mask = _np.clip(
+            1.0 - _np.abs(lum - mid_c) / max(mid_h, 1e-8), 0.0, 1.0)
+
+        warm_w = body_mask * marble_warm_strength * opacity
+        r_out = _np.clip(r_out + warm_w * 0.80, 0.0, 1.0)   # cream-gold: strong R
+        g_out = _np.clip(g_out + warm_w * 0.50, 0.0, 1.0)   # moderate G
+        b_out = _np.clip(b_out - warm_w * 0.10, 0.0, 1.0)   # slight B suppression
+
+        # ── 2. Cool crystalline specular ──────────────────────────────────────
+        # Pixels above specular_thresh: direct specular from skylight — cool
+        specular_mask = _np.clip(
+            (lum - specular_thresh) / max(1.0 - specular_thresh, 1e-8), 0.0, 1.0)
+        specular_w = specular_mask * specular_cool_shift * opacity
+        r_out = _np.clip(r_out - specular_w * 0.40, 0.0, 1.0)  # R- → cooler
+        b_out = _np.clip(b_out + specular_w * 0.50, 0.0, 1.0)  # B+ → pearl-crystal
+
+        # ── 3. Shadow warm ochre depth ────────────────────────────────────────
+        shadow_thresh = translucent_low * 0.5
+        shadow_mask = _np.clip(1.0 - lum / max(shadow_thresh, 1e-8), 0.0, 1.0)
+        shadow_w = shadow_mask * (marble_warm_strength * 0.4) * opacity
+        r_out = _np.clip(r_out + shadow_w * 0.60, 0.0, 1.0)   # warm ochre
+        g_out = _np.clip(g_out + shadow_w * 0.38, 0.0, 1.0)
+        b_out = _np.clip(b_out - shadow_w * 0.08, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        specular_px = int((specular_mask > 0.05).sum())
+        body_px     = int((body_mask > 0.05).sum())
+        print(f"    Alma-Tadema marble luminance pass complete  "
+              f"(body_px={body_px}  specular_px={specular_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 65 — Artistic improvement: crystalline surface pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def crystalline_surface_pass(
+        self,
+        specular_radius:    float = 2.5,
+        specular_strength:  float = 0.12,
+        specular_thresh:    float = 0.80,
+        micro_cool_shift:   float = 0.04,
+        halo_radius:        float = 6.0,
+        halo_warmth:        float = 0.05,
+        halo_thresh:        float = 0.70,
+        opacity:            float = 0.55,
+    ) -> None:
+        """
+        Simulate specular coherence on smooth, polished surfaces.
+
+        Inspired by Lawrence Alma-Tadema's glass-like mastery of polished marble,
+        this pass applies a universal surface-quality improvement to any painted
+        image: it sharpens and concentrates the specular peaks while introducing
+        the warm halo that real materials produce around a sharp specular — the
+        zone where the surface is not quite bright enough for direct specular
+        but is close enough to receive diffuse reflected light from the bright
+        zone.
+
+        Two complementary operations:
+
+        1. **Specular peak concentration** — the very brightest pixels
+           (above specular_thresh) are enhanced with a Gaussian-sharpened
+           version of themselves.  The sharpened version is computed by
+           subtracting a blurred version from the original (unsharp mask
+           principle) and compositing the result.  A slight cool shift
+           (micro_cool_shift) is applied to the peak: polished surfaces
+           reflect the coolest component of the ambient light at their
+           sharpest specular angle — the same principle as Alma-Tadema's
+           marble peaks.
+
+        2. **Specular halo warmth** — pixels in a surrounding zone
+           (halo_thresh–specular_thresh) receive a slight warm push.  This
+           is the diffuse component of the specular lobe — the zone adjacent
+           to the mirror-like peak where light is scattered in a narrow cone.
+           On warm materials (marble, ivory, skin), this halo has a warm
+           cream-gold cast.  Adding this halo increases the perceptual "depth"
+           of the specular peak by providing a warm-to-cool gradient: warm
+           halo → neutral midtone → cool peak.
+
+        This pass is universally applicable and should be placed near the end
+        of the pipeline, after artist-specific skin and material passes and
+        before the final varnish.
+
+        Parameters
+        ----------
+        specular_radius   : Gaussian radius for the unsharp mask (pixels)
+        specular_strength : peak enhancement strength
+        specular_thresh   : luminance threshold for the specular zone
+        micro_cool_shift  : cool (B+/R-) shift applied to the specular peak
+        halo_radius       : Gaussian radius for the halo zone blending
+        halo_warmth       : warm push in the halo zone (halo_thresh–specular_thresh)
+        halo_thresh       : lower luminance boundary of the halo zone
+        opacity           : overall blend weight
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Crystalline surface pass "
+              f"(spec_r={specular_radius:.1f}  strength={specular_strength:.3f}  "
+              f"thresh={specular_thresh:.2f}  cool={micro_cool_shift:.3f}  "
+              f"halo_r={halo_radius:.1f}  halo_warm={halo_warmth:.3f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Crystalline surface pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 1. Specular peak concentration (unsharp mask on bright zone) ──────
+        # Build a blurred luminance map to identify the broad bright region
+        lum_img = _Image.fromarray(
+            _np.clip(lum * 255.0, 0, 255).astype(_np.uint8), "L")
+        lum_blur = _np.array(
+            lum_img.filter(_ImageFilter.GaussianBlur(radius=specular_radius)),
+            dtype=_np.float32) / 255.0
+
+        # Unsharp mask: detail = original - blurred
+        lum_detail = lum - lum_blur
+
+        # Specular zone mask — only pixels above threshold
+        specular_mask = _np.clip(
+            (lum - specular_thresh) / max(1.0 - specular_thresh, 1e-8), 0.0, 1.0)
+
+        # Apply concentrated detail push to all channels
+        spec_w = specular_mask * specular_strength * opacity
+        detail_lift = lum_detail * spec_w
+        r_out = _np.clip(r_out + detail_lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + detail_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + detail_lift, 0.0, 1.0)
+
+        # Cool shift on the sharpened peaks
+        cool_w = specular_mask * micro_cool_shift * opacity
+        r_out = _np.clip(r_out - cool_w * 0.35, 0.0, 1.0)
+        b_out = _np.clip(b_out + cool_w * 0.45, 0.0, 1.0)
+
+        # ── 2. Specular halo warmth ────────────────────────────────────────────
+        # Halo zone: halo_thresh ≤ lum < specular_thresh
+        halo_mask = _np.clip(
+            (lum - halo_thresh) / max(specular_thresh - halo_thresh, 1e-8),
+            0.0, 1.0) * (1.0 - specular_mask)
+
+        # Blur the halo mask slightly for a smooth transition
+        halo_img  = _Image.fromarray(
+            _np.clip(halo_mask * 255.0, 0, 255).astype(_np.uint8), "L")
+        halo_soft = _np.array(
+            halo_img.filter(_ImageFilter.GaussianBlur(radius=halo_radius)),
+            dtype=_np.float32) / 255.0
+
+        halo_w = halo_soft * halo_warmth * opacity
+        r_out = _np.clip(r_out + halo_w * 0.75, 0.0, 1.0)   # warm cream-gold
+        g_out = _np.clip(g_out + halo_w * 0.48, 0.0, 1.0)
+        b_out = _np.clip(b_out - halo_w * 0.06, 0.0, 1.0)
+
+        # ── Write back (BGRA) ─────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        specular_px = int((specular_mask > 0.05).sum())
+        halo_px     = int((halo_soft > 0.05).sum())
+        print(f"    Crystalline surface pass complete  "
+              f"(specular_px={specular_px}  halo_px={halo_px})")
