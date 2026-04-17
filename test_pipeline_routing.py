@@ -9909,3 +9909,141 @@ def test_highlight_bloom_pass_s70_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+# ──────────────────────────────────────────────────────────────────────────────
+# correggio_golden_tenderness_pass() — session 71 artist pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_correggio_golden_tenderness_pass_exists():
+    """Painter must have correggio_golden_tenderness_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "correggio_golden_tenderness_pass"), (
+        "correggio_golden_tenderness_pass not found on Painter")
+    assert callable(getattr(Painter, "correggio_golden_tenderness_pass"))
+
+
+def test_correggio_golden_tenderness_pass_no_error_default():
+    """correggio_golden_tenderness_pass() runs without error with default parameters."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    p.correggio_golden_tenderness_pass()
+
+
+def test_correggio_golden_tenderness_pass_zero_opacity_is_noop():
+    """correggio_golden_tenderness_pass() at opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.correggio_golden_tenderness_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "correggio_golden_tenderness_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_correggio_golden_tenderness_pass_modifies_canvas():
+    """correggio_golden_tenderness_pass() with positive opacity must change at least one pixel."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    before = _canvas_bytes(p)
+    p.correggio_golden_tenderness_pass(gold_lift=0.08, opacity=0.80)
+    after = _canvas_bytes(p)
+    assert before != after, (
+        "correggio_golden_tenderness_pass() should modify at least one pixel when opacity>0")
+
+
+def test_correggio_golden_tenderness_pass_pixels_in_range():
+    """correggio_golden_tenderness_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.correggio_golden_tenderness_pass(
+        midtone_low=0.25,
+        midtone_high=0.80,
+        gold_lift=0.10,
+        amber_shadow=0.08,
+        glow_strength=0.08,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# luminous_haze_pass() — session 71 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_luminous_haze_pass_exists():
+    """Painter must have luminous_haze_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "luminous_haze_pass"), (
+        "luminous_haze_pass not found on Painter")
+    assert callable(getattr(Painter, "luminous_haze_pass"))
+
+
+def test_luminous_haze_pass_no_error_default():
+    """luminous_haze_pass() runs without error with default parameters."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    p.luminous_haze_pass()
+
+
+def test_luminous_haze_pass_zero_opacity_is_noop():
+    """luminous_haze_pass() at opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.luminous_haze_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "luminous_haze_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_luminous_haze_pass_modifies_canvas():
+    """luminous_haze_pass() with positive opacity must change at least one pixel."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    before = _canvas_bytes(p)
+    p.luminous_haze_pass(haze_warmth=0.06, haze_opacity=0.20, opacity=0.80)
+    after = _canvas_bytes(p)
+    assert before != after, (
+        "luminous_haze_pass() should modify at least one pixel when opacity>0")
+
+
+def test_luminous_haze_pass_with_custom_haze_color():
+    """luminous_haze_pass() with a custom haze_color runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.64, 0.54, 0.36), texture_strength=0.0)
+    p.luminous_haze_pass(
+        haze_warmth=0.04,
+        haze_opacity=0.15,
+        haze_color=(0.90, 0.78, 0.52),
+        soften_radius=3.0,
+        contrast_damp=0.05,
+        shadow_lift=0.018,
+        opacity=0.50,
+    )
+
+
+def test_luminous_haze_pass_pixels_in_range():
+    """luminous_haze_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.20, 0.16, 0.12), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.luminous_haze_pass(
+        haze_warmth=0.08,
+        haze_opacity=0.30,
+        soften_radius=2.0,
+        contrast_damp=0.10,
+        shadow_lift=0.03,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

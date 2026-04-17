@@ -5845,6 +5845,71 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "correggio": ArtStyle(
+        artist="Antonio Allegri da Correggio",
+        movement="Parma Renaissance / Proto-Baroque",
+        nationality="Italian",
+        period="1489–1534",
+        palette=[
+            (0.96, 0.88, 0.70),   # warm golden ivory — the lit highlight, honeyed and radiant
+            (0.90, 0.78, 0.58),   # warm amber flesh — characteristic midtone, suffused with gold
+            (0.82, 0.66, 0.46),   # golden ochre — upper shadow transition, warm and glowing
+            (0.68, 0.52, 0.36),   # amber-brown shadow — deeper midtone, still warm, no cool lean
+            (0.52, 0.40, 0.28),   # warm umber — shadow side, rich, honeyed, never cold
+            (0.36, 0.28, 0.20),   # deep warm brown — deepest shadows, warm ground showing through
+            (0.60, 0.72, 0.86),   # soft heavenly blue — drapery and sky, pale and dreaming
+            (0.76, 0.62, 0.36),   # golden amber glaze — the unifying warm varnish tone
+        ],
+        ground_color=(0.64, 0.54, 0.36),    # warm amber-ochre ground — Correggesque imprimatura
+        stroke_size=5,
+        wet_blend=0.70,                      # very high — the signature melting, seamless transitions
+        edge_softness=0.72,                  # very soft — proto-sfumato, almost no hard edges
+        jitter=0.012,
+        glazing=(0.86, 0.74, 0.46),          # warm golden honey glaze — the Correggesque unifier
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Correggio is the supreme master of golden, tender luminosity in the Italian "
+            "Renaissance.  Working in Parma, largely independent of the Roman and Florentine "
+            "academic traditions, he developed a technique of extraordinary softness — a proto-"
+            "Baroque melting of form into light that anticipates Rubens, Reni, and the entire "
+            "Flemish Baroque by a century.  His defining quality is 'Correggesque' tenderness: "
+            "figures that appear suffused with warm, amber-gold light from within, their forms "
+            "dissolving into each other without hard transitions.  Unlike Leonardo's cool, smoky "
+            "sfumato, Correggio's is warm and honeyed — the shadows are amber-brown, never grey, "
+            "and the highlights are warm ivory rather than cool pearl.  He painted the Assumption "
+            "of the Virgin in Parma Cathedral (1526–30) lying on his back on scaffolding, creating "
+            "a dizzying illusionistic vortex of foreshortened figures spiralling up into heavenly "
+            "light — the first great illusionistic ceiling fresco of the Baroque tradition.  His "
+            "Jupiter and Io (c. 1531) demonstrates the Correggesque ideal at its most intense: "
+            "Io's flesh, emerging from a warm dark cloud, is rendered with a melting, amber-gold "
+            "luminosity that makes the body appear to glow.  His figures smile — the 'Correggesque "
+            "smile' is a warm, sensuous upturn of the lips quite unlike the enigmatic ambiguity of "
+            "Leonardo or the spiritual detachment of Raphael.  Technically, he built up his flesh "
+            "tones with warm amber glazes over an ochre imprimatura, never allowing the shadows to "
+            "cool, creating an overall golden harmony that suffuses the entire canvas."
+        ),
+        famous_works=[
+            ("Assumption of the Virgin",     "1526–1530"),
+            ("Jupiter and Io",               "c. 1531"),
+            ("Ganymede",                     "c. 1531"),
+            ("Leda and the Swan",            "c. 1532"),
+            ("The Holy Night",               "c. 1530"),
+            ("Madonna of Saint Jerome",      "1528"),
+            ("Adoration of the Magi",        "1516–1518"),
+        ],
+        inspiration=(
+            "Apply correggio_golden_tenderness_pass() to push the portrait toward Correggio's "
+            "characteristic warm-gold luminosity: shift the midtones toward amber-gold, warm the "
+            "shadows toward rich umber (resisting any cool shift), and add a soft warm glow to "
+            "the face and upper figure.  Follow with luminous_haze_pass() — the session 71 "
+            "artistic improvement — which simulates the aged golden varnish and atmospheric warmth "
+            "of old master oil paintings, adding a subtle global honey-tone haze that unifies the "
+            "palette and softens the overall tonal contrast.  Use wet_blend=0.70 and "
+            "edge_softness=0.72 for the Correggesque melting quality."
+        ),
+    ),
+
 }
 
 
