@@ -8964,3 +8964,184 @@ def test_corot_silver_veil_pass_large_canvas():
     """corot_silver_veil_pass() must run without error on a 200x160 canvas."""
     p = _make_small_painter(200, 160)
     p.corot_silver_veil_pass(opacity=0.50)
+
+
+# ── Session 62: parmigianino_serpentine_elegance_pass ─────────────────────────
+
+def test_parmigianino_serpentine_elegance_pass_exists():
+    """Painter must have parmigianino_serpentine_elegance_pass() method (session 62)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "parmigianino_serpentine_elegance_pass"), (
+        "Painter missing parmigianino_serpentine_elegance_pass() — add it to stroke_engine.py")
+
+
+def test_parmigianino_serpentine_elegance_pass_cools_midlights():
+    """parmigianino_serpentine_elegance_pass() must increase blue in midlight zones."""
+    import numpy as _np
+    p = _make_small_painter(80, 80)
+    # Ground a warm midlight tone — lum ~0.65, warm (R > B)
+    p.tone_ground((0.75, 0.65, 0.50), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    b_before = buf_before[:, :, 0].astype(float).mean()
+
+    p.parmigianino_serpentine_elegance_pass(
+        porcelain_strength=0.20, lavender_shadow=0.0, silver_highlight=0.0, opacity=1.0
+    )
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    b_after = buf_after[:, :, 0].astype(float).mean()   # Cairo BGRA: channel 0 = B
+
+    assert b_after > b_before, (
+        f"parmigianino_serpentine_elegance_pass() must cool midlight zones (raise B); "
+        f"B before={b_before:.1f} after={b_after:.1f}")
+
+
+def test_parmigianino_serpentine_elegance_pass_cools_shadows():
+    """parmigianino_serpentine_elegance_pass() must raise blue in dark shadow zones."""
+    import numpy as _np
+    p = _make_small_painter(80, 80)
+    # Ground a dark warm tone (lum ~0.25, warm shadow)
+    p.tone_ground((0.35, 0.28, 0.18), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    b_before = buf_before[:, :, 0].astype(float).mean()
+
+    p.parmigianino_serpentine_elegance_pass(
+        porcelain_strength=0.0, lavender_shadow=0.20, silver_highlight=0.0, opacity=1.0
+    )
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((80, 80, 4)).copy()
+    b_after = buf_after[:, :, 0].astype(float).mean()
+
+    assert b_after > b_before, (
+        f"parmigianino_serpentine_elegance_pass() must cool shadow zones (raise B); "
+        f"B before={b_before:.1f} after={b_after:.1f}")
+
+
+def test_parmigianino_serpentine_elegance_pass_zero_opacity_no_change():
+    """parmigianino_serpentine_elegance_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(60, 60)
+    p.tone_ground((0.70, 0.60, 0.45), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.parmigianino_serpentine_elegance_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "parmigianino_serpentine_elegance_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_parmigianino_serpentine_elegance_pass_figure_mask_gates_effect():
+    """parmigianino_serpentine_elegance_pass() with zero figure_mask must not change canvas."""
+    import numpy as _np
+    p = _make_small_painter(60, 60)
+    p.tone_ground((0.70, 0.60, 0.45), texture_strength=0.0)
+    zero_mask = _np.zeros((60, 60), dtype=_np.float32)
+    before = _canvas_bytes(p)
+    p.parmigianino_serpentine_elegance_pass(
+        figure_mask=zero_mask,
+        porcelain_strength=0.20, lavender_shadow=0.20, silver_highlight=0.20,
+        opacity=1.0
+    )
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "parmigianino_serpentine_elegance_pass() with zero figure_mask must not "
+        "change canvas — all operations are gated to the figure zone")
+
+
+def test_parmigianino_serpentine_elegance_pass_large_canvas():
+    """parmigianino_serpentine_elegance_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.72, 0.65, 0.55), texture_strength=0.0)
+    p.parmigianino_serpentine_elegance_pass(opacity=0.72)
+
+
+# ── Session 62: translucent_gauze_pass (artistic improvement) ────────────────
+
+def test_translucent_gauze_pass_exists():
+    """Painter must have translucent_gauze_pass() method (session 62)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "translucent_gauze_pass"), (
+        "Painter missing translucent_gauze_pass() — add it to stroke_engine.py")
+
+
+def test_translucent_gauze_pass_brightens_zone():
+    """translucent_gauze_pass() must lighten the gauze zone (blend toward near-white scatter)."""
+    import numpy as _np
+    p = _make_small_painter(100, 100)
+    # Dark ground — the gauze blend toward near-white should raise all channels
+    p.tone_ground((0.30, 0.25, 0.20), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((100, 100, 4)).copy()
+    # Measure mean brightness in the zone centre (rows 50–70, zone 0.45→0.65)
+    r_before = buf_before[50:70, :, 2].astype(float).mean()
+
+    p.translucent_gauze_pass(zone_top=0.45, zone_bottom=0.65, opacity=0.50, cool_shift=0.0)
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((100, 100, 4)).copy()
+    r_after = buf_after[50:70, :, 2].astype(float).mean()
+
+    assert r_after > r_before, (
+        f"translucent_gauze_pass() must lighten the gauze zone (blend toward near-white); "
+        f"R before={r_before:.1f} after={r_after:.1f}")
+
+
+def test_translucent_gauze_pass_outside_zone_unchanged():
+    """translucent_gauze_pass() must not change pixels well outside the gauze zone."""
+    import numpy as _np
+    p = _make_small_painter(100, 100)
+    p.tone_ground((0.50, 0.45, 0.38), texture_strength=0.0)
+
+    buf_before = _np.frombuffer(p.canvas.surface.get_data(),
+                                dtype=_np.uint8).reshape((100, 100, 4)).copy()
+    # Top 10 rows are well above zone_top=0.45
+    top_before = buf_before[:10, :, :3].copy()
+
+    p.translucent_gauze_pass(zone_top=0.45, zone_bottom=0.65, opacity=0.50)
+
+    buf_after = _np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=_np.uint8).reshape((100, 100, 4)).copy()
+    top_after = buf_after[:10, :, :3]
+
+    assert _np.array_equal(top_before, top_after), (
+        "translucent_gauze_pass() must not modify pixels well above zone_top — "
+        "the gauze is confined to the specified zone")
+
+
+def test_translucent_gauze_pass_zero_opacity_no_change():
+    """translucent_gauze_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(60, 60)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.translucent_gauze_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "translucent_gauze_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_translucent_gauze_pass_figure_mask_gates_effect():
+    """translucent_gauze_pass() with zero figure_mask must not change canvas."""
+    import numpy as _np
+    p = _make_small_painter(80, 80)
+    p.tone_ground((0.30, 0.25, 0.20), texture_strength=0.0)
+    zero_mask = _np.zeros((80, 80), dtype=_np.float32)
+    before = _canvas_bytes(p)
+    p.translucent_gauze_pass(
+        figure_mask=zero_mask, zone_top=0.30, zone_bottom=0.70, opacity=0.60
+    )
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "translucent_gauze_pass() with zero figure_mask must not change canvas — "
+        "the gauze is gated to the figure zone")
+
+
+def test_translucent_gauze_pass_large_canvas():
+    """translucent_gauze_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.40, 0.35, 0.28), texture_strength=0.0)
+    p.translucent_gauze_pass(opacity=0.35)

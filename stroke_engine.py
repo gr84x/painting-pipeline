@@ -17126,6 +17126,356 @@ class Painter:
         print(f"    Sfumato thermal gradient pass complete  "
               f"(warm_px={warm_px}  cool_px={cool_px}  trans_px={trans_px})")
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 62 — new artist: Parmigianino / parmigianino_serpentine_elegance_pass
+    # Session 62 — artistic improvement: translucent_gauze_pass
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def parmigianino_serpentine_elegance_pass(
+        self,
+        figure_mask:        "Optional[_np.ndarray]" = None,
+        porcelain_strength: float = 0.14,
+        lavender_shadow:    float = 0.12,
+        silver_highlight:   float = 0.10,
+        opacity:            float = 0.72,
+    ) -> None:
+        """
+        Apply Parmigianino's cool porcelain refinement to the canvas.
+
+        Parmigianino (1503–1540) — Parma / Florentine Mannerism — achieved a
+        distinctive aesthetic of cool, translucent elegance that stands apart from
+        every other Italian tradition.  Where the Venetians built warm amber
+        subsurface luminosity (Titian's 'colorito'), and Leonardo built warm
+        atmospheric sfumato, Parmigianino built COOL REFINEMENT: flesh tones that
+        read as translucent porcelain or alabaster, shadows that shift toward
+        silver-lavender rather than warm umber, and highlights polished to cool
+        silver-white rather than warm gold.
+
+        This pass applies three operations that together produce the porcelain
+        elegance of his mature portrait style:
+
+        1. **Porcelain midlight push** (lum 0.52–0.82, 'the face zone'):
+           Midlight zones are shifted toward cool ivory — raising R and G slightly
+           while adding a disproportionately larger B raise.  This cools the flesh
+           tones away from warm amber and toward translucent cool porcelain.
+           The effect is strongest in the upper midlight range (lum ~0.70) and
+           fades toward both the highlights (too bright for colour shift) and the
+           shadow zone (handled separately).
+
+        2. **Shadow lavender-silver cool** (lum < 0.42):
+           Deep and mid-shadow zones receive a cool lavender-silver push: B raised,
+           G raised slightly, R reduced slightly.  This converts the expected warm
+           umber/brown of oil shadows into the silvery grey-lavender characteristic
+           of Parmigianino's drapery and face shadows — as seen in 'Schiava Turca'
+           (c.1530–32) where face shadows read as cool lavender-grey, not warm brown.
+
+        3. **Highlight silver polish** (lum > 0.82):
+           The brightest pixels receive a cool silver-white push — B raised modestly,
+           R and G raised less — producing a cool polished highlight quality.  This
+           is the opposite of the warm ivory pearl used in Murillo and Rubens: no red
+           warmth is added.  The result is the almost metallic highlight quality
+           visible in 'Self-Portrait in a Convex Mirror' where the back of the hand
+           catches the light as if glazed ceramic.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 (H, W) in [0, 1].  When provided, all operations are gated to
+            the figure zone.  Background is left unchanged.
+        porcelain_strength : float
+            Magnitude of the cool ivory midlight push.  0.10–0.18 gives a perceptible
+            but refined porcelain quality; above 0.22 the effect becomes clinical.
+        lavender_shadow : float
+            Strength of the cool lavender push into shadow zones.  0.08–0.15 produces
+            the characteristic Parma shadow coolness; above 0.20 reads as unnatural.
+        silver_highlight : float
+            Strength of the cool silver polish on the highest lights.  0.06–0.14 adds
+            metallic sheen without over-brightening.
+        opacity : float
+            Global blend factor.  Default 0.72.
+
+        Notes
+        -----
+        Apply AFTER build_form() and BEFORE glaze().
+
+        Pairs naturally with:
+        - sfumato_veil_pass(warmth=0.10, chroma_dampen=0.20) — the cool sfumato
+          reinforces the porcelain quality without introducing warm amber haze.
+        - glaze(color=(0.92, 0.88, 0.84), opacity=0.05) — the pale cool ivory
+          final glaze ties the tones into the characteristic 'enamel' surface.
+
+        Does NOT pair well with:
+        - murillo_vapor_pass() — Murillo's warm amber bloom directly opposes
+          the cool ivory characteristic of Parmigianino's flesh rendering.
+        - tiepolo_celestial_light_pass() — Tiepolo's warm Naples-yellow sky push
+          would overwhelm the cool silvery refinement.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Parmigianino serpentine elegance pass  "
+              f"(porcelain={porcelain_strength:.3f}  lavender={lavender_shadow:.3f}  "
+              f"silver={silver_highlight:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Parmigianino serpentine elegance pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo surface: BGRA channel order
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # Spatial gating
+        if figure_mask is not None:
+            fig_w = _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+        else:
+            fig_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Operation 1: Porcelain midlight push ─────────────────────────────
+        # Target zone: lum 0.52–0.82  (the midlight to upper-midlight face zone)
+        # Bell-shaped weight: peaks at lum ~0.67, falls to 0 at each boundary.
+        mid_lo, mid_hi = 0.52, 0.82
+        in_mid = _np.clip((lum - mid_lo) / (mid_hi - mid_lo + 1e-8), 0.0, 1.0)
+        # Symmetrical bell: multiply by its mirror to create a peak at centre
+        in_mid_bell = in_mid * (1.0 - in_mid) * 4.0  # peaks at 1.0 at midpoint
+        porcelain_w = in_mid_bell * fig_w * porcelain_strength * opacity
+        # Cool ivory: R+moderate, G+moderate, B+strong  (net: shift toward cool white)
+        r_out = _np.clip(r_out + porcelain_w * 0.60, 0.0, 1.0)
+        g_out = _np.clip(g_out + porcelain_w * 0.70, 0.0, 1.0)
+        b_out = _np.clip(b_out + porcelain_w * 1.00, 0.0, 1.0)
+
+        # ── Operation 2: Shadow lavender-silver cool ─────────────────────────
+        # Target zone: lum < 0.42  (mid-shadow to deep shadow)
+        shadow_thresh = 0.42
+        shadow_w = _np.clip(1.0 - lum / (shadow_thresh + 1e-8), 0.0, 1.0)
+        shadow_w = shadow_w * fig_w * lavender_shadow * opacity
+        # Lavender-silver: B raised most, G slight raise, R slight reduction
+        r_out = _np.clip(r_out - shadow_w * 0.30, 0.0, 1.0)
+        g_out = _np.clip(g_out + shadow_w * 0.20, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_w * 1.00, 0.0, 1.0)
+
+        # ── Operation 3: Highlight silver polish ─────────────────────────────
+        # Target zone: lum > 0.82
+        hi_thresh = 0.82
+        hi_w = _np.clip((lum - hi_thresh) / (1.0 - hi_thresh + 1e-8), 0.0, 1.0)
+        hi_w = hi_w * fig_w * silver_highlight * opacity
+        # Cool silver: B raised, G raised moderately, R raised least
+        r_out = _np.clip(r_out + hi_w * 0.50, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_w * 0.75, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_w * 1.00, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        mid_px    = int((in_mid_bell * fig_w > 0.05).sum())
+        shadow_px = int((shadow_w > 0.005).sum())
+        hi_px     = int((hi_w > 0.005).sum())
+        print(f"    Parmigianino serpentine elegance pass complete  "
+              f"(midlight_px={mid_px}  shadow_px={shadow_px}  highlight_px={hi_px})")
+
+    def translucent_gauze_pass(
+        self,
+        figure_mask:    "Optional[_np.ndarray]" = None,
+        zone_top:       float = 0.42,
+        zone_bottom:    float = 0.72,
+        opacity:        float = 0.35,
+        cool_shift:     float = 0.06,
+        weave_strength: float = 0.018,
+        blur_radius:    float = 4.0,
+    ) -> None:
+        """
+        Simulate semi-transparent gauze or velo fabric over a defined canvas zone.
+
+        The *velo* — a thin, semi-transparent gauze wrap — appears in Renaissance
+        and Mannerist portraiture as a device to add a soft, airy layer between the
+        viewer and the sitter's bodice or shoulders.  Notable examples include:
+
+        - **Mona Lisa** (Leonardo, c.1503–19) — the fine gauze at the décolletage
+          creates a soft edge between the dark dress and the bare neck, adding a
+          layer of translucent material that softens the neckline.
+        - **Parmigianino's 'Antea'** (c.1531–35) — a translucent shoulder wrap
+          that drifts across the figure, simultaneously revealing and concealing
+          the dark dress beneath.
+        - **Raphael's 'La Velata'** (c.1515, Pitti Palace) — a tour de force of
+          painted textile: a translucent veil that covers the sitter's torso,
+          showing the fabric layers beneath through a thin shimmer of gauze.
+
+        Technically, gauze transmits light with a slight scattering — the colours
+        beneath become visible but are slightly washed-out and cooled by the thin
+        white fibres.  This pass simulates that optical effect using three operations:
+
+        1. **Translucent blend**: Within the gauze zone (zone_top → zone_bottom,
+           expressed as fractions of canvas height), the canvas values are blended
+           toward a near-white, slightly cool scattering tone — simulating the white
+           woven fibres of the gauze absorbing and scattering the underlying colours.
+           The blend weight is soft (Gaussian-weighted within the zone) so the gauze
+           has natural vignette edges rather than a sharp mask boundary.
+
+        2. **Cool temperature shift**: The scattering fibres of white gauze introduce
+           a very slight cooling of the transmitted light (cool_shift).  This is the
+           optical equivalent of seeing warm flesh through a white diffusing layer —
+           the result is slightly cooler, as if a thin cool mist has been interposed.
+
+        3. **Woven texture** (optional, weave_strength > 0): A very subtle horizontal
+           sinusoidal pattern at pixel frequency is added at the gauze zone to suggest
+           the warp/weft weave of fine cloth without reading as visible lines at normal
+           viewing distance.  The frequency is set to approximate the weave of a fine
+           linen gauze at approximately 1:10 canvas scale.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 (H, W) in [0, 1].  When provided, the gauze effect is confined
+            to the figure zone.  Background is unaffected.
+        zone_top : float
+            Top edge of the gauze zone as fraction of canvas height (0 = top, 1 = bottom).
+            Default 0.42 — approximates the neckline of a half-length portrait.
+        zone_bottom : float
+            Bottom edge of the gauze zone.  Default 0.72 — covers the upper torso.
+        opacity : float
+            Strength of the translucent blend toward the gauze scattering tone.
+            0.20 = barely perceptible veil; 0.50 = clearly visible gauze.
+            Default 0.35 — a visible but delicate translucency.
+        cool_shift : float
+            Magnitude of the cool temperature shift in the gauze zone.
+            Reduces R slightly, raises B slightly.  Default 0.06.
+        weave_strength : float
+            Amplitude of the woven texture pattern.  0 = no texture.  Default 0.018
+            — a barely-perceptible structural hint at the weave.
+        blur_radius : float
+            Gaussian radius (pixels) for softening the zone mask edges, ensuring
+            natural vignette transitions rather than hard-cut boundaries.
+            Default 4.0.
+
+        Notes
+        -----
+        Apply AFTER build_form() and sfumato passes, and BEFORE final glaze().
+        The gauze effect should be one of the last surface treatments.
+
+        Pairs naturally with:
+        - sfumato_veil_pass() — adds atmospheric sfumato at the edges of the
+          gauze zone, further dissolving the boundary between gauze and skin.
+        - parmigianino_serpentine_elegance_pass() — Parmigianino painted the most
+          famous gauze wraps in Italian Mannerism; this pass directly supports his
+          aesthetic.
+        - bronzino_enamel_skin_pass() — Bronzino's cool enamel skin pairs naturally
+          with gauze, which similarly suppresses warm tones.
+
+        Does NOT pair with:
+        - impasto_texture_pass() on the gauze zone — impasto implies thick pigment,
+          which is physically incompatible with transparent fabric.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Translucent gauze pass  "
+              f"(zone={zone_top:.2f}→{zone_bottom:.2f}  opacity={opacity:.2f}  "
+              f"cool={cool_shift:.3f}  weave={weave_strength:.3f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Translucent gauze pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build soft zone mask ──────────────────────────────────────────────
+        # Row fractions 0 (top) → 1 (bottom)
+        row_frac = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, _np.newaxis]  # (H, 1)
+
+        # Tent function: ramps up from zone_top, ramps down at zone_bottom
+        rise = _np.clip((row_frac - zone_top)   / (max(zone_bottom - zone_top, 1e-8) * 0.25), 0.0, 1.0)
+        fall = _np.clip((zone_bottom - row_frac) / (max(zone_bottom - zone_top, 1e-8) * 0.25), 0.0, 1.0)
+        zone_raw = _np.minimum(rise, fall)                      # (H, 1) tent peak = 1.0 at centre
+
+        # Broadcast to (H, W) and apply Gaussian softening at zone edges
+        zone_2d = _np.broadcast_to(zone_raw, (h, w)).copy().astype(_np.float32)  # (H, W)
+        zone_img   = _Image.fromarray(_np.clip(zone_2d * 255, 0, 255).astype(_np.uint8), mode="L")
+        zone_blurred = _Image.fromarray(
+            _np.asarray(zone_img.filter(_ImageFilter.GaussianBlur(radius=float(blur_radius))),
+                        dtype=_np.uint8), mode="L")
+        zone_mask = _np.asarray(zone_blurred, dtype=_np.float32) / 255.0  # (H, W)
+
+        # Apply figure mask gating
+        if figure_mask is not None:
+            zone_mask = zone_mask * _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Operation 1: Translucent scatter blend ────────────────────────────
+        # Gauze scattering tone: near-white with very slight warm off-white cast
+        # (white linen woven threads reflecting diffused interior light)
+        scatter_r, scatter_g, scatter_b = 0.96, 0.94, 0.92
+        blend_w = zone_mask * opacity
+        r_out = r_out * (1.0 - blend_w) + scatter_r * blend_w
+        g_out = g_out * (1.0 - blend_w) + scatter_g * blend_w
+        b_out = b_out * (1.0 - blend_w) + scatter_b * blend_w
+
+        # ── Operation 2: Cool temperature shift ──────────────────────────────
+        # White gauze scatters more at shorter wavelengths — introduces a very
+        # slight blue-shift (cool) relative to the warm skin underneath.
+        cool_w = zone_mask * cool_shift
+        r_out = _np.clip(r_out - cool_w * 0.60, 0.0, 1.0)
+        g_out = _np.clip(g_out - cool_w * 0.10, 0.0, 1.0)
+        b_out = _np.clip(b_out + cool_w * 0.80, 0.0, 1.0)
+
+        # ── Operation 3: Woven texture ────────────────────────────────────────
+        # Very fine sinusoidal modulation at warp/weft frequency — simulates
+        # the rhythmic weave of fine linen.  Amplitude is tiny (weave_strength).
+        if weave_strength > 0.0:
+            # Horizontal warp threads: modulate along Y axis
+            y_idx = _np.arange(h, dtype=_np.float32)[:, _np.newaxis]  # (H, 1)
+            warp_freq = 8.0   # ~8px period for a fine weave at portrait scale
+            warp = _np.sin(y_idx * 2.0 * _np.pi / warp_freq) * weave_strength
+            warp_2d = _np.broadcast_to(warp, (h, w)).copy()  # (H, W)
+
+            # Weave only appears in the gauze zone
+            weave_contrib = warp_2d * zone_mask
+            # Modulate value slightly (darken at warp threads, lighten at gaps)
+            r_out = _np.clip(r_out + weave_contrib, 0.0, 1.0)
+            g_out = _np.clip(g_out + weave_contrib, 0.0, 1.0)
+            b_out = _np.clip(b_out + weave_contrib, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        gauze_px = int((zone_mask > 0.05).sum())
+        print(f"    Translucent gauze pass complete  (gauze_px={gauze_px})")
+
 
 
     def corot_silver_veil_pass(

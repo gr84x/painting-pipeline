@@ -77,6 +77,8 @@ EXPECTED_ARTISTS = [
     "veronese",
     "murillo",
     "tiepolo",
+    "corot",
+    "parmigianino",
 ]
 
 
@@ -7073,6 +7075,7 @@ def test_tenebrist_crisper_than_spanish_baroque():
 
 
 
+
 # ── Jean-Baptiste-Camille Corot ───────────────────────────────────────────────
 
 def test_corot_in_catalog():
@@ -7178,3 +7181,174 @@ def test_corot_more_blended_than_hals():
         f"Corot wet_blend ({co.wet_blend:.2f}) must be greater than "
         f"Hals ({ha.wet_blend:.2f}) — "
         f"silvery atmospheric blending vs bravura alla prima dryness")
+
+
+# ── Session 62: Parmigianino ──────────────────────────────────────────────────
+
+def test_parmigianino_in_catalog():
+    """parmigianino must be present in CATALOG (session 62)."""
+    assert "parmigianino" in CATALOG, (
+        "parmigianino missing from CATALOG — add it to art_catalog.py")
+
+
+def test_parmigianino_movement_is_mannerist():
+    """Parmigianino's movement must be Mannerist."""
+    s = get_style("parmigianino")
+    assert "manner" in s.movement.lower() or "mannerist" in s.movement.lower(), (
+        f"Parmigianino movement should be Mannerism-related; got {s.movement!r}")
+
+
+def test_parmigianino_nationality_italian():
+    """Parmigianino must be Italian."""
+    s = get_style("parmigianino")
+    assert s.nationality.lower() == "italian", (
+        f"Parmigianino nationality should be 'Italian'; got {s.nationality!r}")
+
+
+def test_parmigianino_palette_length():
+    """Parmigianino palette must have at least 7 colours."""
+    s = get_style("parmigianino")
+    assert len(s.palette) >= 7, (
+        f"Parmigianino palette must have ≥7 colours; got {len(s.palette)}")
+
+
+def test_parmigianino_palette_in_range():
+    """All Parmigianino palette colours must have R, G, B values in [0, 1]."""
+    s = get_style("parmigianino")
+    for i, (r, g, b) in enumerate(s.palette):
+        assert 0.0 <= r <= 1.0, f"parmigianino palette[{i}] R={r:.3f} out of [0,1]"
+        assert 0.0 <= g <= 1.0, f"parmigianino palette[{i}] G={g:.3f} out of [0,1]"
+        assert 0.0 <= b <= 1.0, f"parmigianino palette[{i}] B={b:.3f} out of [0,1]"
+
+
+def test_parmigianino_palette_has_porcelain_ivory():
+    """Parmigianino palette must include at least one high-key cool ivory tone (lum > 0.80)."""
+    s = get_style("parmigianino")
+    pale = [
+        (r, g, b) for r, g, b in s.palette
+        if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.80
+    ]
+    assert len(pale) >= 1, (
+        "Parmigianino palette must include at least one porcelain ivory tone (lum > 0.80) — "
+        "his skin is the palest and coolest of any Italian Mannerist painter")
+
+
+def test_parmigianino_palette_has_lavender_shadow():
+    """Parmigianino palette must include a cool shadow (B > R and B > G, lum < 0.55)."""
+    s = get_style("parmigianino")
+    lavender = [
+        (r, g, b) for r, g, b in s.palette
+        if b > r and b > g and (0.2126 * r + 0.7152 * g + 0.0722 * b) < 0.55
+    ]
+    assert len(lavender) >= 1, (
+        "Parmigianino palette must include at least one cool lavender/silver shadow colour "
+        "(B > R and B > G, lum < 0.55) — his shadows are silvery lavender, not warm umber")
+
+
+def test_parmigianino_cool_ground():
+    """Parmigianino ground_color must be relatively neutral (not a warm amber ground)."""
+    s = get_style("parmigianino")
+    r, g, b = s.ground_color
+    # The Parma ground is a neutral warm-grey — R should not be >> B
+    assert r - b <= 0.15, (
+        f"Parmigianino ground_color is too warm: R={r:.2f} B={b:.2f} diff={r - b:.2f} > 0.15.  "
+        f"Use a neutral warm-grey Parma ground, not a hot amber imprimatura.")
+
+
+def test_parmigianino_fine_stroke():
+    """Parmigianino stroke_size must be ≤ 5 — fine, controlled marks."""
+    s = get_style("parmigianino")
+    assert s.stroke_size <= 5, (
+        f"Parmigianino stroke_size={s.stroke_size} must be ≤5 — "
+        f"Parmigianino used fine, deliberate marks; no impasto or broad brushwork")
+
+
+def test_parmigianino_has_glazing():
+    """Parmigianino must have a non-None glazing tuple — his enamel surface requires glazing."""
+    s = get_style("parmigianino")
+    assert s.glazing is not None, (
+        "Parmigianino.glazing should not be None — he built the characteristic enamel "
+        "surface quality through pale cool ivory glazes")
+
+
+def test_parmigianino_glazing_is_cool():
+    """Parmigianino glazing must be cool ivory (B >= R - 0.05)."""
+    s = get_style("parmigianino")
+    assert s.glazing is not None, "Parmigianino must have glazing set"
+    r, g, b = s.glazing
+    assert b >= r - 0.05, (
+        f"Parmigianino glazing should be cool ivory (B ≥ R - 0.05); "
+        f"got R={r:.2f} B={b:.2f} — warm amber glazing would contradict his porcelain aesthetic")
+
+
+def test_parmigianino_crackle():
+    """Parmigianino must have crackle=True — aged panel paintings crackle."""
+    s = get_style("parmigianino")
+    assert s.crackle is True, (
+        "Parmigianino.crackle should be True — his works are panel paintings "
+        "that show typical age-crackle patterns")
+
+
+def test_parmigianino_famous_works_non_empty():
+    """Parmigianino must list at least 5 famous works."""
+    s = get_style("parmigianino")
+    assert len(s.famous_works) >= 5, (
+        f"parmigianino should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_parmigianino_famous_works_include_madonna_long_neck():
+    """Parmigianino famous works must include 'Madonna with the Long Neck'."""
+    s = get_style("parmigianino")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("long neck" in t or "madonna" in t for t in titles), (
+        "Parmigianino famous works should include 'Madonna with the Long Neck' — "
+        "his supreme masterpiece of Mannerist elongation")
+
+
+def test_parmigianino_famous_works_include_convex_mirror():
+    """Parmigianino famous works must include the Self-Portrait in a Convex Mirror."""
+    s = get_style("parmigianino")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("convex" in t or "mirror" in t for t in titles), (
+        "Parmigianino famous works should include 'Self-Portrait in a Convex Mirror' — "
+        "one of the most technically astonishing objects of the Italian Renaissance")
+
+
+def test_parmigianino_inspiration_references_serpentine_pass():
+    """Parmigianino inspiration must reference parmigianino_serpentine_elegance_pass()."""
+    s = get_style("parmigianino")
+    assert "parmigianino_serpentine_elegance_pass()" in s.inspiration, (
+        "Parmigianino inspiration must reference parmigianino_serpentine_elegance_pass() — "
+        "the defining pipeline pass for his cool porcelain refinement")
+
+
+def test_parmigianino_in_expected_artists():
+    """EXPECTED_ARTISTS list must include parmigianino."""
+    assert "parmigianino" in EXPECTED_ARTISTS, (
+        "parmigianino missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_parmigianino_edge_softness_in_range():
+    """Parmigianino edge_softness should be in [0.50, 0.75] — soft but legible forms."""
+    s = get_style("parmigianino")
+    assert 0.50 <= s.edge_softness <= 0.75, (
+        f"Parmigianino edge_softness={s.edge_softness:.2f} should be in [0.50, 0.75] — "
+        f"his forms are softer than Florentine linearity but crisper than Leonardo's sfumato")
+
+
+def test_parmigianino_cooler_skin_than_titian():
+    """Parmigianino skin palette must average cooler than Titian's (B ≥ R in pale tones)."""
+    par = get_style("parmigianino")
+    tit = get_style("titian")
+    # Extract pale (high-lum) colours from each palette as proxy for skin tones
+    par_pale = [(r, g, b) for r, g, b in par.palette
+                if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.60]
+    tit_pale = [(r, g, b) for r, g, b in tit.palette
+                if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.60]
+    if par_pale and tit_pale:
+        par_avg_rb = sum(b - r for r, g, b in par_pale) / len(par_pale)
+        tit_avg_rb = sum(b - r for r, g, b in tit_pale) / len(tit_pale)
+        assert par_avg_rb >= tit_avg_rb - 0.05, (
+            f"Parmigianino pale tones should be at least as cool as Titian's — "
+            f"par B-R avg={par_avg_rb:.3f} vs titian B-R avg={tit_avg_rb:.3f}.  "
+            f"Parmigianino's porcelain skin is cooler than Titian's warm amber colorito.")

@@ -5133,6 +5133,96 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 62 addition: Parmigianino ────────────────────────────────────
+    "parmigianino": ArtStyle(
+        artist="Parmigianino (Girolamo Francesco Maria Mazzola)",
+        movement="Parma / Florentine Mannerism",
+        nationality="Italian",
+        period="1503–1540",
+        palette=[
+            (0.96, 0.93, 0.86),   # cool porcelain ivory — the defining skin tone
+            (0.88, 0.84, 0.79),   # warm pale buff — upper midlight on face
+            (0.72, 0.68, 0.73),   # silvery cool grey — shadow on face / neck
+            (0.82, 0.70, 0.75),   # dusty rose-mauve — drapery midlight
+            (0.67, 0.62, 0.78),   # lavender-silver — cool shadow on pale drapery
+            (0.48, 0.44, 0.54),   # violet-grey — deep drapery shadow
+            (0.36, 0.30, 0.24),   # warm dark umber — minimal deep shadow anchor
+            (0.12, 0.10, 0.16),   # blue-violet black — void shadow
+        ],
+        ground_color=(0.68, 0.65, 0.60),
+        stroke_size=4,
+        wet_blend=0.32,
+        edge_softness=0.62,
+        jitter=0.018,
+        glazing=(0.88, 0.88, 0.90),
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Parmigianino — baptised Girolamo Francesco Maria Mazzola, born in Parma "
+            "1503 — is the supreme poet of Mannerist elegance.  Where his Parma "
+            "predecessor Correggio achieved softness through warm atmospheric blending, "
+            "Parmigianino achieved it through refinement: an extreme attenuation of "
+            "form, a near-total suppression of tactile texture in the skin, and a "
+            "colour harmony that is simultaneously the palest and the most unusual "
+            "in the Italian tradition.  "
+            "His figures are famously elongated — the Madonna in 'Madonna with the "
+            "Long Neck' (c.1535, Uffizi) has a neck that no anatomist could account "
+            "for, fingers that extend beyond natural proportion, and a torso that "
+            "reads as architectural.  Yet the distortion never reads as grotesque: "
+            "it reads as ideal.  The elongation is a claim about what beauty IS, "
+            "not a mistake about what bodies look like.  "
+            "His skin is porcelain-cool: the usual Venetian warm amber subsurface "
+            "glow is entirely absent; instead flesh reads as translucent ivory with "
+            "cool silvery grey shadows.  This is partly a Parma stylistic preference "
+            "and partly Parmigianino's own temperament — his figures exist in an "
+            "atmosphere of cool, perfectly composed detachment.  "
+            "His 'Self-Portrait in a Convex Mirror' (c.1524, Kunsthistorisches Museum) "
+            "— painted to impress Pope Clement VII, on a convex wooden panel that "
+            "reproduced the exact distortion of a circular mirror — is one of the "
+            "most technically astonishing objects of the Italian Renaissance: the "
+            "foreground hand is enormous, the background room curves impossibly, and "
+            "the face at centre is small, perfectly smooth, and absolutely calm.  "
+            "Drapery in his work moves with an autonomous grace: it swirls in arcs "
+            "that serve the composition rather than anatomy.  The colours are dusty "
+            "rose, lavender, silver, and a muted coral — the palette is almost "
+            "pastel by the standards of the period.  "
+            "He died at 37 — reportedly having become so obsessed with alchemy that "
+            "he neglected his appearance and work — but his influence on the Fontainebleau "
+            "School and Northern European Mannerism was vast."
+        ),
+        famous_works=[
+            ("Madonna with the Long Neck",               "c. 1534–40"),
+            ("Self-Portrait in a Convex Mirror",         "c. 1523–24"),
+            ("Schiava Turca (The Turkish Slave)",         "c. 1530–32"),
+            ("The Vision of Saint Jerome",               "1526–27"),
+            ("Cupid Carving His Bow",                     "c. 1533–35"),
+            ("Portrait of a Young Woman (Antea)",        "c. 1531–35"),
+            ("Portrait of Galeazzo Sanvitale",           "1524"),
+            ("The Virgin of the Rose",                   "c. 1529–30"),
+        ],
+        inspiration=(
+            "Use parmigianino_serpentine_elegance_pass() after build_form() and before "
+            "glaze() to apply Parmigianino's defining cool porcelain refinement: "
+            "midlight skin zones shifted toward translucent cool ivory (suppressing "
+            "the warm amber subsurface glow found in Venetian and Flemish portraits), "
+            "shadow zones pushed toward silvery lavender-grey (his characteristic cool "
+            "shadow colour, the polar opposite of Rembrandt's warm umber shadow), and "
+            "highlight zones polished to a cool silver-white (not warm gold).  "
+            "ground_color=(0.68, 0.65, 0.60) — a neutral warm-grey Parma ground that "
+            "neither pre-warms (as warm ochre would) nor pre-cools (as a blue-grey "
+            "would); it is deliberately mid-temperature so that the cool ivory palette "
+            "reads as elegant refinement rather than coldness.  "
+            "edge_softness=0.62 — Parmigianino's edges are softer than Florentine "
+            "line-dominant painting but crisper than Leonardo's sfumato; his forms "
+            "are recognisable at a glance but their transitions are imperceptible.  "
+            "stroke_size=4 — fine, controlled marks throughout; no impasto.  "
+            "glazing=(0.88, 0.88, 0.90) — a very pale, slightly cool silver-ivory unifying "
+            "glaze that ties all tones together and gives the characteristic translucent "
+            "'enamel' surface quality of his panel paintings; the slight B>R bias keeps "
+            "the overall harmony cool rather than amber."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",
