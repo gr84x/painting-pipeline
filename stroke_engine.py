@@ -19316,3 +19316,290 @@ class Painter:
         bg_px = int((bg_mask > 0.10).sum())
         print(f"    Ground tone recession pass complete  "
               f"(fg_px={fg_px}  bg_px={bg_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Guido Reni angelic grace pass — session 70 artist pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def guido_reni_angelic_grace_pass(self,
+                                      face_cx:         float = 0.50,
+                                      face_cy:         float = 0.35,
+                                      face_rx:         float = 0.20,
+                                      face_ry:         float = 0.25,
+                                      pearl_lift:      float = 0.08,
+                                      pearl_cool:      float = 0.04,
+                                      cheek_rose:      float = 0.05,
+                                      lip_rose:        float = 0.06,
+                                      shadow_violet:   float = 0.05,
+                                      blur_radius:     float = 8.0,
+                                      opacity:         float = 0.50) -> None:
+        """
+        Guido Reni angelic grace pass — session 70 artist inspiration.
+
+        Reni's hallmark is an otherworldly skin luminosity built from three
+        simultaneous operations:
+
+          1. Alabaster pearl lift on highlights
+             Reni's lit skin is not simply warm ivory — it has a faint cool
+             luminosity at the specular peak, as if the skin itself were
+             translucent alabaster lit from within.  This operation lifts pixels
+             above the highlight threshold toward a cool pearl-white
+             (R↑ slight, G↑ slight, B↑ more) creating that characteristic
+             pale iridescence.
+
+          2. Rose injection into cheek and lip zones
+             Where Leonardo's midtones are neutral warm ochre, Reni's are
+             distinctly rose — warm pink that reads as both lifelike warmth and
+             ideal beauty simultaneously.  This operation adds a localised rose
+             push (R↑ slight B↑ very slight) in the anatomical cheek and lip
+             zones of the face ellipse.
+
+          3. Violet-grey shadow cooling
+             Reni's shadows are not umber-black but a distinctive cool
+             violet-grey that gives even the darkest passages a spiritual
+             weightlessness.  This operation cools the shadow region
+             (lum < shadow_thresh) by pushing B↑ and R↓ slightly toward
+             the lavender-grey of his deepest passages.
+
+        Parameters
+        ----------
+        face_cx/cy    : face ellipse centre as fraction of canvas width/height
+        face_rx/ry    : face ellipse radii as fraction of canvas width/height
+        pearl_lift    : strength of the highlight pearl-white lift
+        pearl_cool    : blue component of the pearl cooling
+        cheek_rose    : rose injection strength in the cheek zone
+        lip_rose      : rose injection strength in the lip zone
+        shadow_violet : violet-grey cooling strength in the shadow zone
+        blur_radius   : Gaussian softening radius for all zone masks
+        opacity       : overall blend weight for the pass
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Guido Reni angelic grace pass "
+              f"(pearl_lift={pearl_lift:.3f}  cheek_rose={cheek_rose:.3f}  "
+              f"shadow_violet={shadow_violet:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Guido Reni angelic grace pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── Build face ellipse mask ───────────────────────────────────────────
+        cx_px = int(face_cx * w)
+        cy_px = int(face_cy * h)
+        rx_px = max(1, int(face_rx * w))
+        ry_px = max(1, int(face_ry * h))
+
+        ys, xs = _np.mgrid[0:h, 0:w]
+        face_d = ((xs - cx_px) / rx_px) ** 2 + ((ys - cy_px) / ry_px) ** 2
+        face_mask = _np.clip(1.0 - face_d, 0.0, 1.0)
+        face_mask = _gf(face_mask.astype(_np.float32), sigma=blur_radius)
+        face_mask = _np.clip(face_mask, 0.0, 1.0)
+
+        # ── 1. Alabaster pearl lift on highlights ────────────────────────────
+        hl_thresh = 0.70
+        hl_mask   = _np.clip((lum - hl_thresh) / (1.0 - hl_thresh), 0.0, 1.0)
+        hl_mask   = _gf(hl_mask.astype(_np.float32), sigma=max(1.0, blur_radius * 0.5))
+        hl_zone   = face_mask * hl_mask
+
+        r_out = _np.clip(r_out + hl_zone * pearl_lift * 0.55, 0.0, 1.0)
+        g_out = _np.clip(g_out + hl_zone * pearl_lift * 0.65, 0.0, 1.0)
+        b_out = _np.clip(b_out + hl_zone * (pearl_lift * 0.55 + pearl_cool), 0.0, 1.0)
+
+        # ── 2. Rose injection — cheek zone (upper lateral face) ───────────────
+        # Cheek centre: lateral from face centre, upper-mid height
+        cheek_offset_x = rx_px * 0.42
+        cheek_offset_y = ry_px * 0.12
+
+        for side in (-1.0, 1.0):
+            cck_x = cx_px + side * cheek_offset_x
+            cck_y = cy_px + cheek_offset_y
+            cck_d = ((xs - cck_x) / (rx_px * 0.55)) ** 2 + \
+                    ((ys - cck_y) / (ry_px * 0.38)) ** 2
+            cck_mask = _np.clip(1.0 - cck_d, 0.0, 1.0)
+            cck_mask = _gf(cck_mask.astype(_np.float32), sigma=blur_radius * 1.2)
+            cck_zone = face_mask * _np.clip(cck_mask, 0.0, 1.0)
+
+            r_out = _np.clip(r_out + cck_zone * cheek_rose * 0.80, 0.0, 1.0)
+            b_out = _np.clip(b_out + cck_zone * cheek_rose * 0.12, 0.0, 1.0)
+
+        # ── 3. Rose injection — lip zone (lower face) ─────────────────────────
+        lip_y = cy_px + ry_px * 0.48
+        lip_d = ((xs - cx_px) / (rx_px * 0.38)) ** 2 + \
+                ((ys - lip_y) / (ry_px * 0.15)) ** 2
+        lip_mask = _np.clip(1.0 - lip_d, 0.0, 1.0)
+        lip_mask = _gf(lip_mask.astype(_np.float32), sigma=max(1.0, blur_radius * 0.8))
+        lip_zone = face_mask * _np.clip(lip_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + lip_zone * lip_rose * 0.85, 0.0, 1.0)
+        b_out = _np.clip(b_out + lip_zone * lip_rose * 0.18, 0.0, 1.0)
+
+        # ── 4. Violet-grey shadow cooling ────────────────────────────────────
+        sh_thresh = 0.38
+        sh_mask   = _np.clip((sh_thresh - lum) / sh_thresh, 0.0, 1.0)
+        sh_mask   = _gf(sh_mask.astype(_np.float32), sigma=max(1.0, blur_radius * 0.6))
+
+        r_out = _np.clip(r_out - sh_mask * shadow_violet * 0.40, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * shadow_violet * 0.65, 0.0, 1.0)
+
+        # ── Blend with original ───────────────────────────────────────────────
+        r_out = r_f * (1.0 - opacity) + r_out * opacity
+        g_out = g_f * (1.0 - opacity) + g_out * opacity
+        b_out = b_f * (1.0 - opacity) + b_out * opacity
+
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        hl_px = int((hl_zone > 0.05).sum())
+        sh_px = int((sh_mask > 0.05).sum())
+        print(f"    Guido Reni angelic grace pass complete  "
+              f"(hl_px={hl_px}  sh_px={sh_px})")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Highlight bloom pass — session 70 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def highlight_bloom_pass(self,
+                             threshold:     float = 0.75,
+                             bloom_sigma:   float = 12.0,
+                             bloom_opacity: float = 0.30,
+                             bloom_color:   "Optional[tuple]" = None,
+                             multi_scale:   bool  = True,
+                             figure_only:   bool  = False) -> None:
+        """
+        Highlight bloom pass — session 70 artistic improvement.
+
+        Inspired by Guido Reni's radiant, light-emitting skin quality.  In
+        Reni's paintings the brightest passages — the alabaster brow, the
+        cheekbone specular, the pearl highlight on the nose — appear to glow
+        softly outward, as if light is scattering at the surface of translucent
+        skin.  This is a physically real phenomenon (subsurface scattering
+        causes bright highlights to have a soft luminous halo) that Reni
+        enhanced through thin, repeated glazes.
+
+        This pass simulates that quality in two or three Gaussian operations:
+
+          1. Inner bloom  (always active)
+             Extract pixels above threshold.  Apply a Gaussian at bloom_sigma
+             to create a soft, concentrated glow around the brightest areas.
+
+          2. Outer halo  (when multi_scale=True, the default)
+             Apply a second, wider Gaussian (bloom_sigma * 2.5) to the same
+             highlight mask to create a broader, more diffuse luminous envelope.
+             This captures the wider scattering envelope that gives Reni's skin
+             its lit-from-within quality.
+
+          3. Colour tint  (when bloom_color is provided)
+             Blend the bloom region toward the specified RGB tint rather than
+             toward neutral white — useful for warm candlelight bloom or cool
+             moonlit glow.
+
+        Parameters
+        ----------
+        threshold     : luminance cutoff above which bloom is applied (0–1)
+        bloom_sigma   : Gaussian sigma for the inner bloom (pixels)
+        bloom_opacity : opacity of the bloom composite (0 = no change)
+        bloom_color   : optional (R, G, B) tint for the bloom; None = neutral
+        multi_scale   : if True, add a second wider Gaussian halo envelope
+        figure_only   : if True, restrict bloom to the figure mask region
+                        (uses self._figure_mask if set, otherwise skips silently)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Highlight bloom pass "
+              f"(thresh={threshold:.2f}  sigma={bloom_sigma:.1f}  "
+              f"opacity={bloom_opacity:.2f}  multi_scale={multi_scale}  "
+              f"figure_only={figure_only}) ...")
+
+        if bloom_opacity <= 0.0:
+            print("    Highlight bloom pass skipped (bloom_opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── Build figure mask (if figure_only) ────────────────────────────────
+        fig_mask = _np.ones((h, w), dtype=_np.float32)
+        if figure_only:
+            fm = getattr(self, "_figure_mask", None)
+            if fm is not None:
+                fig_mask = _np.clip(fm.astype(_np.float32), 0.0, 1.0)
+                if fig_mask.shape != (h, w):
+                    fig_mask = _np.ones((h, w), dtype=_np.float32)
+
+        # ── Extract highlight mask ────────────────────────────────────────────
+        hl_range = max(0.01, 1.0 - threshold)
+        hl_mask  = _np.clip((lum - threshold) / hl_range, 0.0, 1.0) * fig_mask
+
+        # ── Determine bloom colour target ──────────────────────────────────────
+        if bloom_color is not None:
+            bc_r, bc_g, bc_b = float(bloom_color[0]), float(bloom_color[1]), float(bloom_color[2])
+        else:
+            bc_r = bc_g = bc_b = 1.0   # neutral white bloom
+
+        # ── Inner bloom — primary Gaussian ────────────────────────────────────
+        inner_bloom = _gf(hl_mask.astype(_np.float32), sigma=bloom_sigma)
+        inner_bloom = _np.clip(inner_bloom, 0.0, 1.0)
+
+        alpha = inner_bloom * bloom_opacity
+        r_out = r_out + alpha * (bc_r - r_out)
+        g_out = g_out + alpha * (bc_g - g_out)
+        b_out = b_out + alpha * (bc_b - b_out)
+
+        # ── Outer halo — wider Gaussian (multi_scale only) ────────────────────
+        if multi_scale:
+            outer_halo = _gf(hl_mask.astype(_np.float32),
+                             sigma=bloom_sigma * 2.5)
+            outer_halo = _np.clip(outer_halo, 0.0, 1.0)
+            alpha2 = outer_halo * bloom_opacity * 0.35
+            r_out = r_out + alpha2 * (bc_r - r_out)
+            g_out = g_out + alpha2 * (bc_g - g_out)
+            b_out = b_out + alpha2 * (bc_b - b_out)
+
+        r_out = _np.clip(r_out, 0.0, 1.0)
+        g_out = _np.clip(g_out, 0.0, 1.0)
+        b_out = _np.clip(b_out, 0.0, 1.0)
+
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        bloom_px = int((inner_bloom > 0.05).sum())
+        print(f"    Highlight bloom pass complete  (bloom_px={bloom_px})")

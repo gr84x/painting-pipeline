@@ -239,6 +239,7 @@ class Period(Enum):
     PADUAN_RENAISSANCE = auto()  # Mantegna — cold stone-mineral palette, sculptural grisaille clarity, engraved archaeological precision, pale chalk highlights on ridge-forms
     CLASSICAL_LANDSCAPE = auto()  # Claude Lorrain — golden horizon contre-jour, warm amber glaze, soft atmospheric dissolution, dark repoussoir foreground trees
     FRENCH_NEOCLASSICAL = auto()  # David — heroic civic clarity, cool stone-grey backgrounds, smooth luminous flesh, crisp classical contours, restrained palette
+    BOLOGNESE_BAROQUE = auto()   # Guido Reni — alabaster pearl skin, heavenly sfumato-adjacent softness, warm rose midflesh, cool lavender-grey shadows, radiant highlight bloom
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -887,6 +888,11 @@ class Style:
             # contours that are clear but not as hard as engraving; large bg strokes for cool
             # architectural stone backgrounds.
             Period.FRENCH_NEOCLASSICAL: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.25, edge_softness=0.32),
+            # BOLOGNESE_BAROQUE (Guido Reni) — alabaster pearl softness: high wet_blend for
+            # the silken blending that gives Reni's skin its angelic, sculptural luminosity;
+            # moderate edge_softness — softer than David's crisp line but crisper than Leonardo;
+            # fine stroke_size_face for the meticulous attention to delicate facial modelling.
+            Period.BOLOGNESE_BAROQUE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.62, edge_softness=0.55),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

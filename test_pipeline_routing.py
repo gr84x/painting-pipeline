@@ -9757,3 +9757,155 @@ def test_claude_lorrain_golden_light_pass_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# guido_reni_angelic_grace_pass() — session 70 artist pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_guido_reni_angelic_grace_pass_exists():
+    """Painter must have guido_reni_angelic_grace_pass() after session 70."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "guido_reni_angelic_grace_pass"), (
+        "guido_reni_angelic_grace_pass not found on Painter")
+    assert callable(getattr(Painter, "guido_reni_angelic_grace_pass"))
+
+
+def test_guido_reni_angelic_grace_pass_no_error():
+    """guido_reni_angelic_grace_pass() runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.58, 0.44), texture_strength=0.0)
+    p.guido_reni_angelic_grace_pass(
+        face_cx=0.50, face_cy=0.38,
+        face_rx=0.25, face_ry=0.30,
+        pearl_lift=0.08, pearl_cool=0.04,
+        cheek_rose=0.05, lip_rose=0.06,
+        shadow_violet=0.05,
+        blur_radius=5.0,
+        opacity=0.55,
+    )
+
+
+def test_guido_reni_angelic_grace_pass_zero_opacity_no_change():
+    """guido_reni_angelic_grace_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.58, 0.44), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.guido_reni_angelic_grace_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "guido_reni_angelic_grace_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_guido_reni_angelic_grace_pass_lifts_highlights():
+    """
+    guido_reni_angelic_grace_pass() must lift the highlight region (increase
+    average luminance in the face centre on a high-key canvas).
+    """
+    p = _make_small_painter(100, 100)
+    p.tone_ground((0.78, 0.74, 0.70), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((100, 100, 4)).copy()
+
+    p.guido_reni_angelic_grace_pass(
+        face_cx=0.50, face_cy=0.40,
+        face_rx=0.30, face_ry=0.35,
+        pearl_lift=0.20,
+        pearl_cool=0.06,
+        cheek_rose=0.0,
+        lip_rose=0.0,
+        shadow_violet=0.0,
+        blur_radius=4.0,
+        opacity=1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((100, 100, 4)).copy()
+
+    fy0, fy1, fx0, fx1 = 25, 55, 30, 70
+    lum_before = (0.299 * buf_before[fy0:fy1, fx0:fx1, 2].astype(float) +
+                  0.587 * buf_before[fy0:fy1, fx0:fx1, 1].astype(float) +
+                  0.114 * buf_before[fy0:fy1, fx0:fx1, 0].astype(float)).mean()
+    lum_after  = (0.299 * buf_after [fy0:fy1, fx0:fx1, 2].astype(float) +
+                  0.587 * buf_after [fy0:fy1, fx0:fx1, 1].astype(float) +
+                  0.114 * buf_after [fy0:fy1, fx0:fx1, 0].astype(float)).mean()
+
+    assert lum_after >= lum_before, (
+        f"guido_reni_angelic_grace_pass() must lift highlight luminance; "
+        f"lum before={lum_before:.2f}  after={lum_after:.2f}")
+
+
+def test_guido_reni_angelic_grace_pass_pixels_in_range():
+    """guido_reni_angelic_grace_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.68, 0.58, 0.44), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.guido_reni_angelic_grace_pass(
+        face_cx=0.50, face_cy=0.40,
+        face_rx=0.28, face_ry=0.32,
+        pearl_lift=0.20, pearl_cool=0.08,
+        cheek_rose=0.12, lip_rose=0.12,
+        shadow_violet=0.10,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# highlight_bloom_pass() — session 70 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_highlight_bloom_pass_s70_multi_scale_true():
+    """highlight_bloom_pass() with multi_scale=True (default) runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.76, 0.68), texture_strength=0.0)
+    p.highlight_bloom_pass(
+        threshold=0.72,
+        bloom_sigma=6.0,
+        bloom_opacity=0.30,
+        multi_scale=True,
+    )
+
+
+def test_highlight_bloom_pass_s70_bloom_opacity_zero_no_change():
+    """highlight_bloom_pass() at bloom_opacity=0 must not change canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.76, 0.68), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.highlight_bloom_pass(bloom_opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "highlight_bloom_pass() at bloom_opacity=0 must leave canvas unchanged")
+
+
+def test_highlight_bloom_pass_s70_with_bloom_color():
+    """highlight_bloom_pass() with bloom_color runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.76, 0.68), texture_strength=0.0)
+    p.highlight_bloom_pass(
+        threshold=0.70,
+        bloom_sigma=5.0,
+        bloom_opacity=0.25,
+        bloom_color=(1.00, 0.95, 0.80),
+    )
+
+
+def test_highlight_bloom_pass_s70_pixels_in_range():
+    """highlight_bloom_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.80, 0.75, 0.65), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.highlight_bloom_pass(
+        threshold=0.55,
+        bloom_sigma=8.0,
+        bloom_opacity=0.50,
+        multi_scale=True,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

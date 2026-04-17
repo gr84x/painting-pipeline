@@ -5782,6 +5782,69 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Guido Reni — session 70 addition
+    # ──────────────────────────────────────────────────────────────────────────
+    "guido_reni": ArtStyle(
+        artist="Guido Reni",
+        movement="Bolognese Baroque",
+        nationality="Italian",
+        period="1575–1642",
+        palette=[
+            (0.94, 0.90, 0.84),   # alabaster pearl-white — the defining Reni highlight
+            (0.88, 0.78, 0.68),   # warm pale flesh — the lit midtone, peachy and soft
+            (0.80, 0.66, 0.58),   # warm rose-ivory — upper midtone with gentle warmth
+            (0.72, 0.56, 0.50),   # rose-peach midtone — characteristic warm shadow transition
+            (0.48, 0.40, 0.54),   # cool lavender-grey shadow — distinctly violet, shadow side
+            (0.34, 0.28, 0.42),   # deep violet-grey — Reni's deepest shadow, B>R for spiritual lightness
+            (0.42, 0.56, 0.76),   # heavenly blue — sky and drapery, the divine register
+            (0.82, 0.70, 0.30),   # warm amber-gold — gilded details and angelic accoutrements
+        ],
+        ground_color=(0.68, 0.60, 0.48),    # warm mid-ochre — Bolognese imprimatura
+        stroke_size=5,
+        wet_blend=0.62,                      # high — silken skin blending
+        edge_softness=0.55,                  # moderate — softer than David, crisper than Leonardo
+        jitter=0.015,
+        glazing=(0.90, 0.82, 0.72),          # warm ivory-rose unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Reni is the supreme master of the Bolognese Baroque ideal: beauty as a vehicle "
+            "for the divine.  Trained in Annibale Carracci's Accademia degli Incamminati, he "
+            "developed a technique of exquisite softness — not Leonardo's smoky sfumato but a "
+            "silken, high-key blending that gives his figures an otherworldly luminosity.  His "
+            "skin is painted in thin, layered glazes over a warm ground, building from rose-ivory "
+            "midtones to alabaster pearl highlights that seem to radiate from within.  Shadows are "
+            "kept cool and violet-grey rather than brown-black, giving even the darkest passages a "
+            "spiritual lightness.  His palette is high-key: pale ivory, warm peach, rose, and the "
+            "heavenly blue of divine drapery.  Faces are idealised to the point of abstraction — "
+            "oval, smooth-browed, with downcast or upcast eyes.  The Aurora ceiling fresco in "
+            "the Casino Rospigliosi (1614) is the fullest demonstration: a triumphal procession "
+            "of light across a cool dawn sky, every figure individually lit and yet unified by "
+            "the warm-to-cool colour temperature sweep.  His portrait of Beatrice Cenci (attr.) "
+            "captures a quality of inward spiritual suffering that the smooth, luminous skin makes "
+            "all the more affecting by contrast."
+        ),
+        famous_works=[
+            ("Atalanta and Hippomenes",       "c. 1612"),
+            ("Archangel Michael",             "1635"),
+            ("Aurora",                        "1614"),
+            ("Beatrice Cenci (attr.)",        "c. 1599"),
+            ("The Massacre of the Innocents", "1611"),
+            ("Samson the Victor",             "1611"),
+        ],
+        inspiration=(
+            "Apply guido_reni_angelic_grace_pass() to push the portrait toward Reni's "
+            "characteristic alabaster luminosity: lift the highlight region toward a cool "
+            "pearl-white, inject warm rose into the cheek/lip zone, and cool the deepest "
+            "shadows toward violet-grey.  Follow with highlight_bloom_pass() — the session 70 "
+            "artistic improvement — which adds a soft luminous glow around the brightest "
+            "highlights, simulating the way Reni's glazed ivory skin appears to emit its own "
+            "gentle light.  Use wet_blend=0.62 and edge_softness=0.55: silken blending without "
+            "sfumato dissolution."
+        ),
+    ),
+
 }
 
 

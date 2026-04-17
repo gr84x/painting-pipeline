@@ -86,6 +86,7 @@ EXPECTED_ARTISTS = [
     "andrea_mantegna",
     "claude_lorrain",
     "jacques_louis_david",
+    "guido_reni",
 ]
 
 
@@ -230,6 +231,7 @@ EXPECTED_PERIODS = [
     "PADUAN_RENAISSANCE",
     "CLASSICAL_LANDSCAPE",
     "FRENCH_NEOCLASSICAL",
+    "BOLOGNESE_BAROQUE",
 ]
 
 
@@ -8125,3 +8127,178 @@ def test_french_neoclassical_stroke_params_moderate_edge_softness():
     assert p["edge_softness"] <= 0.50, (
         f"FRENCH_NEOCLASSICAL edge_softness should be <= 0.50 for crisp classical "
         f"contours; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Guido Reni — session 70 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_guido_reni_in_catalog():
+    """Session 70: Guido Reni must be present in CATALOG."""
+    assert "guido_reni" in CATALOG, (
+        "guido_reni missing from CATALOG — add it to art_catalog.py")
+
+
+def test_guido_reni_movement():
+    """Reni's movement must reference Bolognese or Baroque."""
+    s = get_style("guido_reni")
+    mv = s.movement.lower()
+    assert "bolognese" in mv or "baroque" in mv, (
+        f"guido_reni movement should reference Bolognese Baroque; got {s.movement!r}")
+
+
+def test_guido_reni_nationality():
+    """Reni was Italian."""
+    s = get_style("guido_reni")
+    assert "Italian" in s.nationality, (
+        f"guido_reni nationality should be Italian; got {s.nationality!r}")
+
+
+def test_guido_reni_palette_length():
+    """Reni palette must have at least 6 entries."""
+    s = get_style("guido_reni")
+    assert len(s.palette) >= 6, (
+        f"guido_reni palette has only {len(s.palette)} entries; expected >= 6")
+
+
+def test_guido_reni_palette_values_in_range():
+    """All Reni palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("guido_reni")
+    for i, rgb in enumerate(s.palette):
+        assert len(rgb) == 3, f"palette[{i}] is not a 3-tuple"
+        for j, v in enumerate(rgb):
+            assert 0.0 <= v <= 1.0, (
+                f"guido_reni palette[{i}][{j}]={v:.4f} is out of [0,1]")
+
+
+def test_guido_reni_high_wet_blend():
+    """Reni uses high wet_blend — silken blending for his angelic skin quality."""
+    s = get_style("guido_reni")
+    assert s.wet_blend >= 0.50, (
+        f"guido_reni wet_blend={s.wet_blend:.3f} should be >= 0.50 — "
+        "high wet_blend for the silken blending that defines his alabaster skin")
+
+
+def test_guido_reni_moderate_edge_softness():
+    """Reni uses moderate edge_softness — soft but not dissolved."""
+    s = get_style("guido_reni")
+    assert 0.40 <= s.edge_softness <= 0.72, (
+        f"guido_reni edge_softness={s.edge_softness:.3f} should be in [0.40, 0.72] — "
+        "soft Baroque blending without sfumato dissolution")
+
+
+def test_guido_reni_has_glazing():
+    """Reni applied warm ivory-rose glazes — glazing must not be None."""
+    s = get_style("guido_reni")
+    assert s.glazing is not None, (
+        "guido_reni glazing should not be None — Reni built his skin through "
+        "repeated warm glazes over a light ground")
+
+
+def test_guido_reni_palette_has_pearl_highlight():
+    """Reni palette must contain a near-white pearl highlight."""
+    s = get_style("guido_reni")
+    has_pearl = any(r >= 0.88 and g >= 0.84 and b >= 0.78 for r, g, b in s.palette)
+    assert has_pearl, (
+        "guido_reni palette must contain a near-white pearl highlight (R≥0.88, "
+        "G≥0.84, B≥0.78) — the alabaster specular that defines his skin quality")
+
+
+def test_guido_reni_palette_has_heavenly_blue():
+    """Reni palette must contain a heavenly blue for divine drapery."""
+    s = get_style("guido_reni")
+    has_blue = any(b >= 0.68 and b > r + 0.20 and b > g + 0.12 for r, g, b in s.palette)
+    assert has_blue, (
+        "guido_reni palette must contain a heavenly blue (B≥0.68, B>R+0.20) — "
+        "the divine-register drapery colour that appears throughout his sacred works")
+
+
+def test_guido_reni_palette_has_shadow_violet():
+    """Reni palette must contain a cool violet-grey in the shadow range."""
+    s = get_style("guido_reni")
+    has_violet_shadow = any(
+        0.28 <= r <= 0.62 and b > r + 0.03 and lum < 0.52
+        for r, g, b in s.palette
+        for lum in [0.299 * r + 0.587 * g + 0.114 * b]
+    )
+    assert has_violet_shadow, (
+        "guido_reni palette must contain a cool violet-grey shadow (B>R, lum<0.52) — "
+        "Reni's shadows are violet-grey, not umber-black")
+
+
+def test_guido_reni_famous_works_include_aurora():
+    """Reni's famous works must include Aurora."""
+    s = get_style("guido_reni")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Aurora" in t for t in titles), (
+        "guido_reni famous works should include Aurora — "
+        "his supreme demonstration of warm-to-cool light sweep")
+
+
+def test_guido_reni_famous_works_include_archangel():
+    """Reni's famous works must include Archangel Michael."""
+    s = get_style("guido_reni")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Archangel" in t or "Michael" in t for t in titles), (
+        "guido_reni famous works should include Archangel Michael — "
+        "one of the most reproduced devotional images of the Baroque")
+
+
+def test_guido_reni_famous_works_count():
+    """Reni should have at least 4 famous works documented."""
+    s = get_style("guido_reni")
+    assert len(s.famous_works) >= 4, (
+        f"guido_reni should have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_guido_reni_inspiration_references_angelic_pass():
+    """Reni inspiration must reference guido_reni_angelic_grace_pass()."""
+    s = get_style("guido_reni")
+    assert "guido_reni_angelic_grace_pass()" in s.inspiration, (
+        "guido_reni inspiration must reference guido_reni_angelic_grace_pass() — "
+        "the defining pipeline pass for his alabaster luminosity technique")
+
+
+def test_guido_reni_inspiration_references_bloom_pass():
+    """Reni inspiration must reference highlight_bloom_pass()."""
+    s = get_style("guido_reni")
+    assert "highlight_bloom_pass()" in s.inspiration, (
+        "guido_reni inspiration must reference highlight_bloom_pass() — "
+        "the session 70 artistic improvement pass")
+
+
+def test_guido_reni_in_expected_artists():
+    """EXPECTED_ARTISTS list must include guido_reni."""
+    assert "guido_reni" in EXPECTED_ARTISTS, (
+        "guido_reni missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.BOLOGNESE_BAROQUE — session 70 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bolognese_baroque_period_present():
+    """Session 70: BOLOGNESE_BAROQUE must exist in Period enum."""
+    assert hasattr(Period, "BOLOGNESE_BAROQUE"), (
+        "Period.BOLOGNESE_BAROQUE not found — add it to scene_schema.py")
+    assert Period.BOLOGNESE_BAROQUE in list(Period)
+
+
+def test_bolognese_baroque_stroke_params_high_wet_blend():
+    """BOLOGNESE_BAROQUE should have high wet_blend (silken skin blending)."""
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.50, (
+        f"BOLOGNESE_BAROQUE wet_blend should be >= 0.50 for Reni's silken skin "
+        f"transitions; got {p['wet_blend']}")
+
+
+def test_bolognese_baroque_stroke_params_moderate_edge_softness():
+    """BOLOGNESE_BAROQUE should have moderate edge_softness."""
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.38 <= p["edge_softness"] <= 0.72, (
+        f"BOLOGNESE_BAROQUE edge_softness should be in [0.38, 0.72] — soft Baroque "
+        f"blending without full sfumato dissolution; got {p['edge_softness']}")
