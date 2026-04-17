@@ -16127,4 +16127,204 @@ class Painter:
         print(f"    Giorgione tonal-poetry pass complete  "
               f"(midtone_px={midtone_px})")
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Veronese — luminous feast pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def veronese_luminous_feast_pass(
+        self,
+        figure_mask:            "Optional[_np.ndarray]" = None,
+        midtone_low:            float = 0.35,
+        midtone_high:           float = 0.65,
+        saturation_boost:       float = 0.14,
+        cool_highlight_strength: float = 0.06,
+        shadow_chroma_preserve: float = 0.08,
+        opacity:                float = 0.72,
+    ) -> None:
+        """
+        Apply Paolo Veronese's luminous colour quality to the canvas.
+
+        Paolo Veronese (Paolo Caliari, 1528–1588) — Venetian Colorism — bathed his
+        enormous feast-scene canvases in a clear, silvery, almost outdoor light that
+        sets him apart from both Titian's warm-amber depth and Tintoretto's near-black
+        void drama.  His palette is the most brilliantly saturated of the three great
+        Venetians: rose-crimson draperies, clear warm-yellow fabric, and cool grey-green
+        shadow tones read with festive, architectural clarity.  Unlike the tonal
+        dissolvers (Leonardo, Giorgione), Veronese's forms stand confidently in light;
+        his shadows remain colour-filled and relatively luminous, not collapsing toward
+        black.
+
+        This pass applies three distinct operations:
+
+        1. **Mid-tone saturation boost** (midtone_low ≤ lum ≤ midtone_high): Increases
+           colour saturation in the mid-luminance band using a bell-shaped weight.
+           In HSV space: S is lifted toward 1.0.  This intensifies Veronese's brilliant
+           fabric colours — rose, yellow-gold, grey-green — without blowing out
+           highlights or muddying deep shadows.  Controlled by saturation_boost.
+
+        2. **Cool silver-ivory highlight push** (lum > highlight_thresh=0.70): Adds a
+           subtle B-channel and slight G-channel lift in the brightest lit pixels —
+           pushing them toward Veronese's characteristic cool north-light ivory
+           (not Titian's warm gold).  Controlled by cool_highlight_strength.
+
+        3. **Shadow chroma preservation** (lum < shadow_thresh=0.30): In deep shadow
+           zones, slightly boosts saturation (the same HSV logic as op 1 but applied
+           to dark pixels).  Prevents shadows from collapsing toward grey, maintaining
+           the colour-filled quality of Veronese's lit, airy shadow zones.
+           Controlled by shadow_chroma_preserve.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 array (H, W) in [0, 1].  1 = figure interior, 0 = background.
+            When provided, all three operations are gated to figure pixels — pure
+            background pixels (mask=0) are not altered.  If None, the pass applies
+            globally across the canvas.
+        midtone_low : float
+            Lower luminance boundary of the mid-tone saturation zone.  Pixels darker
+            than this are treated as shadows (operation 3 applies instead).
+            Default 0.35.
+        midtone_high : float
+            Upper luminance boundary of the mid-tone saturation zone.  Pixels brighter
+            than this receive the cool highlight push (operation 2) instead.
+            Default 0.65.
+        saturation_boost : float
+            Magnitude of the HSV saturation lift in the mid-tone band.  0 = no change;
+            0.25+ produces visibly intense Fauvist-approaching colour.  Default 0.14 —
+            noticeable vibrancy without cartoonish saturation.
+        cool_highlight_strength : float
+            Blue-green channel lift applied in the brightest pixels (lum > 0.70).
+            Pushes highlights toward cool silver-ivory rather than warm gold.
+            Default 0.06 — subtle but distinguishable from Titian's warm glaze.
+        shadow_chroma_preserve : float
+            HSV saturation lift applied in the deepest shadow zone (lum < 0.30).
+            Prevents colour from draining completely in dark areas; keeps shadows
+            luminous.  Default 0.08.
+        opacity : float
+            Global blend factor: 0 = no effect, 1 = full correction applied.
+            All three operations are composited at this opacity.  Default 0.72.
+
+        Notes
+        -----
+        Apply AFTER build_form() and BEFORE glaze().  The mid-tone saturation boost
+        enhances the colours that the subsequent warm glaze will deepen — together they
+        produce Veronese's characteristic rich-yet-luminous surface.
+        Pairs well with penumbra_zone_pass() (warms the light-to-shadow transition)
+        and sfumato_veil_pass() (if a softer sfumato variant of the portrait is desired,
+        though Veronese himself used clear edges).
+        Does NOT pair well with tintoretto_dynamic_light_pass() (which darkens shadows
+        and contracts colour into near-black, opposite to Veronese's luminous intent).
+        """
+        import numpy as _np
+        import colorsys as _colorsys
+
+        print(f"  Veronese luminous-feast pass  "
+              f"(sat_boost={saturation_boost:.3f}  "
+              f"cool_hi={cool_highlight_strength:.3f}  "
+              f"shadow_chroma={shadow_chroma_preserve:.3f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Veronese luminous-feast pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Normalise to float [0, 1] — cairo surface is BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # Perceived luminance
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # Spatial weight: figure_mask gating (same convention as all artist passes)
+        if figure_mask is not None:
+            fig_w = _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+        else:
+            fig_w = _np.ones((h, w), dtype=_np.float32)
+
+        # ── Operation 1 & 3: saturation boost via HSV ────────────────────────
+        # Bell weight for mid-tone zone (op 1)
+        mid_centre = (midtone_low + midtone_high) * 0.5
+        mid_half   = (midtone_high - midtone_low) * 0.5 + 1e-8
+        in_mid     = (lum >= midtone_low) & (lum <= midtone_high)
+        mid_bell   = _np.where(in_mid,
+                               0.5 * (1.0 + _np.cos(
+                                   _np.pi * (lum - mid_centre) / mid_half)),
+                               0.0).astype(_np.float32)
+
+        # Linear weight for shadow zone (op 3): strongest at lum=0, fades at shadow_thresh
+        shadow_thresh = midtone_low
+        in_shadow     = lum < shadow_thresh
+        shadow_w      = _np.where(in_shadow,
+                                  1.0 - lum / (shadow_thresh + 1e-8),
+                                  0.0).astype(_np.float32)
+
+        # Apply saturation boost pixel-by-pixel using vectorised HSV conversion.
+        # For efficiency: compute max/min across RGB channels to get S and V in HSV.
+        cmax   = _np.maximum(_np.maximum(r_f, g_f), b_f)
+        cmin   = _np.minimum(_np.minimum(r_f, g_f), b_f)
+        delta  = cmax - cmin + 1e-8   # avoid division by zero
+
+        # HSV saturation = delta / cmax  (when cmax > 0)
+        sat_orig = _np.where(cmax > 1e-6, delta / cmax, 0.0).astype(_np.float32)
+
+        # Combined boost weight: mid-tone bell + shadow preservation
+        mid_boost_w    = mid_bell   * saturation_boost       * fig_w
+        shadow_boost_w = shadow_w   * shadow_chroma_preserve * fig_w
+
+        sat_new = _np.clip(sat_orig
+                           + mid_boost_w * opacity
+                           + shadow_boost_w * opacity,
+                           0.0, 1.0)
+
+        # Scale RGB channels: to increase saturation in HSV, scale each channel
+        # away from its grey (cmax) by the ratio of new S to old S.
+        # If old S = 0 (grey pixel), no change can be made.
+        nonzero_sat = sat_orig > 1e-4
+        scale = _np.where(nonzero_sat, sat_new / sat_orig, 1.0).astype(_np.float32)
+        # Clamp scale to avoid oversaturation artefacts
+        scale = _np.clip(scale, 0.0, 2.5)
+
+        # The neutral grey reference per-pixel is cmax (max channel = V in HSV).
+        # Saturation boost shifts each channel: c_new = cmax + (c_old - cmax) * scale
+        r_out = _np.clip(cmax + (r_f - cmax) * scale, 0.0, 1.0)
+        g_out = _np.clip(cmax + (g_f - cmax) * scale, 0.0, 1.0)
+        b_out = _np.clip(cmax + (b_f - cmax) * scale, 0.0, 1.0)
+
+        # ── Operation 2: cool silver-ivory highlight push ─────────────────────
+        highlight_thresh = midtone_high
+        in_hi  = lum > highlight_thresh
+        # Weight: linear ramp, strongest at lum=1, zero at highlight_thresh
+        hi_w   = _np.where(in_hi,
+                           (lum - highlight_thresh) / (1.0 - highlight_thresh + 1e-8),
+                           0.0).astype(_np.float32)
+        cool_push = hi_w * cool_highlight_strength * opacity * fig_w
+
+        # Cool silver-ivory: slight B lift and G lift, slight R reduction
+        b_out = _np.clip(b_out + cool_push * 1.10, 0.0, 1.0)
+        g_out = _np.clip(g_out + cool_push * 0.55, 0.0, 1.0)
+        r_out = _np.clip(r_out - cool_push * 0.20, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        midtone_px   = int(in_mid.sum())
+        highlight_px = int(in_hi.sum())
+        shadow_px    = int(in_shadow.sum())
+        print(f"    Veronese luminous-feast pass complete  "
+              f"(midtone_px={midtone_px}  highlight_px={highlight_px}  "
+              f"shadow_px={shadow_px})")
+
 

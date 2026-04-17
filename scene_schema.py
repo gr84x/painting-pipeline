@@ -231,6 +231,7 @@ class Period(Enum):
     DUTCH_GOLDEN_AGE  = auto()       # Frans Hals — bravura alla prima, broken tone, low wet-blend, crisp directional marks
     DANISH_INTIMISTE  = auto()       # Hammershøi — near-monochrome silver-grey, diffuse north window light, profound stillness, invisible blending
     VENETIAN_MANNERIST = auto()     # Tintoretto — near-black void ground, silver lightning highlights, violent diagonal composition, Venetian-cool impasto
+    VENETIAN_COLORIST  = auto()     # Veronese — luminous clear palette, saturated brilliant colour, cool silver highlights, monumental architectural setting
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -829,6 +830,20 @@ class Style:
             # legible against the dark ground but not Flemish-crisp; a slight Venetian atmospheric
             # softness keeps the transition between figure and void dramatic rather than surgical.
             Period.VENETIAN_MANNERIST: dict(stroke_size_face=10, stroke_size_bg=35, wet_blend=0.35, edge_softness=0.42),
+            # Venetian Colorism (Veronese): luminous, clear-toned palette with confident impasto
+            # highlights and brilliant saturated mid-tones.  Unlike Tintoretto's dark drama or
+            # Giorgione's tonal softness, Veronese bathed his canvases in even, bright light —
+            # architectural settings and elaborate fabrics read with almost decorative clarity.
+            # stroke_size_face=9: broad, confident marks — Veronese's flesh is built with assured
+            # overlapping strokes, slightly larger than Giorgione's (7) but not Tintoretto's
+            # violent impasto (10).  stroke_size_bg=28: moderate — his architectural backgrounds
+            # require legible structure, not Tintoretto's gestural near-black void sweeps.
+            # wet_blend=0.48: moderate — forms are built with some wet-into-wet blending but
+            # edges remain clearer than Giorgione's (0.62) tonal pooling; Veronese's paint
+            # surface has a decisive, fresh quality.
+            # edge_softness=0.40: crisper than Giorgione (0.72) — Veronese's edges are confident
+            # and defined; his figures stand in light rather than dissolving into atmosphere.
+            Period.VENETIAN_COLORIST:  dict(stroke_size_face=9,  stroke_size_bg=28, wet_blend=0.48, edge_softness=0.40),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
