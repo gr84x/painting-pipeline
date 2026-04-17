@@ -4804,6 +4804,87 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Bartolomé Esteban Murillo ─────────────────────────────────────────────
+    "murillo": ArtStyle(
+        artist="Bartolomé Esteban Murillo",
+        movement="Spanish Baroque",
+        nationality="Spanish",
+        period="1630–1682",
+        palette=[
+            (0.92, 0.80, 0.62),   # warm ivory flesh — lit face
+            (0.76, 0.58, 0.40),   # golden mid-tone flesh — Murillo's 'pearl' skin
+            (0.54, 0.36, 0.22),   # warm shadow umber
+            (0.72, 0.52, 0.62),   # rose-violet — characteristic shadow veil
+            (0.88, 0.76, 0.52),   # amber-honey — warm ground glow
+            (0.34, 0.26, 0.18),   # deep warm brown — rich dark void
+            (0.62, 0.70, 0.80),   # cool silver-blue — sky and distant haze
+            (0.92, 0.88, 0.82),   # near-white ivory — pearl highlight
+        ],
+        ground_color=(0.60, 0.48, 0.30),    # warm amber-ochre imprimatura
+        stroke_size=6,
+        wet_blend=0.65,                      # high blending — vaporous, no harsh boundaries
+        edge_softness=0.72,                  # estilo vaporoso: edges dissolve in warm air
+        jitter=0.022,
+        glazing=(0.68, 0.50, 0.34),          # warm amber-rose unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Murillo's 'estilo vaporoso' (vaporous style) — the defining quality of his "
+            "mature work — is a warm, diffused luminosity that makes his figures appear "
+            "to glow from within, as if surrounded by a gentle, beatific haze. "
+            "Unlike Caravaggio's cold, dramatic chiaroscuro or Zurbarán's razor-edged "
+            "Spanish tenebrism, Murillo bathes his subjects — tender Madonnas, ragged "
+            "street children, the Immaculate Conception floating on clouds — in a warm "
+            "amber-rose light that reads as spiritual comfort made visible. "
+            "The characteristic flesh tone is a warm ivory-pearl: luminous in the lights, "
+            "transitioning through golden amber midtones into warm umber shadows that "
+            "retain colour rather than collapsing to near-black. Edges are soft — not "
+            "the sharp contour of Holbein, not the intellectual sfumato of Leonardo — "
+            "but a tender dissolution, as if the figure is half-absorbed into the "
+            "warm air around it. "
+            "His palette is exceptional among Spanish Baroque painters for its warmth "
+            "and sweetness: where Velázquez preferred cool silver and Zurbarán "
+            "used near-black void, Murillo consistently chose amber, golden ochre, "
+            "rose-violet, and honey tones. His shadows have a warm, rose-tinged quality "
+            "that prevents the darkness from ever feeling oppressive. "
+            "He excelled at depicting the vulnerable — children, beggars, the young "
+            "Virgin — and his entire technique seems calibrated to make viewers feel "
+            "tenderness rather than awe. The vaporous style was so distinctive that "
+            "18th-century collectors called it 'vapory' to distinguish it from the "
+            "harder, more theatrical work of his contemporaries. "
+            "Technically, the estilo vaporoso is achieved through: (1) a warm "
+            "amber-ochre ground that pre-warms every subsequent colour; (2) extensive "
+            "wet-on-wet blending so that boundaries dissolve rather than assert; "
+            "(3) multiple thin warm glazes over the completed work that unify all tones "
+            "into a golden-amber harmony; (4) the deliberate avoidance of harsh shadow "
+            "edges — shadow transitions are gradual and warm, not abrupt and cold."
+        ),
+        famous_works=[
+            ("Immaculate Conception of Los Venerables",  "c. 1678"),
+            ("The Young Beggar",                          "c. 1645–50"),
+            ("Two Women at a Window",                     "c. 1655–60"),
+            ("The Return of the Prodigal Son",            "c. 1667–70"),
+            ("Virgin and Child",                          "c. 1655–60"),
+            ("Boys Eating Grapes and a Melon",            "c. 1645–46"),
+            ("St Thomas of Villanueva Distributing Alms", "c. 1665"),
+            ("Adoration of the Magi",                     "1655–60"),
+        ],
+        inspiration=(
+            "Use murillo_vapor_pass() after build_form() and before glaze() to apply "
+            "Murillo's defining 'estilo vaporoso': a warm luminous bloom that radiates "
+            "outward from highlighted areas, warm amber-rose shadow injection, and a "
+            "gentle ivory pearl push on the brightest lit pixels. "
+            "ground_color=(0.60, 0.48, 0.30) — warm amber-ochre imprimatura pre-warms "
+            "every colour layer; Murillo's characteristic golden underpinning distinguishes "
+            "his flesh from the cooler grounds of Velázquez and Zurbarán. "
+            "wet_blend=0.65 produces Murillo's characteristic soft, vaporous boundaries: "
+            "not Leonardesque sfumato (edges that vanish entirely) but a tender dissolution "
+            "where form transitions are warm and gradual. "
+            "glazing=(0.68, 0.50, 0.34) — warm amber-rose final glaze that shifts all "
+            "tones toward Murillo's characteristic golden-warm harmony."
+        ),
+    ),
+
     "pontormo": ArtStyle(
         artist="Jacopo Pontormo",
         movement="Florentine Mannerism",

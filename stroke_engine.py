@@ -16327,4 +16327,181 @@ class Painter:
               f"(midtone_px={midtone_px}  highlight_px={highlight_px}  "
               f"shadow_px={shadow_px})")
 
+    def murillo_vapor_pass(
+        self,
+        figure_mask:       "Optional[_np.ndarray]" = None,
+        warmth_strength:   float = 0.18,
+        bloom_radius:      int   = 12,
+        shadow_warmth:     float = 0.10,
+        highlight_glow:    float = 0.08,
+        opacity:           float = 0.68,
+    ) -> None:
+        """
+        Apply Bartolomé Esteban Murillo's 'estilo vaporoso' (vaporous style) to the canvas.
+
+        Murillo (1617–1682) — Spanish Baroque — is distinguished from all other Spanish
+        Baroque painters by his warm, diffused luminosity: the 'estilo vaporoso' that
+        18th-century collectors named to describe the soft, glowing quality of his mature
+        work.  Where Caravaggio and Zurbarán used cold, dramatic chiaroscuro and near-black
+        voids, Murillo bathed every surface in warm amber-rose light that reads not as
+        theatrical drama but as spiritual tenderness.  His Immaculate Conception (c.1678,
+        Prado) seems literally to glow; his beggar boys are not grim but radiant.
+
+        This pass applies three distinct operations that together produce the 'vaporous'
+        quality:
+
+        1. **Warm luminous bloom** (all luminance zones, strongest in midtones):
+           A warm amber-rose bloom is diffused outward from highlighted areas using a
+           Gaussian-blurred luminance kernel.  The bloom radiates warmth into the
+           surrounding midtone zones — simulating how Murillo's light sources appear to
+           warm the air around them, not merely illuminate surfaces.  Controlled by
+           warmth_strength and bloom_radius.
+
+        2. **Shadow warmth injection** (lum < 0.32):
+           Deep shadow zones receive a warm amber-rose lift, preventing the cold collapse
+           toward near-black that defines Caravaggio and Zurbarán.  Murillo's shadows
+           retain colour — they read as warm dark amber, not cold black void.
+           Controlled by shadow_warmth.
+
+        3. **Pearl highlight push** (lum > 0.68):
+           The very brightest pixels receive a slight warm ivory push — adding a tiny
+           red-channel lift and modest green lift while leaving blue unchanged.  This
+           produces the characteristic Murillo 'pearl' quality in lit skin: highlights
+           that feel warm, creamy, and almost edible, contrasting with the cool silver
+           of Veronese and the golden warmth of Titian.  Controlled by highlight_glow.
+
+        Parameters
+        ----------
+        figure_mask : np.ndarray or None
+            Float32 (H, W) array in [0, 1].  1 = figure interior, 0 = background.
+            When provided, all operations are gated to figure pixels — background
+            pixels (mask=0) are left unchanged.  If None, applies globally.
+        warmth_strength : float
+            Magnitude of the warm bloom halo.  0 = no bloom; 0.30+ produces a
+            visibly strong warm aureole around lit areas.  Default 0.18 — noticeable
+            warmth without aureole artefacts.
+        bloom_radius : int
+            Gaussian blur radius (in pixels) for the warm bloom diffusion kernel.
+            Larger values spread warmth over a wider halo; smaller values keep it close
+            to the highlight zone.  Default 12 — appropriate for a 780×1080 canvas.
+        shadow_warmth : float
+            Warm amber-rose lift in the darkest shadow pixels (lum < 0.32).  Prevents
+            dark zones from collapsing to near-black.  Default 0.10 — a perceptible
+            warm amber quality in shadows without washing out the dark value.
+        highlight_glow : float
+            Warm ivory push applied to the brightest highlights (lum > 0.68).
+            Lifts the red and green channels fractionally, producing the 'pearl' quality
+            of Murillo's lit skin.  Default 0.08.
+        opacity : float
+            Global blend factor.  0 = no effect applied; 1 = full operations.
+            Default 0.68 — strong but not overwhelming.
+
+        Notes
+        -----
+        Apply AFTER build_form() and BEFORE the final glaze().  The warm bloom and
+        shadow warmth operations work best when form is already fully established;
+        applying them earlier can wash out the structural underpainting.
+
+        Pairs naturally with:
+        - sfumato_veil_pass(warmth=0.30) for a further warm-edge softening.
+        - glaze(color=(0.68, 0.50, 0.34), opacity=0.06) — Murillo's characteristic
+          amber-rose final glaze that deepens the warm harmony.
+
+        Does NOT pair with:
+        - tintoretto_dynamic_light_pass() — Tintoretto's cold near-black shadows
+          directly oppose Murillo's warm shadow warmth.
+        - veronese_luminous_feast_pass() with high saturation_boost — Veronese's
+          cool-highlight push (B-channel) conflicts with Murillo's warm red-channel glow.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _ImageFilter
+
+        print(f"  Murillo vapor pass  "
+              f"(warmth={warmth_strength:.3f}  bloom_r={bloom_radius}  "
+              f"shadow_warmth={shadow_warmth:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print(f"    Murillo vapor pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas buffer ────────────────────────────────────────────────
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Normalise to float [0, 1] — cairo surface is BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # Perceived luminance
+        lum = 0.2126 * r_f + 0.7152 * g_f + 0.0722 * b_f
+
+        # Spatial gating weight from figure_mask
+        if figure_mask is not None:
+            fig_w = _np.clip(figure_mask.astype(_np.float32), 0.0, 1.0)
+        else:
+            fig_w = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── Operation 1: Warm luminous bloom ─────────────────────────────────
+        # Build the bloom kernel: Gaussian-blurred luminance map.
+        # We convert lum to PIL Image, apply GaussianBlur, convert back.
+        lum_img = _Image.fromarray(
+            _np.clip(lum * 255.0, 0, 255).astype(_np.uint8), mode="L"
+        )
+        bloom_img = lum_img.filter(
+            _ImageFilter.GaussianBlur(radius=float(bloom_radius))
+        )
+        bloom_arr = _np.asarray(bloom_img, dtype=_np.float32) / 255.0
+
+        # The bloom contribution: warm amber-rose — R:1.0, G:0.62, B:0.28
+        bloom_weight = bloom_arr * warmth_strength * opacity * fig_w
+        r_out = _np.clip(r_out + bloom_weight * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + bloom_weight * 0.62, 0.0, 1.0)
+        b_out = _np.clip(b_out + bloom_weight * 0.28, 0.0, 1.0)
+
+        # ── Operation 2: Shadow warmth injection ─────────────────────────────
+        shadow_thresh = 0.32
+        in_shadow = lum < shadow_thresh
+        shadow_w  = _np.where(in_shadow,
+                              (1.0 - lum / (shadow_thresh + 1e-8)) * fig_w,
+                              0.0).astype(_np.float32)
+        warm_lift = shadow_w * shadow_warmth * opacity
+        # Warm amber-rose shadow: +R, +slight G, minimal B
+        r_out = _np.clip(r_out + warm_lift * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + warm_lift * 0.55, 0.0, 1.0)
+        b_out = _np.clip(b_out + warm_lift * 0.15, 0.0, 1.0)
+
+        # ── Operation 3: Pearl highlight push ────────────────────────────────
+        highlight_thresh = 0.68
+        in_hi = lum > highlight_thresh
+        hi_w  = _np.where(in_hi,
+                          (lum - highlight_thresh) / (1.0 - highlight_thresh + 1e-8) * fig_w,
+                          0.0).astype(_np.float32)
+        pearl_push = hi_w * highlight_glow * opacity
+        # Warm ivory pearl: strong R lift, moderate G lift, minimal B
+        r_out = _np.clip(r_out + pearl_push * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + pearl_push * 0.78, 0.0, 1.0)
+        b_out = _np.clip(b_out + pearl_push * 0.38, 0.0, 1.0)
+
+        # ── Write back ────────────────────────────────────────────────────────
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+
+        bloom_px   = int((bloom_arr > 0.05).sum())
+        shadow_px  = int(in_shadow.sum())
+        hi_px      = int(in_hi.sum())
+        print(f"    Murillo vapor pass complete  "
+              f"(bloom_px={bloom_px}  shadow_px={shadow_px}  hi_px={hi_px})")
+
 

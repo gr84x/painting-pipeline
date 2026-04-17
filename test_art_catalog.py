@@ -73,6 +73,9 @@ EXPECTED_ARTISTS = [
     "hans_memling",
     "bronzino",
     "tintoretto",
+    "giorgione",
+    "veronese",
+    "murillo",
 ]
 
 
@@ -6581,4 +6584,205 @@ def test_venetian_colorist_stroke_params():
     assert params["edge_softness"] <= 0.55, (
         f"VENETIAN_COLORIST edge_softness should be ≤0.55 for Veronese's "
         f"clear confident forms; got {params['edge_softness']:.2f}")
+
+
+# ── Bartolomé Esteban Murillo (estilo vaporoso) ───────────────────────────────
+
+def test_murillo_in_catalog():
+    """murillo must be present in CATALOG after this session."""
+    assert "murillo" in CATALOG, (
+        "'murillo' key not found in CATALOG — add the Murillo entry to art_catalog.py")
+
+
+def test_murillo_in_expected_artists():
+    """EXPECTED_ARTISTS list must include murillo."""
+    assert "murillo" in EXPECTED_ARTISTS, (
+        "murillo must appear in EXPECTED_ARTISTS for catalog completeness tests")
+
+
+def test_murillo_artist_name():
+    """murillo artist name must be the full Spanish Baroque name."""
+    s = get_style("murillo")
+    assert "Murillo" in s.artist, (
+        f"murillo artist name should include 'Murillo'; got {s.artist!r}")
+
+
+def test_murillo_movement_spanish_baroque():
+    """Murillo's movement must reference Spanish Baroque."""
+    s = get_style("murillo")
+    lower = s.movement.lower()
+    assert "baroque" in lower or "spanish" in lower, (
+        f"murillo movement should include 'Baroque' or 'Spanish'; got {s.movement!r}")
+
+
+def test_murillo_nationality_spanish():
+    """Murillo was Spanish."""
+    s = get_style("murillo")
+    assert "Spanish" in s.nationality or "spanish" in s.nationality.lower(), (
+        f"murillo nationality should be Spanish; got {s.nationality!r}")
+
+
+def test_murillo_palette_count():
+    """Murillo palette must have at least 6 colours."""
+    s = get_style("murillo")
+    assert len(s.palette) >= 6, (
+        f"murillo palette should have ≥6 colours (warm flesh, shadow, etc.); got {len(s.palette)}")
+
+
+def test_murillo_palette_values_in_range():
+    """All Murillo palette RGB values must be in [0, 1]."""
+    s = get_style("murillo")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"murillo palette[{i}][{j}]={v:.3f} out of [0,1]")
+
+
+def test_murillo_ground_warm():
+    """Murillo's ground_color must be warm (R channel dominates G and B)."""
+    s = get_style("murillo")
+    r, g, b = s.ground_color
+    assert r >= g, (
+        f"murillo ground_color must be warm (R≥G); got R={r:.2f} G={g:.2f} B={b:.2f} — "
+        f"Murillo's amber-ochre imprimatura pre-warms every colour layer")
+
+
+def test_murillo_high_wet_blend():
+    """Murillo's estilo vaporoso demands high blending — wet_blend must be ≥ 0.55."""
+    s = get_style("murillo")
+    assert s.wet_blend >= 0.55, (
+        f"murillo wet_blend should be ≥0.55 (vaporous blending); got {s.wet_blend:.3f} — "
+        f"the estilo vaporoso requires extensive wet-on-wet to dissolve boundaries")
+
+
+def test_murillo_high_edge_softness():
+    """Murillo's vaporous style demands soft edges — edge_softness must be ≥ 0.60."""
+    s = get_style("murillo")
+    assert s.edge_softness >= 0.60, (
+        f"murillo edge_softness should be ≥0.60 (tender edge dissolution); "
+        f"got {s.edge_softness:.3f}")
+
+
+def test_murillo_glazing_warm():
+    """Murillo's final glaze must be warm (R channel dominant)."""
+    s = get_style("murillo")
+    assert s.glazing is not None, "murillo should have a warm unifying glaze"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"murillo glazing should be warm (R>B); got R={r:.2f} B={b:.2f} — "
+        f"warm amber-rose final glaze is the capstone of the estilo vaporoso")
+
+
+def test_murillo_crackle():
+    """Murillo's 17th-century oil paintings show craquelure — crackle should be True."""
+    s = get_style("murillo")
+    assert s.crackle is True, "murillo crackle should be True (aged Spanish Baroque canvas)"
+
+
+def test_murillo_no_chromatic_split():
+    """Murillo predates Seurat — chromatic_split must be False."""
+    s = get_style("murillo")
+    assert s.chromatic_split is False, (
+        "murillo chromatic_split should be False (no Pointillist technique)")
+
+
+def test_murillo_famous_works_count():
+    """Murillo must have at least 5 famous works documented."""
+    s = get_style("murillo")
+    assert len(s.famous_works) >= 5, (
+        f"murillo should have ≥5 famous works; got {len(s.famous_works)}")
+
+
+def test_murillo_famous_works_include_immaculate_conception():
+    """Murillo's most celebrated religious work must appear in famous_works."""
+    s = get_style("murillo")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("immaculate" in t or "concepcion" in t or "conception" in t for t in titles), (
+        "murillo famous_works must include the Immaculate Conception — "
+        "his most celebrated and technically defining work")
+
+
+def test_murillo_technique_mentions_vaporoso():
+    """Murillo technique description must reference his defining 'estilo vaporoso'."""
+    s = get_style("murillo")
+    lower = s.technique.lower()
+    assert any(kw in lower for kw in ("vaporoso", "vaporous", "warm", "glow", "luminous")), (
+        "murillo technique must describe the estilo vaporoso (warm luminous diffusion) — "
+        "his defining technical and spiritual quality")
+
+
+def test_murillo_inspiration_references_murillo_vapor_pass():
+    """Murillo inspiration must reference murillo_vapor_pass()."""
+    s = get_style("murillo")
+    assert "murillo_vapor_pass()" in s.inspiration, (
+        "murillo inspiration must reference murillo_vapor_pass() — "
+        "the dedicated pass implementing the estilo vaporoso")
+
+
+def test_murillo_warmer_edges_than_holbein():
+    """Murillo's edge_softness must be higher than Holbein's (vaporous vs. crisp Northern)."""
+    murillo = get_style("murillo")
+    holbein = get_style("holbein_the_younger")
+    assert murillo.edge_softness > holbein.edge_softness, (
+        f"murillo edge_softness ({murillo.edge_softness:.2f}) must exceed "
+        f"holbein_the_younger ({holbein.edge_softness:.2f}) — "
+        f"Murillo's vaporous tender edges are the opposite of Holbein's precise Northern contour")
+
+
+def test_murillo_more_blended_than_velazquez():
+    """Murillo's wet_blend must be higher than Velázquez's (vaporous vs. cool precision)."""
+    murillo   = get_style("murillo")
+    velazquez = get_style("velazquez")
+    assert murillo.wet_blend > velazquez.wet_blend, (
+        f"murillo wet_blend ({murillo.wet_blend:.2f}) must exceed "
+        f"velazquez ({velazquez.wet_blend:.2f}) — "
+        f"Murillo's estilo vaporoso requires higher blending than Velázquez's cool precision")
+
+
+# ── SPANISH_BAROQUE period ────────────────────────────────────────────────────
+
+def test_spanish_baroque_period_in_enum():
+    """Period.SPANISH_BAROQUE must exist in the Period enum."""
+    assert hasattr(Period, "SPANISH_BAROQUE"), (
+        "Period.SPANISH_BAROQUE not found — add it to the Period enum in scene_schema.py")
+
+
+def test_spanish_baroque_stroke_params():
+    """Style with Period.SPANISH_BAROQUE must return valid stroke_params."""
+    style  = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE)
+    params = style.stroke_params
+    assert "stroke_size_face" in params
+    assert "wet_blend" in params
+    assert "edge_softness" in params
+    # Murillo: moderate face strokes (not Northern micro-detail, not loose Impressionism)
+    assert 4 <= params["stroke_size_face"] <= 9, (
+        f"SPANISH_BAROQUE stroke_size_face should be 4–9; got {params['stroke_size_face']}")
+    # High wet_blend: Murillo's vaporous style requires extensive blending
+    assert params["wet_blend"] >= 0.55, (
+        f"SPANISH_BAROQUE wet_blend should be ≥0.55 (estilo vaporoso); "
+        f"got {params['wet_blend']:.2f}")
+    # Soft edges: vaporous quality demands high edge_softness
+    assert params["edge_softness"] >= 0.60, (
+        f"SPANISH_BAROQUE edge_softness should be ≥0.60 (tender vaporous dissolution); "
+        f"got {params['edge_softness']:.2f}")
+
+
+def test_spanish_baroque_softer_than_baroque():
+    """SPANISH_BAROQUE edge_softness must exceed generic BAROQUE (Murillo > Caravaggio)."""
+    sp_bq = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
+    bq    = Style(medium=Medium.OIL, period=Period.BAROQUE).stroke_params
+    assert sp_bq["edge_softness"] > bq["edge_softness"], (
+        f"SPANISH_BAROQUE edge_softness ({sp_bq['edge_softness']:.2f}) must exceed "
+        f"BAROQUE ({bq['edge_softness']:.2f}) — "
+        f"Murillo's vaporous softness is definitionally greater than Baroque's theatrical hard edges")
+
+
+def test_spanish_baroque_more_blended_than_baroque():
+    """SPANISH_BAROQUE wet_blend must exceed generic BAROQUE (Murillo's vapour > chiaroscuro)."""
+    sp_bq = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
+    bq    = Style(medium=Medium.OIL, period=Period.BAROQUE).stroke_params
+    assert sp_bq["wet_blend"] > bq["wet_blend"], (
+        f"SPANISH_BAROQUE wet_blend ({sp_bq['wet_blend']:.2f}) must exceed "
+        f"BAROQUE ({bq['wet_blend']:.2f}) — "
+        f"the estilo vaporoso is built on extensive wet blending, not Baroque's dry drama")
 

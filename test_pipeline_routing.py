@@ -8432,3 +8432,153 @@ def test_veronese_luminous_feast_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.62, 0.54, 0.36), texture_strength=0.0)
     p.veronese_luminous_feast_pass(opacity=0.72)
+
+
+# ── murillo_vapor_pass() ──────────────────────────────────────────────────────
+
+def test_murillo_vapor_pass_exists():
+    """murillo_vapor_pass() must be a method on the Painter class."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "murillo_vapor_pass"), (
+        "murillo_vapor_pass not found on Painter — add the method to stroke_engine.py")
+    assert callable(getattr(Painter, "murillo_vapor_pass")), (
+        "murillo_vapor_pass must be callable")
+
+
+def test_murillo_vapor_pass_smoke():
+    """murillo_vapor_pass() must run without error on a small warm-toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+    p.murillo_vapor_pass()
+
+
+def test_murillo_vapor_pass_warms_canvas():
+    """murillo_vapor_pass() must increase the R channel average (warm bloom effect)."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with a uniform cool-grey canvas
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :] = 0
+    buf[:, :, 2] = 140   # R in BGRA = index 2
+    buf[:, :, 1] = 140   # G
+    buf[:, :, 0] = 140   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    r_before = buf[:, :, 2].astype(np.float32).mean()
+
+    p.murillo_vapor_pass(warmth_strength=0.25, opacity=1.0)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    r_after = buf_after[:, :, 2].astype(np.float32).mean()
+
+    assert r_after >= r_before, (
+        f"murillo_vapor_pass() must increase R-channel mean (warm bloom); "
+        f"R_before={r_before:.1f}  R_after={r_after:.1f}")
+
+
+def test_murillo_vapor_pass_opacity_zero_no_change():
+    """murillo_vapor_pass(opacity=0.0) must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.murillo_vapor_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    assert np.array_equal(buf_before, buf_after), (
+        "murillo_vapor_pass(opacity=0.0) must not alter the canvas — "
+        "zero opacity means no changes applied")
+
+
+def test_murillo_vapor_pass_figure_mask_preserves_background():
+    """murillo_vapor_pass() with figure_mask must not alter pure-background pixels."""
+    p = _make_small_painter(64, 64)
+
+    # Seed with uniform warm-grey
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 160   # R
+    buf[:, :, 1] = 130   # G
+    buf[:, :, 0] = 100   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # Mask: figure only in top half
+    mask = np.zeros((64, 64), dtype=np.float32)
+    mask[:32, :] = 1.0
+
+    p.murillo_vapor_pass(
+        figure_mask    = mask,
+        warmth_strength = 0.30,
+        opacity        = 1.0,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+
+    # Bottom rows (mask=0) must be unchanged
+    assert np.array_equal(buf_after[50:, :, :3], buf[50:, :, :3]), (
+        "murillo_vapor_pass() with figure_mask must not alter pixels where mask=0 — "
+        "warm bloom and shadow warmth must be gated to figure interior only")
+
+
+def test_murillo_vapor_pass_custom_params():
+    """murillo_vapor_pass() must accept all custom parameters without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+    p.murillo_vapor_pass(
+        warmth_strength  = 0.12,
+        bloom_radius     = 8,
+        shadow_warmth    = 0.06,
+        highlight_glow   = 0.05,
+        opacity          = 0.50,
+    )
+
+
+def test_murillo_vapor_pass_large_canvas():
+    """murillo_vapor_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+    p.murillo_vapor_pass(opacity=0.68)
+
+
+# ── SPANISH_BAROQUE period routing ────────────────────────────────────────────
+
+def test_spanish_baroque_period_in_enum():
+    """Period.SPANISH_BAROQUE must exist in the Period enum."""
+    assert hasattr(Period, "SPANISH_BAROQUE"), (
+        "Period.SPANISH_BAROQUE not found in scene_schema.py — add the enum value")
+
+
+def test_spanish_baroque_stroke_params_valid():
+    """Style(period=SPANISH_BAROQUE).stroke_params must return a complete dict."""
+    style  = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE)
+    params = style.stroke_params
+    assert "stroke_size_face" in params, "stroke_params missing stroke_size_face"
+    assert "stroke_size_bg"   in params, "stroke_params missing stroke_size_bg"
+    assert "wet_blend"        in params, "stroke_params missing wet_blend"
+    assert "edge_softness"    in params, "stroke_params missing edge_softness"
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"]   > 0
+    assert 0.0 <= params["wet_blend"]     <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+
+
+def test_spanish_baroque_high_wet_blend():
+    """SPANISH_BAROQUE wet_blend must be ≥ 0.55 — estilo vaporoso demands high blending."""
+    p = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
+    assert p["wet_blend"] >= 0.55, (
+        f"SPANISH_BAROQUE wet_blend should be ≥0.55 (vaporous blending); "
+        f"got {p['wet_blend']:.2f}")
+
+
+def test_spanish_baroque_high_edge_softness():
+    """SPANISH_BAROQUE edge_softness must be ≥ 0.60 — vaporous tender dissolution."""
+    p = Style(medium=Medium.OIL, period=Period.SPANISH_BAROQUE).stroke_params
+    assert p["edge_softness"] >= 0.60, (
+        f"SPANISH_BAROQUE edge_softness should be ≥0.60; got {p['edge_softness']:.2f}")
