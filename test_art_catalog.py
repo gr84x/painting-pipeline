@@ -79,6 +79,7 @@ EXPECTED_ARTISTS = [
     "tiepolo",
     "corot",
     "parmigianino",
+    "canaletto",
 ]
 
 
@@ -7352,3 +7353,136 @@ def test_parmigianino_cooler_skin_than_titian():
             f"Parmigianino pale tones should be at least as cool as Titian's — "
             f"par B-R avg={par_avg_rb:.3f} vs titian B-R avg={tit_avg_rb:.3f}.  "
             f"Parmigianino's porcelain skin is cooler than Titian's warm amber colorito.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 63 — Canaletto (Giovanni Antonio Canal, 1697–1768)
+# Venetian vedutismo: crystal-clear cerulean sky, warm honey-stone masonry,
+# cool canal-silver water, crisp architectural precision.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_canaletto_in_catalog():
+    """canaletto must be in CATALOG."""
+    assert "canaletto" in CATALOG, (
+        "canaletto missing from CATALOG — add the ArtStyle entry for "
+        "Giovanni Antonio Canal (1697–1768)")
+
+
+def test_canaletto_artist_name():
+    """canaletto artist name must include 'Canaletto' or 'Canal'."""
+    s = get_style("canaletto")
+    assert "canal" in s.artist.lower(), (
+        f"canaletto artist={s.artist!r} should include 'Canal' — "
+        f"his canonical name is Giovanni Antonio Canal (Canaletto)")
+
+
+def test_canaletto_movement():
+    """canaletto movement must reference vedutismo or veduta."""
+    s = get_style("canaletto")
+    assert "vedut" in s.movement.lower(), (
+        f"canaletto movement={s.movement!r} should reference 'Vedutismo' or 'Veduta' — "
+        f"the topographically precise urban-view genre he perfected")
+
+
+def test_canaletto_nationality():
+    """canaletto nationality must be Italian."""
+    s = get_style("canaletto")
+    assert s.nationality.lower() == "italian", (
+        f"canaletto nationality={s.nationality!r} should be 'Italian' — "
+        f"he was born in Venice and spent most of his career there")
+
+
+def test_canaletto_palette_has_cerulean():
+    """canaletto palette must contain a strong cerulean-blue sky colour (B > 0.75, B > R+0.15)."""
+    s = get_style("canaletto")
+    cerulean = [(r, g, b) for r, g, b in s.palette if b > 0.75 and b > r + 0.15]
+    assert cerulean, (
+        "canaletto palette must include a cerulean-blue sky colour — "
+        "his skies are the clearest and most saturated in the Western landscape tradition")
+
+
+def test_canaletto_palette_has_warm_stone():
+    """canaletto palette must contain a warm honey-stone colour (R > 0.65, R > B + 0.25)."""
+    s = get_style("canaletto")
+    stone = [(r, g, b) for r, g, b in s.palette if r > 0.65 and r > b + 0.25]
+    assert stone, (
+        "canaletto palette must include a warm honey-stone colour — "
+        "the sunlit Venetian palazzo masonry that fills the centre of every veduta")
+
+
+def test_canaletto_low_wet_blend():
+    """canaletto wet_blend should be <= 0.30 — crisp architectural edges, not sfumato."""
+    s = get_style("canaletto")
+    assert s.wet_blend <= 0.30, (
+        f"canaletto wet_blend={s.wet_blend:.2f} should be ≤ 0.30 — "
+        f"his direct Venetian noon light creates crisp shadow edges, "
+        f"the opposite of Leonardo's sfumato dissolution")
+
+
+def test_canaletto_low_edge_softness():
+    """canaletto edge_softness should be <= 0.25 — precise stone courses, not dissolved forms."""
+    s = get_style("canaletto")
+    assert s.edge_softness <= 0.25, (
+        f"canaletto edge_softness={s.edge_softness:.2f} should be ≤ 0.25 — "
+        f"architectural precision demands legible stone courses and window openings")
+
+
+def test_canaletto_famous_works_include_stonemasons_yard():
+    """canaletto famous works must include 'The Stonemason's Yard'."""
+    s = get_style("canaletto")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("stonemason" in t or "mason" in t for t in titles), (
+        "canaletto famous works must include 'The Stonemason's Yard' — "
+        "his most celebrated painting for its unidealized documentary realism")
+
+
+def test_canaletto_famous_works_include_grand_canal():
+    """canaletto famous works must include a Grand Canal painting."""
+    s = get_style("canaletto")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("grand canal" in t or "canal grande" in t for t in titles), (
+        "canaletto famous works must include a Grand Canal view — "
+        "the Grand Canal was the defining subject of his career")
+
+
+def test_canaletto_inspiration_references_veduta_pass():
+    """canaletto inspiration must reference canaletto_luminous_veduta_pass()."""
+    s = get_style("canaletto")
+    assert "canaletto_luminous_veduta_pass()" in s.inspiration, (
+        "canaletto inspiration must reference canaletto_luminous_veduta_pass() — "
+        "the defining pipeline pass for his cerulean sky, warm stone, and canal-silver palette")
+
+
+def test_canaletto_inspiration_references_varnish_pass():
+    """canaletto inspiration must reference old_master_varnish_pass()."""
+    s = get_style("canaletto")
+    assert "old_master_varnish_pass()" in s.inspiration, (
+        "canaletto inspiration must reference old_master_varnish_pass() — "
+        "the aged amber varnish patina pass introduced in session 63")
+
+
+def test_canaletto_in_expected_artists():
+    """EXPECTED_ARTISTS list must include canaletto."""
+    assert "canaletto" in EXPECTED_ARTISTS, (
+        "canaletto missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_canaletto_crackle():
+    """canaletto crackle should be True — aged panel/canvas surface."""
+    s = get_style("canaletto")
+    assert s.crackle is True, (
+        f"canaletto crackle={s.crackle} should be True — "
+        f"his works are on aged canvases with characteristic craquelure")
+
+
+def test_canaletto_warmer_than_corot():
+    """canaletto palette must average warmer than corot's (R > B in dominant tones)."""
+    can = get_style("canaletto")
+    cor = get_style("corot")
+    # Average R-B across full palettes as warmth proxy
+    can_warmth = sum(r - b for r, g, b in can.palette) / len(can.palette)
+    cor_warmth = sum(r - b for r, g, b in cor.palette) / len(cor.palette)
+    assert can_warmth >= cor_warmth - 0.05, (
+        f"canaletto palette should be at least as warm as corot's — "
+        f"Venetian noon sun vs Barbizon silver haze: "
+        f"canaletto R-B avg={can_warmth:.3f} vs corot R-B avg={cor_warmth:.3f}")

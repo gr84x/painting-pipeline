@@ -235,6 +235,7 @@ class Period(Enum):
     SPANISH_BAROQUE    = auto()     # Murillo — estilo vaporoso, warm amber-rose luminosity, soft dissolved edges, tender spiritual warmth
     VENETIAN_ROCOCO    = auto()     # Tiepolo — celestial overhead light, brilliant azure sky, Naples yellow flesh, pearl-white highlights, aerial luminosity
     BARBIZON      = auto()   # Corot — silvery atmospheric veil, soft cool greens, proto-Impressionist dissolved edges, lyrical landscape intimacy
+    VEDUTISMO     = auto()   # Canaletto — crystal-clear Venetian light, precise architectural perspective, cool cerulean sky, warm honey-stone buildings, silver canal water
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -866,6 +867,9 @@ class Style:
             # high edge_softness for the dissolved, misty quality of foliage against sky.
             # stroke_size_bg=36: large landscape strokes for the feathery silvery foliage masses.
             Period.BARBIZON:      dict(stroke_size_face=7,  stroke_size_bg=36, wet_blend=0.70, edge_softness=0.78),
+            # VEDUTISMO (Canaletto) — crisp architectural precision: low wet_blend for clear-cut stone edges,
+            # very low edge_softness for defined architectural forms, small stroke for fine detail
+            Period.VEDUTISMO:     dict(stroke_size_face=4,  stroke_size_bg=14, wet_blend=0.20, edge_softness=0.18),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
