@@ -80,6 +80,7 @@ EXPECTED_ARTISTS = [
     "corot",
     "parmigianino",
     "canaletto",
+    "vigee_le_brun",
 ]
 
 
@@ -7486,3 +7487,87 @@ def test_canaletto_warmer_than_corot():
         f"canaletto palette should be at least as warm as corot's — "
         f"Venetian noon sun vs Barbizon silver haze: "
         f"canaletto R-B avg={can_warmth:.3f} vs corot R-B avg={cor_warmth:.3f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Vigée Le Brun — session 64 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_vigee_le_brun_in_catalog():
+    """Vigée Le Brun (session 64) must be present in CATALOG."""
+    assert "vigee_le_brun" in CATALOG, (
+        "vigee_le_brun missing from CATALOG — add it to art_catalog.py")
+
+
+def test_vigee_le_brun_movement():
+    """vigee_le_brun movement must reference Neoclassical or Rococo portraiture."""
+    s = get_style("vigee_le_brun")
+    mv = s.movement.lower()
+    assert "neoclassical" in mv or "rococo" in mv, (
+        f"vigee_le_brun movement should reference Neoclassical or Rococo; "
+        f"got: {s.movement!r}")
+
+
+def test_vigee_le_brun_nationality_french():
+    """vigee_le_brun nationality must be French."""
+    s = get_style("vigee_le_brun")
+    assert "french" in s.nationality.lower(), (
+        f"vigee_le_brun nationality should be French; got: {s.nationality!r}")
+
+
+def test_vigee_le_brun_palette_length():
+    """vigee_le_brun palette must have at least 6 entries."""
+    s = get_style("vigee_le_brun")
+    assert len(s.palette) >= 6, (
+        f"vigee_le_brun palette has only {len(s.palette)} entries; expected >= 6")
+
+
+def test_vigee_le_brun_palette_values_in_range():
+    """All vigee_le_brun palette RGB values must be in [0, 1]."""
+    s = get_style("vigee_le_brun")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Out-of-range channel {ch} in vigee_le_brun palette {rgb}")
+
+
+def test_vigee_le_brun_high_wet_blend():
+    """vigee_le_brun wet_blend should be high (>= 0.80) — near-seamless skin blending."""
+    s = get_style("vigee_le_brun")
+    assert s.wet_blend >= 0.80, (
+        f"vigee_le_brun wet_blend={s.wet_blend:.2f} should be >= 0.80 — "
+        f"her portraits have near-invisible brushwork on the flesh")
+
+
+def test_vigee_le_brun_has_warm_highlight():
+    """vigee_le_brun palette must contain a warm-ivory near-white highlight."""
+    s = get_style("vigee_le_brun")
+    has_warm_highlight = any(r > 0.88 and g > 0.78 and b > 0.68
+                             for r, g, b in s.palette)
+    assert has_warm_highlight, (
+        "vigee_le_brun palette must contain a warm-ivory highlight tone — "
+        "her luminous pearl highlights are a defining characteristic")
+
+
+def test_vigee_le_brun_inspiration_references_pass():
+    """vigee_le_brun inspiration must reference vigee_le_brun_pearlescent_grace_pass()."""
+    s = get_style("vigee_le_brun")
+    assert "vigee_le_brun_pearlescent_grace_pass()" in s.inspiration, (
+        "vigee_le_brun inspiration must reference vigee_le_brun_pearlescent_grace_pass() — "
+        "the defining pipeline pass for her pearlescent skin technique")
+
+
+def test_vigee_le_brun_inspiration_references_subsurface_scatter():
+    """vigee_le_brun inspiration must reference subsurface_scatter_pass()."""
+    s = get_style("vigee_le_brun")
+    assert "subsurface_scatter_pass()" in s.inspiration, (
+        "vigee_le_brun inspiration must reference subsurface_scatter_pass() — "
+        "the SSS artistic improvement introduced in session 64")
+
+
+def test_vigee_le_brun_in_expected_artists():
+    """EXPECTED_ARTISTS list must include vigee_le_brun."""
+    assert "vigee_le_brun" in EXPECTED_ARTISTS, (
+        "vigee_le_brun missing from EXPECTED_ARTISTS — add it to the list")
+

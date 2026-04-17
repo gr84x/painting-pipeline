@@ -9145,3 +9145,152 @@ def test_translucent_gauze_pass_large_canvas():
     p = _make_small_painter(256, 256)
     p.tone_ground((0.40, 0.35, 0.28), texture_strength=0.0)
     p.translucent_gauze_pass(opacity=0.35)
+
+
+# ── Session 64: vigee_le_brun_pearlescent_grace_pass (new artist pass) ────────
+
+def test_vigee_le_brun_pearlescent_grace_pass_exists():
+    """Painter must have vigee_le_brun_pearlescent_grace_pass() method (session 64)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "vigee_le_brun_pearlescent_grace_pass"), (
+        "Painter missing vigee_le_brun_pearlescent_grace_pass() — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "vigee_le_brun_pearlescent_grace_pass"))
+
+
+def test_vigee_le_brun_pearlescent_grace_pass_no_error():
+    """vigee_le_brun_pearlescent_grace_pass() runs without error on a toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.34), texture_strength=0.0)
+    p.vigee_le_brun_pearlescent_grace_pass(opacity=0.65)
+
+
+def test_vigee_le_brun_pearlescent_grace_pass_warms_midtones():
+    """
+    vigee_le_brun_pearlescent_grace_pass() must increase red channel in mid-grey canvas.
+
+    A mid-grey canvas (lum ≈ 0.55) falls squarely in the midtone bloom zone.
+    After the pass the mean R channel should be higher (rose warmth injected).
+    """
+    p = _make_small_painter(80, 80)
+    # Mid-grey in cairo BGRA — lum ~0.55
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((80, 80, 4)).copy()
+    r_before = buf_before[:, :, 2].astype(float).mean()  # cairo: channel 2 = R
+
+    p.vigee_le_brun_pearlescent_grace_pass(
+        rose_bloom_strength=0.15,
+        midtone_low=0.40,
+        midtone_high=0.80,
+        opacity=0.90,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((80, 80, 4)).copy()
+    r_after = buf_after[:, :, 2].astype(float).mean()
+
+    assert r_after > r_before, (
+        f"vigee_le_brun_pearlescent_grace_pass() must warm midtones (R↑); "
+        f"R before={r_before:.1f} after={r_after:.1f}")
+
+
+def test_vigee_le_brun_pearlescent_grace_pass_zero_opacity_no_change():
+    """vigee_le_brun_pearlescent_grace_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(60, 60)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.vigee_le_brun_pearlescent_grace_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "vigee_le_brun_pearlescent_grace_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_vigee_le_brun_pearlescent_grace_pass_large_canvas():
+    """vigee_le_brun_pearlescent_grace_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.70, 0.60, 0.42), texture_strength=0.0)
+    p.vigee_le_brun_pearlescent_grace_pass(opacity=0.55)
+
+
+# ── Session 64: subsurface_scatter_pass (artistic improvement) ────────────────
+
+def test_subsurface_scatter_pass_exists():
+    """Painter must have subsurface_scatter_pass() method (session 64)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "subsurface_scatter_pass"), (
+        "Painter missing subsurface_scatter_pass() — add it to stroke_engine.py")
+    assert callable(getattr(Painter, "subsurface_scatter_pass"))
+
+
+def test_subsurface_scatter_pass_no_error():
+    """subsurface_scatter_pass() runs without error on a toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.subsurface_scatter_pass(opacity=0.65)
+
+
+def test_subsurface_scatter_pass_warms_midtones():
+    """
+    subsurface_scatter_pass() must increase R channel and decrease B channel in
+    a mid-grey canvas (lum ~0.60, squarely in the scatter zone).
+
+    Red-orange SSS bloom: R+, G+ modest, B-.
+    """
+    p = _make_small_painter(80, 80)
+    p.tone_ground((0.60, 0.60, 0.60), texture_strength=0.0)
+
+    buf_before = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((80, 80, 4)).copy()
+    r_before = buf_before[:, :, 2].astype(float).mean()
+    b_before = buf_before[:, :, 0].astype(float).mean()
+
+    p.subsurface_scatter_pass(
+        scatter_strength=0.20,
+        scatter_radius=4.0,
+        scatter_low=0.40,
+        scatter_high=0.85,
+        opacity=0.90,
+    )
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((80, 80, 4)).copy()
+    r_after = buf_after[:, :, 2].astype(float).mean()
+    b_after = buf_after[:, :, 0].astype(float).mean()
+
+    assert r_after > r_before, (
+        f"subsurface_scatter_pass() must warm midtones (R↑); "
+        f"R before={r_before:.1f} after={r_after:.1f}")
+    assert b_after < b_before, (
+        f"subsurface_scatter_pass() must reduce blue in midtones (B↓); "
+        f"B before={b_before:.1f} after={b_after:.1f}")
+
+
+def test_subsurface_scatter_pass_zero_opacity_no_change():
+    """subsurface_scatter_pass() at opacity=0 must not change canvas."""
+    p = _make_small_painter(60, 60)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.subsurface_scatter_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+    assert before == after, (
+        "subsurface_scatter_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_subsurface_scatter_pass_pixels_stay_in_range():
+    """subsurface_scatter_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.subsurface_scatter_pass(scatter_strength=0.25, opacity=0.85)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_subsurface_scatter_pass_large_canvas():
+    """subsurface_scatter_pass() must complete without error on a larger canvas."""
+    p = _make_small_painter(256, 256)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.subsurface_scatter_pass(scatter_radius=12.0, opacity=0.60)
