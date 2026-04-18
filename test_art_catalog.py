@@ -90,6 +90,7 @@ EXPECTED_ARTISTS = [
     "correggio",
     "watteau",
     "sofonisba_anguissola",
+    "hieronymus_bosch",
 ]
 
 
@@ -236,6 +237,9 @@ EXPECTED_PERIODS = [
     "FRENCH_NEOCLASSICAL",
     "BOLOGNESE_BAROQUE",
     "PARMA_RENAISSANCE",
+    "FETE_GALANTE",
+    "LOMBARD_RENAISSANCE",
+    "NORTHERN_FANTASTICAL",
 ]
 
 
@@ -8733,4 +8737,110 @@ def test_lombard_renaissance_stroke_params_moderate_edge_softness():
     p = style.stroke_params
     assert 0.45 <= p["edge_softness"] <= 0.85, (
         f"LOMBARD_RENAISSANCE edge_softness should be in [0.45, 0.85] for Lombard warmth; "
+        f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Hieronymus Bosch — session 74 random artist discovery
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_hieronymus_bosch_in_catalog():
+    """Bosch (session 74) must be present in CATALOG."""
+    assert "hieronymus_bosch" in CATALOG
+
+
+def test_hieronymus_bosch_movement_contains_netherlandish():
+    """Bosch movement should reference Netherlandish or Brabantine tradition."""
+    s = get_style("hieronymus_bosch")
+    text = s.movement.lower()
+    assert "netherlandish" in text or "brabant" in text or "flemish" in text, (
+        f"Bosch movement should reference Netherlandish or Brabantine; got {s.movement!r}")
+
+
+def test_hieronymus_bosch_palette_length():
+    """Bosch palette should have at least 7 colours (dark void + jewel accents)."""
+    s = get_style("hieronymus_bosch")
+    assert len(s.palette) >= 7, (
+        f"Bosch palette should have >= 7 colours; got {len(s.palette)}")
+
+
+def test_hieronymus_bosch_palette_values_in_range():
+    """All Bosch palette RGB values must be in [0, 1]."""
+    s = get_style("hieronymus_bosch")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Bosch palette {rgb}")
+
+
+def test_hieronymus_bosch_ground_color_dark():
+    """Bosch ground_color should be dark (luminance < 0.25) — the Brabantine void."""
+    s = get_style("hieronymus_bosch")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.25, (
+        f"Bosch ground_color should be dark (lum < 0.25 for Brabantine void); got lum={lum:.3f}")
+
+
+def test_hieronymus_bosch_wet_blend_moderate():
+    """Bosch wet_blend should be moderate — controlled transparent oil glazes."""
+    s = get_style("hieronymus_bosch")
+    assert 0.20 <= s.wet_blend <= 0.55, (
+        f"Bosch wet_blend should be moderate [0.20, 0.55]; got {s.wet_blend}")
+
+
+def test_hieronymus_bosch_famous_works():
+    """Bosch should have at least 5 famous works including The Garden of Earthly Delights."""
+    s = get_style("hieronymus_bosch")
+    assert len(s.famous_works) >= 5, (
+        f"Bosch should have >= 5 famous works; got {len(s.famous_works)}")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Garden" in t for t in titles), (
+        "Bosch famous_works should include The Garden of Earthly Delights")
+
+
+def test_hieronymus_bosch_inspiration_references_phantasmagoria_pass():
+    """Bosch inspiration text should reference bosch_phantasmagoria_pass."""
+    s = get_style("hieronymus_bosch")
+    assert "phantasmagoria" in s.inspiration.lower() or "bosch_phantasmagoria" in s.inspiration, (
+        f"Bosch inspiration should reference phantasmagoria_pass; "
+        f"got {s.inspiration[:100]!r}")
+
+
+def test_hieronymus_bosch_in_expected_artists():
+    """hieronymus_bosch must be present in the EXPECTED_ARTISTS list."""
+    assert "hieronymus_bosch" in EXPECTED_ARTISTS, (
+        "hieronymus_bosch missing from EXPECTED_ARTISTS — add it to the list "
+        "in test_art_catalog.py")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.NORTHERN_FANTASTICAL — session 74 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_northern_fantastical_period_present():
+    """Session 74: NORTHERN_FANTASTICAL must exist in Period enum."""
+    assert hasattr(Period, "NORTHERN_FANTASTICAL"), (
+        "Period.NORTHERN_FANTASTICAL not found — add it to scene_schema.py")
+    assert Period.NORTHERN_FANTASTICAL in list(Period)
+
+
+def test_northern_fantastical_stroke_params_fine_marks():
+    """NORTHERN_FANTASTICAL should have small stroke_size_face for Bosch's micro-detail."""
+    style = Style(medium=Medium.OIL, period=Period.NORTHERN_FANTASTICAL,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 6, (
+        f"NORTHERN_FANTASTICAL stroke_size_face should be <= 6 for Bosch micro-detail; "
+        f"got {p['stroke_size_face']}")
+
+
+def test_northern_fantastical_stroke_params_moderate_edge_softness():
+    """NORTHERN_FANTASTICAL should have moderate edge_softness for jewel clarity."""
+    style = Style(medium=Medium.OIL, period=Period.NORTHERN_FANTASTICAL,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.50, (
+        f"NORTHERN_FANTASTICAL edge_softness should be <= 0.50 for jewel clarity; "
         f"got {p['edge_softness']}")

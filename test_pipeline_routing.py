@@ -10153,3 +10153,181 @@ def test_lombard_renaissance_routing_flag():
                   palette=PaletteHint.WARM_EARTH)
     assert style.period == Period.LOMBARD_RENAISSANCE, (
         "Style.period must equal LOMBARD_RENAISSANCE when set as such")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# bosch_phantasmagoria_pass — session 74 artist discovery
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bosch_phantasmagoria_pass_exists():
+    """Painter must have bosch_phantasmagoria_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bosch_phantasmagoria_pass"), (
+        "bosch_phantasmagoria_pass not found on Painter")
+    assert callable(getattr(Painter, "bosch_phantasmagoria_pass"))
+
+
+def test_bosch_phantasmagoria_pass_no_error_default():
+    """bosch_phantasmagoria_pass() runs without error with default parameters."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.24, 0.18, 0.10), texture_strength=0.0)
+    p.bosch_phantasmagoria_pass(n_detail_marks=40, n_jewel_accents=5)
+
+
+def test_bosch_phantasmagoria_pass_no_figure_mask():
+    """bosch_phantasmagoria_pass() runs correctly when no figure mask is set."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.24, 0.18, 0.10), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.bosch_phantasmagoria_pass(n_detail_marks=30, n_jewel_accents=4, background_only=False)
+
+
+def test_bosch_phantasmagoria_pass_modifies_canvas():
+    """bosch_phantasmagoria_pass() must modify at least one pixel."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.24, 0.18, 0.10), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    before = _canvas_bytes(p)
+    p.bosch_phantasmagoria_pass(n_detail_marks=50, n_jewel_accents=8)
+    after = _canvas_bytes(p)
+    assert before != after, (
+        "bosch_phantasmagoria_pass() should modify at least one pixel")
+
+
+def test_bosch_phantasmagoria_pass_pixels_in_range():
+    """bosch_phantasmagoria_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.24, 0.18, 0.10), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.bosch_phantasmagoria_pass(n_detail_marks=60, n_jewel_accents=10, void_darken=0.08)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_bosch_phantasmagoria_pass_custom_palette():
+    """bosch_phantasmagoria_pass() accepts a custom palette without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.24, 0.18, 0.10), texture_strength=0.0)
+    custom_palette = [
+        (0.70, 0.10, 0.10),
+        (0.10, 0.20, 0.60),
+        (0.65, 0.50, 0.10),
+    ]
+    p.bosch_phantasmagoria_pass(
+        palette=custom_palette,
+        n_detail_marks=30,
+        n_jewel_accents=5,
+        mark_size=2.0,
+        mark_opacity=0.25,
+        jewel_opacity=0.50,
+        void_darken=0.05,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# cool_atmospheric_recession_pass — session 74 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_cool_atmospheric_recession_pass_exists():
+    """Painter must have cool_atmospheric_recession_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "cool_atmospheric_recession_pass"), (
+        "cool_atmospheric_recession_pass not found on Painter")
+    assert callable(getattr(Painter, "cool_atmospheric_recession_pass"))
+
+
+def test_cool_atmospheric_recession_pass_no_error_default():
+    """cool_atmospheric_recession_pass() runs without error with default parameters."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.cool_atmospheric_recession_pass()
+
+
+def test_cool_atmospheric_recession_pass_zero_opacity_is_noop():
+    """cool_atmospheric_recession_pass() at opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.cool_atmospheric_recession_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "cool_atmospheric_recession_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_cool_atmospheric_recession_pass_modifies_canvas():
+    """cool_atmospheric_recession_pass() with positive opacity must change at least one pixel."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    before = _canvas_bytes(p)
+    p.cool_atmospheric_recession_pass(
+        horizon_y=0.35,
+        cool_strength=0.22,
+        bright_lift=0.10,
+        desaturate=0.30,
+        opacity=0.75,
+    )
+    after = _canvas_bytes(p)
+    assert before != after, (
+        "cool_atmospheric_recession_pass() should modify at least one pixel when opacity>0")
+
+
+def test_cool_atmospheric_recession_pass_pixels_in_range():
+    """cool_atmospheric_recession_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.cool_atmospheric_recession_pass(
+        horizon_y=0.40,
+        cool_strength=0.25,
+        bright_lift=0.12,
+        desaturate=0.35,
+        blur_background=1.0,
+        opacity=0.80,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_cool_atmospheric_recession_pass_custom_horizon():
+    """cool_atmospheric_recession_pass() with high horizon_y runs without error."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.cool_atmospheric_recession_pass(
+        horizon_y=0.60,
+        cool_strength=0.18,
+        bright_lift=0.08,
+        desaturate=0.25,
+        blur_background=0.6,
+        feather=0.12,
+        opacity=0.65,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.NORTHERN_FANTASTICAL — session 74 routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_northern_fantastical_period_present_routing():
+    """Period.NORTHERN_FANTASTICAL must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, "NORTHERN_FANTASTICAL"), (
+        "Period.NORTHERN_FANTASTICAL not found in scene_schema — add it")
+    assert Period.NORTHERN_FANTASTICAL in list(Period)
+
+
+def test_northern_fantastical_routing_flag():
+    """Style with NORTHERN_FANTASTICAL period must be constructible and readable."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.NORTHERN_FANTASTICAL,
+                  palette=PaletteHint.DARK_EARTH)
+    assert style.period == Period.NORTHERN_FANTASTICAL

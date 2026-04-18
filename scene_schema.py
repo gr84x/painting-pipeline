@@ -243,6 +243,7 @@ class Period(Enum):
     PARMA_RENAISSANCE = auto()   # Correggio — golden amber warmth, proto-Baroque softness, tender melting transitions, warm honeyed shadows, sensuous luminous flesh
     FETE_GALANTE  = auto()       # Watteau — crepuscular amber twilight, warm golden imprimatura glow, autumnal melancholy, dissolved midtone edges, peripheral amber vignette
     LOMBARD_RENAISSANCE = auto() # Anguissola — warm Lombard ivory skin, psychological gaze intimacy, sharp eye/lip focus against softened periphery, golden ambient warmth
+    NORTHERN_FANTASTICAL = auto() # Bosch — near-black Brabantine void ground, jewel-tone symbolic accents, teeming micro-detail density, phantasmagoric creature texture
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -913,6 +914,17 @@ class Style:
             # (0.68) for Lombard warmth without Leonardo's extreme sfumato dissolution;
             # fine stroke_size_face for the meticulous Lombard observation of facial detail.
             Period.LOMBARD_RENAISSANCE: dict(stroke_size_face=6, stroke_size_bg=24, wet_blend=0.72, edge_softness=0.68),
+            # NORTHERN_FANTASTICAL (Bosch) — dark Brabantine ground with intricate symbolic texture.
+            # stroke_size_face=4: fine, detail-oriented marks — Bosch's figures are rendered with
+            # extraordinary fine-mark density; flesh forms are built with precise, small touches over
+            # dark oak panel gesso.  stroke_size_bg=12: small background marks — unlike the broad
+            # sweeping background of a Baroque void, Bosch's backgrounds teem with minute symbolic
+            # detail that demands fine brushwork even in far-field areas.
+            # wet_blend=0.35: moderate blending — Bosch worked in transparent oil over white chalk
+            # gesso; forms are blended enough to model volume but edges remain legible and crisp.
+            # edge_softness=0.30: moderate crispness — forms are clearly delineated against the dark
+            # ground; the jewel-toned accents need clean edges to read as separate symbolic objects.
+            Period.NORTHERN_FANTASTICAL: dict(stroke_size_face=4, stroke_size_bg=12, wet_blend=0.35, edge_softness=0.30),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
