@@ -223,6 +223,7 @@ class Period(Enum):
     NORTHERN_RENAISSANCE = auto()    # Dürer — pale silver-white ground, cool engraving-precision, cross-hatch shadows, single-hair detail
     QUATTROCENTO  = auto()           # Fra Angelico — chalk-white gesso, tempera hatching, pure lapis/vermilion, gold-leaf halos
     FRENCH_CLASSICAL = auto()        # Poussin — cool architectural clarity, silver shadows, rational colour zones, saturation discipline
+    FRENCH_COURT_BAROQUE = auto()    # Rigaud — sumptuous velvet darkness, cool silk highlights, ermine sheen, warm chestnut portraits of royal grandeur
     ROCOCO_PORTRAIT = auto()         # Gainsborough — feathery edge dissolution, cool silver-blue tonality, figure embedded in landscape
     AMERICAN_MARINE = auto()         # Homer — brilliant maritime light, cool Prussian shadows, transparent wash over white ground, decisive unretouched strokes
     FRENCH_ROCOCO = auto()           # Fragonard — bravura loaded-brush highlights, warm cream-peach palette, spontaneous gestural marks, warm amber-honey glaze
@@ -763,6 +764,16 @@ class Style:
             # edge_softness=0.42: clear, legible Classical boundaries — forms read as rational sculpture;
             # no sfumato haze, no razor Tenebrist knife-edge; edges are present and considered.
             Period.FRENCH_CLASSICAL: dict(stroke_size_face=7, stroke_size_bg=24, wet_blend=0.38, edge_softness=0.42),
+            # French Court Baroque (Rigaud): sumptuous formal portraiture with deep velvet and silk.
+            # stroke_size_face=6: precise, careful modelling — Rigaud built up faces with smooth
+            # deliberate strokes that leave a porcelain-like finish beneath the courtly grandeur.
+            # stroke_size_bg=22: architectural backgrounds (columns, curtains, distant vistas) were
+            # painted with controlled, measured marks — formal and stable, not gestural.
+            # wet_blend=0.32: moderate — Rigaud worked in careful layers; velvet requires distinct
+            # passages of dark, mid, and highlight tones rather than wet-into-wet dissolution.
+            # edge_softness=0.38: moderate crispness — silk shimmers with found edges; velvet and
+            # ermine have softer transitions; drapery edges are more defined than Baroque sfumato.
+            Period.FRENCH_COURT_BAROQUE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.32, edge_softness=0.38),
             # Rococo Portrait (Gainsborough): feathery, fluid British portraiture on a pale grey ground.
             # stroke_size_face=8: medium-large marks — Gainsborough worked boldly and swiftly with long
             # flexible brushes, covering large areas in a single pass rather than building up with many
