@@ -242,6 +242,7 @@ class Period(Enum):
     BOLOGNESE_BAROQUE = auto()   # Guido Reni — alabaster pearl skin, heavenly sfumato-adjacent softness, warm rose midflesh, cool lavender-grey shadows, radiant highlight bloom
     PARMA_RENAISSANCE = auto()   # Correggio — golden amber warmth, proto-Baroque softness, tender melting transitions, warm honeyed shadows, sensuous luminous flesh
     FETE_GALANTE  = auto()       # Watteau — crepuscular amber twilight, warm golden imprimatura glow, autumnal melancholy, dissolved midtone edges, peripheral amber vignette
+    LOMBARD_RENAISSANCE = auto() # Anguissola — warm Lombard ivory skin, psychological gaze intimacy, sharp eye/lip focus against softened periphery, golden ambient warmth
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -906,6 +907,12 @@ class Style:
             # for the dreamy midtone dissolution of his fête galante backgrounds; moderate
             # stroke_size_face to build the delicate, warm-ground flesh tone.
             Period.FETE_GALANTE:  dict(stroke_size_face=7, stroke_size_bg=28, wet_blend=0.58, edge_softness=0.60),
+            # LOMBARD_RENAISSANCE (Anguissola) — warm Lombard psychological portraiture:
+            # high wet_blend (0.72) for the seamless Lombard skin transitions and warm
+            # ambient light that was her signature achievement; moderate-to-high edge_softness
+            # (0.68) for Lombard warmth without Leonardo's extreme sfumato dissolution;
+            # fine stroke_size_face for the meticulous Lombard observation of facial detail.
+            Period.LOMBARD_RENAISSANCE: dict(stroke_size_face=6, stroke_size_bg=24, wet_blend=0.72, edge_softness=0.68),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -20007,3 +20007,178 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Watteau crepuscular reverie pass complete.")
+
+    def anguissola_intimacy_pass(self,
+                                  focus_cx:       float = 0.50,
+                                  focus_cy:       float = 0.30,
+                                  focus_radius:   float = 0.14,
+                                  sharpen_strength: float = 0.55,
+                                  eye_cx_offset:  float = 0.06,
+                                  eye_cy_offset:  float = 0.00,
+                                  eye_radius:     float = 0.07,
+                                  lip_cy_offset:  float = 0.09,
+                                  lip_rx:         float = 0.06,
+                                  lip_ry:         float = 0.032,
+                                  periphery_soften: float = 1.8,
+                                  warm_ambient:   float = 0.025,
+                                  opacity:        float = 0.70) -> None:
+        """
+        Anguissola intimacy pass — session 73 artistic improvement.
+
+        Inspired by Sofonisba Anguissola (c. 1535–1625), the first woman to
+        achieve international recognition as a major portrait painter.  Her
+        defining technical achievement — identified by Anthony van Dyck, who
+        visited her in Palermo in 1624 when she was nearly ninety — was the
+        'breathing' quality of her portraits: a specific psychological presence
+        that makes sitters appear individually alive rather than generically
+        idealised.
+
+        The source of this quality is a deliberate focus hierarchy: the eyes
+        and lips — the emotional centres of any portrait — are rendered with
+        maximum sharpness and specificity, while the surrounding flesh, hair,
+        and drapery soften into the warm Lombard ambient light.  This creates
+        the visual equivalent of what the eyes do naturally when they focus on
+        a face: the gaze locks on the eyes, and peripheral form dissolves.
+
+        This pass encodes three elements of Anguissola's intimacy technique:
+
+          1. Psychological focus sharpening: the eye zones (two small ellipses
+             flanking the face centre) and lip zone (a small horizontal ellipse
+             below the face centre) are sharpened via unsharp mask.  The
+             sharpening is moderate — enough to give specificity without the
+             mechanical hardness of Flemish enamel technique.  This encodes
+             the Lombard observation that the face is seen in detail at its
+             emotional centres and softer everywhere else.
+
+          2. Peripheral flesh softening: the zones outside the focal circle
+             are gently blurred, simulating the warm Lombard ambient light
+             that wraps around the figure and softens all boundaries except
+             those the eye concentrates on.  Unlike Leonardo's uniform sfumato,
+             Anguissola's softening is selective — it does not dissolve the
+             eyes and mouth, which remain present and direct.
+
+          3. Warm Lombard ambient drift: a subtle global warm bias is applied
+             — less than Watteau's amber shift, more golden than Leonardo's
+             cool sfumato — that represents the warm afternoon Lombard light
+             that characterises her studio conditions.  This drift lifts the
+             overall tonality toward the golden warmth that makes her flesh
+             tones appear to glow from within.
+
+        The result is a surface with the characteristic Anguissola portrait
+        quality: psychologically present eyes and lips embedded in warm,
+        softly luminous flesh — as if the sitter has just turned to meet
+        the viewer's gaze.
+
+        Parameters
+        ----------
+        focus_cx        : normalised x-centre of the face ellipse [0, 1]
+        focus_cy        : normalised y-centre of the face ellipse [0, 1]
+        focus_radius    : radius of the sharpening focus zone (normalised)
+        sharpen_strength: unsharp mask strength for eye/lip sharpening (0–1)
+        eye_cx_offset   : horizontal offset from face centre to each eye (normalised)
+        eye_cy_offset   : vertical offset from face centre to each eye (normalised)
+        eye_radius      : radius of each eye sharpening zone (normalised)
+        lip_cy_offset   : vertical offset downward from face centre to lip zone (normalised)
+        lip_rx          : horizontal radius of lip sharpening zone (normalised)
+        lip_ry          : vertical radius of lip sharpening zone (normalised)
+        periphery_soften: Gaussian sigma for peripheral softening outside focus zone (pixels)
+        warm_ambient    : warm Lombard ambient drift — R/G/B channel bias (0–0.05)
+        opacity         : overall pass opacity blended against input (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Anguissola intimacy pass "
+              f"(focus=({focus_cx:.2f},{focus_cy:.2f})  r={focus_radius:.2f}  "
+              f"sharpen={sharpen_strength:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Anguissola intimacy pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build coordinate grids ────────────────────────────────────────────
+        xs = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[None, :]   # (1, W)
+        ys = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, None]   # (H, 1)
+
+        # ── 1. Eye zone masks (two ellipses flanking face centre) ─────────────
+        def _ellipse_weight(cx, cy, rx, ry, power=2.5):
+            """Soft elliptical mask, peak=1 at centre, 0 at boundary."""
+            dx = (xs - cx) / max(rx, 1e-6)
+            dy = (ys - cy) / max(ry, 1e-6)
+            d2 = dx ** 2 + dy ** 2
+            return _np.clip(1.0 - d2 ** (power / 2.0), 0.0, 1.0)
+
+        # Left eye
+        left_eye  = _ellipse_weight(focus_cx - eye_cx_offset,
+                                    focus_cy + eye_cy_offset,
+                                    eye_radius, eye_radius * 0.70)
+        # Right eye
+        right_eye = _ellipse_weight(focus_cx + eye_cx_offset,
+                                    focus_cy + eye_cy_offset,
+                                    eye_radius, eye_radius * 0.70)
+        # Lips
+        lip_zone  = _ellipse_weight(focus_cx,
+                                    focus_cy + lip_cy_offset,
+                                    lip_rx, lip_ry)
+
+        # Combined psychological focus mask
+        focus_mask = _np.clip(left_eye + right_eye + lip_zone, 0.0, 1.0)
+
+        # ── 2. Peripheral soft mask (outside focus_radius) ───────────────────
+        dx_p = (xs - focus_cx) / max(focus_radius, 1e-6)
+        dy_p = (ys - focus_cy) / max(focus_radius, 1e-6)
+        face_d2 = dx_p ** 2 + dy_p ** 2
+        # periphery_weight: 0 at face centre, 1 at edges
+        periphery_weight = _np.clip((face_d2 - 1.0) / 3.0, 0.0, 1.0)
+
+        # ── 3. Sharpen eye/lip zones via unsharp mask ─────────────────────────
+        blur_sig = max(1.2, focus_radius * min(w, h) * 0.20)
+        r_blur = _gf(r_f, sigma=blur_sig)
+        g_blur = _gf(g_f, sigma=blur_sig)
+        b_blur = _gf(b_f, sigma=blur_sig)
+
+        r_sharp = _np.clip(r_f + sharpen_strength * focus_mask * (r_f - r_blur), 0.0, 1.0)
+        g_sharp = _np.clip(g_f + sharpen_strength * focus_mask * (g_f - g_blur), 0.0, 1.0)
+        b_sharp = _np.clip(b_f + sharpen_strength * focus_mask * (b_f - b_blur), 0.0, 1.0)
+
+        # ── 4. Peripheral softening ───────────────────────────────────────────
+        soft_sig = max(0.5, periphery_soften)
+        r_soft = _gf(r_sharp, sigma=soft_sig)
+        g_soft = _gf(g_sharp, sigma=soft_sig)
+        b_soft = _gf(b_sharp, sigma=soft_sig)
+
+        # Blend: periphery gets softened, focus zone preserves sharpened version
+        focus_preserve = _np.clip(1.0 - periphery_weight * 0.85, 0.0, 1.0)
+        r_out = r_sharp * focus_preserve + r_soft * (1.0 - focus_preserve)
+        g_out = g_sharp * focus_preserve + g_soft * (1.0 - focus_preserve)
+        b_out = b_sharp * focus_preserve + b_soft * (1.0 - focus_preserve)
+
+        # ── 5. Warm Lombard ambient drift ─────────────────────────────────────
+        # Warm R and G slightly, damp B — Lombard afternoon golden light
+        r_out = _np.clip(r_out + warm_ambient * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + warm_ambient * 0.65, 0.0, 1.0)
+        b_out = _np.clip(b_out - warm_ambient * 0.20, 0.0, 1.0)
+
+        # ── Composite at opacity against original ─────────────────────────────
+        r_final = r_f * (1.0 - opacity) + r_out * opacity
+        g_final = g_f * (1.0 - opacity) + g_out * opacity
+        b_final = b_f * (1.0 - opacity) + b_out * opacity
+
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Anguissola intimacy pass complete.")

@@ -89,6 +89,7 @@ EXPECTED_ARTISTS = [
     "guido_reni",
     "correggio",
     "watteau",
+    "sofonisba_anguissola",
 ]
 
 
@@ -8580,4 +8581,156 @@ def test_fete_galante_stroke_params_moderate_edge_softness():
     p = style.stroke_params
     assert p["edge_softness"] >= 0.45, (
         f"FETE_GALANTE edge_softness should be >= 0.45 for Watteau's edge dissolution; "
+        f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Sofonisba Anguissola — session 73 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_sofonisba_anguissola_in_catalog():
+    """Session 73: sofonisba_anguissola must be in CATALOG."""
+    assert "sofonisba_anguissola" in CATALOG, (
+        "sofonisba_anguissola missing from CATALOG — add it to art_catalog.py")
+
+
+def test_sofonisba_anguissola_movement():
+    """Anguissola movement must reference Lombard Renaissance."""
+    s = get_style("sofonisba_anguissola")
+    movement_lower = s.movement.lower()
+    assert "lombard" in movement_lower or "renaissance" in movement_lower, (
+        f"Anguissola movement should reference Lombard Renaissance; got {s.movement!r}")
+
+
+def test_sofonisba_anguissola_nationality():
+    """Anguissola must be Italian."""
+    s = get_style("sofonisba_anguissola")
+    assert s.nationality.lower() == "italian", (
+        f"Anguissola nationality should be Italian; got {s.nationality!r}")
+
+
+def test_sofonisba_anguissola_palette_length():
+    """Anguissola palette must have at least 5 colours."""
+    s = get_style("sofonisba_anguissola")
+    assert len(s.palette) >= 5, (
+        f"Anguissola palette should have >= 5 entries; got {len(s.palette)}")
+
+
+def test_sofonisba_anguissola_palette_values_in_range():
+    """All Anguissola palette entries must be in [0, 1]."""
+    s = get_style("sofonisba_anguissola")
+    for i, colour in enumerate(s.palette):
+        for j, component in enumerate(colour):
+            assert 0.0 <= component <= 1.0, (
+                f"Anguissola palette[{i}][{j}] = {component!r} out of [0,1] range")
+
+
+def test_sofonisba_anguissola_warm_palette():
+    """Anguissola palette should be warm-dominant (mean R > mean B) — Lombard golden light."""
+    s = get_style("sofonisba_anguissola")
+    mean_r = sum(c[0] for c in s.palette) / len(s.palette)
+    mean_b = sum(c[2] for c in s.palette) / len(s.palette)
+    assert mean_r > mean_b, (
+        f"Anguissola palette should be warm (R > B); got mean_r={mean_r:.3f} mean_b={mean_b:.3f}")
+
+
+def test_sofonisba_anguissola_high_wet_blend():
+    """Anguissola should have high wet_blend (seamless Lombard skin transitions)."""
+    s = get_style("sofonisba_anguissola")
+    assert s.wet_blend >= 0.55, (
+        f"Anguissola wet_blend should be >= 0.55 for seamless Lombard skin; "
+        f"got {s.wet_blend}")
+
+
+def test_sofonisba_anguissola_moderate_edge_softness():
+    """Anguissola edge_softness should be moderate-to-high (Lombard warmth without extreme sfumato)."""
+    s = get_style("sofonisba_anguissola")
+    assert 0.45 <= s.edge_softness <= 0.85, (
+        f"Anguissola edge_softness should be in [0.45, 0.85] for Lombard softness; "
+        f"got {s.edge_softness}")
+
+
+def test_sofonisba_anguissola_has_glazing():
+    """Anguissola should have a warm amber glazing colour."""
+    s = get_style("sofonisba_anguissola")
+    assert s.glazing is not None, "Anguissola should have a glazing colour"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"Anguissola glazing should be warm (R > B); got {s.glazing!r}")
+
+
+def test_sofonisba_anguissola_warm_ground():
+    """Anguissola ground_color must be warm (R > B) — Lombard ochre imprimatura."""
+    s = get_style("sofonisba_anguissola")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Anguissola ground_color should be warm (R > B); got {s.ground_color!r}")
+
+
+def test_sofonisba_anguissola_famous_works_include_chess():
+    """Anguissola famous_works must include the Chess Game / Sisters Playing Chess."""
+    s = get_style("sofonisba_anguissola")
+    titles = [title.lower() for title, _ in s.famous_works]
+    assert any("chess" in t for t in titles), (
+        f"Anguissola famous_works should include the Chess Game; got titles={titles!r}")
+
+
+def test_sofonisba_anguissola_famous_works_include_self_portrait():
+    """Anguissola famous_works must include a Self-Portrait."""
+    s = get_style("sofonisba_anguissola")
+    titles = [title.lower() for title, _ in s.famous_works]
+    assert any("self" in t or "self-portrait" in t for t in titles), (
+        f"Anguissola famous_works should include a Self-Portrait; got {titles!r}")
+
+
+def test_sofonisba_anguissola_famous_works_count():
+    """Anguissola should have at least 5 famous works."""
+    s = get_style("sofonisba_anguissola")
+    assert len(s.famous_works) >= 5, (
+        f"Anguissola should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_sofonisba_anguissola_inspiration_references_intimacy_pass():
+    """Anguissola inspiration text should reference anguissola_intimacy_pass."""
+    s = get_style("sofonisba_anguissola")
+    assert "intimacy" in s.inspiration.lower(), (
+        f"Anguissola inspiration should reference the intimacy pass; "
+        f"got {s.inspiration[:80]!r}")
+
+
+def test_sofonisba_anguissola_in_expected_artists():
+    """sofonisba_anguissola must be present in the EXPECTED_ARTISTS list."""
+    assert "sofonisba_anguissola" in EXPECTED_ARTISTS, (
+        "sofonisba_anguissola missing from EXPECTED_ARTISTS — add it to the list "
+        "in test_art_catalog.py")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.LOMBARD_RENAISSANCE — session 73 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_lombard_renaissance_period_present():
+    """Session 73: LOMBARD_RENAISSANCE must exist in Period enum."""
+    assert hasattr(Period, "LOMBARD_RENAISSANCE"), (
+        "Period.LOMBARD_RENAISSANCE not found — add it to scene_schema.py")
+    assert Period.LOMBARD_RENAISSANCE in list(Period)
+
+
+def test_lombard_renaissance_stroke_params_high_wet_blend():
+    """LOMBARD_RENAISSANCE should have high wet_blend (seamless Lombard skin blending)."""
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.55, (
+        f"LOMBARD_RENAISSANCE wet_blend should be >= 0.55 for Anguissola's seamless skin; "
+        f"got {p['wet_blend']}")
+
+
+def test_lombard_renaissance_stroke_params_moderate_edge_softness():
+    """LOMBARD_RENAISSANCE should have moderate-to-high edge_softness."""
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.45 <= p["edge_softness"] <= 0.85, (
+        f"LOMBARD_RENAISSANCE edge_softness should be in [0.45, 0.85] for Lombard warmth; "
         f"got {p['edge_softness']}")

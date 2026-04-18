@@ -10047,3 +10047,109 @@ def test_luminous_haze_pass_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# anguissola_intimacy_pass() — session 73 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_anguissola_intimacy_pass_exists():
+    """Painter must have anguissola_intimacy_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "anguissola_intimacy_pass"), (
+        "anguissola_intimacy_pass not found on Painter")
+    assert callable(getattr(Painter, "anguissola_intimacy_pass"))
+
+
+def test_anguissola_intimacy_pass_no_error_default():
+    """anguissola_intimacy_pass() runs without error with default parameters."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.58, 0.48, 0.32), texture_strength=0.0)
+    p.anguissola_intimacy_pass()
+
+
+def test_anguissola_intimacy_pass_zero_opacity_is_noop():
+    """anguissola_intimacy_pass() at opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.58, 0.48, 0.32), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.anguissola_intimacy_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "anguissola_intimacy_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_anguissola_intimacy_pass_modifies_canvas():
+    """anguissola_intimacy_pass() with positive opacity must change at least one pixel."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.58, 0.48, 0.32), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    before = _canvas_bytes(p)
+    p.anguissola_intimacy_pass(
+        focus_cx=0.50, focus_cy=0.30,
+        sharpen_strength=0.50, warm_ambient=0.022, opacity=0.70,
+    )
+    after = _canvas_bytes(p)
+    assert before != after, (
+        "anguissola_intimacy_pass() should modify at least one pixel when opacity>0")
+
+
+def test_anguissola_intimacy_pass_custom_focus():
+    """anguissola_intimacy_pass() with off-centre focus runs without error."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.58, 0.48, 0.32), texture_strength=0.0)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.anguissola_intimacy_pass(
+        focus_cx=0.48, focus_cy=0.28,
+        focus_radius=0.15,
+        sharpen_strength=0.55,
+        eye_cx_offset=0.06,
+        eye_cy_offset=-0.01,
+        eye_radius=0.07,
+        lip_cy_offset=0.09,
+        lip_rx=0.06,
+        lip_ry=0.03,
+        periphery_soften=2.0,
+        warm_ambient=0.025,
+        opacity=0.65,
+    )
+
+
+def test_anguissola_intimacy_pass_pixels_in_range():
+    """anguissola_intimacy_pass() must not produce out-of-range pixel values."""
+    p = _make_small_painter(80, 80)
+    ref = _solid_reference(80, 80)
+    p.tone_ground((0.58, 0.48, 0.32), texture_strength=0.0)
+    p.block_in(ref, stroke_size=10, n_strokes=30)
+    p.anguissola_intimacy_pass(
+        focus_cx=0.50, focus_cy=0.30,
+        sharpen_strength=0.60,
+        warm_ambient=0.03,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.LOMBARD_RENAISSANCE — session 73 routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_lombard_renaissance_period_present_routing():
+    """Period.LOMBARD_RENAISSANCE must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, "LOMBARD_RENAISSANCE"), (
+        "Period.LOMBARD_RENAISSANCE not found in scene_schema — add it")
+    assert Period.LOMBARD_RENAISSANCE in list(Period)
+
+
+def test_lombard_renaissance_routing_flag():
+    """is_lombard_renaissance flag must evaluate True for LOMBARD_RENAISSANCE scenes."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    assert style.period == Period.LOMBARD_RENAISSANCE, (
+        "Style.period must equal LOMBARD_RENAISSANCE when set as such")
