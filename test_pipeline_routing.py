@@ -10537,3 +10537,136 @@ def test_rigaud_velvet_drapery_pass_darkens_velvet():
     assert total_after <= total_before + 5.0, (
         f"rigaud_velvet_drapery_pass should darken velvet zones; "
         f"before_mean={total_before:.1f} after_mean={total_after:.1f}")
+
+
+# -------------------------------------------------------------------------
+# Lorenzo Lotto / VENETIAN_PSYCHOLOGICAL / lotto_chromatic_anxiety_pass -- s79
+# -------------------------------------------------------------------------
+
+
+def test_venetian_psychological_period_accessible():
+    """Period.VENETIAN_PSYCHOLOGICAL must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, 'VENETIAN_PSYCHOLOGICAL'), (
+        'Period.VENETIAN_PSYCHOLOGICAL not found in scene_schema -- add it')
+    assert Period.VENETIAN_PSYCHOLOGICAL in list(Period)
+
+
+def test_venetian_psychological_wet_blend_range():
+    """VENETIAN_PSYCHOLOGICAL wet_blend must be in [0.30, 0.60]."""
+    sp = Style(medium=Medium.OIL, period=Period.VENETIAN_PSYCHOLOGICAL).stroke_params
+    assert 0.30 <= sp['wet_blend'] <= 0.60, (
+        f"VENETIAN_PSYCHOLOGICAL wet_blend should be in [0.30, 0.60] for Lotto's "
+        f"Venetian oil blending with psychological tension; got {sp['wet_blend']:.2f}")
+
+
+def test_venetian_psychological_edge_softness_range():
+    """VENETIAN_PSYCHOLOGICAL edge_softness must be in [0.35, 0.65]."""
+    sp = Style(medium=Medium.OIL, period=Period.VENETIAN_PSYCHOLOGICAL).stroke_params
+    assert 0.35 <= sp['edge_softness'] <= 0.65, (
+        f"VENETIAN_PSYCHOLOGICAL edge_softness should be in [0.35, 0.65] for Lotto's "
+        f"psychologically crisp edges; got {sp['edge_softness']:.2f}")
+
+
+def test_lotto_chromatic_anxiety_pass_exists():
+    """Painter must have a lotto_chromatic_anxiety_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, 'lotto_chromatic_anxiety_pass'), (
+        'Painter is missing lotto_chromatic_anxiety_pass -- add it to stroke_engine.py')
+
+
+def test_lotto_chromatic_anxiety_pass_modifies_canvas():
+    """lotto_chromatic_anxiety_pass() must alter the canvas from its initial state."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [140, 130, 175, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.lotto_chromatic_anxiety_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    assert not np.array_equal(before, after), (
+        'lotto_chromatic_anxiety_pass should change the canvas when opacity=1.0')
+
+
+def test_lotto_chromatic_anxiety_pass_opacity_zero_is_noop():
+    """lotto_chromatic_anxiety_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [140, 130, 175, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.lotto_chromatic_anxiety_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        'lotto_chromatic_anxiety_pass(opacity=0) should be a noop')
+
+
+def test_lotto_chromatic_anxiety_pass_cools_flesh_midtones():
+    """
+    lotto_chromatic_anxiety_pass must cool flesh midtone pixels -- B channel
+    should increase in skin midtone pixels after the pass.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    # Fill with warm flesh midtone (skin R/G/B profile, mid luminance)
+    # R=175, G=135, B=100 -- warm skin midtone
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, 0] = 100   # B
+    data[:, :, 1] = 135   # G
+    data[:, :, 2] = 175   # R  (cairo BGRA)
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before_b = data[:, :, 0].astype(float).mean()
+    before_r = data[:, :, 2].astype(float).mean()
+    p.lotto_chromatic_anxiety_pass(
+        flesh_mid_lo=0.40,
+        flesh_mid_hi=0.75,
+        cool_b_boost=0.10,
+        cool_r_reduce=0.06,
+        opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    after_b = after[:, :, 0].astype(float).mean()
+    after_r = after[:, :, 2].astype(float).mean()
+    assert after_b >= before_b, (
+        f'lotto_chromatic_anxiety_pass should boost B in flesh midtones; '
+        f'before_B={before_b:.1f} after_B={after_b:.1f}')
+    assert after_r <= before_r + 1.0, (
+        f'lotto_chromatic_anxiety_pass should reduce R in flesh midtones; '
+        f'before_R={before_r:.1f} after_R={after_r:.1f}')
+
+
+def test_lotto_chromatic_anxiety_pass_bg_green_lift():
+    """
+    lotto_chromatic_anxiety_pass must lift G in non-skin background midtones --
+    the cool muted green background discord.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    # Fill with a neutral non-skin midtone (grey -- will not be detected as skin)
+    # B=110, G=110, R=110 -- pure grey, clearly not skin
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, 0] = 110
+    data[:, :, 1] = 110
+    data[:, :, 2] = 110
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before_g = data[:, :, 1].astype(float).mean()
+    p.lotto_chromatic_anxiety_pass(
+        bg_mid_lo=0.30,
+        bg_mid_hi=0.70,
+        bg_green_lift=0.10,
+        bg_blue_lift=0.05,
+        opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    after_g = after[:, :, 1].astype(float).mean()
+    assert after_g >= before_g, (
+        f'lotto_chromatic_anxiety_pass should lift G in non-skin bg midtones; '
+        f'before_G={before_g:.1f} after_G={after_g:.1f}')

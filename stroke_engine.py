@@ -21172,3 +21172,143 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Rigaud velvet drapery pass complete.")
+
+    def lotto_chromatic_anxiety_pass(
+        self,
+        *,
+        flesh_mid_lo:      float = 0.42,
+        flesh_mid_hi:      float = 0.72,
+        cool_b_boost:      float = 0.06,
+        cool_r_reduce:     float = 0.04,
+        eye_left_cx:       float = 0.38,
+        eye_left_cy:       float = 0.38,
+        eye_right_cx:      float = 0.62,
+        eye_right_cy:      float = 0.38,
+        eye_rx:            float = 0.07,
+        eye_ry:            float = 0.04,
+        eye_contrast:      float = 0.12,
+        eye_cool_b:        float = 0.05,
+        eye_cool_r:        float = 0.03,
+        bg_mid_lo:         float = 0.28,
+        bg_mid_hi:         float = 0.68,
+        bg_green_lift:     float = 0.05,
+        bg_blue_lift:      float = 0.03,
+        skin_r_lo:         float = 0.45,
+        skin_r_hi:         float = 0.88,
+        skin_g_lo:         float = 0.30,
+        skin_g_hi:         float = 0.78,
+        skin_b_hi:         float = 0.68,
+        blur_radius:       float = 4.0,
+        opacity:           float = 0.48,
+    ) -> None:
+        """
+        Lorenzo Lotto chromatic anxiety pass (session 79).
+
+        Models Lotto chief psychological quality: cool undertone injection
+        beneath Venetian warmth. Three operations:
+        1. Cool flesh midtone injection -- skin midtone pixels: B up, R down.
+        2. Eye-region chromatic intensification -- contrast boost + cool shadow
+           shift in two eye ellipses.
+        3. Background color dissonance -- non-skin midtone bg: G up, B up
+           (cool muted green + grey-blue background discord).
+
+        Parameters:
+            flesh_mid_lo/hi    Luminance band for flesh midtone injection.
+            cool_b_boost       B-channel boost in flesh midtones.
+            cool_r_reduce      R-channel reduction in flesh midtones.
+            eye_left/right_cx  Eye centre x as fraction of canvas width.
+            eye_left/right_cy  Eye centre y as fraction of canvas height.
+            eye_rx / eye_ry    Eye ellipse radii as fractions of width/height.
+            eye_contrast       Local contrast stretch in eye zones.
+            eye_cool_b/r       Cool shadow push within eye ellipses.
+            bg_mid_lo/hi       Luminance band for background dissonance.
+            bg_green_lift      G-channel lift in background midtones.
+            bg_blue_lift       B-channel lift in background midtones.
+            skin_r/g/b_*       Skin detection channel ranges.
+            blur_radius        Gaussian feathering radius.
+            opacity            Final blend opacity [0-1].
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        surface = self.canvas.surface
+        w_px    = surface.get_width()
+        h_px    = surface.get_height()
+
+        orig = _np.frombuffer(
+            surface.get_data(), dtype=_np.uint8
+        ).reshape((h_px, w_px, 4)).copy()
+
+        # cairo BGRA byte order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        lum = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # Skin mask
+        skin_raw = (
+            (r0 >= skin_r_lo) & (r0 <= skin_r_hi) &
+            (g0 >= skin_g_lo) & (g0 <= skin_g_hi) &
+            (b0 <= skin_b_hi)
+        ).astype(_np.float32)
+        skin_mask = _gf(skin_raw, sigma=blur_radius * 1.5).astype(_np.float32)
+        non_skin  = _np.clip(1.0 - skin_mask, 0.0, 1.0)
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # 1. Cool flesh midtone injection
+        band_span = max(flesh_mid_hi - flesh_mid_lo, 0.01)
+        flesh_band = _np.clip(
+            _np.minimum(
+                (lum - flesh_mid_lo) / band_span,
+                (flesh_mid_hi - lum) / band_span,
+            ) * 2.0,
+            0.0, 1.0
+        ).astype(_np.float32)
+        flesh_mask = _gf(flesh_band * skin_mask, sigma=blur_radius).astype(_np.float32)
+        r_out = _np.clip(r_out - flesh_mask * cool_r_reduce, 0.0, 1.0)
+        b_out = _np.clip(b_out + flesh_mask * cool_b_boost,  0.0, 1.0)
+
+        # 2. Eye-region chromatic intensification
+        ys = _np.linspace(0.0, 1.0, h_px, dtype=_np.float32)[:, _np.newaxis]
+        xs = _np.linspace(0.0, 1.0, w_px, dtype=_np.float32)[_np.newaxis, :]
+        for (ecx, ecy) in [(eye_left_cx, eye_left_cy), (eye_right_cx, eye_right_cy)]:
+            dist_sq = ((xs - ecx) / max(eye_rx, 0.001)) ** 2 +                       ((ys - ecy) / max(eye_ry, 0.001)) ** 2
+            eye_raw  = _np.clip(1.0 - dist_sq, 0.0, 1.0).astype(_np.float32)
+            eye_zone = _gf(eye_raw, sigma=blur_radius * 0.8).astype(_np.float32)
+            delta = lum - 0.5
+            r_out = _np.clip(r_out + eye_zone * delta * eye_contrast, 0.0, 1.0)
+            g_out = _np.clip(g_out + eye_zone * delta * eye_contrast, 0.0, 1.0)
+            b_out = _np.clip(b_out + eye_zone * delta * eye_contrast, 0.0, 1.0)
+            shadow_half = _np.clip(0.5 - lum, 0.0, 0.5) * 2.0
+            r_out = _np.clip(r_out - eye_zone * shadow_half * eye_cool_r, 0.0, 1.0)
+            b_out = _np.clip(b_out + eye_zone * shadow_half * eye_cool_b, 0.0, 1.0)
+
+        # 3. Background color dissonance
+        bg_span = max(bg_mid_hi - bg_mid_lo, 0.01)
+        bg_band = _np.clip(
+            _np.minimum(
+                (lum - bg_mid_lo) / bg_span,
+                (bg_mid_hi - lum) / bg_span,
+            ) * 2.0,
+            0.0, 1.0
+        ).astype(_np.float32)
+        bg_mask = _gf(bg_band * non_skin, sigma=blur_radius).astype(_np.float32)
+        g_out = _np.clip(g_out + bg_mask * bg_green_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + bg_mask * bg_blue_lift,  0.0, 1.0)
+
+        # 4. Composite at opacity
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Lotto chromatic anxiety pass complete.")

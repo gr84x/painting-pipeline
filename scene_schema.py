@@ -247,6 +247,7 @@ class Period(Enum):
     NORTHERN_FANTASTICAL = auto() # Bosch — near-black Brabantine void ground, jewel-tone symbolic accents, teeming micro-detail density, phantasmagoric creature texture
     DUTCH_DOMESTIC = auto()      # de Hooch — warm threshold light through doorways, warm/cool interior contrast, geometric tile floors, amber-lit foreground against cool daylight background
     DUTCH_GENRE_COMEDY = auto()  # Jan Steen — warm amber imprimatura glow, rosy flushed flesh, vivid costume accents, energetic alla prima brushwork, warm amber-brown shadows
+    VENETIAN_PSYCHOLOGICAL = auto()  # Lotto — cool chromatic anxiety beneath Venetian warmth, psychological eye intensity, background color dissonance, restless chromatic undertone
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -957,6 +958,16 @@ class Style:
             # Steen achieves warmth through color choice and ground, not through deep sfumato blending.
             # edge_softness=0.45: moderate edges — clothing and props are fairly crisp, faces are softer.
             Period.DUTCH_GENRE_COMEDY: dict(stroke_size_face=8, stroke_size_bg=28, wet_blend=0.40, edge_softness=0.45),
+            # VENETIAN_PSYCHOLOGICAL (Lotto) — cool, psychologically tense portraiture.
+            # stroke_size_face=5: careful, observational portrait marks — Lotto was meticulous
+            # about facial expression and detail; smaller than genre but larger than van Eyck.
+            # stroke_size_bg=20: Lotto's backgrounds range from plain dark to complex interiors;
+            # medium mark size for the architectural/landscape elements.
+            # wet_blend=0.45: moderate blending — smooth enough for Venetian flesh but with
+            # less warm dissolution than Titian; keeps a slight edge tension in the face.
+            # edge_softness=0.48: slightly more defined than classic sfumato — Lotto's edges
+            # have a psychological crispness even when the overall tonality is atmospheric.
+            Period.VENETIAN_PSYCHOLOGICAL: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.45, edge_softness=0.48),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

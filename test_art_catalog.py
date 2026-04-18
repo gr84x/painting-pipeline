@@ -59,6 +59,7 @@ EXPECTED_ARTISTS = [
     "peter_paul_rubens",
     "nicolas_poussin",
     "hyacinthe_rigaud",
+    "lorenzo_lotto",
     "thomas_gainsborough",
     "winslow_homer",
     "jean_honore_fragonard",
@@ -9212,3 +9213,116 @@ def test_french_court_baroque_stroke_params_valid():
         f"FRENCH_COURT_BAROQUE wet_blend={sp['wet_blend']} should be in [0, 1]")
     assert 0 <= sp["edge_softness"] <= 1, (
         f"FRENCH_COURT_BAROQUE edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+# -------------------------------------------------------------------------
+# Lorenzo Lotto / VENETIAN_PSYCHOLOGICAL -- session 79 tests
+# -------------------------------------------------------------------------
+
+
+def test_lorenzo_lotto_in_catalog():
+    """lorenzo_lotto must be present in CATALOG."""
+    assert "lorenzo_lotto" in CATALOG, (
+        "lorenzo_lotto not found in CATALOG -- add the ArtStyle entry")
+
+
+def test_lorenzo_lotto_palette_valid():
+    """Every colour in lorenzo_lotto palette must have RGB channels in [0, 1]."""
+    s = get_style("lorenzo_lotto")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"lorenzo_lotto palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_lorenzo_lotto_cool_neutral_glazing():
+    """
+    lorenzo_lotto glazing must be present and cool-neutral (B >= R) --
+    distinguishes Lotto from warm-glazing Venetians like Titian.
+    """
+    s = get_style("lorenzo_lotto")
+    assert s.glazing is not None, (
+        "lorenzo_lotto glazing should not be None -- cool-neutral glaze required")
+    r, g, b = s.glazing
+    assert b >= r, (
+        f"lorenzo_lotto glazing B={b:.3f} should be >= R={r:.3f} "
+        f"(cool-neutral register distinguishes Lotto from warm-glazing Titian)")
+
+
+def test_lorenzo_lotto_moderate_wet_blend():
+    """
+    lorenzo_lotto wet_blend should be in [0.30, 0.60] -- Venetian oil blending
+    but with less dissolution than Titian.
+    """
+    s = get_style("lorenzo_lotto")
+    assert 0.30 <= s.wet_blend <= 0.60, (
+        f"lorenzo_lotto wet_blend={s.wet_blend:.2f} should be in [0.30, 0.60] "
+        "(Venetian oil blending, less dissolved than Titian)")
+
+
+def test_lorenzo_lotto_moderate_edge_softness():
+    """
+    lorenzo_lotto edge_softness should be in [0.35, 0.65] -- psychologically
+    crisp without full sfumato dissolution.
+    """
+    s = get_style("lorenzo_lotto")
+    assert 0.35 <= s.edge_softness <= 0.65, (
+        f"lorenzo_lotto edge_softness={s.edge_softness:.2f} should be in [0.35, 0.65] "
+        "(moderate softness -- psychological crispness without Leonardo sfumato)")
+
+
+def test_lorenzo_lotto_crackle():
+    """lorenzo_lotto crackle should be True -- aged Renaissance oil on canvas."""
+    s = get_style("lorenzo_lotto")
+    assert s.crackle is True, (
+        "lorenzo_lotto crackle should be True (aged 16th-century Venetian oil)")
+
+
+def test_lorenzo_lotto_no_chromatic_split():
+    """lorenzo_lotto chromatic_split should be False -- no Pointillist technique."""
+    s = get_style("lorenzo_lotto")
+    assert s.chromatic_split is False, (
+        "lorenzo_lotto chromatic_split should be False (no Seurat dots)")
+
+
+def test_lorenzo_lotto_cool_midtone_in_palette():
+    """
+    lorenzo_lotto palette must contain at least one cool midtone (B > R+0.05) --
+    the cool chromatic undertone is his defining quality.
+    """
+    s = get_style("lorenzo_lotto")
+    has_cool = any(b > r + 0.05 for r, g, b in s.palette)
+    assert has_cool, (
+        "lorenzo_lotto palette should include at least one cool midtone (B > R+0.05) "
+        "-- the cool chromatic anxiety is his defining departure from Venetian warmth")
+
+
+def test_lorenzo_lotto_warm_highlight_in_palette():
+    """
+    lorenzo_lotto palette must contain at least one warm highlight (R >= 0.80) --
+    Venetian flesh warmth is inherited even if the shadow register is cool.
+    """
+    s = get_style("lorenzo_lotto")
+    has_warm_high = any(r >= 0.80 for r, g, b in s.palette)
+    assert has_warm_high, (
+        "lorenzo_lotto palette should include at least one warm highlight (R >= 0.80) "
+        "-- Lotto inherited the Venetian warm flesh tradition despite his cool departures")
+
+
+def test_venetian_psychological_period_present():
+    """Period.VENETIAN_PSYCHOLOGICAL must be a valid member of the Period enum."""
+    assert hasattr(Period, 'VENETIAN_PSYCHOLOGICAL'), (
+        'Period enum is missing VENETIAN_PSYCHOLOGICAL -- add it to scene_schema.py')
+
+
+def test_venetian_psychological_stroke_params_valid():
+    """VENETIAN_PSYCHOLOGICAL stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.VENETIAN_PSYCHOLOGICAL).stroke_params
+    for key in ('stroke_size_face', 'stroke_size_bg', 'wet_blend', 'edge_softness'):
+        assert key in sp, f'VENETIAN_PSYCHOLOGICAL stroke_params missing key: {key!r}'
+    assert 3 <= sp['stroke_size_face'] <= 20, (
+        f"VENETIAN_PSYCHOLOGICAL stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0 <= sp['wet_blend'] <= 1, (
+        f"VENETIAN_PSYCHOLOGICAL wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0 <= sp['edge_softness'] <= 1, (
+        f"VENETIAN_PSYCHOLOGICAL edge_softness={sp['edge_softness']} should be in [0, 1]")

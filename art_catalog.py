@@ -6425,6 +6425,79 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Lorenzo Lotto — session 79 addition
+    # ──────────────────────────────────────────────────────────────────────────
+    "lorenzo_lotto": ArtStyle(
+        artist="Lorenzo Lotto",
+        movement="Venetian Renaissance / Venetian Psychological",
+        nationality="Italian",
+        period="c. 1480–1556",
+        palette=[
+            (0.88, 0.82, 0.72),   # warm ivory highlight — the lit face, slightly cooler than Titian
+            (0.76, 0.68, 0.56),   # mid-tone flesh — warm ochre-ivory with a slight grey tension
+            (0.54, 0.46, 0.38),   # warm-cool shadow flesh — cooler than Venetian norm, a grey-amber
+            (0.28, 0.22, 0.16),   # near-black deep shadow — rich and warm but not Baroque void
+            (0.38, 0.52, 0.46),   # cool muted green — Lotto's characteristic cool-green background tone
+            (0.28, 0.34, 0.52),   # cool slate-blue shadow — the cool register that unsettles warmth
+            (0.64, 0.44, 0.30),   # warm sienna-amber mid-drapery — the Venetian warmth inheritance
+            (0.82, 0.76, 0.62),   # parchment ground glow — warm cream ground visible in thin passages
+        ],
+        ground_color=(0.58, 0.50, 0.36),    # warm mid-ochre Venetian imprimatura — slightly greyer than Titian
+        stroke_size=5,
+        wet_blend=0.45,                      # moderate — Venetian oil blending but less dissolved than Titian
+        edge_softness=0.48,                  # moderate-soft — psychological crispness; not full sfumato
+        jitter=0.022,
+        glazing=(0.44, 0.46, 0.50),          # cool-neutral grey glaze (B>R) — introduces the grey-cool register
+                                              # that distinguishes Lotto from warm-glazing Venetians (Titian: warm amber)
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Lotto occupies a singular position in the Venetian Renaissance: trained in the same "
+            "tradition as Titian and Giorgione, but temperamentally and chromatically apart from "
+            "them.  Where Titian unified his canvases with warm amber glazes and dissolved, sensual "
+            "surfaces, Lotto introduced a pervasive cool chromatic anxiety — a grey-blue undertone "
+            "beneath the warm flesh, a muted cool-green in backgrounds, a slight formal restlessness "
+            "that prevents his portraits from ever fully settling into the comfortable grandeur of "
+            "high Venetian portraiture.  This quality has led modern critics to describe his work as "
+            "proto-psychological — his sitters seem caught at a moment of interior tension, their "
+            "composure slightly effortful.  His most famous portraits — the Portrait of a Young Man "
+            "with a Book (c. 1526), the Andrea Odoni (1527), and the Triple Portrait of a Goldsmith "
+            "(c. 1530) — all share this quality: the sitter gazes out, but something in the cool "
+            "half-light suggests they would rather not be seen.  "
+            "Technically, Lotto worked with all the Venetian oil-glazing vocabulary but used it "
+            "differently: his shadows cool toward grey-blue rather than warming toward umber; his "
+            "backgrounds introduce chromatic discord (an unexpected muted green, a cold grey-stone, "
+            "a curtain of impure blue) that prevents the compositional harmony Titian always achieved. "
+            "His brushwork in the face is more deliberate and analytical than Titian's fluid touch — "
+            "each form has a slight psychological edge.  The result is technically accomplished but "
+            "emotionally unsettled: the chromatic signature of introversion rendered in paint."
+        ),
+        famous_works=[
+            ("Portrait of a Young Man with a Book",     "c. 1526"),
+            ("Portrait of Andrea Odoni",                "1527"),
+            ("Triple Portrait of a Goldsmith",          "c. 1530"),
+            ("The Annunciation",                        "c. 1534"),
+            ("Man with a Golden Paw",                   "c. 1527"),
+            ("Saint Jerome in the Wilderness",          "1506"),
+        ],
+        inspiration=(
+            "Apply lotto_chromatic_anxiety_pass() to introduce Lotto's defining quality: the cool "
+            "chromatic undertone that disturbs Venetian warmth without destroying it.  The pass "
+            "operates in three stages: (1) cool flesh midtone injection — pixels in the midtone "
+            "flesh band (warm ochre register) receive a gentle B↑ and R↓ push, introducing a grey "
+            "tension beneath the warm surface; (2) eye-region chromatic intensification — a small "
+            "elliptical zone around each eye receives a local contrast boost and a slight cool-blue "
+            "shadow shift, heightening the psychological gaze quality Lotto's portraits are known for; "
+            "(3) background color dissonance — non-skin background pixels in the midtone range receive "
+            "a G↑ push (the cool muted green register) and a slight B↑, introducing the chromatic "
+            "discord that prevents compositional ease.  The pass is subtle — opacity around 0.40–0.55 "
+            "— because Lotto's effect is not dramatic but accumulative: by the end of the canvas, "
+            "the sum of small cool deviations produces a portrait that reads as psychologically "
+            "distinct from a Titian of the same sitter."
+        ),
+    ),
+
 }
 
 
