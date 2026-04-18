@@ -244,6 +244,7 @@ class Period(Enum):
     FETE_GALANTE  = auto()       # Watteau — crepuscular amber twilight, warm golden imprimatura glow, autumnal melancholy, dissolved midtone edges, peripheral amber vignette
     LOMBARD_RENAISSANCE = auto() # Anguissola — warm Lombard ivory skin, psychological gaze intimacy, sharp eye/lip focus against softened periphery, golden ambient warmth
     NORTHERN_FANTASTICAL = auto() # Bosch — near-black Brabantine void ground, jewel-tone symbolic accents, teeming micro-detail density, phantasmagoric creature texture
+    DUTCH_DOMESTIC = auto()      # de Hooch — warm threshold light through doorways, warm/cool interior contrast, geometric tile floors, amber-lit foreground against cool daylight background
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -925,6 +926,16 @@ class Style:
             # edge_softness=0.30: moderate crispness — forms are clearly delineated against the dark
             # ground; the jewel-toned accents need clean edges to read as separate symbolic objects.
             Period.NORTHERN_FANTASTICAL: dict(stroke_size_face=4, stroke_size_bg=12, wet_blend=0.35, edge_softness=0.30),
+            # DUTCH_DOMESTIC (de Hooch) — precise domestic interior painting.
+            # stroke_size_face=5: careful modelling of figures in warm interior light — more
+            # deliberate than Hals's bravura alla prima but less fine than Van Eyck's panel work.
+            # stroke_size_bg=18: architectural backgrounds (tiles, walls, doorframes) painted with
+            # measured regularity — larger than face marks but still precise.
+            # wet_blend=0.20: low wet-blend — de Hooch's surfaces are smooth but not fluid; forms
+            # are clearly separated rather than melted together; each light zone has a clean identity.
+            # edge_softness=0.55: moderate — the threshold between warm interior and cool exterior
+            # light creates soft value transitions at doorways, but hard edges on architecture.
+            Period.DUTCH_DOMESTIC: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.20, edge_softness=0.55),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

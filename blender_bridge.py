@@ -565,6 +565,7 @@ def scene_to_painting(
     is_flemish_baroque        = (scene.style.period == Period.FLEMISH_BAROQUE)
     is_nordic_expressionist   = (scene.style.period == Period.NORDIC_EXPRESSIONIST)
     is_lombard_renaissance    = (scene.style.period == Period.LOMBARD_RENAISSANCE)
+    is_dutch_domestic         = (scene.style.period == Period.DUTCH_DOMESTIC)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2913,6 +2914,74 @@ def scene_to_painting(
             print(_feedback.summary())
         # Moderate vignette — Lombard warmth; crackle appropriate for panel paintings
         p.finish(vignette=0.38, crackle=True)
+
+    elif is_dutch_domestic:
+        # ── Dutch Domestic pipeline (de Hooch technique) ─────────────────────
+        # Warm sienna-ochre imprimatura — the amber ground that gives de Hooch's
+        # interiors their characteristic warm golden quality even in shadow.
+        # The entire painting is conceived as warm interior light vs. cool exterior
+        # daylight entering through a doorway — a warm/cool threshold contrast that
+        # must be established from the very first ground tone.
+        dehooch_style = _ART_CATALOG.get("pieter_de_hooch")
+        ground_col = dehooch_style.ground_color if dehooch_style else (0.54, 0.44, 0.30)
+
+        p.tone_ground(ground_col, texture_strength=0.07)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.20), n_strokes=140)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=310)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.55),     n_strokes=700)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.62, 0.48, 0.26), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.03)
+
+        # Face-focused pass: models the figure in warm interior amber light.
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.8),
+                       n_strokes=900, opacity=0.78, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=600, opacity=0.80, wet_blend=sp["wet_blend"] * 0.55)
+
+        # ── De Hooch threshold light pass — session 75 artistic improvement ───
+        # Models the warm oblique interior light entering from the left edge,
+        # creating the characteristic warm/cool threshold contrast that separates
+        # de Hooch's interiors from all other Dutch Golden Age painting.  The cool
+        # doorway rectangle in the background creates the colour-temperature foil
+        # that makes the warm foreground read as luminously interior.
+        p.de_hooch_threshold_light_pass(
+            light_x        = 0.08,
+            light_width    = 0.52,
+            light_falloff  = 0.60,
+            warm_color     = (0.78, 0.58, 0.28),
+            cool_color     = (0.36, 0.46, 0.58),
+            warm_strength  = 0.26,
+            cool_strength  = 0.20,
+            doorway_y      = 0.25,
+            doorway_h      = 0.52,
+            doorway_w      = 0.16,
+            doorway_x      = 0.80,
+            opacity        = 0.70,
+        )
+
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=340)
+
+        # Warm amber unifying glaze — the final thin ochre-amber wash that unifies
+        # de Hooch's interior light and eliminates any residual coolness.
+        p.glaze((0.62, 0.48, 0.26), opacity=0.05)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.40,
+            lost_blur       = 1.3,
+            strength        = 0.24,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Gentle vignette — de Hooch's interiors have warm peripheral darkening
+        # (the architecture itself frames the scene); crackle for aged panel surface.
+        p.finish(vignette=0.35, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
