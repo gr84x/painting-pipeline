@@ -9742,3 +9742,131 @@ def test_french_intimiste_stroke_params_valid():
     assert 0.40 <= sp['edge_softness'] <= 0.68, (
         f"FRENCH_INTIMISTE edge_softness={sp['edge_softness']:.2f} should "
         "be in [0.40, 0.68] (soft without full sfumato -- forms legible)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Session 83 — Fra Filippo Lippi tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_fra_filippo_lippi_in_catalog():
+    """fra_filippo_lippi must be a key in the CATALOG dict (session 83)."""
+    assert "fra_filippo_lippi" in CATALOG, (
+        "fra_filippo_lippi missing from CATALOG -- add entry in art_catalog.py")
+
+
+def test_fra_filippo_lippi_artist_name():
+    """fra_filippo_lippi artist field must contain 'Lippi'."""
+    s = get_style("fra_filippo_lippi")
+    assert "Lippi" in s.artist, (
+        f"fra_filippo_lippi artist={s.artist!r} should contain 'Lippi'")
+
+
+def test_fra_filippo_lippi_movement():
+    """fra_filippo_lippi movement must mention 'Renaissance' or 'Quattrocento'."""
+    s = get_style("fra_filippo_lippi")
+    assert "Renaissance" in s.movement or "Quattrocento" in s.movement, (
+        f"fra_filippo_lippi movement={s.movement!r} should mention "
+        "'Renaissance' or 'Quattrocento'")
+
+
+def test_fra_filippo_lippi_nationality():
+    """fra_filippo_lippi nationality must be 'Italian'."""
+    s = get_style("fra_filippo_lippi")
+    assert s.nationality == "Italian", (
+        f"fra_filippo_lippi nationality={s.nationality!r} should be 'Italian'")
+
+
+def test_fra_filippo_lippi_palette_length():
+    """fra_filippo_lippi palette must have >= 5 colours."""
+    s = get_style("fra_filippo_lippi")
+    assert len(s.palette) >= 5, (
+        f"fra_filippo_lippi palette has {len(s.palette)} colours; expected >= 5")
+
+
+def test_fra_filippo_lippi_palette_values_in_range():
+    """fra_filippo_lippi palette: all RGB channels must be in [0, 1]."""
+    s = get_style("fra_filippo_lippi")
+    for i, rgb in enumerate(s.palette):
+        for ch, val in enumerate(rgb):
+            assert 0.0 <= val <= 1.0, (
+                f"fra_filippo_lippi palette[{i}] channel {ch} = {val:.4f} "
+                "is outside [0, 1]")
+
+
+def test_fra_filippo_lippi_warm_palette():
+    """
+    fra_filippo_lippi palette's first colour (warm ivory highlight) must be warm:
+    R > B + 0.10 -- Lippi's highlights are always warm ivory, never cool.
+    """
+    s = get_style("fra_filippo_lippi")
+    r, g, b = s.palette[0]
+    assert r > b + 0.10, (
+        f"fra_filippo_lippi palette[0] R={r:.3f} B={b:.3f}: "
+        "expected warm highlight (R > B + 0.10) -- Lippi's highlights are warm ivory")
+
+
+def test_fra_filippo_lippi_low_wet_blend():
+    """
+    fra_filippo_lippi wet_blend must be <= 0.30 -- Lippi's tempera-influenced
+    technique uses careful distinct marks; high blending would destroy the form.
+    """
+    s = get_style("fra_filippo_lippi")
+    assert s.wet_blend <= 0.30, (
+        f"fra_filippo_lippi wet_blend={s.wet_blend:.2f} should be <= 0.30 "
+        "(tempera-influenced technique; marks stay distinct)")
+
+
+def test_fra_filippo_lippi_glazing_warm():
+    """
+    fra_filippo_lippi glazing must be warm (R > B + 0.05) -- Lippi's unifying
+    glaze was always warm parchment, never cool.
+    """
+    s = get_style("fra_filippo_lippi")
+    assert s.glazing is not None, (
+        "fra_filippo_lippi glazing should not be None -- warm parchment glaze required")
+    r, g, b = s.glazing
+    assert r > b + 0.05, (
+        f"fra_filippo_lippi glazing R={r:.3f} B={b:.3f}: expected warm (R > B+0.05)")
+
+
+def test_fra_filippo_lippi_technique_mentions_tenerezza():
+    """
+    fra_filippo_lippi technique text must mention 'tenerezza' -- Lippi's
+    defining quality is 'tenderness of light'.
+    """
+    s = get_style("fra_filippo_lippi")
+    assert "tenerezza" in s.technique.lower(), (
+        "fra_filippo_lippi technique should mention 'tenerezza' "
+        "(Lippi's defining quality: tenderness of light)")
+
+
+def test_fra_filippo_lippi_famous_works_present():
+    """fra_filippo_lippi must list >= 3 famous works."""
+    s = get_style("fra_filippo_lippi")
+    assert len(s.famous_works) >= 3, (
+        f"fra_filippo_lippi famous_works has {len(s.famous_works)} entries; expected >= 3")
+    for title, year in s.famous_works:
+        assert isinstance(title, str) and len(title) > 0
+        assert isinstance(year, str) and len(year) > 0
+
+
+def test_fra_filippo_lippi_inspiration_references_tenerezza_pass():
+    """
+    fra_filippo_lippi inspiration must reference 'fra_filippo_lippi_tenerezza_pass'
+    so the pipeline knows which pass to call.
+    """
+    s = get_style("fra_filippo_lippi")
+    assert "fra_filippo_lippi_tenerezza_pass" in s.inspiration, (
+        "fra_filippo_lippi inspiration should reference 'fra_filippo_lippi_tenerezza_pass'")
+
+
+def test_fra_filippo_lippi_ground_color_warm():
+    """
+    fra_filippo_lippi ground_color must be warm (R > B + 0.08) -- Lippi worked
+    on warm buff/parchment grounds, not cool gesso.
+    """
+    s = get_style("fra_filippo_lippi")
+    r, g, b = s.ground_color
+    assert r > b + 0.08, (
+        f"fra_filippo_lippi ground_color R={r:.3f} B={b:.3f}: "
+        "expected warm ground (R > B + 0.08) -- Lippi used warm buff/parchment imprimatura")
