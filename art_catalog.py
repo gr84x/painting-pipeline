@@ -6223,6 +6223,62 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jan Steen ─────────────────────────────────────────────────────────────
+    "jan_steen": ArtStyle(
+        artist="Jan Steen",
+        movement="Dutch Golden Age / Genre Comedy",
+        nationality="Dutch",
+        period="1646–1679",
+        palette=[
+            (0.84, 0.68, 0.48),   # warm amber flesh highlight — imprimatura showing through
+            (0.72, 0.52, 0.34),   # mid-tone flesh — rosy amber midground
+            (0.50, 0.32, 0.18),   # warm shadow flesh — deep amber-brown
+            (0.18, 0.12, 0.06),   # near-black deep shadow
+            (0.78, 0.22, 0.12),   # vivid red costume accent (vermilion-scarlet)
+            (0.82, 0.72, 0.28),   # warm golden-yellow ochre (costume/fabric)
+            (0.28, 0.38, 0.22),   # muted olive-green (foliage, shadow fabric)
+            (0.90, 0.85, 0.72),   # warm cream-white highlight (linen, tablecloth)
+            (0.60, 0.46, 0.28),   # warm ochre mid-ground (floor, wood, earth)
+        ],
+        ground_color=(0.52, 0.42, 0.24),    # warm amber-ochre imprimatura — same family as
+                                             # de Hooch but slightly darker and more saturated;
+                                             # Steen's ground asserts itself through thin paint
+        stroke_size=8,
+        wet_blend=0.40,                      # moderate blending — lively but not dissolved;
+                                             # Steen paints with energy, not sfumato patience
+        edge_softness=0.45,
+        jitter=0.040,                        # higher jitter = chromatic vitality; his flesh
+                                             # is never uniformly flat — always slightly varied
+        glazing=(0.60, 0.45, 0.18),          # warm amber-umber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Genre comedy painting — lively impasto highlights on warm amber imprimatura. "
+            "Figures have flushed, rosy warm flesh from vigorous alla prima working. "
+            "Characteristic warm amber shadows (never cold); deep Vandyke-brown darks. "
+            "Confident directional strokes in clothing; more careful modelling in faces. "
+            "Rich chromatic variety: vermilion reds, golden ochres, muted olive greens "
+            "create visual energy. Moral narrative embedded in gesture and expression."
+        ),
+        famous_works=[
+            ("The Feast of Saint Nicholas",                "c. 1665–1668"),
+            ("The Sick Woman",                             "c. 1663–1666"),
+            ("Rhetoricians at a Window",                   "c. 1661–1666"),
+            ("The Merry Family",                           "1668"),
+            ("The Way You Hear It Is the Way You Sing It", "1665"),
+            ("As the Old Sing, So Pipe the Young",         "c. 1668–1670"),
+        ],
+        inspiration=(
+            "Use steen_warm_vitality_pass() to introduce Jan Steen's warm amber imprimatura "
+            "glow — the defining quality that makes his flesh appear luminous and alive. "
+            "tone_ground() with warm ochre-amber establishes the lively interior warmth. "
+            "block_in() with moderate stroke_size captures his energetic compositional masses. "
+            "build_form() models flesh in warm interior light with rosy midtone warmth. "
+            "The pass lifts highlight amber, adds rose flush to face zones, and ensures "
+            "all shadows are warm amber-brown rather than cold — Steen's hallmark."
+        ),
+    ),
+
 }
 
 

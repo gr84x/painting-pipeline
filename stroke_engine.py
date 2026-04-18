@@ -20730,3 +20730,141 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    De Hooch threshold light pass complete.")
+
+    def steen_warm_vitality_pass(self,
+                                  face_cx:          float = 0.515,
+                                  face_cy:          float = 0.210,
+                                  face_rx:          float = 0.140,
+                                  face_ry:          float = 0.190,
+                                  amber_lift:       float = 0.055,
+                                  rose_flush:       float = 0.040,
+                                  shadow_warmth:    float = 0.038,
+                                  shadow_thresh:    float = 0.35,
+                                  highlight_thresh: float = 0.70,
+                                  blur_radius:      float = 8.0,
+                                  opacity:          float = 0.54) -> None:
+        """
+        Jan Steen warm vitality pass — session 76 artistic improvement.
+
+        Inspired by Jan Steen (1626–1679), master of Dutch Golden Age genre comedy.
+        Steen's distinctive quality among his Dutch contemporaries is the extraordinary
+        *warmth and vitality of his flesh painting*: his figures appear flushed, alive,
+        and luminous in a way that is immediately recognisable against the cooler,
+        more silvery flesh of Vermeer or the solemn amber of de Hooch.
+
+        This arises from three interlocking technical choices:
+
+          1. **Warm amber highlight lift** — Steen's warm ochre-amber imprimatura glows
+             visibly through thin paint in the lightest passages.  Where Vermeer's
+             highlights have a pearl-cool quality, Steen's are distinctly golden-amber.
+             This pass boosts the R and G channels in pixels above `highlight_thresh`
+             luminance, simulating the imprimatura asserting itself through highlight
+             glazing.  B is suppressed slightly so the warmth reads as ochre, not ivory.
+
+          2. **Rose flush in face/figure zone** — Steen's genre figures always have
+             warm, slightly flushed complexions — the result of his confident alla prima
+             working into wet paint and his preference for vermilion-tinged flesh priming.
+             This pass applies a rose-amber drift (R+rose, G+rose×0.4, B suppressed) to
+             an elliptical face/skin zone, restoring the warm blush quality that pure
+             rendering pipelines tend to cool down.
+
+          3. **Warm amber shadow depth** — Unlike Caravaggio (cold tenebrist void) or
+             Vermeer (cool diffuse shadow), Steen's shadows are consistently warm amber-
+             brown, created by the dark Vandyke-brown ground showing through thin shadow
+             glazing.  This pass lifts the red channel and slightly the green in pixels
+             below `shadow_thresh` luminance, ensuring no cold neutral blacks remain.
+
+        Together these three operations produce the 'warm vitality' that characterises
+        Steen's flesh: luminous in the lights, rosy in the midtones, amber-brown in the
+        darks — a complete warm tonal envelope that reads as vivid life.
+
+        **Why this improves the Mona Lisa pipeline:**
+        The accumulated passes from sessions 53–75 have, cumulatively, pushed the portrait
+        toward increasing refinement and softness (sfumato, pearl grace, angelic lift).
+        Steen's vitality pass reintroduces tonal warmth and flesh energy that prevents the
+        figure from reading as remote or glassy.  The warm amber highlight lift in
+        particular reinforces the impression of an ochre imprimatura beneath translucent
+        paint layers — historically accurate to a Florentine poplar panel preparation.
+
+        :param face_cx:          Normalised x-centre of the face/skin ellipse.
+        :param face_cy:          Normalised y-centre of the face/skin ellipse.
+        :param face_rx:          Normalised x-radius of the face/skin ellipse.
+        :param face_ry:          Normalised y-radius of the face/skin ellipse.
+        :param amber_lift:       Additive strength of the warm amber highlight boost.
+        :param rose_flush:       Additive strength of the rose flush in the face zone.
+        :param shadow_warmth:    Additive strength of the warm shadow lift.
+        :param shadow_thresh:    Luminance threshold below which shadow warmth applies.
+        :param highlight_thresh: Luminance threshold above which amber lift applies.
+        :param blur_radius:      Gaussian blur radius for mask feathering.
+        :param opacity:          Final composite opacity of the entire pass.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        surface = self.canvas.surface
+        w_px = surface.get_width()
+        h_px = surface.get_height()
+
+        orig = _np.frombuffer(surface.get_data(),
+                              dtype=_np.uint8).reshape((h_px, w_px, 4)).copy()
+
+        # ── Decompose to float RGB ────────────────────────────────────────────
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Warm amber highlight lift ──────────────────────────────────────
+        # Pixels above highlight_thresh: lift R and G to simulate imprimatura
+        # glowing through thin paint; suppress B so colour reads as warm ochre.
+        hi_mask = _np.clip((lum - highlight_thresh) / max(1.0 - highlight_thresh, 0.01),
+                           0.0, 1.0).astype(_np.float32)
+        hi_mask = _gf(hi_mask, sigma=blur_radius).astype(_np.float32)
+        r_out = _np.clip(r_out + hi_mask * amber_lift * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * amber_lift * 0.72, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * amber_lift * 0.28, 0.0, 1.0)
+
+        # ── 2. Rose flush in face / figure zone ───────────────────────────────
+        # An elliptical face mask receives a warm rose-amber drift in midtone pixels.
+        yy = _np.linspace(0.0, 1.0, h_px, dtype=_np.float32)[:, None]
+        xx = _np.linspace(0.0, 1.0, w_px, dtype=_np.float32)[None, :]
+        dx = (xx - face_cx) / max(face_rx, 0.01)
+        dy = (yy - face_cy) / max(face_ry, 0.01)
+        face_d = (dx * dx + dy * dy).astype(_np.float32)
+        # Soft elliptical weight: 1.0 at centre, 0.0 at 1.4× the axis
+        face_mask = _np.clip(1.0 - (face_d - 0.70) / 0.70, 0.0, 1.0).astype(_np.float32)
+        face_mask = _gf(face_mask, sigma=blur_radius * 1.5).astype(_np.float32)
+        # Apply only in midtone zone: avoid over-flushing highlights or deeps
+        mid_weight = _np.clip(1.0 - _np.abs(lum - 0.62) / 0.35, 0.0, 1.0)
+        flush_mask = (face_mask * mid_weight).astype(_np.float32)
+        r_out = _np.clip(r_out + flush_mask * rose_flush * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + flush_mask * rose_flush * 0.38, 0.0, 1.0)
+        b_out = _np.clip(b_out - flush_mask * rose_flush * 0.22, 0.0, 1.0)
+
+        # ── 3. Warm amber shadow depth ────────────────────────────────────────
+        # Pixels below shadow_thresh: warm the R and G channels so all darks
+        # carry Steen's amber-brown shadow quality rather than cold neutral black.
+        sh_mask = _np.clip(1.0 - lum / max(shadow_thresh, 0.01), 0.0, 1.0)
+        sh_mask = _gf(sh_mask.astype(_np.float32), sigma=blur_radius).astype(_np.float32)
+        r_out = _np.clip(r_out + sh_mask * shadow_warmth * 0.90, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * shadow_warmth * 0.48, 0.0, 1.0)
+        b_out = _np.clip(b_out - sh_mask * shadow_warmth * 0.18, 0.0, 1.0)
+
+        # ── 4. Composite at opacity ────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Jan Steen warm vitality pass complete.")
