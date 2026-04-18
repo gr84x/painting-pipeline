@@ -20182,3 +20182,402 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Anguissola intimacy pass complete.")
+
+    def bosch_phantasmagoria_pass(self,
+                                   palette:          Optional[List[Color]] = None,
+                                   n_detail_marks:   int   = 900,
+                                   n_jewel_accents:  int   = 80,
+                                   mark_size:        float = 2.5,
+                                   mark_opacity:     float = 0.28,
+                                   jewel_opacity:    float = 0.55,
+                                   void_darken:      float = 0.06,
+                                   background_only:  bool  = True,
+                                   rng_seed:         int   = 74) -> None:
+        """
+        Bosch phantasmagoria pass — session 74 artist discovery.
+
+        Inspired by Hieronymus Bosch (c. 1450–1516), the Brabantine master whose
+        paintings teem with symbolic incident in every square centimetre.  Where
+        other painters allow background areas to breathe as simple dark voids or
+        calm atmospheric fields, Bosch populated every corner with micro-detail:
+        distant burning cities, fantastical hybrid creatures, symbolic objects, and
+        hellish architecture.  The result is a painting surface that rewards
+        prolonged looking — each zone of background conceals new symbolic content.
+
+        This pass encodes Bosch's defining aesthetic:
+
+          1. **Micro-detail marks**: Small, dark, irregular marks scattered across
+             background regions, creating the sense that symbolic incident lurks
+             everywhere.  Marks vary in shape (short strokes, dots, curved slivers)
+             mimicking the variety of small creatures and distant figures in Bosch's
+             backgrounds.  Applied at low opacity so they accumulate as a textural
+             density rather than solid forms — the viewer senses the presence of
+             detail without deciphering individual shapes.
+
+          2. **Jewel-tone accents**: Occasional small, intensely coloured marks in
+             Bosch's characteristic accent colours — crimson blood-red, lapis blue,
+             golden amber — that suggest the presence of symbolic objects (gems,
+             fire, celestial light) caught in the dark void.  Applied at higher
+             opacity so they read as distinct points of colour against the ground.
+
+          3. **Void deepening**: A subtle darkening of the background mid-tones to
+             reinforce the warm Brabantine void quality — Bosch's backgrounds are
+             never neutral grey but warm olive-brown, suggesting candlelit interiors
+             or the glow of hell's fires.
+
+        The pass respects the figure mask: detail marks are constrained to background
+        regions so focal figures are not obscured.  The effect reads as atmospheric
+        when viewed at a distance and reveals symbolic texture under close inspection.
+
+        Parameters
+        ----------
+        palette          : List of (R,G,B) colours to draw accent marks from.
+                           If None, uses Bosch's characteristic accent colours
+                           (crimson, lapis blue, amber, olive-green).
+        n_detail_marks   : Number of small dark background detail marks to scatter.
+                           600–1200 for a full canvas; scale by (W*H)/(800*1000).
+        n_jewel_accents  : Number of intense jewel-tone accent marks.
+                           50–120 is typical; too many removes the focal contrast.
+        mark_size        : Base radius in pixels of each detail mark.
+                           2–4px gives micro-detail density; larger reads as loose.
+        mark_opacity     : Blend weight for detail marks (0.15–0.35 for subtlety).
+        jewel_opacity    : Blend weight for jewel accent marks (0.45–0.70 for punch).
+        void_darken      : How much to deepen the dark mid-tones toward warm void
+                           (0.0 = no darkening; 0.05–0.10 = typical Bosch void depth).
+        background_only  : If True (default), constrain marks to the background
+                           (inverted figure mask).  If False, apply everywhere.
+        rng_seed         : Seed for reproducibility.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        # Default Bosch accent palette: crimson, lapis, amber, olive-green, charcoal
+        if palette is None:
+            palette = [
+                (0.75, 0.15, 0.10),   # crimson — hell fire / blood
+                (0.15, 0.28, 0.62),   # lapis blue — celestial accent
+                (0.72, 0.58, 0.15),   # warm amber — symbolic gold
+                (0.62, 0.72, 0.32),   # bilious olive-green — creatures
+                (0.18, 0.14, 0.10),   # deep charcoal — darkest marks
+            ]
+
+        print(f"  Bosch phantasmagoria pass "
+              f"(detail={n_detail_marks}  jewels={n_jewel_accents}  "
+              f"mark_size={mark_size:.1f}  void_darken={void_darken:.2f}) ...")
+
+        rng = random.Random(rng_seed)
+        np_rng = _np.random.default_rng(rng_seed)
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+
+        # Cairo stores BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build background mask ─────────────────────────────────────────────
+        if background_only and self._figure_mask is not None:
+            # Background is where figure mask is near zero; feather slightly
+            bg = (1.0 - self._figure_mask).astype(_np.float32)
+            bg = _np.clip(_gf(bg, sigma=4.0), 0.0, 1.0)
+        else:
+            bg = _np.ones((h, w), dtype=_np.float32)
+
+        # ── 1. Void deepening — warm the dark mid-tones toward olive-brown ───
+        if void_darken > 0.0:
+            lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+            # Darken mid-tone and shadow areas (lum < 0.5)
+            dark_mask = _np.clip((0.5 - lum) * 2.0, 0.0, 1.0) * bg
+            void_r, void_g, void_b = 0.24, 0.18, 0.10  # warm olive-brown
+            r_f = _np.clip(r_f - void_darken * dark_mask * (r_f - void_r), 0.0, 1.0)
+            g_f = _np.clip(g_f - void_darken * dark_mask * (g_f - void_g), 0.0, 1.0)
+            b_f = _np.clip(b_f - void_darken * dark_mask * (b_f - void_b), 0.0, 1.0)
+
+        # Write void-deepened values back for compositing
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+
+        # ── 2. Micro-detail marks ─────────────────────────────────────────────
+        # Scatter small dark marks in background areas: short line segments,
+        # dots, and curved slivers — a mix of shapes to mimic creature variety.
+        ctx = self.canvas.ctx
+        ctx.save()
+
+        # Build weighted candidate positions from background mask
+        ys_idx, xs_idx = _np.where(bg > 0.15)
+        if len(ys_idx) > 0:
+            bg_weights = bg[ys_idx, xs_idx].astype(_np.float64)
+            bg_weights /= bg_weights.sum()
+
+            chosen = np_rng.choice(len(ys_idx),
+                                   size=min(n_detail_marks, len(ys_idx)),
+                                   replace=True, p=bg_weights)
+
+            for idx in chosen:
+                py, px = int(ys_idx[idx]), int(xs_idx[idx])
+                # Vary mark shape: 0=dot, 1=short stroke, 2=sliver arc
+                shape = rng.randint(0, 2)
+                # Dark warm colours — the micro-detail reads as shadow not colour
+                tone = rng.uniform(0.06, 0.22)
+                warmth = rng.uniform(0.85, 1.0)  # slightly warmer than neutral
+                cr = tone * warmth
+                cg = tone * 0.82
+                cb = tone * 0.65
+
+                alpha = mark_opacity * rng.uniform(0.55, 1.0)
+                ctx.set_source_rgba(cr, cg, cb, alpha)
+
+                s = mark_size * rng.uniform(0.6, 1.6)
+
+                if shape == 0:
+                    # Small dot
+                    ctx.arc(px, py, max(0.5, s * 0.45), 0, math.pi * 2)
+                    ctx.fill()
+                elif shape == 1:
+                    # Short directional stroke
+                    angle = rng.uniform(0, math.pi * 2)
+                    length = s * rng.uniform(1.2, 3.0)
+                    ex = px + math.cos(angle) * length
+                    ey = py + math.sin(angle) * length
+                    ctx.set_line_width(max(0.5, s * 0.35))
+                    ctx.move_to(px, py)
+                    ctx.line_to(ex, ey)
+                    ctx.stroke()
+                else:
+                    # Curved sliver — partial arc suggesting a creature limb
+                    angle_start = rng.uniform(0, math.pi * 2)
+                    angle_end   = angle_start + rng.uniform(0.4, 1.2)
+                    radius = s * rng.uniform(0.8, 1.8)
+                    ctx.set_line_width(max(0.4, s * 0.25))
+                    ctx.arc(px, py, radius, angle_start, angle_end)
+                    ctx.stroke()
+
+        # ── 3. Jewel-tone accent marks ────────────────────────────────────────
+        if len(ys_idx) > 0 and n_jewel_accents > 0:
+            chosen_j = np_rng.choice(len(ys_idx),
+                                     size=min(n_jewel_accents, len(ys_idx)),
+                                     replace=True, p=bg_weights)
+
+            for idx in chosen_j:
+                py, px = int(ys_idx[idx]), int(xs_idx[idx])
+                col = rng.choice(palette[:4])  # first 4: crimson, lapis, amber, green
+                cr, cg, cb = jitter(col, amount=0.06, rng=rng)
+                alpha = jewel_opacity * rng.uniform(0.65, 1.0)
+                ctx.set_source_rgba(cr, cg, cb, alpha)
+
+                # Jewel marks are tiny, precise dots or very short strokes
+                s = mark_size * rng.uniform(0.5, 1.2)
+                ctx.arc(px, py, max(0.6, s * 0.50), 0, math.pi * 2)
+                ctx.fill()
+
+        ctx.restore()
+
+        # ── Composite void-deepened base back into canvas ─────────────────────
+        # The cairo context already wrote the marks directly to the surface.
+        # Now composite the void-darken result over the current canvas.
+        if void_darken > 0.0:
+            buf2 = _np.frombuffer(self.canvas.surface.get_data(),
+                                  dtype=_np.uint8).reshape((h, w, 4)).copy()
+            r2 = buf2[:, :, 2].astype(_np.float32) / 255.0
+            g2 = buf2[:, :, 1].astype(_np.float32) / 255.0
+            b2 = buf2[:, :, 0].astype(_np.float32) / 255.0
+
+            # Blend void-deepened base with current (mark-painted) surface
+            blend = void_darken * 3.0  # how strongly to push toward void tone
+            blend = _np.clip(blend, 0.0, 0.6)
+            r_merged = r2 * (1.0 - blend * dark_mask) + r_out * blend * dark_mask
+            g_merged = g2 * (1.0 - blend * dark_mask) + g_out * blend * dark_mask
+            b_merged = b2 * (1.0 - blend * dark_mask) + b_out * blend * dark_mask
+
+            buf2[:, :, 2] = _np.clip(r_merged * 255.0, 0, 255).astype(_np.uint8)
+            buf2[:, :, 1] = _np.clip(g_merged * 255.0, 0, 255).astype(_np.uint8)
+            buf2[:, :, 0] = _np.clip(b_merged * 255.0, 0, 255).astype(_np.uint8)
+            self.canvas.surface.get_data()[:] = buf2.tobytes()
+
+        print("    Bosch phantasmagoria pass complete.")
+
+    def cool_atmospheric_recession_pass(self,
+                                         horizon_y:       float = 0.35,
+                                         cool_strength:   float = 0.22,
+                                         bright_lift:     float = 0.10,
+                                         desaturate:      float = 0.30,
+                                         blur_background: float = 0.8,
+                                         feather:         float = 0.15,
+                                         opacity:         float = 0.75) -> None:
+        """
+        Cool atmospheric recession pass — session 74 artistic improvement.
+
+        Improves the rendering of aerial perspective in background landscapes,
+        inspired directly by Leonardo da Vinci's treatment of the vast atmospheric
+        wilderness behind the Mona Lisa (and more broadly by his Treatise on
+        Painting, where he describes the progressive cooling and brightening of
+        colours as they recede toward the horizon).
+
+        **Why this improves the pipeline:**
+        Prior sessions handled sfumato (edge-softening) very well via
+        sfumato_veil_pass() and depth_gradient, but the specific physics of
+        atmospheric colour shift — the cool blue-grey transformation of distant
+        forms — was not isolated as a standalone, tuneable effect.  This pass
+        extracts that quality as a composable operation:
+
+          1. **Progressive colour cooling**: Rows above the horizon line receive
+             an increasing shift toward cool grey-blue, mimicking how the
+             atmosphere scatters short wavelengths (blue/violet) and absorbs
+             warm long wavelengths (red/orange) over distance.  The shift is
+             zero at the horizon_y row and increases toward the top of canvas.
+
+          2. **Atmospheric brightness lift**: Distant areas receive a gentle
+             luminosity increase, simulating the bright haze that accumulates
+             in layers of atmosphere.  The horizon zone is the brightest point;
+             the top of the distant sky lightens toward white haze.
+
+          3. **Progressive desaturation**: Colours lose saturation with distance
+             — distant mountains become the characteristic pale grey-blue rather
+             than retaining their local colours.  This is visible in the Mona Lisa
+             background: the near landscape retains warm green-brown tones; the
+             far distance is pure silver-blue haze.
+
+          4. **Soft background blur**: A gentle, distance-weighted Gaussian blur
+             dissolves fine detail in distant areas, reinforcing the depth cue.
+             Near areas (foreground) remain sharp; far areas dissolve into haze.
+
+        All four effects are composited at ``opacity`` against the original
+        surface, allowing the pass to be applied at different weights depending
+        on the desired depth effect.
+
+        This pass is designed to work with the figure mask: if a figure mask is
+        set, the effect is suppressed in the figure region so the sitter's skin
+        tones are not cooled or desaturated.
+
+        Parameters
+        ----------
+        horizon_y        : Normalised vertical position of the horizon [0, 1].
+                           0 = top of canvas; 1 = bottom.  Rows above this line
+                           receive progressive recession; rows at/below are unchanged.
+                           Default 0.35 matches a typical portrait with figure in
+                           the lower two-thirds and landscape above.
+        cool_strength    : Maximum blue-grey colour shift at the top of the canvas.
+                           0.0 = no colour shift; 0.20–0.30 = strong Leonardo-style
+                           atmospheric recession.  Intermediate values give Turner
+                           (0.15), Corot (0.18), or Claude Lorrain (0.25) effects.
+        bright_lift      : Maximum luminosity increase at the top of canvas (horizon haze).
+                           0.05–0.15 = gentle; 0.20+ = thick foggy haze.
+        desaturate       : Maximum chromatic desaturation at the top of canvas.
+                           0.0 = no desaturation; 0.3–0.5 = Leonardo-style grey-blue
+                           distant peaks.
+        blur_background  : Gaussian sigma for the distance-weighted background blur.
+                           0 = no blur; 0.5–1.5 = subtle; 2+ = heavy dissolve.
+        feather          : Width of the feathering zone around the horizon line
+                           (normalised). Prevents a hard line at the horizon.
+                           0.10–0.20 is typical.
+        opacity          : Overall pass opacity blended against original (0–1).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Cool atmospheric recession pass "
+              f"(horizon_y={horizon_y:.2f}  cool={cool_strength:.2f}  "
+              f"lift={bright_lift:.2f}  desat={desaturate:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Cool atmospheric recession pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build vertical depth weight ───────────────────────────────────────
+        # depth_w[y]: 0 at horizon_y, increases toward top of canvas (y=0).
+        # Rows at or below horizon_y are unaffected.
+        ys_norm = _np.linspace(0.0, 1.0, h, dtype=_np.float32)  # 0=top, 1=bottom
+        horizon_px = int(_np.clip(horizon_y * h, 0, h - 1))
+
+        # Raw depth weight: 1 at top, 0 at horizon, 0 below horizon
+        depth_raw = _np.zeros(h, dtype=_np.float32)
+        for row in range(h):
+            if row < horizon_px:
+                # Normalised distance above horizon (1=top, 0=at horizon)
+                t = (horizon_px - row) / max(horizon_px, 1)
+                # Feather: smoothstep-style ramp over the feather zone
+                t_feathered = _np.clip((t - feather) / max(1.0 - feather, 1e-6),
+                                       0.0, 1.0)
+                depth_raw[row] = float(t_feathered) ** 1.5   # nonlinear: effect accelerates with distance
+        depth_w = depth_raw[:, _np.newaxis]   # (H, 1) for broadcasting
+
+        # ── Figure mask suppression ───────────────────────────────────────────
+        # Do not apply recession to the figure (sitter's skin must stay warm)
+        if self._figure_mask is not None:
+            # figure_mask: 1=figure, 0=background
+            # suppress_mask: 0 where figure, 1 where background
+            suppress = (1.0 - _np.clip(self._figure_mask, 0.0, 1.0)).astype(_np.float32)
+            # Feather the suppression boundary
+            suppress = _np.clip(_gf(suppress, sigma=8.0), 0.0, 1.0)
+        else:
+            suppress = _np.ones((h, w), dtype=_np.float32)
+
+        # Combined recession weight: depth × background mask
+        recession_w = depth_w * suppress   # (H, W)
+
+        # ── 1. Progressive colour cooling ─────────────────────────────────────
+        # Target: cool grey-blue horizon haze — pale blue-grey
+        haze_r, haze_g, haze_b = 0.72, 0.76, 0.82   # cool pale blue-grey
+        r_out = r_f * (1.0 - recession_w * cool_strength) + haze_r * recession_w * cool_strength
+        g_out = g_f * (1.0 - recession_w * cool_strength * 0.85) + haze_g * recession_w * cool_strength * 0.85
+        b_out = b_f * (1.0 - recession_w * cool_strength * 0.65) + haze_b * recession_w * cool_strength * 0.65
+
+        # ── 2. Atmospheric brightness lift ────────────────────────────────────
+        # Distant zones brighten toward the pale horizon haze
+        r_out = _np.clip(r_out + recession_w * bright_lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + recession_w * bright_lift * 0.92, 0.0, 1.0)
+        b_out = _np.clip(b_out + recession_w * bright_lift * 0.80, 0.0, 1.0)
+
+        # ── 3. Progressive desaturation ───────────────────────────────────────
+        lum = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        desat_w = recession_w * desaturate
+        r_out = r_out * (1.0 - desat_w) + lum * desat_w
+        g_out = g_out * (1.0 - desat_w) + lum * desat_w
+        b_out = b_out * (1.0 - desat_w) + lum * desat_w
+
+        # ── 4. Distance-weighted background blur ──────────────────────────────
+        if blur_background > 0.0:
+            r_blurred = _gf(r_out, sigma=blur_background)
+            g_blurred = _gf(g_out, sigma=blur_background)
+            b_blurred = _gf(b_out, sigma=blur_background)
+            # Blend: distant areas get more blur; near areas stay sharp
+            blur_w = _np.clip(recession_w * 1.5, 0.0, 1.0)
+            r_out = r_out * (1.0 - blur_w) + r_blurred * blur_w
+            g_out = g_out * (1.0 - blur_w) + g_blurred * blur_w
+            b_out = b_out * (1.0 - blur_w) + b_blurred * blur_w
+
+        r_out = _np.clip(r_out, 0.0, 1.0)
+        g_out = _np.clip(g_out, 0.0, 1.0)
+        b_out = _np.clip(b_out, 0.0, 1.0)
+
+        # ── Composite at opacity against original ─────────────────────────────
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Cool atmospheric recession pass complete.")

@@ -6063,6 +6063,101 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Hieronymus Bosch ──────────────────────────────────────────────────────
+    # Hieronymus Bosch (c. 1450–1516) is the most singular painter in Western
+    # art — a Brabantine master whose teeming, nightmarish visions of hell, temptation,
+    # and spiritual peril have no precedent and no real successor.  Born in 's-Hertogenbosch
+    # (from which he took his name), he spent his entire career in this provincial Brabantine
+    # town, yet his paintings became international sensations, collected by Philip II of Spain,
+    # who acquired everything he could.  His technique is grounded in the solid Early
+    # Netherlandish oil tradition — thin, transparent oil glazes over white chalk-gesso on oak
+    # panel — but deployed in a visionary service utterly unlike his contemporaries.
+    #
+    # Bosch's palette is dominated by a dark, warm olive-brown ground from which figures and
+    # creatures emerge lit from an indeterminate source.  His backgrounds are NOT the flat
+    # dark void of Tenebrist painting — they are alive.  Every square centimetre of his
+    # backgrounds contains something: a distant city burning, a creature devouring a soul,
+    # a fish with human legs, a tree-man leaning on broken eggshell boats.  This density
+    # of symbolic incident is the defining characteristic of his style: the eye can never
+    # rest in a Bosch painting.
+    #
+    # Against this dark, living backdrop, Bosch deploys his secondary palette: intense,
+    # saturated jewel accents — crimson, lapis lazuli blue, golden amber, pale silver flesh —
+    # that make individual figures leap from the void.  These accents are not arbitrarily
+    # placed; they encode symbolic meaning.  The flesh of damned souls is grey-white; the
+    # flesh of saintly figures is warm pink-ivory; the creatures are often bilious green or
+    # dung-brown.
+    #
+    # His paint application is meticulous — far more so than his subjects suggest.  Forms
+    # are built in controlled transparent glazes with fine sable-tipped brushes, giving even
+    # the most grotesque creature a precise, almost jeweller's finish.  The eeriness of his
+    # work arises not from loose, frightened paint but from the opposite: calm, patient,
+    # deliberate craftsmanship applied to delirious subject matter.
+    #
+    # bosch_phantasmagoria_pass() encodes his defining aesthetic achievement: scattering
+    # intricate micro-detail marks across background regions to create the sense that every
+    # inch of the canvas conceals symbolic incident, while jewel-tone accents make focal
+    # figures read against the warm-dark void.
+    "hieronymus_bosch": ArtStyle(
+        artist="Hieronymus Bosch",
+        movement="Early Netherlandish / Brabantine Fantastical",
+        nationality="Dutch (Brabantine)",
+        period="1470–1516",
+        palette=[
+            (0.82, 0.72, 0.56),   # warm ivory flesh — saintly figure skin
+            (0.72, 0.52, 0.38),   # mid-tone warm sienna — creature bodies
+            (0.22, 0.14, 0.08),   # deep warm olive-brown — the Brabantine dark ground
+            (0.30, 0.22, 0.12),   # dark umber — shadow passages and creature silhouettes
+            (0.75, 0.15, 0.10),   # intense crimson — blood, damned flesh, hell fire accents
+            (0.15, 0.28, 0.62),   # lapis lazuli blue — celestial figures, heavenly accents
+            (0.72, 0.58, 0.15),   # warm golden amber — symbolic jewel accents, halos
+            (0.62, 0.72, 0.32),   # bilious olive-green — creature bodies, hellish vegetation
+            (0.85, 0.84, 0.80),   # pale grey-white — the flesh of damned souls
+        ],
+        ground_color=(0.24, 0.18, 0.10),    # dark warm olive-brown Brabantine ground
+        stroke_size=4,
+        wet_blend=0.35,                      # moderate — controlled transparent oil glazes
+        edge_softness=0.30,                  # moderate crispness — jewel clarity against void
+        jitter=0.045,                        # moderate variation — creature forms vary in tone
+        glazing=(0.28, 0.22, 0.10),          # dark warm amber unifying glaze — the Brabantine void tone
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Bosch worked in thin, precise transparent oil glazes over white chalk-gesso on oak "
+            "panel — the standard Early Netherlandish technique, deployed in service of a wholly "
+            "unprecedented visionary programme.  His backgrounds are never simple voids: they teem "
+            "with micro-detail — distant burning cities, fantastical hybrid creatures, symbolic "
+            "architecture — that rewards prolonged looking.  Against this densely populated dark "
+            "ground, focal figures emerge lit in warm ivory flesh (saints) or grey-white deadened "
+            "flesh (the damned), picked out with intense jewel-tone accents of crimson, lapis blue, "
+            "and golden amber.  Paint application is calm, patient, and meticulous — the eeriness "
+            "arises from deliberate craftsmanship applied to nightmarish content, not from loose "
+            "or anxious marks.  Characteristic palette: warm olive-brown void, crimson blood accents, "
+            "lapis azure celestial notes, bilious green creatures, pale ivory saints."
+        ),
+        famous_works=[
+            ("The Garden of Earthly Delights",          "c. 1490–1510"),
+            ("The Temptation of Saint Anthony",          "c. 1501"),
+            ("The Last Judgment",                        "c. 1482"),
+            ("The Haywain Triptych",                     "c. 1500–1502"),
+            ("The Ship of Fools",                        "c. 1490–1500"),
+            ("The Extraction of the Stone of Madness",   "c. 1494–1516"),
+            ("Christ Carrying the Cross",                "c. 1510–1516"),
+        ],
+        inspiration=(
+            "Use bosch_phantasmagoria_pass() to scatter intricate micro-detail marks across "
+            "background regions — creating the teeming symbolic density that makes a Bosch painting "
+            "feel alive with hidden meaning.  The pass seeds small dark marks with occasional intense "
+            "jewel-tone accents (crimson, lapis blue, amber) across background areas, using the figure "
+            "mask to avoid overpainting the focal figure.  tone_ground() with the dark olive-brown "
+            "Brabantine ground is essential — the void must be warm and deep.  underpainting in dark "
+            "umber establishes the symbolic weight.  block_in() with fine stroke_size (4px) to build "
+            "the meticulous, patient figure modelling.  Final dark warm amber glaze unifies the "
+            "Brabantine void tone.  cool_atmospheric_recession_pass() can add the characteristic "
+            "distant blue-grey horizon haze visible in his panoramic landscapes."
+        ),
+    ),
+
 }
 
 
