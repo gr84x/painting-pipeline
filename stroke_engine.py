@@ -20581,3 +20581,152 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Cool atmospheric recession pass complete.")
+
+    def de_hooch_threshold_light_pass(self,
+                                      light_x:         float = 0.15,
+                                      light_width:     float = 0.50,
+                                      light_falloff:   float = 0.55,
+                                      warm_color:      tuple = (0.78, 0.58, 0.28),
+                                      cool_color:      tuple = (0.36, 0.46, 0.58),
+                                      warm_strength:   float = 0.28,
+                                      cool_strength:   float = 0.18,
+                                      doorway_y:       float = 0.30,
+                                      doorway_h:       float = 0.55,
+                                      doorway_w:       float = 0.18,
+                                      doorway_x:       float = 0.82,
+                                      opacity:         float = 0.72) -> None:
+        """
+        De Hooch threshold light pass — session 75 artistic improvement.
+
+        Models Pieter de Hooch's signature warm/cool threshold light contrast:
+        warm amber interior light flooding from the left creating oblique diagonal
+        illumination across the figure and floor, set against the cooler exterior
+        daylight entering from an open doorway or window in the background.
+
+        **Why this improves the pipeline:**
+        De Hooch's domestic interiors achieve their luminous, inhabitable quality
+        through a precise warm/cool light architecture that was not previously
+        represented as a standalone composable pass.  Prior sessions had:
+          - sfumato_veil_pass() for Leonardo-style edge dissolution
+          - cool_atmospheric_recession_pass() for background aerial perspective
+          - luminous_glow_pass() for Turner-style atmospheric radiance
+
+        But de Hooch's threshold light is fundamentally different: it is an
+        *interior warm/cool contrast* — the warmth comes from a lateral window
+        illuminating the floor and figures obliquely, while the cool light enters
+        through a receding doorway creating a characteristic colour-temperature
+        threshold.  This pass models both components:
+
+          1. **Warm lateral light shaft**: An oblique warm amber gradient enters
+             from the left edge, falling across the lower register of the canvas
+             (floor, figures, wall) with a diagonal falloff that replicates the
+             characteristic de Hooch illumination angle.  The warm tint lifts
+             the red and green channels differentially, replicating the amber-ochre
+             quality of interior daylight filtered through period-correct windows.
+
+          2. **Cool threshold window**: A precisely located cool exterior light
+             rectangle (the doorway/window in the background) introduces a foil
+             of cool grey-blue.  This is the compositional device that made
+             de Hooch's interiors famous — without the cool counterpoint the warm
+             foreground reads as merely yellow; with it the interior achieves
+             luminous contrast and spatial depth.
+
+          3. **Diagonal light attenuation**: The warm light fades with distance
+             from the left edge using a smooth sigmoid attenuation, so the right
+             side and far background remain relatively cool — replicating the
+             physical behaviour of oblique interior window light.
+
+        The pass is composited at `opacity` against the existing canvas surface,
+        allowing it to be applied at different strengths depending on the degree
+        of interior warmth desired.
+
+        :param light_x:       Normalised x position of the warm light source edge
+                              (0.0 = left canvas edge; typically 0.05–0.25).
+        :param light_width:   Normalised width of the warm light gradient spread
+                              across the canvas (0.3–0.7 typical).
+        :param light_falloff: Sigmoid steepness of the warm light attenuation.
+                              Higher values create a sharper warm/cool boundary.
+        :param warm_color:    RGB tuple [0,1] of the warm interior light tint.
+        :param cool_color:    RGB tuple [0,1] of the cool exterior threshold tint.
+        :param warm_strength: Additive strength of the warm light overlay (0–1).
+        :param cool_strength: Additive strength of the cool exterior overlay (0–1).
+        :param doorway_y:     Top edge of the cool doorway rectangle (normalised).
+        :param doorway_h:     Height of the cool doorway rectangle (normalised).
+        :param doorway_w:     Width of the cool doorway rectangle (normalised).
+        :param doorway_x:     Left edge x of the cool doorway rectangle (normalised).
+        :param opacity:       Final composite opacity of the entire pass (0–1).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        surface = self.canvas.surface
+        w_px = surface.get_width()
+        h_px = surface.get_height()
+
+        # Extract canvas BGRA buffer
+        orig = _np.frombuffer(surface.get_data(),
+                              dtype=_np.uint8).reshape((h_px, w_px, 4)).copy()
+
+        # ── Coordinate grids [0, 1] ───────────────────────────────────────────
+        yy = _np.linspace(0.0, 1.0, h_px, dtype=_np.float32)[:, None] * _np.ones((1, w_px), dtype=_np.float32)
+        xx = _np.ones((h_px, 1), dtype=_np.float32) * _np.linspace(0.0, 1.0, w_px, dtype=_np.float32)[None, :]
+
+        # ── Decompose to float RGB ────────────────────────────────────────────
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Warm lateral light shaft ────────────────────────────────────────
+        # Oblique warm amber gradient from the left edge.
+        # sigmoid(light_falloff, xx - light_x - light_width) creates a smooth
+        # gradient that is near-1.0 at the left, falling to near-0.0 at the right.
+        warm_dist = (xx - light_x) / max(light_width, 0.01)
+        warm_weight = _np.clip(1.0 - warm_dist, 0.0, 1.0)
+        # Mild diagonal: light slightly stronger in the upper-lower register
+        # (simulates light entering from slightly above-left)
+        diagonal_bias = 1.0 + 0.25 * (0.65 - yy)
+        warm_weight = _np.clip(warm_weight * diagonal_bias, 0.0, 1.0)
+        warm_weight = (warm_weight ** light_falloff).astype(_np.float32)
+
+        wr, wg, wb = warm_color
+        r_out = _np.clip(r_out + warm_weight * warm_strength * wr, 0.0, 1.0)
+        g_out = _np.clip(g_out + warm_weight * warm_strength * wg * 0.85, 0.0, 1.0)
+        b_out = _np.clip(b_out + warm_weight * warm_strength * wb * 0.50, 0.0, 1.0)
+
+        # ── 2. Cool exterior threshold (doorway/window rectangle) ─────────────
+        # A cool blue-grey rectangle in the background represents exterior light
+        # entering through a doorway — de Hooch's defining compositional device.
+        door_mask = (
+            (xx >= doorway_x) & (xx <= doorway_x + doorway_w) &
+            (yy >= doorway_y) & (yy <= doorway_y + doorway_h)
+        ).astype(_np.float32)
+        # Soft feathered edges for the doorway (5 px sigma proportional to size)
+        feather_px = max(4, int(min(h_px, w_px) * 0.022))
+        door_mask = _gf(door_mask, sigma=feather_px).astype(_np.float32)
+        door_mask = _np.clip(door_mask, 0.0, 1.0)
+
+        cr, cg, cb = cool_color
+        r_out = _np.clip(r_out * (1.0 - door_mask * cool_strength * 0.40)
+                         + door_mask * cool_strength * cr, 0.0, 1.0)
+        g_out = _np.clip(g_out * (1.0 - door_mask * cool_strength * 0.25)
+                         + door_mask * cool_strength * cg, 0.0, 1.0)
+        b_out = _np.clip(b_out * (1.0 - door_mask * cool_strength * 0.15)
+                         + door_mask * cool_strength * cb, 0.0, 1.0)
+
+        # ── 3. Composite at opacity ────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    De Hooch threshold light pass complete.")

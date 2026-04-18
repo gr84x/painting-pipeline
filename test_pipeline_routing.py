@@ -10331,3 +10331,129 @@ def test_northern_fantastical_routing_flag():
     style = Style(medium=Medium.OIL, period=Period.NORTHERN_FANTASTICAL,
                   palette=PaletteHint.DARK_EARTH)
     assert style.period == Period.NORTHERN_FANTASTICAL
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# de_hooch_threshold_light_pass() — session 75 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_de_hooch_threshold_light_pass_exists():
+    """Painter must have a de_hooch_threshold_light_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "de_hooch_threshold_light_pass"), (
+        "Painter.de_hooch_threshold_light_pass not found — add it to stroke_engine.py")
+
+
+def test_de_hooch_threshold_light_pass_zero_opacity_no_change():
+    """de_hooch_threshold_light_pass() at opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Fill with a mid-grey reference
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+    buf[:] = 128
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    before = buf.copy()
+
+    p.de_hooch_threshold_light_pass(opacity=0.0)
+
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+    assert np.array_equal(before[:, :, :3], after[:, :, :3]), (
+        "de_hooch_threshold_light_pass() at opacity=0 must leave canvas unchanged")
+
+
+def test_de_hooch_threshold_light_pass_modifies_canvas():
+    """de_hooch_threshold_light_pass() with positive opacity must change at least one pixel."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+    buf[:] = 128
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    before = buf[:, :, :3].copy()
+
+    p.de_hooch_threshold_light_pass(
+        light_x=0.05,
+        light_width=0.50,
+        warm_strength=0.30,
+        cool_strength=0.20,
+        doorway_x=0.70,
+        doorway_y=0.20,
+        doorway_w=0.20,
+        doorway_h=0.50,
+        opacity=0.80,
+    )
+
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+    diff = np.abs(before.astype(int) - after[:, :, :3].astype(int))
+    assert diff.max() > 0, (
+        "de_hooch_threshold_light_pass() should modify at least one pixel when opacity>0")
+
+
+def test_de_hooch_threshold_light_pass_pixels_in_range():
+    """de_hooch_threshold_light_pass() must not produce out-of-range pixel values."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+    buf[:, :, :3] = 180
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.de_hooch_threshold_light_pass(
+        warm_strength=0.50,
+        cool_strength=0.40,
+        opacity=1.0,
+    )
+
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4))
+    assert after.min() >= 0 and after.max() <= 255, (
+        "de_hooch_threshold_light_pass() must not produce pixel values outside [0, 255]")
+
+
+def test_de_hooch_threshold_light_pass_warm_tint_on_left():
+    """de_hooch_threshold_light_pass() warm light should increase left-side redness."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(128, 128)
+    # Fill with uniform mid-grey
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    buf[:] = 128
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+
+    p.de_hooch_threshold_light_pass(
+        light_x=0.0,
+        light_width=0.40,
+        warm_color=(1.0, 0.6, 0.2),
+        warm_strength=0.40,
+        cool_strength=0.0,    # disable cool to isolate warm effect
+        doorway_w=0.0,        # no doorway
+        opacity=1.0,
+    )
+
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    # Left column (x=0–20) should be redder than right column (x=108–128)
+    left_red  = after[:, :20,   2].astype(float).mean()   # BGRA: channel 2 = R
+    right_red = after[:, 108:,  2].astype(float).mean()
+    assert left_red > right_red, (
+        f"Warm tint should make left side redder: left_red={left_red:.1f} right_red={right_red:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.DUTCH_DOMESTIC — session 75 routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_dutch_domestic_period_present_routing():
+    """Period.DUTCH_DOMESTIC must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, "DUTCH_DOMESTIC"), (
+        "Period.DUTCH_DOMESTIC not found in scene_schema — add it")
+    assert Period.DUTCH_DOMESTIC in list(Period)
+
+
+def test_dutch_domestic_routing_flag():
+    """Style with DUTCH_DOMESTIC period must be constructible and readable."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_DOMESTIC,
+                  palette=PaletteHint.WARM_EARTH)
+    assert style.period == Period.DUTCH_DOMESTIC

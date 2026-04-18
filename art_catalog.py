@@ -6158,6 +6158,71 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 75: Pieter de Hooch ──────────────────────────────────────────
+    "pieter_de_hooch": ArtStyle(
+        artist      = "Pieter de Hooch",
+        movement    = "Dutch Golden Age / Domestic Interior",
+        nationality = "Dutch",
+        period      = "1629–1684",
+        palette     = [
+            (0.72, 0.52, 0.24),   # warm amber floor light
+            (0.58, 0.44, 0.28),   # ochre brick wall
+            (0.82, 0.74, 0.58),   # cream plaster highlight
+            (0.34, 0.44, 0.54),   # cool exterior daylight
+            (0.48, 0.38, 0.26),   # dark oak woodwork
+            (0.68, 0.32, 0.18),   # deep madder red costume
+            (0.22, 0.30, 0.42),   # blue-grey shadow
+            (0.86, 0.82, 0.72),   # pale linen light
+            (0.30, 0.22, 0.14),   # near-black shadow accent
+        ],
+        ground_color   = (0.54, 0.44, 0.30),   # warm sienna-ochre imprimatura
+        stroke_size    = 5,
+        wet_blend      = 0.20,
+        edge_softness  = 0.55,
+        jitter         = 0.015,
+        glazing        = (0.62, 0.48, 0.26),   # warm amber unifying glaze
+        crackle        = True,
+        chromatic_split = False,
+        technique      = (
+            "Pieter de Hooch worked in small panel and canvas formats on a warm sienna-ochre "
+            "imprimatura.  His defining technical achievement is the threshold light effect: "
+            "the depiction of warm amber interior light in sharp, luminous contrast against "
+            "the cool silvery daylight entering from an open window or doorway.  This "
+            "warm/cool threshold was built through careful layered glazing — the warm floor "
+            "and wall areas received successive thin amber-ochre glazes while the doorway "
+            "and sky passages were painted in cool grey-blue tones that read as exterior "
+            "atmosphere by contrast.  De Hooch was systematic in his perspective: his tile "
+            "floors and receding rooms follow strict geometric recession that creates a sense "
+            "of inhabitable domestic space.  His figures are secondary to the architecture of "
+            "light; they are painted with warm flesh tones that catch the interior amber "
+            "light, modelled with deliberate, unhurried marks — closer to Vermeer's patience "
+            "than Hals's bravura, but warmer and more golden than either.  The famous "
+            "'light through the doorway' effect is achieved by reserving a strong, clean "
+            "rectangle of cool exterior light that acts as a colour-temperature foil to the "
+            "warm amber foreground — a compositional device de Hooch invented and deployed "
+            "with extraordinary consistency across his entire body of work."
+        ),
+        famous_works   = [
+            ("The Courtyard of a House in Delft",        "1658"),
+            ("A Woman and Her Maid in a Courtyard",      "c. 1660–1661"),
+            ("Interior with Women beside a Linen Chest", "1663"),
+            ("The Card Players",                         "c. 1658"),
+            ("A Boy Bringing Bread",                     "c. 1663"),
+            ("Woman Drinking with Soldiers",             "c. 1658"),
+        ],
+        inspiration    = (
+            "Use de_hooch_threshold_light_pass() to model the characteristic warm/cool light "
+            "contrast of de Hooch's domestic interiors — warm amber light floods the foreground "
+            "from a window off the left edge, creating an oblique illumination across floors and "
+            "figures while a cooler, exterior daylight quality fills the receding background. "
+            "tone_ground() with the warm sienna-ochre imprimatura establishes the amber interior "
+            "atmosphere from the start.  block_in() with moderate stroke_size captures the "
+            "geometric tiled-floor perspective and architectural masses.  build_form() models "
+            "the figure in warm interior light against the cool background recession.  "
+            "A final warm amber glaze unifies the interior warmth."
+        ),
+    ),
+
 }
 
 

@@ -91,6 +91,7 @@ EXPECTED_ARTISTS = [
     "watteau",
     "sofonisba_anguissola",
     "hieronymus_bosch",
+    "pieter_de_hooch",
 ]
 
 
@@ -8843,4 +8844,111 @@ def test_northern_fantastical_stroke_params_moderate_edge_softness():
     p = style.stroke_params
     assert p["edge_softness"] <= 0.50, (
         f"NORTHERN_FANTASTICAL edge_softness should be <= 0.50 for jewel clarity; "
+        f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pieter de Hooch — session 75 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_pieter_de_hooch_in_catalog():
+    """Pieter de Hooch must be present in the CATALOG under key 'pieter_de_hooch'."""
+    assert "pieter_de_hooch" in CATALOG, "pieter_de_hooch not found in CATALOG"
+
+
+def test_pieter_de_hooch_style_retrieval():
+    """get_style('pieter_de_hooch') must return an ArtStyle without raising."""
+    s = get_style("pieter_de_hooch")
+    assert s is not None
+
+
+def test_pieter_de_hooch_movement():
+    """Pieter de Hooch should be classified in the Dutch Golden Age movement."""
+    s = get_style("pieter_de_hooch")
+    assert "Dutch" in s.movement, (
+        f"Expected 'Dutch' in movement, got {s.movement!r}")
+
+
+def test_pieter_de_hooch_nationality():
+    """Pieter de Hooch should be Dutch."""
+    s = get_style("pieter_de_hooch")
+    assert s.nationality == "Dutch", (
+        f"Expected nationality='Dutch', got {s.nationality!r}")
+
+
+def test_pieter_de_hooch_palette_length():
+    """Pieter de Hooch palette must have at least 7 colours."""
+    s = get_style("pieter_de_hooch")
+    assert len(s.palette) >= 7, (
+        f"Expected at least 7 palette colours, got {len(s.palette)}")
+
+
+def test_pieter_de_hooch_palette_has_warm_amber():
+    """de Hooch palette must include a warm amber/ochre floor-light tone."""
+    s = get_style("pieter_de_hooch")
+    warm = [(r, g, b) for r, g, b in s.palette if r > 0.60 and g > 0.40 and b < 0.40]
+    assert warm, "pieter_de_hooch palette should include a warm amber/ochre tone"
+
+
+def test_pieter_de_hooch_palette_has_cool_exterior():
+    """de Hooch palette must include a cool grey-blue exterior daylight tone."""
+    s = get_style("pieter_de_hooch")
+    cool = [(r, g, b) for r, g, b in s.palette if b > r and b > 0.40]
+    assert cool, "pieter_de_hooch palette should include a cool blue-grey exterior tone"
+
+
+def test_pieter_de_hooch_ground_is_warm():
+    """de Hooch ground should be a warm sienna-ochre imprimatura (mean > 0.38)."""
+    s = get_style("pieter_de_hooch")
+    mean_ground = sum(s.ground_color) / 3.0
+    assert mean_ground > 0.38, (
+        f"pieter_de_hooch ground should be warm (mean > 0.38), got {mean_ground:.3f}")
+
+
+def test_pieter_de_hooch_low_wet_blend():
+    """de Hooch wet_blend should be low (< 0.35) — measured, unhurried strokes."""
+    s = get_style("pieter_de_hooch")
+    assert s.wet_blend < 0.35, (
+        f"pieter_de_hooch wet_blend should be < 0.35 for deliberate stroke quality; "
+        f"got {s.wet_blend}")
+
+
+def test_pieter_de_hooch_has_crackle():
+    """de Hooch should have crackle=True for aged panel surface texture."""
+    s = get_style("pieter_de_hooch")
+    assert s.crackle is True, "pieter_de_hooch should have crackle=True"
+
+
+def test_pieter_de_hooch_famous_works():
+    """de Hooch famous_works must include the Courtyard of a House in Delft."""
+    s = get_style("pieter_de_hooch")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Courtyard" in t or "Delft" in t for t in titles), (
+        "pieter_de_hooch famous_works should include 'The Courtyard of a House in Delft'")
+
+
+def test_dutch_domestic_period_present():
+    """Session 75: DUTCH_DOMESTIC must exist in Period enum."""
+    assert hasattr(Period, "DUTCH_DOMESTIC"), (
+        "Period.DUTCH_DOMESTIC not found — add it to scene_schema.py")
+    assert Period.DUTCH_DOMESTIC in list(Period)
+
+
+def test_dutch_domestic_stroke_params_low_wet_blend():
+    """DUTCH_DOMESTIC should have low wet_blend for de Hooch's measured strokes."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_DOMESTIC,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.30, (
+        f"DUTCH_DOMESTIC wet_blend should be <= 0.30 for de Hooch's deliberate quality; "
+        f"got {p['wet_blend']}")
+
+
+def test_dutch_domestic_stroke_params_moderate_edge_softness():
+    """DUTCH_DOMESTIC should have moderate edge_softness for threshold light clarity."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_DOMESTIC,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["edge_softness"] <= 0.70, (
+        f"DUTCH_DOMESTIC edge_softness should be in [0.40, 0.70] for threshold clarity; "
         f"got {p['edge_softness']}")
