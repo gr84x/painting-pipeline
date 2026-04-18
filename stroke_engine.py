@@ -21312,3 +21312,178 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Lotto chromatic anxiety pass complete.")
+
+    # Session 80 — New artist: Andrea del Sarto golden sfumato pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def andrea_del_sarto_golden_sfumato_pass(
+        self,
+        flesh_mid_lo:     float = 0.45,   # lower luminance bound of the midtone bloom zone
+        flesh_mid_hi:     float = 0.80,   # upper luminance bound of the midtone bloom zone
+        gold_r_boost:     float = 0.05,   # R-channel boost for amber warmth in midtones
+        gold_g_boost:     float = 0.028,  # G-channel boost — keeps it ivory-gold, not orange
+        sfumato_blur:     float = 5.5,    # Gaussian radius for edge-transition zone softening
+        edge_grad_lo:     float = 0.06,   # gradient magnitude floor (no softening below)
+        edge_grad_hi:     float = 0.22,   # gradient magnitude ceiling (full softening above)
+        harmony_sat_cap:  float = 0.85,   # saturation cap above which harmony pull activates
+        harmony_pull:     float = 0.055,  # desaturation strength toward warm palette centre
+        skin_r_lo:        float = 0.44,
+        skin_r_hi:        float = 0.92,
+        skin_g_lo:        float = 0.28,
+        skin_g_hi:        float = 0.84,
+        skin_b_hi:        float = 0.74,
+        blur_radius:      float = 5.0,
+        opacity:          float = 0.46,
+    ) -> None:
+        """
+        Apply Andrea del Sarto's defining painterly quality: warm golden sfumato.
+
+        Del Sarto (1486–1530) was called 'il pittore sanza errori' — the faultless
+        painter — by Vasari for the seamless, inevitable quality of his tonal
+        transitions.  His skin tones move from warm ivory highlight through golden
+        midtone to warm umber shadow without any visible seam or temperature break,
+        a quality quite distinct from the cool dissolution of Leonardo's sfumato or
+        the warm-orange vitality of Rubens.
+
+        Three operations:
+
+        1. **Golden midtone warmth** — pixels with luminance in [flesh_mid_lo,
+           flesh_mid_hi] receive a warm amber push (R+ strongly, G+ modestly, B
+           unchanged).  The ratio R:G ≈ 1.8:1 produces the ivory-gold characteristic
+           of his flesh — warm but never orange.  A tent mask peaking at the midpoint
+           of the band concentrates the push at the true midtone rather than at
+           highlights or shadows.
+
+        2. **Sfumato edge feathering** — form boundaries (detected via luminance
+           gradient magnitude) receive an additional Gaussian blur pass weighted by
+           the gradient.  This dissolves the hard edges that accumulate across
+           successive painting passes into del Sarto's atmospheric transitions.
+           The gradient-weighted approach ensures only actual edges are softened;
+           the smooth interior of well-blended zones is left undisturbed.
+
+        3. **Colour harmony pull** — pixels whose per-channel saturation exceeds
+           harmony_sat_cap are mildly desaturated toward the warm centre of the del
+           Sarto palette.  This prevents chromatic outliers left by preceding passes
+           (e.g. vivid cool accents from Lotto or Poussin passes) from fighting the
+           warm Florentine register.  The pull is gentle (harmony_pull ≈ 0.055) and
+           operates only above the saturation cap to preserve normal variation.
+
+        Parameters
+        ----------
+        flesh_mid_lo     : lower luminance boundary of the midtone bloom zone
+        flesh_mid_hi     : upper luminance boundary of the midtone bloom zone
+        gold_r_boost     : R-channel boost for the amber warmth component
+        gold_g_boost     : G-channel boost for the yellow-gold component
+        sfumato_blur     : Gaussian sigma for edge-zone softening
+        edge_grad_lo     : gradient magnitude below which no softening applies
+        edge_grad_hi     : gradient magnitude above which maximum softening applies
+        harmony_sat_cap  : saturation cap above which harmony pull engages
+        harmony_pull     : desaturation strength toward warm palette centre
+        skin_r_lo/hi     : skin detection R-channel range
+        skin_g_lo/hi     : skin detection G-channel range
+        skin_b_hi        : skin detection B-channel ceiling
+        blur_radius      : Gaussian sigma for skin mask feathering
+        opacity          : overall blend weight
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Andrea del Sarto golden sfumato pass "
+              f"(gold_r={gold_r_boost:.3f}  gold_g={gold_g_boost:.3f}  "
+              f"sfumato_blur={sfumato_blur:.1f}  harmony={harmony_pull:.3f}  "
+              f"lum=[{flesh_mid_lo:.2f},{flesh_mid_hi:.2f}]  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Andrea del Sarto golden sfumato pass skipped (opacity=0)")
+            return
+
+        h_px, w_px = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h_px, w_px, 4)).copy()
+        orig = buf.copy()
+
+        # cairo BGRA → float RGB
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Golden midtone warmth ──────────────────────────────────────────
+        # Tent mask peaking at the midpoint of [flesh_mid_lo, flesh_mid_hi]
+        mid_c = (flesh_mid_lo + flesh_mid_hi) * 0.5
+        mid_h = max((flesh_mid_hi - flesh_mid_lo) * 0.5, 1e-8)
+        midtone_mask = _np.clip(1.0 - _np.abs(lum - mid_c) / mid_h, 0.0, 1.0)
+
+        # Skin mask — limit warmth injection to flesh areas
+        skin_raw = (
+            (r0 >= skin_r_lo) & (r0 <= skin_r_hi) &
+            (g0 >= skin_g_lo) & (g0 <= skin_g_hi) &
+            (b0 <= skin_b_hi)
+        ).astype(_np.float32)
+        skin_mask = _gf(skin_raw, sigma=blur_radius * 1.2).astype(_np.float32)
+
+        gold_mask = (midtone_mask * skin_mask).astype(_np.float32)
+        gold_w = gold_mask * opacity
+        r_out = _np.clip(r_out + gold_w * gold_r_boost, 0.0, 1.0)
+        g_out = _np.clip(g_out + gold_w * gold_g_boost, 0.0, 1.0)
+
+        # ── 2. Sfumato edge feathering ────────────────────────────────────────
+        # Detect edge zones via luminance gradient magnitude
+        lum_smooth = _gf(lum, sigma=1.2)
+        grad_x = _np.gradient(lum_smooth, axis=1).astype(_np.float32)
+        grad_y = _np.gradient(lum_smooth, axis=0).astype(_np.float32)
+        grad_mag = _np.sqrt(grad_x ** 2 + grad_y ** 2).astype(_np.float32)
+
+        # Map gradient magnitude to [0,1] softening weight
+        edge_span = max(edge_grad_hi - edge_grad_lo, 1e-8)
+        edge_weight = _np.clip(
+            (grad_mag - edge_grad_lo) / edge_span, 0.0, 1.0
+        ).astype(_np.float32)
+
+        # Blur each channel and blend into edge zones
+        r_blurred = _gf(r_out, sigma=sfumato_blur).astype(_np.float32)
+        g_blurred = _gf(g_out, sigma=sfumato_blur).astype(_np.float32)
+        b_blurred = _gf(b_out, sigma=sfumato_blur).astype(_np.float32)
+
+        blend_w = edge_weight * opacity * 0.55   # partial blend — del Sarto keeps form clarity
+        r_out = r_out * (1.0 - blend_w) + r_blurred * blend_w
+        g_out = g_out * (1.0 - blend_w) + g_blurred * blend_w
+        b_out = b_out * (1.0 - blend_w) + b_blurred * blend_w
+
+        # ── 3. Colour harmony pull ────────────────────────────────────────────
+        # Compute per-pixel saturation (max - min of RGB)
+        ch_max = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        ch_min = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        sat = (ch_max - ch_min).astype(_np.float32)
+
+        # Warm palette centre (del Sarto's characteristic amber-ivory midtone)
+        warm_r, warm_g, warm_b = 0.82, 0.72, 0.55
+
+        # Pull saturated pixels toward the warm centre
+        over_cap = _np.clip((sat - harmony_sat_cap) / max(1.0 - harmony_sat_cap, 1e-8),
+                            0.0, 1.0).astype(_np.float32)
+        pull_w = over_cap * harmony_pull * opacity
+        r_out = _np.clip(r_out + pull_w * (warm_r - r_out), 0.0, 1.0)
+        g_out = _np.clip(g_out + pull_w * (warm_g - g_out), 0.0, 1.0)
+        b_out = _np.clip(b_out + pull_w * (warm_b - b_out), 0.0, 1.0)
+
+        # ── 4. Composite at opacity ───────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Andrea del Sarto golden sfumato pass complete.")

@@ -6428,6 +6428,87 @@ CATALOG: Dict[str, ArtStyle] = {
     # ──────────────────────────────────────────────────────────────────────────
     # Lorenzo Lotto — session 79 addition
     # ──────────────────────────────────────────────────────────────────────────
+    # ── Session 80 ─────────────────────────────────────────────────────────────
+    # Andrea del Sarto — "The Faultless Painter", Florentine High Renaissance.
+    # Warm golden sfumato: amber-ivory highlights, seamless midtone transitions,
+    # colour-temperature harmony that Vasari called 'without error'.
+    # ──────────────────────────────────────────────────────────────────────────
+    "andrea_del_sarto": ArtStyle(
+        artist="Andrea del Sarto",
+        movement="Florentine High Renaissance",
+        nationality="Italian",
+        period="c. 1486–1530",
+        palette=[
+            (0.94, 0.87, 0.73),   # warm ivory highlight — the 'faultless' flesh light
+            (0.82, 0.72, 0.55),   # golden mid-flesh — the signature amber warmth
+            (0.64, 0.52, 0.36),   # warm umber midtone-shadow
+            (0.36, 0.26, 0.16),   # deep warm brown shadow
+            (0.50, 0.56, 0.42),   # soft sage-green landscape distance
+            (0.42, 0.48, 0.56),   # cool atmospheric recession
+            (0.70, 0.58, 0.36),   # sienna-gold drapery
+            (0.86, 0.78, 0.62),   # creamy half-light (below the golden peak)
+        ],
+        ground_color=(0.62, 0.52, 0.34),   # warm amber-ochre imprimatura
+        stroke_size=5,
+        wet_blend=0.65,      # high — seamless Florentine tonal transitions
+        edge_softness=0.62,  # Leonardo-adjacent sfumato, but warmer and more grounded
+        jitter=0.018,
+        glazing=(0.52, 0.44, 0.28),    # warm amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Andrea del Sarto (1486–1530), called 'il pittore sanza errori' — the "
+            "faultless painter — by Giorgio Vasari, achieved a seamless synthesis of "
+            "the two dominant Florentine traditions: Fra Bartolommeo's monumental "
+            "architectural clarity and Leonardo da Vinci's atmospheric sfumato.  "
+            "Where Leonardo's sfumato dissolved forms into a smoky continuum, del "
+            "Sarto's version retained the underlying clarity of volume — a warm, "
+            "golden haze rather than Leonardo's cool smoke.  His flesh tones are "
+            "among the most admired in the Italian tradition: a warm amber-ivory in "
+            "the lights deepening through golden midtones to warm umber shadows, "
+            "with a harmonious unity of temperature that prevents cold-light / "
+            "warm-shadow contrast.\n\n"
+            "His working method began with a warm amber-ochre imprimatura over which "
+            "he built volume in monochromatic underlayers before introducing colour "
+            "in transparent oil glazes.  The finished surface has the depth of "
+            "stacked coloured glass: each glaze layer contributes chromatic warmth "
+            "that accumulates into the characteristic golden luminosity.  His "
+            "transitions are so smooth that Vasari's phrase implies not merely "
+            "technical correction but natural inevitability — the tonal shift from "
+            "light to shadow reads as the substance of flesh itself rather than "
+            "applied paint.\n\n"
+            "Unlike Leonardo, who used sfumato to dissolve the boundary between "
+            "figure and ground, del Sarto maintained compositional clarity — his "
+            "figures are atmospherically soft but spatially anchored.  Background "
+            "landscapes use aerial perspective with a warmer palette (more ochre and "
+            "sienna, less cool grey) than Leonardo, giving his atmospheric depth a "
+            "golden, habitable quality.  The Madonna of the Harpies (1517), the "
+            "Pietà (c. 1524), and the Portrait of a Young Man (c. 1517) demonstrate "
+            "this: controlled warmth, perfect transitions, nothing superfluous."
+        ),
+        famous_works=[
+            ("Madonna of the Harpies",           "1517"),
+            ("Portrait of a Young Man",           "c. 1517"),
+            ("Holy Family with Saint Catherine",  "c. 1529"),
+            ("Pietà",                             "c. 1524"),
+            ("The Annunciation",                  "c. 1512"),
+        ],
+        inspiration=(
+            "Apply andrea_del_sarto_golden_sfumato_pass() to inject the characteristic "
+            "'faultless' Florentine quality in three stages: (1) golden midtone warmth "
+            "— skin pixels in the midtone band [0.45–0.80] receive R↑ and G↑ in a "
+            "warm amber ratio (R stronger, G modest), enriching the ivory-gold without "
+            "adding orange; (2) sfumato edge feathering — transition zones detected via "
+            "local luminance gradient magnitude receive an additional Gaussian softening "
+            "pass, pulling hard edges toward del Sarto's Leonardo-adjacent atmospheric "
+            "quality; (3) colour harmony pull — pixels whose saturation exceeds a cap "
+            "(0.85) are mildly desaturated toward the warm centre of the palette, "
+            "preventing individual preceding passes from leaving chromatic outliers.  "
+            "Opacity around 0.42–0.52 — del Sarto's effect is present but never "
+            "intrusive; the 'faultless' quality comes from accumulated subtlety."
+        ),
+    ),
+
     "lorenzo_lotto": ArtStyle(
         artist="Lorenzo Lotto",
         movement="Venetian Renaissance / Venetian Psychological",
