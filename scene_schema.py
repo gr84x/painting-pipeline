@@ -248,6 +248,7 @@ class Period(Enum):
     DUTCH_DOMESTIC = auto()      # de Hooch — warm threshold light through doorways, warm/cool interior contrast, geometric tile floors, amber-lit foreground against cool daylight background
     DUTCH_GENRE_COMEDY = auto()  # Jan Steen — warm amber imprimatura glow, rosy flushed flesh, vivid costume accents, energetic alla prima brushwork, warm amber-brown shadows
     VENETIAN_PSYCHOLOGICAL = auto()  # Lotto — cool chromatic anxiety beneath Venetian warmth, psychological eye intensity, background color dissonance, restless chromatic undertone
+    FLORENTINE_HIGH_RENAISSANCE = auto()  # Andrea del Sarto — warm golden sfumato, 'faultless' seamless Florentine transitions, amber-ivory flesh, harmonious colour temperature
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -968,6 +969,16 @@ class Style:
             # edge_softness=0.48: slightly more defined than classic sfumato — Lotto's edges
             # have a psychological crispness even when the overall tonality is atmospheric.
             Period.VENETIAN_PSYCHOLOGICAL: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.45, edge_softness=0.48),
+            # FLORENTINE_HIGH_RENAISSANCE (del Sarto) — 'faultless' warm golden sfumato.
+            # stroke_size_face=5: meticulous Florentine skin observation — fine marks that
+            # build seamless tonal transitions in the Leonardo-adjacent tradition.
+            # stroke_size_bg=22: moderate landscape strokes; del Sarto's backgrounds are
+            # warmer and more defined than Leonardo's cool void but still atmospheric.
+            # wet_blend=0.65: high — the hallmark seamless Florentine transitions where
+            # form dissolves into form without visible seam; higher than Lotto's tension.
+            # edge_softness=0.62: high sfumato, warmer and more grounded than Leonardo's
+            # full dissolution (0.80+), but clearly in the Florentine sfumato tradition.
+            Period.FLORENTINE_HIGH_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.65, edge_softness=0.62),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

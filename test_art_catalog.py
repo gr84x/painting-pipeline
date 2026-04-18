@@ -95,6 +95,7 @@ EXPECTED_ARTISTS = [
     "hieronymus_bosch",
     "pieter_de_hooch",
     "jan_steen",
+    "andrea_del_sarto",
 ]
 
 
@@ -9326,3 +9327,143 @@ def test_venetian_psychological_stroke_params_valid():
         f"VENETIAN_PSYCHOLOGICAL wet_blend={sp['wet_blend']} should be in [0, 1]")
     assert 0 <= sp['edge_softness'] <= 1, (
         f"VENETIAN_PSYCHOLOGICAL edge_softness={sp['edge_softness']} should be in [0, 1]")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 80 — Andrea del Sarto (Florentine High Renaissance)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_andrea_del_sarto_in_catalog():
+    """Andrea del Sarto (session 80) must be present in the catalog."""
+    assert "andrea_del_sarto" in CATALOG, (
+        "andrea_del_sarto missing from CATALOG -- add it to art_catalog.py")
+
+
+def test_andrea_del_sarto_palette_valid():
+    """
+    andrea_del_sarto palette must have ≥ 5 colours with all channels in [0, 1].
+    """
+    s = get_style("andrea_del_sarto")
+    assert len(s.palette) >= 5, (
+        f"andrea_del_sarto palette has {len(s.palette)} colours; expected ≥ 5")
+    for i, rgb in enumerate(s.palette):
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"andrea_del_sarto palette[{i}] channel {ch:.3f} out of [0, 1]")
+
+
+def test_andrea_del_sarto_warm_highlight_in_palette():
+    """
+    andrea_del_sarto palette must contain at least one warm ivory highlight
+    (R >= 0.88, R > B + 0.12) — the 'faultless' flesh-light quality.
+    """
+    s = get_style("andrea_del_sarto")
+    has_warm_high = any(r >= 0.88 and r > b + 0.12 for r, g, b in s.palette)
+    assert has_warm_high, (
+        "andrea_del_sarto palette should include at least one warm ivory highlight "
+        "(R >= 0.88, R > B+0.12) -- the signature ivory-gold flesh light of del Sarto")
+
+
+def test_andrea_del_sarto_warm_glaze():
+    """
+    andrea_del_sarto glazing must be warm (R > B + 0.10) -- the amber unifying
+    glaze that ties his compositions into a harmonious golden tonality.
+    """
+    s = get_style("andrea_del_sarto")
+    r, g, b = s.glazing
+    assert r > b + 0.10, (
+        f"andrea_del_sarto glazing R={r:.3f} B={b:.3f}: expected R > B+0.10 "
+        "(warm amber glaze is the unifying tonality of del Sarto's Florentine palette)")
+
+
+def test_andrea_del_sarto_high_wet_blend():
+    """
+    andrea_del_sarto wet_blend must be in [0.55, 0.80] -- the seamless Florentine
+    tonal transitions that Vasari called 'faultless'.
+    """
+    s = get_style("andrea_del_sarto")
+    assert 0.55 <= s.wet_blend <= 0.80, (
+        f"andrea_del_sarto wet_blend={s.wet_blend:.2f} should be in [0.55, 0.80] "
+        "(high blending for the 'faultless' seamless Florentine transitions)")
+
+
+def test_andrea_del_sarto_high_edge_softness():
+    """
+    andrea_del_sarto edge_softness must be in [0.50, 0.75] -- Leonardo-adjacent
+    sfumato, warmer and more grounded than Leonardo's full dissolution.
+    """
+    s = get_style("andrea_del_sarto")
+    assert 0.50 <= s.edge_softness <= 0.75, (
+        f"andrea_del_sarto edge_softness={s.edge_softness:.2f} should be in [0.50, 0.75] "
+        "(high sfumato in the Florentine tradition -- not cool dissolution but warm atmospheric softness)")
+
+
+def test_andrea_del_sarto_crackle():
+    """andrea_del_sarto crackle should be True -- aged Renaissance oil on panel."""
+    s = get_style("andrea_del_sarto")
+    assert s.crackle is True, (
+        "andrea_del_sarto crackle should be True (aged 16th-century Florentine oil)")
+
+
+def test_andrea_del_sarto_no_chromatic_split():
+    """andrea_del_sarto chromatic_split should be False -- no Pointillist dots."""
+    s = get_style("andrea_del_sarto")
+    assert s.chromatic_split is False, (
+        "andrea_del_sarto chromatic_split should be False (no Seurat divisionism)")
+
+
+def test_andrea_del_sarto_ground_color_warm():
+    """
+    andrea_del_sarto ground_color must be warm (R > B + 0.15) -- the amber-ochre
+    imprimatura from which del Sarto built his warm flesh glazing.
+    """
+    s = get_style("andrea_del_sarto")
+    r, g, b = s.ground_color
+    assert r > b + 0.15, (
+        f"andrea_del_sarto ground_color R={r:.3f} B={b:.3f}: expected R > B+0.15 "
+        "(warm amber-ochre imprimatura is the foundation of del Sarto's warmth)")
+
+
+def test_andrea_del_sarto_technique_mentions_faultless():
+    """
+    andrea_del_sarto technique text must mention either 'faultless' or 'sanza errori'
+    -- Vasari's epithet is the canonical description of del Sarto's quality.
+    """
+    s = get_style("andrea_del_sarto")
+    tech_lower = s.technique.lower()
+    assert "faultless" in tech_lower or "sanza errori" in tech_lower, (
+        "andrea_del_sarto technique should mention 'faultless' or 'sanza errori' "
+        "(Vasari's canonical epithet for Andrea del Sarto)")
+
+
+def test_andrea_del_sarto_famous_works_present():
+    """andrea_del_sarto must list ≥ 3 famous works."""
+    s = get_style("andrea_del_sarto")
+    assert len(s.famous_works) >= 3, (
+        f"andrea_del_sarto famous_works has {len(s.famous_works)} entries; expected ≥ 3")
+    for title, year in s.famous_works:
+        assert isinstance(title, str) and len(title) > 0
+        assert isinstance(year, str) and len(year) > 0
+
+
+def test_florentine_high_renaissance_period_present():
+    """Period.FLORENTINE_HIGH_RENAISSANCE must be a valid member of the Period enum."""
+    assert hasattr(Period, 'FLORENTINE_HIGH_RENAISSANCE'), (
+        'Period enum is missing FLORENTINE_HIGH_RENAISSANCE -- add it to scene_schema.py')
+
+
+def test_florentine_high_renaissance_stroke_params_valid():
+    """FLORENTINE_HIGH_RENAISSANCE stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.FLORENTINE_HIGH_RENAISSANCE).stroke_params
+    for key in ('stroke_size_face', 'stroke_size_bg', 'wet_blend', 'edge_softness'):
+        assert key in sp, (
+            f'FLORENTINE_HIGH_RENAISSANCE stroke_params missing key: {key!r}')
+    assert 3 <= sp['stroke_size_face'] <= 20, (
+        f"FLORENTINE_HIGH_RENAISSANCE stroke_size_face={sp['stroke_size_face']} "
+        "should be in [3, 20]")
+    assert 0.55 <= sp['wet_blend'] <= 0.80, (
+        f"FLORENTINE_HIGH_RENAISSANCE wet_blend={sp['wet_blend']:.2f} should be "
+        "in [0.55, 0.80] (high blending for del Sarto's seamless Florentine transitions)")
+    assert 0.50 <= sp['edge_softness'] <= 0.75, (
+        f"FLORENTINE_HIGH_RENAISSANCE edge_softness={sp['edge_softness']:.2f} should "
+        "be in [0.50, 0.75] (high sfumato in the Florentine tradition)")
