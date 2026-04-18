@@ -5984,6 +5984,85 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Sofonisba Anguissola ───────────────────────────────────────────────────
+    "sofonisba_anguissola": ArtStyle(
+        artist="Sofonisba Anguissola",
+        movement="Lombard Renaissance",
+        nationality="Italian",
+        period="1550–1625",
+        palette=[
+            (0.86, 0.72, 0.56),   # warm ivory flesh — Lombard luminous skin tone
+            (0.74, 0.58, 0.42),   # mid-tone flesh — warm amber-gold midtone
+            (0.52, 0.38, 0.24),   # warm umber shadow — deeper flesh in shadow
+            (0.30, 0.22, 0.14),   # deep brown shadow — darkest flesh recess
+            (0.16, 0.20, 0.18),   # dark dress — dignified black, slightly warm
+            (0.72, 0.64, 0.50),   # golden ambient — the warm Lombard light envelope
+        ],
+        ground_color=(0.58, 0.48, 0.32),    # warm ochre imprimatura — Lombard golden ground
+        stroke_size=6,
+        wet_blend=0.72,                      # high — seamless Lombard skin transitions
+        edge_softness=0.68,                  # soft but not sfumato — Lombard warmth without
+                                             # Leonardo's extreme atmospheric dissolution
+        jitter=0.018,
+        glazing=(0.68, 0.54, 0.34),          # warm golden amber glaze — Lombard unifier
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Sofonisba Anguissola (c. 1535–1625) is the first woman to achieve "
+            "international recognition as a major portrait painter in Western art.  "
+            "Born in Cremona in Lombardy to an enlightened nobleman who ensured all six "
+            "of his daughters received a humanist education, she studied under Bernardino "
+            "Campi and later corresponded with Michelangelo, who praised her drawings.  "
+            "From 1559 to 1573 she served as court painter and lady-in-waiting to "
+            "Queen Isabella of Valois and later Queen Anne of Austria at the Spanish "
+            "court of Philip II in Madrid — an extraordinary position of cultural "
+            "prominence for any artist, let alone a woman in the sixteenth century.  "
+            "Her technique is characterised by the warm Lombard light she absorbed from "
+            "Campi and from the tradition of Bernardino Luini, Leonardo's Lombard "
+            "follower: the skin is rendered with a seamless, glowing warmth — not the "
+            "cool analytical light of the Florentines nor the extreme sfumato dissolution "
+            "of Leonardo, but a middle path of warm, luminous naturalism.  She was "
+            "particularly celebrated for the psychological intimacy and directness of her "
+            "portraits: sitters look out from her canvases with a specific, living "
+            "quality that contemporaries found remarkable — a 'breathing' quality "
+            "(Anthony van Dyck, who visited her in Palermo in 1624 when she was nearly "
+            "ninety and still discussing painting, noted that he learned more about "
+            "portraiture from her than from any painted work).  Her palette is centred "
+            "on warm ivory flesh with golden midtones and amber shadows; her dress "
+            "passages are typically dark — black or deep forest green — which concentrates "
+            "the eye on the luminous face and hands.  She favoured the half-length "
+            "three-quarter pose that Leonardo had established as the format for intimate "
+            "portraiture, with hands visible in the lower register.  Her sitters include "
+            "her own sisters in informal, psychologically vivid group compositions — "
+            "uncharacteristic for the period — and multiple royal portraits that combine "
+            "formal dignity with a quality of inner life.  Technically, anguissola_intimacy_pass() "
+            "encodes her defining achievement: a focused sharpening of the eyes and lips "
+            "— the psychological centres of a portrait — against a gently softened "
+            "periphery, giving the face its characteristic quality of living presence "
+            "while the surrounding flesh and drapery recede into warm Lombard atmospheric "
+            "warmth."
+        ),
+        famous_works=[
+            ("Portrait of the Artist's Sisters Playing Chess",  "1555"),
+            ("Self-Portrait at the Easel",                      "c. 1556"),
+            ("Portrait of Queen Isabella of Valois",            "c. 1565"),
+            ("Portrait of a Young Nobleman",                    "c. 1558"),
+            ("The Chess Game",                                  "1555"),
+            ("Portrait of Philip II",                           "c. 1565"),
+            ("Self-Portrait",                                   "c. 1610"),
+        ],
+        inspiration=(
+            "Apply anguissola_intimacy_pass() — the session 73 artistic improvement — "
+            "to achieve Sofonisba's defining portrait quality: a psychological focus "
+            "that sharpens the eyes and lips (the emotional centres of the face) while "
+            "allowing the peripheral flesh, hair, and drapery to soften into the warm "
+            "Lombard ambient light.  This creates her characteristic 'breathing' quality "
+            "— the sense that the sitter is specifically present rather than generically "
+            "idealised.  Combine with wet_blend=0.72 for the seamless Lombard skin and "
+            "edge_softness=0.68 for warmth without extreme sfumato dissolution."
+        ),
+    ),
+
 }
 
 

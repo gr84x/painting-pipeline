@@ -564,6 +564,7 @@ def scene_to_painting(
     is_florentine_mannerist   = (scene.style.period == Period.FLORENTINE_MANNERIST)
     is_flemish_baroque        = (scene.style.period == Period.FLEMISH_BAROQUE)
     is_nordic_expressionist   = (scene.style.period == Period.NORDIC_EXPRESSIONIST)
+    is_lombard_renaissance    = (scene.style.period == Period.LOMBARD_RENAISSANCE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2830,6 +2831,88 @@ def scene_to_painting(
             print(_feedback.summary())
         # Moderate vignette + crackle — Pontormo's panels have significant aged craquelure
         p.finish(vignette=0.40, crackle=True)
+
+    elif is_lombard_renaissance:
+        # ── Lombard Renaissance pipeline (Anguissola technique) ──────────────
+        # Warm ochre Lombard imprimatura — the golden ground that glows through
+        # Anguissola's thin paint films and gives her skin tones their warmth.
+        # Unlike Leonardo's cool sfumato or Florentine linear clarity, the
+        # Lombard tradition uses a warm, light-saturated ground that naturally
+        # integrates the figure into a golden ambient light.
+        ang_style = _ART_CATALOG.get("sofonisba_anguissola")
+        ground_col = ang_style.ground_color if ang_style else (0.58, 0.48, 0.32)
+
+        p.tone_ground(ground_col, texture_strength=0.06)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.35), n_strokes=155)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=300)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.50),     n_strokes=750)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.62, 0.52, 0.34), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.03)
+
+        # Project face centre to derive Anguissola intimacy pass focus coords
+        focus_cx_norm, focus_cy_norm = 0.50, 0.30   # default half-length portrait
+        if scene.subjects:
+            subj = scene.subjects[0]
+            lm   = compute_landmarks(subj.pose.name,
+                                     getattr(subj, "pose_detail", PoseDetail()))
+            face_world = lm["head_ctr"]
+            cx_px, cy_px = _project_to_image(
+                (face_world[0], face_world[1], face_world[2]),
+                scene.camera.position,
+                scene.camera.target,
+                scene.camera.fov,
+                W, H,
+            )
+            focus_cx_norm = cx_px / W
+            focus_cy_norm = cy_px / H
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 2.0),
+                       n_strokes=1000, opacity=0.78, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=700, opacity=0.80, wet_blend=sp["wet_blend"] * 0.55)
+
+        # ── Anguissola intimacy pass — the session 73 artistic improvement ────
+        # Sharpens the psychological centres of the portrait (eyes and lips)
+        # against a gently softened peripheral flesh zone, creating the
+        # 'breathing' quality van Dyck identified in her work.
+        p.anguissola_intimacy_pass(
+            focus_cx        = focus_cx_norm,
+            focus_cy        = focus_cy_norm,
+            focus_radius    = 0.13,
+            sharpen_strength = 0.52,
+            eye_cx_offset   = 0.055,
+            eye_cy_offset   = -0.015,
+            eye_radius      = 0.065,
+            lip_cy_offset   = 0.085,
+            lip_rx          = 0.055,
+            lip_ry          = 0.030,
+            periphery_soften = 1.6,
+            warm_ambient    = 0.022,
+            opacity         = 0.68,
+        )
+
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=380)
+
+        # Warm Lombard amber glaze — lighter than Correggio's honey, more golden
+        # than Leonardo's cool sfumato amber — the Lombard afternoon light.
+        p.glaze((0.68, 0.54, 0.34), opacity=0.06)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.26,
+            found_sharpness = 0.42,
+            lost_blur       = 1.4,
+            strength        = 0.26,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Moderate vignette — Lombard warmth; crackle appropriate for panel paintings
+        p.finish(vignette=0.38, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
