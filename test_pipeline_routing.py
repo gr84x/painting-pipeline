@@ -10708,21 +10708,19 @@ def test_chardin_granular_intimacy_pass_exists():
 
 def test_chardin_granular_intimacy_pass_modifies_canvas():
     """chardin_granular_intimacy_pass() must alter the canvas from its initial state."""
+    import cairo
     import numpy as np
     from stroke_engine import Painter
     p = Painter(width=128, height=128)
-    # Pre-fill with a warm mid-tone (non-zero) so the granular scatter has content to work with.
-    # An all-zero canvas has no gradient or saturation, so muting/capping would be no-ops.
-    data = np.frombuffer(
-        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
-    data[:, :, 2] = 160   # R (cairo BGRA channel 2)
-    data[:, :, 1] = 120   # G
-    data[:, :, 0] = 80    # B
-    data[:, :, 3] = 255
-    p.canvas.surface.get_data()[:] = data.tobytes()
+    # Pre-fill via p.canvas.tone() which is the official canvas initialization path
+    # and is proven to correctly write pixels through cairo primitives.
+    p.canvas.tone((160 / 255, 120 / 255, 80 / 255), texture_strength=0.0)
+    p.canvas.surface.flush()
     before = np.frombuffer(
         p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert before.max() > 0, "canvas.tone() must have produced non-zero pixel data"
     p.chardin_granular_intimacy_pass(opacity=1.0)
+    p.canvas.surface.flush()
     after = np.frombuffer(
         p.canvas.surface.get_data(), dtype=np.uint8).copy()
     assert not np.array_equal(before, after), (
