@@ -6736,6 +6736,117 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
 
+    "perugino": ArtStyle(
+        artist="Pietro Perugino",
+        movement="Umbrian / High Renaissance (early)",
+        nationality="Italian",
+        period="c. 1446–1523",
+        palette=[
+            (0.91, 0.84, 0.70),   # warm ivory highlight — Perugino's luminous pale flesh
+            (0.82, 0.70, 0.54),   # peach-ivory midtone — the serene warm register of his skin
+            (0.62, 0.56, 0.50),   # cool silvery shadow — Perugino's shadows are cooler than
+            #                       Leonardo's; the silver-grey that gives his faces their
+            #                       serene idealized quality
+            (0.38, 0.34, 0.30),   # cool warm mid-dark — figure ground transition
+            (0.54, 0.68, 0.82),   # luminous cerulean sky — the Umbrian blue that defines
+            #                       Perugino's landscapes: pale, high, almost bleached
+            (0.72, 0.78, 0.72),   # soft blue-green midground — Umbrian hills receding
+            (0.34, 0.46, 0.28),   # muted grass green — near-ground landscape
+            (0.78, 0.68, 0.52),   # warm parchment neutral — the underlying ground tone
+        ],
+        ground_color=(0.78, 0.72, 0.58),    # warm buff-ivory imprimatura — Perugino worked
+        #                                     on light, warm-toned grounds that contributed
+        #                                     luminosity to his pale, high-key passages
+        stroke_size=4,
+        wet_blend=0.38,                      # moderate — Perugino's surfaces are smooth but
+        #                                     not deeply blended; he achieved smoothness through
+        #                                     careful layering rather than Leonardo's sfumato
+        #                                     dissolution; his edges are soft without being lost
+        edge_softness=0.55,                  # moderate — softer than Flemish contemporaries,
+        #                                     less dissolved than Leonardo; the figure reads as
+        #                                     clearly bounded but without hard contours
+        jitter=0.014,
+        glazing=(0.80, 0.76, 0.62),          # pale warm ivory glaze — unifies the light ground
+        #                                     with the high-key flesh; reinforces the luminous,
+        #                                     open quality of his surfaces
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Pietro Perugino (Pietro di Cristoforo Vannucci, c. 1446–1523) was for a "
+            "decade and a half the most famous painter in Italy — the master Raphael chose "
+            "as his teacher, the artist whose serene, spacious style defined what the Italian "
+            "High Renaissance portrait should look and feel like.  He trained in Florence, "
+            "almost certainly in the orbit of Verrocchio's workshop — the same environment "
+            "that shaped Leonardo da Vinci — and the influence of that shared formation is "
+            "visible in both painters' approach to flesh and soft light.\n\n"
+            "Perugino's defining quality is serenity.  His faces have an expression that "
+            "contemporaries called 'dolcezza' — sweetness — and that later critics, with "
+            "less charity, called saccharine.  His Madonnas and saints look out from their "
+            "pictures with an expression of quiet, inward composure that never quite resolves "
+            "into a specific emotion.  This was not a failure of psychological observation; "
+            "it was a deliberate aesthetic — the face of ideal humanity in a state of "
+            "spiritual grace, beyond ordinary perturbation.  The 'Perugino face' — the smooth "
+            "oval, the high forehead, the slightly downcast or gently forward gaze, the small "
+            "closed lips with their faint upward curve — was so recognisable and so admired "
+            "that it became a cultural type, copied and adapted across decades.\n\n"
+            "His handling of landscape is equally distinctive.  Behind his figures, extending "
+            "into great depth on either side, lies the Umbrian countryside as he imagined it "
+            "should be: spacious, airy, and luminous.  The sky is always very pale — almost "
+            "white at the horizon, deepening to a clear cerulean above — and the distant hills "
+            "are rendered in the soft blue-grey of aerial perspective.  Trees are placed with "
+            "careful spacing; paths wind into the distance; the whole scene has a quality of "
+            "geometric order and gentle air that is quite different from the geological drama "
+            "of Leonardo's backgrounds.  Perugino's landscape is paradise — organized, "
+            "luminous, and inhabited only by the quiet of early morning.\n\n"
+            "Technically, his flesh is among the smoothest of his generation.  He achieved "
+            "this smoothness not through Leonardo's sfumato (the wet blending of edges and "
+            "forms into one another) but through a careful, patient layering of thin paint "
+            "over a warm light ground — building up the flesh by adding glazes and scumbles "
+            "that kept the surface luminous rather than opaque.  His shadows are cooler and "
+            "more silvery than Leonardo's warm umber darks: the shadow side of a Perugino "
+            "face has a gentle grey-violet cast that reads as the cool side of warm diffuse "
+            "light rather than the deep warm shadow of Leonardesque chiaroscuro.  This "
+            "cool-shadow / warm-light system gives his figures their quality of being "
+            "suffused by open, bounced, ambient light — the light of Umbria on a pale "
+            "morning — rather than the directed drama of a single light source.\n\n"
+            "His greatest works include the fresco of Christ Delivering the Keys to Saint "
+            "Peter (Sistine Chapel, 1481–82), the Collegio del Cambio frescoes in Perugia "
+            "(1499–1500), and numerous altarpieces and devotional Madonnas.  His most direct "
+            "legacy is Raphael (Raffaello Sanzio), who entered his workshop in Città di "
+            "Castello around 1501 and absorbed the Perugino facial type, spatial clarity, "
+            "and serene idealism before transforming them into the deeper psychological "
+            "engagement of his Roman masterpieces.  Perugino's influence is also visible in "
+            "Leonardo's early Florentine work: the two men moved in the same world, and the "
+            "Mona Lisa's landscape — its pale, receding aerial distance — owes something to "
+            "the Umbrian convention of the open, luminous background that Perugino helped "
+            "define and popularise."
+        ),
+        famous_works=[
+            ("Christ Delivering the Keys to Saint Peter",  "1481–1482"),
+            ("The Pietà",                                   "c. 1495"),
+            ("Apollo and Marsyas",                          "c. 1495"),
+            ("Collegio del Cambio Frescoes (Perugia)",      "1499–1500"),
+            ("The Marriage of the Virgin (Sposalizio)",     "1499–1504"),
+            ("The Combat of Love and Chastity",             "1505"),
+        ],
+        inspiration=(
+            "Apply perugino_serene_grace_pass() to introduce Perugino's defining tonal "
+            "and atmospheric qualities in three stages: (1) sky luminosity bleaching — lift "
+            "and cool the upper background zone toward Perugino's characteristic pale "
+            "cerulean-ivory sky, desaturating the upper background and nudging it toward a "
+            "luminous blue-white; (2) cool silvery shadow harmonization — in dark-to-midtone "
+            "passages of the figure, apply a very gentle grey-violet shift that replicates "
+            "Perugino's cool-shadow convention, separating the figure's shadow side from the "
+            "warm ground and giving the face the serene, ambient-light quality of Umbrian "
+            "open-air illumination; (3) midtone serene smoothing — a very subtle Gaussian "
+            "harmonization of the mid-luminance zone that evens out local contrast in the "
+            "flesh midtones, producing Perugino's characteristic porcelain-smooth surfaces.  "
+            "Use at low-to-moderate opacity (0.30–0.45): Perugino's serenity is quiet and "
+            "accumulative, not dramatic."
+        ),
+    ),
+
+
     "gericault": ArtStyle(
         artist="Théodore Géricault",
         movement="French Romanticism",

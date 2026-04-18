@@ -22185,3 +22185,204 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Fra Filippo Lippi tenerezza pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 84 — Pietro Perugino serene grace pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def perugino_serene_grace_pass(
+        self,
+        sky_band:           float = 0.52,   # fraction of image height that is "sky zone"
+        sky_cool_b:         float = 0.055,  # B push in sky zone (toward Umbrian cerulean)
+        sky_desaturate:     float = 0.30,   # desaturation in sky zone (Perugino's pale skies)
+        sky_lift:           float = 0.040,  # luminance lift in sky zone (bleached luminosity)
+        shadow_thresh_lo:   float = 0.18,   # shadow zone luminance floor
+        shadow_thresh_hi:   float = 0.44,   # shadow zone luminance ceiling
+        shadow_cool_b:      float = 0.028,  # B push in figure shadow zone (silvery-cool)
+        shadow_cool_r:      float = 0.012,  # R slight reduction in shadow zone
+        shadow_violet_g:    float = 0.006,  # G subtle reduction (toward grey-violet shadow)
+        midtone_lo:         float = 0.40,   # midtone smoothing luminance floor
+        midtone_hi:         float = 0.76,   # midtone smoothing luminance ceiling
+        smooth_sigma:       float = 3.5,    # Gaussian sigma for midtone harmonization
+        smooth_strength:    float = 0.18,   # blend weight of smoothed midtone image
+        blur_radius:        float = 7.0,    # Gaussian sigma for all adjustment maps
+        opacity:            float = 0.38,   # global blend weight
+    ) -> None:
+        """
+        Pietro Perugino's defining tonal and atmospheric qualities: serene grace.
+
+        Pietro Perugino (Pietro di Cristoforo Vannucci, c. 1446–1523) was Raphael's
+        master and, for a decade and a half, the most admired painter in Italy.  He
+        trained in Florence alongside Leonardo (both were in the orbit of Verrocchio's
+        workshop in the 1470s) and developed a style so distinctive that it became a
+        cultural type: the 'Perugino face' — serene, idealised, with a faint upward
+        curve of the lips that reads as spiritual composure rather than earthly emotion.
+
+        This pass replicates three interlocking characteristics of Perugino's visual
+        world:
+
+        1. **Sky luminosity bleaching** — Perugino's backgrounds always feature an
+           exceptionally luminous, pale sky.  Unlike the cool grey-blue of Flemish
+           atmospheric recession or the deep cerulean of Venetian skies, Perugino's
+           Umbrian sky is almost bleached: very pale, slightly warm at the very top,
+           cooling and clearing toward the horizon.  This pass lifts and cools the
+           upper background zone (above sky_band), desaturating toward a luminous
+           blue-white and gently brightening the whole sky zone.
+
+        2. **Cool silvery shadow harmonization** — Perugino's shadows are cooler and
+           more silvery than Leonardo's warm umber darks.  Where Leonardo's sfumato
+           deepens shadows toward warm amber-umber, Perugino's shadow side carries a
+           gentle grey-violet cast — the colour of cool ambient light bouncing from
+           a pale stone wall, not the directed drama of a single warm source.  In the
+           figure's shadow zone (shadow_thresh_lo to shadow_thresh_hi luminance), this
+           pass pushes slightly toward blue-grey: reducing red minimally, reducing
+           green very slightly, and lifting blue fractionally.  The result is the
+           Perugino shadow register: cool, silvery, and serene.
+
+        3. **Midtone serene smoothing** — Perugino's flesh surfaces are extraordinarily
+           smooth — not through sfumato (the wet merging of edges) but through careful
+           layering that evens out local luminance variation in the midtone range.
+           In the flesh midtone band (midtone_lo to midtone_hi), this pass blends a
+           Gaussian-smoothed version of the image with the current surface at
+           smooth_strength weight.  The result suppresses rough local variation in the
+           mid-luminance flesh passage, giving skin the composed, almost porcelain
+           quality that is Perugino's tonal fingerprint.
+
+        Parameters
+        ----------
+        sky_band          : Fraction of image height below which sky zone ends.
+                            0.52 = upper 52% of the canvas is treated as sky zone.
+        sky_cool_b        : Blue channel lift in sky zone.  0.055 nudges the upper
+                            background toward pale Umbrian cerulean without making it
+                            aggressively blue.
+        sky_desaturate    : Desaturation in sky zone.  0.30 produces Perugino's
+                            characteristic bleached, near-white sky quality.
+        sky_lift          : Brightness lift in sky zone.  0.040 lightens the whole
+                            upper background toward luminous openness.
+        shadow_thresh_lo/hi: Luminance range for figure shadow harmonization.
+                            [0.18, 0.44] covers the dark-to-midtone shadow range.
+        shadow_cool_b     : B lift in shadow zone.  0.028 is subtle — Perugino's
+                            shadows are only gently cooler, not dramatically cold.
+        shadow_cool_r     : R reduction in shadow zone.  0.012 barely perceptible
+                            in isolation; contributes to the grey-violet register.
+        shadow_violet_g   : G reduction in shadow zone.  0.006 is very slight —
+                            pushes toward grey-violet without turning purple.
+        midtone_lo/hi     : Luminance range for midtone smoothing.  [0.40, 0.76]
+                            targets the full flesh midtone band.
+        smooth_sigma      : Gaussian sigma for midtone smoothing.  3.5px gives
+                            local smoothing without destroying overall form.
+        smooth_strength   : Blend weight of the smoothed layer.  0.18 produces
+                            a subtle evening of local contrast — Perugino's
+                            surfaces still have form; they are merely quieter.
+        blur_radius       : Gaussian sigma for all adjustment masks.  7px prevents
+                            any adjustment from having pixel-sharp boundaries.
+        opacity           : Global blend weight.  0.38 is recommended — Perugino's
+                            serenity is accumulated quietly over the existing layers.
+
+        Notes
+        -----
+        Perugino's influence on the Mona Lisa context is often underestimated.
+        The landscape behind Lisa Gherardini — its pale, receding aerial distance,
+        the mismatched horizon heights, the geological dreamscape quality — owes
+        something to the Umbrian convention of the luminous, spacious background
+        that Perugino helped define.  Leonardo transformed this convention by
+        introducing sfumato (which Perugino never fully adopted), but the basic
+        impulse — to place the human figure within an ordered, luminous, idealized
+        natural world — is shared.  Both men came out of the same Florentine
+        formation; the Mona Lisa and the Sposalizio are cousins.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Perugino serene grace pass  "
+              f"(sky_band={sky_band:.2f}  shadow_cool_b={shadow_cool_b:.3f}  "
+              f"smooth_strength={smooth_strength:.2f}  opacity={opacity:.2f})…")
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        b_out = b0.copy()
+        g_out = g0.copy()
+        r_out = r0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Sky luminosity bleaching ───────────────────────────────────────
+        # Build a vertical gradient mask: full strength at the very top, fading
+        # to zero at sky_band.  This targets the upper background sky zone.
+        sky_band_px = int(self.h * sky_band)
+        ys = _np.arange(self.h, dtype=_np.float32)
+        sky_mask_1d = _np.clip(1.0 - ys / max(1, sky_band_px), 0.0, 1.0)
+        sky_mask = sky_mask_1d[:, _np.newaxis] * _np.ones((1, self.w), dtype=_np.float32)
+        sky_mask = _gf(sky_mask, sigma=blur_radius)
+        sky_mask = _np.clip(sky_mask, 0.0, 1.0)
+
+        # Desaturate sky zone toward luminance
+        r_sky_desat = r_out * (1.0 - sky_desaturate * sky_mask) + lum * (sky_desaturate * sky_mask)
+        g_sky_desat = g_out * (1.0 - sky_desaturate * sky_mask) + lum * (sky_desaturate * sky_mask)
+        b_sky_desat = b_out * (1.0 - sky_desaturate * sky_mask) + lum * (sky_desaturate * sky_mask)
+
+        # Lift brightness and cool (B push) in sky zone
+        r_out = _np.clip(r_sky_desat + sky_mask * sky_lift * 0.85, 0.0, 1.0)
+        g_out = _np.clip(g_sky_desat + sky_mask * sky_lift * 0.92, 0.0, 1.0)
+        b_out = _np.clip(b_sky_desat + sky_mask * (sky_lift + sky_cool_b), 0.0, 1.0)
+
+        # ── 2. Cool silvery shadow harmonization ──────────────────────────────
+        # In shadow-to-midtone zone of the figure, push toward grey-violet.
+        shadow_t = _np.clip(
+            (lum - shadow_thresh_lo) / max(0.01, shadow_thresh_hi - shadow_thresh_lo),
+            0.0, 1.0
+        ) * _np.clip(
+            1.0 - (lum - shadow_thresh_hi) / max(0.01, 1.0 - shadow_thresh_hi),
+            0.0, 1.0
+        )
+        shadow_t = shadow_t * _np.clip(1.0 - sky_mask * 2.0, 0.0, 1.0)  # avoid sky zone
+        shadow_t = _gf(shadow_t.astype(_np.float32), sigma=blur_radius)
+        shadow_t = _np.clip(shadow_t, 0.0, 1.0)
+
+        r_out = _np.clip(r_out - shadow_t * shadow_cool_r, 0.0, 1.0)
+        g_out = _np.clip(g_out - shadow_t * shadow_violet_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_t * shadow_cool_b, 0.0, 1.0)
+
+        # ── 3. Midtone serene smoothing ───────────────────────────────────────
+        # Blend a Gaussian-smoothed version of the image into the midtone band,
+        # suppressing local luminance variation to produce Perugino's smooth surfaces.
+        r_smooth = _gf(r_out, sigma=smooth_sigma)
+        g_smooth = _gf(g_out, sigma=smooth_sigma)
+        b_smooth = _gf(b_out, sigma=smooth_sigma)
+
+        midtone_t = _np.clip(
+            (lum - midtone_lo) / max(0.01, midtone_hi - midtone_lo),
+            0.0, 1.0
+        ) * _np.clip(
+            1.0 - (lum - midtone_hi) / max(0.01, 1.0 - midtone_hi),
+            0.0, 1.0
+        )
+        midtone_t = midtone_t * _np.clip(1.0 - sky_mask * 2.0, 0.0, 1.0)  # figure only
+        midtone_t = _gf(midtone_t.astype(_np.float32), sigma=blur_radius * 0.5)
+        midtone_t = _np.clip(midtone_t, 0.0, 1.0)
+
+        blend_w = midtone_t * smooth_strength
+        r_out = _np.clip(r_out * (1.0 - blend_w) + r_smooth * blend_w, 0.0, 1.0)
+        g_out = _np.clip(g_out * (1.0 - blend_w) + g_smooth * blend_w, 0.0, 1.0)
+        b_out = _np.clip(b_out * (1.0 - blend_w) + b_smooth * blend_w, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Perugino serene grace pass complete.")

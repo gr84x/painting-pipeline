@@ -98,6 +98,7 @@ EXPECTED_ARTISTS = [
     "andrea_del_sarto",
     "chardin",
     "gericault",
+    "perugino",
 ]
 
 
@@ -9870,3 +9871,139 @@ def test_fra_filippo_lippi_ground_color_warm():
     assert r > b + 0.08, (
         f"fra_filippo_lippi ground_color R={r:.3f} B={b:.3f}: "
         "expected warm ground (R > B + 0.08) -- Lippi used warm buff/parchment imprimatura")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pietro Perugino — Session 84 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_perugino_in_catalog():
+    """Pietro Perugino must be present in CATALOG."""
+    assert "perugino" in CATALOG, "perugino not found in CATALOG"
+
+
+def test_perugino_movement():
+    """Perugino's movement must reference Umbrian or High Renaissance."""
+    s = get_style("perugino")
+    m = s.movement.lower()
+    assert "umbrian" in m or "renaissance" in m, (
+        f"Perugino movement should reference Umbrian or Renaissance; got: {s.movement!r}")
+
+
+def test_perugino_nationality():
+    """Perugino was Italian."""
+    s = get_style("perugino")
+    assert "italian" in s.nationality.lower(), (
+        f"Perugino nationality should be Italian; got: {s.nationality!r}")
+
+
+def test_perugino_palette_length():
+    """Perugino's palette should have at least 6 colours (sky blues, flesh, landscape greens)."""
+    s = get_style("perugino")
+    assert len(s.palette) >= 6, (
+        f"Perugino palette should have >=6 key colours; got {len(s.palette)}")
+
+
+def test_perugino_palette_values_in_range():
+    """All Perugino palette RGB values must be in [0, 1]."""
+    s = get_style("perugino")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Perugino palette {rgb}")
+
+
+def test_perugino_has_sky_blue_in_palette():
+    """
+    Perugino's palette must include a sky blue — his Umbrian skies are the most
+    recognisable element of his landscapes.  Sky blue: B > R and B > G.
+    """
+    s = get_style("perugino")
+    sky_blues = [c for c in s.palette if c[2] > c[0] and c[2] > c[1]]
+    assert len(sky_blues) >= 1, (
+        "Perugino palette should include at least one sky-blue colour (B > R and B > G); "
+        f"palette: {s.palette}")
+
+
+def test_perugino_light_ground_color():
+    """
+    Perugino worked on light, warm grounds -- ground_color should be luminous (lum >= 0.65).
+    This is the opposite of Géricault's dark ground convention.
+    """
+    s = get_style("perugino")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum >= 0.65, (
+        f"Perugino ground_color luminance should be light (>= 0.65); got {lum:.3f}")
+
+
+def test_perugino_ground_color_warm():
+    """Perugino used a warm buff-ivory ground -- ground_color R should exceed B."""
+    s = get_style("perugino")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Perugino ground_color should be warm (R > B); got R={r:.3f} B={b:.3f}")
+
+
+def test_perugino_moderate_wet_blend():
+    """
+    Perugino achieved smoothness through careful layering, not deep sfumato --
+    wet_blend should be moderate (0.25 -- 0.55).
+    """
+    s = get_style("perugino")
+    assert 0.25 <= s.wet_blend <= 0.55, (
+        f"Perugino wet_blend should be moderate (0.25--0.55); got {s.wet_blend}")
+
+
+def test_perugino_moderate_edge_softness():
+    """
+    Perugino's edges are soft but not fully dissolved -- edge_softness should be
+    moderate (0.40 -- 0.70).
+    """
+    s = get_style("perugino")
+    assert 0.40 <= s.edge_softness <= 0.70, (
+        f"Perugino edge_softness should be moderate (0.40--0.70); got {s.edge_softness}")
+
+
+def test_perugino_no_chromatic_split():
+    """Perugino does not use divisionist chromatic splitting."""
+    s = get_style("perugino")
+    assert not s.chromatic_split, "Perugino chromatic_split should be False"
+
+
+def test_perugino_famous_works_not_empty():
+    """Perugino must document at least 4 famous works."""
+    s = get_style("perugino")
+    assert len(s.famous_works) >= 4, (
+        f"Perugino famous_works should have >= 4 entries; got {len(s.famous_works)}")
+
+
+def test_perugino_famous_works_include_keys():
+    """Perugino's famous works should include his Sistine Chapel fresco."""
+    s = get_style("perugino")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Keys" in t or "Sistine" in t or "Saint Peter" in t for t in titles), (
+        "Perugino famous works should include Christ Delivering the Keys (Sistine Chapel)")
+
+
+def test_perugino_inspiration_references_serene_grace_pass():
+    """Perugino's inspiration must reference 'perugino_serene_grace_pass'."""
+    s = get_style("perugino")
+    assert "perugino_serene_grace_pass" in s.inspiration, (
+        "Perugino inspiration should reference 'perugino_serene_grace_pass()'")
+
+
+def test_perugino_technique_mentions_raphael():
+    """Perugino's technique text must mention Raphael -- the master-pupil relationship
+    is central to his historical importance."""
+    s = get_style("perugino")
+    assert "raphael" in s.technique.lower() or "Raphael" in s.technique, (
+        "Perugino technique should mention Raphael (his most famous pupil)")
+
+
+def test_perugino_technique_mentions_umbria():
+    """Perugino's technique must reference his Umbrian landscape tradition."""
+    s = get_style("perugino")
+    assert "umbri" in s.technique.lower(), (
+        "Perugino technique should mention Umbria/Umbrian landscape")
