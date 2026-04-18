@@ -250,6 +250,7 @@ class Period(Enum):
     VENETIAN_PSYCHOLOGICAL = auto()  # Lotto — cool chromatic anxiety beneath Venetian warmth, psychological eye intensity, background color dissonance, restless chromatic undertone
     FLORENTINE_HIGH_RENAISSANCE = auto()  # Andrea del Sarto — warm golden sfumato, 'faultless' seamless Florentine transitions, amber-ivory flesh, harmonious colour temperature
     FRENCH_INTIMISTE = auto()  # Chardin — warm-gray granular optical texture, muted atmospheric palette, quiet luminosity without dramatism, patient accumulation of small touches
+    FRENCH_ROMANTIC  = auto()  # Géricault — turbulent warm-dark chiaroscuro, thick impasto drama, raw emotional intensity, near-black shadows with sudden warm light eruptions
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -988,6 +989,16 @@ class Style:
             # difference from sfumato-tradition painters.
             # edge_softness=0.56: moderate-soft; form is legible through the grain but never harsh.
             Period.FRENCH_INTIMISTE: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.22, edge_softness=0.56),
+            # FRENCH_ROMANTIC (Géricault) — turbulent impasto drama, warm near-black shadows.
+            # stroke_size_face=10: Géricault worked with vigorous, directional marks; larger than
+            # the intimate painters but smaller than Baroque panoramists.
+            # stroke_size_bg=30: broad, turbulent background strokes — the storm and chaos of nature.
+            # wet_blend=0.68: high — wet-on-wet impasto; forms merge at their edges in the dark
+            # passages, then erupt into sudden sharp light (the Romantic chiaroscuro).
+            # edge_softness=0.72: moderate-high — Géricault's transitions are not sfumato
+            # (too slow, too gentle) but neither are they Baroque hard cuts; they are *turbulent*
+            # — forms dissolve through dynamic motion rather than quiet atmospheric haze.
+            Period.FRENCH_ROMANTIC: dict(stroke_size_face=10, stroke_size_bg=30, wet_blend=0.68, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

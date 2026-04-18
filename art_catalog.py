@@ -6640,6 +6640,99 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Théodore Géricault ────────────────────────────────────────────────────
+    "gericault": ArtStyle(
+        artist="Théodore Géricault",
+        movement="French Romanticism",
+        nationality="French",
+        period="1791–1824",
+        palette=[
+            (0.82, 0.68, 0.46),   # warm ivory-ochre — the sudden heroic highlight
+            (0.60, 0.44, 0.26),   # mid-flesh amber — raw, living skin in dramatic light
+            (0.38, 0.26, 0.14),   # warm umber shadow — the deep warm dark that defines form
+            (0.14, 0.10, 0.07),   # near-black ground — Géricault's void, warm not cool
+            (0.48, 0.34, 0.20),   # mid-brown drapery — the turbulent fabric of history
+            (0.72, 0.52, 0.30),   # amber highlight — caught on impasto ridges in storm light
+            (0.26, 0.20, 0.14),   # dark warm shadow — the penumbra of Romantic chiaroscuro
+            (0.88, 0.76, 0.54),   # brilliant highlight — the sudden light eruption on flesh
+        ],
+        ground_color=(0.18, 0.14, 0.09),    # dark warm near-black imprimatura — Géricault began
+        #                                     on dark grounds (unlike the Baroque cool blacks);
+        #                                     his darkness is always warm, organic, threatening
+        stroke_size=10,
+        wet_blend=0.68,                      # high — vigorous wet-on-wet impasto; Géricault
+        #                                     worked alla prima with thick paint, letting forms
+        #                                     merge where they meet in the shadow passages
+        edge_softness=0.72,                  # moderate-high — turbulent dissolution: edges
+        #                                     dissolve through movement and drama, not sfumato
+        jitter=0.040,                        # high — Géricault's brushwork is visibly forceful;
+        #                                     individual strokes carry directional energy
+        glazing=(0.44, 0.32, 0.14),          # deep warm amber-umber glaze — unifies the dark
+        #                                     ground with the impasto highlights; the glaze
+        #                                     pools in the recesses, giving depth to shadows
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Théodore Géricault (1791–1824) was the founding figure of French Romanticism and "
+            "one of the most technically audacious painters of his era.  Where Neoclassicism — the "
+            "reigning style of David and his followers — sought cool rational clarity, heroic "
+            "restraint, and polished academic surfaces, Géricault pursued raw turbulent power: "
+            "the unbridled energy of horses, the visceral horror of real catastrophe, the psychological "
+            "intensity of extreme human states.  He studied anatomy in the Paris morgue.  He "
+            "interviewed survivors of the Raft of the Medusa disaster.  He painted portraits of "
+            "patients in the Salpêtrière asylum not as curiosities but as full human beings with "
+            "interior lives.  His art is the art of confrontation.\n\n"
+            "His technique was as dramatic as his subjects.  He worked on dark warm grounds — "
+            "not the cool black gesso of some contemporaries but a warm near-black composed of "
+            "burnt umber, black, and a touch of raw sienna — that allowed the shadows to remain "
+            "warm and organic rather than cold and dead.  Over this ground he applied paint in "
+            "thick, vigorous impasto, building up the lit passages with confident directional "
+            "marks that read as turbulent energy.  The transition from shadow to light is "
+            "sudden, not gradual: Géricault's chiaroscuro has the theatrical drama of Caravaggio "
+            "but with a Romantic violence and agitation that Caravaggio, for all his power, "
+            "never pursued.  His darks are warm and deep; his lights erupt with almost shocking "
+            "force.  Between them, the transition zone is not a soft sfumato passage but a "
+            "turbulent, active boundary — the penumbra of storm light, where form is known but "
+            "not settled.\n\n"
+            "The Officer of the Imperial Guard Charging (1812), The Wounded Cuirassier (1814), "
+            "The Raft of the Medusa (1818–19), and the Portraits of the Insane (1819–22) are "
+            "the canonical works.  Each demonstrates the same technical signature: warm near-"
+            "black void, sudden warm light, thick directional impasto, and an emotional urgency "
+            "that makes every surface feel like it is in motion.  His palette is tightly "
+            "constrained — predominantly warm earth tones (ochre, sienna, umber, ivory black) "
+            "with the lights never cool and the darks never cold.  This palette restraint, "
+            "combined with the turbulent application, is what gives Géricault's paintings their "
+            "concentrated intensity: there is nowhere for the eye to rest, no decorative relief "
+            "from the drama."
+        ),
+        famous_works=[
+            ("Officer of the Imperial Guard Charging",  "1812"),
+            ("The Wounded Cuirassier Leaving the Field", "1814"),
+            ("The Raft of the Medusa",                  "1818–1819"),
+            ("Portrait of a Kleptomaniac",              "c. 1820"),
+            ("Portrait of a Man Suffering from Delusions of Military Command", "c. 1822"),
+            ("The Derby at Epsom",                      "1821"),
+        ],
+        inspiration=(
+            "Apply gericault_romantic_turbulence_pass() to introduce Géricault's defining "
+            "chromatic and tonal signature in three stages: (1) shadow depth enrichment — push "
+            "dark pixels (luminance < 0.32) toward warm near-black by reducing blue and green "
+            "channels while preserving the warm red-umber register; Géricault's shadows are "
+            "never cool grey, always warm dark; (2) turbulent highlight contrast — apply "
+            "directional luminance variance in the mid-tone boundary zone (0.32–0.65 luminance) "
+            "that creates the impression of impasto ridges catching storm light; this introduces "
+            "the Romantic sense of surface energy without the sfumato tradition's dissolution; "
+            "(3) dramatic contrast intensification — local contrast boost in the mid-range using "
+            "a sigmoid tone curve, sharpening the division between the dark passages and the "
+            "sudden warm lights.  The pass should be used at moderate opacity (0.38–0.52) — "
+            "Géricault's drama is not subtle, but the portrait context requires that the existing "
+            "tonal balance is not entirely overridden.  The warm shadow recovery is the most "
+            "important single contribution: removing any residual cool-grey cast from shadow "
+            "passages and replacing it with Géricault's characteristic warm umber void."
+        ),
+    ),
+
 }
 
 
