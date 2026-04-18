@@ -19576,14 +19576,16 @@ class Painter:
     # ─────────────────────────────────────────────────────────────────────────
 
     def highlight_bloom_pass(self,
-                             threshold:     float = 0.75,
-                             bloom_sigma:   float = 12.0,
-                             bloom_opacity: float = 0.30,
-                             bloom_color:   "Optional[tuple]" = None,
-                             multi_scale:   bool  = True,
-                             figure_only:   bool  = False) -> None:
+                             threshold:      float = 0.75,
+                             bloom_sigma:    float = 12.0,
+                             bloom_opacity:  float = 0.30,
+                             bloom_color:    "Optional[tuple]" = None,
+                             multi_scale:    bool  = True,
+                             figure_only:    bool  = False,
+                             chromatic_bloom: bool = False) -> None:
         """
         Highlight bloom pass — session 70 artistic improvement.
+        Session 83 improvement: chromatic_bloom parameter.
 
         Inspired by Guido Reni's radiant, light-emitting skin quality.  In
         Reni's paintings the brightest passages — the alabaster brow, the
@@ -19610,15 +19612,38 @@ class Painter:
              toward neutral white — useful for warm candlelight bloom or cool
              moonlit glow.
 
+          4. Chromatic bloom  (when chromatic_bloom=True — session 83 improvement)
+             Applies spectrally split bloom based on how light physically scatters
+             through oil paint binders and old varnish layers.  In aged oil
+             paintings, highlights do not bloom as neutral white: the warm inner
+             core of a highlight reflects the paint layer's warm pigment base,
+             while the broader outer halo takes on a slightly cooler, bluer cast
+             from light scattering through the transparent oil/varnish medium.
+             This creates the subtle spectral fringe visible in old master
+             paintings — warm centre, slightly cool edge — that reads as depth
+             and age rather than flatness.
+
+             Implementation: the inner bloom is tinted warm (R+0.04, G+0.01,
+             B-0.02 relative to the base bloom_color) while the outer halo
+             (multi_scale) is tinted slightly cool (R-0.01, B+0.03).  The net
+             effect at typical bloom_opacity values is a barely perceptible
+             spectral spread that adds the quality of old varnished oil painting
+             without being identifiable as a specific colour effect.
+
         Parameters
         ----------
-        threshold     : luminance cutoff above which bloom is applied (0–1)
-        bloom_sigma   : Gaussian sigma for the inner bloom (pixels)
-        bloom_opacity : opacity of the bloom composite (0 = no change)
-        bloom_color   : optional (R, G, B) tint for the bloom; None = neutral
-        multi_scale   : if True, add a second wider Gaussian halo envelope
-        figure_only   : if True, restrict bloom to the figure mask region
-                        (uses self._figure_mask if set, otherwise skips silently)
+        threshold      : luminance cutoff above which bloom is applied (0–1)
+        bloom_sigma    : Gaussian sigma for the inner bloom (pixels)
+        bloom_opacity  : opacity of the bloom composite (0 = no change)
+        bloom_color    : optional (R, G, B) tint for the bloom; None = neutral
+        multi_scale    : if True, add a second wider Gaussian halo envelope
+        figure_only    : if True, restrict bloom to the figure mask region
+                         (uses self._figure_mask if set, otherwise skips silently)
+        chromatic_bloom: if True (session 83), apply spectrally split bloom —
+                         warm inner core, slightly cool outer halo — simulating
+                         the spectral scattering of light through aged oil binders.
+                         Historically grounded in the optical behaviour of old
+                         master varnish layers under raking and diffuse light.
         """
         import numpy as _np
         from scipy.ndimage import gaussian_filter as _gf
@@ -19626,7 +19651,7 @@ class Painter:
         print(f"  Highlight bloom pass "
               f"(thresh={threshold:.2f}  sigma={bloom_sigma:.1f}  "
               f"opacity={bloom_opacity:.2f}  multi_scale={multi_scale}  "
-              f"figure_only={figure_only}) ...")
+              f"figure_only={figure_only}  chromatic_bloom={chromatic_bloom}) ...")
 
         if bloom_opacity <= 0.0:
             print("    Highlight bloom pass skipped (bloom_opacity=0)")
@@ -19667,14 +19692,28 @@ class Painter:
         else:
             bc_r = bc_g = bc_b = 1.0   # neutral white bloom
 
+        # Session 83: chromatic bloom — spectrally split inner/outer targets
+        # Inner core: warm (paint layer reflection); outer halo: slightly cool
+        # (oil/varnish medium scattering).  Offsets are small by design.
+        if chromatic_bloom:
+            inner_r = _np.clip(bc_r + 0.04, 0.0, 1.0)
+            inner_g = _np.clip(bc_g + 0.010, 0.0, 1.0)
+            inner_b = _np.clip(bc_b - 0.020, 0.0, 1.0)
+            outer_r = _np.clip(bc_r - 0.010, 0.0, 1.0)
+            outer_g = bc_g
+            outer_b = _np.clip(bc_b + 0.030, 0.0, 1.0)
+        else:
+            inner_r, inner_g, inner_b = bc_r, bc_g, bc_b
+            outer_r, outer_g, outer_b = bc_r, bc_g, bc_b
+
         # ── Inner bloom — primary Gaussian ────────────────────────────────────
         inner_bloom = _gf(hl_mask.astype(_np.float32), sigma=bloom_sigma)
         inner_bloom = _np.clip(inner_bloom, 0.0, 1.0)
 
         alpha = inner_bloom * bloom_opacity
-        r_out = r_out + alpha * (bc_r - r_out)
-        g_out = g_out + alpha * (bc_g - g_out)
-        b_out = b_out + alpha * (bc_b - b_out)
+        r_out = r_out + alpha * (inner_r - r_out)
+        g_out = g_out + alpha * (inner_g - g_out)
+        b_out = b_out + alpha * (inner_b - b_out)
 
         # ── Outer halo — wider Gaussian (multi_scale only) ────────────────────
         if multi_scale:
@@ -19682,9 +19721,9 @@ class Painter:
                              sigma=bloom_sigma * 2.5)
             outer_halo = _np.clip(outer_halo, 0.0, 1.0)
             alpha2 = outer_halo * bloom_opacity * 0.35
-            r_out = r_out + alpha2 * (bc_r - r_out)
-            g_out = g_out + alpha2 * (bc_g - g_out)
-            b_out = b_out + alpha2 * (bc_b - b_out)
+            r_out = r_out + alpha2 * (outer_r - r_out)
+            g_out = g_out + alpha2 * (outer_g - g_out)
+            b_out = b_out + alpha2 * (outer_b - b_out)
 
         r_out = _np.clip(r_out, 0.0, 1.0)
         g_out = _np.clip(g_out, 0.0, 1.0)
@@ -21959,3 +21998,190 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Géricault romantic turbulence pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 83 — Fra Filippo Lippi tenerezza pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def fra_filippo_lippi_tenerezza_pass(
+        self,
+        flesh_mid_lo:       float = 0.42,   # luminance low bound of flesh midtone zone
+        flesh_mid_hi:       float = 0.80,   # luminance high bound of flesh midtone zone
+        rose_r_boost:       float = 0.048,  # R boost in flesh midtones (toward rose-ivory)
+        rose_g_boost:       float = 0.018,  # G tiny boost (keeps the warm pink, not orange)
+        rose_b_dampen:      float = 0.028,  # B slight reduction in flesh midtones
+        glow_thresh:        float = 0.72,   # luminance above which interior glow is applied
+        glow_lift:          float = 0.040,  # warm ivory lift in the highest flesh passages
+        glow_blur:          float = 8.0,    # blur radius for the interior glow softening
+        bg_cool_shift:      float = 0.022,  # B push in background (luminance < 0.48) to
+        #                                    separate figure from ground
+        bg_desaturate:      float = 0.12,   # desaturation amount in background passages
+        bg_thresh:          float = 0.44,   # luminance below which background adjustment applies
+        blur_radius:        float = 6.0,    # main smoothing blur for all adjustments
+        opacity:            float = 0.42,   # global blend weight
+    ) -> None:
+        """
+        Fra Filippo Lippi's defining quality: 'tenerezza' — tenderness of light.
+
+        Fra Filippo Lippi (c. 1406–1469) is the bridge figure between Masaccio's
+        austere sculptural realism and Leonardo's sfumato lyricism.  His paintings
+        are recognised immediately by a quality of warmth and intimacy in the
+        rendering of flesh that contemporaries called 'tenerezza' — tenderness.
+
+        Where Masaccio's figures carry the gravity of ancient sculpture and the
+        cool, certain light of early Florentine rationalism, Lippi's Madonnas and
+        angels glow with a warm rose-ivory luminosity that makes them feel like
+        living presences in warm afternoon light.  His shadows are always warm
+        (ochre, amber, burnt sienna) and his highlights are a warm ivory that
+        passes through a distinctive pinkish-rose midtone before brightening to
+        near-white.  This warm rose-pink intermediate zone — visible especially
+        on the cheeks, the inner corners of the eyes, and across the brow — is
+        the tonal fingerprint of Lippi.
+
+        This pass replicates that quality in three operations:
+
+        1. **Rose-ivory flesh midtone warm lift** — In the flesh midtone luminance
+           band (flesh_mid_lo to flesh_mid_hi), nudges the colour toward the
+           characteristic Lippi rose-ivory by boosting red, very slightly boosting
+           green (for ivory warmth rather than orange), and gently damping blue.
+           The effect is modulated by the existing saturation so that already-
+           desaturated passages (background, drapery) are not affected.
+
+        2. **Interior luminous glow** — In the brightest flesh passages
+           (luminance > glow_thresh), applies a very gentle warm ivory lift that
+           simulates Lippi's characteristic interior radiance.  The lift is
+           softened by a Gaussian blur before compositing so it reads as a
+           diffuse glow rather than a hard brightening.  This is not Correggio's
+           golden luminosity or Vigée Le Brun's pearl iridescence — it is quieter,
+           a very subtle brightening that makes the highest lights feel lit from
+           within rather than lit from without.
+
+        3. **Background quieting** — In dark-to-midtone background passages
+           (luminance < bg_thresh), applies a gentle blue push and slight
+           desaturation.  This reinforces the Quattrocento convention of pushing
+           the background back so the figure occupies a clear luminous space.
+           Lippi always maintained clear figure-ground separation even as he
+           softened the figure's own internal boundaries.
+
+        Parameters
+        ----------
+        flesh_mid_lo / hi  : Luminance range for the flesh midtone warm lift.
+                             [0.42, 0.80] covers the full flesh register from
+                             shadow-side skin to near-highlight.
+        rose_r_boost       : R boost magnitude.  0.048 gives a perceptible
+                             pinkish warmth without making flesh look flushed.
+        rose_g_boost       : G tiny boost.  Keeps warmth ivory-rose rather than
+                             pure orange.
+        rose_b_dampen      : B reduction.  Removes cool cast from flesh midtones.
+        glow_thresh        : Luminance threshold for interior glow.  0.72 targets
+                             the top quarter of the tonal range.
+        glow_lift          : Warm ivory brightness lift in glow zone.  0.040 is
+                             subtle — one of the lightest effects in the pipeline.
+        glow_blur          : Gaussian sigma for glow softening (pixels).  8px
+                             gives diffuse halo quality without hard edges.
+        bg_cool_shift      : B channel push in background darks.  0.022 is
+                             imperceptible in isolation but creates a slight
+                             atmospheric recession.
+        bg_desaturate      : Desaturation in background.  0.12 quietly removes
+                             competing chromatic interest from the background.
+        bg_thresh          : Background luminance ceiling.  0.44 targets the
+                             dark-to-midtone passages where Lippi's backgrounds
+                             lived.
+        blur_radius        : Gaussian for all adjustment maps.  6px prevents
+                             any adjustment from having pixel-sharp edges.
+        opacity            : Global blend weight.  0.42 recommended for portrait
+                             work — tenerezza accumulates quietly.
+
+        Notes
+        -----
+        Lippi's influence ran directly to Botticelli (his pupil), to Filippino
+        Lippi (his son), and through both to Leonardo.  The warm pinkish flesh
+        of Leonardo's Benois Madonna and the early portraits owes a direct debt
+        to Lippi's rose-ivory rendering that is rarely acknowledged in art-
+        historical literature, which tends to credit Verrocchio's workshop as
+        Leonardo's primary technical inheritance.  But Verrocchio himself learned
+        from the Florentine tradition that Lippi helped define.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Fra Filippo Lippi tenerezza pass  "
+              f"(rose_r={rose_r_boost:.3f}  glow_lift={glow_lift:.3f}  "
+              f"opacity={opacity:.2f})…")
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        b_out = b0.copy()
+        g_out = g0.copy()
+        r_out = r0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # Compute approximate saturation to restrict flesh lift to chromatic zones
+        c_max = _np.maximum(r0, _np.maximum(g0, b0))
+        c_min = _np.minimum(r0, _np.minimum(g0, b0))
+        sat = _np.where(c_max > 0.01, (c_max - c_min) / c_max, 0.0)
+
+        # ── 1. Rose-ivory flesh midtone warm lift ─────────────────────────────
+        # Only in flesh midtone luminance band and where saturation is present
+        flesh_t = _np.clip(
+            (lum - flesh_mid_lo) / max(0.01, flesh_mid_hi - flesh_mid_lo),
+            0.0, 1.0
+        ) * _np.clip(1.0 - (lum - flesh_mid_hi) / max(0.01, 1.0 - flesh_mid_hi), 0.0, 1.0)
+        # Bell-curve shape: peaks at midpoint of the range, fades at both ends
+        flesh_t = flesh_t * _np.clip(sat * 4.0, 0.0, 1.0)  # restrict to chromatic areas
+        flesh_t = _gf(flesh_t.astype(_np.float32), sigma=blur_radius)
+        flesh_t = _np.clip(flesh_t, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + flesh_t * rose_r_boost, 0.0, 1.0)
+        g_out = _np.clip(g_out + flesh_t * rose_g_boost, 0.0, 1.0)
+        b_out = _np.clip(b_out - flesh_t * rose_b_dampen, 0.0, 1.0)
+
+        # ── 2. Interior luminous glow ─────────────────────────────────────────
+        # Very gentle warm ivory lift in brightest passages, softened before apply
+        glow_mask = _np.clip((lum - glow_thresh) / max(0.01, 1.0 - glow_thresh), 0.0, 1.0)
+        glow_mask = _gf(glow_mask.astype(_np.float32), sigma=glow_blur)
+        glow_mask = _np.clip(glow_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + glow_mask * glow_lift * 1.0, 0.0, 1.0)
+        g_out = _np.clip(g_out + glow_mask * glow_lift * 0.90, 0.0, 1.0)
+        b_out = _np.clip(b_out + glow_mask * glow_lift * 0.70, 0.0, 1.0)
+
+        # ── 3. Background quieting ────────────────────────────────────────────
+        # Gently push dark background areas cooler and slightly desaturate them,
+        # reinforcing figure-ground separation in the Quattrocento tradition.
+        bg_mask = _np.clip(1.0 - lum / max(0.01, bg_thresh), 0.0, 1.0)
+        # Exclude figure (bright pixels are usually figure)
+        bg_mask = bg_mask * _np.clip(1.0 - (lum - bg_thresh * 0.5) / max(0.01, bg_thresh * 0.5), 0.0, 1.0)
+        bg_mask = _gf(bg_mask.astype(_np.float32), sigma=blur_radius)
+        bg_mask = _np.clip(bg_mask, 0.0, 1.0)
+
+        # Desaturate toward luminance
+        r_grey = lum; g_grey = lum; b_grey = lum
+        r_desat = r_out * (1.0 - bg_desaturate * bg_mask) + r_grey * (bg_desaturate * bg_mask)
+        g_desat = g_out * (1.0 - bg_desaturate * bg_mask) + g_grey * (bg_desaturate * bg_mask)
+        b_desat = b_out * (1.0 - bg_desaturate * bg_mask) + b_grey * (bg_desaturate * bg_mask)
+        r_out = _np.clip(r_desat, 0.0, 1.0)
+        g_out = _np.clip(g_desat, 0.0, 1.0)
+        b_out = _np.clip(_np.clip(b_desat, 0.0, 1.0) + bg_mask * bg_cool_shift, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Fra Filippo Lippi tenerezza pass complete.")

@@ -6642,6 +6642,100 @@ CATALOG: Dict[str, ArtStyle] = {
 
 
     # ── Théodore Géricault ────────────────────────────────────────────────────
+    # ── Fra Filippo Lippi ─────────────────────────────────────────────────────
+    "fra_filippo_lippi": ArtStyle(
+        artist="Fra Filippo Lippi",
+        movement="Florentine Early Renaissance / Quattrocento",
+        nationality="Italian",
+        period="1406–1469",
+        palette=[
+            (0.92, 0.83, 0.68),   # warm ivory highlight — the Lippi glow on brow and cheek
+            (0.84, 0.70, 0.52),   # rose-ivory midtone — the pinkish warmth unique to Lippi flesh
+            (0.68, 0.52, 0.36),   # warm amber shadow — never grey; always ochre-orange
+            (0.48, 0.36, 0.24),   # deep warm umber — form-defining darks
+            (0.60, 0.72, 0.54),   # soft muted green — drapery, background foliage
+            (0.54, 0.64, 0.76),   # warm sky blue — the Lippi heavenly blue (lapis-azurite)
+            (0.82, 0.74, 0.56),   # warm parchment — the neutral ground that breathes through
+        ],
+        ground_color=(0.72, 0.65, 0.50),    # warm buff/parchment imprimatura — Lippi worked
+        #                                     on light-toned grounds over gesso that kept the
+        #                                     luminosity of panel painting
+        stroke_size=5,
+        wet_blend=0.22,                      # low — Lippi's early tempera-influenced technique
+        #                                     uses careful, distinct small marks; the transition
+        #                                     to oil brought more blending but retained the
+        #                                     careful form-building of tempera
+        edge_softness=0.52,                  # moderate — softer than his Quattrocento
+        #                                     contemporaries (Masaccio's hard outlines), but
+        #                                     not yet the full sfumato dissolution of Leonardo
+        jitter=0.018,
+        glazing=(0.82, 0.74, 0.56),          # warm parchment glaze — unifies the warm light
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Fra Filippo Lippi (c. 1406–1469) was the single most important bridge figure "
+            "between Masaccio's austere sculptural realism and Leonardo's sfumato lyricism.  "
+            "Trained in the Carmelite order alongside the influence of Masaccio's revolutionary "
+            "work in the Brancacci Chapel, Lippi absorbed the new naturalism — the sense of "
+            "weight, volume, and psychological presence — but transformed it through a "
+            "temperament that was, at its core, tender rather than heroic.  Where Masaccio "
+            "rendered the human body with the gravity of ancient sculpture, Lippi gave his "
+            "figures an intimacy and gentleness — a quality contemporaries and later writers "
+            "called 'tenerezza' — that made them feel like real, specific people rather than "
+            "idealized archetypes.\n\n"
+            "His technical signature is a warm, softly luminous rendering of flesh that "
+            "anticipates Correggio and Leonardo.  Unlike the cool, silver-grey darks of some "
+            "contemporaries, Lippi's shadows are always warm — ochre, amber, burnt sienna — "
+            "and his highlights are a warm ivory that transitions through a distinctive "
+            "rose-inflected midtone.  This pinkish-ivory warmth, especially in the faces of "
+            "his Madonnas, is the quality that makes his figures appear to glow with an "
+            "interior life.  It is not dramatic illumination; it is the quiet radiance of "
+            "a face seen in warm afternoon light through a thin curtain.\n\n"
+            "His use of line is also transitional.  Early Quattrocento painting treated the "
+            "contour as a firm boundary — the edge of a form was drawn before it was filled.  "
+            "Lippi began to soften this contour, allowing the form to dissolve slightly at "
+            "the edge into the surrounding space, a proto-sfumato that his pupil Botticelli "
+            "would stylise into decorative linearity, and his indirect pupil Leonardo would "
+            "develop into full atmospheric dissolution.  Lippi's edges are soft without being "
+            "lost — they read as the edge of a rounded form in gentle diffuse light, not as "
+            "a drawn boundary.\n\n"
+            "Key works: the Annunciation in San Lorenzo (Florence), the Coronation of the "
+            "Virgin (Uffizi), the Barbadori Altarpiece, and above all the Madonna and Child "
+            "with Angels (Uffizi, c. 1465), where the famous direct gaze of the Madonna and "
+            "the mischievous naturalism of the angels demonstrate his unique fusion of "
+            "spiritual subject matter and vivid human observation.  The story that the model "
+            "for the Madonna was Lucrezia Buti, the nun with whom he had an affair (and who "
+            "became the mother of Filippino Lippi), is almost certainly true — the faces in "
+            "his late works have a specific, intimate quality that speaks of real looking at "
+            "a real person.\n\n"
+            "His influence ran directly to Botticelli (his pupil), to Filippino Lippi (his "
+            "son), and, through the example of his handling of flesh and soft light, to "
+            "Leonardo da Vinci, who must have studied his work closely in Florence.  The "
+            "warm pinkish warmth of Leonardo's early flesh tones — the Benois Madonna, the "
+            "Ginevra de' Benci — owes a debt to Lippi's tenerezza that is rarely acknowledged."
+        ),
+        famous_works=[
+            ("Madonna and Child with Angels (Uffizi)",  "c. 1465"),
+            ("Annunciation, San Lorenzo",               "c. 1443"),
+            ("Coronation of the Virgin",                "1441–1447"),
+            ("Barbadori Altarpiece",                    "c. 1437"),
+            ("Frescoes, Prato Cathedral",               "1452–1466"),
+            ("Adoration of the Magi (Uffizi)",          "c. 1496"),
+        ],
+        inspiration=(
+            "Apply fra_filippo_lippi_tenerezza_pass() to introduce the Quattrocento master's "
+            "defining quality: the warm, rose-ivory pinkish luminosity of flesh, the gentle "
+            "interior glow that reads as an almost spiritual tenderness.  The pass warms the "
+            "flesh midtones toward rose-ivory, adds a very soft internal luminous lift in the "
+            "lightest skin passages, and gently quiets the background by slightly cooling and "
+            "desaturating it — reinforcing the figure-ground separation that Lippi always "
+            "maintained.  Use at low-to-moderate opacity (0.30–0.48): Lippi's tenerezza is "
+            "a quality of feeling, not a dramatic effect.  It accumulates in repeated "
+            "contemplation, not in a single forceful gesture."
+        ),
+    ),
+
+
     "gericault": ArtStyle(
         artist="Théodore Géricault",
         movement="French Romanticism",
