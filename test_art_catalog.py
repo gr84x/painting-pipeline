@@ -97,6 +97,7 @@ EXPECTED_ARTISTS = [
     "jan_steen",
     "andrea_del_sarto",
     "chardin",
+    "gericault",
 ]
 
 
@@ -248,6 +249,7 @@ EXPECTED_PERIODS = [
     "NORTHERN_FANTASTICAL",
     "DUTCH_DOMESTIC",
     "DUTCH_GENRE_COMEDY",
+    "FRENCH_ROMANTIC",
 ]
 
 
@@ -2150,6 +2152,140 @@ def test_french_naturalist_moderate_edge_softness():
     p = style.stroke_params
     assert p["edge_softness"] >= 0.50, (
         f"FRENCH_NATURALIST edge_softness should be moderate (≥0.50); "
+        f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Théodore Géricault — artist catalog tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_gericault_in_catalog():
+    """Géricault must be present in CATALOG."""
+    assert "gericault" in CATALOG, "gericault not found in CATALOG"
+
+
+def test_gericault_movement():
+    """Géricault's movement must reference French Romanticism."""
+    s = get_style("gericault")
+    m = s.movement.lower()
+    assert "romantic" in m or "romanticism" in m, (
+        f"Géricault movement should reference Romanticism; got: {s.movement!r}")
+
+
+def test_gericault_nationality():
+    """Géricault was French."""
+    s = get_style("gericault")
+    assert "french" in s.nationality.lower(), (
+        f"Géricault nationality should be French; got: {s.nationality!r}")
+
+
+def test_gericault_palette_length():
+    """Géricault's palette should have at least 6 key colours (dark warms, amber lights)."""
+    s = get_style("gericault")
+    assert len(s.palette) >= 6, (
+        f"Géricault palette should have ≥6 key colours; got {len(s.palette)}")
+
+
+def test_gericault_palette_values_in_range():
+    """All Géricault palette RGB values must be in [0, 1]."""
+    s = get_style("gericault")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Géricault palette {rgb}")
+
+
+def test_gericault_dark_ground():
+    """Géricault used a dark warm ground — ground_color luminance should be low (≤ 0.25)."""
+    s = get_style("gericault")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum <= 0.25, (
+        f"Géricault ground_color luminance should be low (dark ground); got {lum:.3f}")
+
+
+def test_gericault_high_wet_blend():
+    """Géricault worked alla prima in wet impasto — wet_blend should be high (≥ 0.60)."""
+    s = get_style("gericault")
+    assert s.wet_blend >= 0.60, (
+        f"Géricault wet_blend should be high (wet-on-wet impasto); got {s.wet_blend}")
+
+
+def test_gericault_no_chromatic_split():
+    """Géricault does not use divisionist chromatic splitting."""
+    s = get_style("gericault")
+    assert not s.chromatic_split, "Géricault chromatic_split should be False"
+
+
+def test_gericault_famous_works_not_empty():
+    """Géricault should have at least 4 famous works documented."""
+    s = get_style("gericault")
+    assert len(s.famous_works) >= 4, (
+        f"Géricault should have ≥4 famous works; got {len(s.famous_works)}")
+
+
+def test_gericault_famous_works_include_raft():
+    """Géricault's famous works should include The Raft of the Medusa."""
+    s = get_style("gericault")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Raft" in t or "Medusa" in t for t in titles), (
+        "Géricault famous works should include The Raft of the Medusa")
+
+
+def test_gericault_inspiration_references_turbulence_pass():
+    """Géricault's inspiration text should reference gericault_romantic_turbulence_pass."""
+    s = get_style("gericault")
+    assert "gericault_romantic_turbulence_pass" in s.inspiration, (
+        "Géricault inspiration should reference gericault_romantic_turbulence_pass()")
+
+
+def test_gericault_warm_palette_shadows():
+    """Géricault's palette near-black colour should be warm (R ≥ G ≥ B not hold — R > B)."""
+    s = get_style("gericault")
+    # Find the darkest palette colour
+    darkest = min(s.palette, key=lambda c: 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2])
+    r, g, b = darkest
+    assert r > b, (
+        f"Géricault's darkest palette colour should be warm (R > B); "
+        f"got R={r:.3f} B={b:.3f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.FRENCH_ROMANTIC — Géricault period enum
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_french_romantic_period_present():
+    """FRENCH_ROMANTIC must exist in the Period enum."""
+    assert hasattr(Period, "FRENCH_ROMANTIC"), "Period.FRENCH_ROMANTIC not found"
+    assert Period.FRENCH_ROMANTIC in list(Period)
+
+
+def test_french_romantic_stroke_params_all_keys():
+    """FRENCH_ROMANTIC stroke_params must contain all required keys."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_ROMANTIC,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"FRENCH_ROMANTIC stroke_params missing key: {key!r}"
+
+
+def test_french_romantic_high_wet_blend():
+    """FRENCH_ROMANTIC wet_blend should be high — vigorous wet-on-wet impasto."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_ROMANTIC,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"FRENCH_ROMANTIC wet_blend should be high (≥0.60); got {p['wet_blend']}")
+
+
+def test_french_romantic_moderate_high_edge_softness():
+    """FRENCH_ROMANTIC edge_softness should be moderate-high (≥ 0.65) — turbulent dissolution."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_ROMANTIC,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.65, (
+        f"FRENCH_ROMANTIC edge_softness should be moderate-high (≥0.65); "
         f"got {p['edge_softness']}")
 
 
