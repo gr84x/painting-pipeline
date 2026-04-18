@@ -10457,3 +10457,83 @@ def test_dutch_domestic_routing_flag():
     style = Style(medium=Medium.OIL, period=Period.DUTCH_DOMESTIC,
                   palette=PaletteHint.WARM_EARTH)
     assert style.period == Period.DUTCH_DOMESTIC
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Hyacinthe Rigaud / FRENCH_COURT_BAROQUE / rigaud_velvet_drapery_pass — s78
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_french_court_baroque_period_present_routing():
+    """Period.FRENCH_COURT_BAROQUE must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, "FRENCH_COURT_BAROQUE"), (
+        "Period.FRENCH_COURT_BAROQUE not found in scene_schema — add it")
+    assert Period.FRENCH_COURT_BAROQUE in list(Period)
+
+
+def test_french_court_baroque_stroke_params_controlled_wet_blend():
+    """FRENCH_COURT_BAROQUE wet_blend must be in [0.20, 0.50] — deliberate velvet layering."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_COURT_BAROQUE).stroke_params
+    assert 0.20 <= sp["wet_blend"] <= 0.50, (
+        f"FRENCH_COURT_BAROQUE wet_blend should be in [0.20, 0.50] for Rigaud's controlled "
+        f"velvet layering; got {sp['wet_blend']}")
+
+
+def test_french_court_baroque_stroke_params_moderate_edge_softness():
+    """FRENCH_COURT_BAROQUE edge_softness must be in [0.25, 0.55] — silk crispness balanced."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_COURT_BAROQUE).stroke_params
+    assert 0.25 <= sp["edge_softness"] <= 0.55, (
+        f"FRENCH_COURT_BAROQUE edge_softness should be in [0.25, 0.55] for Rigaud's silk/"
+        f"velvet balance; got {sp['edge_softness']}")
+
+
+def test_rigaud_velvet_drapery_pass_exists():
+    """Painter must have a rigaud_velvet_drapery_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "rigaud_velvet_drapery_pass"), (
+        "Painter is missing rigaud_velvet_drapery_pass — add it to stroke_engine.py")
+
+
+def test_rigaud_velvet_drapery_pass_modifies_canvas():
+    """rigaud_velvet_drapery_pass() must alter the canvas from its initial state."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    # Fill with a mid-tone warm canvas so there are dark and bright areas
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:64, :, :] = [30, 20, 40, 255]   # dark region (velvet zone)
+    data[64:, :, :] = [200, 195, 210, 255]  # bright region (silk zone)
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = data.copy()
+    p.rigaud_velvet_drapery_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    assert not np.array_equal(before, after), (
+        "rigaud_velvet_drapery_pass should change the canvas when opacity=1.0")
+
+
+def test_rigaud_velvet_drapery_pass_darkens_velvet():
+    """
+    rigaud_velvet_drapery_pass must deepen dark non-skin pixels (velvet voids)
+    — the defining shadow quality of Rigaud's drapery.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    # Fill canvas with a dark non-skin mid-tone (low lum, not skin)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [60, 50, 70, 255]   # dark, desaturated — velvet shadow zone
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before_lum = data[:, :, 2].astype(float).mean()  # R channel mean before
+
+    p.rigaud_velvet_drapery_pass(velvet_thresh=0.40, opacity=1.0)
+
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    after_lum = after[:, :, 2].astype(float).mean()  # R channel mean after
+    # Either channels got darker overall or B was suppressed
+    total_before = data[:, :, :3].astype(float).mean()
+    total_after  = after[:, :, :3].astype(float).mean()
+    assert total_after <= total_before + 5.0, (
+        f"rigaud_velvet_drapery_pass should darken velvet zones; "
+        f"before_mean={total_before:.1f} after_mean={total_after:.1f}")

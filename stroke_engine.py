@@ -21032,3 +21032,143 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Poussin classical clarity pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    def rigaud_velvet_drapery_pass(
+        self,
+        *,
+        velvet_thresh: float    = 0.30,
+        velvet_dark:   float    = 0.12,
+        velvet_warm_r: float    = 0.08,
+        velvet_warm_g: float    = 0.04,
+        silk_thresh:   float    = 0.65,
+        silk_cool_b:   float    = 0.10,
+        silk_cool_r:   float    = 0.04,
+        skin_r_lo:     float    = 0.45,
+        skin_r_hi:     float    = 0.85,
+        skin_g_lo:     float    = 0.32,
+        skin_g_hi:     float    = 0.75,
+        skin_b_hi:     float    = 0.65,
+        blur_radius:   float    = 5.0,
+        opacity:       float    = 0.55,
+    ) -> None:
+        """
+        Hyacinthe Rigaud's defining material quality: deep velvet darkness
+        with warm chestnut mid-tones and cool silk specular highlights.
+
+        Rigaud was the master of court portraiture at Versailles (1690–1740)
+        and his technical signature is the convincing illusion of sumptuous
+        fabrics — particularly deep velvet and shimmering silk.  These two
+        materials are chromatic opposites: velvet absorbs light into near-black
+        warmth, while silk reflects it as cool, silvery brightness.  The tension
+        between them creates the opulent material presence of his portraits.
+
+        This pass models that duality in three operations:
+
+        1. **Velvet void deepening** — dark, non-skin pixels (lum < velvet_thresh)
+           are pushed toward near-black while preserving warm chestnut undertone:
+           luminance is reduced, R channel stays relatively elevated (warm), B is
+           suppressed.  This makes velvet shadows recede into a rich, warm darkness
+           rather than a cold dead black.  Feathered with Gaussian so the transition
+           from lit to shadowed velvet fold is not abrupt.
+
+        2. **Silk specular sheen** — bright, non-skin pixels (lum > silk_thresh)
+           receive a cool silvery push: B↑, R slightly↓.  This is the cool shimmer
+           of light striking silk at an angle — the chromatic opposite of warm flesh
+           and warm velvet.  The cool highlight makes silk appear to float above the
+           surrounding velvet darkness.  Feathered so the highlight transitions
+           smoothly into the mid-tone fabric.
+
+        3. **Composite at opacity** — both effects are blended at the specified
+           opacity, allowing the underlying painted surface to remain dominant.
+
+        Parameters:
+            velvet_thresh   Luminance ceiling for velvet shadow pixels [0–1].
+            velvet_dark     Strength of the velvet shadow deepening push.
+            velvet_warm_r   R-channel warm undertone boost in velvet voids.
+            velvet_warm_g   G-channel slight warmth boost in velvet voids.
+            silk_thresh     Luminance floor for silk highlight pixels [0–1].
+            silk_cool_b     B-channel cool boost on silk highlights.
+            silk_cool_r     R-channel reduction on silk highlights (coolness).
+            skin_r_lo/hi    R-channel range that characterises skin pixels (excluded).
+            skin_g_lo/hi    G-channel range that characterises skin pixels (excluded).
+            skin_b_hi       B-channel ceiling that characterises skin pixels (excluded).
+            blur_radius     Gaussian feathering radius for mask transitions.
+            opacity         Final blend opacity of the combined pass [0–1].
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        surface = self.canvas.surface
+        w_px    = surface.get_width()
+        h_px    = surface.get_height()
+
+        orig = _np.frombuffer(
+            surface.get_data(), dtype=_np.uint8
+        ).reshape((h_px, w_px, 4)).copy()
+
+        # Read channels as float32 in [0, 1] (cairo: BGRA byte order)
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Skin mask (exclude skin pixels from fabric operations) ────────────
+        # Skin has warm R, moderate G, lower B — we protect these from the
+        # velvet deepening and silk cooling operations.
+        skin_mask = (
+            (r0 >= skin_r_lo) & (r0 <= skin_r_hi) &
+            (g0 >= skin_g_lo) & (g0 <= skin_g_hi) &
+            (b0 <= skin_b_hi)
+        ).astype(_np.float32)
+        # Feather the skin mask so the boundary is not harsh
+        skin_mask = _gf(skin_mask, sigma=blur_radius * 1.5).astype(_np.float32)
+        non_skin = (1.0 - skin_mask).astype(_np.float32)
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Velvet void deepening ──────────────────────────────────────────
+        # Dark pixels in non-skin areas are pushed toward warm near-black.
+        # The warmth (R > B in the void) distinguishes Rigaud velvet from cold
+        # modern fabric rendering — there is always a chestnut undertone.
+        v_raw = _np.clip(
+            (velvet_thresh - lum) / max(velvet_thresh, 0.01),
+            0.0, 1.0
+        ).astype(_np.float32)
+        v_mask = _gf(v_raw, sigma=blur_radius).astype(_np.float32) * non_skin
+
+        # Darken all channels, but preserve/add warm chestnut R undertone
+        r_out = _np.clip(r_out - v_mask * (velvet_dark - velvet_warm_r), 0.0, 1.0)
+        g_out = _np.clip(g_out - v_mask * (velvet_dark - velvet_warm_g), 0.0, 1.0)
+        b_out = _np.clip(b_out - v_mask * velvet_dark, 0.0, 1.0)
+
+        # ── 2. Silk specular sheen ────────────────────────────────────────────
+        # Bright pixels in non-skin areas receive a cool silvery push.
+        # B↑ (most), R↓ — silk highlights are cooler than the warm flesh
+        # around them, creating the characteristic visual contrast of
+        # Rigaud's portraits between warm sitter and cool drapery highlights.
+        s_raw = _np.clip(
+            (lum - silk_thresh) / max(1.0 - silk_thresh, 0.01),
+            0.0, 1.0
+        ).astype(_np.float32)
+        s_mask = _gf(s_raw, sigma=blur_radius).astype(_np.float32) * non_skin
+
+        r_out = _np.clip(r_out - s_mask * silk_cool_r, 0.0, 1.0)
+        b_out = _np.clip(b_out + s_mask * silk_cool_b, 0.0, 1.0)
+
+        # ── 3. Composite at opacity ───────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Rigaud velvet drapery pass complete.")

@@ -6340,6 +6340,91 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Hyacinthe Rigaud ──────────────────────────────────────────────────────
+    "hyacinthe_rigaud": ArtStyle(
+        artist="Hyacinthe Rigaud",
+        movement="French Court Baroque",
+        nationality="French",
+        period="1681–1743",
+        palette=[
+            (0.72, 0.52, 0.32),   # warm chestnut flesh — Rigaud's sitters have a warm,
+                                   # sun-touched or candlelit ivory-amber complexion
+            (0.54, 0.38, 0.22),   # mid-tone flesh shadow — warm brown modelling under chin/neck
+            (0.12, 0.08, 0.06),   # near-black velvet void — the defining deep shadow in velvet
+                                   # drapery; almost impenetrable darkness with warm undertone
+            (0.78, 0.76, 0.82),   # cool silk highlight — the brilliant silvery sheen on silk/satin,
+                                   # the chromatic opposite to the warm flesh
+            (0.92, 0.90, 0.88),   # ermine white — pure ivory for ermine trim and lace cuffs
+            (0.48, 0.32, 0.14),   # warm chestnut mid-velvet — the mid-tone in velvet folds,
+                                   # a rich warm brown between near-black void and reflected light
+            (0.25, 0.20, 0.38),   # royal blue-purple drapery — the prestige colour of court
+                                   # portraiture, often the background curtain or robe lining
+            (0.70, 0.58, 0.20),   # gold braid — the metallic trim of court dress, warm and
+                                   # slightly desaturated (not raw yellow — aged court gold)
+            (0.82, 0.72, 0.60),   # warm ivory ground glow — the luminous background that
+                                   # contrasts with dark velvet and architectural columns
+        ],
+        ground_color=(0.50, 0.42, 0.30),    # warm amber-brown imprimatura — Rigaud prepared his
+                                              # canvases with a warm mid-tone ground, standard in
+                                              # the French Academy tradition.  The warmth glows
+                                              # through shadows in velvet and flesh alike.
+        stroke_size=6,
+        wet_blend=0.32,                      # controlled layering — Rigaud built his portraits in
+                                              # distinct phases: drawing, dead colour, colour proper,
+                                              # and glazes.  Flesh was modelled carefully; velvet
+                                              # required distinct light/mid/dark passages.
+        edge_softness=0.38,                  # moderate crispness — silk highlights have found
+                                              # edges; velvet folds transition softly; face edges
+                                              # are clean but not Tenebrist razor-sharp.
+        jitter=0.020,
+        glazing=(0.52, 0.44, 0.32),          # warm amber-brown final glaze — unifies the canvas
+                                              # with a courtly, candlelit warmth; deepens the
+                                              # velvet voids and gives flesh a golden luminosity
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "French Court Baroque portraiture — sumptuous, architecturally composed, and deeply "
+            "hierarchical.  Rigaud was the premier portraitist of the Versailles court and the "
+            "dominant figure in French portrait painting for fifty years (1690–1740).  His most "
+            "famous work, the 1701 portrait of Louis XIV, codified the French royal portrait type: "
+            "the king in ermine-lined coronation robes, sceptre in hand, full-length against a "
+            "column and billowing curtain, the very image of absolute monarchy. "
+            "His technique rests on three pillars: (1) deep velvet darkness — Rigaud mastered the "
+            "near-black voids of velvet by building up multiple thin dark glazes over a warm "
+            "mid-tone ground, creating a depth that absorbs light and makes the silk highlights "
+            "appear to float above; (2) cool silk luminosity — the highlights on silk and satin "
+            "are painted with cool silvery whites, the chromatic opposite of the warm flesh and "
+            "warm velvet, creating a visual shock that reads as lustrous materiality; (3) warm "
+            "chestnut flesh modelling — faces and hands are built up in warm ivory-amber flesh "
+            "tones, modelled smoothly with fine brushes, giving the sitters a courtly, composed "
+            "gravitas rather than Rembrandt's psychological turbulence or Hals's energy. "
+            "Backgrounds are stable and architectural: columns, draped curtains (usually dark "
+            "red-purple), and distant landscape glimpses.  The compositions are formally "
+            "hierarchical — the sitter dominates, the environment submits."
+        ),
+        famous_works=[
+            ("Portrait of Louis XIV in Coronation Robes",    "1701"),
+            ("Portrait of Cardinal Fleury",                   "1728"),
+            ("Portrait of Philippe II, Duke of Orléans",      "1700"),
+            ("Portrait of Samuel Bernard",                    "1726"),
+            ("Self-Portrait",                                 "c. 1698"),
+        ],
+        inspiration=(
+            "Use rigaud_velvet_drapery_pass() to introduce Rigaud's defining material quality: "
+            "the deep, sumptuous velvet darkness with its warm chestnut mid-tone and cool silk "
+            "highlight sheen.  The pass identifies dark fabric zones (non-flesh pixels below a "
+            "luminance threshold) and in three operations — deepens their voids to near-black with "
+            "a warm undertone, adds a directional specular sheen on the lit edge of fabric folds "
+            "using a cool silvery highlight, and adds faint ermine-like texture at highlight peaks. "
+            "tone_ground() with warm amber-brown establishes the courtly imprimatura.  block_in() "
+            "builds the colour masses with controlled wet_blend.  The warm chestnut flesh is "
+            "modelled in careful warm ivory-amber layers; velvet drapery follows with dark glaze "
+            "layers over the warm ground.  The result is a portrait of material opulence: "
+            "presence, rank, and the weight of power rendered in pigment."
+        ),
+    ),
+
 }
 
 

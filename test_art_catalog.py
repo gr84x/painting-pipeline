@@ -58,6 +58,7 @@ EXPECTED_ARTISTS = [
     "albrecht_durer",
     "peter_paul_rubens",
     "nicolas_poussin",
+    "hyacinthe_rigaud",
     "thomas_gainsborough",
     "winslow_homer",
     "jean_honore_fragonard",
@@ -9108,3 +9109,106 @@ def test_dutch_genre_comedy_stroke_params_vigorous_marks():
     assert p["stroke_size_face"] >= 7, (
         f"DUTCH_GENRE_COMEDY stroke_size_face should be >= 7 for Steen's energetic marks; "
         f"got {p['stroke_size_face']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Hyacinthe Rigaud / FRENCH_COURT_BAROQUE — session 78 tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_hyacinthe_rigaud_in_catalog():
+    """hyacinthe_rigaud must be present in CATALOG."""
+    assert "hyacinthe_rigaud" in CATALOG, (
+        "hyacinthe_rigaud not found in CATALOG — add the ArtStyle entry")
+
+
+def test_hyacinthe_rigaud_palette_valid():
+    """Every colour in hyacinthe_rigaud palette must have RGB channels in [0, 1]."""
+    s = get_style("hyacinthe_rigaud")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"hyacinthe_rigaud palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_hyacinthe_rigaud_warm_glazing():
+    """
+    hyacinthe_rigaud glazing must be warm (R >= B) — amber-brown unifying glaze
+    reflects the candlelit warmth of French court portraiture.
+    """
+    s = get_style("hyacinthe_rigaud")
+    assert s.glazing is not None, (
+        "hyacinthe_rigaud glazing should not be None — warm amber-brown glaze")
+    r, _g, b = s.glazing
+    assert r >= b, (
+        f"hyacinthe_rigaud glazing R={r:.3f} should be >= B={b:.3f} "
+        f"(warm amber court portrait glaze, not a cool Poussin silver)")
+
+
+def test_hyacinthe_rigaud_moderate_wet_blend():
+    """
+    hyacinthe_rigaud wet_blend should be in [0.20, 0.45] — controlled deliberate
+    layering for velvet modelling, not Baroque alla prima spontaneity.
+    """
+    s = get_style("hyacinthe_rigaud")
+    assert 0.20 <= s.wet_blend <= 0.45, (
+        f"hyacinthe_rigaud wet_blend={s.wet_blend:.2f} should be in [0.20, 0.45] "
+        f"(controlled layering for velvet: not fully blended, not dry-alla-prima)")
+
+
+def test_hyacinthe_rigaud_moderate_edges():
+    """
+    hyacinthe_rigaud edge_softness should be in [0.25, 0.55] — silk has found
+    edges, velvet has soft transitions; neither sfumato nor Tenebrist razor.
+    """
+    s = get_style("hyacinthe_rigaud")
+    assert 0.25 <= s.edge_softness <= 0.55, (
+        f"hyacinthe_rigaud edge_softness={s.edge_softness:.2f} should be in [0.25, 0.55] "
+        f"(silk highlight crispness balanced against velvet softness)")
+
+
+def test_hyacinthe_rigaud_crackle():
+    """hyacinthe_rigaud crackle should be True — aged 17th-century oil on canvas."""
+    s = get_style("hyacinthe_rigaud")
+    assert s.crackle is True, (
+        "hyacinthe_rigaud crackle should be True (aged court portrait oil on canvas)")
+
+
+def test_hyacinthe_rigaud_no_chromatic_split():
+    """hyacinthe_rigaud chromatic_split should be False — no Pointillist technique."""
+    s = get_style("hyacinthe_rigaud")
+    assert s.chromatic_split is False, (
+        "hyacinthe_rigaud chromatic_split should be False (no Seurat/divisionist dots)")
+
+
+def test_hyacinthe_rigaud_dark_velvet_in_palette():
+    """
+    hyacinthe_rigaud palette must contain at least one near-black velvet colour
+    (lum < 0.15) — the deep void is the defining material quality of his drapery.
+    """
+    s = get_style("hyacinthe_rigaud")
+    has_dark = any(
+        0.2126 * r + 0.7152 * g + 0.0722 * b < 0.15
+        for r, g, b in s.palette
+    )
+    assert has_dark, (
+        "hyacinthe_rigaud palette should include a near-black velvet void colour "
+        "(lum < 0.15) — the deep darkness is the chromatic signature of his drapery")
+
+
+def test_french_court_baroque_period_present():
+    """Period.FRENCH_COURT_BAROQUE must be a valid member of the Period enum."""
+    assert hasattr(Period, "FRENCH_COURT_BAROQUE"), (
+        "Period enum is missing FRENCH_COURT_BAROQUE — add it to scene_schema.py")
+
+
+def test_french_court_baroque_stroke_params_valid():
+    """FRENCH_COURT_BAROQUE stroke_params must contain all required keys."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_COURT_BAROQUE).stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"FRENCH_COURT_BAROQUE stroke_params missing key: {key!r}"
+    assert 3 <= sp["stroke_size_face"] <= 20, (
+        f"FRENCH_COURT_BAROQUE stroke_size_face={sp['stroke_size_face']} should be in [3, 20]")
+    assert 0 <= sp["wet_blend"] <= 1, (
+        f"FRENCH_COURT_BAROQUE wet_blend={sp['wet_blend']} should be in [0, 1]")
+    assert 0 <= sp["edge_softness"] <= 1, (
+        f"FRENCH_COURT_BAROQUE edge_softness={sp['edge_softness']} should be in [0, 1]")
