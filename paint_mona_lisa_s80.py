@@ -605,18 +605,20 @@ def paint(out_dir: str = ".") -> str:
         opacity              = 0.48,
     )
 
+    # Place final lights
+    print("Place lights...")
+    p.place_lights(ref, stroke_size=5, n_strokes=650)
+
     # Aerial perspective pass
     print("Aerial perspective pass...")
     p.aerial_perspective_pass(
-        horizon_y      = 0.54,
-        cool_strength  = 0.10,
-        value_lift     = 0.08,
-        opacity        = 0.50,
+        sky_band     = 0.58,
+        fade_power   = 2.0,
+        desaturation = 0.52,
+        cool_push    = 0.11,
+        haze_lift    = 0.06,
+        opacity      = 0.70,
     )
-
-    # Focused pass -- face and hands detail
-    print("Focused pass (face + hands)...")
-    p.focused_pass(ref, stroke_size=5, n_strokes=650)
 
     # Session 68: Crystalline surface pass
     print("Crystalline surface pass (session 68)...")
