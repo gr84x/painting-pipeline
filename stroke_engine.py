@@ -20868,3 +20868,167 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Jan Steen warm vitality pass complete.")
+
+    def poussin_classical_clarity_pass(self,
+                                       shadow_cool:      float = 0.10,
+                                       midtone_lift:     float = 0.06,
+                                       saturation_cap:   float = 0.82,
+                                       highlight_ivory:  float = 0.04,
+                                       shadow_thresh:    float = 0.32,
+                                       highlight_thresh: float = 0.75,
+                                       midtone_lo:       float = 0.32,
+                                       midtone_hi:       float = 0.68,
+                                       blur_radius:      float = 6.0,
+                                       opacity:          float = 0.50) -> None:
+        """
+        Nicolas Poussin classical clarity pass — session 77 artistic improvement.
+
+        Inspired by Nicolas Poussin (1594–1665), the supreme master of French Classical
+        painting.  Poussin worked in Rome and forged a chromatic philosophy that became
+        the foundation of French Academic doctrine: colour must serve reason, not sensation.
+
+        His paintings are defined by four interlocking chromatic qualities that this pass
+        encodes:
+
+          1. **Cool silver-grey shadows** — Unlike the warm amber shadows of the Flemish
+             Baroque (Rubens, Van Dyck) or the near-black voids of Caravaggio/Rembrandt,
+             Poussin's shadows are consistently cool grey-silver — the colour of Roman
+             stone in diffuse overcast light.  This signals Classical Stoic restraint.
+             This pass boosts the B channel in pixels below `shadow_thresh` luminance,
+             converting any residual warm-amber shadow bias into cool grey-blue.
+
+          2. **Midtone clarification lift** — Poussin's colour zones read with architectural
+             clarity: each narrative element occupies a distinct, legible tonal band.
+             There is no Rembrandtesque tenebrism collapsing the mid-values into void.
+             This pass lifts the luminance of pixels in the midtone band (between
+             `midtone_lo` and `midtone_hi`) so the compositional architecture of light
+             and shadow remains rationally readable at a distance.
+
+          3. **Saturation discipline** — Poussin famously subordinated chromatic intensity
+             to narrative weight: only the most important figure wore pure ultramarine or
+             vermilion; background figures were always desaturated in deference.  This pass
+             caps HSV saturation at `saturation_cap`, ensuring that no colour zone shouts
+             louder than the picture's moral hierarchy demands.  Pure decorative saturation
+             is the enemy of his system.
+
+          4. **Highlight ivory warmth** — Poussin's stone-lit highlights carry a faint
+             warm ivory quality — the colour of Roman travertine in raking afternoon sun.
+             This is far from the golden amber of Rembrandt or the pearl-cool of Ingres;
+             it is a stone-warm neutral that anchors his flesh highlights in the physical
+             world of Roman sculpture.  This pass adds a soft, gentle ivory shift to the
+             brightest pixels (above `highlight_thresh`).
+
+        Together these operations produce the characteristic French Classical chromatic
+        reading: cool in the darks, clear in the midtones, disciplined in colour intensity,
+        stone-warm in the lights — a complete tonality of rational, architectural dignity.
+
+        **Why this improves the Mona Lisa pipeline:**
+        The Mona Lisa's palette is warm-amber throughout (Leonardo's sfumato glaze pushes
+        the shadows toward brown-gold).  Poussin's pass provides a counterpoint: it cools
+        the shadow tone (pulling it toward the blue-grey of the mountain atmosphere behind
+        the figure), lifts the midtone clarity (making the sfumato veil read more legibly),
+        and disciplines over-saturated passages that can creep in from successive warm
+        passes.  This creates a more nuanced tonal architecture — warm lights, cool darks,
+        clear midtones — that is historically consistent with High Renaissance panel technique
+        even if Poussin himself came a century later.
+
+        :param shadow_cool:       Additive strength of the blue-grey shadow push.
+        :param midtone_lift:      Additive luminance boost in the mid-tone band.
+        :param saturation_cap:    Maximum allowed HSV saturation (1.0 = no cap).
+        :param highlight_ivory:   Additive ivory warmth in pixels above highlight_thresh.
+        :param shadow_thresh:     Luminance threshold below which shadow cooling applies.
+        :param highlight_thresh:  Luminance threshold above which ivory highlight applies.
+        :param midtone_lo:        Lower bound of the midtone band.
+        :param midtone_hi:        Upper bound of the midtone band.
+        :param blur_radius:       Gaussian sigma for feathering all tonal masks.
+        :param opacity:           Final composite opacity of the entire pass.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        surface = self.canvas.surface
+        w_px = surface.get_width()
+        h_px = surface.get_height()
+
+        orig = _np.frombuffer(surface.get_data(),
+                              dtype=_np.uint8).reshape((h_px, w_px, 4)).copy()
+
+        # ── Decompose to float RGB (cairo BGRA → R/G/B float arrays) ─────────
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Cool silver-grey shadow push ───────────────────────────────────
+        # Pixels below shadow_thresh receive a blue-grey push: B↑, R slightly↓,
+        # converting warm-amber shadow residue into cool French Classical grey.
+        sh_mask = _np.clip(1.0 - lum / max(shadow_thresh, 0.01), 0.0, 1.0)
+        sh_mask = _gf(sh_mask.astype(_np.float32), sigma=blur_radius).astype(_np.float32)
+        r_out = _np.clip(r_out - sh_mask * shadow_cool * 0.30, 0.0, 1.0)
+        g_out = _np.clip(g_out - sh_mask * shadow_cool * 0.10, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * shadow_cool * 1.00, 0.0, 1.0)
+
+        # ── 2. Midtone clarification lift ─────────────────────────────────────
+        # Pixels inside [midtone_lo, midtone_hi] receive a uniform luminance
+        # boost — raising the architectural mid-ground so the composition reads
+        # with Poussin's characteristic clarity at a distance.
+        mid_band = _np.clip(
+            _np.minimum(
+                (lum - midtone_lo) / max(midtone_hi - midtone_lo, 0.01),
+                (midtone_hi - lum) / max(midtone_hi - midtone_lo, 0.01),
+            ) * 2.0,
+            0.0, 1.0
+        ).astype(_np.float32)
+        mid_mask = _gf(mid_band, sigma=blur_radius).astype(_np.float32)
+        r_out = _np.clip(r_out + mid_mask * midtone_lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + mid_mask * midtone_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + mid_mask * midtone_lift, 0.0, 1.0)
+
+        # ── 3. Saturation cap (HSV model) ─────────────────────────────────────
+        # For pixels where HSV saturation S > saturation_cap, reduce S to the cap
+        # by interpolating each channel toward the V (max-channel) value:
+        #   new_c = V - (V - c) * (saturation_cap / S)
+        # This preserves hue and value while disciplining chromatic intensity.
+        max_c  = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        delta  = max_c - _np.minimum(_np.minimum(r_out, g_out), b_out)
+        sat    = _np.where(max_c > 1e-6, delta / max_c, 0.0).astype(_np.float32)
+        excess = (sat > saturation_cap) & (delta > 1e-6)
+        safe_sat = _np.where(sat > 1e-6, sat, 1.0).astype(_np.float32)
+        factor = _np.where(excess, saturation_cap / safe_sat, 1.0).astype(_np.float32)
+        r_out  = _np.where(excess, max_c - (max_c - r_out) * factor, r_out)
+        g_out  = _np.where(excess, max_c - (max_c - g_out) * factor, g_out)
+        b_out  = _np.where(excess, max_c - (max_c - b_out) * factor, b_out)
+        r_out  = _np.clip(r_out, 0.0, 1.0).astype(_np.float32)
+        g_out  = _np.clip(g_out, 0.0, 1.0).astype(_np.float32)
+        b_out  = _np.clip(b_out, 0.0, 1.0).astype(_np.float32)
+
+        # ── 4. Highlight ivory warmth ─────────────────────────────────────────
+        # Bright pixels (lum > highlight_thresh) receive a soft ivory push:
+        # R↑ (most), G slightly↑, B↓ — Roman travertine in afternoon light.
+        hi_mask = _np.clip(
+            (lum - highlight_thresh) / max(1.0 - highlight_thresh, 0.01),
+            0.0, 1.0
+        ).astype(_np.float32)
+        hi_mask = _gf(hi_mask, sigma=blur_radius).astype(_np.float32)
+        r_out = _np.clip(r_out + hi_mask * highlight_ivory * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * highlight_ivory * 0.58, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * highlight_ivory * 0.30, 0.0, 1.0)
+
+        # ── 5. Composite at opacity ────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Poussin classical clarity pass complete.")
