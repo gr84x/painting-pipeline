@@ -249,6 +249,7 @@ class Period(Enum):
     DUTCH_GENRE_COMEDY = auto()  # Jan Steen — warm amber imprimatura glow, rosy flushed flesh, vivid costume accents, energetic alla prima brushwork, warm amber-brown shadows
     VENETIAN_PSYCHOLOGICAL = auto()  # Lotto — cool chromatic anxiety beneath Venetian warmth, psychological eye intensity, background color dissonance, restless chromatic undertone
     FLORENTINE_HIGH_RENAISSANCE = auto()  # Andrea del Sarto — warm golden sfumato, 'faultless' seamless Florentine transitions, amber-ivory flesh, harmonious colour temperature
+    FRENCH_INTIMISTE = auto()  # Chardin — warm-gray granular optical texture, muted atmospheric palette, quiet luminosity without dramatism, patient accumulation of small touches
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -979,6 +980,14 @@ class Style:
             # edge_softness=0.62: high sfumato, warmer and more grounded than Leonardo's
             # full dissolution (0.80+), but clearly in the Florentine sfumato tradition.
             Period.FLORENTINE_HIGH_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.65, edge_softness=0.62),
+            # FRENCH_INTIMISTE (Chardin) — granular optical texture, muted atmospheric warmth.
+            # stroke_size_face=5: small, careful dabs; Chardin's intimacy lives in the mark scale.
+            # stroke_size_bg=18: moderate backgrounds; quieter than Flemish panoramas.
+            # wet_blend=0.22: low — Chardin's granular dabs stay distinct; optical mixing
+            # happens on the retina, not by blending on the palette. This is the defining
+            # difference from sfumato-tradition painters.
+            # edge_softness=0.56: moderate-soft; form is legible through the grain but never harsh.
+            Period.FRENCH_INTIMISTE: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.22, edge_softness=0.56),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

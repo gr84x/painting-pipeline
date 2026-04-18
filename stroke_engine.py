@@ -7892,12 +7892,13 @@ class Painter:
     # ─────────────────────────────────────────────────────────────────────────
 
     def edge_lost_and_found_pass(self,
-                                  focal_xy:        tuple = (0.50, 0.30),
-                                  found_radius:    float = 0.28,
-                                  found_sharpness: float = 0.50,
-                                  lost_blur:       float = 1.8,
-                                  strength:        float = 0.35,
-                                  figure_only:     bool  = False):
+                                  focal_xy:            tuple = (0.50, 0.30),
+                                  found_radius:        float = 0.28,
+                                  found_sharpness:     float = 0.50,
+                                  lost_blur:           float = 1.8,
+                                  strength:            float = 0.35,
+                                  figure_only:         bool  = False,
+                                  gradient_selectivity: float = 0.0):
         """
         Classical edge quality control — "lost and found" edges.
 
@@ -7920,15 +7921,39 @@ class Painter:
         Useful for any portrait period.  Validated as the session-24 random
         artistic improvement.
 
+        Session-81 improvement — ``gradient_selectivity``:
+        The original pass applied found-zone sharpening uniformly to all pixels
+        near the focal point, including smooth interior tones with no actual edge
+        information.  This caused slight noise amplification in well-blended flesh
+        areas: the unsharp mask finds and enhances micro-variation (brush texture,
+        earlier pass seams) that the painter would have left smooth.
+
+        ``gradient_selectivity > 0`` multiplies the found_wt by the normalised
+        local luminance gradient magnitude, so that only pixels that lie on actual
+        form boundaries (where gradient is high) receive the full sharpening.
+        Smooth interior passages (gradient ≈ 0) are left undisturbed.  This
+        matches how Old Masters used the technique: a found edge is an edge that
+        actually exists in the form; it is not applied to smooth skin.
+
+        At ``gradient_selectivity=1.0`` the sharpening is fully gradient-gated —
+        only the clearest form transitions are found; at 0.0 (default) behaviour
+        is identical to the pre-session-81 version for backward compatibility.
+        Values around 0.5–0.7 give the best results for portrait work.
+
         Parameters
         ----------
-        focal_xy       : (x, y) normalised focal point (0,0=top-left).
-                         Default (0.50, 0.30) = upper-centre portrait face.
-        found_radius   : Normalised radius within which edges are sharpened.
-        found_sharpness: Unsharp mask strength in found zone (0–1).
-        lost_blur      : Gaussian sigma (pixels) for lost zone softening.
-        strength       : Overall blend weight (0 = no effect, 1 = full).
-        figure_only    : Restrict found-zone sharpening to figure if True.
+        focal_xy             : (x, y) normalised focal point (0,0=top-left).
+                               Default (0.50, 0.30) = upper-centre portrait face.
+        found_radius         : Normalised radius within which edges are sharpened.
+        found_sharpness      : Unsharp mask strength in found zone (0–1).
+        lost_blur            : Gaussian sigma (pixels) for lost zone softening.
+        strength             : Overall blend weight (0 = no effect, 1 = full).
+        figure_only          : Restrict found-zone sharpening to figure if True.
+        gradient_selectivity : When > 0, gates found-zone sharpening by local
+                               luminance gradient magnitude.  Prevents noise
+                               amplification in smooth skin passages; preserves
+                               strong sharpening on actual form boundaries only.
+                               Range [0, 1]; 0 = original behaviour.
         """
         import numpy as np
         from PIL import Image as _PILImg
@@ -7963,6 +7988,25 @@ class Painter:
                     _PILImg.fromarray((fm * 255).astype(np.uint8)).resize(
                         (self.w, self.h), _PILImg.BILINEAR)) / 255.0
             found_wt = found_wt * fm
+
+        # Session-81: gradient-selective sharpening gate.
+        # Multiplies found_wt by the normalised luminance gradient so that only
+        # actual form boundaries receive sharpening — smooth interior flesh is
+        # left undisturbed, preventing noise amplification in well-blended areas.
+        if gradient_selectivity > 0.0:
+            lum_lf = 0.2126 * R_lf + 0.7152 * G_lf + 0.0722 * B_lf
+            lum_smooth = gaussian_filter(lum_lf, sigma=1.0)
+            gx = np.gradient(lum_smooth, axis=1).astype(np.float32)
+            gy = np.gradient(lum_smooth, axis=0).astype(np.float32)
+            grad_mag = np.sqrt(gx ** 2 + gy ** 2).astype(np.float32)
+            # Normalise gradient to [0, 1] using the 98th percentile to avoid
+            # outlier edges dominating the scale
+            grad_p98 = float(np.percentile(grad_mag, 98)) or 1e-8
+            grad_norm = np.clip(grad_mag / grad_p98, 0.0, 1.0).astype(np.float32)
+            # Blend between full weight (selectivity=0) and gradient-gated weight
+            found_wt = found_wt * (
+                (1.0 - gradient_selectivity) + gradient_selectivity * grad_norm
+            )
 
         # Unsharp mask for found zone
         um_sigma = max(0.8, lost_blur * 0.45)
@@ -21487,3 +21531,186 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Andrea del Sarto golden sfumato pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # chardin_granular_intimacy_pass — Chardin's quiet optical texture
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def chardin_granular_intimacy_pass(
+        self,
+        dab_radius:      float = 3.5,    # neighbourhood radius for color sampling (pixels)
+        dab_density:     float = 0.55,   # fraction of pixels receiving a dab (0–1)
+        mute_strength:   float = 0.20,   # pull strength toward warm-gray center (0–1)
+        lum_cap:         float = 0.86,   # luminance ceiling — suppress harsh specular peaks
+        lum_cap_str:     float = 0.30,   # strength of luminance cap compression
+        warm_gray_r:     float = 0.68,   # warm-gray palette center R
+        warm_gray_g:     float = 0.64,   # warm-gray palette center G
+        warm_gray_b:     float = 0.54,   # warm-gray palette center B
+        opacity:         float = 0.38,   # overall blend weight (keep low; effect accumulates)
+        rng_seed:        int   = 42,
+    ) -> None:
+        """
+        Jean-Baptiste-Siméon Chardin's defining optical intimacy: granular atmospheric texture.
+
+        Chardin (1699–1779) was the supreme master of the quiet domestic painting — still
+        lifes, kitchen scenes, gentle genre interiors — and his technique is as distinctive
+        as Leonardo's sfumato: he built up surfaces from small individual dabs of slightly
+        varied colour placed side by side, allowing the optical mixing to happen on the
+        retina rather than on the palette.  Diderot, the great Enlightenment critic, described
+        the effect as a 'magic' he could not explain — 'approach the picture and everything
+        blurs and flattens out; step back and everything reconstitutes and comes back to
+        life.'  This is the principle of optical granulation as opposed to blended sfumato.
+
+        Three operations:
+
+        1. **Granular dab layer** — for ``dab_density`` fraction of pixels, the colour is
+           resampled from a small neighbourhood (radius ``dab_radius``) with slight random
+           offset.  This scatters the paint surface into slightly varied micro-touches without
+           importing new colour from outside the painting — the variation comes from the
+           existing surface texture being redistributed.  The result is a warm, dusty optical
+           grain.  Unlike Seurat's systematic divisionism, Chardin's granulation is random and
+           asymmetric, resembling aged canvas texture more than a colour theory exercise.
+
+        2. **Atmospheric muting** — pixels whose per-channel saturation exceeds a low threshold
+           are gently pulled toward the warm-gray center of Chardin's palette
+           (R=``warm_gray_r``, G=``warm_gray_g``, B=``warm_gray_b``).  Chardin's palette is
+           muted not because his subjects are dull but because he understood that the eye
+           naturally desaturates texture-rich surfaces — the granulation itself reads as
+           'colour' without requiring high chroma.  The muting pull is soft (``mute_strength``
+           ≈ 0.20) so it adjusts rather than flattens.
+
+        3. **Luminance cap** — pixels above ``lum_cap`` luminance receive a gentle brightness
+           compression toward the cap value.  Chardin's paintings have no blazing highlights —
+           the most-lit surfaces read as warm ivory, never brilliant white.  This intimate
+           restraint is essential: it is what makes his candlelit kitchen interiors feel warm
+           and inhabited rather than theatrical.  The cap is soft (``lum_cap_str`` ≈ 0.30)
+           so true highlights are reduced but not eliminated.
+
+        Parameters
+        ----------
+        dab_radius    : Pixel radius of the neighborhood sampled for each granular dab.
+                        Smaller values → finer grain; larger values → coarser atmospheric
+                        texture.  3.5 px corresponds roughly to one bristle-width at
+                        typical portrait scale.
+        dab_density   : Fraction of canvas pixels that receive a granular dab.  0.55 means
+                        roughly every other pixel is touched.  Avoid values > 0.80 as the
+                        result becomes uniformly blurred.
+        mute_strength : How strongly oversaturated pixels are pulled toward the warm-gray
+                        center.  0.20 is barely perceptible per pass but accumulates across
+                        repeated applications.
+        lum_cap       : Luminance ceiling above which highlights are compressed.  0.86
+                        retains warm ivory highlights while suppressing specular blazing.
+        lum_cap_str   : Softness of the luminance compression.  0 = no compression;
+                        1 = hard clip to lum_cap.  Keep at 0.25–0.35 for Chardin's quiet
+                        restraint.
+        warm_gray_r/g/b : RGB values of the warm-gray palette center.  The default
+                        (0.68, 0.64, 0.54) matches Chardin's characteristic warm ochre-gray
+                        midtone as observed across his mature still-life work.
+        opacity       : Global blend weight.  Keep in [0.25, 0.50] — the granular effect is
+                        meant to be subtle.  Multiple passes accumulate convincingly.
+        rng_seed      : Random seed for reproducible granulation pattern.
+
+        Notes
+        -----
+        Chardin's technique was so subtle that contemporaries believed he used a secret medium.
+        Analysis of his paint layers (Louvre, 2000) revealed no unusual medium — the effect
+        comes entirely from how and where small dabs of standard oil paint are placed.
+
+        The pass can be applied multiple times at low opacity to build up the granular
+        atmosphere incrementally, as Chardin himself applied his paint in patient sessions.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Chardin granular intimacy pass  "
+              f"(dab_r={dab_radius:.1f}  density={dab_density:.2f}  "
+              f"mute={mute_strength:.2f}  lum_cap={lum_cap:.2f}  "
+              f"opacity={opacity:.2f})…")
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo stores BGRA — extract float channels
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        b_out = b0.copy()
+        g_out = g0.copy()
+        r_out = r0.copy()
+
+        # ── 1. Granular dab layer ─────────────────────────────────────────────
+        # For a random subset of pixels, resample colour from a small neighbourhood.
+        # This redistributes existing paint texture into Chardin's optical grain.
+        rng = _np.random.default_rng(rng_seed)
+        h, w = self.h, self.w
+
+        # Build padded reference arrays for safe neighbourhood access
+        pad = max(1, int(_np.ceil(dab_radius)))
+        r_pad = _np.pad(r0, pad, mode='reflect')
+        g_pad = _np.pad(g0, pad, mode='reflect')
+        b_pad = _np.pad(b0, pad, mode='reflect')
+
+        # Pixel indices that receive a dab
+        n_dabs = int(h * w * dab_density)
+        ys = rng.integers(0, h, size=n_dabs)
+        xs = rng.integers(0, w, size=n_dabs)
+
+        # Random offsets within dab_radius (disk sampling)
+        angles = rng.uniform(0, 2 * _np.pi, size=n_dabs)
+        radii  = rng.uniform(0, dab_radius, size=n_dabs)
+        dy = (_np.round(radii * _np.sin(angles))).astype(int)
+        dx = (_np.round(radii * _np.cos(angles))).astype(int)
+
+        # Sample from padded arrays (pad shifts coords by `pad`)
+        sy = _np.clip(ys + dy + pad, 0, h + 2 * pad - 1)
+        sx = _np.clip(xs + dx + pad, 0, w + 2 * pad - 1)
+
+        r_out[ys, xs] = r_pad[sy, sx]
+        g_out[ys, xs] = g_pad[sy, sx]
+        b_out[ys, xs] = b_pad[sy, sx]
+
+        # Light Gaussian smooth to prevent pure noise from the scatter
+        # (Chardin's dabs merge at their edges — they are not isolated dots)
+        r_out = _gf(r_out, sigma=0.7).astype(_np.float32)
+        g_out = _gf(g_out, sigma=0.7).astype(_np.float32)
+        b_out = _gf(b_out, sigma=0.7).astype(_np.float32)
+
+        # ── 2. Atmospheric muting pull toward warm-gray center ────────────────
+        # Per-channel saturation (max-min of RGB)
+        ch_max = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        ch_min = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        sat = (ch_max - ch_min).astype(_np.float32)
+
+        # Pull oversaturated pixels toward warm gray (Chardin's muted register)
+        # Use a gentle linear weight so even moderately saturated pixels get a nudge
+        pull_w = _np.clip(sat * mute_strength, 0.0, mute_strength).astype(_np.float32)
+        r_out = r_out * (1.0 - pull_w) + warm_gray_r * pull_w
+        g_out = g_out * (1.0 - pull_w) + warm_gray_g * pull_w
+        b_out = b_out * (1.0 - pull_w) + warm_gray_b * pull_w
+
+        # ── 3. Luminance cap — quiet the specular peaks ───────────────────────
+        # Chardin's highlights are restrained warm ivory, never blazing white.
+        lum = 0.2126 * r_out + 0.7152 * g_out + 0.0722 * b_out
+        over_cap = _np.clip((lum - lum_cap) / max(1.0 - lum_cap, 1e-8),
+                            0.0, 1.0).astype(_np.float32)
+        cap_w = over_cap * lum_cap_str
+        # Compress toward lum_cap by desaturating and darkening slightly
+        r_out = _np.clip(r_out - cap_w * (r_out - warm_gray_r * lum_cap), 0.0, 1.0)
+        g_out = _np.clip(g_out - cap_w * (g_out - warm_gray_g * lum_cap), 0.0, 1.0)
+        b_out = _np.clip(b_out - cap_w * (b_out - warm_gray_b * lum_cap), 0.0, 1.0)
+
+        # ── 4. Composite at opacity ───────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Chardin granular intimacy pass complete.")

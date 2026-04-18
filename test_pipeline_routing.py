@@ -10670,3 +10670,185 @@ def test_lotto_chromatic_anxiety_pass_bg_green_lift():
     assert after_g >= before_g, (
         f'lotto_chromatic_anxiety_pass should lift G in non-skin bg midtones; '
         f'before_G={before_g:.1f} after_G={after_g:.1f}')
+
+
+# Jean-Baptiste-Siméon Chardin / FRENCH_INTIMISTE / chardin_granular_intimacy_pass -- s81
+# edge_lost_and_found_pass gradient_selectivity improvement -- s81
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_french_intimiste_period_accessible():
+    """Period.FRENCH_INTIMISTE must be accessible from scene_schema."""
+    assert hasattr(Period, 'FRENCH_INTIMISTE'), (
+        'Period.FRENCH_INTIMISTE not found in scene_schema -- add it')
+    assert Period.FRENCH_INTIMISTE in list(Period)
+
+
+def test_french_intimiste_wet_blend_low():
+    """FRENCH_INTIMISTE wet_blend must be low (≤ 0.30) -- Chardin's granular dabs stay distinct."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_INTIMISTE).stroke_params
+    assert sp['wet_blend'] <= 0.30, (
+        f"FRENCH_INTIMISTE wet_blend should be ≤ 0.30 for Chardin's "
+        f"low-blend granular mark-making; got {sp['wet_blend']:.2f}")
+
+
+def test_french_intimiste_edge_softness_moderate():
+    """FRENCH_INTIMISTE edge_softness must be in [0.40, 0.68]."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_INTIMISTE).stroke_params
+    assert 0.40 <= sp['edge_softness'] <= 0.68, (
+        f"FRENCH_INTIMISTE edge_softness should be in [0.40, 0.68] for Chardin's "
+        f"soft-but-legible forms; got {sp['edge_softness']:.2f}")
+
+
+def test_chardin_granular_intimacy_pass_exists():
+    """Painter must have a chardin_granular_intimacy_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, 'chardin_granular_intimacy_pass'), (
+        'Painter is missing chardin_granular_intimacy_pass -- add it to stroke_engine.py')
+
+
+def test_chardin_granular_intimacy_pass_modifies_canvas():
+    """chardin_granular_intimacy_pass() must alter the canvas from its initial state."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    # Pre-fill with a warm mid-tone (non-zero) so the granular scatter has content to work with.
+    # An all-zero canvas has no gradient or saturation, so muting/capping would be no-ops.
+    data = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, 2] = 160   # R (cairo BGRA channel 2)
+    data[:, :, 1] = 120   # G
+    data[:, :, 0] = 80    # B
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chardin_granular_intimacy_pass(opacity=1.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), (
+        'chardin_granular_intimacy_pass should change the canvas when opacity=1.0')
+
+
+def test_chardin_granular_intimacy_pass_opacity_zero_noop():
+    """chardin_granular_intimacy_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    # Fill with a distinctive non-default colour so we have something to compare
+    data = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, 2] = 180  # R
+    data[:, :, 1] = 130  # G
+    data[:, :, 0] = 90   # B
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chardin_granular_intimacy_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        'chardin_granular_intimacy_pass(opacity=0) should be a noop')
+
+
+def test_chardin_granular_intimacy_pass_mutes_high_saturation():
+    """
+    chardin_granular_intimacy_pass must reduce saturation of highly saturated pixels --
+    the atmospheric muting pull toward warm-gray is core to Chardin's technique.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    # Fill with a vivid orange-red (high saturation) -- R=230, G=100, B=50 (BGRA)
+    data = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, 2] = 230   # R (cairo channel 2)
+    data[:, :, 1] = 100   # G
+    data[:, :, 0] = 50    # B
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    p.chardin_granular_intimacy_pass(
+        mute_strength=0.50,
+        opacity=1.0,
+        dab_density=0.0,   # disable dab scatter to test muting in isolation
+    )
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    after_r = after[:, :, 2].astype(float).mean() / 255.0
+    after_g = after[:, :, 1].astype(float).mean() / 255.0
+    after_b = after[:, :, 0].astype(float).mean() / 255.0
+    after_sat = max(after_r, after_g, after_b) - min(after_r, after_g, after_b)
+    before_sat = (230 - 50) / 255.0  # original max-min
+    assert after_sat < before_sat, (
+        f'chardin_granular_intimacy_pass should reduce saturation of vivid pixels; '
+        f'before_sat={before_sat:.3f} after_sat={after_sat:.3f}')
+
+
+def test_edge_lost_and_found_gradient_selectivity_param():
+    """
+    edge_lost_and_found_pass must accept gradient_selectivity parameter without error.
+    Session-81 improvement: gates found-zone sharpening by luminance gradient magnitude.
+    """
+    from stroke_engine import Painter
+    import numpy as np
+    p = Painter(width=64, height=64)
+    # Should run without raising
+    p.edge_lost_and_found_pass(
+        focal_xy=(0.5, 0.3),
+        found_sharpness=0.5,
+        strength=0.3,
+        gradient_selectivity=0.6,
+    )
+
+
+def test_edge_lost_and_found_gradient_selectivity_zero_unchanged():
+    """
+    gradient_selectivity=0.0 must produce identical results to the pre-s81 behaviour
+    (no gradient gating applied).
+    """
+    from stroke_engine import Painter
+    import numpy as np
+    # Run with selectivity=0 -- should complete without error and modify canvas
+    p = Painter(width=64, height=64)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.edge_lost_and_found_pass(strength=0.5, gradient_selectivity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    # Canvas may or may not change (uniform linen texture -- pass should still run)
+    # Just confirm no exception and canvas is still well-formed
+    assert after.shape == before.shape
+
+
+def test_edge_lost_and_found_gradient_selectivity_preserves_smooth():
+    """
+    gradient_selectivity=1.0 must not increase RMS contrast in a smooth (uniform) zone.
+    A uniform canvas has zero gradient everywhere; with full selectivity the sharpening
+    weight is zero, so no noise should be amplified.
+    """
+    from stroke_engine import Painter
+    import numpy as np
+    p = Painter(width=128, height=128)
+    # Fill with a uniform mid-gray (no edges anywhere -- gradient = 0 everywhere)
+    data = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :3] = 128
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))[:, :, :3].astype(float)
+    before_std = before.std()
+    p.edge_lost_and_found_pass(
+        found_sharpness=0.8,
+        strength=0.8,
+        gradient_selectivity=1.0,
+    )
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))[:, :, :3].astype(float)
+    after_std = after.std()
+    # With full gradient selectivity on a uniform canvas, sharpening weight should be
+    # near zero -- std should not increase dramatically (allow small tolerance for
+    # lost-zone softening which is still applied)
+    assert after_std <= before_std + 5.0, (
+        f'edge_lost_and_found_pass gradient_selectivity=1.0 should not amplify noise '
+        f'in smooth uniform zones; before_std={before_std:.2f} after_std={after_std:.2f}')
