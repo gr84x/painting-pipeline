@@ -92,6 +92,7 @@ EXPECTED_ARTISTS = [
     "sofonisba_anguissola",
     "hieronymus_bosch",
     "pieter_de_hooch",
+    "jan_steen",
 ]
 
 
@@ -241,6 +242,8 @@ EXPECTED_PERIODS = [
     "FETE_GALANTE",
     "LOMBARD_RENAISSANCE",
     "NORTHERN_FANTASTICAL",
+    "DUTCH_DOMESTIC",
+    "DUTCH_GENRE_COMEDY",
 ]
 
 
@@ -8952,3 +8955,156 @@ def test_dutch_domestic_stroke_params_moderate_edge_softness():
     assert 0.40 <= p["edge_softness"] <= 0.70, (
         f"DUTCH_DOMESTIC edge_softness should be in [0.40, 0.70] for threshold clarity; "
         f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Jan Steen — session 76 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_jan_steen_in_catalog():
+    """Jan Steen must be present in the CATALOG under key 'jan_steen'."""
+    assert "jan_steen" in CATALOG, "jan_steen not found in CATALOG"
+
+
+def test_jan_steen_style_retrieval():
+    """get_style('jan_steen') must return an ArtStyle without raising."""
+    s = get_style("jan_steen")
+    assert s is not None
+
+
+def test_jan_steen_movement():
+    """Jan Steen should be classified in the Dutch Golden Age / Genre Comedy movement."""
+    s = get_style("jan_steen")
+    assert "Dutch" in s.movement, (
+        f"Expected 'Dutch' in movement, got {s.movement!r}")
+
+
+def test_jan_steen_nationality():
+    """Jan Steen should be Dutch."""
+    s = get_style("jan_steen")
+    assert s.nationality == "Dutch", (
+        f"Expected nationality='Dutch', got {s.nationality!r}")
+
+
+def test_jan_steen_palette_length():
+    """Jan Steen palette must have at least 7 colours."""
+    s = get_style("jan_steen")
+    assert len(s.palette) >= 7, (
+        f"Expected at least 7 palette colours, got {len(s.palette)}")
+
+
+def test_jan_steen_palette_has_warm_amber_flesh():
+    """Jan Steen palette must include a warm amber flesh highlight."""
+    s = get_style("jan_steen")
+    warm_flesh = [(r, g, b) for r, g, b in s.palette if r > 0.70 and g > 0.50 and b < 0.60]
+    assert warm_flesh, "jan_steen palette should include a warm amber flesh highlight"
+
+
+def test_jan_steen_palette_has_vivid_red():
+    """Jan Steen palette must include a vivid red costume accent (vermilion)."""
+    s = get_style("jan_steen")
+    has_red = any(r > 0.65 and g < 0.35 and b < 0.25 for r, g, b in s.palette)
+    assert has_red, "jan_steen palette should include a vivid red accent (vermilion-scarlet)"
+
+
+def test_jan_steen_palette_has_dark_shadow():
+    """Jan Steen palette must include a near-black deep shadow."""
+    s = get_style("jan_steen")
+    has_dark = any(r < 0.25 and g < 0.20 and b < 0.15 for r, g, b in s.palette)
+    assert has_dark, "jan_steen palette should include a near-black deep shadow"
+
+
+def test_jan_steen_palette_values_in_range():
+    """All Jan Steen palette RGB values must be in [0, 1]."""
+    s = get_style("jan_steen")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in jan_steen palette {rgb}")
+
+
+def test_jan_steen_ground_is_warm():
+    """Jan Steen ground_color should be a warm amber-ochre imprimatura (mean > 0.35)."""
+    s = get_style("jan_steen")
+    mean_ground = sum(s.ground_color) / 3.0
+    assert mean_ground > 0.35, (
+        f"jan_steen ground should be warm (mean > 0.35), got {mean_ground:.3f}")
+
+
+def test_jan_steen_moderate_wet_blend():
+    """Jan Steen wet_blend should be moderate [0.25, 0.55] — lively but not sfumato."""
+    s = get_style("jan_steen")
+    assert 0.25 <= s.wet_blend <= 0.55, (
+        f"jan_steen wet_blend should be in [0.25, 0.55] for alla prima vitality; "
+        f"got {s.wet_blend}")
+
+
+def test_jan_steen_has_crackle():
+    """Jan Steen should have crackle=True for aged canvas texture."""
+    s = get_style("jan_steen")
+    assert s.crackle is True, "jan_steen should have crackle=True"
+
+
+def test_jan_steen_famous_works():
+    """Jan Steen famous_works must include at least 4 works including The Feast of Saint Nicholas."""
+    s = get_style("jan_steen")
+    assert len(s.famous_works) >= 4, (
+        f"jan_steen should have >= 4 famous works; got {len(s.famous_works)}")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Nicholas" in t or "Feast" in t or "Merry" in t for t in titles), (
+        "jan_steen famous_works should include The Feast of Saint Nicholas or a Merry scene")
+
+
+def test_jan_steen_inspiration_references_vitality_pass():
+    """Jan Steen inspiration text should reference steen_warm_vitality_pass."""
+    s = get_style("jan_steen")
+    assert "steen_warm_vitality" in s.inspiration.lower().replace(" ", "_"), (
+        "jan_steen inspiration should reference steen_warm_vitality_pass()")
+
+
+def test_jan_steen_in_expected_artists():
+    """jan_steen must be present in the EXPECTED_ARTISTS list."""
+    assert "jan_steen" in EXPECTED_ARTISTS, (
+        "jan_steen missing from EXPECTED_ARTISTS — add it to the list in test_art_catalog.py")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.DUTCH_GENRE_COMEDY — session 76 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_dutch_genre_comedy_period_present():
+    """Session 76: DUTCH_GENRE_COMEDY must exist in Period enum."""
+    assert hasattr(Period, "DUTCH_GENRE_COMEDY"), (
+        "Period.DUTCH_GENRE_COMEDY not found — add it to scene_schema.py")
+    assert Period.DUTCH_GENRE_COMEDY in list(Period)
+
+
+def test_dutch_genre_comedy_stroke_params_moderate_wet_blend():
+    """DUTCH_GENRE_COMEDY should have moderate wet_blend for Steen's alla prima vitality."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_GENRE_COMEDY,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.25 <= p["wet_blend"] <= 0.55, (
+        f"DUTCH_GENRE_COMEDY wet_blend should be in [0.25, 0.55] for Steen's lively painting; "
+        f"got {p['wet_blend']}")
+
+
+def test_dutch_genre_comedy_stroke_params_moderate_edge_softness():
+    """DUTCH_GENRE_COMEDY should have moderate edge_softness for Steen's confident strokes."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_GENRE_COMEDY,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.30 <= p["edge_softness"] <= 0.60, (
+        f"DUTCH_GENRE_COMEDY edge_softness should be in [0.30, 0.60] for Steen's energy; "
+        f"got {p['edge_softness']}")
+
+
+def test_dutch_genre_comedy_stroke_params_vigorous_marks():
+    """DUTCH_GENRE_COMEDY stroke_size_face should be >= 7 for Steen's vigorous brushwork."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_GENRE_COMEDY,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] >= 7, (
+        f"DUTCH_GENRE_COMEDY stroke_size_face should be >= 7 for Steen's energetic marks; "
+        f"got {p['stroke_size_face']}")

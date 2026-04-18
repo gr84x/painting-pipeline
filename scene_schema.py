@@ -245,6 +245,7 @@ class Period(Enum):
     LOMBARD_RENAISSANCE = auto() # Anguissola — warm Lombard ivory skin, psychological gaze intimacy, sharp eye/lip focus against softened periphery, golden ambient warmth
     NORTHERN_FANTASTICAL = auto() # Bosch — near-black Brabantine void ground, jewel-tone symbolic accents, teeming micro-detail density, phantasmagoric creature texture
     DUTCH_DOMESTIC = auto()      # de Hooch — warm threshold light through doorways, warm/cool interior contrast, geometric tile floors, amber-lit foreground against cool daylight background
+    DUTCH_GENRE_COMEDY = auto()  # Jan Steen — warm amber imprimatura glow, rosy flushed flesh, vivid costume accents, energetic alla prima brushwork, warm amber-brown shadows
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -936,6 +937,15 @@ class Style:
             # edge_softness=0.55: moderate — the threshold between warm interior and cool exterior
             # light creates soft value transitions at doorways, but hard edges on architecture.
             Period.DUTCH_DOMESTIC: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.20, edge_softness=0.55),
+            # DUTCH_GENRE_COMEDY (Jan Steen) — lively genre painting with warm imprimatura vitality.
+            # stroke_size_face=8: confident directional strokes — more vigorous than de Hooch's precision;
+            # Steen worked quickly and energetically, building flesh with assertive loaded-brush marks.
+            # stroke_size_bg=28: broad energetic background coverage; genre scenes are crowded, so
+            # background elements are painted efficiently with larger, expressive marks.
+            # wet_blend=0.40: moderate wet-on-wet — enough to soften flesh edges but not dissolved;
+            # Steen achieves warmth through color choice and ground, not through deep sfumato blending.
+            # edge_softness=0.45: moderate edges — clothing and props are fairly crisp, faces are softer.
+            Period.DUTCH_GENRE_COMEDY: dict(stroke_size_face=8, stroke_size_bg=28, wet_blend=0.40, edge_softness=0.45),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
