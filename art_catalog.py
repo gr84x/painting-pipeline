@@ -6279,6 +6279,67 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Nicolas Poussin ────────────────────────────────────────────────────────
+    "nicolas_poussin": ArtStyle(
+        artist="Nicolas Poussin",
+        movement="French Classical",
+        nationality="French",
+        period="1624–1665",
+        palette=[
+            (0.74, 0.61, 0.38),   # warm stone ochre — Poussin's classical flesh highlight
+            (0.62, 0.48, 0.30),   # mid-tone flesh — warm but controlled
+            (0.42, 0.42, 0.52),   # cool silver-grey shadow — the defining French Classical shadow hue
+            (0.22, 0.38, 0.72),   # Poussin azure — deep ultramarine for heroic drapery
+            (0.72, 0.28, 0.20),   # Roman vermilion — his characteristic warm-red drapery accent
+            (0.35, 0.42, 0.28),   # muted Arcadian olive green — cool landscape distance
+            (0.84, 0.78, 0.65),   # warm ivory highlight — pale stone light on architecture
+        ],
+        ground_color=(0.55, 0.52, 0.42),    # neutral warm-grey ground — Poussin's typical Roman
+                                              # imprimatura: cooler and more controlled than Rubens'
+                                              # warm amber, warmer than Dürer's silver-white
+        stroke_size=7,
+        wet_blend=0.38,                      # deliberate, patient layering — Poussin worked in
+                                              # Rome on sized linen; each session dried before the
+                                              # next was applied.  Neither sfumato nor alla prima.
+        edge_softness=0.42,                  # classical clarity — forms read as rational sculpture;
+                                              # present, considered edges, no sfumato haze
+        jitter=0.025,
+        glazing=(0.50, 0.52, 0.54),          # cool silver-neutral unifying glaze — the opposite of
+                                              # Rubens' warm amber; unifies the composition with a
+                                              # cool architectural dignity (B >= R, as classical theory demands)
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "French Classical — deliberate, architecturally rational oil painting. "
+            "Colour zones organised like a stage set: figures lit by a raking, even "
+            "light from the upper left, shadows cool grey-silver (never the warm amber "
+            "of Baroque).  Each passage dried before the next; no wet-on-wet alla prima. "
+            "The palette is disciplined: ultramarine blue, Roman red, warm flesh ochre, "
+            "cool shadow grey — always in service of narrative clarity and moral weight. "
+            "Saturation is deliberately restrained; chromatic intensity signals importance, "
+            "not decoration.  Poussin said: 'The first requirement of painting is that "
+            "it should be legible to reason.'"
+        ),
+        famous_works=[
+            ("Et in Arcadia Ego",                       "c. 1637–1638"),
+            ("The Rape of the Sabine Women",             "c. 1634–1635"),
+            ("The Plague of Ashdod",                     "1630"),
+            ("The Holy Family on the Steps",             "1648"),
+            ("Moses Striking Water from the Rock",       "1649"),
+        ],
+        inspiration=(
+            "Use poussin_classical_clarity_pass() to impose Poussin's defining chromatic "
+            "discipline: cool the shadows (blue-grey, never warm amber), lift midtone clarity "
+            "to the rational architectural light he favoured, and cap saturation so no colour "
+            "zone shouts louder than the narrative demands.  tone_ground() with a neutral "
+            "warm-grey imprimatura establishes the sober Roman ground.  block_in() with "
+            "moderate stroke_size and controlled wet_blend builds the colour zones cleanly. "
+            "The cool silver glaze at the end unifies the surface with a French Classical "
+            "tonality: cool, clear, and morally legible."
+        ),
+    ),
+
 }
 
 
