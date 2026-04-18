@@ -88,6 +88,7 @@ EXPECTED_ARTISTS = [
     "jacques_louis_david",
     "guido_reni",
     "correggio",
+    "watteau",
 ]
 
 
@@ -8444,3 +8445,139 @@ def test_parma_renaissance_stroke_params_high_edge_softness():
     assert p["edge_softness"] >= 0.55, (
         f"PARMA_RENAISSANCE edge_softness should be >= 0.55 for proto-sfumato "
         f"softness; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Watteau — session 72 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_watteau_in_catalog():
+    """Session 72: watteau must be in CATALOG."""
+    assert "watteau" in CATALOG, "watteau missing from CATALOG — add it to art_catalog.py"
+
+
+def test_watteau_movement():
+    """Watteau movement must reference Rococo or Fête Galante."""
+    s = get_style("watteau")
+    movement_lower = s.movement.lower()
+    assert "rococo" in movement_lower or "galante" in movement_lower or "fete" in movement_lower, (
+        f"Watteau movement should reference Rococo or Fête Galante; got {s.movement!r}")
+
+
+def test_watteau_palette_length():
+    """Watteau palette must have at least 6 colours."""
+    s = get_style("watteau")
+    assert len(s.palette) >= 6, (
+        f"Watteau palette should have >= 6 entries; got {len(s.palette)}")
+
+
+def test_watteau_palette_values_in_range():
+    """All Watteau palette entries must be in [0, 1]."""
+    s = get_style("watteau")
+    for i, colour in enumerate(s.palette):
+        for j, component in enumerate(colour):
+            assert 0.0 <= component <= 1.0, (
+                f"Watteau palette[{i}][{j}] = {component!r} out of [0,1] range")
+
+
+def test_watteau_warm_palette():
+    """Watteau palette should be warm-dominant (mean R > mean B)."""
+    s = get_style("watteau")
+    mean_r = sum(c[0] for c in s.palette) / len(s.palette)
+    mean_b = sum(c[2] for c in s.palette) / len(s.palette)
+    assert mean_r > mean_b, (
+        f"Watteau palette should be warm (R > B); got mean_r={mean_r:.3f} mean_b={mean_b:.3f}")
+
+
+def test_watteau_moderate_edge_softness():
+    """Watteau should have moderate-to-high edge_softness (dreamlike dissolution)."""
+    s = get_style("watteau")
+    assert s.edge_softness >= 0.40, (
+        f"Watteau edge_softness should be >= 0.40 for crepuscular softening; "
+        f"got {s.edge_softness}")
+
+
+def test_watteau_warm_ground():
+    """Watteau ground_color must be warm (R > B)."""
+    s = get_style("watteau")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Watteau ground_color should be warm (R > B); got {s.ground_color!r}")
+
+
+def test_watteau_glazing_is_warm_amber():
+    """Watteau glazing must be warm amber (R > G > B)."""
+    s = get_style("watteau")
+    assert s.glazing is not None, "Watteau should have a glazing colour"
+    r, g, b = s.glazing
+    assert r > g > b, (
+        f"Watteau glazing should be warm amber (R > G > B); got {s.glazing!r}")
+
+
+def test_watteau_famous_works_include_embarkation():
+    """Watteau famous_works must include The Embarkation for Cythera."""
+    s = get_style("watteau")
+    titles = [title for title, _ in s.famous_works]
+    assert any("Cythera" in t or "Embarkation" in t for t in titles), (
+        f"Watteau famous_works should include The Embarkation for Cythera; "
+        f"got {titles!r}")
+
+
+def test_watteau_famous_works_include_gilles():
+    """Watteau famous_works must include Gilles / Pierrot."""
+    s = get_style("watteau")
+    titles = [title.lower() for title, _ in s.famous_works]
+    assert any("gilles" in t or "pierrot" in t for t in titles), (
+        f"Watteau famous_works should include Gilles (Pierrot); got {titles!r}")
+
+
+def test_watteau_famous_works_count():
+    """Watteau should have at least 5 famous works."""
+    s = get_style("watteau")
+    assert len(s.famous_works) >= 5, (
+        f"Watteau should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_watteau_inspiration_references_crepuscular_pass():
+    """Watteau inspiration text should reference watteau_crepuscular_reverie_pass."""
+    s = get_style("watteau")
+    assert "crepuscular" in s.inspiration.lower(), (
+        f"Watteau inspiration should reference the crepuscular pass; "
+        f"got {s.inspiration[:80]!r}")
+
+
+def test_watteau_in_expected_artists():
+    """watteau must be present in the EXPECTED_ARTISTS list."""
+    assert "watteau" in EXPECTED_ARTISTS, (
+        "watteau missing from EXPECTED_ARTISTS — add it to the list in test_art_catalog.py")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Period.FETE_GALANTE — session 72 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_fete_galante_period_present():
+    """Session 72: FETE_GALANTE must exist in Period enum."""
+    assert hasattr(Period, "FETE_GALANTE"), (
+        "Period.FETE_GALANTE not found — add it to scene_schema.py")
+    assert Period.FETE_GALANTE in list(Period)
+
+
+def test_fete_galante_stroke_params_moderate_wet_blend():
+    """FETE_GALANTE should have moderate wet_blend (fluid but directional Watteau brushwork)."""
+    style = Style(medium=Medium.OIL, period=Period.FETE_GALANTE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["wet_blend"] <= 0.80, (
+        f"FETE_GALANTE wet_blend should be 0.40–0.80 for Watteau's fluid brushwork; "
+        f"got {p['wet_blend']}")
+
+
+def test_fete_galante_stroke_params_moderate_edge_softness():
+    """FETE_GALANTE should have moderate edge_softness (crepuscular dreamlike dissolve)."""
+    style = Style(medium=Medium.OIL, period=Period.FETE_GALANTE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.45, (
+        f"FETE_GALANTE edge_softness should be >= 0.45 for Watteau's edge dissolution; "
+        f"got {p['edge_softness']}")

@@ -241,6 +241,7 @@ class Period(Enum):
     FRENCH_NEOCLASSICAL = auto()  # David — heroic civic clarity, cool stone-grey backgrounds, smooth luminous flesh, crisp classical contours, restrained palette
     BOLOGNESE_BAROQUE = auto()   # Guido Reni — alabaster pearl skin, heavenly sfumato-adjacent softness, warm rose midflesh, cool lavender-grey shadows, radiant highlight bloom
     PARMA_RENAISSANCE = auto()   # Correggio — golden amber warmth, proto-Baroque softness, tender melting transitions, warm honeyed shadows, sensuous luminous flesh
+    FETE_GALANTE  = auto()       # Watteau — crepuscular amber twilight, warm golden imprimatura glow, autumnal melancholy, dissolved midtone edges, peripheral amber vignette
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -900,6 +901,11 @@ class Style:
             # edge_softness (0.68) for the proto-sfumato that anticipates the Baroque tradition;
             # fine stroke_size_face to build the extraordinary delicacy of his flesh glazing.
             Period.PARMA_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.72, edge_softness=0.68),
+            # FETE_GALANTE (Watteau) — crepuscular autumnal reverie: moderate wet_blend for
+            # Watteau's fluid but directional brushwork; higher edge_softness than Fragonard
+            # for the dreamy midtone dissolution of his fête galante backgrounds; moderate
+            # stroke_size_face to build the delicate, warm-ground flesh tone.
+            Period.FETE_GALANTE:  dict(stroke_size_face=7, stroke_size_bg=28, wet_blend=0.58, edge_softness=0.60),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
