@@ -96,6 +96,7 @@ EXPECTED_ARTISTS = [
     "pieter_de_hooch",
     "jan_steen",
     "andrea_del_sarto",
+    "chardin",
 ]
 
 
@@ -9467,3 +9468,141 @@ def test_florentine_high_renaissance_stroke_params_valid():
     assert 0.50 <= sp['edge_softness'] <= 0.75, (
         f"FLORENTINE_HIGH_RENAISSANCE edge_softness={sp['edge_softness']:.2f} should "
         "be in [0.50, 0.75] (high sfumato in the Florentine tradition)")
+
+
+# Jean-Baptiste-Siméon Chardin / FRENCH_INTIMISTE -- session 81 tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_chardin_in_catalog():
+    """chardin must be present in CATALOG."""
+    assert "chardin" in CATALOG, (
+        "chardin not found in CATALOG -- add the ArtStyle entry")
+
+
+def test_chardin_palette_valid():
+    """Every colour in chardin palette must have RGB channels in [0, 1]."""
+    s = get_style("chardin")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"chardin palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_chardin_palette_muted():
+    """
+    chardin palette must be muted — no highly saturated (max-min > 0.55) colours.
+    Chardin's defining palette quality is warm-gray atmospheric restraint.
+    """
+    s = get_style("chardin")
+    for i, (r, g, b) in enumerate(s.palette):
+        sat = max(r, g, b) - min(r, g, b)
+        assert sat <= 0.55, (
+            f"chardin palette[{i}] saturation={sat:.3f} exceeds 0.55 -- "
+            "Chardin's palette is muted warm-gray, not chromatic")
+
+
+def test_chardin_warm_ground():
+    """
+    chardin ground_color must be warm (R > B + 0.08) — the warm mid-gray
+    imprimatura that breathes through Chardin's finished surfaces.
+    """
+    s = get_style("chardin")
+    r, g, b = s.ground_color
+    assert r > b + 0.08, (
+        f"chardin ground_color R={r:.3f} B={b:.3f}: expected R > B+0.08 "
+        "(warm mid-gray imprimatura is the foundation of Chardin's atmospheric warmth)")
+
+
+def test_chardin_low_wet_blend():
+    """
+    chardin wet_blend should be low (≤ 0.30) -- Chardin's granular dabs stay distinct;
+    optical mixing happens on the retina, not by blending on the palette.
+    """
+    s = get_style("chardin")
+    assert s.wet_blend <= 0.30, (
+        f"chardin wet_blend={s.wet_blend:.2f} should be ≤ 0.30 "
+        "(low -- granular dabs must stay distinct for Chardin's optical texture)")
+
+
+def test_chardin_moderate_edge_softness():
+    """
+    chardin edge_softness should be in [0.40, 0.68] -- soft but legible;
+    Chardin's forms always remain readable through the atmospheric grain.
+    """
+    s = get_style("chardin")
+    assert 0.40 <= s.edge_softness <= 0.68, (
+        f"chardin edge_softness={s.edge_softness:.2f} should be in [0.40, 0.68] "
+        "(soft without full sfumato -- forms legible through the atmospheric grain)")
+
+
+def test_chardin_crackle():
+    """chardin crackle should be True -- aged 18th-century French oil on canvas."""
+    s = get_style("chardin")
+    assert s.crackle is True, (
+        "chardin crackle should be True (aged 18th-century French oil on canvas)")
+
+
+def test_chardin_no_chromatic_split():
+    """chardin chromatic_split should be False -- no Pointillist systematic dots."""
+    s = get_style("chardin")
+    assert s.chromatic_split is False, (
+        "chardin chromatic_split should be False (granular optical texture, not Seurat divisionism)")
+
+
+def test_chardin_warm_gray_glazing():
+    """
+    chardin glazing must be warm (R > B + 0.05) and present -- the warm
+    gray-gold unifying glaze that ties Chardin's muted surfaces together.
+    """
+    s = get_style("chardin")
+    assert s.glazing is not None, (
+        "chardin glazing should not be None -- warm gray-gold glaze required")
+    r, g, b = s.glazing
+    assert r > b + 0.05, (
+        f"chardin glazing R={r:.3f} B={b:.3f}: expected warm (R > B+0.05) "
+        "-- Chardin's unifying glaze is warm gray-gold, not cool")
+
+
+def test_chardin_technique_mentions_granular():
+    """
+    chardin technique text must mention 'granular' or 'dab' -- Chardin's
+    defining optical texture is the core of his technique.
+    """
+    s = get_style("chardin")
+    tech_lower = s.technique.lower()
+    assert "granular" in tech_lower or "dab" in tech_lower, (
+        "chardin technique should mention 'granular' or 'dab' "
+        "(Chardin's granular optical dab-texture is his defining characteristic)")
+
+
+def test_chardin_famous_works_present():
+    """chardin must list >= 3 famous works."""
+    s = get_style("chardin")
+    assert len(s.famous_works) >= 3, (
+        f"chardin famous_works has {len(s.famous_works)} entries; expected >= 3")
+    for title, year in s.famous_works:
+        assert isinstance(title, str) and len(title) > 0
+        assert isinstance(year, str) and len(year) > 0
+
+
+def test_french_intimiste_period_present():
+    """Period.FRENCH_INTIMISTE must be a valid member of the Period enum."""
+    assert hasattr(Period, 'FRENCH_INTIMISTE'), (
+        'Period enum is missing FRENCH_INTIMISTE -- add it to scene_schema.py')
+
+
+def test_french_intimiste_stroke_params_valid():
+    """FRENCH_INTIMISTE stroke_params must contain all required keys with valid values."""
+    sp = Style(medium=Medium.OIL, period=Period.FRENCH_INTIMISTE).stroke_params
+    for key in ('stroke_size_face', 'stroke_size_bg', 'wet_blend', 'edge_softness'):
+        assert key in sp, (
+            f'FRENCH_INTIMISTE stroke_params missing key: {key!r}')
+    assert 3 <= sp['stroke_size_face'] <= 10, (
+        f"FRENCH_INTIMISTE stroke_size_face={sp['stroke_size_face']} "
+        "should be in [3, 10] (small careful dabs)")
+    assert sp['wet_blend'] <= 0.30, (
+        f"FRENCH_INTIMISTE wet_blend={sp['wet_blend']:.2f} should be "
+        "≤ 0.30 (low -- Chardin's granular dabs must stay distinct)")
+    assert 0.40 <= sp['edge_softness'] <= 0.68, (
+        f"FRENCH_INTIMISTE edge_softness={sp['edge_softness']:.2f} should "
+        "be in [0.40, 0.68] (soft without full sfumato -- forms legible)")

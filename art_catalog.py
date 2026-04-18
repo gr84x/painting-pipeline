@@ -6579,6 +6579,67 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jean-Baptiste-Siméon Chardin ──────────────────────────────────────────
+    "chardin": ArtStyle(
+        artist="Jean-Baptiste-Siméon Chardin",
+        movement="French Rococo / Intimism",
+        nationality="French",
+        period="1720–1779",
+        palette=[
+            (0.74, 0.70, 0.58),   # warm ivory — signature quiet highlight
+            (0.58, 0.54, 0.44),   # muted ochre midtone
+            (0.42, 0.39, 0.32),   # warm umber shadow — never cold
+            (0.65, 0.62, 0.53),   # warm gray — the atmospheric 'breath'
+            (0.36, 0.38, 0.32),   # muted olive shadow accent
+            (0.82, 0.79, 0.68),   # soft ivory near-light
+        ],
+        ground_color=(0.60, 0.57, 0.47),    # warm mid-gray imprimatura — Chardin often
+        #                                     started on a warm neutral ground that
+        #                                     'breathes' through every passage
+        stroke_size=5,
+        wet_blend=0.25,                      # low — Chardin's granular dabs stay distinct
+        #                                     from each other; optical mixing happens on the
+        #                                     retina, not on the palette. Wet blending would
+        #                                     destroy the granular texture that is his
+        #                                     defining technique.
+        edge_softness=0.58,                  # moderate-soft; form is always legible through
+        #                                     the grain — not sfumato dissolution, but not crisp
+        jitter=0.028,
+        glazing=(0.70, 0.67, 0.55),          # warm gray-gold unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Granular optical intimacy — Chardin applied small, individual dabs of paint "
+            "side by side, allowing them to mix optically on the retina rather than on the "
+            "palette.  The result is a quiet atmospheric 'granularity': surfaces appear to "
+            "breathe with a warm, dusty luminosity that is distinct from both the smooth "
+            "blending of sfumato and the systematic dots of Pointillism.  His palette is "
+            "deliberately muted — warm grays, ochres, muted greens — yet the paintings read "
+            "as luminous because the granular texture creates microscopic light-dark variation "
+            "that mimics the way eyes perceive texture in diffuse illumination.  No drama, no "
+            "impasto showmanship: the power is in the accumulation of quiet touches."
+        ),
+        famous_works=[
+            ("The Ray",                         "1728"),
+            ("The Copper Drinking Fountain",    "c. 1734"),
+            ("Grace Before the Meal",           "1740"),
+            ("The Young Draughtsman",           "c. 1737"),
+            ("Self-Portrait with Spectacles",   "1771"),
+            ("The Brioche",                     "1763"),
+        ],
+        inspiration=(
+            "Apply chardin_granular_intimacy_pass() to introduce Chardin's defining optical "
+            "texture: small granular color dabs scattered across the surface for retinal optical "
+            "mixing, atmospheric muting pull toward the warm-gray palette center, and gentle "
+            "luminance cap to remove specular blazing.  For an aged surface effect, also apply "
+            "dry_granulation_pass() at low opacity — its pigment-separation simulation produces "
+            "the dusty, tactile quality visible on Chardin's mature canvases under raking light.  "
+            "Use low opacity (0.30–0.45) on both passes — the effect accumulates like dust "
+            "settling on a still surface.  Chardin's intimacy is not achieved by a single "
+            "dramatic gesture but by the patient layering of small decisions."
+        ),
+    ),
+
 }
 
 
