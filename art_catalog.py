@@ -5910,6 +5910,80 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Antoine Watteau ───────────────────────────────────────────────────────
+    "watteau": ArtStyle(
+        artist="Jean-Antoine Watteau",
+        movement="French Rococo / Fête Galante",
+        nationality="French",
+        period="1684–1721",
+        palette=[
+            (0.95, 0.91, 0.82),   # warm ivory highlight — autumnal, never brilliant
+            (0.88, 0.78, 0.65),   # golden amber flesh — warm afternoon flesh tone
+            (0.76, 0.65, 0.52),   # warm ochre midtone — the faded-silk quality
+            (0.60, 0.50, 0.38),   # warm umber-sienna shadow — no cool blue, ever
+            (0.42, 0.36, 0.26),   # deep warm brown — deepest shadow, still glowing
+            (0.60, 0.64, 0.44),   # moss-olive green — Watteau's autumnal foliage
+            (0.50, 0.58, 0.68),   # dusty blue-grey — theatrical backdrop distance
+            (0.82, 0.74, 0.52),   # warm golden haze — the crepuscular unifying glow
+        ],
+        ground_color=(0.70, 0.60, 0.42),    # warm golden-sienna imprimatura — Watteau's
+                                            # warm ground that glows through the thin paint
+                                            # film, unifying the whole in autumnal warmth
+        stroke_size=9,
+        wet_blend=0.58,                      # moderate — fluid but with feathery edges
+        edge_softness=0.60,                  # edges soften gently — a dreamlike dissolution
+        jitter=0.032,                        # slight tonal variation per stroke — the
+                                            # shimmer of silk and leaf in fading light
+        glazing=(0.80, 0.70, 0.48),         # warm golden-amber glaze — crepuscular unifier
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Antoine Watteau (1684–1721) is one of the most elusive and poetic painters "
+            "in the history of Western art — the founder of the fête galante, a genre he "
+            "essentially invented and to which he gave its definitive form in 'The "
+            "Embarkation for Cythera' (1717, Louvre).  Born in Valenciennes in French "
+            "Flanders, he moved to Paris around 1702 and absorbed the influence of Rubens "
+            "(the great Marie de' Medici cycle then hanging in the Luxembourg Palace), "
+            "Veronese, and the sixteenth-century Flemish masters.  His technique is "
+            "characterised by a warm golden-sienna imprimatura laid over a red bole ground; "
+            "thin, flowing oil paint is worked wet-into-wet with a soft hog-hair brush in "
+            "decisive but gentle strokes.  The defining quality of his surfaces is a "
+            "crepuscular, autumnal warmth: every passage seems bathed in the golden haze "
+            "of late afternoon fading into twilight.  His shadows are never cold — they "
+            "retain the warm umber-sienna of the ground showing through — and his highlights "
+            "are a warm ivory rather than cool silver.  His figures in silks and satins are "
+            "rendered with extraordinary sensitivity to fabric shimmer: the silk catches the "
+            "light in warm highlights while the folds recede into warm umber.  Watteau died "
+            "of tuberculosis at thirty-six, leaving a body of work — including 'Gilles' "
+            "(Louvre), 'The Music Lesson' (Wallace), and the 'Fêtes galantes' — that is "
+            "poignant, ironic, and suffused with a melancholy that underlies even the most "
+            "festive scenes.  The fête galante is always, in Watteau, already ending: the "
+            "light is fading, the music is stopping, the figures are departing.  This "
+            "twilight quality — the sense of beauty observed at the moment of its passing "
+            "— is his greatest achievement, and it is encoded in his palette: warm, "
+            "golden, autumnal, and already moving toward shadow."
+        ),
+        famous_works=[
+            ("The Embarkation for Cythera",  "1717"),
+            ("Gilles (Pierrot)",             "c. 1718–1719"),
+            ("The Music Lesson",             "c. 1715–1716"),
+            ("The Shepherds",                "c. 1717–1719"),
+            ("Jupiter and Antiope",          "c. 1715"),
+            ("The Scale of Love",            "c. 1715–1718"),
+            ("Mezzetin",                     "c. 1718–1720"),
+        ],
+        inspiration=(
+            "Apply watteau_crepuscular_reverie_pass() to introduce Watteau's autumnal "
+            "twilight quality: a warm golden haze that shifts the palette toward "
+            "amber-sienna, lifts the deep shadows slightly (the warm ground showing "
+            "through), softens edges into the dreamlike dissolution of his fête galante "
+            "backgrounds, and adds a gentle crepuscular gradient — brighter and warmer "
+            "in the upper middle zone, fading to golden amber at the periphery.  Use "
+            "wet_blend=0.58 and edge_softness=0.60 for the characteristic floating, "
+            "poetic quality that distinguishes Watteau from Fragonard's bravura energy."
+        ),
+    ),
+
 }
 
 

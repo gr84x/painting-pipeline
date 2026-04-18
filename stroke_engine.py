@@ -19868,3 +19868,142 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Luminous haze pass complete.")
+
+    def watteau_crepuscular_reverie_pass(self,
+                                         amber_shift:       float = 0.04,
+                                         shadow_lift:       float = 0.022,
+                                         edge_soften:       float = 4.0,
+                                         crepuscular_low:   float = 0.30,
+                                         crepuscular_high:  float = 0.70,
+                                         periphery_darken:  float = 0.06,
+                                         opacity:           float = 0.46) -> None:
+        """
+        Watteau crepuscular reverie pass — session 72 artistic improvement.
+
+        Inspired by Jean-Antoine Watteau (1684–1721), the founder of the fête
+        galante and one of the most poetic painters in Western art.  Watteau's
+        defining atmospheric quality is crepuscular: every scene exists in a
+        warm, golden twilight — beautiful, fleeting, already fading.  His warm
+        golden-sienna imprimatura glows through thin paint films; shadows never
+        cool toward blue because the warm ground always shows through; even his
+        most festive outdoor scenes carry an autumnal amber melancholy.
+
+        This pass encodes three elements of his atmospheric character:
+
+          1. Amber-shift: a warm amber-gold bias applied across all tones,
+             stronger in the midtones than in the deep shadows (which the warm
+             ground already warms) and lighter than in the highlights (which
+             remain ivory rather than golden).  This simulates the effect of
+             Watteau's warm imprimatura glowing uniformly through the paint film.
+
+          2. Shadow lift with warm bias: gently lifts the darkest shadows with
+             a warm amber-brown tone (R > G >> B).  This encodes the optical
+             fact that Watteau's shadows are always warmed by the ground showing
+             through — they never become cold or neutral, but retain a golden
+             residual warmth even at their deepest.
+
+          3. Edge dissolution in the midtone band: the midtone range (luminance
+             between crepuscular_low and crepuscular_high) is gently blurred,
+             simulating Watteau's characteristic melting of edges in the ambient
+             zones of his compositions — particularly the foliage and background
+             drapery, which dissolve into the overall golden haze.  The near-
+             shadow and highlight extremes are preserved more sharply.
+
+          4. Peripheral amber vignette: a very gentle darkening toward the
+             canvas edges that concentrates warmth in the central figure zone —
+             the compositional equivalent of Watteau's practice of placing his
+             figures in an oval of warm light surrounded by deeper, more golden
+             shadow at the margins.
+
+        The result is a surface with the characteristic Watteau twilight quality:
+        warm, autumnal, gently melancholic — as if the scene is observed at the
+        precise moment when afternoon begins to surrender to evening.
+
+        Parameters
+        ----------
+        amber_shift      : warm amber-gold bias added uniformly to all tones (0–0.08)
+        shadow_lift      : warm lift applied to the darkest shadow zones (0–0.05)
+        edge_soften      : Gaussian sigma for the midtone edge dissolution blur (1–8)
+        crepuscular_low  : lower luminance boundary of the midtone softening band (0.2–0.5)
+        crepuscular_high : upper luminance boundary of the midtone softening band (0.5–0.85)
+        periphery_darken : strength of the gentle amber peripheral vignette (0–0.12)
+        opacity          : overall pass opacity blended against the input (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Watteau crepuscular reverie pass "
+              f"(amber_shift={amber_shift:.3f}  shadow_lift={shadow_lift:.3f}  "
+              f"edge_soften={edge_soften:.1f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Watteau crepuscular reverie pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b_f = buf[:, :, 0].astype(_np.float32) / 255.0
+        g_f = buf[:, :, 1].astype(_np.float32) / 255.0
+        r_f = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r_f + 0.587 * g_f + 0.114 * b_f
+
+        # ── 1. Amber-shift — warm the whole image toward golden-amber ─────────
+        r_out = _np.clip(r_f + amber_shift * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_f + amber_shift * 0.55, 0.0, 1.0)
+        b_out = _np.clip(b_f - amber_shift * 0.35, 0.0, 1.0)
+
+        # ── 2. Shadow lift — warm amber lift in the darkest zones ─────────────
+        dark_w = _np.clip(1.0 - lum / max(0.001, shadow_lift * 7.0), 0.0, 1.0)
+        r_out = _np.clip(r_out + dark_w * shadow_lift * 1.00, 0.0, 1.0)
+        g_out = _np.clip(g_out + dark_w * shadow_lift * 0.60, 0.0, 1.0)
+        b_out = _np.clip(b_out + dark_w * shadow_lift * 0.10, 0.0, 1.0)
+
+        # ── 3. Midtone edge dissolution — the Watteau crepuscular softening ───
+        if edge_soften > 0.5:
+            # Build midtone weight mask
+            mid_lo = _np.clip((lum - crepuscular_low) /
+                              max(0.001, crepuscular_high - crepuscular_low), 0.0, 1.0)
+            mid_hi = _np.clip((crepuscular_high - lum) /
+                              max(0.001, crepuscular_high - crepuscular_low), 0.0, 1.0)
+            mid_mask = (mid_lo * mid_hi) ** 0.5   # peaks at centre of band
+
+            r_blur = _gf(r_out, sigma=edge_soften)
+            g_blur = _gf(g_out, sigma=edge_soften)
+            b_blur = _gf(b_out, sigma=edge_soften)
+
+            r_out = r_out + mid_mask * (r_blur - r_out) * 0.60
+            g_out = g_out + mid_mask * (g_blur - g_out) * 0.60
+            b_out = b_out + mid_mask * (b_blur - b_out) * 0.60
+
+        # ── 4. Peripheral amber vignette ──────────────────────────────────────
+        if periphery_darken > 0.0:
+            ys = (_np.arange(h, dtype=_np.float32) / (h - 1) - 0.5) * 2.0
+            xs = (_np.arange(w, dtype=_np.float32) / (w - 1) - 0.5) * 2.0
+            xx, yy = _np.meshgrid(xs, ys)
+            dist = _np.sqrt(xx ** 2 + yy ** 2)
+            # Smooth radial falloff — dark at corners, clear at centre
+            vignette = _np.clip(dist / 1.414, 0.0, 1.0) ** 1.5 * periphery_darken
+            # Apply as warm darkening (reduce green and blue slightly more than red
+            # — matches Watteau's warm peripheral shadow)
+            r_out = _np.clip(r_out - vignette * 0.70, 0.0, 1.0)
+            g_out = _np.clip(g_out - vignette * 0.90, 0.0, 1.0)
+            b_out = _np.clip(b_out - vignette * 1.10, 0.0, 1.0)
+
+        # ── Composite at opacity against original ─────────────────────────────
+        r_final = r_f * (1.0 - opacity) + r_out * opacity
+        g_final = g_f * (1.0 - opacity) + g_out * opacity
+        b_final = b_f * (1.0 - opacity) + b_out * opacity
+
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Watteau crepuscular reverie pass complete.")
