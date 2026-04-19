@@ -8260,6 +8260,97 @@ CATALOG: Dict[str, ArtStyle] = {
             "architecture creates its own spatial recession."
         ),
     ),
+    "bernardino_luini": ArtStyle(
+        artist="Bernardino Luini",
+        movement="Milanese Renaissance / Leonardesque",
+        nationality="Italian (Milanese)",
+        period="1480–1532",
+        palette=[
+            (0.92, 0.84, 0.70),   # warm ivory highlight — peak flesh light; the luminous
+                                   # lead-white ground reading through thin warm glaze
+            (0.82, 0.70, 0.52),   # warm ochre mid-tone — transitional flesh; the core of
+                                   # Luini's smooth Madonna-type skin register
+            (0.62, 0.50, 0.36),   # amber-brown mid-shadow — the sfumato transition zone;
+                                   # where form melts into shadow without hard edge
+            (0.36, 0.28, 0.20),   # warm umber shadow — deep shadow; retains warmth from
+                                   # the amber imprimatura reading through thin glazes
+            (0.18, 0.16, 0.14),   # near-black void — pure Leonardo dark void; not cold
+            (0.46, 0.52, 0.42),   # muted olive-grey — landscape and drapery ground tone;
+                                   # the Milanese atmospheric haze of distant terrain
+            (0.68, 0.62, 0.78),   # cool violet-grey — sky and distant background; Leonardo-
+                                   # school ambient sky quality in the shadow passages
+            (0.58, 0.44, 0.28),   # warm sienna drapery — mid-tone garment colour;
+                                   # Luini's characteristic warm-toned robe fabric
+        ],
+        ground_color=(0.72, 0.60, 0.40),    # warm amber-ivory ground — Milanese tradition;
+                                             # warmer and lighter than Florentine ochre
+        stroke_size=4,                       # fine, polished strokes building seamless surfaces
+        wet_blend=0.72,                      # high — Luini's surfaces are seamlessly blended
+        edge_softness=0.78,                  # very soft sfumato — edges melt without hard lines
+        jitter=0.010,                        # very low — smooth, controlled, no spontaneity
+        glazing=(0.72, 0.58, 0.36),          # warm amber glaze — the multi-layer glazing unity
+        crackle=True,                        # oil on panel; aged craquelure in originals
+        chromatic_split=False,
+        technique=(
+            "Bernardino Luini (c. 1480/85–1532) was the most celebrated and prolific "
+            "follower of Leonardo da Vinci in Milan.  Working in the immediate wake of "
+            "Leonardo's Milanese period (1482–1499 and 1506–1513), Luini absorbed the "
+            "master's sfumato technique so thoroughly that, until the nineteenth century, "
+            "several of his works were attributed to Leonardo himself.  Giorgio Vasari "
+            "described him as 'gracious and very sweet in colouring,' and the nineteenth-"
+            "century critic John Ruskin considered his Madonnas among the most beautiful "
+            "works ever painted.  "
+            "Luini's defining contribution to the Milanese tradition was the distillation "
+            "of Leonardo's sfumato into a sweet, accessible idiom.  Where Leonardo's own "
+            "portraits carry an unresolvable psychological complexity (the Mona Lisa's "
+            "ambiguous smile, the Lady with an Ermine's arrested glance), Luini's figures "
+            "project serene, idealized beauty — the Madonna type raised to its highest "
+            "formal perfection.  His flesh surfaces are among the smoothest in the entire "
+            "Renaissance tradition, achieved through many thin glaze layers over a warm "
+            "amber-ivory ground, with each layer imperceptible in itself.  "
+            "Technically, Luini's most distinctive qualities are: (1) the warm-ivory "
+            "highlight glow — his highest flesh lights have a creamy, lead-white quality "
+            "that reads as luminous rather than bleached; (2) the cool-violet shadow "
+            "delicacy — his deepest shadows carry a barely perceptible blue-violet "
+            "atmosphere from ambient sky light (a Leonardo inheritance); and (3) the "
+            "seamlessly polished flesh surface — even smoother than Leonardo's own, "
+            "carrying the Leonardesque blend to a point of near-supernatural smoothness.  "
+            "Apply luini_leonardesque_glow_pass() after the main sfumato passes to "
+            "achieve the warm-ivory highlight glow, cool-violet shadow delicacy, and "
+            "seamless flesh surface that define Luini's Milanese Madonna portraits."
+        ),
+        famous_works=[
+            ("Susanna at the Bath",                         "c. 1520–1523"),
+            ("Madonna delle Rose",                          "c. 1510–1515"),
+            ("Christ Carrying the Cross",                   "c. 1513"),
+            ("Virgin and Child with Saint Anne",            "c. 1515–1520"),
+            ("Herodias with the Head of John the Baptist",  "c. 1525–1530"),
+            ("Portrait of a Lady",                          "c. 1520–1525"),
+            ("The Crivelli Madonna",                        "c. 1510–1515"),
+            ("Salome",                                      "c. 1527–1531"),
+        ],
+        inspiration=(
+            "Apply luini_leonardesque_glow_pass() to add three defining qualities: "
+            "(1) Warm-ivory highlight clarification — in upper highlight zones "
+            "(lum > highlight_lo=0.70), add a gentle warm-ivory push (R + ivory_r=0.028, "
+            "G + ivory_g=0.016, B + ivory_b=0.006) that simulates the lead-white ground "
+            "reading through thin warm glaze in Leonardo's school; the highest flesh lights "
+            "glow with creamy luminosity rather than bleached whiteness; "
+            "(2) Cool-violet shadow delicacy — in deep shadow zones (lum < shadow_hi=0.32), "
+            "add a very faint cool-blue-violet lift (B + shadow_violet_b=0.018, "
+            "G + shadow_violet_g=0.006, R − shadow_violet_r=0.004) simulating ambient sky "
+            "reflection in the shadow passages — a Leonardo-school principle that Luini "
+            "inherited and refined; "
+            "(3) Sfumato flesh surface smoothing — in the transitional mid-tone zone "
+            "[flesh_lo=0.40, flesh_hi=0.74], blend toward a Gaussian-smoothed version at "
+            "smooth_strength=0.55 to create Luini's glass-smooth Madonna surface; "
+            "for the sfumato_veil_pass() preceding this, use highlight_ivory_lift=0.06 "
+            "(session 97 improvement) to pre-warm the highlights before the amber veils "
+            "composite over them.  wet_blend=0.72 produces seamlessly blended glazes.  "
+            "edge_softness=0.78: the softest in the warm-palette catalog — Luini's edges "
+            "dissolve more gently even than Leonardo's own."
+        ),
+    ),
 }
 
 

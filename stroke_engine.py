@@ -2400,7 +2400,9 @@ class Painter:
                           chroma_dampen:         float = 0.18,
                           depth_gradient:        float = 0.0,
                           shadow_warm_recovery:  float = 0.0,
-                          chroma_gate:           float = 0.0):
+                          chroma_gate:           float = 0.0,
+                          highlight_ivory_lift:  float = 0.0,
+                          highlight_ivory_thresh: float = 0.82):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2510,12 +2512,34 @@ class Painter:
                                Recovery is applied directly to the canvas before the
                                veil loop; the veils then inherit the corrected warmth.
                                (Session 82 improvement.)
+        highlight_ivory_lift  : When > 0, adds a warm-ivory lift to the brightest
+                               highlight zones (luminance > highlight_ivory_thresh,
+                               default 0.82) BEFORE the sfumato veils are applied.
+                               This simulates the Milanese Renaissance technique —
+                               documented in technical studies of both Leonardo and
+                               Bernardino Luini — of placing a lead-white chalk
+                               preparation in the highest flesh highlights.  When the
+                               warm amber sfumato veils are composited over this
+                               ivory ground, the result is a luminous warm-ivory
+                               glow rather than flat white: the highest lights feel
+                               softly radiant, not bleached.  The lift is a gentle
+                               warm neutral: R+0.06, G+0.04, B+0.02 at full
+                               highlight_ivory_lift=1.0.  Recommended range: 0.04–0.10
+                               for Milanese / Florentine High Renaissance; leave 0.0
+                               for Baroque and Dutch Golden Age work where highlights
+                               are typically warmer or sharper.  (Session 97 improvement,
+                               inspired by Bernardino Luini's Madonna-type portraits.)
+        highlight_ivory_thresh : Luminance threshold above which the ivory lift applies.
+                               Default 0.82 targets only the very brightest flesh zones
+                               (forehead peak, nose bridge, chin highlight) without
+                               affecting the mid-tone flesh range.
         """
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
               f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f}"
               f"  depth_gradient={depth_gradient:.2f}"
               f"  shadow_warm_recovery={shadow_warm_recovery:.2f}"
-              f"  chroma_gate={chroma_gate:.2f})…")
+              f"  chroma_gate={chroma_gate:.2f}"
+              f"  highlight_ivory_lift={highlight_ivory_lift:.2f})…")
 
         ref  = self._prep(reference)
         rarr = ref[:, :, :3].astype(np.float32) / 255.0
@@ -2609,6 +2633,43 @@ class Painter:
             self.canvas.ctx.set_source_surface(dst_surf, 0, 0)
             self.canvas.ctx.paint()
             print(f"    Shadow warm recovery applied (strength={shadow_warm_recovery:.2f}).")
+
+        # ── Session 97: Highlight ivory lift ─────────────────────────────────
+        # Before the sfumato veils composite, add a warm-ivory lift to the
+        # brightest canvas highlights (lum > highlight_ivory_thresh).  This
+        # simulates the Milanese Renaissance lead-white chalk ground in the
+        # upper flesh highlights — a preparation documented in technical
+        # analyses of Luini and Leonardo.  The ivory base then reads through
+        # the amber sfumato veils as a soft luminous glow rather than flat white.
+        if highlight_ivory_lift > 0.0:
+            hi_raw = np.frombuffer(
+                self.canvas.surface.get_data(), dtype=np.uint8
+            ).reshape(h, w, 4).copy()
+            hb = hi_raw[:, :, 0].astype(np.float32) / 255.0
+            hg = hi_raw[:, :, 1].astype(np.float32) / 255.0
+            hr = hi_raw[:, :, 2].astype(np.float32) / 255.0
+            h_lum = 0.299 * hr + 0.587 * hg + 0.114 * hb
+            # Linear ramp above the threshold, Gaussian feathered for smooth transition
+            hi_mask = np.clip(
+                (h_lum - highlight_ivory_thresh) / (1.0 - highlight_ivory_thresh + 1e-6),
+                0.0, 1.0
+            )
+            hi_mask = ndimage.gaussian_filter(hi_mask.astype(np.float32), sigma=2.5)
+            hi_mask = np.clip(hi_mask * highlight_ivory_lift, 0.0, 1.0)
+            # Warm-ivory shift: R↑ most, G↑ moderately, B↑ least (ivory not pure white)
+            hr_out = np.clip(hr + hi_mask * 0.06, 0.0, 1.0)
+            hg_out = np.clip(hg + hi_mask * 0.04, 0.0, 1.0)
+            hb_out = np.clip(hb + hi_mask * 0.02, 0.0, 1.0)
+            hi_buf = hi_raw.copy()
+            hi_buf[:, :, 2] = np.clip(hr_out * 255.0, 0, 255).astype(np.uint8)
+            hi_buf[:, :, 1] = np.clip(hg_out * 255.0, 0, 255).astype(np.uint8)
+            hi_buf[:, :, 0] = np.clip(hb_out * 255.0, 0, 255).astype(np.uint8)
+            hi_surf = cairo.ImageSurface.create_for_data(
+                bytearray(hi_buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            self.canvas.ctx.set_source_surface(hi_surf, 0, 0)
+            self.canvas.ctx.paint()
+            print(f"    Highlight ivory lift applied (lift={highlight_ivory_lift:.2f}"
+                  f"  thresh={highlight_ivory_thresh:.2f}).")
 
         # ── Multi-veil accumulation ───────────────────────────────────────────
         # Each veil: blur the warmed reference at a slightly larger radius,
@@ -25092,3 +25153,155 @@ class Painter:
         )
         print(f"    Frans Hals bravura stroke pass complete. ({n_strokes} strokes, "
               f"size={stroke_size:.1f}, broken_tone={broken_tone})")
+
+    def luini_leonardesque_glow_pass(
+        self,
+        highlight_lo:        float = 0.70,
+        ivory_r:             float = 0.028,
+        ivory_g:             float = 0.016,
+        ivory_b:             float = 0.006,
+        shadow_hi:           float = 0.32,
+        shadow_violet_b:     float = 0.018,
+        shadow_violet_g:     float = 0.006,
+        shadow_violet_r:     float = 0.004,
+        flesh_lo:            float = 0.40,
+        flesh_hi:            float = 0.74,
+        smooth_sigma:        float = 1.6,
+        smooth_strength:     float = 0.55,
+        blur_radius:         float = 4.0,
+        opacity:             float = 0.40,
+    ) -> None:
+        """
+        Bernardino Luini leonardesque glow pass — session 97 new artist pass.
+
+        Bernardino Luini (c. 1480/85–1532) was the most celebrated and prolific
+        follower of Leonardo da Vinci in Milan.  Working in the immediate wake of
+        Leonardo's Milanese period (1482–1499 and 1506–1513), Luini absorbed the
+        master's sfumato technique so thoroughly that, until the nineteenth century,
+        several of his works were attributed to Leonardo himself.  Giorgio Vasari
+        described him as "gracious and very sweet in colouring."
+
+        Luini distilled Leonardo's innovations into a distinctive personal idiom:
+        he retained the sfumato edge dissolution and multi-glaze surface polish, but
+        simplified the psychological complexity, producing Madonna-type portraits of
+        extraordinary surface delicacy and warm serenity.  His flesh surfaces are
+        among the smoothest in the entire Renaissance tradition — even smoother and
+        more seamlessly blended than Leonardo's own — while his shadows carry a
+        delicate cool-violet quality that Leonardo's Milanese works established as
+        the northern Italian shadow standard.
+
+        This pass encodes three defining qualities of Luini's Milanese technique:
+
+          1. Warm-ivory highlight clarification — In upper highlight zones
+             (lum > highlight_lo), add a gentle warm-ivory push: R + ivory_r,
+             G + ivory_g, B + ivory_b.  Luini's highest flesh lights glow with
+             a luminous warm-ivory quality — cream rather than silver, golden-
+             ivory rather than pure ochre.  This is lead-white ground reading
+             through thin warm glaze.
+
+          2. Cool-violet shadow delicacy — In deep shadow zones (lum < shadow_hi),
+             add a very faint cool-blue-violet lift: B + shadow_violet_b,
+             G + shadow_violet_g, R − shadow_violet_r.  Leonardo established in
+             Milan the principle that shadows should carry the colour of ambient
+             sky or reflected environment.  In Luini's portraits this manifests
+             as a barely perceptible violet-grey quality in the deepest shadow
+             passages — atmospheric rather than visible, a quality rather than a
+             colour.
+
+          3. Sfumato flesh surface smoothing — In the transitional mid-tone zone
+             [flesh_lo, flesh_hi], blend toward a gently Gaussian-smoothed version
+             of the current canvas at smooth_strength.  Luini's flesh surfaces are
+             even more seamlessly polished than Leonardo's own — technical analysis
+             of Susanna at the Bath and the Madonna delle Rose reveals a surface so
+             smooth that individual glaze layers cannot be detected by eye.
+
+        Apply after sfumato_veil_pass() for maximum coherence; the ivory lift in
+        this pass complements sfumato_veil_pass(highlight_ivory_lift=...) introduced
+        in the same session.
+
+        Parameters
+        ----------
+        highlight_lo       : lower lum threshold for warm-ivory highlight zone
+        ivory_r            : R lift in highlights
+        ivory_g            : G lift in highlights
+        ivory_b            : B lift in highlights (very slight — ivory not cold white)
+        shadow_hi          : upper lum threshold for cool-violet shadow zone
+        shadow_violet_b    : B lift in shadows (ambient sky / cool air quality)
+        shadow_violet_g    : G lift in shadows
+        shadow_violet_r    : R reduction in shadows (removes warm cast)
+        flesh_lo           : lower lum bound of sfumato smoothing zone
+        flesh_hi           : upper lum bound of sfumato smoothing zone
+        smooth_sigma       : Gaussian sigma for flesh surface smoothing
+        smooth_strength    : blend fraction toward smoothed canvas in flesh zone
+        blur_radius        : Gaussian sigma for mask feathering
+        opacity            : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Warm-ivory highlight clarification ─────────────────────────────
+        hi_mask = _np.clip(
+            (lum - highlight_lo) / (1.0 - highlight_lo + 1e-6), 0.0, 1.0
+        )
+        hi_mask = _gf(hi_mask.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * ivory_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * ivory_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask * ivory_b, 0.0, 1.0)
+
+        # ── 2. Cool-violet shadow delicacy ────────────────────────────────────
+        sh_mask = _np.clip(
+            (shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0
+        )
+        sh_mask = _gf(sh_mask.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - sh_mask * shadow_violet_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * shadow_violet_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * shadow_violet_b, 0.0, 1.0)
+
+        # ── 3. Sfumato flesh surface smoothing ────────────────────────────────
+        flesh_mask = _np.clip(
+            (lum - flesh_lo) / (flesh_hi - flesh_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (flesh_hi - lum) / (flesh_hi - flesh_lo + 1e-6), 0.0, 1.0
+        ) * 4.0
+        flesh_mask = _np.clip(flesh_mask, 0.0, 1.0)
+        flesh_mask = _gf(flesh_mask.astype(_np.float32), blur_radius)
+        flesh_mask = _np.clip(flesh_mask, 0.0, 1.0)
+
+        r_smooth = _gf(r_out.astype(_np.float32), smooth_sigma)
+        g_smooth = _gf(g_out.astype(_np.float32), smooth_sigma)
+        b_smooth = _gf(b_out.astype(_np.float32), smooth_sigma)
+
+        blend_w = flesh_mask * smooth_strength
+        r_out = r_out * (1.0 - blend_w) + r_smooth * blend_w
+        g_out = g_out * (1.0 - blend_w) + g_smooth * blend_w
+        b_out = b_out * (1.0 - blend_w) + b_smooth * blend_w
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Bernardino Luini leonardesque glow pass complete.")

@@ -11922,3 +11922,181 @@ def test_hals_alla_prima_vivacity_pass_preserves_canvas_shape():
     p.hals_alla_prima_vivacity_pass(opacity=0.50)
     arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 32, 4))
     assert arr.shape == (64, 32, 4), "Canvas shape must be preserved after pass"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Bernardino Luini — luini_leonardesque_glow_pass() (session 97)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_luini_leonardesque_glow_pass_exists():
+    """Painter must have luini_leonardesque_glow_pass() method after session 97."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "luini_leonardesque_glow_pass"), (
+        "luini_leonardesque_glow_pass not found on Painter")
+    assert callable(getattr(Painter, "luini_leonardesque_glow_pass"))
+
+
+def test_luini_leonardesque_glow_pass_no_error():
+    """luini_leonardesque_glow_pass() runs without error on a small synthetic canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.60, 0.40), texture_strength=0.05)
+    p.luini_leonardesque_glow_pass()
+
+
+def test_luini_leonardesque_glow_pass_modifies_canvas():
+    """luini_leonardesque_glow_pass() must modify at least some pixels on a non-trivial canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.60, 0.40), texture_strength=0.05)
+    ref = _solid_reference(64, 64)
+    p.block_in(ref, stroke_size=4, n_strokes=15)
+
+    before = _canvas_bytes(p)
+    p.luini_leonardesque_glow_pass(opacity=0.60)
+    after = _canvas_bytes(p)
+
+    assert before != after, "luini_leonardesque_glow_pass must modify the canvas at opacity=0.60"
+
+
+def test_luini_leonardesque_glow_pass_zero_opacity_noop():
+    """luini_leonardesque_glow_pass() at opacity=0 must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.60, 0.40), texture_strength=0.05)
+
+    before = _canvas_bytes(p)
+    p.luini_leonardesque_glow_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, (
+        "luini_leonardesque_glow_pass at opacity=0.0 must be a no-op")
+
+
+def test_luini_leonardesque_glow_pass_warms_highlights():
+    """luini_leonardesque_glow_pass must lift R in bright highlight pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Fill with bright highlight flesh: B=160, G=180, R=220 (lum ≈ 0.82)
+    p = Painter(width=48, height=48)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4)).copy()
+    arr[:, :, 0] = 160   # B
+    arr[:, :, 1] = 180   # G
+    arr[:, :, 2] = 220   # R
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+
+    r_before = arr[:, :, 2].astype(float).mean()
+    p.luini_leonardesque_glow_pass(
+        highlight_lo=0.70, ivory_r=0.06, opacity=1.0)
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4))
+    r_after = arr_after[:, :, 2].astype(float).mean()
+
+    assert r_after >= r_before, (
+        f"luini_leonardesque_glow_pass must lift R in highlights; "
+        f"R before={r_before:.2f}  R after={r_after:.2f}")
+
+
+def test_luini_leonardesque_glow_pass_cools_shadows():
+    """luini_leonardesque_glow_pass must lift B in deep shadow pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Fill with deep shadow: B=30, G=28, R=35 (lum ≈ 0.12)
+    p = Painter(width=48, height=48)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4)).copy()
+    arr[:, :, 0] = 30    # B
+    arr[:, :, 1] = 28    # G
+    arr[:, :, 2] = 35    # R
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+
+    b_before = arr[:, :, 0].astype(float).mean()
+    p.luini_leonardesque_glow_pass(
+        shadow_hi=0.32, shadow_violet_b=0.06, opacity=1.0)
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4))
+    b_after = arr_after[:, :, 0].astype(float).mean()
+
+    assert b_after >= b_before, (
+        f"luini_leonardesque_glow_pass must lift B in deep shadows (cool-violet quality); "
+        f"B before={b_before:.2f}  B after={b_after:.2f}")
+
+
+def test_luini_leonardesque_glow_pass_preserves_canvas_shape():
+    """luini_leonardesque_glow_pass must not change canvas dimensions."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=32, height=64)
+    p.luini_leonardesque_glow_pass(opacity=0.40)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 32, 4))
+    assert arr.shape == (64, 32, 4), "Canvas shape must be preserved after pass"
+
+
+def test_sfumato_veil_pass_highlight_ivory_lift_warms_bright_pixels():
+    """sfumato_veil_pass with highlight_ivory_lift > 0 must warm bright highlight pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+    from PIL import Image as _Image
+
+    # Build a small painter with a bright highlight region
+    p = Painter(width=48, height=48)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4)).copy()
+    arr[:, :, 0] = 190   # B
+    arr[:, :, 1] = 205   # G
+    arr[:, :, 2] = 230   # R (lum ≈ 0.87 — above default ivory_thresh=0.82)
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    r_before = arr[:, :, 2].astype(float).mean()
+
+    # Reference image for sfumato_veil_pass
+    ref_arr = _np.zeros((48, 48, 3), dtype=_np.uint8)
+    ref_arr[:, :, 0] = 230
+    ref_arr[:, :, 1] = 205
+    ref_arr[:, :, 2] = 190
+    ref = _Image.fromarray(ref_arr, mode="RGB")
+
+    p.sfumato_veil_pass(
+        reference=ref,
+        n_veils=1,
+        warmth=0.0,
+        veil_opacity=0.0,    # disable the actual veils — test only the ivory lift
+        edge_only=False,
+        highlight_ivory_lift=1.0,
+        highlight_ivory_thresh=0.82,
+    )
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4))
+    r_after = arr_after[:, :, 2].astype(float).mean()
+
+    assert r_after >= r_before, (
+        f"sfumato_veil_pass highlight_ivory_lift must warm bright pixels; "
+        f"R before={r_before:.2f}  R after={r_after:.2f}")
+
+
+def test_sfumato_veil_pass_highlight_ivory_lift_stronger_than_zero():
+    """sfumato_veil_pass with highlight_ivory_lift=1.0 lifts R more than highlight_ivory_lift=0.0."""
+    import numpy as _np
+    from stroke_engine import Painter
+    from PIL import Image as _Image
+
+    def _run_with_lift(lift):
+        p = Painter(width=32, height=32)
+        arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+        arr[:, :, 0] = 190   # B
+        arr[:, :, 1] = 205   # G
+        arr[:, :, 2] = 220   # R (lum ~0.84, above default thresh=0.82)
+        arr[:, :, 3] = 255
+        p.canvas.surface.get_data()[:] = arr.tobytes()
+        ref_arr = _np.zeros((32, 32, 3), dtype=_np.uint8)
+        ref_arr[:, :] = [220, 205, 190]
+        ref = _Image.fromarray(ref_arr, mode="RGB")
+        p.sfumato_veil_pass(
+            reference=ref, n_veils=1, warmth=0.0, veil_opacity=0.0,
+            edge_only=False, highlight_ivory_lift=lift, highlight_ivory_thresh=0.82,
+        )
+        arr_out = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4))
+        return arr_out[:, :, 2].astype(float).mean()  # R channel mean
+
+    r_no_lift = _run_with_lift(0.0)
+    r_full_lift = _run_with_lift(1.0)
+
+    assert r_full_lift >= r_no_lift, (
+        f"sfumato_veil_pass highlight_ivory_lift=1.0 must yield R >= highlight_ivory_lift=0.0; "
+        f"R(lift=0)={r_no_lift:.2f}  R(lift=1.0)={r_full_lift:.2f}")
