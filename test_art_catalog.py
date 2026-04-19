@@ -101,6 +101,8 @@ EXPECTED_ARTISTS = [
     "perugino",
     "signorelli",
     "rosalba_carriera",
+    "whistler",
+    "odilon_redon",
 ]
 
 
@@ -10475,3 +10477,137 @@ def test_american_tonalist_stroke_params():
     assert p["stroke_size_face"] <= 6, (
         f"AMERICAN_TONALIST stroke_size_face should be <= 6 for Whistler's fine tonal marks; "
         f"got {p['stroke_size_face']}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 88 — Odilon Redon tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_odilon_redon_in_catalog():
+    """odilon_redon must be present in CATALOG (session 88)."""
+    assert "odilon_redon" in CATALOG
+
+
+def test_odilon_redon_movement_symbolism():
+    """Redon's movement must reference Symbolism."""
+    s = get_style("odilon_redon")
+    assert "Symbolism" in s.movement or "symbolism" in s.movement.lower(), (
+        f"Redon movement should reference Symbolism; got {s.movement!r}")
+
+
+def test_odilon_redon_nationality_french():
+    """Redon must be catalogued as French."""
+    s = get_style("odilon_redon")
+    assert "French" in s.nationality or "french" in s.nationality.lower(), (
+        f"Redon nationality should be French; got {s.nationality!r}")
+
+
+def test_odilon_redon_palette_length():
+    """Redon palette must have at least 6 entries for his chromatic range."""
+    s = get_style("odilon_redon")
+    assert len(s.palette) >= 6, (
+        f"Redon palette should have >= 6 entries; got {len(s.palette)}")
+
+
+def test_odilon_redon_palette_values_in_range():
+    """All Redon palette colour channels must be in [0, 1]."""
+    s = get_style("odilon_redon")
+    for i, (r, g, b) in enumerate(s.palette):
+        assert 0.0 <= r <= 1.0, f"Redon palette[{i}] R={r} out of range"
+        assert 0.0 <= g <= 1.0, f"Redon palette[{i}] G={g} out of range"
+        assert 0.0 <= b <= 1.0, f"Redon palette[{i}] B={b} out of range"
+
+
+def test_odilon_redon_ground_dark():
+    """Redon's ground must be dark (luminance < 0.35) — his velvety void."""
+    s = get_style("odilon_redon")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.35, (
+        f"Redon ground should be dark (lum < 0.35) for his void noir; got lum={lum:.3f}")
+
+
+def test_odilon_redon_has_jewel_colour():
+    """Redon palette must include at least one high-chroma jewel colour."""
+    s = get_style("odilon_redon")
+    jewel_found = False
+    for r, g, b in s.palette:
+        chroma = max(r, g, b) - min(r, g, b)
+        if chroma > 0.40:
+            jewel_found = True
+            break
+    assert jewel_found, "Redon palette should include at least one jewel-saturated colour"
+
+
+def test_odilon_redon_chromatic_split():
+    """Redon must have chromatic_split=True for his spectral colour richness."""
+    s = get_style("odilon_redon")
+    assert s.chromatic_split is True, (
+        "Redon chromatic_split should be True for spectral jewel richness")
+
+
+def test_odilon_redon_no_crackle():
+    """Redon must have crackle=False — pastel does not crackle like oil on panel."""
+    s = get_style("odilon_redon")
+    assert s.crackle is False, (
+        "Redon crackle should be False — pastel medium does not crack")
+
+
+def test_odilon_redon_edge_softness():
+    """Redon edge_softness must be > 0.60 — dreamlike dissolving forms."""
+    s = get_style("odilon_redon")
+    assert s.edge_softness > 0.60, (
+        f"Redon edge_softness should be > 0.60 for soft dreamlike forms; "
+        f"got {s.edge_softness:.3f}")
+
+
+def test_odilon_redon_famous_works_count():
+    """Redon must have at least 6 famous works catalogued."""
+    s = get_style("odilon_redon")
+    assert len(s.famous_works) >= 6, (
+        f"Redon should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_odilon_redon_famous_works_include_cyclops():
+    """Redon's famous works must include The Cyclops — his most iconic image."""
+    s = get_style("odilon_redon")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("cyclops" in t for t in titles), (
+        "Redon famous_works should include The Cyclops")
+
+
+def test_odilon_redon_inspiration_references_pass():
+    """Redon inspiration must reference redon_luminous_reverie_pass()."""
+    s = get_style("odilon_redon")
+    assert "redon_luminous_reverie_pass" in s.inspiration, (
+        "Redon inspiration should reference redon_luminous_reverie_pass()")
+
+
+def test_odilon_redon_technique_mentions_noirs():
+    """Redon technique must mention his 'Noirs' charcoal period."""
+    s = get_style("odilon_redon")
+    assert "noir" in s.technique.lower() or "Noirs" in s.technique, (
+        "Redon technique should mention his Noirs period")
+
+
+def test_odilon_redon_technique_mentions_symbolist_poetry():
+    """Redon technique must mention Symbolist poetry or literary influence."""
+    s = get_style("odilon_redon")
+    has_ref = (
+        "Mallarm" in s.technique
+        or "Baudelaire" in s.technique
+        or "Symbolist" in s.technique
+        or "symbolist" in s.technique.lower()
+    )
+    assert has_ref, (
+        "Redon technique should mention Symbolist poetry (Mallarmé, Baudelaire, or Symbolism)")
+
+
+def test_odilon_redon_in_expected_artists():
+    """EXPECTED_ARTISTS list must include odilon_redon."""
+    assert "odilon_redon" in EXPECTED_ARTISTS
+
+
+def test_whistler_in_expected_artists():
+    """EXPECTED_ARTISTS list must include whistler (session 87)."""
+    assert "whistler" in EXPECTED_ARTISTS
