@@ -7740,6 +7740,131 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Session 92 — new artist: Antonello da Messina ────────────────────────
+    # Randomly selected artist for session 92's inspiration.
+    # Antonello da Messina (c. 1430–1479) occupies a singular pivot-point in the
+    # history of European painting.  He was a Sicilian, born in Messina, trained
+    # partly in Naples at the workshop of Colantonio — an artist who had himself
+    # studied Flemish painting under Alfonso V of Aragon's collection.  Through
+    # this channel Antonello absorbed the Flemish oil-glazing technique that Jan
+    # van Eyck had perfected: the method of building up colour in multiple thin,
+    # transparent layers on a white-gesso ground, so that light passes through
+    # the layers, reflects from the ground, and re-emerges with the jewel-like
+    # inner luminosity that tempera and fresco could never achieve.
+    #
+    # When Antonello arrived in Venice in 1475–76 he transformed Italian
+    # portraiture.  Italian painters — even great Florentines — had largely
+    # painted in the three-quarter profile convention, avoiding the full-face
+    # gaze as technically difficult and psychologically confrontational.  Flemish
+    # portraitists like van Eyck and Memling had already mastered the frontal
+    # gaze, and Antonello brought this directness south with him.  His portraits
+    # look at you.  The sitter's eyes meet the viewer's with an immediacy that
+    # has still not worn away after five and a half centuries.  Giovanni Bellini,
+    # who met Antonello in Venice and was profoundly influenced by him, later
+    # wrote that the Sicilian's technique was "as much a mystery as a revelation."
+    #
+    # The defining quality of Antonello's flesh is what may be called pellucid
+    # clarity: the painted skin appears to have depth and translucency — not the
+    # warm opaque mask of the Florentines, not the atmospheric dissolve of
+    # Leonardo, but something closer to polished crystal: you feel the form
+    # beneath the surface, the bone structure under the skin, the light moving
+    # *through* rather than merely *across* the paint.  This comes from his
+    # Flemish glazing method combined with a distinctly Italian warmth in the
+    # midtone flesh: the lit zones are warm Naples yellow-ivory, but the
+    # mid-shadow transitions carry a slight blue-green Flemish subsurface tint
+    # that reads as skin through which light has penetrated and scatted.
+    #
+    # Unlike Memling, whose palette is richly saturated — brilliant vermilion,
+    # azure, Naples gold — Antonello's palette is more restrained, more Italian:
+    # warm siennas, raw umber, ivory-Naples yellow flesh, with backgrounds often
+    # cool and architectural (pale blue sky, a stone niche, or an arched window
+    # framing a Flemish-style landscape).  The contrast between the warm figure
+    # and the cool, luminous background architecture is distinctively Antonello.
+    #
+    # His most famous work, the 'Portrait of a Man' (c. 1475, National Gallery,
+    # London) — possibly a self-portrait — shows all of this: the direct gaze,
+    # the pellucid warm-flesh-over-cool-shadow construction, the architectural
+    # setting, and the sense of a specific individual encountered across time.
+    #
+    "antonello_da_messina": ArtStyle(
+        artist="Antonello da Messina",
+        movement="Sicilian Renaissance / Flemish-Italian Bridge",
+        nationality="Italian (Sicilian)",
+        period="1455–1479",
+        palette=[
+            (0.90, 0.82, 0.64),   # Naples yellow-ivory — lit flesh highlights; warmest Antonello tone
+            (0.80, 0.65, 0.46),   # warm sienna flesh — primary midtone; Italian warmth over Flemish structure
+            (0.60, 0.48, 0.36),   # raw umber shadow flesh — deep midtone transition
+            (0.40, 0.46, 0.44),   # blue-green shadow undertone — Flemish subsurface tint in shadow transitions
+            (0.20, 0.26, 0.42),   # cool architectural blue-grey — background niches, sky, stone vaulting
+            (0.32, 0.28, 0.24),   # warm near-black — deep shadow; Antonello's voids are warm, not cold
+            (0.76, 0.64, 0.38),   # golden amber — warm imprimatura glow; the Italian oil-glazing foundation
+            (0.85, 0.88, 0.92),   # cool pale sky — luminous Flemish-style background atmosphere
+        ],
+        ground_color=(0.74, 0.64, 0.42),    # warm pale ochre — lighter than Rembrandt; allows Flemish glaze luminosity
+        stroke_size=3,
+        wet_blend=0.55,                      # moderate-high — smooth oil-glazing surface, invisible brushwork
+        edge_softness=0.38,                  # found-edge Flemish clarity — neither sfumato nor hard contour
+        jitter=0.014,                        # tight colour variation; Flemish control, not impressionist flicker
+        glazing=(0.78, 0.66, 0.38),          # warm amber glaze — Italian warmth as final unifier
+        crackle=True,                        # 15th-century panel; Sicilian oak or poplar ground
+        chromatic_split=False,
+        technique=(
+            "Antonello da Messina (c. 1430–1479) built his technique from two sources: "
+            "the Flemish oil-glazing method of Jan van Eyck (absorbed in Naples through "
+            "Colantonio) and the Italian warm-flesh tradition of the South.  He worked on "
+            "a white-gesso panel ground — like the Flemish masters — with a warm amber "
+            "imprimatura as the first toning layer.  Over this he built flesh in multiple "
+            "thin transparent glazes, starting with warm sienna midtones and pushing "
+            "lighter with Naples yellow-ivory in the lit zones and darker with raw umber "
+            "in the shadows.  "
+            "The defining pellucid quality of his flesh comes from a slight blue-green "
+            "coolness in the mid-shadow transitions — a Flemish subsurface tint that "
+            "suggests light entering, scattering through the translucent oil layers, and "
+            "re-emerging cooled.  Highlights approach warm Naples yellow-ivory but are "
+            "kept crisp and small — enamel-like specular points rather than broad lit zones.  "
+            "Unlike Leonardo (atmospheric sfumato) or Raphael (radiant idealism), "
+            "Antonello's edges are Flemish found-edges: resolved with precision but not "
+            "hardened; the boundary of the face is clear but breathing.  "
+            "His backgrounds are typically cool and architectural — pale blue sky through "
+            "an arched window, a stone niche, or a Flemish-style landscape — creating a "
+            "strong warm-figure / cool-background contrast that reinforces the spatial "
+            "presence of the sitter.  Apply antonello_pellucid_flesh_pass() after "
+            "build_form() to add the characteristic pellucid shadow coolness and warm "
+            "highlight clarity that distinguish him from all his Italian contemporaries."
+        ),
+        famous_works=[
+            ("Portrait of a Man ('Il Condottiere')",     "c. 1475"),
+            ("Portrait of a Man (National Gallery, London)", "c. 1475"),
+            ("Saint Jerome in His Study",                "c. 1475"),
+            ("Salvator Mundi",                           "c. 1465"),
+            ("Virgin Annunciate",                        "c. 1476"),
+            ("Portrait of a Young Man (Berlin)",         "c. 1478"),
+            ("San Cassiano Altarpiece (fragments)",      "1475–1476"),
+            ("Portrait of a Man (Turin)",                "c. 1476"),
+        ],
+        inspiration=(
+            "Use antonello_pellucid_flesh_pass() after build_form() and before glaze() "
+            "to encode Antonello's pellucid flesh quality.  Three stages: "
+            "(1) Flemish shadow cooling — in mid-shadow transitions (lum 0.18–0.46), "
+            "apply a slight blue-green subsurface tint (G + subtle, B + moderate, R – "
+            "slight) replicating the Flemish translucent-skin quality that Antonello "
+            "brought from van Eyck; this is not Memling's enamel brilliance but a quieter, "
+            "more Italian restraint of the same phenomenon; (2) warm highlight clarification "
+            "— in lit zones (lum > 0.74), push slightly toward Naples yellow-ivory "
+            "(R + moderate, G + modest, B – slight), creating the small, crisp, warm "
+            "specular quality of Antonello's oil-glazed highlights; (3) pellucid edge "
+            "band — at the light-shadow transition zone (penumbra, lum 0.44–0.58), very "
+            "slightly sharpen the tonal gradient to give the 'found-edge' quality that "
+            "Flemish painters mastered — the boundary reads as resolved, not dissolved "
+            "and not hardened.  "
+            "ground_color=(0.74, 0.64, 0.42) uses a clear warm ochre ground that allows "
+            "Flemish glaze layers to retain their luminosity.  "
+            "edge_softness=0.38 gives Flemish found-edge precision without sfumato."
+        ),
+    ),
+
 }
 
 

@@ -257,6 +257,7 @@ class Period(Enum):
     BELGIAN_SYMBOLIST = auto()  # Spilliaert — near-monochrome ink-black voids, vertiginous geometric perspective, pale isolated figures, cold blue-grey ink darkness, profound solitude
     PARISIAN_REALIST = auto()  # Caillebotte — radical perspective foreshortening, photographic cropping, cool grey urban palette, wet cobblestone reflections, geometric receding planes
     DER_BLAUE_REITER = auto()  # Franz Marc / Kandinsky — spiritual prismatic primaries, symbolic colour assignment, bold simplified animal/landscape forms, ultramarine grounds, unmixed pigment zones
+    SICILIAN_RENAISSANCE = auto()  # Antonello da Messina — Flemish oil glazing precision grafted onto Italian warmth; pellucid crystalline flesh, crisp found edges, direct psychological gaze, warm ivory highlights over blue-green shadow transitions
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1047,6 +1048,16 @@ class Style:
             # edge_softness=0.32: low-moderate; clear form boundaries with just enough softening at
             # the very edge to avoid woodcut harshness; the colour does the modelling, not the edge.
             Period.DER_BLAUE_REITER: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.28, edge_softness=0.32),
+            # SICILIAN_RENAISSANCE (Antonello da Messina) — Flemish precision fused with Italian warmth.
+            # stroke_size_face=3: Flemish micro-detail quality; Antonello's flesh is rendered with the
+            # same meticulous oil-glazing patience as van Eyck, not the gestural alla prima of Titian.
+            # stroke_size_bg=16: backgrounds are crisp and receding — Antonello's portraits often show
+            # Flemish-style architectural niches or landscapes through arched windows, carefully defined.
+            # wet_blend=0.55: moderate-high blending — oil glazing produces smooth transitions between
+            # layers; no visible impasto, but the surface is not as seamlessly finished as Bouguereau.
+            # edge_softness=0.38: found-edge Flemish precision — not sfumato's atmospheric smoke, but
+            # edges are resolved rather than hardened; the contour of the face is clear but breathing.
+            Period.SICILIAN_RENAISSANCE: dict(stroke_size_face=3, stroke_size_bg=16, wet_blend=0.55, edge_softness=0.38),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
