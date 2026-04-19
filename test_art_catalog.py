@@ -103,6 +103,7 @@ EXPECTED_ARTISTS = [
     "rosalba_carriera",
     "whistler",
     "odilon_redon",
+    "leon_spilliaert",
 ]
 
 
@@ -10611,3 +10612,96 @@ def test_odilon_redon_in_expected_artists():
 def test_whistler_in_expected_artists():
     """EXPECTED_ARTISTS list must include whistler (session 87)."""
     assert "whistler" in EXPECTED_ARTISTS
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 89 — Léon Spilliaert
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_leon_spilliaert_in_catalog():
+    """Léon Spilliaert (session 89) must be in the catalog."""
+    assert "leon_spilliaert" in CATALOG
+
+
+def test_leon_spilliaert_in_expected_artists():
+    """EXPECTED_ARTISTS list must include leon_spilliaert (session 89)."""
+    assert "leon_spilliaert" in EXPECTED_ARTISTS
+
+
+def test_leon_spilliaert_movement():
+    """Spilliaert movement must reference Belgian Symbolism."""
+    s = get_style("leon_spilliaert")
+    assert "Belgian" in s.movement or "Symbolism" in s.movement, (
+        f"Spilliaert movement should reference Belgian Symbolism; got {s.movement!r}")
+
+
+def test_leon_spilliaert_nationality():
+    """Spilliaert must be cataloged as Belgian."""
+    s = get_style("leon_spilliaert")
+    assert s.nationality == "Belgian"
+
+
+def test_leon_spilliaert_palette_length():
+    """Spilliaert palette must have at least 5 colours."""
+    s = get_style("leon_spilliaert")
+    assert len(s.palette) >= 5
+
+
+def test_leon_spilliaert_palette_in_range():
+    """All Spilliaert palette RGB values must be in [0, 1]."""
+    s = get_style("leon_spilliaert")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Spilliaert palette channel {ch} out of [0, 1] in {rgb}")
+
+
+def test_leon_spilliaert_ground_is_dark():
+    """Spilliaert ground colour must be very dark (luminance < 0.15)."""
+    s = get_style("leon_spilliaert")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.15, (
+        f"Spilliaert ground should be near-black ink void; luminance={lum:.3f}")
+
+
+def test_leon_spilliaert_no_crackle():
+    """Spilliaert worked on paper — no crackle finish."""
+    s = get_style("leon_spilliaert")
+    assert not s.crackle
+
+
+def test_leon_spilliaert_no_chromatic_split():
+    """Spilliaert palette is near-monochromatic — no divisionist chromatic split."""
+    s = get_style("leon_spilliaert")
+    assert not s.chromatic_split
+
+
+def test_leon_spilliaert_edge_softness_low():
+    """Spilliaert edge_softness must be low (< 0.30) — ink lines are precise."""
+    s = get_style("leon_spilliaert")
+    assert s.edge_softness < 0.30, (
+        f"Spilliaert edge_softness should be low for ink precision; got {s.edge_softness:.2f}")
+
+
+def test_leon_spilliaert_wet_blend_low():
+    """Spilliaert wet_blend must be low (< 0.35) — watercolour/ink, not oil."""
+    s = get_style("leon_spilliaert")
+    assert s.wet_blend < 0.35, (
+        f"Spilliaert wet_blend should be low for ink/watercolour; got {s.wet_blend:.2f}")
+
+
+def test_leon_spilliaert_famous_works_include_vertigo():
+    """Spilliaert's famous works must include Dizziness/Vertigo (1908)."""
+    s = get_style("leon_spilliaert")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("vertigo" in t or "dizziness" in t for t in titles), (
+        "Spilliaert famous_works must include Dizziness/Vertigo (1908)")
+
+
+def test_leon_spilliaert_inspiration_references_pass():
+    """Spilliaert inspiration must reference spilliaert_vertiginous_void_pass()."""
+    s = get_style("leon_spilliaert")
+    assert "spilliaert_vertiginous_void_pass" in s.inspiration, (
+        "Spilliaert inspiration should reference spilliaert_vertiginous_void_pass()")
