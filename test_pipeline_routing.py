@@ -11580,3 +11580,192 @@ def test_cool_atmospheric_recession_warm_ground_glow_warms_near_horizon():
     assert r_with_glow >= r_no_glow, (
         f"warm_ground_glow should raise R near horizon; "
         f"R no_glow={r_no_glow:.4f}  R with_glow={r_with_glow:.4f}")
+
+
+# ── Session 93: FLEMISH_LATE_GOTHIC period + hugo_van_der_goes_expressive_depth_pass ──
+
+def test_flemish_late_gothic_period_accessible():
+    """FLEMISH_LATE_GOTHIC must be accessible from the Period enum."""
+    from scene_schema import Period, Style
+    p = Period.FLEMISH_LATE_GOTHIC
+    assert p is not None, "Period.FLEMISH_LATE_GOTHIC must exist"
+
+
+def test_flemish_late_gothic_stroke_params_keys():
+    """FLEMISH_LATE_GOTHIC stroke_params must have all required keys."""
+    from scene_schema import Period, Style, Medium
+    s = Style(medium=Medium.OIL, period=Period.FLEMISH_LATE_GOTHIC)
+    params = s.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in params, (
+            f"FLEMISH_LATE_GOTHIC stroke_params missing key {key!r}")
+
+
+def test_flemish_late_gothic_wet_blend_moderate():
+    """FLEMISH_LATE_GOTHIC wet_blend must be in [0.30, 0.55] — oil glazes, not heavy impasto."""
+    from scene_schema import Period, Style, Medium
+    s = Style(medium=Medium.OIL, period=Period.FLEMISH_LATE_GOTHIC)
+    p = s.stroke_params
+    assert 0.30 <= p["wet_blend"] <= 0.55, (
+        f"FLEMISH_LATE_GOTHIC wet_blend must be in [0.30, 0.55]; got {p['wet_blend']:.2f}")
+
+
+def test_flemish_late_gothic_edge_softness_precise():
+    """FLEMISH_LATE_GOTHIC edge_softness must be below 0.40 — Flemish found-edge precision."""
+    from scene_schema import Period, Style, Medium
+    s = Style(medium=Medium.OIL, period=Period.FLEMISH_LATE_GOTHIC)
+    p = s.stroke_params
+    assert p["edge_softness"] < 0.40, (
+        f"FLEMISH_LATE_GOTHIC edge_softness must be < 0.40; got {p['edge_softness']:.2f}")
+
+
+def test_hugo_van_der_goes_expressive_depth_pass_exists():
+    """hugo_van_der_goes_expressive_depth_pass must be a method on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hugo_van_der_goes_expressive_depth_pass"), (
+        "Painter must have hugo_van_der_goes_expressive_depth_pass() method")
+
+
+def test_hugo_van_der_goes_expressive_depth_pass_runs():
+    """hugo_van_der_goes_expressive_depth_pass must run without error on a small canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=32, height=32)
+    arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, :] = [80, 120, 100, 255]
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    p.hugo_van_der_goes_expressive_depth_pass(opacity=0.40)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((32, 32, 4))
+    assert after.shape == (32, 32, 4), "Pass must preserve canvas dimensions"
+
+
+def test_hugo_van_der_goes_expressive_depth_pass_zero_opacity_noop():
+    """hugo_van_der_goes_expressive_depth_pass at opacity=0 must leave the surface unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=48, height=48)
+    arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((48, 48, 4)).copy()
+    arr[:, :, :] = [60, 100, 80, 255]
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.hugo_van_der_goes_expressive_depth_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "hugo_van_der_goes_expressive_depth_pass at opacity=0 must not modify the surface")
+
+
+def test_hugo_van_der_goes_expressive_depth_pass_warms_shadows():
+    """hugo_van_der_goes_expressive_depth_pass must increase R in shadow-zone pixels."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    # Fill with a dark but non-black colour in the shadow zone (lum ≈ 0.18)
+    # BGRA: B=40, G=50, R=55 → lum ≈ 0.299*55/255 + 0.587*50/255 + 0.114*40/255 ≈ 0.185
+    p = Painter(width=32, height=32)
+    arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 40   # B
+    arr[:, :, 1] = 50   # G
+    arr[:, :, 2] = 55   # R
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+
+    r_before = arr[:, :, 2].astype(float).mean()
+    p.hugo_van_der_goes_expressive_depth_pass(
+        shadow_lo=0.0, shadow_hi=0.35, shadow_amber_r=0.028, opacity=1.0)
+    arr_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((32, 32, 4))
+    r_after = arr_after[:, :, 2].astype(float).mean()
+    assert r_after >= r_before, (
+        f"hugo_van_der_goes_expressive_depth_pass must warm shadows (R↑); "
+        f"R before={r_before:.2f}  R after={r_after:.2f}")
+
+
+def test_hugo_van_der_goes_expressive_depth_pass_deepens_voids():
+    """hugo_van_der_goes_expressive_depth_pass must darken near-black pixels."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    # Fill with near-black pixels: BGRA B=15, G=12, R=14 → lum ≈ 0.049 < void_thresh=0.12
+    p = Painter(width=32, height=32)
+    arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 15
+    arr[:, :, 1] = 12
+    arr[:, :, 2] = 14
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+
+    r_before = arr[:, :, 2].astype(float).mean()
+    p.hugo_van_der_goes_expressive_depth_pass(
+        void_thresh=0.12, void_deepen=0.015, opacity=1.0)
+    arr_after = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape((32, 32, 4))
+    r_after = arr_after[:, :, 2].astype(float).mean()
+    assert r_after <= r_before, (
+        f"hugo_van_der_goes_expressive_depth_pass must deepen near-black voids (R↓ or unchanged); "
+        f"R before={r_before:.2f}  R after={r_after:.2f}")
+
+
+def test_impasto_texture_pass_accepts_ridge_warmth():
+    """impasto_texture_pass must accept ridge_warmth parameter without error."""
+    from stroke_engine import Painter
+    p = Painter(width=32, height=32)
+    p.impasto_texture_pass(ridge_height=0.4, ridge_warmth=0.28)
+
+
+def test_impasto_texture_pass_ridge_warmth_zero_matches_no_arg():
+    """impasto_texture_pass with ridge_warmth=0.0 must match behaviour without the arg."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    def _run(warmth):
+        p = Painter(width=64, height=64)
+        # Checkerboard pattern so there are ridges to detect
+        arr = np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape((64, 64, 4)).copy()
+        for y in range(64):
+            for x in range(64):
+                v = 200 if (x // 8 + y // 8) % 2 == 0 else 80
+                arr[y, x, :] = [v, v, v, 255]
+        p.canvas.surface.get_data()[:] = arr.tobytes()
+        p.impasto_texture_pass(ridge_height=0.5, ridge_warmth=warmth)
+        return np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    result_zero_a = _run(0.0)
+    result_zero_b = _run(0.0)
+    assert np.array_equal(result_zero_a, result_zero_b), (
+        "impasto_texture_pass ridge_warmth=0.0 must be deterministic")
+
+
+def test_impasto_texture_pass_ridge_warmth_shifts_highlight_warm():
+    """impasto_texture_pass ridge_warmth=1.0 must produce warmer (higher R/G, lower B) ridges."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    def _run(warmth):
+        p = Painter(width=64, height=64)
+        # Checkerboard to ensure ridge detection finds something
+        arr = np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=np.uint8).reshape((64, 64, 4)).copy()
+        for y in range(64):
+            for x in range(64):
+                v = 210 if (x // 6 + y // 6) % 2 == 0 else 60
+                arr[y, x, :] = [v, v, v, 255]
+        p.canvas.surface.get_data()[:] = arr.tobytes()
+        p.impasto_texture_pass(
+            ridge_height=0.8,
+            highlight_opacity=0.60,
+            ridge_warmth=warmth,
+        )
+        result = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape((64, 64, 4))
+        # Return mean R and B over all pixels
+        r_mean = result[:, :, 2].astype(float).mean()
+        b_mean = result[:, :, 0].astype(float).mean()
+        return r_mean, b_mean
+
+    r_cool, b_cool = _run(0.0)
+    r_warm, b_warm = _run(1.0)
+
+    assert b_warm <= b_cool, (
+        f"Warm ridge highlights must have lower B than cool; "
+        f"B cool={b_cool:.2f}  B warm={b_warm:.2f}")

@@ -258,6 +258,7 @@ class Period(Enum):
     PARISIAN_REALIST = auto()  # Caillebotte — radical perspective foreshortening, photographic cropping, cool grey urban palette, wet cobblestone reflections, geometric receding planes
     DER_BLAUE_REITER = auto()  # Franz Marc / Kandinsky — spiritual prismatic primaries, symbolic colour assignment, bold simplified animal/landscape forms, ultramarine grounds, unmixed pigment zones
     SICILIAN_RENAISSANCE = auto()  # Antonello da Messina — Flemish oil glazing precision grafted onto Italian warmth; pellucid crystalline flesh, crisp found edges, direct psychological gaze, warm ivory highlights over blue-green shadow transitions
+    FLEMISH_LATE_GOTHIC  = auto()  # Hugo van der Goes — intense psychological realism, deep warm-brown shadows, earthy amber-ochre palette, velvety near-black voids, fine Flemish detail with weighty human presence
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1058,6 +1059,15 @@ class Style:
             # edge_softness=0.38: found-edge Flemish precision — not sfumato's atmospheric smoke, but
             # edges are resolved rather than hardened; the contour of the face is clear but breathing.
             Period.SICILIAN_RENAISSANCE: dict(stroke_size_face=3, stroke_size_bg=16, wet_blend=0.55, edge_softness=0.38),
+            # FLEMISH_LATE_GOTHIC (Hugo van der Goes) — fine Flemish precision with earthy weight.
+            # stroke_size_face=3: micro-detail control; van der Goes rendered individual hairs and
+            # pores with the same Flemish discipline as van Eyck.
+            # stroke_size_bg=18: deep warm-brown backgrounds with atmospheric but clearly defined forms.
+            # wet_blend=0.42: moderate oil blending — smooth flesh transitions, but less glazed
+            # than van Eyck; Hugo's paint is richer and more opaque in the shadow zones.
+            # edge_softness=0.32: Flemish precision edges — forms are clearly bounded but not
+            # mechanically hard; the contour breathes slightly without dissolving into sfumato.
+            Period.FLEMISH_LATE_GOTHIC: dict(stroke_size_face=3, stroke_size_bg=18, wet_blend=0.42, edge_softness=0.32),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

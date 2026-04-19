@@ -4454,6 +4454,7 @@ class Painter:
             blur_sigma:    float = 1.4,
             highlight_opacity: float = 0.28,
             shadow_opacity:    float = 0.22,
+            ridge_warmth:      float = 0.0,
     ) -> None:
         """
         Simulate the physical texture of thick impasto oil paint.
@@ -4493,6 +4494,25 @@ class Painter:
                           thresholding — wider sigma = softer, broader ridges.
         highlight_opacity : opacity of the bright ridge highlight.
         shadow_opacity    : opacity of the dark ridge shadow.
+        ridge_warmth    : SESSION-93 ARTISTIC IMPROVEMENT.  Shifts the ridge
+                          highlight colour from cool creamy-white toward warm
+                          amber, simulating the way thick oil-paint ridges catch
+                          warm directional light rather than cool diffuse light.
+
+                          At 0.0 (default): the existing cool-cream white
+                          (R=0.98, G=0.96, B=0.90) is used, as in all prior
+                          sessions.  At 1.0: the ridge highlight becomes a
+                          warm amber (R=0.98, G=0.84, B=0.62), like candlelight
+                          glancing across thick impasto.  Values between 0 and 1
+                          linearly interpolate between the two colours.
+
+                          Inspired by Hugo van der Goes, whose thick oil-glaze
+                          layers on warm amber imprimatura produce ridges that
+                          glow amber when raked light catches them — very
+                          different from the cool white micro-highlights on
+                          Rembrandt's lighter passages.  At the default value
+                          of 0.0, behaviour is identical to all prior sessions;
+                          set to 0.28 for a subtle warm-light impasto quality.
         """
         if ridge_height < 0.01:
             return
@@ -4546,13 +4566,21 @@ class Painter:
 
         ctx = self.canvas.ctx
 
-        # Highlight: warm creamy white
+        # Ridge highlight colour — linearly interpolated by ridge_warmth.
+        # Cool-cream base (R=0.98, G=0.96, B=0.90) at warmth=0.
+        # Warm amber target (R=0.98, G=0.84, B=0.62) at warmth=1.
+        t = float(np.clip(ridge_warmth, 0.0, 1.0))
+        hl_r = 0.98
+        hl_g = 0.96 * (1.0 - t) + 0.84 * t
+        hl_b = 0.90 * (1.0 - t) + 0.62 * t
+
+        # Highlight: cool creamy white shifting toward warm amber via ridge_warmth
         for row_y in range(h):
             row_max = float(highlight_map[row_y].max())
             if row_max < 0.005:
                 continue
             row_alpha = highlight_opacity * row_max
-            ctx.set_source_rgba(0.98, 0.96, 0.90, row_alpha)
+            ctx.set_source_rgba(hl_r, hl_g, hl_b, row_alpha)
             ctx.rectangle(0.0, float(row_y), float(w), 1.0)
             ctx.fill()
 
@@ -4567,7 +4595,8 @@ class Painter:
             ctx.fill()
 
         print(f"  Impasto texture pass complete  "
-              f"(angle={light_angle:.0f}°, ridge_height={ridge_height:.2f})")
+              f"(angle={light_angle:.0f}°, ridge_height={ridge_height:.2f}  "
+              f"ridge_warmth={ridge_warmth:.2f})")
 
     # ── Atmospheric depth pass — aerial perspective (Leonardo / Friedrich) ─────
 
@@ -24153,3 +24182,151 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Franz Marc prismatic vitality pass complete.")
+
+    def hugo_van_der_goes_expressive_depth_pass(
+        self,
+        shadow_lo:           float = 0.00,   # lower lum bound of warm shadow zone
+        shadow_hi:           float = 0.35,   # upper lum bound of warm shadow zone
+        shadow_amber_r:      float = 0.028,  # R boost in shadow zone (warm amber pull)
+        shadow_amber_b:      float = 0.018,  # B reduction in shadow zone (damp cool)
+        midtone_lo:          float = 0.45,   # lower lum bound of midtone earthing zone
+        midtone_hi:          float = 0.68,   # upper lum bound of midtone earthing zone
+        midtone_earth_r:     float = 0.016,  # R boost in midtones (amber-brown earthing)
+        midtone_earth_g:     float = 0.008,  # G boost in midtones (slight warm-ochre push)
+        midtone_earth_b:     float = 0.014,  # B reduction in midtones (pull away from cool)
+        void_thresh:         float = 0.12,   # lum threshold below which void deepening acts
+        void_deepen:         float = 0.015,  # RGB reduction in absolute darks (void deepening)
+        blur_radius:         float = 5.0,    # Gaussian sigma for mask feathering
+        opacity:             float = 0.40,   # overall pass composite opacity
+    ) -> None:
+        """
+        Hugo van der Goes expressive depth pass — session 93 new artist pass.
+
+        Hugo van der Goes (c. 1440–1482) is the most psychologically intense of
+        the Early Netherlandish painters.  Working in Ghent alongside Memling and
+        Bouts, he shared their technical precision but transformed it through an
+        expressionistic weight and psychological urgency that anticipates
+        Expressionism by four centuries.  His Portinari Altarpiece (c. 1475–76,
+        Uffizi) is the most psychologically powerful large-scale painting of the
+        15th century: its figures carry visible spiritual burden.
+
+        Three operations encoding van der Goes' defining qualities:
+
+          1. Warm shadow enrichment — In shadow zones (lum in [shadow_lo,
+             shadow_hi]), amplify warm amber undertones: R + shadow_amber_r,
+             B − shadow_amber_b.  Van der Goes' shadows are exclusively warm
+             (amber-to-near-black), with no Flemish blue-green subsurface tint.
+             The darks approach a velvety velour warmth — deep but not cold.
+             The mask is cosine-shaped for smooth zone boundary transitions.
+
+          2. Psychological weight through midtone earthing — In the upper-midtone
+             zone (lum in [midtone_lo, midtone_hi]), apply a slight amber-brown
+             pull: R + midtone_earth_r, G + midtone_earth_g, B − midtone_earth_b.
+             This makes the flesh feel earthbound and weighty rather than idealized
+             or radiant.  It is the quality that separates van der Goes from the
+             serene, luminous Memling: his figures have gravity, presence, and
+             a slightly troubled earthliness.
+
+          3. Near-black void deepening — In the absolute darks (lum < void_thresh),
+             apply a uniform RGB reduction of void_deepen.  Van der Goes placed
+             his figures against near-absence — atmospheric near-black backgrounds
+             that anticipate Caravaggio.  This deepens those voids without
+             shifting them toward cool neutral: the darkness is warm and enveloping.
+
+        Parameters
+        ----------
+        shadow_lo        : lower lum boundary of warm shadow zone
+        shadow_hi        : upper lum boundary of shadow zone
+        shadow_amber_r   : R boost in shadow zone (amber warmth)
+        shadow_amber_b   : B reduction in shadow zone (damp cool subsurface)
+        midtone_lo       : lower lum boundary of midtone earthing zone
+        midtone_hi       : upper lum boundary of midtone earthing zone
+        midtone_earth_r  : R boost in midtones (amber-brown earthing)
+        midtone_earth_g  : G boost in midtones (warm ochre component)
+        midtone_earth_b  : B reduction in midtones (pull away from cool)
+        void_thresh      : lum threshold below which void deepening acts
+        void_deepen      : uniform RGB reduction in near-black darks
+        blur_radius      : Gaussian sigma for mask feathering
+        opacity          : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Hugo van der Goes expressive depth pass "
+              f"(shadow=[{shadow_lo:.2f},{shadow_hi:.2f}]  amber_r={shadow_amber_r:.3f}  "
+              f"midtone=[{midtone_lo:.2f},{midtone_hi:.2f}]  earth_r={midtone_earth_r:.3f}  "
+              f"void_thresh={void_thresh:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Hugo van der Goes expressive depth pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Stage 1: Warm shadow enrichment ───────────────────────────────────
+        # Cosine-shaped mask peaking at the centre of [shadow_lo, shadow_hi].
+        # Pixels in the shadow zone receive warm amber boost (R↑) and cool damp (B↓).
+        shadow_mid  = (shadow_lo + shadow_hi) * 0.5
+        shadow_half = max((shadow_hi - shadow_lo) * 0.5, 1e-6)
+        raw_cos     = _np.cos(_np.pi * _np.clip(
+            (lum - shadow_mid) / shadow_half, -1.0, 1.0))
+        shadow_mask = _np.clip(raw_cos, 0.0, 1.0)
+        shadow_mask = _gf(shadow_mask, sigma=blur_radius)
+        sw          = shadow_mask * opacity
+
+        r_out = _np.clip(r_out + sw * shadow_amber_r, 0.0, 1.0)
+        b_out = _np.clip(b_out - sw * shadow_amber_b, 0.0, 1.0)
+
+        # ── Stage 2: Psychological weight through midtone earthing ────────────
+        # Bell-shaped mask over [midtone_lo, midtone_hi].
+        # Amber-brown pull in flesh midtones → weighty, earthy presence.
+        midtone_mid  = (midtone_lo + midtone_hi) * 0.5
+        midtone_half = max((midtone_hi - midtone_lo) * 0.5, 1e-6)
+        midtone_bell = _np.clip(
+            1.0 - _np.abs(lum - midtone_mid) / midtone_half, 0.0, 1.0)
+        midtone_mask = _gf(midtone_bell, sigma=blur_radius)
+        mw           = midtone_mask * opacity
+
+        r_out = _np.clip(r_out + mw * midtone_earth_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + mw * midtone_earth_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - mw * midtone_earth_b, 0.0, 1.0)
+
+        # ── Stage 3: Near-black void deepening ───────────────────────────────
+        # Hard threshold: absolute darks (lum < void_thresh) uniformly deepened.
+        # Feathered near the threshold for a smooth transition.
+        void_ramp = _np.clip(1.0 - lum / max(void_thresh, 1e-6), 0.0, 1.0)
+        void_mask = _gf(void_ramp, sigma=blur_radius * 0.5)
+        vw        = void_mask * opacity
+
+        r_out = _np.clip(r_out - vw * void_deepen, 0.0, 1.0)
+        g_out = _np.clip(g_out - vw * void_deepen, 0.0, 1.0)
+        b_out = _np.clip(b_out - vw * void_deepen, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Hugo van der Goes expressive depth pass complete.")
