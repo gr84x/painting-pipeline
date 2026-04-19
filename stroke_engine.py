@@ -8030,7 +8030,8 @@ class Painter:
                                   lost_blur:           float = 1.8,
                                   strength:            float = 0.35,
                                   figure_only:         bool  = False,
-                                  gradient_selectivity: float = 0.0):
+                                  gradient_selectivity: float = 0.0,
+                                  soft_halo_strength:  float = 0.0):
         """
         Classical edge quality control — "lost and found" edges.
 
@@ -8086,6 +8087,18 @@ class Painter:
                                amplification in smooth skin passages; preserves
                                strong sharpening on actual form boundaries only.
                                Range [0, 1]; 0 = original behaviour.
+        soft_halo_strength   : Session-91 improvement.  When > 0, adds a faint
+                               Gaussian luminous bloom around edges in the lost
+                               zone (outside the focal ring), simulating the
+                               way Leonardo's sfumato glazing builds a gentle
+                               aureole around dissolving boundary zones.  This
+                               produces the 'present-but-dissolving' edge
+                               perceptually associated with the Mona Lisa smile
+                               area: the edge is not erased but surrounded by
+                               a soft light envelope, as if viewed through
+                               multiple transparent glaze layers.  Range [0, 1];
+                               0 = no halo (original behaviour); ~0.10–0.18
+                               gives a subtle sfumato aureole effect.
         """
         import numpy as np
         from PIL import Image as _PILImg
@@ -8156,6 +8169,29 @@ class Painter:
         result_R = sharp_R * (1.0 - lost_wt) + R_soft * lost_wt
         result_G = sharp_G * (1.0 - lost_wt) + G_soft * lost_wt
         result_B = sharp_B * (1.0 - lost_wt) + B_soft * lost_wt
+
+        # Session-91: Soft halo / perioral sfumato aureole.
+        # In the lost zone (low found_wt), detect luminance edges and surround
+        # them with a gentle Gaussian luminance bloom.  This mimics the way
+        # Leonardo's multiple thin glaze layers build up a faint light aureole
+        # around dissolving boundary zones -- particularly the lip corners,
+        # the boundary of nose shadow into cheek, and the jaw line into neck.
+        if soft_halo_strength > 0.0:
+            lum_res = 0.2126 * result_R + 0.7152 * result_G + 0.0722 * result_B
+            lum_smooth_h = gaussian_filter(lum_res, sigma=1.2)
+            gx_h = np.gradient(lum_smooth_h, axis=1).astype(np.float32)
+            gy_h = np.gradient(lum_smooth_h, axis=0).astype(np.float32)
+            edge_h = np.sqrt(gx_h ** 2 + gy_h ** 2).astype(np.float32)
+            if edge_h.max() > 1e-9:
+                edge_h = edge_h / edge_h.max()
+            # Gate: only edges in the lost zone get the halo
+            edge_lost = edge_h * lost_wt
+            halo_sigma = max(1.5, lost_blur * 1.8)
+            halo = gaussian_filter(edge_lost, sigma=halo_sigma)
+            halo = np.clip(halo * soft_halo_strength * 3.0, 0.0, soft_halo_strength)
+            result_R = np.clip(result_R + halo, 0.0, 1.0)
+            result_G = np.clip(result_G + halo, 0.0, 1.0)
+            result_B = np.clip(result_B + halo, 0.0, 1.0)
 
         # Blend result into canvas
         final_R = np.clip(R_lf * (1.0 - strength) + result_R * strength, 0.0, 1.0)
