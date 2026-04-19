@@ -255,6 +255,7 @@ EXPECTED_PERIODS = [
     "FRENCH_ROMANTIC",
     "UMBRIAN_RENAISSANCE",
     "VENETIAN_PASTEL_PORTRAIT",
+    "AMERICAN_TONALIST",
 ]
 
 
@@ -10283,3 +10284,194 @@ def test_venetian_pastel_portrait_stroke_params():
     assert p["stroke_size_face"] <= 5, (
         f"VENETIAN_PASTEL_PORTRAIT stroke_size_face should be <= 5 for fine pastel "
         f"marks; got {p['stroke_size_face']}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# James McNeill Whistler — Session 87
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_whistler_in_catalog():
+    """James McNeill Whistler must be present in CATALOG."""
+    assert "whistler" in CATALOG, "whistler not found in CATALOG"
+
+
+def test_whistler_movement():
+    """Whistler must be classified as Tonalist or Aestheticism."""
+    s = get_style("whistler")
+    assert "tonal" in s.movement.lower() or "aesthet" in s.movement.lower(), (
+        f"Whistler movement should reference Tonalism or Aestheticism; got {s.movement!r}")
+
+
+def test_whistler_nationality():
+    """Whistler must be listed as American-British."""
+    s = get_style("whistler")
+    assert "american" in s.nationality.lower() or "british" in s.nationality.lower(), (
+        f"Whistler nationality should reference American or British; got {s.nationality!r}")
+
+
+def test_whistler_palette_length():
+    """Whistler palette must have at least 5 entries."""
+    s = get_style("whistler")
+    assert len(s.palette) >= 5, (
+        f"Whistler palette should have >= 5 entries; got {len(s.palette)}")
+
+
+def test_whistler_palette_values_in_range():
+    """All Whistler palette channels must be in [0, 1]."""
+    s = get_style("whistler")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Whistler palette {rgb}")
+
+
+def test_whistler_cool_ground():
+    """
+    Whistler's cool silver-grey ground — ground_color should be cool (B >= R)
+    and mid-tone (luminance 0.40–0.70), reflecting his prepared grey boards.
+    """
+    s = get_style("whistler")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert b >= r, (
+        f"Whistler ground_color should be cool (B >= R); got R={r:.3f} B={b:.3f}")
+    assert 0.40 <= lum <= 0.75, (
+        f"Whistler ground_color luminance should be mid-tone (0.40–0.75); got {lum:.3f}")
+
+
+def test_whistler_has_cool_dominant_in_palette():
+    """
+    Whistler's palette should contain at least one cool grey-blue tone
+    (B > R and B > G and luminance >= 0.40).
+    """
+    s = get_style("whistler")
+    cool_greys = [
+        (r, g, b) for (r, g, b) in s.palette
+        if b > r and b > g and (0.299 * r + 0.587 * g + 0.114 * b) >= 0.40
+    ]
+    assert len(cool_greys) >= 1, (
+        "Whistler palette should contain at least one cool silver-grey tone (B>R, B>G, lum>=0.40)")
+
+
+def test_whistler_high_wet_blend():
+    """
+    Whistler's 'sauce' (turpentine-diluted paint) produces heavily blended
+    tonal zones — wet_blend should be high (> 0.60).
+    """
+    s = get_style("whistler")
+    assert s.wet_blend > 0.60, (
+        f"Whistler wet_blend should be high (> 0.60) for liquid 'sauce' paint; "
+        f"got {s.wet_blend:.3f}")
+
+
+def test_whistler_high_edge_softness():
+    """
+    Whistler's Nocturnes dissolve forms into atmosphere — edge_softness should
+    be high (> 0.70).
+    """
+    s = get_style("whistler")
+    assert s.edge_softness > 0.70, (
+        f"Whistler edge_softness should be high (> 0.70) for nocturne dissolution; "
+        f"got {s.edge_softness:.3f}")
+
+
+def test_whistler_no_chromatic_split():
+    """Whistler does not use Pointillist chromatic splitting."""
+    s = get_style("whistler")
+    assert not s.chromatic_split, "Whistler chromatic_split should be False"
+
+
+def test_whistler_crackle():
+    """Whistler painted in oil — crackle should be True."""
+    s = get_style("whistler")
+    assert s.crackle, "Whistler crackle should be True (oil on panel/canvas)"
+
+
+def test_whistler_famous_works_not_empty():
+    """Whistler must document at least 4 famous works."""
+    s = get_style("whistler")
+    assert len(s.famous_works) >= 4, (
+        f"Whistler famous_works should have >= 4 entries; got {len(s.famous_works)}")
+
+
+def test_whistler_famous_works_include_arrangement():
+    """Whistler's famous works should include 'Arrangement in Grey and Black' (Whistler's Mother)."""
+    s = get_style("whistler")
+    titles_lower = [w[0].lower() for w in s.famous_works]
+    assert any("arrangement" in t or "grey" in t or "mother" in t for t in titles_lower), (
+        "Whistler famous works should include 'Arrangement in Grey and Black No.1'")
+
+
+def test_whistler_famous_works_include_nocturne():
+    """Whistler's famous works should include at least one Nocturne."""
+    s = get_style("whistler")
+    titles_lower = [w[0].lower() for w in s.famous_works]
+    assert any("nocturne" in t for t in titles_lower), (
+        "Whistler famous works should include at least one Nocturne")
+
+
+def test_whistler_inspiration_references_tonal_harmony_pass():
+    """Whistler's inspiration must reference 'whistler_tonal_harmony_pass'."""
+    s = get_style("whistler")
+    assert "whistler_tonal_harmony_pass" in s.inspiration, (
+        "Whistler inspiration should reference 'whistler_tonal_harmony_pass()'")
+
+
+def test_whistler_technique_mentions_sauce():
+    """Whistler's technique text must mention his 'sauce' (turpentine-diluted paint)."""
+    s = get_style("whistler")
+    assert "sauce" in s.technique.lower(), (
+        "Whistler technique should mention his 'sauce' (turpentine-diluted paint method)")
+
+
+def test_whistler_technique_mentions_nocturne():
+    """Whistler's technique must reference his Nocturne series."""
+    s = get_style("whistler")
+    assert "nocturne" in s.technique.lower(), (
+        "Whistler technique should mention his Nocturne paintings")
+
+
+def test_whistler_technique_mentions_japonisme():
+    """Whistler's technique must reference Japanese art influence."""
+    s = get_style("whistler")
+    assert "japan" in s.technique.lower() or "ukiyo" in s.technique.lower(), (
+        "Whistler technique should mention Japanese art influence (Japonisme)")
+
+
+def test_whistler_cool_glazing():
+    """
+    Whistler's glazing should be cool (B >= R) — he used cool grey unifying
+    glazes rather than the warm amber glazes of Old Master oil painting.
+    """
+    s = get_style("whistler")
+    assert s.glazing is not None, "Whistler glazing should not be None"
+    r, g, b = s.glazing
+    assert b >= r, (
+        f"Whistler glazing should be cool (B >= R); got R={r:.3f} B={b:.3f}")
+
+
+def test_american_tonalist_in_expected_periods():
+    """EXPECTED_PERIODS list must include AMERICAN_TONALIST."""
+    assert "AMERICAN_TONALIST" in EXPECTED_PERIODS, (
+        "AMERICAN_TONALIST missing from EXPECTED_PERIODS — add it to the list")
+
+
+def test_american_tonalist_stroke_params():
+    """AMERICAN_TONALIST stroke_params should reflect Whistler's tonal harmony technique."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.AMERICAN_TONALIST,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    # Whistler's 'sauce' produces very blended, liquid tonal zones
+    assert p["wet_blend"] > 0.60, (
+        f"AMERICAN_TONALIST wet_blend should be > 0.60 for Whistler's liquid sauce; "
+        f"got {p['wet_blend']:.3f}")
+    # Nocturne edge dissolution is very high
+    assert p["edge_softness"] > 0.70, (
+        f"AMERICAN_TONALIST edge_softness should be > 0.70 for nocturne edge dissolution; "
+        f"got {p['edge_softness']:.3f}")
+    # Whistler used fine marks — not large impasto strokes
+    assert p["stroke_size_face"] <= 6, (
+        f"AMERICAN_TONALIST stroke_size_face should be <= 6 for Whistler's fine tonal marks; "
+        f"got {p['stroke_size_face']}")

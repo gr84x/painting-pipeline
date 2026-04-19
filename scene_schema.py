@@ -253,6 +253,7 @@ class Period(Enum):
     FRENCH_ROMANTIC  = auto()  # Géricault — turbulent warm-dark chiaroscuro, thick impasto drama, raw emotional intensity, near-black shadows with sudden warm light eruptions
     UMBRIAN_RENAISSANCE = auto()  # Signorelli — muscular clear-contour authority, warm sienna ground, vivid chromatic accents, sculptural bas-relief modelling
     VENETIAN_PASTEL_PORTRAIT = auto()  # Rosalba Carriera — feathery luminous pastel glow, pearlescent skin bloom, cool lavender shadows, warm vellum ground
+    AMERICAN_TONALIST = auto()  # Whistler — cool silver-grey tonal harmony, nocturne atmospheric dissolution, peripheral edge loss, minimal palette keyed to a single tonal register
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1022,6 +1023,11 @@ class Style:
             # edge_softness=0.90: very high — Carriera's faces dissolve at their edges into
             # soft vignette halos; the powdery medium erases all hard contours.
             Period.VENETIAN_PASTEL_PORTRAIT: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.88, edge_softness=0.90),
+            # wet_blend=0.72: Whistler's "sauce" — heavily turpentine-diluted paint creates
+            # liquid, blended tonal zones rather than visible marks.
+            # edge_softness=0.80: very high — forms dissolve into atmosphericbackgrounds,
+            # peripheral regions especially; the Nocturnes are almost edgeless.
+            Period.AMERICAN_TONALIST: dict(stroke_size_face=4, stroke_size_bg=22, wet_blend=0.72, edge_softness=0.80),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

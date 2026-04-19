@@ -7170,6 +7170,121 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── James McNeill Whistler ─────────────────────────────────────────────────
+    "whistler": ArtStyle(
+        artist="James McNeill Whistler",
+        movement="American Tonalism / Aestheticism",
+        nationality="American-British",
+        period="1855–1903",
+        palette=[
+            (0.56, 0.57, 0.62),   # cool silver-grey — dominant tonal key (nocturnes)
+            (0.82, 0.80, 0.78),   # pale warm silver — lit figure surfaces
+            (0.28, 0.30, 0.36),   # dark blue-grey — deep nocturne shadow
+            (0.70, 0.68, 0.72),   # silver-lavender mid-tone — Whistler's characteristic
+            (0.18, 0.22, 0.32),   # deep nocturne blue — the Thames at night
+            (0.88, 0.82, 0.68),   # warm ivory — figure highlight (Arrangement paintings)
+            (0.42, 0.44, 0.50),   # steel-blue mid-grey — cool tonal anchor
+        ],
+        ground_color=(0.58, 0.58, 0.62),    # cool silver-grey prepared board — Whistler
+        #                                     primed his mahogany panels and canvases with
+        #                                     a cool grey ground that unified the tonal key
+        #                                     before a single stroke of colour was applied
+        stroke_size=4,
+        wet_blend=0.72,
+        edge_softness=0.80,
+        jitter=0.018,
+        glazing=(0.55, 0.56, 0.60),          # cool neutral glaze — grey rather than amber
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "James McNeill Whistler (1834–1903) occupies a singular position in the "
+            "history of Western painting as the artist who most fully translated the "
+            "philosophy of 'art for art's sake' — l'art pour l'art — into a working "
+            "pictorial method.  Born in Lowell, Massachusetts, trained briefly at West "
+            "Point and at the École des Beaux-Arts in Paris, he spent most of his "
+            "productive life in London and Paris, where he moved between the realist "
+            "circle of Courbet, the Impressionist orbit of Monet, and the Japoniste "
+            "enthusiasm that swept the European avant-garde after the opening of "
+            "Japan in the 1850s.  He was, in the fullest sense, an international "
+            "artist who belonged to no single national tradition and refused to be "
+            "confined by any single school.\n\n"
+            "His defining theoretical contribution was the insistence that a painting "
+            "should be experienced as a formal object — an arrangement of colour, tone, "
+            "and line — rather than as a vehicle for narrative, moral instruction, or "
+            "social commentary.  He named his paintings accordingly: not 'Seascape "
+            "with Boats' but 'Harmony in Blue and Silver'; not 'Portrait of My Mother' "
+            "but 'Arrangement in Grey and Black No. 1'.  The musical titles were not "
+            "affectation but doctrine: he believed that painting, like music, could "
+            "produce purely aesthetic emotion through the formal relationships of its "
+            "materials, independent of what those materials happened to depict.\n\n"
+            "His technical practice was equally distinctive.  He prepared his boards "
+            "and canvases with a cool grey ground that unified the entire tonal key "
+            "before a brushstroke was applied.  He then worked with a preparation he "
+            "called the 'sauce' — oil paint diluted to extreme fluidity with "
+            "turpentine — which allowed him to wipe away, layer, and restate the "
+            "image many times without losing the atmospheric unity of the ground.  "
+            "The result was a surface where values inhabit a narrow tonal range, "
+            "graduated from the dominant grey key through carefully placed accents of "
+            "darker and lighter tone.  Nothing was strident, nothing was forced; "
+            "the whole surface breathed together as a tonal chord.\n\n"
+            "The 'Nocturnes' — his night paintings of the Thames, Cremorne Gardens, "
+            "and the Venice lagoon — take this tonal philosophy to its limit.  Working "
+            "from memory after observing a scene, he laid a fluid dark ground, then "
+            "floated lighter tonal accents across it with a wide decorator's brush.  "
+            "The result is paintings where the pictorial information is barely "
+            "sufficient to read — a dark horizontal band, a suggestion of reflected "
+            "light in water, a distant burst of fireworks — yet which communicate an "
+            "overwhelming atmosphere of night, stillness, and the dissolution of form "
+            "in darkness.  Edges are not so much softened as eliminated: figures, "
+            "bridges, and trees dissolve into their atmospheric ground as completely "
+            "as any Leonardo sfumato, but through tonal key management rather than "
+            "blended gradients.\n\n"
+            "His portrait practice shows the same philosophy applied to the figure: "
+            "the sitter's face and hands emerge from a near-monochromatic ground, "
+            "with the surrounding costume and environment dissolved into the same "
+            "tonal register as the background.  The radical tonal economy of "
+            "'Arrangement in Grey and Black No. 1' — later universally called "
+            "'Whistler's Mother' — represents perhaps the most disciplined "
+            "application of tonal key in the history of formal portraiture.\n\n"
+            "His deep engagement with Japanese woodblock prints (ukiyo-e) — he "
+            "collected them avidly and incorporated motifs into his paintings and "
+            "interior design — shaped his compositional instincts: asymmetry, the "
+            "large emptiness of a cool tonal ground as a compositional element, the "
+            "decorative handling of the picture edge, and the treatment of foreground "
+            "figures as flat silhouettes against atmospheric distances.  These "
+            "qualities infused all his mature work with an elegant, spare quality "
+            "that anticipated the minimalism of the twentieth century."
+        ),
+        famous_works=[
+            ("Arrangement in Grey and Black No.1 (Whistler's Mother)", "1871"),
+            ("Symphony in White No.1: The White Girl", "1862"),
+            ("Nocturne: Blue and Gold — Old Battersea Bridge", "c. 1872–75"),
+            ("The Princess from the Land of Porcelain", "1863–65"),
+            ("Nocturne in Black and Gold: The Falling Rocket", "c. 1875"),
+            ("Arrangement in Grey: Self-Portrait", "c. 1872–75"),
+        ],
+        inspiration=(
+            "Apply whistler_tonal_harmony_pass() to introduce Whistler's defining "
+            "optical quality in three interlocking stages: (1) tonal key lock — "
+            "compress all luminance values toward a target key center (default 0.48, "
+            "mid-key), pulling extreme darks and lights toward the characteristic "
+            "cool-grey tonal register of the Nocturnes; do not flatten the image "
+            "but reduce the tonal range so that accents read as deliberate placements "
+            "rather than uncontrolled contrasts; (2) cool silver monochromatic drift "
+            "— nudge the palette toward Whistler's dominant cool silver-grey hue "
+            "(R≈0.56, G≈0.57, B≈0.62) by pulling saturation inward; the effect is "
+            "tonal harmony rather than desaturation — each colour is pulled slightly "
+            "toward the dominant register while retaining its hue character; "
+            "(3) peripheral edge dissolution — apply progressive Gaussian softening "
+            "from the compositional periphery inward, dissolving edge detail into "
+            "atmospheric suggestion in the manner of Japanese woodblock negative "
+            "space and Whistler's intentionally 'lost' picture boundaries; the focal "
+            "center retains full edge clarity while the periphery dissolves into haze.  "
+            "Use at opacity 0.38–0.48: the effect accumulates quietly and should feel "
+            "like a shift in atmosphere rather than a visible filter."
+        ),
+    ),
+
 }
 
 

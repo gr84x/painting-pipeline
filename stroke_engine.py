@@ -20536,13 +20536,14 @@ class Painter:
         print("    Bosch phantasmagoria pass complete.")
 
     def cool_atmospheric_recession_pass(self,
-                                         horizon_y:       float = 0.35,
-                                         cool_strength:   float = 0.22,
-                                         bright_lift:     float = 0.10,
-                                         desaturate:      float = 0.30,
-                                         blur_background: float = 0.8,
-                                         feather:         float = 0.15,
-                                         opacity:         float = 0.75) -> None:
+                                         horizon_y:                  float = 0.35,
+                                         cool_strength:              float = 0.22,
+                                         bright_lift:                float = 0.10,
+                                         desaturate:                 float = 0.30,
+                                         blur_background:            float = 0.8,
+                                         feather:                    float = 0.15,
+                                         opacity:                    float = 0.75,
+                                         lateral_horizon_asymmetry:  float = 0.0) -> None:
         """
         Cool atmospheric recession pass — session 74 artistic improvement.
 
@@ -20610,6 +20611,18 @@ class Painter:
                            (normalised). Prevents a hard line at the horizon.
                            0.10–0.20 is typical.
         opacity          : Overall pass opacity blended against original (0–1).
+        lateral_horizon_asymmetry : Fractional canvas-height shift between the left and
+                           right horizon positions.  Positive values raise the left
+                           horizon (left side of background is higher, right side is
+                           lower); negative values raise the right.  Default 0.0 gives a
+                           perfectly level horizon.  This replicates the famous left/right
+                           horizon height mismatch in the Mona Lisa — where the landscape
+                           on the left sits visibly higher than the landscape on the right,
+                           creating a subtle, disorienting perspective discontinuity.
+                           Implemented by computing a per-column effective horizon position
+                           that varies linearly across the canvas width; when zero the
+                           behaviour is identical to the prior single-horizon formulation.
+                           Typical range: −0.10 to +0.10 (up to 10 % of canvas height).
         """
         import numpy as _np
         from scipy.ndimage import gaussian_filter as _gf
@@ -20617,7 +20630,7 @@ class Painter:
         print(f"  Cool atmospheric recession pass "
               f"(horizon_y={horizon_y:.2f}  cool={cool_strength:.2f}  "
               f"lift={bright_lift:.2f}  desat={desaturate:.2f}  "
-              f"opacity={opacity:.2f}) ...")
+              f"opacity={opacity:.2f}  lateral_asym={lateral_horizon_asymmetry:+.3f}) ...")
 
         if opacity <= 0.0:
             print("    Cool atmospheric recession pass skipped (opacity=0)")
@@ -20634,22 +20647,38 @@ class Painter:
         r_f = buf[:, :, 2].astype(_np.float32) / 255.0
 
         # ── Build vertical depth weight ───────────────────────────────────────
-        # depth_w[y]: 0 at horizon_y, increases toward top of canvas (y=0).
-        # Rows at or below horizon_y are unaffected.
-        ys_norm = _np.linspace(0.0, 1.0, h, dtype=_np.float32)  # 0=top, 1=bottom
-        horizon_px = int(_np.clip(horizon_y * h, 0, h - 1))
+        # depth_w[y, x]: 0 at the effective horizon for each column, increases
+        # toward the top of the canvas (row 0).  Rows at or below the per-column
+        # horizon are unaffected.
+        #
+        # When lateral_horizon_asymmetry == 0, horizon_y_cols is constant and the
+        # result is identical to the former single-horizon 1D broadcast.  When
+        # non-zero, the effective horizon varies linearly from column 0 to column W-1:
+        #   left edge  (x=0):   horizon_y − lateral_horizon_asymmetry × 0.5
+        #   right edge (x=W-1): horizon_y + lateral_horizon_asymmetry × 0.5
+        # A positive asymmetry therefore raises the left horizon and lowers the right,
+        # matching the Mona Lisa background geometry.
+        xs = _np.arange(w, dtype=_np.float32)
+        horizon_y_cols = (horizon_y
+                          - lateral_horizon_asymmetry * (0.5 - xs / max(w - 1, 1)))
+        horizon_px_cols = _np.clip(
+            (horizon_y_cols * h).astype(_np.float32), 0.0, float(h - 1)
+        )  # shape (W,)
 
-        # Raw depth weight: 1 at top, 0 at horizon, 0 below horizon
-        depth_raw = _np.zeros(h, dtype=_np.float32)
-        for row in range(h):
-            if row < horizon_px:
-                # Normalised distance above horizon (1=top, 0=at horizon)
-                t = (horizon_px - row) / max(horizon_px, 1)
-                # Feather: smoothstep-style ramp over the feather zone
-                t_feathered = _np.clip((t - feather) / max(1.0 - feather, 1e-6),
-                                       0.0, 1.0)
-                depth_raw[row] = float(t_feathered) ** 1.5   # nonlinear: effect accelerates with distance
-        depth_w = depth_raw[:, _np.newaxis]   # (H, 1) for broadcasting
+        ys = _np.arange(h, dtype=_np.float32)[:, _np.newaxis]  # shape (H, 1)
+        # Normalised distance above the per-column horizon: 1 at top, 0 at horizon
+        t_raw = (horizon_px_cols[_np.newaxis, :] - ys) / _np.maximum(
+            horizon_px_cols[_np.newaxis, :], 1.0
+        )
+        t_raw = _np.clip(t_raw, 0.0, 1.0)
+
+        # Feather: smoothstep-style ramp over the feather zone so there is no
+        # hard transition at the horizon row
+        t_feathered = _np.clip(
+            (t_raw - feather) / max(1.0 - feather, 1e-6), 0.0, 1.0
+        )
+        depth_w = t_feathered ** 1.5   # nonlinear: effect accelerates with distance
+        # depth_w shape: (H, W)
 
         # ── Figure mask suppression ───────────────────────────────────────────
         # Do not apply recession to the figure (sitter's skin must stay warm)
@@ -22755,3 +22784,165 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Carriera pastel glow pass complete.")
+
+    def whistler_tonal_harmony_pass(
+        self,
+        key_center:         float = 0.48,   # target tonal key (0=black, 1=white; 0.48=mid-key)
+        key_strength:       float = 0.18,   # compression strength toward key center (0–1)
+        dominant_hue_r:     float = 0.56,   # R component of dominant tonal hue (cool silver-grey)
+        dominant_hue_g:     float = 0.57,   # G component of dominant tonal hue
+        dominant_hue_b:     float = 0.62,   # B component of dominant tonal hue
+        hue_drift:          float = 0.10,   # strength of drift toward dominant hue (0–1)
+        dissolution_radius: float = 0.65,   # normalised radius beyond which dissolution begins
+        dissolution_sigma:  float = 2.0,    # Gaussian sigma for peripheral edge dissolution
+        blur_radius:        float = 5.0,    # Gaussian sigma for mask feathering
+        opacity:            float = 0.42,   # global blend weight (0–1)
+    ) -> None:
+        """
+        James McNeill Whistler's tonal harmony — session 87 artistic improvement.
+
+        Whistler's paintings are defined by a single overriding formal principle:
+        tonal harmony.  Every value in a painting must inhabit a coherent tonal
+        register — a 'key' — so that accents of dark or light read as deliberate
+        placements rather than uncontrolled contrasts.  He achieved this by working
+        on a pre-keyed cool grey ground with heavily diluted 'sauce' paint, wiping
+        and restating the image many times to ensure the tonal ensemble remained
+        coherent throughout the painting process.
+
+        This pass introduces three interlocking qualities of Whistler's optical world:
+
+        1. **Tonal key lock** — All luminance values are compressed toward a target
+           key center (default 0.48, mid-key).  Pixels above the key center are
+           pulled toward it; pixels below are lifted toward it.  The compression
+           strength controls how aggressively the tonal range is narrowed.  The
+           effect is not flat desaturation but a controlled compression that
+           preserves relative tonal relationships while preventing extreme contrasts
+           from dominating.  Low-key mode (key_center=0.35) produces Nocturne
+           darkness; mid-key (0.48) gives the silver Arrangement register; high-key
+           (0.65) gives the White Symphony register.
+
+        2. **Cool silver monochromatic drift** — The palette is gently pulled toward
+           Whistler's dominant cool silver-grey hue (default R=0.56, G=0.57, B=0.62),
+           reducing chromatic variety without eliminating hue character.  Each pixel
+           is blended toward the dominant hue proportional to its saturation — highly
+           saturated colours are pulled more strongly than neutral tones — creating
+           the characteristic 'harmony' where every colour feels related to a shared
+           tonal key rather than existing independently.  This is different from
+           simple desaturation: the hue is pulled toward a specific cool-grey rather
+           than toward neutral achromatic grey.
+
+        3. **Peripheral edge dissolution** — Progressive Gaussian softening is applied
+           from the compositional periphery inward, dissolving edge detail into
+           atmospheric suggestion at the picture's boundaries.  Inside the focal
+           circle (dissolution_radius), the image retains full edge sharpness.
+           Outside it, edges progressively dissolve into the atmospheric ground.
+           Inspired by Whistler's intentionally 'lost' picture edges — visible in
+           every Nocturne, where figures and architecture dissolve into the night
+           sky rather than being cut against it — and by the Japanese woodblock
+           treatment of empty space as an active compositional element.
+
+        Parameters
+        ----------
+        key_center          : Target tonal key (0=black, 1=white; default 0.48 = mid-key).
+                              0.35 = low-key Nocturne darkness; 0.65 = high-key White
+                              Symphony mode.
+        key_strength        : Compression strength toward key center (0 = no compression,
+                              1 = full collapse to key_center).  0.15–0.22 is typical.
+        dominant_hue_r/g/b  : RGB of the dominant tonal hue to drift toward.  Default is
+                              Whistler's characteristic cool silver-grey (0.56, 0.57, 0.62).
+                              For nocturne mode use (0.28, 0.32, 0.42) deep blue.
+        hue_drift           : Strength of drift toward dominant hue (0 = none, 1 = full).
+                              0.08–0.14 is typical; above 0.20 feels monochromatic.
+        dissolution_radius  : Normalised radius of the focal circle (0–1 of canvas diagonal).
+                              Inside: full sharpness.  Outside: progressive dissolution.
+        dissolution_sigma   : Gaussian sigma for the peripheral blur (px).
+        blur_radius         : Gaussian sigma for all mask feathering.
+        opacity             : Global compositing weight (0 = no effect, 1 = full).
+        """
+        print(f"Whistler tonal harmony pass  "
+              f"(key={key_center:.2f}  strength={key_strength:.2f}  "
+              f"hue_drift={hue_drift:.2f}  opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        w, h = self.canvas.w, self.canvas.h
+
+        # ── Read current canvas buffer (BGRA, uint8) ────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(h, w, 4).copy()
+
+        # Float RGB [0, 1] — Cairo BGRA: index 2=R, 1=G, 0=B
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0  # BT.601 luminance
+
+        # ── Stage 1: Tonal key lock ──────────────────────────────────────────
+        # Compress luminance toward key_center: pixels above are pulled down,
+        # pixels below are lifted up.  Apply as a luminance-preserving scale so
+        # chroma (relative hue) is maintained during compression.
+        lum_safe = _np.maximum(lum, 1e-8)
+        lum_new = lum + (key_center - lum) * key_strength   # pull toward key_center
+        scale_key = lum_new / lum_safe
+        r_out = _np.clip(r_out * scale_key, 0.0, 1.0)
+        g_out = _np.clip(g_out * scale_key, 0.0, 1.0)
+        b_out = _np.clip(b_out * scale_key, 0.0, 1.0)
+
+        # ── Stage 2: Cool silver monochromatic drift ─────────────────────────
+        # Estimate saturation (chroma) and use it to weight the drift toward the
+        # dominant hue.  Highly saturated pixels are pulled more strongly.
+        max_c = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        min_c = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma = _np.clip(max_c - min_c, 0.0, 1.0)   # relative saturation proxy
+
+        # Drift weight: proportional to chroma and global hue_drift
+        drift_w = chroma * hue_drift
+        drift_w = _np.clip(drift_w, 0.0, 1.0)
+
+        r_out = _np.clip(r_out * (1.0 - drift_w) + dominant_hue_r * drift_w, 0.0, 1.0)
+        g_out = _np.clip(g_out * (1.0 - drift_w) + dominant_hue_g * drift_w, 0.0, 1.0)
+        b_out = _np.clip(b_out * (1.0 - drift_w) + dominant_hue_b * drift_w, 0.0, 1.0)
+
+        # ── Stage 3: Peripheral edge dissolution ─────────────────────────────
+        # Build a radial weight that is 0 inside dissolution_radius and ramps
+        # to 1 at the canvas corners.
+        ys = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, _np.newaxis]
+        xs = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[_np.newaxis, :]
+        # Distance from canvas center, normalised to [0, 1] at corners
+        dist = _np.sqrt((xs - 0.5) ** 2 + (ys - 0.5) ** 2) / (0.5 * _np.sqrt(2.0))
+        # Ramp: 0 inside radius, 1 at edge
+        dissolve_mask = _np.clip(
+            (dist - dissolution_radius) / max(1.0 - dissolution_radius, 1e-6),
+            0.0, 1.0
+        )
+        dissolve_mask = _gf(dissolve_mask.astype(_np.float32), sigma=blur_radius)
+        dissolve_mask = _np.clip(dissolve_mask, 0.0, 1.0)
+
+        if dissolution_sigma > 0.0:
+            r_blurred = _gf(r_out.astype(_np.float32), sigma=dissolution_sigma)
+            g_blurred = _gf(g_out.astype(_np.float32), sigma=dissolution_sigma)
+            b_blurred = _gf(b_out.astype(_np.float32), sigma=dissolution_sigma)
+            r_out = _np.clip(r_out * (1.0 - dissolve_mask) + r_blurred * dissolve_mask, 0.0, 1.0)
+            g_out = _np.clip(g_out * (1.0 - dissolve_mask) + g_blurred * dissolve_mask, 0.0, 1.0)
+            b_out = _np.clip(b_out * (1.0 - dissolve_mask) + b_blurred * dissolve_mask, 0.0, 1.0)
+
+        # ── Composite at opacity ─────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Whistler tonal harmony pass complete.")
