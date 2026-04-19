@@ -22591,3 +22591,167 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Signorelli sculptural vigour pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Carriera pastel glow pass — Rosalba Carriera / Venetian Rococo (session 86)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def carriera_pastel_glow_pass(
+        self,
+        skin_brighten_lo:   float = 0.55,   # luminance floor for skin brightening zone
+        skin_brighten_hi:   float = 0.85,   # luminance ceiling for skin brightening zone
+        warm_pink_r:        float = 0.028,  # R lift in skin zone (ivory-pink warmth)
+        warm_pink_b:        float = 0.010,  # B lift in skin zone (soft lavender undertone)
+        highlight_sigma:    float = 3.2,    # Gaussian sigma for highlight bloom diffusion
+        highlight_thresh:   float = 0.88,   # luminance threshold above which to bloom
+        highlight_bloom:    float = 0.18,   # bloom spread strength (0–1)
+        bg_cool_b:          float = 0.025,  # B lift in background (cool lavender shift)
+        bg_cool_r:          float = 0.012,  # R reduction in background (de-warm)
+        blur_radius:        float = 5.0,    # Gaussian sigma for all adjustment masks
+        opacity:            float = 0.35,   # global blend weight
+    ) -> None:
+        """
+        Rosalba Carriera's pearlescent pastel glow.
+
+        Rosalba Carriera (1673–1757) was the pre-eminent pastellist of the early
+        eighteenth century.  Her portraits achieve a luminous, powdery skin
+        quality unlike any oil-painting technique — the pastel pigment sits on a
+        warm vellum or ivory ground, scattering light so that the face appears
+        softly self-luminous rather than lit from without.
+
+        This pass introduces three interlocking qualities of Carriera's optical
+        world:
+
+        1. **Pearlescent skin brightening** — Carriera's flesh tones have a
+           distinctive warm ivory-pink quality in the mid-bright zone: warm enough
+           to read as human skin, cool enough at the edges to suggest the lavender-
+           grey of pastel shadow.  In the upper mid-tone range (luminance 0.55–0.85),
+           this pass lifts the red channel slightly (warm pink) and applies a very
+           gentle blue lift (soft lavender), approximating the warm-pink overstrokes
+           on cool-lavender underlayers that define real pastel flesh.  The green
+           channel is left unchanged to preserve the neutral ivory balance rather
+           than pushing toward a yellow-ochre (oil-painting) register.
+
+        2. **Highlight bloom diffusion** — Carriera's highlights are feathered and
+           powdery, not the crisp impasto pearls of Vermeer or the sharp specular
+           gleam of Sargent.  For pixels above the highlight threshold (> 0.88
+           luminance), this pass applies a Gaussian blur to the brightest values
+           and blends the result back into the canvas.  The effect widens each
+           specular peak into a soft, diffused halo — the visual signature of pastel
+           pigment where the light-scattering dust softens every hard edge of
+           reflected light.
+
+        3. **Background vignette cooling** — Carriera's backgrounds are invariably
+           cool and neutral: a pale blue-grey or warm-beige tone that recedes and
+           makes the warm, luminous face advance.  In the background zone (pixels
+           outside the figure mask), this pass lifts the blue channel and reduces
+           red slightly, pushing toward the cool lavender-grey of Carriera's
+           characteristic background tone.  The effect is most visible at moderate
+           opacity: a gentle atmospheric push that makes the figure glow.
+
+        Parameters
+        ----------
+        skin_brighten_lo  : luminance floor of the skin brightening zone (0–1).
+        skin_brighten_hi  : luminance ceiling of the skin brightening zone (0–1).
+        warm_pink_r       : R channel lift for warm ivory-pink skin brightening.
+        warm_pink_b       : B channel lift for cool lavender undertone in skin.
+        highlight_sigma   : Gaussian sigma for the highlight bloom Gaussian blur.
+        highlight_thresh  : luminance threshold above which to apply highlight bloom.
+        highlight_bloom   : blend weight of the bloomed highlight (0 = none, 1 = full).
+        bg_cool_b         : B channel lift in the background zone (cool shift).
+        bg_cool_r         : R channel reduction in the background zone (de-warm).
+        blur_radius       : Gaussian sigma for all zone-detection masks.
+        opacity           : global compositing weight (0 = no effect, 1 = full).
+
+        Notes
+        -----
+        Characteristic works:
+          *Self-Portrait as Winter* (c. 1731, Gemäldegalerie Dresden) —
+              the most complete example of her powdery luminous skin technique.
+          *Portrait of a Young Lady* (c. 1720–1730) — feathered lavender shadows,
+              warm pink highlight bloom, cool neutral background.
+        """
+        print(f"Carriera pastel glow pass  "
+              f"(opacity={opacity:.2f}  bloom_sigma={highlight_sigma:.1f}  "
+              f"highlight_thresh={highlight_thresh:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        w, h = self.canvas.w, self.canvas.h
+
+        # ── Read current canvas buffer (BGRA, uint8) ────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(h, w, 4).copy()
+
+        # Float RGB [0, 1] — Cairo BGRA: index 2=R, 1=G, 0=B
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0  # BT.601 luminance (H, W)
+
+        # ── Figure / background masks ────────────────────────────────────────
+        if self._figure_mask is not None:
+            fig_mask = _np.clip(self._figure_mask, 0.0, 1.0)
+        else:
+            fig_mask = _np.ones((h, w), dtype=_np.float32)
+        bg_mask = _np.clip(1.0 - fig_mask, 0.0, 1.0)
+
+        # ── Stage 1: Pearlescent skin brightening ────────────────────────────
+        # Target: upper mid-tone luminance range in the figure zone.
+        skin_mask = _np.clip(
+            (lum - skin_brighten_lo) / max(0.01, skin_brighten_hi - skin_brighten_lo),
+            0.0, 1.0
+        ) * _np.clip(
+            1.0 - (lum - skin_brighten_hi) / max(0.01, 1.0 - skin_brighten_hi),
+            0.0, 1.0
+        ) * fig_mask
+        skin_mask = _gf(skin_mask.astype(_np.float32), sigma=blur_radius)
+        skin_mask = _np.clip(skin_mask, 0.0, 1.0)
+
+        # Warm ivory-pink lift in R; soft lavender lift in B; G unchanged.
+        r_out = _np.clip(r_out + skin_mask * warm_pink_r, 0.0, 1.0)
+        b_out = _np.clip(b_out + skin_mask * warm_pink_b, 0.0, 1.0)
+
+        # ── Stage 2: Highlight bloom diffusion ──────────────────────────────
+        # Isolate bright pixels, Gaussian-blur them, blend back as a soft halo.
+        hi_mask = _np.clip(
+            (lum - highlight_thresh) / max(0.01, 1.0 - highlight_thresh),
+            0.0, 1.0
+        )
+        # Blur each channel independently to produce a colour-accurate bloom.
+        r_bloom = _gf((r_out * hi_mask).astype(_np.float32), sigma=highlight_sigma)
+        g_bloom = _gf((g_out * hi_mask).astype(_np.float32), sigma=highlight_sigma)
+        b_bloom = _gf((b_out * hi_mask).astype(_np.float32), sigma=highlight_sigma)
+
+        r_out = _np.clip(r_out + r_bloom * highlight_bloom, 0.0, 1.0)
+        g_out = _np.clip(g_out + g_bloom * highlight_bloom, 0.0, 1.0)
+        b_out = _np.clip(b_out + b_bloom * highlight_bloom, 0.0, 1.0)
+
+        # ── Stage 3: Background vignette cooling ─────────────────────────────
+        # Shift background zone toward cool lavender-grey.
+        bg_blur = _gf(bg_mask.astype(_np.float32), sigma=blur_radius)
+        bg_blur = _np.clip(bg_blur, 0.0, 1.0)
+
+        b_out = _np.clip(b_out + bg_blur * bg_cool_b, 0.0, 1.0)
+        r_out = _np.clip(r_out - bg_blur * bg_cool_r, 0.0, 1.0)
+
+        # ── Composite at opacity ─────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Carriera pastel glow pass complete.")
