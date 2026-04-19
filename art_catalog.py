@@ -7951,6 +7951,89 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Gerrit Dou ────────────────────────────────────────────────────────────
+    "gerrit_dou": ArtStyle(
+        artist="Gerrit Dou",
+        movement="Dutch Golden Age / Fijnschilder",
+        nationality="Dutch (Leiden)",
+        period="1620–1675",
+        palette=[
+            (0.96, 0.88, 0.72),   # warm ivory highlight — candlelit peak brightness; creamy Naples yellow warmth
+            (0.88, 0.76, 0.56),   # golden amber flesh — lit midtone; Dou's skin glows with candle warmth
+            (0.72, 0.58, 0.40),   # warm ochre — mid shadow transition; smooth glaze between light and dark
+            (0.48, 0.35, 0.22),   # raw umber shadow — deep flesh shadow; smooth, never harsh
+            (0.20, 0.14, 0.08),   # near-black void — niche/background darks; rich, warm near-absence
+            (0.82, 0.62, 0.28),   # candle amber — the warm point-source colour; defines lit folds and edges
+            (0.58, 0.48, 0.36),   # warm stone grey — niche arch colour; pale warm stone of his framing devices
+            (0.30, 0.26, 0.20),   # warm dark brown — drapery shadow; deep without going cold
+        ],
+        ground_color=(0.62, 0.50, 0.32),    # warm amber imprimatura — shared Leiden tradition with Rembrandt
+        stroke_size=2,                       # the finest in the catalog — Dou painted with a magnifying glass
+        wet_blend=0.82,                      # extreme glazing: 30+ transparent layers, smooth as enamel
+        edge_softness=0.28,                  # crisp, clear contours — his figures are sharply defined, not sfumato
+        jitter=0.008,                        # near-zero jitter — his surfaces are glass-smooth
+        glazing=(0.76, 0.60, 0.32),          # warm amber-gold candle glaze over the final surface
+        crackle=True,                        # 17th-century oak panel; aged craquelure in originals
+        chromatic_split=False,
+        technique=(
+            "Gerrit Dou (1613–1675) was Rembrandt's first and most famous pupil in Leiden, "
+            "and the founder of the fijnschilder ('fine painter') tradition that would "
+            "define Leiden art for the next century.  He represents the extreme of technical "
+            "refinement in the Dutch Golden Age — a painter whose surfaces are as smooth "
+            "and luminous as enamel, achieved through up to thirty or more translucent oil-"
+            "glaze layers applied over a warm amber imprimatura.  Contemporaries reported "
+            "that Dou used a magnifying glass while painting and spent hours allowing dust "
+            "to settle before resuming work, to avoid contaminating his perfectly polished "
+            "surfaces.  "
+            "Dou's defining contribution is the 'niche' composition — a figure framed within "
+            "a stone arch or window, caught in a moment of domestic or scholarly life.  The "
+            "niche device serves multiple functions: it creates a recession of space, it "
+            "frames the figure against a warm candlelit interior, and it gives the composition "
+            "a theatrical, stage-like quality that anticipates the Dutch domestic genre "
+            "tradition of de Hooch and Vermeer.  Unlike de Hooch's open thresholds, Dou's "
+            "niches are enclosed and intimate — the figure is caught in a private moment, "
+            "watched rather than encountered.  "
+            "Technically, Dou's most distinctive quality is the warm candlelit illumination "
+            "of his later works.  His candle scenes (The Night School, The Hermit, Woman "
+            "Reading by Candlelight) achieve a warm amber-gold light quality — brighter and "
+            "warmer than Rembrandt's chiaroscuro, more intimate than Georges de la Tour's "
+            "pure tenebrism.  The candle is always a warm amber-orange, creating rich, "
+            "smooth tonal gradients across flesh and drapery.  "
+            "Apply gerrit_dou_fijnschilder_pass() after the main build_form() passes to "
+            "achieve the enamel surface fineness, candle-warm highlight gold, and warm "
+            "point-source gradient that define Dou's intimate interiors."
+        ),
+        famous_works=[
+            ("The Night School",                    "c. 1660–1665"),
+            ("Woman Reading by Candlelight",        "c. 1660"),
+            ("Self-Portrait",                       "c. 1645"),
+            ("The Leiden Baker",                    "c. 1646"),
+            ("The Dropsical Woman",                 "c. 1663"),
+            ("The Hermit",                          "c. 1670"),
+            ("Girl at a Window",                    "c. 1645"),
+            ("Young Mother",                        "c. 1658"),
+        ],
+        inspiration=(
+            "Apply gerrit_dou_fijnschilder_pass() to add three defining qualities: "
+            "(1) Enamel micro-smoothing — in bright skin zones (lum > 0.62), apply very "
+            "gentle Gaussian smoothing at enamel_strength-controlled sigma (0.6–1.4) to "
+            "create the glass-like surface polish of 30+ glaze layers, composited at low "
+            "opacity to retain texture while adding luminous fineness; (2) Candle-warm "
+            "highlight gold — in upper highlights (lum > 0.72), shift toward warm amber-"
+            "gold (R+, G+ slightly, B neutral), replicating the warm candle illumination "
+            "that characterises Dou's later interiors; (3) Point-source candle gradient — "
+            "gerrit_dou_fijnschilder_candle_gradient_pass() applies a radial warm gradient "
+            "from a simulated candle position (default: upper-right, x=0.72, y=0.15 in "
+            "image-space), adding the warm directional quality of a side-candle to the "
+            "overall surface register.  stroke_size=2 requires a fine build_form() pass "
+            "before application.  wet_blend=0.82 produces smooth, glass-like blends in "
+            "the underpainting and block_in passes.  "
+            "edge_softness=0.28: Dou's edges are crisp and clear — no sfumato, no "
+            "dissolution — but they are luminously smooth, not harsh.  The niche "
+            "architecture creates its own spatial recession."
+        ),
+    ),
+
 }
 
 

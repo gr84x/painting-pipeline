@@ -24330,3 +24330,179 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Hugo van der Goes expressive depth pass complete.")
+
+    def gerrit_dou_fijnschilder_pass(
+        self,
+        highlight_lo:        float = 0.62,   # lower lum bound of enamel micro-smoothing zone
+        highlight_hi:        float = 0.95,   # upper lum bound of enamel micro-smoothing zone
+        enamel_strength:     float = 0.55,   # strength of micro-smoothing: 0=none, 1=fully polished
+        candle_lo:           float = 0.72,   # lower lum threshold for candle-warm gold shift
+        candle_amber_r:      float = 0.022,  # R boost in candle-lit highlights (warm amber)
+        candle_amber_g:      float = 0.010,  # G boost in candle-lit highlights (slight ochre)
+        candle_amber_b:      float = 0.008,  # B reduction in candle-lit highlights (damp cool)
+        candle_x:            float = 0.72,   # candle source X position in image-space [0,1]
+        candle_y:            float = 0.12,   # candle source Y position in image-space [0,1]
+        candle_radius:       float = 0.65,   # radial falloff radius of candle gradient (image-diagonal fracs)
+        candle_gradient_str: float = 0.038,  # peak warm R boost at candle source centre
+        blur_radius:         float = 4.0,    # Gaussian sigma for mask feathering
+        opacity:             float = 0.38,   # overall pass composite opacity
+    ) -> None:
+        """
+        Gerrit Dou fijnschilder pass — session 94 new artist pass.
+
+        Gerrit Dou (1613–1675) was Rembrandt's first and most celebrated pupil in
+        Leiden, and the founder of the fijnschilder ('fine painter') tradition.
+        He represents the technical apex of Dutch Golden Age surface refinement:
+        his oil paintings are composed of up to thirty or more translucent glaze
+        layers, achieving a surface quality that contemporaries compared to enamel
+        or polished ivory.  He reportedly used a magnifying glass while painting
+        and waited for dust to settle before resuming, to preserve the perfect
+        smoothness of the working surface.
+
+        This pass encodes three defining qualities of Dou's technique:
+
+          1. Enamel micro-smoothing (the fijnschilder quality) — In bright skin
+             zones (lum in [highlight_lo, highlight_hi]), apply very gentle Gaussian
+             smoothing at sigma = enamel_strength × 1.8 (range 0–1.8 pixels),
+             creating the glass-like surface polish of 30+ glaze layers.  The
+             smoothed layer is composited against the original at low opacity to
+             retain underlying texture while adding luminous surface fineness.
+             This is distinct from sfumato (which dissolves edges) — Dou's surfaces
+             are polished, not misty.
+
+          2. Candle-warm highlight gold — In the upper highlights (lum > candle_lo),
+             apply a warm amber-gold shift: R + candle_amber_r, G + candle_amber_g,
+             B − candle_amber_b.  Dou's later works (The Night School, Woman Reading
+             by Candlelight) are defined by the warm amber quality of candlelight:
+             brighter than Rembrandt's tenebrism, more intimate than La Tour's
+             pure flame.  The highlight colour shift simulates the warm point-source
+             illumination of a candle held just off-canvas.
+
+          3. Point-source candle gradient (session 94 artistic improvement) — A
+             radial warm gradient emanates from (candle_x, candle_y) in image-space,
+             peaking at the source position and falling off with distance.  The
+             warm channel (R) is lifted by candle_gradient_str at the source and
+             falls smoothly to zero at candle_radius.  This creates the sense of
+             a warm point source of light (a candle or lamp just outside the
+             frame), warming the near side of the figure and letting the far side
+             cool gently.  Unlike de_hooch_threshold_light_pass (which handles
+             horizontal door-light), this gradient simulates a candle at a fixed
+             3D position — it wraps around the figure's near edge, falls off over
+             the body, and creates a gentle warm glow in the background near the
+             source.  The effect is subtle at candle_gradient_str=0.038: barely
+             perceptible as a colour shift, but meaningful as a spatial warmth
+             that unifies the upper-right area of the composition.
+
+        Parameters
+        ----------
+        highlight_lo         : lower lum boundary of enamel micro-smoothing zone
+        highlight_hi         : upper lum boundary of enamel micro-smoothing zone
+        enamel_strength      : smoothing strength 0=none, 1=full fijnschilder polish
+        candle_lo            : lower lum threshold for candle-warm highlight gold shift
+        candle_amber_r       : R boost in candle-lit highlights (warm amber)
+        candle_amber_g       : G boost in candle-lit highlights (slight ochre)
+        candle_amber_b       : B reduction in candle-lit highlights (damp cool)
+        candle_x             : candle source X in image-space [0=left, 1=right]
+        candle_y             : candle source Y in image-space [0=top, 1=bottom]
+        candle_radius        : radial falloff radius (fraction of image diagonal)
+        candle_gradient_str  : peak warm R boost at candle source (session 94 improvement)
+        blur_radius          : Gaussian sigma for mask feathering
+        opacity              : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Gerrit Dou fijnschilder pass "
+              f"(enamel={enamel_strength:.2f}  candle_lo={candle_lo:.2f}  "
+              f"candle_amber_r={candle_amber_r:.3f}  "
+              f"candle_src=({candle_x:.2f},{candle_y:.2f})  "
+              f"gradient_str={candle_gradient_str:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Gerrit Dou fijnschilder pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Stage 1: Enamel micro-smoothing (fijnschilder surface fineness) ───
+        # Bell-shaped mask over [highlight_lo, highlight_hi]; peaks at midpoint.
+        # In this zone, apply gentle Gaussian smoothing (sigma ∝ enamel_strength)
+        # and composite the smoothed version against the original at the mask weight.
+        # The result: highlights become glass-smooth without erasing all texture.
+        if enamel_strength > 0.0:
+            sigma = enamel_strength * 1.8   # max sigma ≈ 1.8 pixels at full strength
+            hl_mid  = (highlight_lo + highlight_hi) * 0.5
+            hl_half = max((highlight_hi - highlight_lo) * 0.5, 1e-6)
+            hl_bell = _np.clip(
+                1.0 - _np.abs(lum - hl_mid) / hl_half, 0.0, 1.0)
+            hl_mask = _gf(hl_bell, sigma=blur_radius)
+
+            # Smooth each channel independently
+            r_smooth = _gf(r_out, sigma=sigma)
+            g_smooth = _gf(g_out, sigma=sigma)
+            b_smooth = _gf(b_out, sigma=sigma)
+
+            # Composite: in the bright zone, blend toward the smoothed version
+            ew = hl_mask * opacity * 0.6    # enamel weight: up to 0.6× of opacity in zone
+            r_out = r_out * (1.0 - ew) + r_smooth * ew
+            g_out = g_out * (1.0 - ew) + g_smooth * ew
+            b_out = b_out * (1.0 - ew) + b_smooth * ew
+
+        # ── Stage 2: Candle-warm highlight gold ───────────────────────────────
+        # Linear ramp from candle_lo to 1.0; full warm-amber shift at lum=1.0.
+        # Adds the characteristic warm candle illumination of Dou's later works.
+        candle_ramp = _np.clip((lum - candle_lo) / max(1.0 - candle_lo, 1e-6),
+                               0.0, 1.0)
+        candle_mask = _gf(candle_ramp, sigma=blur_radius * 0.5)
+        cw = candle_mask * opacity
+
+        r_out = _np.clip(r_out + cw * candle_amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + cw * candle_amber_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - cw * candle_amber_b, 0.0, 1.0)
+
+        # ── Stage 3: Point-source candle gradient (session 94 improvement) ───
+        # Build a radial warm gradient from (candle_x, candle_y) in image-space.
+        # Pixel (px, py) in normalised coords: distance d to source.
+        # warm_lift = candle_gradient_str × max(0, 1 − d / candle_radius).
+        # Lifts R channel (warm amber) near the candle source, fading to zero
+        # at candle_radius; creates the sense of a warm point light just off-frame.
+        diag     = _np.sqrt(float(h)**2 + float(w)**2)
+        ys       = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, _np.newaxis]
+        xs       = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[_np.newaxis, :]
+        dist     = _np.sqrt((xs - candle_x)**2 + (ys - candle_y)**2)
+        grad     = _np.clip(1.0 - dist / candle_radius, 0.0, 1.0)
+        grad     = _gf(grad, sigma=blur_radius * 1.5)
+        gw       = grad * candle_gradient_str * opacity
+
+        r_out = _np.clip(r_out + gw, 0.0, 1.0)
+        # Slight G lift at ~40% of R lift (amber rather than pure red)
+        g_out = _np.clip(g_out + gw * 0.40, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Gerrit Dou fijnschilder pass complete.")

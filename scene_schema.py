@@ -259,6 +259,7 @@ class Period(Enum):
     DER_BLAUE_REITER = auto()  # Franz Marc / Kandinsky — spiritual prismatic primaries, symbolic colour assignment, bold simplified animal/landscape forms, ultramarine grounds, unmixed pigment zones
     SICILIAN_RENAISSANCE = auto()  # Antonello da Messina — Flemish oil glazing precision grafted onto Italian warmth; pellucid crystalline flesh, crisp found edges, direct psychological gaze, warm ivory highlights over blue-green shadow transitions
     FLEMISH_LATE_GOTHIC  = auto()  # Hugo van der Goes — intense psychological realism, deep warm-brown shadows, earthy amber-ochre palette, velvety near-black voids, fine Flemish detail with weighty human presence
+    DUTCH_FIJNSCHILDER   = auto()  # Gerrit Dou — extreme enamel-like surface fineness, 30+ glaze layers, candle-warm amber highlights, niche-framed compositions, glass-smooth skin, magnifying-glass precision
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1068,6 +1069,15 @@ class Style:
             # edge_softness=0.32: Flemish precision edges — forms are clearly bounded but not
             # mechanically hard; the contour breathes slightly without dissolving into sfumato.
             Period.FLEMISH_LATE_GOTHIC: dict(stroke_size_face=3, stroke_size_bg=18, wet_blend=0.42, edge_softness=0.32),
+            # DUTCH_FIJNSCHILDER (Gerrit Dou) — the most extreme surface fineness in the catalog.
+            # stroke_size_face=2: Dou used a magnifying glass; the finest individual strokes of any
+            # Dutch Golden Age painter — hair-thin glazes over polished ivory ground.
+            # stroke_size_bg=14: niche background spaces are spatially compressed and detailed
+            # (stone arch textures, candlelit interiors), requiring fine background strokes.
+            # wet_blend=0.82: extreme glazing — 30+ translucent layers blend seamlessly.
+            # edge_softness=0.28: edges are crisp and clear (no sfumato), but luminously smooth —
+            # the contour of a Dou figure is resolved and precise, never harsh or mechanical.
+            Period.DUTCH_FIJNSCHILDER: dict(stroke_size_face=2, stroke_size_bg=14, wet_blend=0.82, edge_softness=0.28),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -107,6 +107,9 @@ EXPECTED_ARTISTS = [
     "ferdinand_hodler",
     "gustave_caillebotte",
     "franz_marc",
+    "antonello_da_messina",
+    "hugo_van_der_goes",
+    "gerrit_dou",
 ]
 
 
@@ -262,6 +265,7 @@ EXPECTED_PERIODS = [
     "UMBRIAN_RENAISSANCE",
     "VENETIAN_PASTEL_PORTRAIT",
     "AMERICAN_TONALIST",
+    "DUTCH_FIJNSCHILDER",
 ]
 
 
@@ -11209,3 +11213,167 @@ def test_hugo_van_der_goes_inspiration_references_pass():
     s = get_style("hugo_van_der_goes")
     assert "hugo_van_der_goes_expressive_depth_pass" in s.inspiration, (
         "Van der Goes inspiration must reference hugo_van_der_goes_expressive_depth_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Gerrit Dou — session 94 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_gerrit_dou_in_catalog():
+    """Gerrit Dou (session 94) must be present in CATALOG."""
+    assert "gerrit_dou" in CATALOG, "gerrit_dou not found in CATALOG"
+
+
+def test_gerrit_dou_movement():
+    """Gerrit Dou movement must reference Fijnschilder or Dutch Golden Age."""
+    s = get_style("gerrit_dou")
+    assert ("Fijnschilder" in s.movement or "fijnschilder" in s.movement.lower()
+            or "Dutch" in s.movement), (
+        f"Gerrit Dou movement should reference Fijnschilder; got {s.movement!r}")
+
+
+def test_gerrit_dou_nationality():
+    """Gerrit Dou must be identified as Dutch."""
+    s = get_style("gerrit_dou")
+    assert "Dutch" in s.nationality or "Leiden" in s.nationality, (
+        f"Gerrit Dou must be Dutch; got nationality={s.nationality!r}")
+
+
+def test_gerrit_dou_palette_length():
+    """Gerrit Dou palette must have at least 6 key colours."""
+    s = get_style("gerrit_dou")
+    assert len(s.palette) >= 6, (
+        f"Gerrit Dou palette should have at least 6 key colours; got {len(s.palette)}")
+
+
+def test_gerrit_dou_palette_in_range():
+    """All Gerrit Dou palette RGB values must be in [0, 1]."""
+    s = get_style("gerrit_dou")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Gerrit Dou palette entry {rgb} is not a 3-tuple"
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel:.3f} in Gerrit Dou palette {rgb}")
+
+
+def test_gerrit_dou_ground_color_warm():
+    """Gerrit Dou ground_color must be warm (R > B) — amber imprimatura."""
+    s = get_style("gerrit_dou")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Gerrit Dou ground must be warm (R > B) — amber imprimatura; "
+        f"got ground_color={s.ground_color}")
+
+
+def test_gerrit_dou_stroke_size_finest():
+    """Gerrit Dou stroke_size must be ≤ 3 — the most extreme fineness in the catalog."""
+    s = get_style("gerrit_dou")
+    assert s.stroke_size <= 3, (
+        f"Gerrit Dou stroke_size must be ≤ 3 (magnifying-glass precision); "
+        f"got {s.stroke_size}")
+
+
+def test_gerrit_dou_wet_blend_high():
+    """Gerrit Dou wet_blend must be ≥ 0.70 — extreme glazing: 30+ transparent layers."""
+    s = get_style("gerrit_dou")
+    assert s.wet_blend >= 0.70, (
+        f"Gerrit Dou wet_blend must be ≥ 0.70 (extreme glazing); got {s.wet_blend:.2f}")
+
+
+def test_gerrit_dou_edge_softness_crisp():
+    """Gerrit Dou edge_softness must be ≤ 0.40 — crisp Leiden precision, not sfumato."""
+    s = get_style("gerrit_dou")
+    assert s.edge_softness <= 0.40, (
+        f"Gerrit Dou edge_softness must be ≤ 0.40 (crisp, not sfumato); "
+        f"got {s.edge_softness:.2f}")
+
+
+def test_gerrit_dou_has_warm_glazing():
+    """Gerrit Dou glazing must be warm (R > B) — candle amber glaze."""
+    s = get_style("gerrit_dou")
+    assert s.glazing is not None, "Gerrit Dou must have a glazing colour"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"Gerrit Dou glazing must be warm (R > B) — candle amber; got {s.glazing}")
+
+
+def test_gerrit_dou_has_crackle():
+    """Gerrit Dou crackle must be True — 17th-century panel."""
+    s = get_style("gerrit_dou")
+    assert s.crackle, "Gerrit Dou crackle must be True (17th-century oak panel)"
+
+
+def test_gerrit_dou_no_chromatic_split():
+    """Gerrit Dou chromatic_split must be False — not a Divisionist."""
+    s = get_style("gerrit_dou")
+    assert not s.chromatic_split, (
+        "Gerrit Dou chromatic_split must be False — he is not a Divisionist")
+
+
+def test_gerrit_dou_famous_works_not_empty():
+    """Gerrit Dou famous_works must not be empty."""
+    s = get_style("gerrit_dou")
+    assert len(s.famous_works) >= 4, (
+        f"Gerrit Dou should have at least 4 famous works; got {len(s.famous_works)}")
+
+
+def test_gerrit_dou_famous_works_include_night_school():
+    """Gerrit Dou famous works must include The Night School."""
+    s = get_style("gerrit_dou")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("night school" in t or "night" in t for t in titles), (
+        "Gerrit Dou famous_works must include The Night School — "
+        "his most celebrated candle scene")
+
+
+def test_gerrit_dou_technique_mentions_magnifying_glass():
+    """Gerrit Dou technique text must mention the magnifying glass."""
+    s = get_style("gerrit_dou")
+    assert ("magnifying" in s.technique.lower() or "magnifying glass" in s.technique.lower()), (
+        "Gerrit Dou technique must mention his use of a magnifying glass — "
+        "the defining detail of his working practice")
+
+
+def test_gerrit_dou_technique_mentions_fijnschilder():
+    """Gerrit Dou technique text must reference fijnschilder tradition."""
+    s = get_style("gerrit_dou")
+    assert "fijnschilder" in s.technique.lower(), (
+        "Gerrit Dou technique must reference the fijnschilder tradition he founded")
+
+
+def test_gerrit_dou_technique_mentions_rembrandt():
+    """Gerrit Dou technique must mention Rembrandt — he was Rembrandt's first pupil."""
+    s = get_style("gerrit_dou")
+    assert "rembrandt" in s.technique.lower(), (
+        "Gerrit Dou technique must mention Rembrandt — he was Rembrandt's first pupil in Leiden")
+
+
+def test_gerrit_dou_inspiration_references_pass():
+    """Gerrit Dou inspiration must reference gerrit_dou_fijnschilder_pass()."""
+    s = get_style("gerrit_dou")
+    assert "gerrit_dou_fijnschilder_pass" in s.inspiration, (
+        "Gerrit Dou inspiration must reference gerrit_dou_fijnschilder_pass()")
+
+
+def test_gerrit_dou_period_enum_present():
+    """DUTCH_FIJNSCHILDER must exist in Period enum (session 94)."""
+    assert hasattr(Period, "DUTCH_FIJNSCHILDER"), "Period.DUTCH_FIJNSCHILDER not found"
+    assert Period.DUTCH_FIJNSCHILDER in list(Period)
+
+
+def test_gerrit_dou_stroke_params():
+    """DUTCH_FIJNSCHILDER stroke_params must reflect extreme fineness."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_FIJNSCHILDER, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    # Dou: extremely fine strokes — stroke_size_face must be the smallest in the catalog
+    assert params["stroke_size_face"] <= 3, (
+        f"DUTCH_FIJNSCHILDER stroke_size_face must be ≤ 3 (magnifying-glass precision); "
+        f"got {params['stroke_size_face']}")
+    # Extreme glazing — wet_blend must be very high
+    assert params["wet_blend"] >= 0.70, (
+        f"DUTCH_FIJNSCHILDER wet_blend must be ≥ 0.70 (30+ glaze layers); "
+        f"got {params['wet_blend']:.2f}")
+    # Crisp edges — not sfumato
+    assert params["edge_softness"] <= 0.40, (
+        f"DUTCH_FIJNSCHILDER edge_softness must be ≤ 0.40 (Leiden precision); "
+        f"got {params['edge_softness']:.2f}")
