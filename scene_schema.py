@@ -255,6 +255,7 @@ class Period(Enum):
     VENETIAN_PASTEL_PORTRAIT = auto()  # Rosalba Carriera — feathery luminous pastel glow, pearlescent skin bloom, cool lavender shadows, warm vellum ground
     AMERICAN_TONALIST = auto()  # Whistler — cool silver-grey tonal harmony, nocturne atmospheric dissolution, peripheral edge loss, minimal palette keyed to a single tonal register
     BELGIAN_SYMBOLIST = auto()  # Spilliaert — near-monochrome ink-black voids, vertiginous geometric perspective, pale isolated figures, cold blue-grey ink darkness, profound solitude
+    PARISIAN_REALIST = auto()  # Caillebotte — radical perspective foreshortening, photographic cropping, cool grey urban palette, wet cobblestone reflections, geometric receding planes
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1030,6 +1031,11 @@ class Style:
             # peripheral regions especially; the Nocturnes are almost edgeless.
             Period.AMERICAN_TONALIST: dict(stroke_size_face=4, stroke_size_bg=22, wet_blend=0.72, edge_softness=0.80),
             Period.BELGIAN_SYMBOLIST: dict(stroke_size_face=3, stroke_size_bg=18, wet_blend=0.22, edge_softness=0.18),
+            # stroke_size_face=5: Caillebotte's controlled, precise mark-making — realistic flesh,
+            # no impressionistic smear; stroke_size_bg=14: architectural precision in backgrounds.
+            # wet_blend=0.18: moderate realism, not impressionistic blending.
+            # edge_softness=0.25: crisp edges for architectural geometry and perspective lines.
+            Period.PARISIAN_REALIST: dict(stroke_size_face=5, stroke_size_bg=14, wet_blend=0.18, edge_softness=0.25),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

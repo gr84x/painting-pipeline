@@ -23539,3 +23539,158 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Hodler parallelism pass complete.")
+
+    def caillebotte_perspective_pass(
+        self,
+        perspective_strength:  float = 0.30,   # edge sharpening along H/V axes
+        cobblestone_boost:     float = 0.08,   # cool reflection lift in dark zones
+        cool_shift:            float = 0.05,   # blue-channel lift in warm mid-tones
+        axis_sigma_h:          float = 1.2,    # Gaussian sigma for H-axis sharpening
+        axis_sigma_v:          float = 1.2,    # Gaussian sigma for V-axis sharpening
+        dark_lum_thresh:       float = 0.45,   # max luminance for cobblestone zone
+        dark_chroma_thresh:    float = 0.10,   # max chroma for cobblestone zone
+        warm_lum_lo:           float = 0.30,   # lower luminance bound for cool shift
+        warm_lum_hi:           float = 0.70,   # upper luminance bound for cool shift
+        blur_radius:           float = 2.0,    # Gaussian sigma for mask feathering
+        opacity:               float = 0.35,   # final composite opacity
+    ) -> None:
+        """
+        Caillebotte perspective pass — session 91 new artist pass.
+
+        Gustave Caillebotte (1848–1894) brought a photographer's eye and an
+        architect's drafting precision to Impressionism.  His hallmarks are
+        radical perspective foreshortening, photographic cropping of figures at
+        the canvas edge, and a cool grey Parisian palette governed by overcast
+        sky light diffusing evenly across wet cobblestones and limestone façades.
+        This pass encodes three aspects of that visual language.
+
+        Three operations:
+
+          1. Axis-aligned edge sharpening — separate horizontal and vertical Sobel
+             edge maps are computed and used to apply unsharp masking independently
+             along each axis.  Horizontal sharpening reinforces receding cornices,
+             iron bridge grids, and cobblestone joint lines.  Vertical sharpening
+             reinforces lamppost silhouettes, doorframe edges, and figure outlines
+             against building walls.  Because the sharpening is axis-aligned, it
+             strengthens geometric perspective edges while leaving diagonal organic
+             edges (hair, umbrella curves) relatively untouched.
+
+          2. Cobblestone reflection lift — in dark, desaturated zones (luminance <
+             dark_lum_thresh and chroma < dark_chroma_thresh), the blue channel is
+             brightened by cobblestone_boost.  This simulates the dull reflection
+             of an overcast Parisian sky in wet cobblestones: the dark pavement
+             picks up just a trace of cool sky blue, the characteristic grey-blue
+             sheen of rain-wet stone in 'Paris Street; Rainy Day'.
+
+          3. Cool ambient shift — in warm mid-tones (R > B, luminance in
+             [warm_lum_lo, warm_lum_hi]), the blue channel is nudged up by
+             cool_shift.  This pulls the overall temperature of flesh, ochre
+             overcoats, and building facades toward the diffuse cool grey of the
+             Parisian overcast sky ambient, counteracting the warm tendency of
+             oil paint and producing Caillebotte's characteristic neutralised
+             mid-tone palette.
+
+        Parameters
+        ----------
+        perspective_strength  : unsharp mask strength along H and V axes (0–1)
+        cobblestone_boost     : blue-channel brightening in dark desaturated zones
+        cool_shift            : blue-channel lift in warm mid-tone zones
+        axis_sigma_h          : Gaussian sigma for horizontal blur in H-axis sharpening
+        axis_sigma_v          : Gaussian sigma for vertical blur in V-axis sharpening
+        dark_lum_thresh       : luminance ceiling defining the cobblestone zone
+        dark_chroma_thresh    : chroma ceiling defining the cobblestone zone
+        warm_lum_lo           : lower luminance bound for the cool ambient shift zone
+        warm_lum_hi           : upper luminance bound for the cool ambient shift zone
+        blur_radius           : Gaussian sigma for mask edge feathering
+        opacity               : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        print(f"  Caillebotte perspective pass "
+              f"(perspective_strength={perspective_strength:.2f}  "
+              f"cobblestone_boost={cobblestone_boost:.2f}  "
+              f"cool_shift={cool_shift:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Caillebotte perspective pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Axis-aligned edge sharpening ─────────────────────────────
+        # Apply unsharp masking separately along horizontal and vertical axes.
+        # This preferentially sharpens H/V architectural lines (perspective grids,
+        # cornices, doorframes) while leaving diagonal organic edges softer.
+        for ch_in, ch_ref in zip([r_out, g_out, b_out], [r0, g0, b0]):
+            # Horizontal: blur along X only (sigma=(0, axis_sigma_h))
+            blurred_h = _gf(ch_in, sigma=(0.0, axis_sigma_h))
+            # Vertical: blur along Y only (sigma=(axis_sigma_v, 0))
+            blurred_v = _gf(ch_in, sigma=(axis_sigma_v, 0.0))
+            # Unsharp mask = original + strength * (original - blurred)
+            sharpened_h = _np.clip(ch_in + perspective_strength * (ch_in - blurred_h),
+                                   0.0, 1.0)
+            sharpened_v = _np.clip(ch_in + perspective_strength * (ch_in - blurred_v),
+                                   0.0, 1.0)
+            # Average the two axis sharpenings
+            sharpened = (sharpened_h + sharpened_v) * 0.5
+            ch_in[:] = sharpened
+
+        # Update r_out, g_out, b_out (in-place modification above already did it via slice)
+        # (numpy arrays are already updated in-place)
+
+        # ── Stage 2: Cobblestone reflection lift ──────────────────────────────
+        # In dark, desaturated zones, brighten the blue channel slightly.
+        max_rgb = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        min_rgb = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma  = max_rgb - min_rgb
+
+        lum_dark_gate  = _np.clip(1.0 - lum / max(dark_lum_thresh, 0.01), 0.0, 1.0)
+        chroma_low_gate = _np.clip(1.0 - chroma / max(dark_chroma_thresh, 0.01), 0.0, 1.0)
+        cobble_mask = _gf(lum_dark_gate * chroma_low_gate, sigma=blur_radius)
+        cobble_mask = _np.clip(cobble_mask, 0.0, 1.0)
+
+        b_out = _np.clip(b_out + cobble_mask * cobblestone_boost, 0.0, 1.0)
+
+        # ── Stage 3: Cool ambient shift ───────────────────────────────────────
+        # In warm mid-tones (R > B, luminance in [warm_lum_lo, warm_lum_hi]),
+        # nudge the blue channel upward to neutralise warmth toward cool grey.
+        warm_gate   = _np.clip((r_out - b_out) / 0.3, 0.0, 1.0)   # R > B by margin
+        lum_range   = max(warm_lum_hi - warm_lum_lo, 0.01)
+        lum_bell    = _np.minimum(
+            _np.clip((lum - warm_lum_lo) / lum_range, 0.0, 1.0),
+            _np.clip((warm_lum_hi - lum) / lum_range, 0.0, 1.0),
+        ) * 2.0
+        cool_mask   = _gf(warm_gate * lum_bell, sigma=blur_radius)
+        cool_mask   = _np.clip(cool_mask, 0.0, 1.0)
+
+        b_out = _np.clip(b_out + cool_mask * cool_shift, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Caillebotte perspective pass complete.")
