@@ -24689,3 +24689,169 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Carel Fabritius contre-jour pass complete.")
+
+    def judith_leyster_joyful_light_pass(
+        self,
+        highlight_lo:        float = 0.65,   # lower lum bound of incandescent warm-lift zone
+        highlight_amber_r:   float = 0.032,  # R boost in candlelit highlights (amber warmth)
+        highlight_amber_g:   float = 0.014,  # G boost in candlelit highlights (slight ochre)
+        highlight_amber_b:   float = 0.018,  # B reduction in candlelit highlights (damp blue)
+        shadow_hi:           float = 0.28,   # upper lum bound of shadow-vitality zone
+        shadow_warm_r:       float = 0.022,  # R lift in shadow zone (warm imprimatura show-through)
+        shadow_warm_g:       float = 0.012,  # G lift in shadow zone
+        shadow_warm_b:       float = 0.004,  # B lift in shadow zone (very slight, keeps warmth)
+        mid_lo:              float = 0.35,   # lower lum bound of mid-tone chromatic animation zone
+        mid_hi:              float = 0.60,   # upper lum bound of mid-tone chromatic animation zone
+        mid_amber_r:         float = 0.018,  # R ping in mid-tones (joyful transitional warmth)
+        mid_amber_g:         float = 0.008,  # G ping in mid-tones
+        mid_amber_b:         float = 0.006,  # B reduction in mid-tones (keep warm)
+        blur_radius:         float = 3.5,    # Gaussian sigma for mask feathering
+        opacity:             float = 0.42,   # overall pass composite opacity (0–1)
+    ) -> None:
+        """
+        Judith Leyster joyful light pass — session 96 new artist pass.
+
+        Judith Leyster (1609–1660) was one of the most gifted painters of the Dutch
+        Golden Age — a contemporary and near-neighbour of Frans Hals in Haarlem, and
+        in 1633 one of the very few women admitted to the Haarlem Guild of St. Luke.
+        She ran her own independent workshop with male apprentices, an extraordinary
+        achievement in the seventeenth century.
+
+        Leyster's technique synthesises the bravura directness she absorbed from Hals
+        with the warm amber tonal register of the Utrecht Caravaggists (Honthorst,
+        Terbrugghen).  Her defining mode is the single figure caught in a moment of
+        private joy — a fiddler laughing, a child blowing a soap bubble, a seamstress
+        at work by candlelight.  Unlike the cool extroversion of Hals or the pure
+        tenebrism of La Tour, Leyster's scenes breathe with a warm, animated vitality
+        that comes from three distinct tonal strategies:
+
+          1. Incandescent highlight warm-lift — In upper highlight zones (lum >
+             highlight_lo), add a warm amber-peach shift: R + highlight_amber_r,
+             G + highlight_amber_g, B − highlight_amber_b.  Leyster's candle-source
+             illumination heats the peaks of flesh to an orange-amber incandescence —
+             warmer than Dou's refined highlight gold, more domestic than La Tour's
+             open flame.  The effect makes lit cheeks, noses, and knuckles glow as
+             though lit from within.
+
+          2. Shadow vitality (warm imprimatura show-through) — In deep shadow zones
+             (lum < shadow_hi), add a gentle warm-brown lift across all channels,
+             weighted toward R.  This simulates Leyster's warm brown imprimatura
+             (in the Hals/Haarlem tradition) showing through thin shadow glazes.
+             Where Rembrandt's shadows read as chiaroscuro drama and Fabritius's as
+             cool ground luminosity, Leyster's shadows retain a mellow amber warmth —
+             they are alive and habitable, not void.  The lift is very slight
+             (shadow_warm_r ≈ 0.022) but preserves the shadow zones from going neutral
+             or cold, maintaining the warm imprimatura foundation throughout.
+
+          3. Mid-tone chromatic animation (session 96 artistic improvement) — In the
+             transitional lum zone [mid_lo, mid_hi], add a subtle warm amber ping:
+             R + mid_amber_r, G + mid_amber_g, B − mid_amber_b.  This is the zone
+             where Leyster's figures feel most alive — the half-shadow of a cheek
+             turning away from the candle, the lower lip catching ambient warmth, the
+             temple just below the peak highlight.  Prior sessions have accumulated
+             techniques for the extremes (highlight bloom, shadow veil, sfumato) but
+             the mid-tone register — the transitional flesh between full light and full
+             shadow — has been cooler than Leyster's warm candlelit model demands.
+             The mid-tone ping animates this zone with amber warmth, making the
+             transitional passages glow with the characteristic joyful incandescence
+             that defines her genre scenes.
+
+        Together these three effects encode the spatial logic of Leyster's candlelit
+        warmth: incandescent peaks, luminous warm shadows, and an animated mid-tone
+        bridge between them — a tonal system unified by the amber-brown warmth of her
+        imprimatura and the domestic joy of her subject matter.
+
+        Parameters
+        ----------
+        highlight_lo       : lower lum threshold for incandescent warm-lift zone
+        highlight_amber_r  : R boost in candlelit highlights (warm amber)
+        highlight_amber_g  : G boost in candlelit highlights (slight ochre)
+        highlight_amber_b  : B reduction in candlelit highlights (damp cool)
+        shadow_hi          : upper lum threshold for shadow-vitality zone
+        shadow_warm_r      : R lift in shadows (warm imprimatura show-through)
+        shadow_warm_g      : G lift in shadows
+        shadow_warm_b      : B lift in shadows (very slight)
+        mid_lo             : lower lum bound of mid-tone chromatic animation zone
+        mid_hi             : upper lum bound of mid-tone chromatic animation zone
+        mid_amber_r        : R ping in mid-tones (joyful transitional warmth)
+        mid_amber_g        : G ping in mid-tones
+        mid_amber_b        : B reduction in mid-tones (maintain amber warmth)
+        blur_radius        : Gaussian sigma for mask feathering
+        opacity            : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+
+        # cairo stores BGRA; extract float channels
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Incandescent highlight warm-lift ───────────────────────────────
+        # In zones above highlight_lo, boost R and G slightly and damp B — the
+        # amber-orange of candlelight that heats Leyster's peak illumination.
+        hi_mask = _np.clip((lum - highlight_lo) / (1.0 - highlight_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_mask.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + hi_mask * highlight_amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * highlight_amber_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * highlight_amber_b, 0.0, 1.0)
+
+        # ── 2. Shadow vitality — warm imprimatura show-through ────────────────
+        # In deep shadows (lum < shadow_hi), lift all channels slightly toward
+        # the warm brown imprimatura value — Leyster's shadows are never cold or void.
+        shadow_mask = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        shadow_mask = _gf(shadow_mask.astype(_np.float32), blur_radius)
+        shadow_mask = _np.clip(shadow_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + shadow_mask * shadow_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + shadow_mask * shadow_warm_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + shadow_mask * shadow_warm_b, 0.0, 1.0)
+
+        # ── 3. Mid-tone chromatic animation ───────────────────────────────────
+        # Build a smooth bell-curve mask centred in [mid_lo, mid_hi].
+        # This is the session 96 artistic improvement: animating the transitional
+        # flesh zone with a subtle amber ping — the zone where Leyster's figures
+        # feel most alive, between full shadow and full highlight.
+        mid_mask = _np.clip(
+            (lum - mid_lo) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (mid_hi - lum) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0
+        )
+        mid_mask = mid_mask * 4.0   # sharpen the bell-curve peak
+        mid_mask = _np.clip(mid_mask, 0.0, 1.0)
+        mid_mask = _gf(mid_mask.astype(_np.float32), blur_radius)
+        mid_mask = _np.clip(mid_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + mid_mask * mid_amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + mid_mask * mid_amber_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - mid_mask * mid_amber_b, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Judith Leyster joyful light pass complete.")

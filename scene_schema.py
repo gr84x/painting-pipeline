@@ -261,6 +261,7 @@ class Period(Enum):
     FLEMISH_LATE_GOTHIC  = auto()  # Hugo van der Goes — intense psychological realism, deep warm-brown shadows, earthy amber-ochre palette, velvety near-black voids, fine Flemish detail with weighty human presence
     DUTCH_FIJNSCHILDER   = auto()  # Gerrit Dou — extreme enamel-like surface fineness, 30+ glaze layers, candle-warm amber highlights, niche-framed compositions, glass-smooth skin, magnifying-glass precision
     DUTCH_LIGHT_GROUND   = auto()  # Carel Fabritius — contre-jour technique, pale grey ground, figures reading against bright background, confident impressionistic brushwork, atmospheric ambient light
+    DUTCH_CANDLELIT_GENRE = auto()  # Judith Leyster — warm candlelit genre scenes, Hals-adjacent bravura, Utrecht Caravaggist amber warmth, joyful animated figures, warm brown imprimatura vitality
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1090,6 +1091,17 @@ class Style:
             # softening comes from the bright ground radiating around forms, not from sfumato
             # blending; the edge itself stays reasonably crisp so the silhouette reads.
             Period.DUTCH_LIGHT_GROUND: dict(stroke_size_face=8, stroke_size_bg=26, wet_blend=0.48, edge_softness=0.42),
+            # DUTCH_CANDLELIT_GENRE (Judith Leyster) — lively, candlelit genre warmth.
+            # stroke_size_face=9: confident loaded-brush marks; Leyster learned bravura
+            # directness from Hals — not the minute fineness of van Eyck or Dou, but
+            # assertive, living strokes that capture expression with economy.
+            # stroke_size_bg=28: broad, energetic background; genre interiors are built
+            # with swift coverage — the background serves the figure, not the other way.
+            # wet_blend=0.38: moderate; enough for warm flesh transitions to feel alive,
+            # not so much as to dissolve the energetic directness of her brushwork.
+            # edge_softness=0.50: moderate — her figures read crisply against the warm
+            # brown shadow ground, with soft transitions in the candlelit flesh zones.
+            Period.DUTCH_CANDLELIT_GENRE: dict(stroke_size_face=9, stroke_size_bg=28, wet_blend=0.38, edge_softness=0.50),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

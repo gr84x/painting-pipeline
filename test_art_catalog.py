@@ -111,6 +111,7 @@ EXPECTED_ARTISTS = [
     "hugo_van_der_goes",
     "gerrit_dou",
     "carel_fabritius",
+    "judith_leyster",
 ]
 
 
@@ -268,6 +269,7 @@ EXPECTED_PERIODS = [
     "AMERICAN_TONALIST",
     "DUTCH_FIJNSCHILDER",
     "DUTCH_LIGHT_GROUND",
+    "DUTCH_CANDLELIT_GENRE",
 ]
 
 
@@ -11498,4 +11500,122 @@ def test_carel_fabritius_stroke_params():
     # Moderate edges — not sfumato, not Flemish razor-precision
     assert 0.30 <= params["edge_softness"] <= 0.60, (
         f"DUTCH_LIGHT_GROUND edge_softness must be moderate [0.30, 0.60]; "
+        f"got {params['edge_softness']:.2f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Judith Leyster — session 96 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_judith_leyster_in_catalog():
+    """Judith Leyster (session 96) must be present in CATALOG."""
+    assert "judith_leyster" in CATALOG
+
+
+def test_judith_leyster_artist_name():
+    s = get_style("judith_leyster")
+    assert "Leyster" in s.artist
+
+
+def test_judith_leyster_movement_dutch():
+    """Leyster belongs to the Dutch Golden Age tradition."""
+    s = get_style("judith_leyster")
+    assert "Dutch" in s.movement or "dutch" in s.movement.lower()
+
+
+def test_judith_leyster_palette_length():
+    s = get_style("judith_leyster")
+    assert len(s.palette) >= 6, "Leyster palette should have at least 6 key colours"
+
+
+def test_judith_leyster_palette_values_in_range():
+    """All Judith Leyster palette RGB values must be in [0, 1]."""
+    s = get_style("judith_leyster")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Leyster palette {rgb}")
+
+
+def test_judith_leyster_ground_color_warm():
+    """Leyster's ground should be warm amber-brown (R > B)."""
+    s = get_style("judith_leyster")
+    r, g, b = s.ground_color
+    assert r > b, "Leyster ground_color should be warm (R > B)"
+    assert r > 0.4, "Leyster ground_color R should be substantial warm amber"
+
+
+def test_judith_leyster_edge_softness_moderate():
+    """Leyster's edges are moderate — figures read clearly, not sfumato-dissolved."""
+    s = get_style("judith_leyster")
+    assert 0.35 <= s.edge_softness <= 0.70, (
+        f"Leyster edge_softness should be moderate [0.35, 0.70]; got {s.edge_softness:.2f}")
+
+
+def test_judith_leyster_wet_blend_moderate():
+    """Leyster's wet_blend should be moderate — not Dou's extreme glazing, not alla prima dry."""
+    s = get_style("judith_leyster")
+    assert 0.25 <= s.wet_blend <= 0.60, (
+        f"Leyster wet_blend should be moderate [0.25, 0.60]; got {s.wet_blend:.2f}")
+
+
+def test_judith_leyster_famous_works_not_empty():
+    s = get_style("judith_leyster")
+    assert len(s.famous_works) >= 3, "Leyster should have at least 3 famous works"
+
+
+def test_judith_leyster_famous_works_include_self_portrait():
+    """Self-Portrait (c. 1633) is her most iconic and widely reproduced work."""
+    s = get_style("judith_leyster")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Self" in t or "Portrait" in t for t in titles), (
+        f"Expected 'Self-Portrait' among Leyster's famous works; got {titles}")
+
+
+def test_judith_leyster_technique_not_empty():
+    s = get_style("judith_leyster")
+    assert len(s.technique) >= 100, "Leyster technique field should be substantive"
+
+
+def test_judith_leyster_technique_mentions_hals():
+    """Leyster's relationship to Frans Hals is the defining biographical fact."""
+    s = get_style("judith_leyster")
+    assert "Hals" in s.technique, "Leyster's technique must mention Frans Hals"
+
+
+def test_judith_leyster_technique_mentions_guild():
+    """Her admission to the Haarlem Guild is a defining artistic achievement."""
+    s = get_style("judith_leyster")
+    assert "Guild" in s.technique or "guild" in s.technique.lower(), (
+        "Leyster's technique should mention the Haarlem Guild of St. Luke")
+
+
+def test_judith_leyster_inspiration_references_pass():
+    """Inspiration field must reference judith_leyster_joyful_light_pass()."""
+    s = get_style("judith_leyster")
+    assert "judith_leyster_joyful_light_pass" in s.inspiration
+
+
+def test_judith_leyster_period_enum_present():
+    """DUTCH_CANDLELIT_GENRE must exist in Period enum (session 96)."""
+    assert hasattr(Period, "DUTCH_CANDLELIT_GENRE"), "Period.DUTCH_CANDLELIT_GENRE not found"
+    assert Period.DUTCH_CANDLELIT_GENRE in list(Period)
+
+
+def test_judith_leyster_stroke_params():
+    """DUTCH_CANDLELIT_GENRE stroke_params must reflect confident warm bravura."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_CANDLELIT_GENRE, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    # Leyster: confident bravura marks — larger than Dou's minute fineness
+    assert params["stroke_size_face"] >= 7, (
+        f"DUTCH_CANDLELIT_GENRE stroke_size_face must be ≥ 7 (bravura marks); "
+        f"got {params['stroke_size_face']}")
+    # Moderate wet blending — warm flesh transitions, not sfumato dissolution
+    assert 0.25 <= params["wet_blend"] <= 0.60, (
+        f"DUTCH_CANDLELIT_GENRE wet_blend must be moderate [0.25, 0.60]; "
+        f"got {params['wet_blend']:.2f}")
+    # Moderate edges — figures read clearly against warm shadow ground
+    assert 0.35 <= params["edge_softness"] <= 0.68, (
+        f"DUTCH_CANDLELIT_GENRE edge_softness must be moderate [0.35, 0.68]; "
         f"got {params['edge_softness']:.2f}")

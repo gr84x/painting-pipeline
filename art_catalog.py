@@ -8026,6 +8026,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "judith_leyster": ArtStyle(
+        artist="Judith Leyster",
+        movement="Dutch Golden Age / Utrecht Caravaggist-influenced genre",
+        nationality="Dutch (Haarlem)",
+        period="1629–1660",
+        palette=[
+            (0.97, 0.89, 0.72),   # warm ivory highlight — candlelit peak; creamy amber warmth on lit flesh
+            (0.90, 0.74, 0.52),   # warm ochre-peach — lit midtone; her flesh glows with amber incandescence
+            (0.76, 0.58, 0.38),   # golden amber — upper shadow transition; warm brown imprimatura showing through
+            (0.52, 0.36, 0.20),   # raw umber — mid-shadow; warm, never cold; her shadows stay alive
+            (0.28, 0.18, 0.10),   # warm near-black — deep shadow; rich warm-brown void, not neutral black
+            (0.84, 0.60, 0.30),   # amber-orange — candle highlight note; the warm point-source quality
+            (0.62, 0.48, 0.34),   # warm stone — background neutrals; interior wall warmth in shadow
+            (0.40, 0.28, 0.18),   # deep warm brown — drapery darks; the same imprimatura tone in full shadow
+        ],
+        ground_color=(0.60, 0.46, 0.28),    # warm brown imprimatura — Hals/Haarlem tradition, amber-ochre warmth
+        stroke_size=9,
+        wet_blend=0.38,                      # confident directness — blended enough for flesh warmth, not dissolved
+        edge_softness=0.50,                  # moderate — figures read clearly against warm shadow ground
+        jitter=0.025,                        # slight colour variation — lively, not mechanical
+        glazing=(0.72, 0.54, 0.28),          # warm amber-brown unifying glaze — her characteristic warmth register
+        crackle=True,                        # 17th-century canvas; aged craquelure in originals
+        chromatic_split=False,
+        technique=(
+            "Judith Leyster (1609–1660) was one of the most gifted painters of the Dutch Golden "
+            "Age — a contemporary, near-neighbour, and occasional rival of Frans Hals in Haarlem. "
+            "In 1633 she became one of the very few women admitted to the Haarlem Guild of St. Luke, "
+            "and shortly after ran her own independent workshop with multiple male apprentices, "
+            "an extraordinary achievement for a woman in the seventeenth century.  "
+            "Leyster's technique blends the bravura directness she absorbed from Hals — loaded-brush "
+            "marks, confident all-prima working, strokes placed with economy and purpose — with a "
+            "warmer, more intimate tonal register influenced by the Utrecht Caravaggists (Honthorst, "
+            "Terbrugghen).  Unlike Hals's cooler, more extroverted portraiture, Leyster's genre scenes "
+            "are suffused with amber warmth: a candle or lamp just off-stage tilts the illumination "
+            "toward orange-amber, making flesh tones glow with incandescence against rich, warm-brown "
+            "shadow grounds.  "
+            "Her defining compositional mode is the single figure caught in a moment of private joy "
+            "or domestic absorption — a fiddler caught mid-laugh, a seamstress working by candlelight, "
+            "a child blowing a soap bubble.  The figure is typically close to the picture plane, often "
+            "turning slightly toward the viewer with an expression of animated awareness.  Unlike the "
+            "pure tenebrism of Caravaggio or La Tour, Leyster allows ambient warmth into the mid-tones: "
+            "her shadows are luminous, not opaque, heated by the brown imprimatura showing through thin "
+            "shadow glazes.  This gives her work a vitality that is peculiarly her own — joyful and "
+            "alive, even in stillness.  "
+            "Apply judith_leyster_joyful_light_pass() after main build_form() passes to encode the "
+            "three defining qualities: incandescent highlight warmth, shadow vitality from the warm "
+            "imprimatura, and a mid-tone chromatic ping that makes her transitional flesh zones glow "
+            "with the characteristic amber animation of her candlelit interiors."
+        ),
+        famous_works=[
+            ("The Joyful Toper",              "c. 1629"),
+            ("The Serenade",                  "1629"),
+            ("Self-Portrait",                 "c. 1633"),
+            ("Two Children with a Cat",       "c. 1629–1631"),
+            ("The Proposition",               "1631"),
+            ("Young Flute Player",            "c. 1635"),
+            ("Boy and Girl with a Cat",       "c. 1635"),
+            ("Carousing Couple",              "1630"),
+        ],
+        inspiration=(
+            "Apply judith_leyster_joyful_light_pass() to encode her defining tonal qualities: "
+            "(1) Incandescent highlight warm-lift — in upper highlight zones (lum > 0.65), add "
+            "a warm amber-peach shift (R+, G+ slightly, B-), simulating the incandescent orange-"
+            "amber of her candlelit illumination; this is warmer than Dou's refined gold, more "
+            "domestic than La Tour's flame, more joyful than Rembrandt's chiaroscuro; (2) Shadow "
+            "vitality (warm imprimatura show-through) — in deep shadow zones (lum < 0.28), add a "
+            "very slight warm brown lift (R+ slightly, G+ less, B minimal), simulating the warm "
+            "ochre-brown imprimatura showing through thin shadow glazes; Leyster's shadows are never "
+            "dead — they breathe with the warmth of the ground; (3) Mid-tone chromatic animation — "
+            "in the transitional zone (lum 0.35–0.60), add a subtle warm amber ping that makes the "
+            "transitional flesh zones glow; this is the zone where Leyster's figures feel most alive, "
+            "caught between the deep warmth of shadow and the incandescence of direct light."
+        ),
+    ),
+
     "gerrit_dou": ArtStyle(
         artist="Gerrit Dou",
         movement="Dutch Golden Age / Fijnschilder",
