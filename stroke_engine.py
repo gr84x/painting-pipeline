@@ -18164,13 +18164,14 @@ class Painter:
 
     def subsurface_scatter_pass(
         self,
-        scatter_strength:  float = 0.14,
-        scatter_radius:    float = 8.0,
-        scatter_low:       float = 0.42,
-        scatter_high:      float = 0.82,
-        penumbra_warm:     float = 0.06,
-        shadow_cool:       float = 0.04,
-        opacity:           float = 0.65,
+        scatter_strength:    float = 0.14,
+        scatter_radius:      float = 8.0,
+        scatter_low:         float = 0.42,
+        scatter_high:        float = 0.82,
+        penumbra_warm:       float = 0.06,
+        shadow_cool:         float = 0.04,
+        shadow_pellucidity:  float = 0.0,
+        opacity:             float = 0.65,
     ) -> None:
         """
         Simulate subsurface light scattering through human skin.
@@ -18202,6 +18203,21 @@ class Painter:
            cool push (R-, B+) reinforces shadow colour separation from the warm
            lit zones, increasing perceived luminosity by contrast.
 
+        4. **Shadow pellucidity** (session 92 artistic improvement — inspired by
+           Antonello da Messina): when shadow_pellucidity > 0, a very faint
+           cool-blue lift is applied to the absolute darkest pixels (lum < 0.18),
+           simulating the way multiple thin transparent oil-glaze layers allow a
+           trace of light to seep through even the deepest shadows.  Unlike
+           shadow_cool (which cools *all* dark areas below 0.28), this parameter
+           targets only the innermost shadows and lifts them with a faint warm-
+           neutral transparency rather than a cold push — replicating the quality
+           Antonello da Messina achieved through his Flemish glazing method: the
+           paint film is never completely opaque, so the white gesso ground
+           exerts a faint luminous presence even behind the darkest darks.
+           Apply at 0.02–0.08 for Flemish/Sicilian Renaissance portraits; leave
+           at 0.0 (default) for Caravaggio-style or Rembrandt tenebrist shadows
+           where absolute blackness is intentional.
+
         This pass should be applied *before* final glazing and artist-specific
         passes.  At default opacity (0.65) it is visibly present but natural.
         Use opacity=0.35–0.50 for a barely-perceptible glow; 0.80–1.0 for the
@@ -18209,13 +18225,14 @@ class Painter:
 
         Parameters
         ----------
-        scatter_strength  : peak red-orange scatter boost in lit midtones
-        scatter_radius    : Gaussian blur radius of scatter bloom (pixels)
-        scatter_low       : lower luminance boundary of the lit-midtone zone
-        scatter_high      : upper luminance boundary (above = specular, not scatter)
-        penumbra_warm     : warm push in the penumbra zone (0.28–scatter_low)
-        shadow_cool       : cool push in deepest shadows (lum < 0.28)
-        opacity           : overall blend weight
+        scatter_strength    : peak red-orange scatter boost in lit midtones
+        scatter_radius      : Gaussian blur radius of scatter bloom (pixels)
+        scatter_low         : lower luminance boundary of the lit-midtone zone
+        scatter_high        : upper luminance boundary (above = specular, not scatter)
+        penumbra_warm       : warm push in the penumbra zone (0.28–scatter_low)
+        shadow_cool         : cool push in deepest shadows (lum < 0.28)
+        shadow_pellucidity  : Antonello/Flemish faint lift in absolute darks (lum < 0.18)
+        opacity             : overall blend weight
         """
         import numpy as _np
         from PIL import Image as _Image, ImageFilter as _ImageFilter
@@ -18224,6 +18241,7 @@ class Painter:
               f"(scatter={scatter_strength:.3f}  radius={scatter_radius:.1f}  "
               f"lum=[{scatter_low:.2f},{scatter_high:.2f}]  "
               f"penumbra={penumbra_warm:.3f}  shadow_cool={shadow_cool:.3f}  "
+              f"shadow_pellucidity={shadow_pellucidity:.3f}  "
               f"opacity={opacity:.2f}) ...")
 
         if opacity <= 0.0:
@@ -18285,6 +18303,20 @@ class Painter:
         sc_w = shadow_mask * shadow_cool * opacity
         r_out = _np.clip(r_out - sc_w * 0.50, 0.0, 1.0)
         b_out = _np.clip(b_out + sc_w * 0.60, 0.0, 1.0)
+
+        # ── 4. Shadow pellucidity (session 92 — Antonello da Messina) ─────────
+        # Flemish oil-glaze quality: white gesso ground glows faintly through
+        # even the darkest paint layers.  Apply a very faint warm-neutral lift
+        # to absolute darks (lum < 0.18) when shadow_pellucidity > 0.
+        if shadow_pellucidity > 0.0:
+            from scipy.ndimage import gaussian_filter as _gf_sp
+            pellucid_raw = _np.clip(1.0 - lum / 0.18, 0.0, 1.0)
+            pellucid_mask = _gf_sp(pellucid_raw, sigma=3.0)  # soften spatially
+            p_lift = pellucid_mask * shadow_pellucidity * opacity
+            # Warm-neutral lift: R+modest, G+modest, B+slight — not cold, but translucent
+            r_out = _np.clip(r_out + p_lift * 0.55, 0.0, 1.0)
+            g_out = _np.clip(g_out + p_lift * 0.42, 0.0, 1.0)
+            b_out = _np.clip(b_out + p_lift * 0.30, 0.0, 1.0)
 
         # ── Write back (BGRA) ─────────────────────────────────────────────────
         buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
@@ -23771,6 +23803,167 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Caillebotte perspective pass complete.")
+
+    def antonello_pellucid_flesh_pass(
+        self,
+        shadow_cool_lo:      float = 0.18,   # lower luminance bound of shadow cooling zone
+        shadow_cool_hi:      float = 0.46,   # upper luminance bound of shadow cooling zone
+        shadow_green_lift:   float = 0.018,  # green channel lift in shadow transitions
+        shadow_blue_lift:    float = 0.028,  # blue channel lift in shadow transitions (Flemish cool)
+        shadow_red_damp:     float = 0.010,  # red channel damping in shadow transitions
+        highlight_lo:        float = 0.74,   # luminance threshold for warm highlight zone
+        highlight_warm_r:    float = 0.022,  # Naples yellow-ivory R boost in highlights
+        highlight_warm_g:    float = 0.012,  # Naples yellow-ivory G boost in highlights
+        highlight_cool_b:    float = 0.008,  # slight blue damping in highlights (warm ivory, not cold)
+        penumbra_lo:         float = 0.44,   # lower lum bound of pellucid edge-band sharpening
+        penumbra_hi:         float = 0.58,   # upper lum bound of pellucid edge-band sharpening
+        penumbra_contrast:   float = 0.06,   # contrast boost in the light-shadow transition band
+        blur_radius:         float = 5.0,    # Gaussian feathering radius for smooth zone masks
+        opacity:             float = 0.42,   # overall pass composite opacity
+    ) -> None:
+        """
+        Antonello da Messina pellucid flesh pass — session 92 new artist pass.
+
+        Antonello da Messina (c. 1430–1479) fused the Flemish oil-glazing
+        tradition of Jan van Eyck with the warm Italian flesh palette.  The
+        result is a 'pellucid' quality — the painted skin appears crystalline
+        and internally lit, with warm lit zones, a distinctive blue-green tint
+        in the mid-shadow transitions (Flemish subsurface quality), and a
+        crisp, precisely resolved light-shadow boundary (the Flemish 'found
+        edge') that sets him apart from both Leonardo's sfumato and Raphael's
+        seamless idealism.
+
+        Three operations:
+
+          1. Flemish shadow cooling — In mid-shadow transitions (lum in
+             [shadow_cool_lo, shadow_cool_hi]), apply a slight blue-green
+             subsurface tint: G + shadow_green_lift, B + shadow_blue_lift,
+             R − shadow_red_damp.  This mimics the way Flemish oil glazes
+             in the shadow zone allow the cool gesso ground to influence
+             the final colour, creating the 'translucent skin' quality that
+             distinguishes Antonello from opaque-shadow Italian painters.
+             The mask is Gaussian-feathered so the transition is seamless.
+
+          2. Warm highlight clarification — In the lit zones (lum >
+             highlight_lo), push toward Naples yellow-ivory: R + highlight_warm_r,
+             G + highlight_warm_g, B − highlight_cool_b.  Antonello's highlights
+             are warm and small — the specular quality of polished enamel rather
+             than the broad, cool highlights of Baroque painting.  This stage
+             reinforces that warm-ivory quality in the lightest flesh areas.
+
+          3. Pellucid edge band — In the light-shadow transition zone (lum
+             in [penumbra_lo, penumbra_hi]), apply a subtle local contrast
+             push (penumbra_contrast) that sharpens the tonal gradient without
+             hardening edges: pixels above the zone midpoint are lightened
+             slightly, pixels below are darkened slightly, creating the
+             'found-edge' transition that Flemish painters mastered — the
+             boundary reads as resolved and precise but not mechanical.
+
+        Parameters
+        ----------
+        shadow_cool_lo      : lower lum boundary of Flemish shadow cooling zone
+        shadow_cool_hi      : upper lum boundary of shadow cooling zone
+        shadow_green_lift   : G channel boost in shadow transitions (subsurface)
+        shadow_blue_lift    : B channel boost in shadow transitions (Flemish cool)
+        shadow_red_damp     : R channel damping in shadow transitions
+        highlight_lo        : lum threshold for warm highlight zone
+        highlight_warm_r    : R boost in highlighted flesh (Naples yellow-ivory)
+        highlight_warm_g    : G boost in highlighted flesh
+        highlight_cool_b    : B reduction in highlighted flesh (warm, not cold)
+        penumbra_lo         : lower lum bound of pellucid edge-band sharpening
+        penumbra_hi         : upper lum bound of pellucid edge-band sharpening
+        penumbra_contrast   : contrast push in the light-shadow transition band
+        blur_radius         : Gaussian sigma for mask feathering
+        opacity             : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Antonello da Messina pellucid flesh pass "
+              f"(shadow_cool=[{shadow_cool_lo:.2f},{shadow_cool_hi:.2f}]  "
+              f"blue_lift={shadow_blue_lift:.3f}  "
+              f"highlight_lo={highlight_lo:.2f}  warm_r={highlight_warm_r:.3f}  "
+              f"penumbra=[{penumbra_lo:.2f},{penumbra_hi:.2f}]  "
+              f"contrast={penumbra_contrast:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Antonello pellucid flesh pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Stage 1: Flemish shadow cooling ───────────────────────────────────
+        # Bell-shaped mask over [shadow_cool_lo, shadow_cool_hi]
+        shadow_range = max(shadow_cool_hi - shadow_cool_lo, 1e-6)
+        shadow_mid   = (shadow_cool_lo + shadow_cool_hi) * 0.5
+        shadow_half  = shadow_range * 0.5
+        shadow_bell  = _np.clip(
+            1.0 - _np.abs(lum - shadow_mid) / shadow_half, 0.0, 1.0)
+        shadow_mask  = _gf(shadow_bell, sigma=blur_radius)
+        sc_w         = shadow_mask * opacity
+
+        r_out = _np.clip(r_out - sc_w * shadow_red_damp,   0.0, 1.0)
+        g_out = _np.clip(g_out + sc_w * shadow_green_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + sc_w * shadow_blue_lift,  0.0, 1.0)
+
+        # ── Stage 2: Warm highlight clarification ─────────────────────────────
+        # Ramp mask: linearly increases from highlight_lo to 1.0 as lum → 1.0
+        highlight_range = max(1.0 - highlight_lo, 1e-6)
+        highlight_raw   = _np.clip((lum - highlight_lo) / highlight_range, 0.0, 1.0)
+        highlight_mask  = _gf(highlight_raw, sigma=blur_radius)
+        hl_w            = highlight_mask * opacity
+
+        r_out = _np.clip(r_out + hl_w * highlight_warm_r,   0.0, 1.0)
+        g_out = _np.clip(g_out + hl_w * highlight_warm_g,   0.0, 1.0)
+        b_out = _np.clip(b_out - hl_w * highlight_cool_b,   0.0, 1.0)
+
+        # ── Stage 3: Pellucid edge-band contrast ──────────────────────────────
+        # Bell-shaped mask over the penumbra [penumbra_lo, penumbra_hi]
+        pen_range = max(penumbra_hi - penumbra_lo, 1e-6)
+        pen_mid   = (penumbra_lo + penumbra_hi) * 0.5
+        pen_half  = pen_range * 0.5
+        pen_bell  = _np.clip(
+            1.0 - _np.abs(lum - pen_mid) / pen_half, 0.0, 1.0)
+        pen_mask  = _gf(pen_bell, sigma=blur_radius * 0.6)  # tighter feather
+
+        # Pixels above penumbra midpoint → lifted; below → deepened
+        # This adds contrast in the transition zone without hardening the actual edge
+        above_mid = (lum > pen_mid).astype(_np.float32)
+        below_mid = 1.0 - above_mid
+        pen_w     = pen_mask * penumbra_contrast * opacity
+
+        r_out = _np.clip(r_out + pen_w * (above_mid * 0.55 - below_mid * 0.45), 0.0, 1.0)
+        g_out = _np.clip(g_out + pen_w * (above_mid * 0.55 - below_mid * 0.45), 0.0, 1.0)
+        b_out = _np.clip(b_out + pen_w * (above_mid * 0.55 - below_mid * 0.45), 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Antonello da Messina pellucid flesh pass complete.")
 
     def franz_marc_prismatic_vitality_pass(
         self,
