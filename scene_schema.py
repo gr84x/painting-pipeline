@@ -260,7 +260,7 @@ class Period(Enum):
     SICILIAN_RENAISSANCE = auto()  # Antonello da Messina — Flemish oil glazing precision grafted onto Italian warmth; pellucid crystalline flesh, crisp found edges, direct psychological gaze, warm ivory highlights over blue-green shadow transitions
     FLEMISH_LATE_GOTHIC  = auto()  # Hugo van der Goes — intense psychological realism, deep warm-brown shadows, earthy amber-ochre palette, velvety near-black voids, fine Flemish detail with weighty human presence
     DUTCH_FIJNSCHILDER   = auto()  # Gerrit Dou — extreme enamel-like surface fineness, 30+ glaze layers, candle-warm amber highlights, niche-framed compositions, glass-smooth skin, magnifying-glass precision
-    DUTCH_LIGHT_GROUND   = auto()  # Carel Fabritius — contre-jour light-ground philosophy; pale buff grounds, luminous forms barely distinguishable from background, straw-gold ambient warmth, Delft School precursor
+    DUTCH_LIGHT_GROUND   = auto()  # Carel Fabritius — contre-jour technique, pale grey ground, figures reading against bright background, confident impressionistic brushwork, atmospheric ambient light
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1079,16 +1079,17 @@ class Style:
             # edge_softness=0.28: edges are crisp and clear (no sfumato), but luminously smooth —
             # the contour of a Dou figure is resolved and precise, never harsh or mechanical.
             Period.DUTCH_FIJNSCHILDER: dict(stroke_size_face=2, stroke_size_bg=14, wet_blend=0.82, edge_softness=0.28),
-            # DUTCH_LIGHT_GROUND (Carel Fabritius) — contre-jour light-ground technique.
-            # stroke_size_face=4: finer than the Dutch Golden Age average but broader than Dou;
-            # Fabritius worked at a scale between Rembrandt's alla prima and Dou's miniature.
-            # stroke_size_bg=20: pale light grounds require broader, more atmospheric background
-            # strokes that dissolve into ambient warmth rather than defining dark forms.
-            # wet_blend=0.70: smooth blending but not extreme — the light ground technique
-            # depends on soft tonal transitions rather than Dou's enamel-layer smoothness.
-            # edge_softness=0.38: edges are gentle — forms dissolve into the light ground rather
-            # than standing against it; the contre-jour boundary is a warm breath, not a contour.
-            Period.DUTCH_LIGHT_GROUND: dict(stroke_size_face=4, stroke_size_bg=20, wet_blend=0.70, edge_softness=0.38),
+            # DUTCH_LIGHT_GROUND (Carel Fabritius) — contre-jour on a pale grey ground.
+            # stroke_size_face=8: confident, direct brushwork; Fabritius placed strokes
+            # with assurance rather than Dou's magnifying-glass refinement or van Eyck's
+            # minute layering.  stroke_size_bg=26: pale background sweeps cover large ground
+            # areas efficiently — the luminous background is not laboured but open and airy.
+            # wet_blend=0.48: moderate — enough for flesh transitions to flow naturally, not
+            # so much as to dissolve the confident individual strokes that define his style.
+            # edge_softness=0.42: moderate — edges are present and legible; the contre-jour
+            # softening comes from the bright ground radiating around forms, not from sfumato
+            # blending; the edge itself stays reasonably crisp so the silhouette reads.
+            Period.DUTCH_LIGHT_GROUND: dict(stroke_size_face=8, stroke_size_bg=26, wet_blend=0.48, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

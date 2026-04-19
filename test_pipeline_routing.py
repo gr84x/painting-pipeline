@@ -11769,3 +11769,74 @@ def test_impasto_texture_pass_ridge_warmth_shifts_highlight_warm():
     assert b_warm <= b_cool, (
         f"Warm ridge highlights must have lower B than cool; "
         f"B cool={b_cool:.2f}  B warm={b_warm:.2f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Carel Fabritius — fabritius_contre_jour_pass() (session 95)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_fabritius_contre_jour_pass_exists():
+    """Painter must have fabritius_contre_jour_pass() method after session 95."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "fabritius_contre_jour_pass"), (
+        "fabritius_contre_jour_pass not found on Painter")
+    assert callable(getattr(Painter, "fabritius_contre_jour_pass"))
+
+
+def test_fabritius_contre_jour_pass_no_error():
+    """fabritius_contre_jour_pass() runs without error on a small synthetic canvas."""
+    p   = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.68, 0.62), texture_strength=0.05)
+    # Should complete without exception
+    p.fabritius_contre_jour_pass()
+
+
+def test_fabritius_contre_jour_pass_modifies_canvas():
+    """fabritius_contre_jour_pass() must modify at least some pixels on a non-trivial canvas."""
+    p   = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.68, 0.62), texture_strength=0.05)
+    ref = _solid_reference(64, 64)
+    p.block_in(ref, stroke_size=8, n_strokes=15)
+
+    before = _canvas_bytes(p)
+    p.fabritius_contre_jour_pass(opacity=0.60)
+    after  = _canvas_bytes(p)
+
+    assert before != after, "fabritius_contre_jour_pass must modify the canvas at opacity=0.60"
+
+
+def test_fabritius_contre_jour_pass_zero_opacity_noop():
+    """fabritius_contre_jour_pass() at opacity=0 must leave the canvas unchanged."""
+    p   = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.68, 0.62), texture_strength=0.05)
+
+    before = _canvas_bytes(p)
+    p.fabritius_contre_jour_pass(opacity=0.0)
+    after  = _canvas_bytes(p)
+
+    assert before == after, (
+        "fabritius_contre_jour_pass at opacity=0.0 must be a no-op")
+
+
+def test_fabritius_contre_jour_pass_shadow_veil_lifts_darks():
+    """Cool ground veil must lift dark pixels — mean luminance should increase for a dark canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    p = Painter(width=64, height=64)
+    # Fill with near-black (deep shadow)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    arr[:, :] = [20, 20, 20, 255]   # BGRA near-black
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+
+    before_arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    before_mean = before_arr[:, :, :3].astype(float).mean()
+
+    p.fabritius_contre_jour_pass(shadow_threshold=0.40, cool_veil_strength=0.08, opacity=1.0)
+
+    after_arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    after_mean = after_arr[:, :, :3].astype(float).mean()
+
+    assert after_mean > before_mean, (
+        f"Cool ground veil must lift dark pixels; "
+        f"mean before={before_mean:.1f}  after={after_mean:.1f}")

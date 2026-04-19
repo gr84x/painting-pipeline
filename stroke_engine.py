@@ -24507,149 +24507,176 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Gerrit Dou fijnschilder pass complete.")
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Carel Fabritius — contre-jour pass (session 95)
+    # ─────────────────────────────────────────────────────────────────────────
+
     def fabritius_contre_jour_pass(
         self,
-        buff_lift:       float = 0.028,  # warm-buff brightening in background zones (pale ground lift)
-        buff_bg_lo:      float = 0.52,   # lower lum threshold for pale-ground brightening
-        halation_lo:     float = 0.42,   # lower lum bound of contre-jour boundary zone
-        halation_hi:     float = 0.66,   # upper lum bound of contre-jour boundary zone
-        halation_sigma:  float = 2.5,    # Gaussian sigma for contre-jour fringe dissolution (pixels)
-        halation_str:    float = 0.022,  # peak warm lift strength in contre-jour boundary zone
-        straw_lo:        float = 0.70,   # lower lum threshold for straw-gold highlight tint
-        straw_r:         float = 0.018,  # R boost in straw-gold highlight zone (pale warmth)
-        straw_g:         float = 0.012,  # G boost in straw-gold highlights (cream, not amber)
-        straw_b:         float = 0.006,  # B slight reduction in straw-gold zone (damp cool)
-        blur_radius:     float = 3.5,    # Gaussian sigma for mask feathering
-        opacity:         float = 0.36,   # overall pass composite opacity
+        shadow_threshold:   float = 0.32,   # lum below which cool ground veil is applied
+        cool_veil_strength: float = 0.055,  # magnitude of cool grey lift in deep shadows
+        cool_veil_b_boost:  float = 0.030,  # extra B channel lift for cool shadow tint
+        edge_sigma:         float = 1.8,    # Gaussian sigma for edge detection (luminance)
+        edge_threshold:     float = 0.08,   # minimum gradient magnitude to be considered an edge
+        bloom_sigma:        float = 5.0,    # Gaussian sigma for the contre-jour halo bloom
+        bloom_strength:     float = 0.065,  # peak luminosity lift of the contre-jour bloom
+        mid_cool_lo:        float = 0.38,   # lower lum bound of atmospheric mid-tone cool tint
+        mid_cool_hi:        float = 0.65,   # upper lum bound of atmospheric mid-tone cool tint
+        mid_cool_strength:  float = 0.018,  # magnitude of cool grey haze in mid-tones
+        blur_radius:        float = 3.0,    # Gaussian sigma for mask feathering
+        opacity:            float = 0.40,   # overall pass composite opacity (0–1)
     ) -> None:
         """
         Carel Fabritius contre-jour pass — session 95 new artist pass.
 
-        Carel Fabritius (1622–1654) was the most gifted of Rembrandt's pupils and
-        the direct ancestor of Vermeer.  His central artistic innovation was the
-        reversal of Rembrandt's chiaroscuro: instead of placing light figures
-        against dark grounds, Fabritius placed light figures against light grounds.
-        This contre-jour (against-the-light) philosophy required describing form
-        through extremely subtle value and temperature differentials rather than
-        strong tonal contrast.
+        Carel Fabritius (1622–1654) was Rembrandt's most gifted pupil and the
+        teacher of Johannes Vermeer.  He died at 32 in the Delft gunpowder
+        explosion of 1654, taking nearly all his work with him, but the handful
+        of surviving paintings — above all The Goldfinch (1654, Mauritshuis) —
+        reveal a revolutionary approach to light that anticipates Vermeer and,
+        in some ways, the Impressionists.
 
-        His masterpiece The Goldfinch (1654, Mauritshuis) exemplifies this: a small
-        finch on a pale buff stone wall, its warm tawny plumage barely distinguishable
-        from the background in luminosity, held apart only by temperature — the bird
-        warm gold, the wall cool cream.  The effect is of a figure floating in the
-        same ambient light as the viewer, rather than emerging from theatrical darkness.
+        While Rembrandt built light from dark — painting on warm brown grounds
+        and coaxing luminosity upward through glaze layers — Fabritius invented
+        the reverse.  He painted on pale grey-white grounds, so that the bright
+        background radiates through thin glazes, and his figures read as warm
+        masses against a cool, luminous field.  This contre-jour (light-against-
+        light) principle transforms the spatial language of Dutch painting: forms
+        are not isolated spotlit presences in a void but atmospheric shapes
+        embedded in ambient, diffused daylight.
 
-        This pass encodes three defining qualities of Fabritius's contre-jour technique:
+        This pass encodes three defining qualities:
 
-          1. Pale-ground warm lift — In background zones where luminosity exceeds
-             buff_bg_lo, gently brighten toward pale buff cream (R + buff_lift,
-             G + buff_lift × 0.9, B + buff_lift × 0.55).  This compresses the tonal
-             distance between figure and background, shifting the dark Rembrandt ground
-             toward Fabritius's pale Delft stone register.
+          1. Cool ground veil (shadow luminosity) — In deep shadow regions
+             (lum < shadow_threshold), add a gentle cool grey lift to both R, G, B,
+             with a slight extra boost to B.  This simulates the pale grey ground
+             showing through thin glazes in the shadow zones — Fabritius's shadows
+             are cool and luminous, not warm and opaque like Rembrandt's.  The
+             effect is subtle (cool_veil_strength ≈ 0.055) but structurally
+             important: it prevents the shadows from becoming dead and dark,
+             keeping the entire surface alive with reflected ground luminosity.
 
-          2. Contre-jour boundary dissolution — In mid-luminance zones (lum in
-             [halation_lo, halation_hi]) near figure/background boundaries, introduce
-             a very subtle warm luminous fringe (halation_sigma ≈ 2.5 px Gaussian
-             blurred bell-mask, lifted by halation_str in R and G × 0.6).  This is
-             the essential quality that distinguishes Fabritius from Rembrandt: forms
-             do not emerge from darkness but dissolve gently into shared ambient light.
-             The contre-jour halo is imperceptible individually but shifts the
-             accumulated boundary register toward luminous warmth.
+          2. Contre-jour edge bloom — Detect significant luminance gradient
+             boundaries (edge_sigma Gaussian gradient ≥ edge_threshold), then
+             apply a soft Gaussian bloom (bloom_sigma) to the brighter side of
+             each edge.  This simulates the characteristic contre-jour glow where
+             a figure silhouette reads against a bright background — the background
+             light wraps around the form's edge, creating a luminous halo that
+             separates the figure from the ground without any hard outline.  In
+             The Goldfinch, this bloom is what makes the bird's wing-tip glow
+             against the pale wall: not a highlight painted on the bird, but
+             ambient light radiating around it.
 
-          3. Straw-gold surface tint — In the upper highlights (lum > straw_lo),
-             a pale straw-gold tint shifts highlights from Rembrandt/Dou amber warmth
-             toward Fabritius cream (R + straw_r, G + straw_g, B − straw_b).  This
-             is lighter and more luminous than candle-amber: the warmth of pale stone
-             in afternoon sunlight rather than a warm candle in a dark interior.
+          3. Atmospheric mid-tone cool haze — In the mid-luminance range
+             [mid_cool_lo, mid_cool_hi], apply a very gentle cool grey tint to
+             all channels, slightly emphasising R and B equally.  This unifies
+             the surface with Fabritius's pale ground quality: even in the lit
+             flesh zones, there is a faint cool ambient presence that prevents
+             the image from reading as warm-ground Baroque.  Distinct from the
+             shadow veil (which is purely in deep darks), this haze inhabits the
+             transitional mid-tones and keeps them airy.
+
+        Together these three effects encode the spatial logic of contre-jour
+        painting: bright, cool-grounded backgrounds that push against warm figure
+        masses, with luminous edge halos at the boundaries and an atmosphere of
+        diffused grey-white ambient light throughout.
 
         Parameters
         ----------
-        buff_lift        : warm-buff brightness lift in background (light-ground effect)
-        buff_bg_lo       : lower lum threshold for background brightening
-        halation_lo      : lower lum bound of contre-jour boundary zone
-        halation_hi      : upper lum bound of contre-jour boundary zone
-        halation_sigma   : Gaussian sigma for contre-jour fringe blurring (pixels)
-        halation_str     : peak R lift in contre-jour boundary zone
-        straw_lo         : lower lum threshold for straw-gold highlight tint
-        straw_r          : R boost in straw-gold highlights
-        straw_g          : G boost in straw-gold highlights
-        straw_b          : B reduction in straw-gold highlights
-        blur_radius      : Gaussian sigma for mask feathering
-        opacity          : overall pass composite opacity (0–1)
+        shadow_threshold   : lum below which cool ground veil is applied
+        cool_veil_strength : uniform grey lift magnitude in shadow zone
+        cool_veil_b_boost  : additional B channel lift for cool shadow tint
+        edge_sigma         : Gaussian sigma for luminance gradient edge detection
+        edge_threshold     : minimum gradient magnitude to qualify as an edge
+        bloom_sigma        : Gaussian sigma for contre-jour halo bloom
+        bloom_strength     : peak luminosity lift of the bloom (added to bright side)
+        mid_cool_lo        : lower lum bound for atmospheric mid-tone cool tint
+        mid_cool_hi        : upper lum bound for atmospheric mid-tone cool tint
+        mid_cool_strength  : magnitude of cool grey haze in mid-tones
+        blur_radius        : Gaussian sigma for mask feathering
+        opacity            : overall pass composite opacity (0–1)
         """
         import numpy as _np
         from scipy.ndimage import gaussian_filter as _gf
 
-        print(f"  Fabritius contre-jour pass "
-              f"(buff_lift={buff_lift:.3f}  halation_str={halation_str:.3f}  "
-              f"straw_r={straw_r:.3f}  opacity={opacity:.2f}) ...")
-
-        if opacity <= 0.0:
-            print("    Fabritius contre-jour pass skipped (opacity=0)")
-            return
-
         h, w = self.h, self.w
+        diag  = (h * h + w * w) ** 0.5
 
-        buf  = _np.frombuffer(self.canvas.surface.get_data(),
-                              dtype=_np.uint8).reshape((h, w, 4)).copy()
-        orig = buf.copy()
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
 
-        # Cairo stores BGRA
-        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
-        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
-        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
-
-        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        # cairo stores BGRA; extract float channels
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
 
         r_out = r0.copy()
         g_out = g0.copy()
         b_out = b0.copy()
 
-        # ── Stage 1: Pale-ground warm lift (contre-jour light ground) ─────────
-        # In background zones (lum > buff_bg_lo), gently lift toward warm buff cream.
-        # This is the Fabritius inversion: compress the tonal distance between
-        # figure and field, replacing dark Rembrandt grounds with pale Delft stone.
-        if buff_lift > 0.0:
-            bg_ramp = _np.clip((lum - buff_bg_lo) / max(1.0 - buff_bg_lo, 1e-6),
-                               0.0, 1.0)
-            bg_mask = _gf(bg_ramp, sigma=blur_radius)
-            bw = bg_mask * opacity
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
 
-            r_out = _np.clip(r_out + bw * buff_lift, 0.0, 1.0)
-            g_out = _np.clip(g_out + bw * buff_lift * 0.90, 0.0, 1.0)
-            b_out = _np.clip(b_out + bw * buff_lift * 0.55, 0.0, 1.0)
+        # ── 1. Cool ground veil in deep shadow zones ──────────────────────────
+        # Where lum < shadow_threshold, add a gentle uniform grey lift (cool tint).
+        # The lift is strongest at lum=0 and tapers off linearly to zero at
+        # shadow_threshold, preserving the tonal gradient without flattening blacks.
+        shadow_mask = _np.clip((shadow_threshold - lum) / (shadow_threshold + 1e-6), 0.0, 1.0)
+        shadow_mask = _gf(shadow_mask.astype(_np.float32), blur_radius)
+        shadow_mask = _np.clip(shadow_mask, 0.0, 1.0)
 
-        # ── Stage 2: Contre-jour boundary dissolution (halation fringe) ───────
-        # Bell-shaped mask over [halation_lo, halation_hi] — the transition zone
-        # between figure and light background.  Gaussian-blur the bell and add a
-        # warm luminous lift, dissolving the figure/ground boundary into shared light.
-        if halation_str > 0.0:
-            hal_mid  = (halation_lo + halation_hi) * 0.5
-            hal_half = max((halation_hi - halation_lo) * 0.5, 1e-6)
-            hal_bell = _np.clip(
-                1.0 - _np.abs(lum - hal_mid) / hal_half, 0.0, 1.0)
-            hal_mask = _gf(hal_bell, sigma=halation_sigma)
-            hw = hal_mask * opacity
+        veil = shadow_mask * cool_veil_strength
+        r_out = _np.clip(r_out + veil, 0.0, 1.0)
+        g_out = _np.clip(g_out + veil, 0.0, 1.0)
+        b_out = _np.clip(b_out + veil + shadow_mask * cool_veil_b_boost, 0.0, 1.0)
 
-            r_out = _np.clip(r_out + hw * halation_str, 0.0, 1.0)
-            # G lift at 60% of R lift — warm cream rather than red
-            g_out = _np.clip(g_out + hw * halation_str * 0.60, 0.0, 1.0)
+        # ── 2. Contre-jour edge bloom ─────────────────────────────────────────
+        # Detect luminance edges via gradient magnitude, then bloom the brighter
+        # side to simulate contre-jour halo around figure silhouettes.
+        lum_smooth = _gf(lum.astype(_np.float32), edge_sigma)
 
-        # ── Stage 3: Straw-gold surface register ──────────────────────────────
-        # In bright highlights (lum > straw_lo), shift toward pale straw-gold:
-        # lighter and more luminous than Dou's candle amber.  The warmth of pale
-        # stone in afternoon sunlight rather than a candle in a dark niche.
-        if straw_r > 0.0 or straw_g > 0.0:
-            straw_ramp = _np.clip((lum - straw_lo) / max(1.0 - straw_lo, 1e-6),
-                                  0.0, 1.0)
-            straw_mask = _gf(straw_ramp, sigma=blur_radius * 0.5)
-            sw = straw_mask * opacity
+        # Compute gradient magnitude (simple forward differences)
+        dy = _np.diff(lum_smooth, axis=0, append=lum_smooth[-1:, :])
+        dx = _np.diff(lum_smooth, axis=1, append=lum_smooth[:, -1:])
+        grad_mag = _np.sqrt(dx * dx + dy * dy)
 
-            r_out = _np.clip(r_out + sw * straw_r, 0.0, 1.0)
-            g_out = _np.clip(g_out + sw * straw_g, 0.0, 1.0)
-            b_out = _np.clip(b_out - sw * straw_b, 0.0, 1.0)
+        # Edge mask: where gradient magnitude exceeds threshold
+        edge_mask = (grad_mag > edge_threshold).astype(_np.float32)
+        edge_mask = _gf(edge_mask, blur_radius)
+        edge_mask = _np.clip(edge_mask, 0.0, 1.0)
 
-        # ── Composite at opacity ───────────────────────────────────────────────
+        # Bloom: blur the luminance around edges to simulate radiating ground light
+        # The bloom is applied on the brighter side — we use the luminance itself
+        # as a weight so that already-bright regions get the brightest halos.
+        lum_bloom_src = _np.clip(lum * edge_mask, 0.0, 1.0)
+        bloom = _gf(lum_bloom_src.astype(_np.float32), bloom_sigma)
+        bloom = _np.clip(bloom * bloom_strength * 2.5, 0.0, bloom_strength)
+
+        r_out = _np.clip(r_out + bloom, 0.0, 1.0)
+        g_out = _np.clip(g_out + bloom, 0.0, 1.0)
+        b_out = _np.clip(b_out + bloom * 1.08, 0.0, 1.0)  # bloom is slightly cooler
+
+        # ── 3. Atmospheric mid-tone cool haze ─────────────────────────────────
+        # In [mid_cool_lo, mid_cool_hi], add a gentle equal-channel grey lift that
+        # unifies the surface with the pale ground quality — airy, not heavy.
+        mid_weight = _np.clip(
+            (lum - mid_cool_lo) / (mid_cool_hi - mid_cool_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (mid_cool_hi - lum) / (mid_cool_hi - mid_cool_lo + 1e-6), 0.0, 1.0
+        )
+        mid_weight = mid_weight * 4.0  # sharpen the bell-curve peak
+        mid_weight = _np.clip(mid_weight, 0.0, 1.0)
+        mid_weight = _gf(mid_weight.astype(_np.float32), blur_radius)
+        mid_weight = _np.clip(mid_weight, 0.0, 1.0)
+
+        haze = mid_weight * mid_cool_strength
+        r_out = _np.clip(r_out + haze, 0.0, 1.0)
+        g_out = _np.clip(g_out + haze, 0.0, 1.0)
+        b_out = _np.clip(b_out + haze, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
         r_final = r0 * (1.0 - opacity) + r_out * opacity
         g_final = g0 * (1.0 - opacity) + g_out * opacity
         b_final = b0 * (1.0 - opacity) + b_out * opacity
@@ -24661,4 +24688,4 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
-        print("    Fabritius contre-jour pass complete.")
+        print("    Carel Fabritius contre-jour pass complete.")

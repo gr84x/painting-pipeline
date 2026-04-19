@@ -4,102 +4,102 @@ paint_mona_lisa_s95.py -- Session 95 portrait painting.
 Paints the Mona Lisa-inspired portrait using the full stroke-engine pipeline,
 with session-95 additions:
 
-  - fabritius_contre_jour_pass()                         -- NEW (session 95) Carel Fabritius.
-                                                           Three-stage contre-jour technique:
-                                                           (1) Pale-ground warm lift -- in
-                                                           background zones (lum > 0.52),
-                                                           gently brighten toward pale buff
-                                                           cream (R+0.028, G+0.025, B+0.015),
-                                                           compressing tonal distance between
-                                                           figure and field toward the pale
-                                                           stone register of The Goldfinch;
-                                                           (2) Contre-jour boundary dissolution
-                                                           -- in mid-luminance zones (lum
-                                                           0.42–0.66), introduce a subtle warm
-                                                           luminous fringe (sigma 2.5 px,
-                                                           halation_str=0.022), dissolving
-                                                           figure/ground boundaries into
-                                                           shared ambient light; (3) Straw-
-                                                           gold surface register -- in upper
-                                                           highlights (lum > 0.70), shift
-                                                           toward pale straw-gold (R+0.018,
-                                                           G+0.012, B-0.006), lighter and
-                                                           more luminous than Rembrandt/Dou
-                                                           amber -- the warmth of pale stone
-                                                           in afternoon sunlight.
+  - fabritius_contre_jour_pass()                          -- NEW (session 95) Carel Fabritius.
+                                                           Three-stage Dutch contre-jour
+                                                           technique: (1) Cool ground veil
+                                                           -- in deep shadow zones (lum <
+                                                           0.32), add a gentle cool grey
+                                                           lift, simulating Fabritius's
+                                                           pale grey ground luminosity
+                                                           showing through thin glazes;
+                                                           shadows are cool and luminous,
+                                                           not warm and opaque like
+                                                           Rembrandt; (2) Contre-jour edge
+                                                           bloom -- detect luminance
+                                                           gradient boundaries, then bloom
+                                                           the brighter side to simulate
+                                                           the contre-jour halo around
+                                                           figure silhouettes where they
+                                                           read against the bright ground
+                                                           (as in The Goldfinch's wing-tip
+                                                           glowing against the pale wall);
+                                                           (3) Atmospheric mid-tone cool
+                                                           haze -- in the mid-luminance
+                                                           range [0.38, 0.65], add a very
+                                                           gentle cool grey tint that
+                                                           unifies the surface with the
+                                                           pale ground quality.
 
-  - straw-gold surface register (straw_r=0.018)         -- SESSION 95 ARTISTIC IMPROVEMENT.
-                                                           The straw_r / straw_g parameters
-                                                           in fabritius_contre_jour_pass()
-                                                           implement Fabritius's signature
-                                                           pale straw-gold tonality -- the
-                                                           quality most visible in The
-                                                           Goldfinch (1654), where the warm
-                                                           buff wall and the bird's tawny
-                                                           plumage share the same ambient
-                                                           light register.  Unlike Dou's
-                                                           candle-amber (warm and intimate),
-                                                           the straw-gold is lighter, more
-                                                           luminous, more open.  It shifts
-                                                           the highlight register from
-                                                           warm-dark to warm-light: the
-                                                           difference between a candle in
-                                                           a dark niche and afternoon sun
-                                                           on pale stone.  At straw_r=0.018
-                                                           (opacity=0.36), the effect is
-                                                           intentionally subtle -- a tonal
-                                                           quality rather than a colour
-                                                           statement.  It interacts with
-                                                           the existing Gerrit Dou candle-
-                                                           amber from session 94 to produce
-                                                           a slightly cooler, more luminous
-                                                           warmth in the accumulated surface
-                                                           register: the difference between
-                                                           a Leiden studio interior and a
-                                                           Delft room in afternoon light.
-                                                           Fabritius and Dou were working
-                                                           in the same tradition at the same
-                                                           moment -- Dou in Leiden, Fabritius
-                                                           in Delft -- and both died in the
-                                                           same decade.  The two passes in
-                                                           combination evoke the full register
-                                                           of mid-17th-century Dutch light.
+  SESSION 95 ARTISTIC IMPROVEMENT -- contre-jour edge bloom:
+                                                           The fabritius_contre_jour_pass()
+                                                           introduces a new spatial concept
+                                                           to the pipeline: edge-based
+                                                           luminosity bloom.  Prior sessions
+                                                           have accumulated warmth (Dou's
+                                                           candle gradient), atmospheric
+                                                           haze (Patinir, Corot), and surface
+                                                           texture (impasto_texture_pass).
+                                                           The Fabritius pass adds a third
+                                                           spatial logic: the bright ground
+                                                           radiating around figure edges.
+                                                           Where figure edges meet a bright
+                                                           background, the background light
+                                                           wraps slightly around the form,
+                                                           creating a luminous halo that
+                                                           separates figure from ground without
+                                                           any hard outline.  This is neither
+                                                           sfumato (which dissolves the edge
+                                                           itself) nor Flemish precision
+                                                           (which sharpens it) -- it is
+                                                           contre-jour: the edge is clear,
+                                                           but surrounded by a ghost of the
+                                                           background light.  In the context
+                                                           of the Mona Lisa portrait, this
+                                                           adds a subtle luminous quality to
+                                                           the transition between figure and
+                                                           landscape -- the background light
+                                                           presses slightly around the figure's
+                                                           silhouette, giving depth to the
+                                                           atmospheric recession already
+                                                           established by Patinir, Corot,
+                                                           and the cool_atmospheric_recession
+                                                           pass.
 
   Sessions 94 and earlier (retained):
-  - gerrit_dou_fijnschilder_pass()                       -- (session 94) Gerrit Dou
-  - candle gradient point source (candle_gradient_str=0.038) -- (session 94 improved)
-  - hugo_van_der_goes_expressive_depth_pass()            -- (session 93) Hugo van der Goes
-  - impasto_texture_pass (ridge_warmth=0.28)             -- (session 93 improved)
-  - antonello_pellucid_flesh_pass()                      -- (session 92) Antonello da Messina
-  - Improved subsurface_scatter_pass (shadow_pellucidity=0.05) -- (session 92 improved)
-  - caillebotte_perspective_pass()                       -- (session 91) Gustave Caillebotte
-  - edge_lost_and_found_pass (soft_halo_strength=0.14)   -- (session 91 improved)
-  - hodler_parallelism_pass()                            -- (session 90)
-  - atmospheric_depth_pass (horizon_glow_band=0.15)      -- (session 90 improved)
-  - spilliaert_vertiginous_void_pass()                   -- (session 89)
-  - sfumato_veil_pass (chroma_gate=0.42)                 -- (session 89 improved)
-  - redon_luminous_reverie_pass()                        -- (session 88)
-  - luminous_haze_pass (spectral_dispersion=0.28)        -- (session 88 improved)
-  - whistler_tonal_harmony_pass()                        -- (session 87)
+  - gerrit_dou_fijnschilder_pass()                        -- (session 94) Gerrit Dou
+  - candle gradient (candle_gradient_str=0.038)           -- (session 94 improved)
+  - hugo_van_der_goes_expressive_depth_pass()             -- (session 93) Hugo van der Goes
+  - impasto_texture_pass (ridge_warmth=0.28)              -- (session 93 improved)
+  - antonello_pellucid_flesh_pass()                       -- (session 92) Antonello da Messina
+  - subsurface_scatter_pass (shadow_pellucidity=0.05)     -- (session 92 improved)
+  - caillebotte_perspective_pass()                        -- (session 91) Gustave Caillebotte
+  - edge_lost_and_found_pass (soft_halo_strength=0.14)    -- (session 91 improved)
+  - hodler_parallelism_pass()                             -- (session 90)
+  - atmospheric_depth_pass (horizon_glow_band=0.15)       -- (session 90 improved)
+  - spilliaert_vertiginous_void_pass()                    -- (session 89)
+  - sfumato_veil_pass (chroma_gate=0.42)                  -- (session 89 improved)
+  - redon_luminous_reverie_pass()                         -- (session 88)
+  - luminous_haze_pass (spectral_dispersion=0.28)         -- (session 88 improved)
+  - whistler_tonal_harmony_pass()                         -- (session 87)
   - cool_atmospheric_recession_pass
-    (lateral_horizon_asymmetry=+0.06)                    -- (session 87 improved)
-  - carriera_pastel_glow_pass()                          -- (session 86)
-  - signorelli_sculptural_vigour_pass()                  -- (session 85)
-  - perugino_serene_grace_pass()                         -- (session 84)
-  - fra_filippo_lippi_tenerezza_pass()                   -- (session 83)
-  - highlight_bloom_pass (chromatic_bloom=True)          -- (session 83 improved)
-  - gericault_romantic_turbulence_pass()                 -- (session 82)
-  - sfumato_veil_pass (shadow_warm_recovery)             -- (session 82 improved)
-  - chardin_granular_intimacy_pass()                     -- (session 81)
-  - edge_lost_and_found_pass (gradient_selectivity)      -- (session 81 improved)
-  - andrea_del_sarto_golden_sfumato_pass()               -- (session 80)
-  - lotto_chromatic_anxiety_pass()                       -- (session 79)
-  - rigaud_velvet_drapery_pass()                         -- (session 78)
-  - poussin_classical_clarity_pass()                     -- (session 77)
-  - steen_warm_vitality_pass()                           -- (session 76)
-  - de_hooch_threshold_light_pass()                      -- (session 75)
-  - anguissola_intimacy_pass()                           -- (session 73)
-  - cool_atmospheric_recession_pass()                    -- (session 74)
+    (lateral_horizon_asymmetry=+0.06)                     -- (session 87 improved)
+  - carriera_pastel_glow_pass()                           -- (session 86)
+  - signorelli_sculptural_vigour_pass()                   -- (session 85)
+  - perugino_serene_grace_pass()                          -- (session 84)
+  - fra_filippo_lippi_tenerezza_pass()                    -- (session 83)
+  - highlight_bloom_pass (chromatic_bloom=True)           -- (session 83 improved)
+  - gericault_romantic_turbulence_pass()                  -- (session 82)
+  - sfumato_veil_pass (shadow_warm_recovery)              -- (session 82 improved)
+  - chardin_granular_intimacy_pass()                      -- (session 81)
+  - edge_lost_and_found_pass (gradient_selectivity)       -- (session 81 improved)
+  - andrea_del_sarto_golden_sfumato_pass()                -- (session 80)
+  - lotto_chromatic_anxiety_pass()                        -- (session 79)
+  - rigaud_velvet_drapery_pass()                          -- (session 78)
+  - poussin_classical_clarity_pass()                      -- (session 77)
+  - steen_warm_vitality_pass()                            -- (session 76)
+  - de_hooch_threshold_light_pass()                       -- (session 75)
+  - anguissola_intimacy_pass()                            -- (session 73)
+  - cool_atmospheric_recession_pass()                     -- (session 74)
   - watteau_crepuscular_reverie_pass()
   - correggio_golden_tenderness_pass()
   - luminous_haze_pass()
@@ -120,46 +120,62 @@ with session-95 additions:
 
 Session 95 artistic character:
   The random artist for this session is Carel Fabritius (1622–1654), Rembrandt's
-  most gifted pupil and the direct ancestor of Vermeer.  He is the great reverser
-  of the Dutch Golden Age: where Rembrandt placed light figures against dark
-  grounds, Fabritius placed light figures against light grounds.
+  most gifted pupil and the teacher of Johannes Vermeer.  He died at 32 in the
+  Delft gunpowder explosion of October 12, 1654, and took almost his entire
+  body of work with him.  The handful of surviving paintings -- fewer than
+  fifteen confidently attributed -- reveal a painter of startling originality
+  who stands at the pivot between the Rembrandt tradition and the Vermeer
+  tradition.
 
-  Fabritius studied with Rembrandt in Amsterdam c. 1641–1643, absorbing his
-  master's dramatic chiaroscuro and virtuoso brushwork.  But when he settled in
-  Delft, he invented something entirely his own: the contre-jour technique, in
-  which the figure shares the ambient light of its background rather than
-  emerging from theatrical darkness.  His masterpiece The Goldfinch (1654,
-  Mauritshuis) is a small trompe-l'oeil panel of such concentrated luminosity
-  that it reads as a window rather than a painting — the finch's warm tawny
-  plumage set against a pale buff stone wall, held apart only by the most
-  delicate temperature differential.
+  Fabritius's great innovation was to invert the spatial logic of Rembrandt.
+  Where Rembrandt painted on dark warm-brown grounds -- building luminosity
+  upward through glaze layers, so that figures emerge from a warm chiaroscuro
+  darkness -- Fabritius painted on pale grey-white grounds.  His figures read
+  as warm masses against a cool, luminous field.  This is the contre-jour
+  principle: light against light.  The most famous example is The Goldfinch
+  (1654, Mauritshuis), where a small goldfinch perches on a feeding box against
+  a plain grey wall.  The bird reads as a series of warm, dark masses -- brown,
+  black, yellow -- against the pale ground.  The wing-tips glow slightly at
+  their edges, not because Fabritius painted a highlight on the bird, but
+  because the background light wraps around the form's edge in the contre-jour
+  manner.
 
-  Fabritius died in the Delft Powder Magazine explosion on 12 October 1654 at
-  the age of 32, destroying most of his studio and with it most of his work.
-  Fewer than a dozen paintings are securely attributed to him.  He is one of the
-  great might-have-beens of art history: had he lived, the Dutch Golden Age
-  might have taken a very different direction, toward the luminous, light-flooded
-  Delft tradition that Vermeer would develop in his wake.
+  Technically, Fabritius's brushwork is remarkably confident and direct -- far
+  more so than Vermeer's patient, multi-layered glazing.  In The Goldfinch,
+  individual strokes of cream, warm brown, and yellow-ochre are placed with
+  absolute sureness; there is no over-working, no hesitation.  The painting
+  was completed quickly, probably in a single session -- and it shows.  The
+  directness of the mark-making is part of the charm: Fabritius let the pale
+  ground read through the thin paint in shadow areas, creating the luminous
+  cool quality of his shadows.
 
-  In the context of this Mona Lisa portrait, Fabritius contributes the
-  contre-jour quality that has been missing from the accumulated passes: the
-  sense that the figure exists in the same ambient light as the viewer, rather
-  than performing within a staged interior.  By session 95, the portrait has
-  accumulated warmth from Rembrandt, Gerrit Dou, Hugo van der Goes, and three
-  dozen other Dutch and Flemish masters.  Fabritius's pale-ground warm lift and
-  straw-gold surface register gently move the tonal register from dark-warm to
-  light-warm — the shift from a Leiden studio candle to Delft afternoon sunlight.
+  His other major surviving work, A View in Delft (1652, National Gallery),
+  shows the same contre-jour principle at a larger scale.  An instrument-maker's
+  stall occupies the foreground; behind it, the city of Delft opens up in a
+  wide, light-flooded middle ground.  The foreground stall is warm and detailed;
+  the background is pale, atmospheric, slightly out of focus.  The contre-jour
+  logic is spatial as well as chromatic: near objects are warm and present;
+  distant objects dissolve into the pale ambient light.
 
-  The session 95 artistic improvement — the straw-gold surface register — is the
-  subtlest of any session to date.  At straw_r=0.018, it is less than half the
-  strength of the session 94 candle gradient (candle_gradient_str=0.038).  But
-  its action is different: where the candle gradient is a spatial warm field
-  (more warmth near the upper-right source, cooler at a distance), the straw-gold
-  register is a tonal quality (more straw warmth in the brightest highlights,
-  fading to nothing in the shadows).  The two work together to give the
-  accumulated surface a specificity that previously it lacked: a warm afternoon
-  light from the upper right, filtered through the pale stone register of a Delft
-  interior.
+  In the context of this Mona Lisa portrait, Fabritius contributes two things.
+  First, the fabritius_contre_jour_pass() adds the cool ground veil to the deep
+  shadow zones, preventing them from becoming heavy and opaque.  The accumulated
+  warmth of sessions 80-94 (del Sarto, Lotto, van der Goes, Gerrit Dou) has
+  enriched the warm register considerably; the Fabritius pass introduces a
+  counter-pressure: the cool, luminous quality of shadows seen against a bright
+  ground.  This is structurally similar to what Vermeer does -- his shadows are
+  never dead or warm, they are cool and alive -- and it makes sense that
+  Fabritius, as Vermeer's teacher, contributed this quality.
+
+  Second, the contre-jour edge bloom adds a ghost of the background light
+  around the figure's silhouette.  By session 95, the portrait has accumulated
+  many passes that work within the figure (del Sarto's sfumato, Carriera's
+  pastel bloom, Anguissola's focal sharpening).  The Fabritius pass is the
+  first to work at the figure-background boundary in a spatially resolved way:
+  it finds the edges and adds luminosity to them from the background side.  The
+  result is a subtle luminous halo around the figure's silhouette -- barely
+  perceptible, but structurally important for the spatial coherence of the
+  figure against the landscape.
 """
 
 import sys
@@ -252,97 +268,130 @@ def make_reference() -> Image.Image:
         rx_b = 0.22 * W
         if y < top or y > bot:
             return False
-        t  = (y - top) / (bot - top)
-        rx = rx_t + (rx_b - rx_t) * t
+        t    = (y - top) / (bot - top)
+        rx   = rx_t + (rx_b - rx_t) * t
         return abs(x - cx) <= rx
 
     for y in range(H):
         for x in range(W):
             if in_torso(x, y):
-                # Dark forest-green dress
+                px[x, y] = (28, 52, 45)
+
+    # Neckline trim (amber-gold)
+    neck_y = int(0.40 * H)
+    neck_cx = int(0.515 * W)
+    for y in range(neck_y - 4, neck_y + 4):
+        for x in range(int(0.40 * W), int(0.63 * W)):
+            if 0 <= x < W and 0 <= y < H:
+                dist = abs(y - neck_y)
+                if dist < 3:
+                    px[x, y] = (160, 118, 52)
+
+    # Semi-transparent gauze wrap over torso
+    for y in range(int(0.38 * H), int(0.72 * H)):
+        for x in range(int(0.35 * W), int(0.70 * W)):
+            if in_torso(x, y):
                 r, g, b = px[x, y]
-                t = (y - 0.38 * H) / max(H - 0.38 * H, 1)
-                dr = int(38 + 10 * t)
-                dg = int(52 + 12 * t)
-                db = int(42 + 10 * t)
                 px[x, y] = (
-                    min(255, max(0, dr + r // 6)),
-                    min(255, max(0, dg + g // 6)),
-                    min(255, max(0, db + b // 6)),
+                    min(255, r + 12),
+                    min(255, g + 10),
+                    min(255, b + 8),
                 )
 
-    # ── Face and neck ──────────────────────────────────────────────────────
-    face_cx = 0.515 * W
-    face_cy = 0.215 * H
-    face_rx = 0.105 * W
-    face_ry = 0.138 * H
-    neck_top = 0.34  * H
-    neck_bot = 0.42  * H
-    neck_rx  = 0.055 * W
+    # ── Face ──────────────────────────────────────────────────────────────
+    face_cx = int(0.515 * W)
+    face_cy = int(0.215 * H)
+    face_rx = int(0.105 * W)
+    face_ry = int(0.155 * H)
 
-    for y in range(H):
-        for x in range(W):
-            # Face ellipse
-            dx = (x - face_cx) / face_rx
-            dy = (y - face_cy) / face_ry
-            d2 = dx * dx + dy * dy
-            if d2 <= 1.0:
-                t   = 1.0 - d2
-                fr  = int(192 + 28 * t)
-                fg  = int(162 + 22 * t)
-                fb  = int(118 + 14 * t)
+    def paint_skin_ellipse(cx, cy, rx, ry, lit_dir=(0.35, -0.70)):
+        """Paint skin tone into an ellipse with simple directional shading."""
+        for y in range(cy - ry - 2, cy + ry + 2):
+            for x in range(cx - rx - 2, cx + rx + 2):
+                if not (0 <= x < W and 0 <= y < H):
+                    continue
+                nx = (x - cx) / rx
+                ny = (y - cy) / ry
+                d  = math.sqrt(nx * nx + ny * ny)
+                if d > 1.0:
+                    continue
+                # Diffuse shading
+                dot    = nx * lit_dir[0] + ny * lit_dir[1]
+                light  = 0.55 + 0.45 * max(dot, 0.0)
+                falloff = max(0.0, 1.0 - d)
+                # Base flesh tone: warm ivory
+                base_r = 215
+                base_g = 175
+                base_b = 130
+                r = int(base_r * light)
+                g = int(base_g * light)
+                b = int(base_b * light)
+                # Soften into existing pixels at the ellipse edge
+                alpha  = min(1.0, (1.0 - d) * 4.0)
+                old_r, old_g, old_b = px[x, y]
                 px[x, y] = (
-                    min(255, fr),
-                    min(255, fg),
-                    min(255, fb),
+                    min(255, max(0, int(old_r * (1 - alpha) + r * alpha))),
+                    min(255, max(0, int(old_g * (1 - alpha) + g * alpha))),
+                    min(255, max(0, int(old_b * (1 - alpha) + b * alpha))),
                 )
-                continue
-            # Neck
-            if neck_top <= y <= neck_bot and abs(x - face_cx) <= neck_rx:
-                nt = (y - neck_top) / (neck_bot - neck_top)
-                nr = int(185 - 10 * nt)
-                ng = int(155 - 12 * nt)
-                nb = int(112 - 10 * nt)
-                px[x, y] = (min(255, nr), min(255, ng), min(255, nb))
 
-    # ── Hands ──────────────────────────────────────────────────────────────
-    hands_cx  = 0.500 * W
-    hands_cy  = 0.820 * H
-    hands_rx  = 0.115 * W
-    hands_ry  = 0.062 * H
-    for y in range(H):
-        for x in range(W):
-            dx = (x - hands_cx) / hands_rx
-            dy = (y - hands_cy) / hands_ry
-            if dx * dx + dy * dy <= 1.0:
-                t  = 1.0 - (dx * dx + dy * dy)
-                hr = int(180 + 20 * t)
-                hg = int(150 + 16 * t)
-                hb = int(108 + 10 * t)
-                px[x, y] = (min(255, hr), min(255, hg), min(255, hb))
+    paint_skin_ellipse(face_cx, face_cy, face_rx, face_ry)
 
-    # ── Dark veil over hair ──────────────────────────────────────────────
-    hair_cx = 0.515 * W
-    hair_cy = 0.110 * H
-    hair_rx = 0.155 * W
-    hair_ry = 0.120 * H
-    for y in range(H):
-        for x in range(W):
-            dx = (x - hair_cx) / hair_rx
-            dy = (y - hair_cy) / hair_ry
-            if dx * dx + dy * dy <= 1.0:
+    # Neck
+    paint_skin_ellipse(
+        int(0.515 * W), int(0.355 * H),
+        int(0.058 * W), int(0.085 * H),
+        lit_dir=(0.30, -0.60),
+    )
+
+    # Décolletage
+    paint_skin_ellipse(
+        int(0.515 * W), int(0.42 * H),
+        int(0.095 * W), int(0.052 * H),
+        lit_dir=(0.28, -0.55),
+    )
+
+    # ── Hands (lower centre) ──────────────────────────────────────────────
+    # Right hand draped over left, lower-centre composition
+    paint_skin_ellipse(
+        int(0.48 * W), int(0.82 * H),
+        int(0.082 * W), int(0.048 * H),
+        lit_dir=(0.25, -0.50),
+    )
+    paint_skin_ellipse(
+        int(0.53 * W), int(0.855 * H),
+        int(0.080 * W), int(0.042 * H),
+        lit_dir=(0.25, -0.50),
+    )
+
+    # ── Hair and veil ─────────────────────────────────────────────────────
+    # Dark hair parted at centre, falling beside face
+    for y in range(int(0.08 * H), int(0.38 * H)):
+        for x in range(int(0.35 * W), int(0.68 * W)):
+            nx = (x - 0.515 * W) / (0.105 * W)
+            ny = (y - 0.215 * H) / (0.155 * H)
+            d  = math.sqrt(nx * nx + ny * ny)
+            if d > 0.85 and d < 1.55:
+                # Hair zone around face
+                t = min(1.0, (d - 0.85) / 0.70)
                 r, g, b = px[x, y]
-                t = dx * dx + dy * dy
-                dark = int(28 + 14 * t)
                 px[x, y] = (
-                    max(0, r - dark - 12),
-                    max(0, g - dark - 10),
-                    max(0, b - dark - 8),
+                    int(r * (1 - t) + 52 * t),
+                    int(g * (1 - t) + 42 * t),
+                    int(b * (1 - t) + 28 * t),
                 )
 
-    # Blur the reference so stroke engine sees smooth colour masses
-    ref = ref.filter(ImageFilter.GaussianBlur(radius=6))
-    return ref
+    # Translucent dark veil over crown
+    for y in range(int(0.06 * H), int(0.18 * H)):
+        for x in range(int(0.38 * W), int(0.65 * W)):
+            r, g, b = px[x, y]
+            px[x, y] = (
+                int(r * 0.72 + 30 * 0.28),
+                int(g * 0.72 + 24 * 0.28),
+                int(b * 0.72 + 18 * 0.28),
+            )
+
+    return ref.filter(ImageFilter.GaussianBlur(radius=3))
 
 
 def make_figure_mask() -> np.ndarray:
@@ -368,18 +417,15 @@ def make_figure_mask() -> np.ndarray:
 def paint(out_dir: str = ".") -> str:
     """Run the full session-95 painting pipeline."""
     print("Session 95 -- Mona Lisa portrait")
-    print("Random artist: Carel Fabritius (Dutch Golden Age / Delft School, 1622-1654)")
+    print("Random artist: Carel Fabritius (Dutch Golden Age, 1622-1654)")
     print("New pass: fabritius_contre_jour_pass()")
-    print("  -- Pale-ground warm lift: background brightened toward pale buff cream (lum > 0.52)")
-    print("  -- Contre-jour boundary dissolution: warm luminous fringe at figure/ground edges")
-    print("  -- Straw-gold surface register: pale straw-gold tint in upper highlights (lum > 0.70)")
+    print("  -- Cool ground veil: gentle cool grey lift in deep shadows (lum < 0.32)")
+    print("  -- Contre-jour edge bloom: luminous halo at figure/background boundaries")
+    print("  -- Atmospheric mid-tone cool haze: pale ground quality in mid-tones [0.38,0.65]")
     print()
-    print("Session 95 artistic improvement: straw-gold surface register in fabritius_contre_jour_pass()")
-    print("  Pale straw-gold highlight tint: shifts accumulated warmth from Dou candle-amber")
-    print("  to Fabritius afternoon-light -- lighter, more luminous, more open-air.")
-    print("  The interplay between session-94 candle gradient and session-95 straw-gold")
-    print("  creates the full mid-17th-century Dutch light register: warm point source (Dou)")
-    print("  modulated by ambient pale ground (Fabritius).")
+    print("Session 95 artistic improvement: contre-jour edge bloom in fabritius_contre_jour_pass()")
+    print("  Edge-based luminosity: background light radiates around figure silhouette,")
+    print("  giving depth to the figure-landscape transition without sfumato or hard lines.")
     print()
 
     ref = make_reference()
@@ -1022,26 +1068,25 @@ def paint(out_dir: str = ".") -> str:
         opacity             = 0.38,
     )
 
-    # ── SESSION 95: Carel Fabritius contre-jour pass (NEW) ───────────────────
-    # Carel Fabritius (1622–1654) -- Dutch Golden Age / Delft School.
-    # Three operations: pale-ground warm lift (background brightened to buff cream),
-    # contre-jour boundary dissolution (warm luminous fringe at figure/ground edges),
-    # and straw-gold surface register (session 95 artistic improvement --
-    # pale straw-gold tint shifts highlights from Dou-amber to Fabritius cream).
+    # ── SESSION 95: Carel Fabritius contre-jour pass (NEW) ────────────────────
+    # Carel Fabritius (1622–1654) -- Dutch Golden Age contre-jour pioneer.
+    # Three operations: cool ground veil (shadow luminosity from pale grey ground),
+    # contre-jour edge bloom (luminous halo at figure-background boundaries),
+    # and atmospheric mid-tone cool haze (pale ground quality in mid-tones).
     print("Carel Fabritius contre-jour pass (session 95 -- NEW)...")
     p.fabritius_contre_jour_pass(
-        buff_lift       = 0.028,   # background warm-buff brightness lift
-        buff_bg_lo      = 0.52,    # lower lum threshold for pale-ground brightening
-        halation_lo     = 0.42,    # lower lum of contre-jour boundary zone
-        halation_hi     = 0.66,    # upper lum of contre-jour boundary zone
-        halation_sigma  = 2.5,     # Gaussian sigma for boundary fringe (pixels)
-        halation_str    = 0.022,   # peak warm lift in contre-jour boundary zone
-        straw_lo        = 0.70,    # lower lum for straw-gold highlight tint
-        straw_r         = 0.018,   # SESSION 95 IMPROVEMENT: pale straw-gold R boost
-        straw_g         = 0.012,   # G boost (cream, not amber)
-        straw_b         = 0.006,   # B slight reduction (damp cool)
-        blur_radius     = 3.5,
-        opacity         = 0.36,
+        shadow_threshold   = 0.32,    # lum below which cool ground veil is applied
+        cool_veil_strength = 0.048,   # gentle grey lift in shadows (Fabritius palette)
+        cool_veil_b_boost  = 0.022,   # extra B channel lift: cool, not warm shadows
+        edge_sigma         = 1.8,     # Gaussian sigma for luminance gradient detection
+        edge_threshold     = 0.08,    # minimum gradient magnitude for edge qualification
+        bloom_sigma        = 5.5,     # Gaussian bloom sigma for contre-jour halo
+        bloom_strength     = 0.055,   # peak luminosity lift of the contre-jour bloom
+        mid_cool_lo        = 0.38,    # lower lum bound of atmospheric mid-tone haze
+        mid_cool_hi        = 0.65,    # upper lum bound of atmospheric mid-tone haze
+        mid_cool_strength  = 0.015,   # pale ground quality: subtle but present
+        blur_radius        = 3.0,
+        opacity            = 0.38,
     )
 
     # Session 81 IMPROVED (s91): edge_lost_and_found_pass
@@ -1066,10 +1111,9 @@ def paint(out_dir: str = ".") -> str:
         opacity         = 0.28,
     )
 
-    # Final glaze -- pale straw, lighter than session 94's amber
-    # Fabritius: the unifying surface register is straw-cream, not deep amber
-    print("Final glaze (pale straw cream -- Fabritius register)...")
-    p.glaze((0.62, 0.50, 0.22), opacity=0.028)
+    # Final glaze -- warm amber, very light
+    print("Final glaze (warm amber)...")
+    p.glaze((0.58, 0.44, 0.16), opacity=0.034)
 
     # Finish
     print("Finishing (vignette + crackle)...")
