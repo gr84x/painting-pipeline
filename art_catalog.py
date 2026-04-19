@@ -7865,6 +7865,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Hugo van der Goes (session 93) ─────────────────────────────────────
+    "hugo_van_der_goes": ArtStyle(
+        artist="Hugo van der Goes",
+        movement="Early Netherlandish / Flemish Late Gothic",
+        nationality="Flemish",
+        period="c. 1467–1482",
+        palette=[
+            (0.84, 0.72, 0.52),   # warm ochre-ivory flesh — lit face midtone; earthy rather than idealized
+            (0.72, 0.58, 0.38),   # golden amber — deep midtone flesh; warm brown that characterises van der Goes
+            (0.52, 0.38, 0.24),   # raw sienna shadow — upper-shadow flesh transition; rich, not cold
+            (0.30, 0.22, 0.14),   # warm near-black — deep shadow; velvet dark with amber undertone
+            (0.14, 0.10, 0.07),   # void black — absolute background dark; van der Goes backgrounds recede to near-absence
+            (0.60, 0.22, 0.14),   # crimson red — drapery accent; intense saturated cloth against earthy flesh
+            (0.28, 0.38, 0.24),   # dark muted green — background foliage; subdued, not Spring-bright
+            (0.90, 0.86, 0.80),   # cool pale ivory — maximum lit flesh; slightly cooler highlight than Antonello's warm Naples yellow
+        ],
+        ground_color=(0.62, 0.50, 0.32),    # warm amber-brown imprimatura — darker and richer than Antonello's
+        stroke_size=3,
+        wet_blend=0.42,                      # moderate — oil glazes, but less transparent stacking than van Eyck
+        edge_softness=0.32,                  # Flemish found-edges — precise but not hardened; contours breathe
+        jitter=0.018,                        # slight colour variation — Flemish control, but organic life
+        glazing=(0.60, 0.42, 0.22),          # deep amber-brown glaze — warm unifying layer over the whole surface
+        crackle=True,                        # 15th-century oak panel; extensive craquelure on originals
+        chromatic_split=False,
+        technique=(
+            "Hugo van der Goes (c. 1440–1482) is the most psychologically intense of "
+            "the Early Netherlandish masters — and arguably the most modern in his "
+            "emotional register.  Working in Ghent at the height of the Flemish panel "
+            "tradition (his contemporaries include Memling and Bouts), van der Goes "
+            "shared their technical precision but departed radically from their serene "
+            "idealism.  His figures carry weight — not only physical mass, but psychological "
+            "burden — and his compositions have an unsettling, pre-Expressionist quality "
+            "that sets him apart from every other painter of his century.  "
+            "Technically, van der Goes worked on oak panel with a white chalk gesso ground, "
+            "toned with a warm amber-brown imprimatura darker and richer than van Eyck's "
+            "cool white.  Over this ground he built flesh in multiple oil-glaze layers, "
+            "beginning with raw sienna and umber underpaint and progressing toward warm "
+            "ochre-ivory in the lit zones.  His shadow transitions are deeper and warmer "
+            "than Antonello's or Memling's — the darks approach a velvety near-black with "
+            "amber undertones, and there is no Flemish blue-green subsurface tint: van der "
+            "Goes' shadows are exclusively warm.  "
+            "His most distinctive feature is the near-absence of background — compositions "
+            "like the Portinari Altarpiece place figures against atmospheric near-black "
+            "voids that anticipate Caravaggio by a century.  The background is not the "
+            "rich Flemish landscape of van Eyck or Memling's carefully rendered rooms: "
+            "it is darkness, weight, and psychological depth rendered as absence.  "
+            "Colour-wise, van der Goes favoured intense saturated accents — crimson and "
+            "deep scarlet drapery against earthy flesh — and subdued, low-key greens for "
+            "any landscape elements.  His whites are cool and slightly ashy, quite different "
+            "from the warm Naples yellow-ivory highlights of the Italian-trained Flemings.  "
+            "Apply hugo_van_der_goes_expressive_depth_pass() after build_form() to add the "
+            "characteristic warm-dark shadow enrichment, psychological weight through "
+            "midtone earthing, and near-black void deepening that define van der Goes."
+        ),
+        famous_works=[
+            ("Portinari Altarpiece",                    "c. 1475–1476"),
+            ("Dormition of the Virgin",                 "c. 1480"),
+            ("Adoration of the Shepherds (Uffizi)",     "c. 1480"),
+            ("The Fall of Man and the Lamentation",     "c. 1470–1475"),
+            ("Portrait of a Man (Praying)",             "c. 1475"),
+            ("Monforte Altarpiece",                     "c. 1470"),
+            ("Trinity Panels (Royal Collection)",       "c. 1478–1479"),
+        ],
+        inspiration=(
+            "Use hugo_van_der_goes_expressive_depth_pass() after build_form() and "
+            "before any glaze pass to encode van der Goes' three defining qualities:  "
+            "(1) Warm shadow enrichment — in deep shadow zones (lum < 0.35), amplify "
+            "warm amber undertones by boosting R slightly and damping B, reinforcing the "
+            "velvety warmth of his near-black darks; avoid any blue-green subsurface tint "
+            "(that is Antonello's quality, not van der Goes'); (2) Psychological weight "
+            "through midtone earthing — in upper-midtone flesh (lum 0.45–0.68), apply a "
+            "slight amber-brown pull (R + modest, G + slight, B − modest), making the "
+            "flesh feel earthbound and weighty rather than idealized or radiant; this is "
+            "the quality that separates van der Goes from Memling's serenity; (3) Near-"
+            "black void deepening — in the absolute darks (lum < 0.12), push slightly "
+            "further toward warm void black, increasing depth without going to cold neutral.  "
+            "ground_color=(0.62, 0.50, 0.32) uses a rich amber-brown ground darker than "
+            "Antonello's — it asserts itself in any passages of thin paint, unifying the "
+            "surface with warm depth.  "
+            "edge_softness=0.32 gives Flemish found-edge clarity — precise but not "
+            "mechanical.  glazing=(0.60, 0.42, 0.22) applies a deep amber-brown unifier "
+            "over the entire surface, replicating the aged amber varnish on van der Goes "
+            "panels, which has darkened the originals significantly."
+        ),
+    ),
+
 }
 
 

@@ -11061,3 +11061,151 @@ def test_franz_marc_inspiration_references_prismatic_pass():
     s = get_style("franz_marc")
     assert "franz_marc_prismatic_vitality_pass" in s.inspiration, (
         "Marc inspiration should reference franz_marc_prismatic_vitality_pass()")
+
+
+# ── Hugo van der Goes tests (session 93) ─────────────────────────────────────
+
+def test_hugo_van_der_goes_in_catalog():
+    """Hugo van der Goes must be present in the catalog."""
+    assert "hugo_van_der_goes" in list_artists(), (
+        "hugo_van_der_goes must be in CATALOG")
+
+
+def test_hugo_van_der_goes_in_expected_artists():
+    """get_style('hugo_van_der_goes') must succeed without raising."""
+    s = get_style("hugo_van_der_goes")
+    assert s.artist == "Hugo van der Goes", (
+        f"Expected artist='Hugo van der Goes'; got {s.artist!r}")
+
+
+def test_hugo_van_der_goes_movement_is_flemish():
+    """Hugo van der Goes' movement must reference Flemish or Netherlandish tradition."""
+    s = get_style("hugo_van_der_goes")
+    m = s.movement.lower()
+    assert "flemish" in m or "netherlandish" in m, (
+        f"Movement must reference Flemish or Netherlandish; got {s.movement!r}")
+
+
+def test_hugo_van_der_goes_palette_length():
+    """Hugo van der Goes must have at least 6 palette colours."""
+    s = get_style("hugo_van_der_goes")
+    assert len(s.palette) >= 6, (
+        f"Van der Goes palette must have ≥6 colours; got {len(s.palette)}")
+
+
+def test_hugo_van_der_goes_palette_values_in_range():
+    """All Hugo van der Goes palette RGB values must be in [0, 1]."""
+    s = get_style("hugo_van_der_goes")
+    for i, col in enumerate(s.palette):
+        for ch in col:
+            assert 0.0 <= ch <= 1.0, (
+                f"Van der Goes palette[{i}] has out-of-range value {ch:.4f}")
+
+
+def test_hugo_van_der_goes_palette_contains_warm_dark():
+    """Van der Goes palette must contain a warm near-black (R > B, lum < 0.22)."""
+    s = get_style("hugo_van_der_goes")
+    warm_darks = [
+        c for c in s.palette
+        if c[0] > c[2] and (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) < 0.22
+    ]
+    assert len(warm_darks) >= 1, (
+        "Van der Goes palette must contain at least one warm near-black (R > B, lum < 0.22) — "
+        "his shadows are exclusively warm amber-to-near-black, no cool blue voids")
+
+
+def test_hugo_van_der_goes_ground_is_warm_amber():
+    """Van der Goes ground_color must be warm (R > B) and mid-dark (lum < 0.62)."""
+    s = get_style("hugo_van_der_goes")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert r > b, (
+        f"Van der Goes ground must be warm (R > B); got ground_color={s.ground_color}")
+    assert lum < 0.62, (
+        f"Van der Goes ground must be darker than Antonello's (lum < 0.62); "
+        f"got lum={lum:.3f}")
+
+
+def test_hugo_van_der_goes_has_crackle():
+    """Van der Goes crackle must be True — 15th-century oak panel."""
+    s = get_style("hugo_van_der_goes")
+    assert s.crackle, "Van der Goes crackle must be True (15th-century oak panel)"
+
+
+def test_hugo_van_der_goes_no_chromatic_split():
+    """Van der Goes chromatic_split must be False — not a Divisionist."""
+    s = get_style("hugo_van_der_goes")
+    assert not s.chromatic_split, (
+        "Van der Goes chromatic_split must be False — he is not a Divisionist painter")
+
+
+def test_hugo_van_der_goes_has_deep_amber_glazing():
+    """Van der Goes glazing must be warm (R > B) and deep (lum < 0.52)."""
+    s = get_style("hugo_van_der_goes")
+    assert s.glazing is not None, "Van der Goes must have a glazing colour"
+    r, g, b = s.glazing
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert r > b, (
+        f"Van der Goes glazing must be warm amber (R > B); got {s.glazing}")
+    assert lum < 0.52, (
+        f"Van der Goes glazing must be deep amber-brown (lum < 0.52); got lum={lum:.3f}")
+
+
+def test_hugo_van_der_goes_moderate_wet_blend():
+    """Van der Goes wet_blend must be in [0.30, 0.55] — oil glazes, not heavy impasto."""
+    s = get_style("hugo_van_der_goes")
+    assert 0.30 <= s.wet_blend <= 0.55, (
+        f"Van der Goes wet_blend must be in [0.30, 0.55]; got {s.wet_blend:.2f}")
+
+
+def test_hugo_van_der_goes_precise_edge_softness():
+    """Van der Goes edge_softness must be below 0.40 — Flemish found-edge precision."""
+    s = get_style("hugo_van_der_goes")
+    assert s.edge_softness < 0.40, (
+        f"Van der Goes edge_softness must be < 0.40 (Flemish precision); "
+        f"got {s.edge_softness:.2f}")
+
+
+def test_hugo_van_der_goes_famous_works_not_empty():
+    """Van der Goes famous_works must not be empty."""
+    s = get_style("hugo_van_der_goes")
+    assert len(s.famous_works) > 0, "Van der Goes famous_works must not be empty"
+
+
+def test_hugo_van_der_goes_famous_works_include_portinari():
+    """Van der Goes famous works must include the Portinari Altarpiece."""
+    s = get_style("hugo_van_der_goes")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("portinari" in t for t in titles), (
+        "Van der Goes famous_works must include the Portinari Altarpiece — "
+        "his most influential and celebrated work")
+
+
+def test_hugo_van_der_goes_famous_works_include_dormition():
+    """Van der Goes famous works must include the Dormition of the Virgin."""
+    s = get_style("hugo_van_der_goes")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("dormition" in t or "virgin" in t for t in titles), (
+        "Van der Goes famous_works must include the Dormition of the Virgin")
+
+
+def test_hugo_van_der_goes_technique_mentions_portinari():
+    """Van der Goes technique text must mention the Portinari Altarpiece."""
+    s = get_style("hugo_van_der_goes")
+    assert "portinari" in s.technique.lower(), (
+        "Van der Goes technique text must mention the Portinari Altarpiece")
+
+
+def test_hugo_van_der_goes_technique_mentions_ghent():
+    """Van der Goes technique text must mention Ghent (his city of work)."""
+    s = get_style("hugo_van_der_goes")
+    assert "ghent" in s.technique.lower(), (
+        "Van der Goes technique text must mention Ghent — he worked there "
+        "and the city defines his artistic context")
+
+
+def test_hugo_van_der_goes_inspiration_references_pass():
+    """Van der Goes inspiration must reference hugo_van_der_goes_expressive_depth_pass()."""
+    s = get_style("hugo_van_der_goes")
+    assert "hugo_van_der_goes_expressive_depth_pass" in s.inspiration, (
+        "Van der Goes inspiration must reference hugo_van_der_goes_expressive_depth_pass()")
