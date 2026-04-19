@@ -11263,3 +11263,191 @@ def test_sfumato_veil_pass_chroma_gate_neutral_on_grey_reference():
     assert np.array_equal(result_no_gate, result_with_gate), (
         "sfumato_veil_pass chroma_gate must have no effect when reference chroma=0 "
         "(grey reference): gate should not alter the result")
+
+
+# ── Session 90 — Ferdinand Hodler — hodler_parallelism_pass ───────────────────
+
+def test_hodler_parallelism_pass_exists():
+    """hodler_parallelism_pass must exist as a method on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hodler_parallelism_pass"), (
+        "Painter must have hodler_parallelism_pass method (session 90)")
+    assert callable(getattr(Painter, "hodler_parallelism_pass"))
+
+
+def test_hodler_parallelism_pass_runs():
+    """hodler_parallelism_pass must complete without raising on a default canvas."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.hodler_parallelism_pass(opacity=0.38)
+
+
+def test_hodler_parallelism_pass_zero_opacity_noop():
+    """hodler_parallelism_pass at opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.hodler_parallelism_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "hodler_parallelism_pass at opacity=0 must not modify the canvas")
+
+
+def test_hodler_parallelism_pass_darkens_contours():
+    """
+    hodler_parallelism_pass contour darkening must reduce luminance at edge zones.
+    Seed a gradient canvas; average luminance at edge pixels must decrease.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(width=64, height=64)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :32, 0] = 60;  data[:, :32, 1] = 60;  data[:, :32, 2] = 60
+    data[:, 32:, 0] = 200; data[:, 32:, 1] = 200; data[:, 32:, 2] = 200
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+
+    def _edge_lum(buf_bytes):
+        arr = np.frombuffer(buf_bytes, dtype=np.uint8).reshape((64, 64, 4))
+        r = arr[:, 28:36, 2].astype(float) / 255.0
+        g = arr[:, 28:36, 1].astype(float) / 255.0
+        b = arr[:, 28:36, 0].astype(float) / 255.0
+        return (0.299 * r + 0.587 * g + 0.114 * b).mean()
+
+    before_lum = _edge_lum(p.canvas.surface.get_data())
+    p.hodler_parallelism_pass(
+        contour_strength=0.50,
+        contour_thresh=0.05,
+        n_bands=2,
+        band_hardness=0.0,
+        chroma_clarity_boost=0.0,
+        opacity=1.0,
+    )
+    after_lum = _edge_lum(p.canvas.surface.get_data())
+
+    assert after_lum < before_lum, (
+        f"hodler_parallelism_pass should darken the edge/contour zone; "
+        f"before={before_lum:.4f}  after={after_lum:.4f}")
+
+
+def test_hodler_parallelism_pass_tonal_bands_reduce_variation():
+    """
+    hodler_parallelism_pass tonal simplification must reduce within-canvas
+    luminance variance on a gradient canvas.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(width=64, height=64)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+    for row in range(64):
+        val = int(row / 63.0 * 200) + 20
+        data[row, :, 0] = val
+        data[row, :, 1] = val
+        data[row, :, 2] = val
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+
+    def _lum_std(buf_bytes):
+        arr = np.frombuffer(buf_bytes, dtype=np.uint8).reshape((64, 64, 4))
+        r = arr[:, :, 2].astype(float) / 255.0
+        g = arr[:, :, 1].astype(float) / 255.0
+        b = arr[:, :, 0].astype(float) / 255.0
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        return lum.std()
+
+    before_std = _lum_std(p.canvas.surface.get_data())
+    p.hodler_parallelism_pass(
+        n_bands=4,
+        band_hardness=0.80,
+        contour_strength=0.0,
+        chroma_clarity_boost=0.0,
+        opacity=1.0,
+    )
+    after_std = _lum_std(p.canvas.surface.get_data())
+
+    assert after_std < before_std, (
+        f"hodler_parallelism_pass tonal banding should reduce luminance std-dev; "
+        f"before={before_std:.4f}  after={after_std:.4f}")
+
+
+# ── Session 90 — atmospheric_depth_pass horizon_glow_band improvement ─────────
+
+def test_atmospheric_depth_pass_horizon_glow_band_exists():
+    """atmospheric_depth_pass must accept horizon_glow_band parameter (session 90)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.atmospheric_depth_pass)
+    assert "horizon_glow_band" in sig.parameters, (
+        "atmospheric_depth_pass must accept horizon_glow_band parameter (session 90)")
+    assert "horizon_y_frac" in sig.parameters, (
+        "atmospheric_depth_pass must accept horizon_y_frac parameter (session 90)")
+
+
+def test_atmospheric_depth_pass_horizon_glow_band_zero_noop():
+    """
+    atmospheric_depth_pass with horizon_glow_band=0.0 must produce the same
+    result as calling without the parameter -- backward compatibility.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+
+    def _run(glow):
+        p = Painter(width=64, height=64)
+        data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+        data[:, :, :] = [100, 130, 110, 255]
+        p.canvas.surface.get_data()[:] = data.tobytes()
+        p.atmospheric_depth_pass(
+            haze_color=(0.72, 0.78, 0.88),
+            desaturation=0.65,
+            lightening=0.50,
+            depth_gamma=1.6,
+            background_only=False,
+            horizon_glow_band=glow,
+        )
+        return np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    result_a = _run(0.0)
+    result_b = _run(0.0)
+    assert np.array_equal(result_a, result_b), (
+        "atmospheric_depth_pass with horizon_glow_band=0 must be deterministic")
+
+
+def test_atmospheric_depth_pass_horizon_glow_band_brightens_horizon():
+    """
+    atmospheric_depth_pass with horizon_glow_band > 0 must brighten the
+    horizon zone compared to horizon_glow_band=0.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+
+    def _horizon_lum(glow):
+        p = Painter(width=64, height=64)
+        data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+        data[:, :, :] = [100, 120, 110, 255]
+        p.canvas.surface.get_data()[:] = data.tobytes()
+        p.atmospheric_depth_pass(
+            haze_color=(0.72, 0.78, 0.88),
+            desaturation=0.30,
+            lightening=0.20,
+            depth_gamma=1.0,
+            background_only=False,
+            horizon_glow_band=glow,
+            horizon_y_frac=0.50,
+            horizon_band_sigma=0.15,
+        )
+        arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4))
+        mid_rows = arr[28:36, :, :]
+        r = mid_rows[:, :, 2].astype(float) / 255.0
+        g = mid_rows[:, :, 1].astype(float) / 255.0
+        b = mid_rows[:, :, 0].astype(float) / 255.0
+        return (0.299 * r + 0.587 * g + 0.114 * b).mean()
+
+    lum_no_glow   = _horizon_lum(0.0)
+    lum_with_glow = _horizon_lum(0.30)
+
+    assert lum_with_glow > lum_no_glow, (
+        f"atmospheric_depth_pass horizon_glow_band should brighten the horizon zone; "
+        f"no_glow_lum={lum_no_glow:.4f}  with_glow_lum={lum_with_glow:.4f}")

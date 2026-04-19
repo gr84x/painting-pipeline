@@ -4573,12 +4573,15 @@ class Painter:
 
     def atmospheric_depth_pass(
             self,
-            haze_color:      Color = (0.72, 0.78, 0.88),  # cool blue-grey haze
-            desaturation:    float = 0.65,                  # saturation loss at max depth
-            lightening:      float = 0.50,                  # blend toward haze at max depth
-            depth_gamma:     float = 1.6,                   # depth curve shape (>1 = effect
-                                                            # concentrates near horizon)
-            background_only: bool  = True,                  # apply only outside figure mask
+            haze_color:        Color = (0.72, 0.78, 0.88),  # cool blue-grey haze
+            desaturation:      float = 0.65,                  # saturation loss at max depth
+            lightening:        float = 0.50,                  # blend toward haze at max depth
+            depth_gamma:       float = 1.6,                   # depth curve shape (>1 = effect
+                                                              # concentrates near horizon)
+            background_only:   bool  = True,                  # apply only outside figure mask
+            horizon_glow_band: float = 0.0,                   # strength of luminous horizon band
+            horizon_y_frac:    float = 0.55,                  # vertical position (0=top, 1=bottom)
+            horizon_band_sigma: float = 0.06,                 # falloff width as fraction of height
     ) -> None:
         """
         Atmospheric depth (aerial perspective) pass.
@@ -4633,6 +4636,28 @@ class Painter:
                           untouched so portrait subjects retain their local colour.
                           Pass False to apply to the whole canvas (landscape-only
                           scenes with no figure mask).
+        horizon_glow_band : When > 0, adds a subtle luminous warm-cool glow band
+                            centred at ``horizon_y_frac`` from the top of the canvas.
+                            The band brightens and slightly warms pixels at that
+                            vertical position, creating the characteristic atmospheric
+                            horizon light seen in Leonardo's Mona Lisa background —
+                            a diffuse bright zone where the distant sky and rocky
+                            terrain meet, causing the distinctive pale shimmer that
+                            sits behind the figure's shoulders.  The effect uses a
+                            Gaussian falloff (sigma ≈ horizon_band_sigma × canvas
+                            height) so the transition is soft and imperceptible at its
+                            edges.  Values 0.08–0.20 produce a subtle, naturalistic
+                            result; above 0.30 the band becomes visually explicit.
+                            At 0.0 (default) the behaviour is unchanged.
+                            (Session 90 improvement.)
+        horizon_y_frac    : Vertical position of the glow band as a fraction from
+                            the top of the canvas (0 = top, 1 = bottom).  The
+                            default of 0.55 places the band slightly below canvas
+                            centre, matching the typical landscape horizon position
+                            in three-quarter portrait compositions.
+        horizon_band_sigma : Gaussian falloff width as a fraction of canvas height.
+                             Larger values create a wider, more diffuse glow;
+                             smaller values produce a tighter, more defined band.
 
         Notes
         -----
@@ -4652,7 +4677,8 @@ class Painter:
         """
         print(f"Atmospheric depth pass  "
               f"(haze={haze_color}  desat={desaturation:.2f}"
-              f"  lighten={lightening:.2f}  gamma={depth_gamma:.1f})…")
+              f"  lighten={lightening:.2f}  gamma={depth_gamma:.1f}"
+              f"  horizon_glow={horizon_glow_band:.2f})…")
 
         w, h = self.canvas.w, self.canvas.h
 
@@ -4697,6 +4723,29 @@ class Painter:
         haze_vec = np.array([hr, hg, hb], dtype=np.float32)   # (3,)
         lightening_weight = effect * lightening
         rgb_final = rgb_desat * (1.0 - lightening_weight) + haze_vec * lightening_weight
+
+        # ── Stage 3: Horizon glow band (session 90 improvement) ───────────────
+        # Adds a subtle luminous warm-cool band at the atmospheric horizon,
+        # simulating the bright glowing zone where distant sky meets terrain in
+        # Leonardo's Mona Lisa background.  A Gaussian falloff centred at
+        # horizon_y_frac × H brightens and slightly warms pixels in that zone.
+        if horizon_glow_band > 0.0:
+            sigma_px = max(horizon_band_sigma * h, 1.0)
+            # Gaussian weight centred on horizon row.
+            horizon_row = horizon_y_frac * (h - 1)
+            row_dist = (np.arange(h, dtype=np.float32) - horizon_row) / sigma_px
+            glow_profile = np.exp(-0.5 * row_dist ** 2)        # (H,) Gaussian
+            glow_profile = glow_profile[:, np.newaxis]          # (H, 1) broadcast
+
+            # Apply only to background region (same mask as rest of pass).
+            glow_weight = glow_profile * bg_weight[:, :, np.newaxis] * horizon_glow_band
+
+            # Warm ivory-amber glow colour — the pale diffuse sky at the Mona
+            # Lisa horizon reads as warm ivory cooling into pale blue-grey.
+            glow_color = np.array([0.92, 0.90, 0.84], dtype=np.float32)
+            rgb_final = rgb_final * (1.0 - glow_weight * 0.55) + glow_color * (glow_weight * 0.55)
+            # Additional slight luminance lift (brighten toward white).
+            rgb_final = rgb_final + glow_weight * 0.08
 
         rgb_final = np.clip(rgb_final, 0.0, 1.0)
 
@@ -23319,3 +23368,174 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Redon luminous reverie pass complete.")
+
+    def hodler_parallelism_pass(
+        self,
+        n_bands:             int   = 6,      # number of discrete tonal bands
+        band_hardness:       float = 0.60,   # sharpness of band transitions (0=soft, 1=hard)
+        contour_strength:    float = 0.35,   # darkening amount at detected edge zones
+        contour_sigma:       float = 1.8,    # Gaussian sigma for edge zone expansion
+        contour_thresh:      float = 0.06,   # gradient magnitude threshold for edge detection
+        chroma_clarity_lo:   float = 0.35,   # luminance floor of chroma clarity zone
+        chroma_clarity_hi:   float = 0.75,   # luminance ceiling of chroma clarity zone
+        chroma_clarity_boost: float = 0.18,  # saturation push in mid-tone clarity zone
+        chroma_min:          float = 0.12,   # minimum chroma required for clarity boost
+        blur_radius:         float = 2.5,    # Gaussian sigma for mask edge feathering
+        opacity:             float = 0.38,   # final composite opacity
+    ) -> None:
+        """
+        Hodler parallelism pass — session 90 new artist pass.
+
+        Ferdinand Hodler (1853–1918) governed his mature work by a principle
+        he called Parallelism: the belief that nature organises itself into
+        rhythmic, symmetrical, repeated structures — parallel mountain ridges,
+        parallel rows of trees, parallel extension of figures.  On canvas,
+        this principle produced a characteristic visual language of bold flat
+        tonal zones, strong dark contour lines between planes, and chromatic
+        clarity where each colour area reads as its essential identity.  This
+        pass encodes the three hallmarks of that language.
+
+        Three operations:
+
+          1. Tonal band simplification — the canvas luminance is mapped to a
+             small number of discrete tonal bands (n_bands) using a smooth
+             staircase function.  Mid-tones collapse toward a dominant plane
+             value rather than blending continuously; highlights and shadows
+             are preserved.  The band_hardness parameter controls whether the
+             transition is smooth (0.0, still continuous) or near-discrete
+             (1.0, hard posterization).  Produces the flat, zone-based tonal
+             quality of Hodler's simplified figure and mountain landscape planes.
+
+          2. Contour darkening — the luminance gradient (Sobel operator) is
+             computed; pixels in the edge zone (gradient > contour_thresh,
+             expanded by contour_sigma Gaussian) are darkened by contour_strength.
+             This strengthens the dark outline separating Hodler's tonal planes
+             and gives his compositions their characteristic bold, poster-like
+             legibility at full viewing distance.
+
+          3. Chromatic clarity — in the mid-luminance, moderate-chroma zone
+             (luminance in [chroma_clarity_lo, chroma_clarity_hi] and chroma >
+             chroma_min), each channel is pushed further from the luminance
+             centroid by chroma_clarity_boost.  Near-neutral areas are untouched.
+             Produces Hodler's effect of largely unmixed pigments, where each
+             colour zone reads as its essential hue identity rather than a
+             visually complex mixture.
+
+        Parameters
+        ----------
+        n_bands             : number of discrete tonal bands for luminance quantisation
+        band_hardness       : sharpness of band edge (0=smooth staircase, 1=hard steps)
+        contour_strength    : darkening at detected contour edges (0–1)
+        contour_sigma       : Gaussian sigma for expanding detected edge zone (pixels)
+        contour_thresh      : minimum normalised gradient magnitude for edge detection
+        chroma_clarity_lo   : lower luminance bound for chroma clarity zone
+        chroma_clarity_hi   : upper luminance bound for chroma clarity zone
+        chroma_clarity_boost: per-channel saturation push in mid-tone clarity zone
+        chroma_min          : minimum chroma required for clarity boost qualification
+        blur_radius         : Gaussian sigma for mask edge feathering
+        opacity             : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        print(f"  Hodler parallelism pass "
+              f"(n_bands={n_bands}  band_hardness={band_hardness:.2f}  "
+              f"contour_strength={contour_strength:.2f}  "
+              f"chroma_clarity_boost={chroma_clarity_boost:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Hodler parallelism pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Tonal band simplification ───────────────────────────────
+        # Map luminance to a smooth staircase with n_bands steps.
+        # At band_hardness=0: smooth (sawtooth interpolation, minimal effect).
+        # At band_hardness=1: hard posterization.
+        nb = max(n_bands, 2)
+        lum_q = lum * nb                         # scale to [0, nb]
+        lum_floor = _np.floor(lum_q)             # integer band index
+        lum_frac  = lum_q - lum_floor            # fractional position within band
+        # Smooth step within each band: frac -> smoothstep(frac)
+        smooth = lum_frac * lum_frac * (3.0 - 2.0 * lum_frac)  # smoothstep [0,1]
+        # Blend between smooth and quantised based on band_hardness.
+        mixed_frac = smooth * (1.0 - band_hardness) + _np.round(lum_frac) * band_hardness
+        lum_new = (lum_floor + mixed_frac) / nb  # back to [0, 1]
+        lum_new = _np.clip(lum_new, 0.0, 1.0)
+
+        # Shift each channel by the luminance delta.
+        lum_delta = lum_new - lum
+        r_out = _np.clip(r_out + lum_delta, 0.0, 1.0)
+        g_out = _np.clip(g_out + lum_delta, 0.0, 1.0)
+        b_out = _np.clip(b_out + lum_delta, 0.0, 1.0)
+
+        # ── Stage 2: Contour darkening ────────────────────────────────────────
+        # Detect luminance edges; darken them to create Hodler's bold outlines.
+        lum_f = lum.astype(_np.float32)
+        gx = _sobel(lum_f, axis=1).astype(_np.float32)
+        gy = _sobel(lum_f, axis=0).astype(_np.float32)
+        grad_mag = _np.sqrt(gx ** 2 + gy ** 2)
+        if grad_mag.max() > 1e-9:
+            grad_mag = grad_mag / grad_mag.max()
+
+        contour_raw  = _np.clip((grad_mag - contour_thresh) /
+                                max(1.0 - contour_thresh, 0.01), 0.0, 1.0)
+        contour_mask = _gf(contour_raw, sigma=contour_sigma)
+        contour_mask = _np.clip(contour_mask * contour_strength, 0.0, contour_strength)
+
+        r_out = _np.clip(r_out - contour_mask, 0.0, 1.0)
+        g_out = _np.clip(g_out - contour_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out - contour_mask, 0.0, 1.0)
+
+        # ── Stage 3: Chromatic clarity ────────────────────────────────────────
+        # Push mid-tone, moderate-chroma pixels toward their dominant hue.
+        lum2    = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        max_rgb = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        min_rgb = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma  = max_rgb - min_rgb
+
+        lum_range = max(chroma_clarity_hi - chroma_clarity_lo, 0.01)
+        bell = _np.minimum(
+            _np.clip((lum2 - chroma_clarity_lo) / lum_range, 0.0, 1.0),
+            _np.clip((chroma_clarity_hi - lum2) / lum_range, 0.0, 1.0),
+        ) * 2.0
+        chroma_gate = _np.clip((chroma - chroma_min) / max(1.0 - chroma_min, 0.01),
+                               0.0, 1.0)
+        clarity_mask = _gf(bell * chroma_gate, sigma=blur_radius)
+
+        r_out = _np.clip(r_out + clarity_mask * chroma_clarity_boost * (r_out - lum2),
+                         0.0, 1.0)
+        g_out = _np.clip(g_out + clarity_mask * chroma_clarity_boost * (g_out - lum2),
+                         0.0, 1.0)
+        b_out = _np.clip(b_out + clarity_mask * chroma_clarity_boost * (b_out - lum2),
+                         0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Hodler parallelism pass complete.")

@@ -104,6 +104,7 @@ EXPECTED_ARTISTS = [
     "whistler",
     "odilon_redon",
     "leon_spilliaert",
+    "ferdinand_hodler",
 ]
 
 
@@ -10705,3 +10706,108 @@ def test_leon_spilliaert_inspiration_references_pass():
     s = get_style("leon_spilliaert")
     assert "spilliaert_vertiginous_void_pass" in s.inspiration, (
         "Spilliaert inspiration should reference spilliaert_vertiginous_void_pass()")
+
+
+# ── Session 90 — Ferdinand Hodler ─────────────────────────────────────────────
+
+def test_ferdinand_hodler_in_catalog():
+    """ferdinand_hodler must be present in CATALOG (session 90)."""
+    assert "ferdinand_hodler" in CATALOG, "ferdinand_hodler not found in CATALOG"
+
+
+def test_ferdinand_hodler_movement():
+    """Hodler's movement must identify Swiss Symbolism or Post-Impressionism."""
+    s = get_style("ferdinand_hodler")
+    assert "Symbolism" in s.movement or "Impressionism" in s.movement, (
+        f"Hodler movement should mention Symbolism or Impressionism; got {s.movement!r}")
+
+
+def test_ferdinand_hodler_nationality():
+    """Hodler must be recorded as Swiss."""
+    s = get_style("ferdinand_hodler")
+    assert s.nationality == "Swiss", (
+        f"Hodler nationality should be 'Swiss'; got {s.nationality!r}")
+
+
+def test_ferdinand_hodler_palette_length():
+    """Hodler's palette must have at least 5 colours."""
+    s = get_style("ferdinand_hodler")
+    assert len(s.palette) >= 5, (
+        f"Hodler palette should have ≥ 5 entries; got {len(s.palette)}")
+
+
+def test_ferdinand_hodler_palette_values_in_range():
+    """All Hodler palette RGB values must be in [0, 1]."""
+    s = get_style("ferdinand_hodler")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Hodler palette channel {ch} out of [0, 1] in {rgb}")
+
+
+def test_ferdinand_hodler_palette_contains_cobalt():
+    """Hodler's palette must contain a cobalt/Swiss blue (B > R, B > G)."""
+    s = get_style("ferdinand_hodler")
+    has_blue = any(b > r and b > g for r, g, b in s.palette)
+    assert has_blue, (
+        "Hodler palette must include a cobalt blue — key to his Alpine lake and sky passages")
+
+
+def test_ferdinand_hodler_warm_ground():
+    """Hodler ground colour must be warm (R > B) — ochre-grey toned canvas."""
+    s = get_style("ferdinand_hodler")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Hodler ground should be warm ochre-grey (R > B); got R={r:.2f} B={b:.2f}")
+
+
+def test_ferdinand_hodler_low_edge_softness():
+    """Hodler edge_softness must be below 0.40 — his bold contour outlines define forms."""
+    s = get_style("ferdinand_hodler")
+    assert s.edge_softness < 0.40, (
+        f"Hodler edge_softness should be low for bold contour clarity; got {s.edge_softness:.2f}")
+
+
+def test_ferdinand_hodler_no_crackle():
+    """Hodler crackle must be False — his canvases are not heavily aged."""
+    s = get_style("ferdinand_hodler")
+    assert not s.crackle, "Hodler crackle should be False"
+
+
+def test_ferdinand_hodler_warm_glazing():
+    """Hodler glazing must be warm (R > B) — amber unifying glaze over earth palette."""
+    s = get_style("ferdinand_hodler")
+    assert s.glazing is not None, "Hodler should have a glazing colour"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"Hodler glazing should be warm amber (R > B); got {s.glazing}")
+
+
+def test_ferdinand_hodler_famous_works_not_empty():
+    """Hodler famous_works must not be empty."""
+    s = get_style("ferdinand_hodler")
+    assert len(s.famous_works) > 0, "Hodler famous_works must not be empty"
+
+
+def test_ferdinand_hodler_famous_works_include_night():
+    """Hodler's famous works must include Night (1890), his breakthrough work."""
+    s = get_style("ferdinand_hodler")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("night" in t for t in titles), (
+        "Hodler famous_works must include Night (1890)")
+
+
+def test_ferdinand_hodler_famous_works_include_day():
+    """Hodler's famous works must include Day (1900)."""
+    s = get_style("ferdinand_hodler")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("day" in t for t in titles), (
+        "Hodler famous_works must include Day (1900)")
+
+
+def test_ferdinand_hodler_inspiration_references_parallelism_pass():
+    """Hodler inspiration must reference hodler_parallelism_pass()."""
+    s = get_style("ferdinand_hodler")
+    assert "hodler_parallelism_pass" in s.inspiration, (
+        "Hodler inspiration should reference hodler_parallelism_pass()")

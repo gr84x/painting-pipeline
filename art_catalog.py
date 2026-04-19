@@ -7458,6 +7458,99 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Ferdinand Hodler ───────────────────────────────────────────────────────
+    "ferdinand_hodler": ArtStyle(
+        artist="Ferdinand Hodler",
+        movement="Swiss Symbolism / Post-Impressionism",
+        nationality="Swiss",
+        period="1885–1918",
+        palette=[
+            (0.72, 0.58, 0.30),   # warm ochre — mountain earth, dominant landscape tone
+            (0.20, 0.40, 0.65),   # Swiss cobalt blue — Alpine lakes and high sky
+            (0.45, 0.30, 0.15),   # dark warm umber — figure outlines, tree trunks
+            (0.90, 0.85, 0.72),   # warm ivory — flesh passages, bright sky margin
+            (0.25, 0.45, 0.22),   # dark meadow green — mid-ground foliage
+            (0.62, 0.22, 0.18),   # deep crimson umber — warm shadow accent, draped fabric
+            (0.78, 0.70, 0.85),   # pale violet — atmospheric distant peaks
+        ],
+        ground_color=(0.55, 0.48, 0.28),   # warm ochre-grey — toned canvas for Alpine light
+        stroke_size=6,
+        wet_blend=0.42,
+        edge_softness=0.22,
+        jitter=0.022,
+        glazing=(0.68, 0.58, 0.32),        # warm amber glaze — unifies the earth-tone palette
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Ferdinand Hodler (1853–1918) was the leading Swiss painter of the late "
+            "nineteenth and early twentieth centuries and one of the pivotal figures in "
+            "European Symbolism.  His mature work is governed by a principle he called "
+            "Parallelism — a formal theory derived from his observation that nature "
+            "organises itself into rhythmic, symmetrical, repeated structures: parallel "
+            "rows of trees along a lakeshore, the parallel thrust of mountain ridges, "
+            "the parallel extension of limbs in a procession of figures.  This was not "
+            "mere decorative repetition; Hodler believed Parallelism revealed the "
+            "underlying order of the universe, its fundamental harmony or Eurythmie.  "
+            "In practice, Parallelism meant painting figures in closely mirrored poses "
+            "side by side, trees as near-identical vertical accents across the canvas, "
+            "and mountain ranges as stacked horizontal bands of simplified colour.  "
+            "Hodler stripped away atmospheric haze, anecdotal detail, and casual "
+            "incident, reducing landscape and figure to bold, geometrically clarified "
+            "zones.  His canvases feel like diagrams of emotional states, not records "
+            "of perception.  \n"
+            "His early masterpieces — Night (1890), The Disappointed Souls (1892), "
+            "Day (1900) — established him internationally and were exhibited at the "
+            "Vienna Secession, where they deeply influenced Klimt, Schiele, and the "
+            "Jugendstil movement.  Night in particular caused a scandal at its first "
+            "Zurich exhibition: its naked, sleeping figures, confronting mysterious "
+            "dark presences, seemed too modern, too naked, too psychologically "
+            "disturbing for academic taste.  "
+            "Palette and technique: Hodler used strong, largely unmixed pigments — "
+            "earth ochres, cobalt blues, deep umbers, and warm ivories.  He avoided "
+            "subtle atmospheric blending; instead he built up flat or lightly modelled "
+            "planes separated by strong dark contour lines.  His canvases have a "
+            "poster-like clarity of colour zone, each area reading as a distinct "
+            "chromatic and tonal value.  In his Alpine landscapes — Thun, Geneva, "
+            "Niesen — the lake is always a single flat zone of deep cobalt or grey-"
+            "blue; the mountains are banded horizontal planes of ochre, green, and "
+            "purple; the sky is a flat warm ivory or golden yellow.  This structural "
+            "simplification — real objects reduced to their essential geometric "
+            "chromatic identity — anticipates the language of Matisse, Mondrian, and "
+            "twentieth-century abstract painting.  "
+            "Apply hodler_parallelism_pass() to encode the characteristic Hodler "
+            "surface: simplified tonal planes, strong dark contours, and chromatic "
+            "clarity that reads across the full viewing distance."
+        ),
+        famous_works=[
+            ("Night", "1890"),
+            ("Day", "1900"),
+            ("The Disappointed Souls", "1892"),
+            ("The Chosen One", "1893–1894"),
+            ("Eurythmie", "1895"),
+            ("Lake Thun", "1905"),
+            ("Autumn Evening", "1892"),
+            ("Look into Infinity", "1913–1916"),
+            ("The Battle of Murten", "1897"),
+        ],
+        inspiration=(
+            "Apply hodler_parallelism_pass() to encode Hodler's signature visual "
+            "language.  Three stages: (1) tonal band simplification — reduce the canvas "
+            "luminance to a small number of discrete tonal bands via a smooth staircase "
+            "function (n_bands ≈ 5–7); mid-tones collapse toward a dominant plane value "
+            "rather than blending continuously; produces the flat, zone-based tonal "
+            "quality of Hodler's simplified figure and landscape planes; (2) contour "
+            "darkening — detect luminance edges using Sobel gradient; darken pixels in "
+            "the edge zone by a configurable amount, effectively strengthening the dark "
+            "contour lines that separate Hodler's tonal planes from one another and give "
+            "his compositions their characteristic poster-bold clarity; (3) chromatic "
+            "clarity — in mid-luminance, high-chroma zones slightly boost saturation "
+            "toward the dominant hue, while very low-chroma (near-neutral) passages "
+            "are left untouched; produces the effect of Hodler's largely unmixed "
+            "pigments, where each colour zone reads as its essential identity rather "
+            "than a complex mixture.  Use at opacity 0.32–0.45."
+        ),
+    ),
+
 }
 
 
