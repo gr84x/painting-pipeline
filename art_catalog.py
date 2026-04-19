@@ -7952,6 +7952,80 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
     # ── Gerrit Dou ────────────────────────────────────────────────────────────
+    # ── Carel Fabritius ───────────────────────────────────────────────────────
+    "carel_fabritius": ArtStyle(
+        artist="Carel Fabritius",
+        movement="Dutch Golden Age / Contre-Jour Portraiture",
+        nationality="Dutch",
+        period="1641–1654",
+        palette=[
+            (0.88, 0.84, 0.76),   # pale grey ground — the luminous wall/background his figures read against
+            (0.78, 0.68, 0.52),   # warm ivory flesh — lit midtone; warmer than his pale ground
+            (0.58, 0.50, 0.38),   # ochre mid-shadow — form transitions on the lit side
+            (0.32, 0.26, 0.18),   # raw umber — shadow; leaning warmer than Rembrandt's cool voids
+            (0.12, 0.10, 0.08),   # near-black — deepest darks, used sparingly against bright ground
+            (0.94, 0.90, 0.82),   # cool bright ground — the atmospheric pale background that defines contre-jour
+            (0.68, 0.60, 0.46),   # warm mid-flesh — confident impasto in lit areas
+            (0.45, 0.40, 0.30),   # warm brown — drapery and shadow masses
+        ],
+        ground_color=(0.78, 0.74, 0.66),    # pale grey-warm ground — utterly unlike Rembrandt's dark imprimatura
+        stroke_size=8,
+        wet_blend=0.48,                      # moderate blending — visible brushwork, not fijnschilder smoothness
+        edge_softness=0.42,                  # moderate — edges are present, not dissolved; the ground does the softening
+        jitter=0.035,                        # slight colour variation per stroke — confident but not mechanical
+        glazing=None,                        # no unifying glaze — the pale ground provides the unifying light
+        crackle=True,                        # 17th-century panel; aged craquelure
+        chromatic_split=False,
+        technique=(
+            "Carel Fabritius (1622–1654) was Rembrandt's most gifted pupil and the teacher "
+            "of Johannes Vermeer — a crucial pivot in the Dutch Golden Age tradition.  "
+            "His brief career (he died at 32 in the Delft gunpowder explosion of 1654, "
+            "taking most of his work with him) produced a handful of paintings of extraordinary "
+            "originality, most famous among them The Goldfinch (1654), now in the Mauritshuis.  "
+            "Where Rembrandt worked on dark brown grounds, building light out of shadow, "
+            "Fabritius invented the reverse: he painted on pale grey grounds, letting the "
+            "bright background read through the thin glazes, so that his figures emerge as "
+            "warm masses against a cool, luminous field.  This is the contre-jour principle "
+            "— light against light — and it transforms the spatial language of Dutch painting: "
+            "figures are not isolated spotlit forms in a void but atmospheric presences "
+            "embedded in an ambient grey-white light.  "
+            "His brushwork is confident and direct — broader and more impressionistic than "
+            "Vermeer's patient glazing, warmer and more atmospheric than Rembrandt's dramatic "
+            "chiaroscuro.  In The Goldfinch, individual brushstrokes of cream, yellow-ochre, "
+            "and warm brown build the bird's plumage with remarkable economy: ten strokes "
+            "where another painter might use fifty, each one placed with absolute assurance.  "
+            "The background — that pale grey wall — is not empty space but active light, "
+            "pushing forward against the dark body of the bird, creating the contre-jour "
+            "silhouette that makes the image unforgettable.  "
+            "Apply fabritius_contre_jour_pass() after the main painting passes to add the "
+            "three defining qualities: pale ground luminosity, edge bloom where figures meet "
+            "the bright background, and the cool atmospheric veil that Fabritius used instead "
+            "of Rembrandt's warm imprimatura darkness."
+        ),
+        famous_works=[
+            ("The Goldfinch",                "1654"),
+            ("A View in Delft",              "1652"),
+            ("Self-Portrait",                "c. 1645–49"),
+            ("The Sentry",                   "1654"),
+            ("Hagar and the Angel",          "c. 1645"),
+            ("Mercury and Argus",            "1645"),
+            ("Abraham de Potter",            "1649"),
+            ("Young Man in a Fur Cap",       "c. 1654"),
+        ],
+        inspiration=(
+            "Apply fabritius_contre_jour_pass() to encode Fabritius's contre-jour light: "
+            "(1) Cool ground veil — in deep shadow zones (lum < shadow_threshold), add "
+            "a gentle cool grey lift, simulating his pale ground luminosity showing through "
+            "thin glazes; this is the opposite of Rembrandt's warm dark ground — the shadows "
+            "here are cool and luminous, not warm and opaque; (2) Edge bloom — at significant "
+            "luminance gradient boundaries (figure edges), add a soft halo on the brighter "
+            "side, simulating the contre-jour glow where a figure reads against a bright "
+            "background; (3) Atmospheric ground haze — apply a very gentle global cool "
+            "tint in mid-tone regions, unifying the surface with the pale grey-white ground "
+            "quality that defines Fabritius's spatial language."
+        ),
+    ),
+
     "gerrit_dou": ArtStyle(
         artist="Gerrit Dou",
         movement="Dutch Golden Age / Fijnschilder",
