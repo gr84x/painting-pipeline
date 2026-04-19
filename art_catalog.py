@@ -7285,6 +7285,100 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Odilon Redon ──────────────────────────────────────────────────────────
+    "odilon_redon": ArtStyle(
+        artist="Odilon Redon",
+        movement="French Symbolism / Post-Impressionism",
+        nationality="French",
+        period="1875–1916",
+        palette=[
+            (0.12, 0.08, 0.20),   # deep violet-plum void — the noir ground (darkest)
+            (0.18, 0.28, 0.68),   # jewel ultramarine blue — floating orbs, cyclops eye
+            (0.82, 0.70, 0.22),   # luminous golden ochre — aureole light
+            (0.92, 0.88, 0.80),   # luminous ivory cream — brilliant highlight
+            (0.72, 0.20, 0.58),   # spectral rose-violet — Redon's magenta jewels
+            (0.24, 0.68, 0.62),   # luminous turquoise-green — flower petals, unusual
+            (0.88, 0.56, 0.28),   # warm amber — sunlit flower centres
+            (0.68, 0.60, 0.82),   # pale lavender halo — atmospheric bloom around forms
+        ],
+        ground_color=(0.20, 0.16, 0.28),   # deep violet-plum void — supports noir and pastel
+        stroke_size=4,
+        wet_blend=0.65,
+        edge_softness=0.75,
+        jitter=0.016,
+        glazing=(0.28, 0.22, 0.42),   # cool violet-dominant glaze — dark luminous depth
+        crackle=False,
+        chromatic_split=True,
+        technique=(
+            "Odilon Redon (1840–1916) pursued an entirely interior vision — a painting "
+            "of what he called 'the logic of the visible in the service of the invisible.' "
+            "His career divides into two almost paradoxically distinct phases.  The first, "
+            "lasting until the 1890s, was dominated by the 'Noirs' — large charcoal "
+            "drawings and lithographs of floating eyes, smiling spiders, winged heads, "
+            "and cyclopean giants, all emerging from or dissolving back into dense "
+            "velvety black voids.  The Noirs are among the most original graphic works "
+            "of the nineteenth century: Redon understood that charcoal, like the "
+            "imagination, operates at the boundary between substance and shadow.  His "
+            "blacks are not flat — they have depth, warmth, and an almost organic "
+            "density that absorbs the eye.  Luminous forms float within these voids "
+            "with no rational explanation: they simply appear, as memories or dreams.  "
+            "After 1890, and with increasing intensity from around 1900, Redon pivoted "
+            "entirely into colour — pastels, oils, distemper — and produced some of the "
+            "most jewel-like, spectral, and saturated surfaces in Western art.  His "
+            "flowers are not botanical records but chromatic events: petals of impossible "
+            "blue, violet, gold, and turquoise clustered in arrangements that have no "
+            "naturalistic precedent.  His mythological heads — Orpheus, Apollo, Buddha "
+            "— float in halos of luminous warm light.  His colour does not describe "
+            "form; it emanates from it.  The two phases are not opposites but extensions "
+            "of the same vision: in the Noirs, form is light rescued from darkness; in "
+            "the pastels, darkness provides depth against which jewel colours glow.  "
+            "Technique: Redon worked with extraordinary materials sensitivity — he "
+            "preferred pastel because its dry pigment particles sit on the surface and "
+            "catch light differently from oil, creating a bloom and luminosity that oil "
+            "cannot replicate.  In oils he built up thin layers of transparent paint "
+            "over dark grounds, allowing the ground to show through as the velvety void "
+            "that underpins every luminous passage.  His colour relationships are "
+            "symbolist not naturalist: complementary pairs (violet and gold, blue and "
+            "orange) are exaggerated rather than muted; saturation is pushed to the "
+            "maximum the medium allows while retaining harmony.  He was admired by "
+            "Gauguin (who owned Redon drawings), influenced by Symbolist poetry "
+            "(especially Mallarmé and Baudelaire), and was a touchstone for the "
+            "Surrealists decades before Surrealism existed.  Apply "
+            "redon_luminous_reverie_pass() for the velvety void / jewel-bloom quality."
+        ),
+        famous_works=[
+            ("The Cyclops", "c.1898–1900"),
+            ("The Eye Like a Strange Balloon Mounts toward Infinity", "1882"),
+            ("Apollo's Chariot", "c.1905–1914"),
+            ("Flower Clouds", "c.1903"),
+            ("Orpheus", "c.1903–1910"),
+            ("The Shell", "1912"),
+            ("Smiling Spider", "1887"),
+            ("Buddha", "1906"),
+            ("Wildflowers", "c.1912"),
+        ],
+        inspiration=(
+            "Apply redon_luminous_reverie_pass() to encode Redon's distinctive "
+            "two-register visual world.  Three operations: (1) velvet void enrichment — "
+            "push dark pixels (lum < void_thresh ≈ 0.28) toward a rich warm-violet "
+            "near-black by lifting R and B while slightly damping G; produces the "
+            "velvety, warm-dark depth of Redon's charcoal and dark oil grounds from "
+            "which luminous forms emerge rather than the flat cold black of lesser "
+            "painters; (2) spectral bloom aureole — detect the highest-chroma pixels "
+            "(saturated jewel colours); apply per-channel Gaussian blur at sigma≈4.5 "
+            "to produce a soft halo of scattered light; blend halo at bloom_strength "
+            "weighted by local chroma; simulates the optical aureole that surrounds "
+            "Redon's floating orbs, cyclops eye, and flower-burst pastels — the "
+            "luminous bloom of dry pigment particles catching incident light; "
+            "(3) jewel saturation lift — in mid-luminance, high-chroma zones push "
+            "saturation further outward (each channel moved away from luminance by "
+            "boost_amount); produces the jewel-like chromatic intensity of Redon's "
+            "mature pastel and oil work.  Use at opacity 0.38–0.48; effect should "
+            "feel like a shift from representational to dreamlike register."
+        ),
+    ),
+
 }
 
 

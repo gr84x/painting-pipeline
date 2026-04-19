@@ -19879,15 +19879,17 @@ class Painter:
     # ─────────────────────────────────────────────────────────────────────────
 
     def luminous_haze_pass(self,
-                           haze_warmth:    float = 0.04,
-                           haze_opacity:   float = 0.12,
-                           haze_color:     "Optional[tuple]" = None,
-                           soften_radius:  float = 3.0,
-                           contrast_damp:  float = 0.06,
-                           shadow_lift:    float = 0.018,
-                           opacity:        float = 0.48) -> None:
+                           haze_warmth:         float = 0.04,
+                           haze_opacity:        float = 0.12,
+                           haze_color:          "Optional[tuple]" = None,
+                           soften_radius:       float = 3.0,
+                           contrast_damp:       float = 0.06,
+                           shadow_lift:         float = 0.018,
+                           spectral_dispersion: float = 0.0,
+                           opacity:             float = 0.48) -> None:
         """
         Luminous haze pass — session 71 artistic improvement.
+        Session 88 improvement: spectral_dispersion parameter.
 
         Inspired by Correggio's extraordinary ability to suffuse an entire
         composition with a warm, unifying atmospheric light — a quality that
@@ -19923,15 +19925,36 @@ class Painter:
              to simulate the slight optical softening that occurs when light
              scatters through old varnish and aged glazes.
 
+          5. Spectral dispersion (session 88 improvement) — when
+             spectral_dispersion > 0, the three colour channels are blurred with
+             different Gaussian sigmas before compositing, modelling Rayleigh
+             scattering in the atmospheric haze layer.  Blue light scatters more
+             strongly than red light in the real atmosphere (λ⁻⁴ dependence), so
+             the blue channel receives a larger softening blur than the green or
+             red channels.  The relative sigmas scale as:
+
+               sigma_r = soften_radius × 1.00  (red — least scatter)
+               sigma_g = soften_radius × (1.00 + spectral_dispersion × 0.30)
+               sigma_b = soften_radius × (1.00 + spectral_dispersion × 0.65)
+
+             This creates a subtle cool-blue halo at the horizon of the
+             atmospheric haze while warm reds remain more sharply concentrated
+             in the figure zone — the same warm-foreground / cool-distance
+             temperature split that Leonardo exploited in his sfumato landscapes
+             and that atmospheric science confirms is physically real.  At
+             spectral_dispersion=0 the behaviour is identical to the pre-s88
+             single-sigma formulation.
+
         Parameters
         ----------
-        haze_warmth    : amber-shift added uniformly across all tones (0–0.10)
-        haze_opacity   : opacity of the warm haze color overlay (0–0.25)
-        haze_color     : (R, G, B) of the haze; None defaults to warm honey amber
-        soften_radius  : Gaussian sigma for the pre-composite softening blur
-        contrast_damp  : amount to compress tonal range toward midpoint (0–0.15)
-        shadow_lift    : luminance floor lift for the darkest areas (0–0.05)
-        opacity        : overall pass opacity blended against the input (0–1)
+        haze_warmth          : amber-shift added uniformly across all tones (0–0.10)
+        haze_opacity         : opacity of the warm haze color overlay (0–0.25)
+        haze_color           : (R, G, B) of the haze; None defaults to warm honey amber
+        soften_radius        : Gaussian sigma for the pre-composite softening blur
+        contrast_damp        : amount to compress tonal range toward midpoint (0–0.15)
+        shadow_lift          : luminance floor lift for the darkest areas (0–0.05)
+        spectral_dispersion  : Rayleigh channel-split strength; 0 = no split (0–1)
+        opacity              : overall pass opacity blended against the input (0–1)
         """
         import numpy as _np
         from scipy.ndimage import gaussian_filter as _gf
@@ -19939,7 +19962,7 @@ class Painter:
         print(f"  Luminous haze pass "
               f"(haze_warmth={haze_warmth:.3f}  haze_opacity={haze_opacity:.2f}  "
               f"contrast_damp={contrast_damp:.3f}  shadow_lift={shadow_lift:.3f}  "
-              f"opacity={opacity:.2f}) ...")
+              f"spectral_dispersion={spectral_dispersion:.2f}  opacity={opacity:.2f}) ...")
 
         if opacity <= 0.0:
             print("    Luminous haze pass skipped (opacity=0)")
@@ -19960,11 +19983,16 @@ class Painter:
         g_f = buf[:, :, 1].astype(_np.float32) / 255.0
         r_f = buf[:, :, 2].astype(_np.float32) / 255.0
 
-        # ── Optional softening blur ────────────────────────────────────────────
+        # ── Optional softening blur (with spectral dispersion) ────────────────
+        # Session 88: when spectral_dispersion > 0 each channel is blurred with
+        # a different sigma (Rayleigh: blue scatters more than red).
         if soften_radius > 0.5:
-            r_soft = _gf(r_f, sigma=soften_radius)
-            g_soft = _gf(g_f, sigma=soften_radius)
-            b_soft = _gf(b_f, sigma=soften_radius)
+            sigma_r = soften_radius * 1.00
+            sigma_g = soften_radius * (1.00 + spectral_dispersion * 0.30)
+            sigma_b = soften_radius * (1.00 + spectral_dispersion * 0.65)
+            r_soft = _gf(r_f, sigma=sigma_r)
+            g_soft = _gf(g_f, sigma=sigma_g)
+            b_soft = _gf(b_f, sigma=sigma_b)
         else:
             r_soft, g_soft, b_soft = r_f.copy(), g_f.copy(), b_f.copy()
 
@@ -22946,3 +22974,166 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Whistler tonal harmony pass complete.")
+
+    # Session 88 — Odilon Redon — Luminous reverie pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def redon_luminous_reverie_pass(
+        self,
+        void_thresh:        float = 0.28,   # luminance ceiling for the void zone
+        void_warm_r:        float = 0.018,  # warm red lift in void shadows
+        void_cool_b:        float = 0.024,  # violet-blue lift in void shadows
+        void_damp_g:        float = 0.010,  # green damping in void (away from olive)
+        bloom_thresh:       float = 0.32,   # chroma floor to qualify for bloom halo
+        bloom_sigma:        float = 4.5,    # Gaussian sigma for aureole spread
+        bloom_strength:     float = 0.20,   # bloom halo blend weight at peak chroma
+        sat_boost_lo:       float = 0.36,   # jewel lift low luminance bound
+        sat_boost_hi:       float = 0.74,   # jewel lift high luminance bound
+        sat_boost_thresh:   float = 0.18,   # minimum chroma to qualify for lift
+        sat_boost_amount:   float = 0.20,   # saturation push amount
+        blur_radius:        float = 6.0,    # feathering sigma for mask edges
+        opacity:            float = 0.42,   # final composite opacity
+    ) -> None:
+        """
+        Redon luminous reverie pass — session 88 new artist pass.
+
+        Odilon Redon (1840–1916) inhabited two visual registers simultaneously:
+        the velvety near-black of his charcoal Noirs, and the jewel-bright
+        spectral intensity of his mature pastel and oil work.  This pass
+        encodes both.
+
+        Three operations:
+
+          1. Velvet void enrichment — dark pixels (luminance < void_thresh) are
+             pushed toward a rich warm-violet near-black by lifting the red and
+             blue channels while slightly damping green.  The result is a void
+             that reads as warm and deep rather than cold and flat — the same
+             quality that makes Redon's charcoal grounds feel inhabited.
+
+          2. Spectral bloom aureole — the highest-chroma pixels are detected
+             (chroma > bloom_thresh) and each channel is Gaussian-blurred
+             independently at sigma=bloom_sigma.  The blurred result is blended
+             back at a weight proportional to local chroma × bloom_strength,
+             creating a soft halo of scattered light around saturated colour
+             masses.  This simulates the optical aureole that surrounds Redon's
+             floating orbs, cyclops eye, and flower-burst pastels — dry pigment
+             particles sitting on the surface and catching light from multiple
+             angles simultaneously.
+
+          3. Jewel saturation lift — mid-luminance (sat_boost_lo, sat_boost_hi),
+             high-chroma (chroma > sat_boost_thresh) pixels receive a saturation
+             push by moving each channel further from the local luminance
+             centroid by sat_boost_amount.  This produces the jewel-like
+             chromatic intensity of Redon's mature work where saturation is
+             pushed to the maximum the medium allows while retaining harmony.
+
+        Parameters
+        ----------
+        void_thresh      : luminance ceiling for velvet void zone (0–0.40)
+        void_warm_r      : red-channel lift in void zone (warm violet push)
+        void_cool_b      : blue-channel lift in void zone (violet push)
+        void_damp_g      : green-channel reduction in void zone (removes olive)
+        bloom_thresh     : minimum chroma for bloom halo qualification
+        bloom_sigma      : Gaussian sigma for aureole spread (pixels)
+        bloom_strength   : peak halo blend weight at chroma=1.0
+        sat_boost_lo     : lower luminance bound for jewel saturation zone
+        sat_boost_hi     : upper luminance bound for jewel saturation zone
+        sat_boost_thresh : minimum chroma for jewel saturation lift
+        sat_boost_amount : per-channel saturation push distance
+        blur_radius      : Gaussian sigma for mask edge feathering
+        opacity          : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Redon luminous reverie pass "
+              f"(void_thresh={void_thresh:.2f}  bloom_sigma={bloom_sigma:.1f}  "
+              f"sat_boost_amount={sat_boost_amount:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Redon luminous reverie pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Stage 1: Velvet void enrichment ───────────────────────────────────
+        # Dark pixels pushed toward warm violet-near-black.
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        void_raw = _np.clip(1.0 - lum / max(void_thresh, 0.01), 0.0, 1.0)
+        void_mask = _gf(void_raw, sigma=blur_radius)
+
+        r_out = _np.clip(r_out + void_mask * void_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out - void_mask * void_damp_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + void_mask * void_cool_b, 0.0, 1.0)
+
+        # ── Stage 2: Spectral bloom aureole ───────────────────────────────────
+        # Chroma = max(R,G,B) - min(R,G,B) — perceptual saturation proxy.
+        max_rgb = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        min_rgb = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma  = max_rgb - min_rgb
+
+        # Gaussian blur each channel independently for the aureole.
+        r_bloom = _gf(r_out, sigma=bloom_sigma)
+        g_bloom = _gf(g_out, sigma=bloom_sigma)
+        b_bloom = _gf(b_out, sigma=bloom_sigma)
+
+        # Blend weight: proportional to how far chroma exceeds bloom_thresh.
+        bloom_w = _np.clip((chroma - bloom_thresh) / max(1.0 - bloom_thresh, 0.01),
+                           0.0, 1.0) * bloom_strength
+        bloom_w = _gf(bloom_w, sigma=blur_radius)
+
+        r_out = _np.clip(r_out + bloom_w * (r_bloom - r_out), 0.0, 1.0)
+        g_out = _np.clip(g_out + bloom_w * (g_bloom - g_out), 0.0, 1.0)
+        b_out = _np.clip(b_out + bloom_w * (b_bloom - b_out), 0.0, 1.0)
+
+        # ── Stage 3: Jewel saturation lift ────────────────────────────────────
+        # Recalculate chroma after bloom adjustment.
+        lum2    = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        max2    = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        min2    = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma2 = max2 - min2
+
+        # Bell-curve luminance mask.
+        lum_lo, lum_hi = sat_boost_lo, sat_boost_hi
+        bell = _np.minimum(
+            _np.clip((lum2 - lum_lo) / max(lum_hi - lum_lo, 0.01), 0.0, 1.0),
+            _np.clip((lum_hi - lum2) / max(lum_hi - lum_lo, 0.01), 0.0, 1.0),
+        ) * 2.0
+        chroma_gate = _np.clip((chroma2 - sat_boost_thresh) /
+                               max(1.0 - sat_boost_thresh, 0.01), 0.0, 1.0)
+        boost_mask = _gf(bell * chroma_gate, sigma=blur_radius)
+
+        # Move each channel away from luminance by boost_amount × mask.
+        r_out = _np.clip(r_out + boost_mask * sat_boost_amount * (r_out - lum2),
+                         0.0, 1.0)
+        g_out = _np.clip(g_out + boost_mask * sat_boost_amount * (g_out - lum2),
+                         0.0, 1.0)
+        b_out = _np.clip(b_out + boost_mask * sat_boost_amount * (b_out - lum2),
+                         0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Redon luminous reverie pass complete.")
