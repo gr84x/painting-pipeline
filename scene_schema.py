@@ -251,6 +251,7 @@ class Period(Enum):
     FLORENTINE_HIGH_RENAISSANCE = auto()  # Andrea del Sarto — warm golden sfumato, 'faultless' seamless Florentine transitions, amber-ivory flesh, harmonious colour temperature
     FRENCH_INTIMISTE = auto()  # Chardin — warm-gray granular optical texture, muted atmospheric palette, quiet luminosity without dramatism, patient accumulation of small touches
     FRENCH_ROMANTIC  = auto()  # Géricault — turbulent warm-dark chiaroscuro, thick impasto drama, raw emotional intensity, near-black shadows with sudden warm light eruptions
+    UMBRIAN_RENAISSANCE = auto()  # Signorelli — muscular clear-contour authority, warm sienna ground, vivid chromatic accents, sculptural bas-relief modelling
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -999,6 +1000,16 @@ class Style:
             # (too slow, too gentle) but neither are they Baroque hard cuts; they are *turbulent*
             # — forms dissolve through dynamic motion rather than quiet atmospheric haze.
             Period.FRENCH_ROMANTIC: dict(stroke_size_face=10, stroke_size_bg=30, wet_blend=0.68, edge_softness=0.72),
+            # UMBRIAN_RENAISSANCE (Signorelli) — muscular sculptural authority, clear contours.
+            # stroke_size_face=7: precise, form-following marks — larger than the miniaturists
+            # but tighter than the Baroque panoramists; each stroke describes a muscle plane.
+            # stroke_size_bg=26: confident background strokes — the Umbrian landscape is not
+            # Perugino's gentle aerial haze but a more substantial, geological terrain.
+            # wet_blend=0.52: moderate blending within each plane, firm edges between planes —
+            # Signorelli's surfaces are smooth but not sfumato-dissolved.
+            # edge_softness=0.28: deliberately low — Signorelli's contour clarity is his
+            # defining artistic quality; his edges describe anatomical planes, not atmospheric haze.
+            Period.UMBRIAN_RENAISSANCE: dict(stroke_size_face=7, stroke_size_bg=26, wet_blend=0.52, edge_softness=0.28),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

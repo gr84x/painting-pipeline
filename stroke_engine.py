@@ -22386,3 +22386,208 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Perugino serene grace pass complete.")
+
+    def signorelli_sculptural_vigour_pass(
+        self,
+        contour_sigma:      float = 1.2,    # Gaussian sigma for USM edge sharpening
+        contour_amount:     float = 0.55,   # unsharp-mask sharpening weight
+        contour_thresh:     float = 0.04,   # minimum edge magnitude to sharpen
+        shadow_lo:          float = 0.10,   # shadow zone luminance floor
+        shadow_hi:          float = 0.42,   # shadow zone luminance ceiling
+        shadow_warm_r:      float = 0.030,  # R lift in shadow zone (warm umber push)
+        shadow_deep_b:      float = 0.018,  # B reduction in shadow zone (de-cool)
+        shadow_deep_g:      float = 0.008,  # G slight reduction (toward rich brown)
+        sat_boost_amount:   float = 0.22,   # saturation boost in chromatic accents
+        sat_boost_thresh:   float = 0.22,   # saturation threshold to qualify for boost
+        sat_boost_lo:       float = 0.30,   # luminance floor for saturation boost zone
+        sat_boost_hi:       float = 0.78,   # luminance ceiling for saturation boost zone
+        blur_radius:        float = 6.0,    # Gaussian sigma for all adjustment masks
+        opacity:            float = 0.42,   # global blend weight
+    ) -> None:
+        """
+        Luca Signorelli's defining sculptural and chromatic qualities: vigour.
+
+        Luca Signorelli (c. 1445/50–1523) was among the most influential Italian
+        painters of the fifteenth century, whose commitment to anatomical clarity
+        and muscular three-dimensionality anticipates Michelangelo's Sistine Chapel
+        ceiling and sets him apart from the sfumato tradition of Leonardo and the
+        serene diffusion of Perugino.
+
+        This pass replicates three interlocking characteristics of Signorelli's
+        visual world:
+
+        1. **Contour clarification** — Signorelli's most distinctive quality is
+           the clarity of his painted edges.  Where Leonardo dissolved contours
+           into atmospheric sfumato and Perugino softened them into serene
+           ambient light, Signorelli drew them firmly in paint, giving each limb,
+           muscle, and drapery fold a sharp structural boundary that reads as
+           bas-relief carving.  This pass applies a luminance-space unsharp mask
+           at a fine scale (sigma ~1.2px), targeting mid-luminance boundary zones
+           where the edge signal is real and not just noise.  The effect is subtle
+           — a clarification of existing edges rather than a hard outline — that
+           gives the figure a more sculptural, three-dimensional presence.
+
+        2. **Shadow depth modelling** — Signorelli's shadows are deep and warm:
+           umber, sienna, and near-black, not the cool grey of the Flemish or the
+           silvery violet of Perugino.  In the shadow-to-mid-tone band (luminance
+           0.10–0.42), this pass warms the shadow register by lifting red slightly,
+           reducing blue, and fractionally reducing green — pushing toward the rich
+           warm umber that gives Signorelli's modelling its sculptural relief.  The
+           result is a more dramatic separation between shadow and light than
+           Perugino's ambient-light system, closer to the directed single-source
+           chiaroscuro of the Baroque.
+
+        3. **Chromatic accent lift** — Despite his earth-tone palette foundation,
+           Signorelli's work is characterised by unusually vivid chromatic accents:
+           intense blues, saturated reds, bright greens appear as jewel-like
+           punctuations against the warm ground.  In mid-luminance pixels with
+           already-appreciable saturation (sat > sat_boost_thresh), this pass
+           applies a gentle sigmoid-curve saturation boost that enhances the
+           vividness of these accent zones without affecting the neutral tones.
+           The result is the characteristic Signorelli colour energy: warm-earth
+           dominated with bright chromatic punctuation.
+
+        Parameters
+        ----------
+        contour_sigma    : Gaussian sigma for USM sharpening.  1.2px operates at
+                           the scale of fine edge detail — muscle boundaries and
+                           drapery folds — without amplifying larger tonal transitions.
+        contour_amount   : Sharpening weight.  0.55 clarifies edges perceptibly
+                           without making them feel digitally sharpened; the goal
+                           is to read as a firmly-drawn painted edge.
+        contour_thresh   : Minimum edge magnitude to apply sharpening.  0.04 avoids
+                           amplifying noise in flat colour regions.
+        shadow_lo/hi     : Luminance range for shadow warming.  [0.10, 0.42] covers
+                           the dark-to-mid-shadow range without affecting highlights.
+        shadow_warm_r    : R lift in shadow zone.  0.030 warms the shadow register
+                           toward umber-sienna without making shadows orange.
+        shadow_deep_b    : B reduction in shadow zone.  0.018 removes the slight
+                           coolness that neutral shadows can carry; Signorelli's
+                           darks are always warm.
+        shadow_deep_g    : G slight reduction in shadow zone.  0.008 contributes to
+                           the rich brown register without a visible green shift.
+        sat_boost_amount : Saturation boost in chromatic accent zones.  0.22 is a
+                           moderate enrichment — vivid but not garish.
+        sat_boost_thresh : Saturation threshold.  0.22 qualifies only pixels that
+                           already carry meaningful chroma — avoids boosting neutral
+                           skin tones into an unnatural cast.
+        sat_boost_lo/hi  : Luminance range for saturation boost.  [0.30, 0.78]
+                           targets mid-tone chromatic regions — drapery, foliage —
+                           and avoids the deepest shadows and brightest highlights.
+        blur_radius      : Gaussian sigma for adjustment masks.  6px prevents
+                           hard-edged transitions at zone boundaries.
+        opacity          : Global blend weight.  0.42 applies the pass at moderate
+                           strength — Signorelli's vigour is direct, but portrait
+                           context requires restraint.
+
+        Notes
+        -----
+        Signorelli stands in productive counterpoint to both Leonardo and Perugino
+        in the Mona Lisa context.  Where Leonardo's sfumato dissolved the world
+        into atmospheric unity and Perugino's serenity diffused it into pale
+        luminous openness, Signorelli's approach insisted on the structural clarity
+        of individual forms.  He represents the road not taken by the High
+        Renaissance — the alternative in which anatomy, not atmosphere, became the
+        primary vehicle of pictorial meaning.  His influence ran forward through
+        Michelangelo into the Mannerists and beyond.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Signorelli sculptural vigour pass  "
+              f"(contour_amount={contour_amount:.2f}  shadow_warm_r={shadow_warm_r:.3f}  "
+              f"sat_boost_amount={sat_boost_amount:.2f}  opacity={opacity:.2f})…")
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        b_out = b0.copy()
+        g_out = g0.copy()
+        r_out = r0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Contour clarification (unsharp mask) ───────────────────────────
+        # Apply USM to luminance channel, then composite back into RGB.
+        # Targets mid-luminance boundary zones where Signorelli's firm contours live.
+        lum_blur = _gf(lum, sigma=contour_sigma)
+        edge_map = lum - lum_blur                               # high-frequency edge signal
+        edge_abs = _np.abs(edge_map)
+
+        # Threshold mask: only sharpen where the edge is above noise floor
+        edge_mask = _np.clip(
+            (edge_abs - contour_thresh) / max(0.01, 1.0 - contour_thresh),
+            0.0, 1.0
+        )
+        edge_mask = _gf(edge_mask, sigma=blur_radius * 0.4)    # slight spatial softening
+
+        # Apply sharpening proportionally to RGB (luminance-space USM)
+        sharpen_delta = edge_map * contour_amount * edge_mask
+        r_out = _np.clip(r_out + sharpen_delta, 0.0, 1.0)
+        g_out = _np.clip(g_out + sharpen_delta, 0.0, 1.0)
+        b_out = _np.clip(b_out + sharpen_delta, 0.0, 1.0)
+
+        # ── 2. Shadow depth modelling (warm umber push) ───────────────────────
+        # In the shadow-to-mid-tone band, push toward warm umber: lift R, reduce B and G.
+        shadow_t = _np.clip(
+            (lum - shadow_lo) / max(0.01, shadow_hi - shadow_lo),
+            0.0, 1.0
+        ) * _np.clip(
+            1.0 - (lum - shadow_hi) / max(0.01, 1.0 - shadow_hi),
+            0.0, 1.0
+        )
+        shadow_t = _gf(shadow_t.astype(_np.float32), sigma=blur_radius)
+        shadow_t = _np.clip(shadow_t, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + shadow_t * shadow_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out - shadow_t * shadow_deep_g,  0.0, 1.0)
+        b_out = _np.clip(b_out - shadow_t * shadow_deep_b,  0.0, 1.0)
+
+        # ── 3. Chromatic accent lift (saturation boost) ───────────────────────
+        # In mid-luminance zones with meaningful saturation, apply sigmoid saturation boost.
+        # Convert RGB to HSV-like saturation estimate (max-min / max).
+        rgb_max = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        rgb_min = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma  = _np.where(rgb_max > 1e-5, (rgb_max - rgb_min) / rgb_max, 0.0)
+
+        # Mask: mid-luminance, saturated-enough pixels
+        lum_mid_mask = _np.clip(
+            (lum - sat_boost_lo) / max(0.01, sat_boost_hi - sat_boost_lo),
+            0.0, 1.0
+        ) * _np.clip(
+            1.0 - (lum - sat_boost_hi) / max(0.01, 1.0 - sat_boost_hi),
+            0.0, 1.0
+        )
+        sat_qual_mask = _np.clip(
+            (chroma - sat_boost_thresh) / max(0.01, 1.0 - sat_boost_thresh),
+            0.0, 1.0
+        )
+        boost_mask = lum_mid_mask * sat_qual_mask
+        boost_mask = _gf(boost_mask.astype(_np.float32), sigma=blur_radius)
+        boost_mask = _np.clip(boost_mask, 0.0, 1.0)
+
+        # Saturation boost: move each channel away from luminance by boost_amount.
+        boost = boost_mask * sat_boost_amount
+        r_out = _np.clip(r_out + (r_out - lum) * boost, 0.0, 1.0)
+        g_out = _np.clip(g_out + (g_out - lum) * boost, 0.0, 1.0)
+        b_out = _np.clip(b_out + (b_out - lum) * boost, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Signorelli sculptural vigour pass complete.")

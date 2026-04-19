@@ -6938,6 +6938,116 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "signorelli": ArtStyle(
+        artist="Luca Signorelli",
+        movement="Umbrian Renaissance",
+        nationality="Italian",
+        period="c. 1445–1523",
+        palette=[
+            (0.82, 0.65, 0.42),   # warm ochre flesh — Signorelli's lit figure surfaces
+            (0.58, 0.40, 0.22),   # mid-tone umber — the strong modelled shadow on flesh
+            (0.20, 0.15, 0.09),   # deep warm near-black — the structural shadow void
+            (0.46, 0.58, 0.36),   # muted olive-green — drapery and foliage accents
+            (0.62, 0.34, 0.22),   # burnt sienna — the vigorous drapery mid-tone
+            (0.72, 0.80, 0.72),   # cool silver-sage — the pale sky and distant terrain
+            (0.88, 0.78, 0.55),   # ivory highlight — brilliant lit ridge on muscle
+            (0.36, 0.28, 0.18),   # dark warm umber — the penumbra of sculptural relief
+        ],
+        ground_color=(0.42, 0.32, 0.18),    # warm mid-tone sienna imprimatura —
+        #                                     Signorelli worked on a mid-value warm ground
+        #                                     that allowed him to model both upward into
+        #                                     highlights and downward into shadow without
+        #                                     losing surface unity; unlike Leonardo's
+        #                                     warm-amber glaze or Géricault's near-black
+        #                                     void, his ground is a moderate warm brown
+        stroke_size=8,
+        wet_blend=0.52,                      # moderate — Signorelli's surfaces are smooth
+        #                                     but not sfumato-dissolved; he blended within
+        #                                     each passage but kept contours legible and firm
+        edge_softness=0.28,                  # low — Signorelli's defining quality is the
+        #                                     clarity of his contours; where Leonardo
+        #                                     dissolved edges into atmospheric haze,
+        #                                     Signorelli drew them firmly in paint,
+        #                                     giving figures a sculptural, bas-relief quality
+        jitter=0.025,                        # moderate — visible brushwork energy without
+        #                                     the chaos of Géricault or the Expressionists;
+        #                                     his surfaces have directional muscle-following
+        #                                     marks that read as anatomical authority
+        glazing=(0.55, 0.40, 0.20),          # warm sienna-amber glaze — unifies flesh
+        #                                     passages across the warm mid-tone ground;
+        #                                     cooler than Leonardo's amber, more golden
+        #                                     than Géricault's deep umber
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Luca Signorelli (c. 1445/50–1523) was one of the most audaciously original "
+            "painters of the Italian fifteenth century — and one of the least celebrated in "
+            "proportion to his actual influence.  He was a native of Cortona, trained almost "
+            "certainly in the workshop of Piero della Francesca (whose cool mineral clarity and "
+            "geometrical rigour he absorbed and then dramatically transformed), and subsequently "
+            "active across Umbria, Tuscany, and Rome.  Vasari, who admired him enormously, called "
+            "him 'the master of Michelangelo'; and while the precise relationship between the two "
+            "men is contested by modern scholars, Signorelli's influence on the Sistine Chapel "
+            "ceiling — its muscular, foreshortened nudes, its dynamic contour authority, its "
+            "sense of the human body as an instrument of spiritual drama — is visible and direct.\n\n"
+            "What distinguishes Signorelli from his Umbrian contemporaries — Perugino, Pinturicchio, "
+            "the young Raphael — is his absolute commitment to the human body as the primary vehicle "
+            "of meaning.  Where Perugino sought serene composure in the face and the landscape, "
+            "Signorelli sought anatomical drama in the figure.  His bodies are muscular, torsional, "
+            "and explicitly three-dimensional: they twist, strain, fall, and rise in ways that no "
+            "Italian painter before him had attempted at such systematic scale.  The great frescoes "
+            "of the Chapel of San Brizio in Orvieto Cathedral (1499–1504) — the Last Judgement "
+            "cycle with its apocalyptic mass of naked, writhing, damned souls — are the culmination "
+            "of this project: a vast experiment in depicting the human body under extreme physical "
+            "and spiritual duress.\n\n"
+            "Technically, Signorelli's most distinctive quality is the clarity of his contours.  "
+            "He drew in paint — that is, he described form through firm, clear edges rather than "
+            "the sfumato dissolve of Leonardo or the tonal merging of Giorgione.  His outlines are "
+            "not calligraphic in the Botticelli manner (curved, lyrical, decorative) but structural: "
+            "they follow the actual geometry of muscle, bone, and tendon, so that the edge of a "
+            "Signorelli limb reads as the boundary between one anatomical plane and the next.  This "
+            "makes his figures feel carved — solid, bas-relief objects existing in real space — "
+            "rather than painted illusions.  His shadows are deep and warm (umber, sienna, near-black) "
+            "and transition to the lights through a relatively compressed mid-tone range, giving "
+            "his modelling a dramatic sculptural relief that contrasts sharply with Perugino's "
+            "diffuse, ambient-light gentleness.\n\n"
+            "His palette is characteristically Umbrian in its warm earth-tone foundation (ochre, "
+            "sienna, umber) but distinguished by unusually vivid chromatic accents — the intense "
+            "blue of a sky, the saturated red of a drapery, the sudden green of foliage — that give "
+            "his compositions a jewel-like colour energy within a predominantly warm ground.  He "
+            "applied his colour with directional, form-following strokes that read as both painterly "
+            "and architectonic: each mark describes a surface plane, not just a local tone.\n\n"
+            "Among his other significant works are the fresco of the Testament and Death of Moses "
+            "(Sistine Chapel, c. 1482), the Holy Family Tondo (Uffizi, c. 1490–95), and numerous "
+            "altarpieces for Umbrian and Tuscan patrons.  His portraits, though fewer in number than "
+            "his narrative works, display the same sculptural authority and penetrating gaze-direction "
+            "that characterise his figure style."
+        ),
+        famous_works=[
+            ("Last Judgement Frescoes, Chapel of San Brizio, Orvieto",  "1499–1504"),
+            ("The Damned Cast into Hell",                                "1499–1504"),
+            ("The Resurrection of the Flesh",                           "1499–1504"),
+            ("Holy Family Tondo (Medici Tondo)",                        "c. 1490–1495"),
+            ("Testament and Death of Moses (Sistine Chapel)",           "c. 1482"),
+            ("Portrait of a Lawyer",                                    "c. 1490–1500"),
+        ],
+        inspiration=(
+            "Apply signorelli_sculptural_vigour_pass() to introduce Signorelli's defining "
+            "anatomical and chromatic qualities in three stages: (1) contour clarification — "
+            "a gentle unsharp-mask edge-sharpening pass targeted at mid-luminance boundaries, "
+            "which replicates Signorelli's characteristic clear painted contour that gives his "
+            "figures their sculptural, bas-relief quality; (2) shadow depth modelling — push "
+            "mid-dark pixels (luminance 0.10–0.42) toward warm umber by enriching the red-brown "
+            "register and reducing the blue channel, deepening the sculptural shadow relief that "
+            "distinguishes Signorelli's modelling from Perugino's softer ambient-light approach; "
+            "(3) chromatic accent lift — in saturated mid-tone regions (saturation > 0.25), apply "
+            "a gentle Sigmoid-curve saturation boost that replicates the vivid colour energy of "
+            "Signorelli's drapery and landscape accents against the warm earth-tone foundation.  "
+            "Use at moderate opacity (0.35–0.50): Signorelli's vigour is muscular and direct, "
+            "not accumulated gradually like Perugino's serenity."
+        ),
+    ),
+
 }
 
 
