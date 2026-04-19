@@ -7048,6 +7048,128 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Rosalba Carriera ───────────────────────────────────────────────────────
+    "rosalba_carriera": ArtStyle(
+        artist="Rosalba Carriera",
+        movement="Venetian Rococo / Pastel Portraiture",
+        nationality="Italian",
+        period="1700–1757",
+        palette=[
+            (0.95, 0.85, 0.78),   # luminous ivory-pink flesh — Carriera's signature
+            (0.88, 0.72, 0.68),   # warm rose mid-flesh — blushed cheek warmth
+            (0.80, 0.82, 0.88),   # cool silver-lavender shadow — pastel cool shade
+            (0.92, 0.88, 0.82),   # pearlescent warm white — highlight bloom
+            (0.72, 0.78, 0.85),   # pale cerulean-grey — atmospheric cool distance
+            (0.85, 0.70, 0.55),   # amber-peach — dress / costume warmth
+            (0.60, 0.65, 0.72),   # muted steel-blue — background recess
+        ],
+        ground_color=(0.82, 0.78, 0.72),    # pale warm vellum — Carriera worked
+        #                                     on prepared vellum or fine paper, giving
+        #                                     her an inherently light, warm ground
+        #                                     that interacts optically with the soft
+        #                                     pastel layers above it
+        stroke_size=4,
+        wet_blend=0.88,                      # very high — pastel is pressed and blended
+        #                                     with fingers, torchons, and soft leather
+        #                                     stumps; the result is an almost seamless
+        #                                     chromatic transition with no visible
+        #                                     individual marks in the flesh zones
+        edge_softness=0.90,                  # very high — Carriera's faces dissolve
+        #                                     at their edges into soft vignette-like
+        #                                     halos of tone; there are no hard outlines,
+        #                                     only gradations so gentle they read as
+        #                                     atmosphere rather than drawing
+        jitter=0.012,                        # very low — the powdery medium creates
+        #                                     an inherent optical softness; individual
+        #                                     stroke jitter is subsumed into the overall
+        #                                     chromatic fusion
+        glazing=None,                        # pastel has no glaze layer — the optical
+        #                                     luminosity comes from the ground reflecting
+        #                                     through the translucent pigment dust;
+        #                                     the equivalent effect is the pearlescent
+        #                                     pale ground interacting with cool shadows
+        crackle=False,                       # pastel does not crack — it is a dry
+        #                                     medium; the aged-paper analogue is
+        #                                     a very faint grain texture
+        chromatic_split=False,
+        technique=(
+            "Rosalba Carriera (1673–1757) was the most celebrated pastellist of the eighteenth "
+            "century and one of the decisive figures in the Rococo revolution in portraiture.  "
+            "Born in Venice, she began her career producing miniature portraits on ivory — a "
+            "practice she effectively invented, substituting ivory for the traditional vellum "
+            "support to achieve a more luminous, warm-reflective ground — before discovering "
+            "that the pastel medium offered a freedom of chromatic fusion and surface delicacy "
+            "that no other portable medium could match.  By the 1700s she was the most sought-"
+            "after portrait artist in Europe, receiving commissions from the courts of France, "
+            "Austria, and Poland, and in 1720 she made a triumphant visit to Paris that "
+            "introduced pastel portraiture to the French artistic world and influenced an entire "
+            "generation of French Rococo painters — most decisively Quentin de La Tour and "
+            "Jean-Baptiste Perronneau.  In 1720 she was elected to the Académie Royale de "
+            "Peinture et de Sculpture in Paris, the first woman from outside France to receive "
+            "that honour.\n\n"
+            "Her technique is defined by an extraordinary control of the pastel medium's unique "
+            "optical properties.  Pastel pigment sits on the tooth of the support as a fine "
+            "dry powder; it scatters and reflects light in a manner unlike any other painting "
+            "medium — not the deep, transmissive glow of oil glazes, nor the opaque matte of "
+            "fresco or tempera, but a luminous, slightly hazy brilliance as if the colour itself "
+            "were internally lit.  Carriera exploited this property with consummate skill.  "
+            "Her flesh tones are built up through many thin, successive layers of gently "
+            "blended pastel — warm ivory-pinks at the surface, with cool lavender-grey "
+            "shadows pressed deep into the support so they read through the warm overstrokes "
+            "as simultaneously present and recessed.  The result is a skin surface of "
+            "extraordinary illusionistic delicacy: it appears soft, slightly translucent, "
+            "and subtly alive in a way that oil paint cannot replicate without elaborate "
+            "glazing sequences.\n\n"
+            "Her highlights are pearlescent rather than specular.  Where Vermeer gave his "
+            "subjects crisp diffused-light pearls and Rembrandt's impasto highlights read as "
+            "physical paint ridges, Carriera's lights are feathered, powdery, and diffused "
+            "across a slightly wider area — less a point of maximum reflection than a gentle "
+            "bloom of brightness, as if the skin itself were softly luminous.  She avoided "
+            "the dramatic chiaroscuro of the Baroque tradition entirely: her light sources "
+            "are invariably soft, frontal, and slightly diffused, creating the impression of "
+            "interior studio light rather than theatrical stage illumination.\n\n"
+            "Her backgrounds are handled with supreme economy: typically a neutral cool-grey "
+            "or warm-beige tone, slightly varied in density so as to suggest atmospheric depth "
+            "without competing with the face.  She painted costumes and textiles with great "
+            "virtuosity — the shimmer of silk, the softness of fur, the lightness of lace — "
+            "but always subordinated them to the radiance of the face.  Her sitters appear to "
+            "inhabit a slightly dreamy, stylised world: the Rococo ideal of feminised elegance "
+            "and social grace made visible in light itself.\n\n"
+            "Her principal works are distributed across the major European collections: the "
+            "Gallerie dell'Accademia in Venice, the Gemäldegalerie in Dresden, the Uffizi "
+            "in Florence, the Royal Collection in Windsor, and numerous private collections.  "
+            "Her self-portraits — of which she produced several, in the Uffizi tradition of "
+            "artists' self-portraiture — are remarkable for their unsentimental self-awareness "
+            "combined with the same feathery luminosity she brought to every sitter."
+        ),
+        famous_works=[
+            ("Self-Portrait as Winter", "c. 1731"),
+            ("Portrait of a Young Lady", "c. 1720–1730"),
+            ("Portrait of Antoine Watteau", "c. 1721"),
+            ("Girl with a Dove", "c. 1710–1720"),
+            ("Portrait of Charles of Austria as a Child", "c. 1730"),
+            ("Self-Portrait with a Portrait of Her Sister", "c. 1715"),
+        ],
+        inspiration=(
+            "Apply carriera_pastel_glow_pass() to introduce Rosalba Carriera's defining "
+            "optical signature in three stages: (1) pearlescent skin brightening — a "
+            "gentle luminance lift in the upper mid-tones (luminance 0.55–0.85) that "
+            "replicates the pale, luminous bloom of pastel pigment on a warm vellum ground; "
+            "warm pixels in this zone receive a slight pinkish-ivory brightening while cool "
+            "pixels shift gently toward lavender-grey, mimicking the warm-cool layering "
+            "sequence of real pastel flesh; (2) highlight diffusion — instead of Vermeer's "
+            "crisp pearl dots or Rembrandt's impasto ridges, Carriera's highlights are soft "
+            "halos; apply a gentle Gaussian bloom (sigma 2.5–4px) to the highest-luminance "
+            "pixels (> 0.88), blending the specular peaks outward into a feathery radiance "
+            "rather than a crisp point; (3) background vignette cooling — the background zone "
+            "outside the figure mask receives a gentle shift toward cool blue-grey lavender, "
+            "replicating Carriera's characteristic neutral cool-toned backgrounds that make "
+            "the warm, luminous face advance.  Use at moderate opacity (0.28–0.42): Carriera's "
+            "effect is cumulative and delicate; a heavy application would compromise the "
+            "sfumato depth built up by earlier sessions."
+        ),
+    ),
+
 }
 
 

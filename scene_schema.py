@@ -252,6 +252,7 @@ class Period(Enum):
     FRENCH_INTIMISTE = auto()  # Chardin — warm-gray granular optical texture, muted atmospheric palette, quiet luminosity without dramatism, patient accumulation of small touches
     FRENCH_ROMANTIC  = auto()  # Géricault — turbulent warm-dark chiaroscuro, thick impasto drama, raw emotional intensity, near-black shadows with sudden warm light eruptions
     UMBRIAN_RENAISSANCE = auto()  # Signorelli — muscular clear-contour authority, warm sienna ground, vivid chromatic accents, sculptural bas-relief modelling
+    VENETIAN_PASTEL_PORTRAIT = auto()  # Rosalba Carriera — feathery luminous pastel glow, pearlescent skin bloom, cool lavender shadows, warm vellum ground
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1010,6 +1011,17 @@ class Style:
             # edge_softness=0.28: deliberately low — Signorelli's contour clarity is his
             # defining artistic quality; his edges describe anatomical planes, not atmospheric haze.
             Period.UMBRIAN_RENAISSANCE: dict(stroke_size_face=7, stroke_size_bg=26, wet_blend=0.52, edge_softness=0.28),
+            # VENETIAN_PASTEL_PORTRAIT (Rosalba Carriera) — feathery luminous pastel glow.
+            # stroke_size_face=4: very fine — pastel portraiture is built up in delicate,
+            # almost imperceptible layers; each stroke is a whisper of colour rather than a
+            # bold mark; the finest details of the face are resolved in tiny, powdery touches.
+            # stroke_size_bg=18: intimate background — Carriera's backgrounds are simple, neutral
+            # tones with no landscape complexity; the focus is entirely on the face.
+            # wet_blend=0.88: very high — pastel blended with fingers and tortillons creates an
+            # almost seamless chromatic fusion; no visible marks in the flesh zones.
+            # edge_softness=0.90: very high — Carriera's faces dissolve at their edges into
+            # soft vignette halos; the powdery medium erases all hard contours.
+            Period.VENETIAN_PASTEL_PORTRAIT: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.88, edge_softness=0.90),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

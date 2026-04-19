@@ -100,6 +100,7 @@ EXPECTED_ARTISTS = [
     "gericault",
     "perugino",
     "signorelli",
+    "rosalba_carriera",
 ]
 
 
@@ -253,6 +254,7 @@ EXPECTED_PERIODS = [
     "DUTCH_GENRE_COMEDY",
     "FRENCH_ROMANTIC",
     "UMBRIAN_RENAISSANCE",
+    "VENETIAN_PASTEL_PORTRAIT",
 ]
 
 
@@ -10132,3 +10134,152 @@ def test_umbrian_renaissance_in_expected_periods():
     """EXPECTED_PERIODS list must include UMBRIAN_RENAISSANCE."""
     assert "UMBRIAN_RENAISSANCE" in EXPECTED_PERIODS, (
         "UMBRIAN_RENAISSANCE missing from EXPECTED_PERIODS — add it to the list")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Rosalba Carriera — session 86 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_rosalba_carriera_in_catalog():
+    """Rosalba Carriera must be present in CATALOG."""
+    assert "rosalba_carriera" in CATALOG, "rosalba_carriera not found in CATALOG"
+
+
+def test_rosalba_carriera_movement():
+    """Carriera must be classified as Venetian Rococo / Pastel Portraiture."""
+    s = get_style("rosalba_carriera")
+    assert "rococo" in s.movement.lower() or "pastel" in s.movement.lower(), (
+        f"Carriera movement should reference Rococo or Pastel Portraiture; got {s.movement!r}")
+
+
+def test_rosalba_carriera_nationality():
+    """Carriera must be Italian."""
+    s = get_style("rosalba_carriera")
+    assert s.nationality.lower() == "italian", (
+        f"Carriera nationality should be 'Italian'; got {s.nationality!r}")
+
+
+def test_rosalba_carriera_palette_length():
+    """Carriera palette must have at least 5 entries."""
+    s = get_style("rosalba_carriera")
+    assert len(s.palette) >= 5, (
+        f"Carriera palette should have >= 5 entries; got {len(s.palette)}")
+
+
+def test_rosalba_carriera_palette_values_in_range():
+    """All Carriera palette channels must be in [0, 1]."""
+    s = get_style("rosalba_carriera")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Carriera palette {rgb}")
+
+
+def test_rosalba_carriera_high_wet_blend():
+    """
+    Carriera's pastel blending is near-seamless — wet_blend should be very
+    high (> 0.80), reflecting finger-blended pastel with no visible marks.
+    """
+    s = get_style("rosalba_carriera")
+    assert s.wet_blend > 0.80, (
+        f"Carriera wet_blend should be very high (> 0.80) for pastel fusion; "
+        f"got {s.wet_blend:.3f}")
+
+
+def test_rosalba_carriera_high_edge_softness():
+    """
+    Carriera's edges dissolve into soft vignette halos — edge_softness should
+    be very high (> 0.80), close to Leonardo's sfumato level.
+    """
+    s = get_style("rosalba_carriera")
+    assert s.edge_softness > 0.80, (
+        f"Carriera edge_softness should be very high (> 0.80) for powdery pastel "
+        f"edge dissolution; got {s.edge_softness:.3f}")
+
+
+def test_rosalba_carriera_light_ground():
+    """
+    Carriera worked on pale warm vellum — ground_color luminance should be
+    high (> 0.70), much lighter than oil painters' dark or mid-tone imprimaturas.
+    """
+    s = get_style("rosalba_carriera")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum > 0.70, (
+        f"Carriera ground_color luminance should be very light (> 0.70) for "
+        f"pale warm vellum; got {lum:.3f}")
+
+
+def test_rosalba_carriera_no_chromatic_split():
+    """Carriera does not use divisionist chromatic splitting."""
+    s = get_style("rosalba_carriera")
+    assert not s.chromatic_split, "Carriera chromatic_split should be False"
+
+
+def test_rosalba_carriera_no_crackle():
+    """Pastel does not crack — Carriera crackle should be False."""
+    s = get_style("rosalba_carriera")
+    assert not s.crackle, "Carriera crackle should be False (pastel is a dry medium)"
+
+
+def test_rosalba_carriera_famous_works_not_empty():
+    """Carriera must document at least 4 famous works."""
+    s = get_style("rosalba_carriera")
+    assert len(s.famous_works) >= 4, (
+        f"Carriera famous_works should have >= 4 entries; got {len(s.famous_works)}")
+
+
+def test_rosalba_carriera_famous_works_include_self_portrait():
+    """Carriera's famous works should include at least one self-portrait."""
+    s = get_style("rosalba_carriera")
+    titles_lower = [w[0].lower() for w in s.famous_works]
+    assert any("self" in t or "portrait" in t for t in titles_lower), (
+        "Carriera famous works should include a self-portrait")
+
+
+def test_rosalba_carriera_inspiration_references_pastel_glow_pass():
+    """Carriera's inspiration must reference 'carriera_pastel_glow_pass'."""
+    s = get_style("rosalba_carriera")
+    assert "carriera_pastel_glow_pass" in s.inspiration, (
+        "Carriera inspiration should reference 'carriera_pastel_glow_pass()'")
+
+
+def test_rosalba_carriera_technique_mentions_academy():
+    """Carriera's technique text must mention her Académie Royale election — the
+    first woman from outside France to receive that honour."""
+    s = get_style("rosalba_carriera")
+    assert "académie" in s.technique.lower() or "academie" in s.technique.lower() or "académie" in s.technique, (
+        "Carriera technique should mention her Académie Royale election")
+
+
+def test_rosalba_carriera_technique_mentions_ivory():
+    """Carriera's technique must reference her pioneering use of ivory as a support."""
+    s = get_style("rosalba_carriera")
+    assert "ivory" in s.technique.lower(), (
+        "Carriera technique should mention ivory (she pioneered miniature on ivory support)")
+
+
+def test_venetian_pastel_portrait_in_expected_periods():
+    """EXPECTED_PERIODS list must include VENETIAN_PASTEL_PORTRAIT."""
+    assert "VENETIAN_PASTEL_PORTRAIT" in EXPECTED_PERIODS, (
+        "VENETIAN_PASTEL_PORTRAIT missing from EXPECTED_PERIODS — add it to the list")
+
+
+def test_venetian_pastel_portrait_stroke_params():
+    """VENETIAN_PASTEL_PORTRAIT stroke_params should reflect very soft pastel technique."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_PASTEL_PORTRAIT,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    # Pastel is the softest, most blended technique in the catalog
+    assert p["wet_blend"] > 0.80, (
+        f"VENETIAN_PASTEL_PORTRAIT wet_blend should be > 0.80 for pastel fusion; "
+        f"got {p['wet_blend']:.3f}")
+    assert p["edge_softness"] > 0.80, (
+        f"VENETIAN_PASTEL_PORTRAIT edge_softness should be > 0.80 for powdery edge "
+        f"dissolution; got {p['edge_softness']:.3f}")
+    # Fine marks — Carriera's stroke size is very small
+    assert p["stroke_size_face"] <= 5, (
+        f"VENETIAN_PASTEL_PORTRAIT stroke_size_face should be <= 5 for fine pastel "
+        f"marks; got {p['stroke_size_face']}")
