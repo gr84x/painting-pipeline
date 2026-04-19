@@ -99,6 +99,7 @@ EXPECTED_ARTISTS = [
     "chardin",
     "gericault",
     "perugino",
+    "signorelli",
 ]
 
 
@@ -251,6 +252,7 @@ EXPECTED_PERIODS = [
     "DUTCH_DOMESTIC",
     "DUTCH_GENRE_COMEDY",
     "FRENCH_ROMANTIC",
+    "UMBRIAN_RENAISSANCE",
 ]
 
 
@@ -10007,3 +10009,126 @@ def test_perugino_technique_mentions_umbria():
     s = get_style("perugino")
     assert "umbri" in s.technique.lower(), (
         "Perugino technique should mention Umbria/Umbrian landscape")
+
+
+# ── Luca Signorelli tests (session 85) ──────────────────────────────────────
+
+
+def test_signorelli_in_catalog():
+    """Signorelli must be present in CATALOG."""
+    assert "signorelli" in CATALOG, "signorelli not found in CATALOG"
+
+
+def test_signorelli_movement():
+    """Signorelli must be classified as Umbrian Renaissance."""
+    s = get_style("signorelli")
+    assert "umbrian" in s.movement.lower() or "renaissance" in s.movement.lower(), (
+        f"Signorelli movement should reference Umbrian Renaissance; got {s.movement!r}")
+
+
+def test_signorelli_nationality():
+    """Signorelli must be Italian."""
+    s = get_style("signorelli")
+    assert s.nationality.lower() == "italian", (
+        f"Signorelli nationality should be 'Italian'; got {s.nationality!r}")
+
+
+def test_signorelli_palette_length():
+    """Signorelli palette must have at least 6 entries."""
+    s = get_style("signorelli")
+    assert len(s.palette) >= 6, (
+        f"Signorelli palette should have >= 6 entries; got {len(s.palette)}")
+
+
+def test_signorelli_palette_values_in_range():
+    """All Signorelli palette channels must be in [0, 1]."""
+    s = get_style("signorelli")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Signorelli palette {rgb}")
+
+
+def test_signorelli_mid_tone_ground():
+    """
+    Signorelli worked on a mid-value warm ground — ground_color luminance
+    should be moderate (0.25–0.55), neither as dark as Géricault nor as
+    light as Perugino.
+    """
+    s = get_style("signorelli")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert 0.25 <= lum <= 0.55, (
+        f"Signorelli ground_color luminance should be mid-value (0.25–0.55); "
+        f"got {lum:.3f}")
+
+
+def test_signorelli_ground_color_warm():
+    """Signorelli's imprimatura is warm sienna — ground_color R should exceed B."""
+    s = get_style("signorelli")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Signorelli ground_color should be warm (R > B); got R={r:.3f} B={b:.3f}")
+
+
+def test_signorelli_low_edge_softness():
+    """
+    Signorelli's contour clarity is his defining quality — edge_softness
+    should be low (< 0.42), contrasting with Leonardo's near-1.0 sfumato.
+    """
+    s = get_style("signorelli")
+    assert s.edge_softness < 0.42, (
+        f"Signorelli edge_softness should be low (< 0.42) for contour clarity; "
+        f"got {s.edge_softness}")
+
+
+def test_signorelli_no_chromatic_split():
+    """Signorelli does not use divisionist chromatic splitting."""
+    s = get_style("signorelli")
+    assert not s.chromatic_split, "Signorelli chromatic_split should be False"
+
+
+def test_signorelli_famous_works_not_empty():
+    """Signorelli must document at least 4 famous works."""
+    s = get_style("signorelli")
+    assert len(s.famous_works) >= 4, (
+        f"Signorelli famous_works should have >= 4 entries; got {len(s.famous_works)}")
+
+
+def test_signorelli_famous_works_include_orvieto():
+    """Signorelli's famous works should include his Orvieto Cathedral frescoes."""
+    s = get_style("signorelli")
+    titles_lower = [w[0].lower() for w in s.famous_works]
+    assert any("orvieto" in t or "san brizio" in t or "last judgement" in t
+               or "damned" in t for t in titles_lower), (
+        "Signorelli famous works should include his Orvieto Cathedral frescoes "
+        "(Last Judgement / San Brizio / The Damned Cast into Hell)")
+
+
+def test_signorelli_inspiration_references_sculptural_vigour_pass():
+    """Signorelli's inspiration must reference 'signorelli_sculptural_vigour_pass'."""
+    s = get_style("signorelli")
+    assert "signorelli_sculptural_vigour_pass" in s.inspiration, (
+        "Signorelli inspiration should reference 'signorelli_sculptural_vigour_pass()'")
+
+
+def test_signorelli_technique_mentions_michelangelo():
+    """Signorelli's technique text must mention Michelangelo — the master-pupil
+    influence is central to his historical importance."""
+    s = get_style("signorelli")
+    assert "michelangelo" in s.technique.lower(), (
+        "Signorelli technique should mention Michelangelo (his most famous influenced artist)")
+
+
+def test_signorelli_technique_mentions_orvieto():
+    """Signorelli's technique must reference his Orvieto Cathedral frescoes."""
+    s = get_style("signorelli")
+    assert "orvieto" in s.technique.lower(), (
+        "Signorelli technique should mention Orvieto Cathedral")
+
+
+def test_umbrian_renaissance_in_expected_periods():
+    """EXPECTED_PERIODS list must include UMBRIAN_RENAISSANCE."""
+    assert "UMBRIAN_RENAISSANCE" in EXPECTED_PERIODS, (
+        "UMBRIAN_RENAISSANCE missing from EXPECTED_PERIODS — add it to the list")

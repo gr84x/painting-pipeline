@@ -566,6 +566,7 @@ def scene_to_painting(
     is_nordic_expressionist   = (scene.style.period == Period.NORDIC_EXPRESSIONIST)
     is_lombard_renaissance    = (scene.style.period == Period.LOMBARD_RENAISSANCE)
     is_dutch_domestic         = (scene.style.period == Period.DUTCH_DOMESTIC)
+    is_umbrian_renaissance    = (scene.style.period == Period.UMBRIAN_RENAISSANCE)
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
@@ -2982,6 +2983,79 @@ def scene_to_painting(
         # Gentle vignette — de Hooch's interiors have warm peripheral darkening
         # (the architecture itself frames the scene); crackle for aged panel surface.
         p.finish(vignette=0.35, crackle=True)
+
+    elif is_umbrian_renaissance:
+        # ── Umbrian Renaissance pipeline (Signorelli technique) ───────────────
+        # Warm sienna imprimatura — Signorelli's mid-tone warm ground that allows
+        # modelling upward into highlights and downward into shadow with equal ease.
+        p.tone_ground((0.42, 0.32, 0.18), texture_strength=0.10)
+
+        # Underpainting establishes the figure masses on the warm ground.
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.3), n_strokes=160)
+
+        # Block-in: broad confident strokes describing the major colour masses.
+        p.block_in(ref, stroke_size=int(sp["stroke_size_bg"]), n_strokes=300)
+
+        # Build form: tight, direction-following strokes that trace muscle planes.
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.55), n_strokes=750)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.55, 0.40, 0.20), opacity=0.07)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.04)
+
+        # Face-focused passes: fine form-following strokes on the portrait.
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.8),
+                       n_strokes=1000, opacity=0.80, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=700,  opacity=0.82, wet_blend=sp["wet_blend"] * 0.55)
+
+        # Place lights: the brilliant ivory highlights on the lit muscle ridges.
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=380)
+
+        # ── Signorelli sculptural vigour pass — session 85 artistic improvement ──
+        # Three-stage pass that introduces Signorelli's defining anatomical and
+        # chromatic qualities: (1) contour clarification via unsharp mask — the
+        # firm painted edge that gives his figures their bas-relief sculptural
+        # quality; (2) shadow depth modelling — push mid-dark pixels toward warm
+        # umber for dramatic sculptural relief; (3) chromatic accent lift — boost
+        # saturation in vivid drapery and landscape zones against the warm ground.
+        p.signorelli_sculptural_vigour_pass(
+            contour_sigma      = 1.2,
+            contour_amount     = 0.55,
+            contour_thresh     = 0.04,
+            shadow_lo          = 0.10,
+            shadow_hi          = 0.42,
+            shadow_warm_r      = 0.030,
+            shadow_deep_b      = 0.018,
+            shadow_deep_g      = 0.008,
+            sat_boost_amount   = 0.22,
+            sat_boost_thresh   = 0.22,
+            sat_boost_lo       = 0.30,
+            sat_boost_hi       = 0.78,
+            opacity            = 0.42,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "signorelli_pass")
+
+        # Warm sienna-amber unifying glaze — ties the warm imprimatura ground to
+        # the finished surface, giving the Signorelli painting its characteristic
+        # warm earth-tone coherence beneath the vivid chromatic accents.
+        p.glaze((0.55, 0.40, 0.20), opacity=0.06)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.30,
+            found_sharpness = 0.55,   # slightly sharper than Renaissance default — Signorelli's focus
+            lost_blur       = 1.4,
+            strength        = 0.28,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.42, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
