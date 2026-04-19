@@ -105,6 +105,7 @@ EXPECTED_ARTISTS = [
     "odilon_redon",
     "leon_spilliaert",
     "ferdinand_hodler",
+    "gustave_caillebotte",
 ]
 
 
@@ -10811,3 +10812,150 @@ def test_ferdinand_hodler_inspiration_references_parallelism_pass():
     s = get_style("ferdinand_hodler")
     assert "hodler_parallelism_pass" in s.inspiration, (
         "Hodler inspiration should reference hodler_parallelism_pass()")
+
+
+# ── Session 91 — Gustave Caillebotte ──────────────────────────────────────────
+
+def test_gustave_caillebotte_in_catalog():
+    """gustave_caillebotte must be present in CATALOG (session 91)."""
+    assert "gustave_caillebotte" in CATALOG, "gustave_caillebotte not found in CATALOG"
+
+
+def test_gustave_caillebotte_in_expected_artists():
+    """EXPECTED_ARTISTS list must include gustave_caillebotte (session 91)."""
+    assert "gustave_caillebotte" in EXPECTED_ARTISTS
+
+
+def test_gustave_caillebotte_movement():
+    """Caillebotte's movement must reference Impressionism or Urban Realism."""
+    s = get_style("gustave_caillebotte")
+    assert "Impressionism" in s.movement or "Realism" in s.movement, (
+        f"Caillebotte movement should reference Impressionism or Realism; got {s.movement!r}")
+
+
+def test_gustave_caillebotte_nationality():
+    """Caillebotte must be recorded as French."""
+    s = get_style("gustave_caillebotte")
+    assert s.nationality == "French", (
+        f"Caillebotte nationality should be 'French'; got {s.nationality!r}")
+
+
+def test_gustave_caillebotte_palette_length():
+    """Caillebotte's palette must have at least 5 colours."""
+    s = get_style("gustave_caillebotte")
+    assert len(s.palette) >= 5, (
+        f"Caillebotte palette should have >= 5 entries; got {len(s.palette)}")
+
+
+def test_gustave_caillebotte_palette_values_in_range():
+    """All Caillebotte palette RGB values must be in [0, 1]."""
+    s = get_style("gustave_caillebotte")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Caillebotte palette channel {ch} out of [0, 1] in {rgb}")
+
+
+def test_gustave_caillebotte_palette_contains_cool_grey():
+    """Caillebotte's palette must contain a cool grey tone (G ≈ B, moderate luminance)."""
+    s = get_style("gustave_caillebotte")
+    has_grey = any(
+        abs(g - b) < 0.10 and abs(r - g) < 0.15 and 0.30 < (0.299*r + 0.587*g + 0.114*b) < 0.75
+        for r, g, b in s.palette
+    )
+    assert has_grey, (
+        "Caillebotte palette must include a cool grey — key to his Parisian cobblestone palette")
+
+
+def test_gustave_caillebotte_ground_is_cool_mid():
+    """Caillebotte ground must be a cool mid-grey (B >= R, moderate luminance)."""
+    s = get_style("gustave_caillebotte")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert b >= r, (
+        f"Caillebotte ground should be cool (B >= R); got R={r:.2f} B={b:.2f}")
+    assert 0.30 < lum < 0.75, (
+        f"Caillebotte ground should be mid-luminance (0.30–0.75); got lum={lum:.3f}")
+
+
+def test_gustave_caillebotte_no_crackle():
+    """Caillebotte's crackle must be False — relatively modern, controlled paint surface."""
+    s = get_style("gustave_caillebotte")
+    assert not s.crackle, "Caillebotte crackle should be False"
+
+
+def test_gustave_caillebotte_no_chromatic_split():
+    """Caillebotte did not use divisionist chromatic splitting."""
+    s = get_style("gustave_caillebotte")
+    assert not s.chromatic_split, "Caillebotte chromatic_split should be False"
+
+
+def test_gustave_caillebotte_no_glazing():
+    """Caillebotte used no warm unifying glaze — his palette is cool and clear."""
+    s = get_style("gustave_caillebotte")
+    assert s.glazing is None, (
+        f"Caillebotte glazing should be None; got {s.glazing}")
+
+
+def test_gustave_caillebotte_low_wet_blend():
+    """Caillebotte wet_blend must be below 0.35 — precise realist technique, not impressionistic."""
+    s = get_style("gustave_caillebotte")
+    assert s.wet_blend < 0.35, (
+        f"Caillebotte wet_blend should be low for realist precision; got {s.wet_blend:.2f}")
+
+
+def test_gustave_caillebotte_low_edge_softness():
+    """Caillebotte edge_softness must be below 0.40 — crisp architectural edges."""
+    s = get_style("gustave_caillebotte")
+    assert s.edge_softness < 0.40, (
+        f"Caillebotte edge_softness should be low for architectural precision; got {s.edge_softness:.2f}")
+
+
+def test_gustave_caillebotte_famous_works_include_paris_street():
+    """Caillebotte's famous works must include Paris Street; Rainy Day — his masterpiece."""
+    s = get_style("gustave_caillebotte")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("paris" in t and "rain" in t for t in titles), (
+        "Caillebotte famous_works must include Paris Street; Rainy Day (1877)")
+
+
+def test_gustave_caillebotte_famous_works_include_floor_scrapers():
+    """Caillebotte's famous works must include The Floor Scrapers (1875)."""
+    s = get_style("gustave_caillebotte")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("floor" in t or "scraper" in t for t in titles), (
+        "Caillebotte famous_works must include The Floor Scrapers (1875)")
+
+
+def test_gustave_caillebotte_famous_works_count():
+    """Caillebotte must have at least 5 famous works catalogued."""
+    s = get_style("gustave_caillebotte")
+    assert len(s.famous_works) >= 5, (
+        f"Caillebotte should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_gustave_caillebotte_inspiration_references_pass():
+    """Caillebotte inspiration must reference caillebotte_perspective_pass()."""
+    s = get_style("gustave_caillebotte")
+    assert "caillebotte_perspective_pass" in s.inspiration, (
+        "Caillebotte inspiration should reference caillebotte_perspective_pass()")
+
+
+def test_gustave_caillebotte_technique_mentions_perspective():
+    """Caillebotte technique must mention perspective or foreshortening."""
+    s = get_style("gustave_caillebotte")
+    has_ref = (
+        "perspective" in s.technique.lower()
+        or "foreshorten" in s.technique.lower()
+        or "vanishing" in s.technique.lower()
+    )
+    assert has_ref, (
+        "Caillebotte technique should mention perspective / foreshortening / vanishing point")
+
+
+def test_gustave_caillebotte_technique_mentions_paris():
+    """Caillebotte technique must mention Paris — his defining subject."""
+    s = get_style("gustave_caillebotte")
+    assert "Paris" in s.technique or "paris" in s.technique.lower(), (
+        "Caillebotte technique should mention Paris")

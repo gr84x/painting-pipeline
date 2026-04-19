@@ -7551,6 +7551,99 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Gustave Caillebotte ───────────────────────────────────────────────────
+    "gustave_caillebotte": ArtStyle(
+        artist="Gustave Caillebotte",
+        movement="Impressionism / Urban Realism",
+        nationality="French",
+        period="1870–1894",
+        palette=[
+            (0.58, 0.60, 0.62),   # cool grey — wet Parisian cobblestone
+            (0.72, 0.68, 0.55),   # warm ochre-tan — overcoats and building façades
+            (0.38, 0.40, 0.45),   # deep slate — cast shadows, receding distance
+            (0.85, 0.84, 0.80),   # pale cream — building stone in diffuse sky light
+            (0.30, 0.32, 0.35),   # dark charcoal — umbrella handles, ironwork, deep shadow
+            (0.50, 0.55, 0.65),   # cool mist blue — overcast sky reflected in puddles
+            (0.65, 0.52, 0.38),   # warm sienna — wood floors, wooden scraper handles
+        ],
+        ground_color=(0.52, 0.53, 0.55),   # cool mid-grey — overcast Parisian ambient
+        stroke_size=5,
+        wet_blend=0.18,
+        edge_softness=0.25,
+        jitter=0.018,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Gustave Caillebotte (1848–1894) occupies an unusual position in the "
+            "history of Impressionism: he was a founding exhibitor alongside Monet, "
+            "Renoir, and Degas, yet his technique was far more precisely realist than "
+            "theirs, his debt to photography more explicit, and his compositional "
+            "ambitions more architectural.  Born into a wealthy Parisian family, he "
+            "had the means to paint what he chose without commercial pressure, and "
+            "what he chose was the spectacle of modern urban life — newly Haussmann-"
+            "ized Paris with its broad swept boulevards, iron bridges, and gleaming "
+            "rain-wet cobblestones.  \n"
+            "His signature move is radical perspective foreshortening.  In 'Paris "
+            "Street; Rainy Day' (1877) — his masterpiece — the foreground figures are "
+            "cropped at the frame edge exactly as a camera would crop them, while the "
+            "receding intersection stretches back to a single vanishing point with "
+            "almost ruler-precise geometry.  This photographic cropping — cutting a "
+            "figure in half at the left edge, letting a lamppost slice the composition "
+            "into zones — was jarring to academic audiences accustomed to centred, "
+            "complete compositions.  'Pont de l'Europe' (1876) uses the iron grid of "
+            "the bridge to impose a geometric armature across the entire canvas, "
+            "turning the painting into a study of perspective lines as much as a "
+            "record of pedestrians.  \n"
+            "Caillebotte's palette for outdoor Paris scenes is cool and muted: "
+            "overcast sky grey, wet cobblestone reflections of that grey, warm ochre "
+            "and tan overcoats contrasting with the cool ground, cream limestone "
+            "building façades grading to shadow slate.  He avoided the bright "
+            "unmixed colour of Monet or Renoir; his paint handling is controlled, "
+            "his surfaces relatively smooth, his forms clearly delineated.  Light "
+            "in his urban scenes is diffuse and even — Paris under a cloud-filtered "
+            "sky — without the Monet sunburst or the Rembrandt spotlight.  "
+            "His indoor scenes — notably 'The Floor Scrapers' (1875) and "
+            "'Man at His Bath' (1884) — exploit extreme foreshortening of a "
+            "different kind: the floor scrapers bent double fill the foreground, "
+            "their muscular backs foreshortened by a high viewpoint, the bare "
+            "parquet floor receding in strong perspective.  These figures are "
+            "painted with almost photographic musculature and realism quite unlike "
+            "the impressionistic smear of his contemporaries.  "
+            "Apply caillebotte_perspective_pass() to encode Caillebotte's "
+            "characteristic visual language: axis-aligned edge sharpening to "
+            "reinforce receding geometric lines, cool cobblestone reflection "
+            "brightening in dark low-saturation zones, and a subtle cool blue-"
+            "channel lift that neutralizes warm mid-tones under Parisian overcast sky."
+        ),
+        famous_works=[
+            ("Paris Street; Rainy Day", "1877"),
+            ("The Floor Scrapers", "1875"),
+            ("Pont de l'Europe", "1876"),
+            ("Young Man at His Window", "1875"),
+            ("Man at His Bath", "1884"),
+            ("Le Déjeuner", "1876"),
+            ("Skiffs on the Yerres", "1877"),
+            ("Boating", "1877"),
+            ("The Orange Trees", "1878"),
+        ],
+        inspiration=(
+            "Apply caillebotte_perspective_pass() to encode Caillebotte's visual "
+            "language.  Three stages: (1) axis-aligned edge sharpening — compute "
+            "horizontal and vertical Sobel edge maps separately; apply unsharp "
+            "masking along each axis independently at perspective_strength to "
+            "reinforce the receding geometric lines (iron grids, cobblestone joints, "
+            "building cornices) without halos on organic diagonal edges; (2) "
+            "cobblestone reflection lift — in dark, low-saturation zones (luminance "
+            "< 0.45, chroma < 0.10), apply a cool blue-channel brightening of "
+            "cobblestone_boost, simulating the dull reflection of overcast sky in "
+            "wet Parisian pavement; (3) cool ambient shift — in warm mid-tones "
+            "(R > B, luminance in [0.30, 0.70]), nudge the blue channel up by "
+            "cool_shift to pull the overall temperature toward the diffuse grey "
+            "Parisian sky ambient light.  Use at opacity 0.30–0.40."
+        ),
+    ),
+
 }
 
 
