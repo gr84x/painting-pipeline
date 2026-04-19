@@ -24689,3 +24689,259 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Carel Fabritius contre-jour pass complete.")
+
+    def hals_alla_prima_vivacity_pass(
+        self,
+        face_cx:          float = 0.515,  # face centre X as fraction of width
+        face_cy:          float = 0.215,  # face centre Y as fraction of height
+        face_rx:          float = 0.18,   # face ellipse half-width (fractions)
+        face_ry:          float = 0.22,   # face ellipse half-height (fractions)
+        tache_strength:   float = 0.022,  # amplitude of directional tache modulation
+        tache_sigma:      float = 2.4,    # Gaussian sigma for gradient direction map smoothing
+        tache_frequency:  float = 14.0,   # spatial frequency of implied brushstroke rhythm
+        vivacity_lo:      float = 0.35,   # lower lum bound for alla prima warm vivacity zone
+        vivacity_hi:      float = 0.78,   # upper lum bound for alla prima warm vivacity zone
+        warm_r_lift:      float = 0.018,  # warm R lift in mid-tone vivacity zone
+        shadow_thresh:    float = 0.30,   # lum below which shadow warm lift applies
+        shadow_warm_r:    float = 0.012,  # warm R lift in shadow zone (imprimatura reading through)
+        crisp_sigma:      float = 1.0,    # unsharp mask sigma for focal face sharpening
+        crisp_amount:     float = 0.14,   # unsharp mask amplitude for focal face
+        blur_radius:      float = 4.0,    # Gaussian sigma for mask feathering
+        opacity:          float = 0.35,   # overall pass composite opacity (0–1)
+    ) -> None:
+        """
+        Frans Hals alla prima vivacity pass — session 96 new artist pass.
+
+        Frans Hals (1582/3–1666) was the great master of alla prima ('all at
+        once') oil painting — a technique in which an entire portrait is
+        completed in a single energetic session without waiting for paint to
+        dry.  The result is a surface animated by visible, directional
+        brushmarks called taches: confident, loaded-brush strokes that follow
+        the contours of a face, placed once and never overworked.
+
+        This pass encodes three defining qualities of Hals's technique:
+
+          1. Directional tache energy — The pipeline's first pass to work with
+             the luminance gradient direction field rather than luminance
+             magnitude thresholds or spatial positions.  The gradient direction
+             at each pixel indicates which way the form is 'going'; the implied
+             brushstroke direction is orthogonal to this (strokes follow the
+             form, not cut across it).  A sine modulation along the orthogonal
+             direction adds subtle rhythmic luminance variation that reads as
+             confident, contour-following mark-making — the visual signature of
+             Hals's tache surface — without adding literal strokes.
+
+          2. Warm mid-tone vivacity — In the vivacity zone [vivacity_lo,
+             vivacity_hi], add a gentle R channel lift that simulates the warm
+             amber-brown imprimatura showing through thin alla prima paint.
+             Hals's flesh warmth comes not from glazing (he did not glaze) but
+             from the ground visible through the paint in transition zones.
+
+          3. Focal psychological crispness — Apply a subtle unsharp mask in the
+             face region to heighten the sense of direct psychological presence
+             and eye contact that defines Hals's portraits.
+
+        Parameters
+        ----------
+        face_cx, face_cy   : face ellipse centre (fraction of width/height)
+        face_rx, face_ry   : face ellipse radii (fraction of width/height)
+        tache_strength     : amplitude of directional luminance modulation
+        tache_sigma        : Gaussian sigma for smoothing the gradient direction map
+        tache_frequency    : spatial frequency of the sine modulation (cycles per image)
+        vivacity_lo/hi     : luminance range for tache and vivacity effects
+        warm_r_lift        : R channel boost in vivacity zone (imprimatura warmth)
+        shadow_thresh      : lum below which shadow warm lift applies
+        shadow_warm_r      : R lift in shadow zone (warm ground reading through)
+        crisp_sigma        : unsharp mask Gaussian sigma for face sharpening
+        crisp_amount       : unsharp mask amplitude
+        blur_radius        : Gaussian sigma for soft mask feathering
+        opacity            : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+
+        # cairo stores BGRA; extract float channels
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Luminance ─────────────────────────────────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Vivacity zone mask ────────────────────────────────────────────────
+        vivacity_mask = _np.clip(
+            (lum - vivacity_lo) / (vivacity_hi - vivacity_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (vivacity_hi - lum) / (vivacity_hi - vivacity_lo + 1e-6), 0.0, 1.0
+        ) * 4.0
+        vivacity_mask = _np.clip(vivacity_mask, 0.0, 1.0)
+        vivacity_mask = _gf(vivacity_mask.astype(_np.float32), blur_radius)
+        vivacity_mask = _np.clip(vivacity_mask, 0.0, 1.0)
+
+        # ── 1. Directional tache energy ───────────────────────────────────────
+        # Compute luminance gradient direction at each pixel.  The orthogonal
+        # direction (gradient + 90°) is the implied brushstroke direction — strokes
+        # follow the form contours rather than cutting across them.
+        lum_smooth = _gf(lum.astype(_np.float32), tache_sigma)
+
+        gy = _np.diff(lum_smooth, axis=0, append=lum_smooth[-1:, :])
+        gx = _np.diff(lum_smooth, axis=1, append=lum_smooth[:, -1:])
+
+        # Tache direction is perpendicular to luminance gradient
+        tache_angle = _np.arctan2(gy, gx) + _np.pi / 2.0
+
+        # Coordinate grids normalised to [0, 1]
+        ys_grid = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, _np.newaxis]
+        xs_grid = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[_np.newaxis, :]
+
+        # Project pixel coordinates onto the tache direction and modulate with
+        # a sine wave — creating rhythmic variation along implied stroke direction.
+        tache_proj = (xs_grid * _np.cos(tache_angle)
+                      + ys_grid * _np.sin(tache_angle))
+        tache_mod = _np.sin(tache_proj * tache_frequency * _np.pi * 2.0)
+        tache_mod = tache_mod.astype(_np.float32) * tache_strength * vivacity_mask
+
+        r_out = _np.clip(r_out + tache_mod, 0.0, 1.0)
+        g_out = _np.clip(g_out + tache_mod * 0.80, 0.0, 1.0)  # slightly less green
+        b_out = _np.clip(b_out + tache_mod * 0.60, 0.0, 1.0)  # less blue: warm taches
+
+        # ── 2. Warm mid-tone vivacity (imprimatura showing through thin paint) ─
+        warm_lift = vivacity_mask * warm_r_lift
+        r_out = _np.clip(r_out + warm_lift, 0.0, 1.0)
+
+        # Shadow zone: warm ground reading through thin paint in deep shadows
+        shadow_mask = _np.clip(
+            (shadow_thresh - lum) / (shadow_thresh + 1e-6), 0.0, 1.0
+        )
+        shadow_mask = _gf(shadow_mask.astype(_np.float32), blur_radius)
+        shadow_mask = _np.clip(shadow_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + shadow_mask * shadow_warm_r, 0.0, 1.0)
+
+        # ── 3. Focal psychological crispness (face unsharp mask) ──────────────
+        ys_px, xs_px = _np.ogrid[:h, :w]
+        cx_px = face_cx * w
+        cy_px = face_cy * h
+        rx_px = face_rx * w
+        ry_px = face_ry * h
+        face_d2 = ((xs_px - cx_px) / (rx_px + 1e-6)) ** 2 + \
+                  ((ys_px - cy_px) / (ry_px + 1e-6)) ** 2
+        face_weight = _np.clip(1.0 - face_d2, 0.0, 1.0) ** 2
+        face_weight = _gf(face_weight.astype(_np.float32), blur_radius)
+        face_weight = _np.clip(face_weight, 0.0, 1.0)
+
+        # Unsharp mask: sharpen = original + amount * (original − blurred)
+        r_blur_usm = _gf(r_out.astype(_np.float32), crisp_sigma)
+        g_blur_usm = _gf(g_out.astype(_np.float32), crisp_sigma)
+        b_blur_usm = _gf(b_out.astype(_np.float32), crisp_sigma)
+
+        r_sharp = _np.clip(r_out + crisp_amount * (r_out - r_blur_usm), 0.0, 1.0)
+        g_sharp = _np.clip(g_out + crisp_amount * (g_out - g_blur_usm), 0.0, 1.0)
+        b_sharp = _np.clip(b_out + crisp_amount * (b_out - b_blur_usm), 0.0, 1.0)
+
+        r_out = r_out * (1.0 - face_weight) + r_sharp * face_weight
+        g_out = g_out * (1.0 - face_weight) + g_sharp * face_weight
+        b_out = b_out * (1.0 - face_weight) + b_sharp * face_weight
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Frans Hals alla prima vivacity pass complete.")
+
+    def hals_bravura_stroke_pass(
+        self,
+        reference:        Optional[Union[np.ndarray, Image.Image]] = None,
+        n_strokes:        int   = 200,
+        stroke_size:      float = 7.0,
+        opacity:          float = 0.55,
+        angle_jitter_deg: float = 30.0,
+        color_jitter:     float = 0.025,
+        broken_tone:      bool  = True,
+        figure_mask:      Optional[np.ndarray] = None,
+    ) -> None:
+        """
+        Frans Hals bravura stroke pass — session 96 alla prima stroke layer.
+
+        Frans Hals (1582/3–1666) completed entire portraits in a single session
+        of wet-on-wet oil paint, placing each tache (confident loaded-brush
+        stroke) once and never overworking it.  The strokes follow the contours
+        of the face and drapery, varying in angle by ±angle_jitter_deg from
+        the underlying flow field — the hallmark of bravura alla prima.
+
+        When broken_tone=True, a slight per-stroke colour variation is applied
+        before placement, simulating the 'broken tone' effect of wet-into-wet
+        paint that picks up slightly different pigment mixes at each mark.
+
+        Parameters
+        ----------
+        reference        : optional reference image (PIL or ndarray); if None,
+                           the current canvas state is used as the source colours.
+        n_strokes        : number of strokes to place (0 = no-op).
+        stroke_size      : characteristic stroke length in pixels.
+        opacity          : stroke opacity.
+        angle_jitter_deg : ± angle variation from the flow-field direction (deg).
+        color_jitter     : per-stroke colour variation amplitude.
+        broken_tone      : when True, apply slight tonal variation per stroke.
+        figure_mask      : optional (H, W) float32 mask biasing stroke placement.
+        """
+        if n_strokes == 0:
+            return  # explicit noop
+
+        h, w = self.h, self.w
+
+        # ── Resolve reference ─────────────────────────────────────────────────
+        if reference is None:
+            # Use current canvas as the colour source
+            cbuf = np.frombuffer(
+                self.canvas.surface.get_data(), dtype=np.uint8
+            ).reshape(h, w, 4).copy()
+            # Convert BGRA → RGB
+            ref = np.stack([cbuf[:, :, 2], cbuf[:, :, 1], cbuf[:, :, 0],
+                            np.full((h, w), 255, dtype=np.uint8)], axis=2)
+        else:
+            ref = self._prep(reference)
+
+        # ── Broken-tone: inject slight colour variation into reference ─────────
+        if broken_tone and color_jitter > 0.0:
+            noise = self.rng.uniform(-color_jitter, color_jitter,
+                                     (h, w, 3)).astype(np.float32)
+            ref_f = ref[:, :, :3].astype(np.float32) + noise * 255.0
+            ref_f = np.clip(ref_f, 0, 255).astype(np.uint8)
+            ref = np.concatenate([ref_f, ref[:, :, 3:4]], axis=2)
+
+        # ── Place strokes ─────────────────────────────────────────────────────
+        # Hals: low wet_blend (alla prima directness), high jitter, moderate
+        # curvature (strokes follow form contours, not mechanical parallels).
+        self._place_strokes(
+            ref,
+            stroke_size  = stroke_size,
+            n_strokes    = n_strokes,
+            opacity      = opacity,
+            wet_blend    = 0.12,           # alla prima: no deep blending across strokes
+            jitter_amt   = color_jitter,   # per-stroke colour variation
+            curvature    = 0.12,           # form-following: strokes curve with contours
+            tip          = BrushTip(BrushTip.FILBERT),
+            stroke_mask  = figure_mask if figure_mask is not None else self._figure_mask,
+        )
+        print(f"    Frans Hals bravura stroke pass complete. ({n_strokes} strokes, "
+              f"size={stroke_size:.1f}, broken_tone={broken_tone})")

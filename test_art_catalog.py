@@ -11499,3 +11499,129 @@ def test_carel_fabritius_stroke_params():
     assert 0.30 <= params["edge_softness"] <= 0.60, (
         f"DUTCH_LIGHT_GROUND edge_softness must be moderate [0.30, 0.60]; "
         f"got {params['edge_softness']:.2f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Frans Hals — session 96 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_frans_hals_in_catalog():
+    """Frans Hals (session 96) must be in the catalog."""
+    assert "frans_hals" in CATALOG
+
+
+def test_frans_hals_movement():
+    s = get_style("frans_hals")
+    assert "Dutch" in s.movement or "dutch" in s.movement.lower()
+
+
+def test_frans_hals_nationality():
+    s = get_style("frans_hals")
+    assert "Dutch" in s.nationality
+
+
+def test_frans_hals_palette_length():
+    s = get_style("frans_hals")
+    assert len(s.palette) >= 5, "Hals palette should have at least 5 key colours"
+
+
+def test_frans_hals_palette_in_range():
+    """All Hals palette RGB values must be in [0, 1]."""
+    s = get_style("frans_hals")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Hals palette {rgb}")
+
+
+def test_frans_hals_no_glazing():
+    """Hals painted alla prima — no unifying final glaze."""
+    s = get_style("frans_hals")
+    assert s.glazing is None, "Hals should have no glazing (alla prima, not multi-glaze)"
+
+
+def test_Frans_hals_stroke_size_bold():
+    """Hals painted with large, confident taches — stroke_size should be ≥ 8."""
+    s = get_style("frans_hals")
+    assert s.stroke_size >= 8, (
+        f"Hals stroke_size should be ≥ 8 (bold tache brushwork); got {s.stroke_size}")
+
+
+def test_Frans_hals_wet_blend_low():
+    """Alla prima means very low wet_blend — strokes are direct, not melted together."""
+    s = get_style("frans_hals")
+    assert s.wet_blend <= 0.25, (
+        f"Hals wet_blend should be ≤ 0.25 (alla prima directness); got {s.wet_blend:.2f}")
+
+
+def test_Frans_hals_edge_softness_crisp():
+    """Hals edges are crisp and directional — not sfumato dissolved."""
+    s = get_style("frans_hals")
+    assert s.edge_softness <= 0.35, (
+        f"Hals edge_softness should be ≤ 0.35 (psychological vivacity); "
+        f"got {s.edge_softness:.2f}")
+
+
+def test_Frans_hals_has_crackle():
+    s = get_style("frans_hals")
+    assert s.crackle is True
+
+
+def test_Frans_hals_no_chromatic_split():
+    s = get_style("frans_hals")
+    assert s.chromatic_split is False
+
+
+def test_Frans_hals_famous_works_not_empty():
+    s = get_style("frans_hals")
+    assert len(s.famous_works) >= 3
+
+
+def test_Frans_hals_famous_works_include_laughing_cavalier():
+    """The Laughing Cavalier (1624) is Hals's most famous work."""
+    s = get_style("frans_hals")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Cavalier" in t or "Laughing" in t for t in titles), (
+        f"Expected 'The Laughing Cavalier' among famous works; got {titles}")
+
+
+def test_Frans_hals_technique_mentions_alla_prima():
+    s = get_style("frans_hals")
+    assert "alla prima" in s.technique.lower() or "tache" in s.technique.lower()
+
+
+def test_Frans_hals_technique_mentions_impressionist():
+    """Hals's influence on the Impressionists (especially Manet) should be noted."""
+    s = get_style("frans_hals")
+    assert "Impressionist" in s.technique or "Manet" in s.technique
+
+
+def test_Frans_hals_inspiration_references_pass():
+    """Inspiration field must reference hals_bravura_stroke_pass()."""
+    s = get_style("frans_hals")
+    assert "hals_bravura_stroke_pass" in s.inspiration
+
+
+def test_Frans_hals_period_enum_present():
+    """DUTCH_BRAVURA_PORTRAIT must exist in Period enum (session 96)."""
+    assert hasattr(Period, "DUTCH_BRAVURA_PORTRAIT"), "Period.DUTCH_BRAVURA_PORTRAIT not found"
+    assert Period.DUTCH_BRAVURA_PORTRAIT in list(Period)
+
+
+def test_Frans_hals_stroke_params():
+    """DUTCH_BRAVURA_PORTRAIT stroke_params must reflect bold alla prima brushwork."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_BRAVURA_PORTRAIT, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    # Hals: bold loaded-brush taches — larger than fijnschilder or Fabritius
+    assert params["stroke_size_face"] >= 8, (
+        f"DUTCH_BRAVURA_PORTRAIT stroke_size_face must be ≥ 8 (bold tache); "
+        f"got {params['stroke_size_face']}")
+    # Very low wet blending — alla prima directness
+    assert params["wet_blend"] <= 0.20, (
+        f"DUTCH_BRAVURA_PORTRAIT wet_blend must be ≤ 0.20 (alla prima); "
+        f"got {params['wet_blend']:.2f}")
+    # Crisp directional edges — psychological vivacity
+    assert params["edge_softness"] <= 0.30, (
+        f"DUTCH_BRAVURA_PORTRAIT edge_softness must be ≤ 0.30 (tache crispness); "
+        f"got {params['edge_softness']:.2f}")
