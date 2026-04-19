@@ -110,6 +110,7 @@ EXPECTED_ARTISTS = [
     "antonello_da_messina",
     "hugo_van_der_goes",
     "gerrit_dou",
+    "carel_fabritius",
 ]
 
 
@@ -266,6 +267,7 @@ EXPECTED_PERIODS = [
     "VENETIAN_PASTEL_PORTRAIT",
     "AMERICAN_TONALIST",
     "DUTCH_FIJNSCHILDER",
+    "DUTCH_LIGHT_GROUND",
 ]
 
 
@@ -11376,4 +11378,124 @@ def test_gerrit_dou_stroke_params():
     # Crisp edges — not sfumato
     assert params["edge_softness"] <= 0.40, (
         f"DUTCH_FIJNSCHILDER edge_softness must be ≤ 0.40 (Leiden precision); "
+        f"got {params['edge_softness']:.2f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Carel Fabritius — session 95 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_carel_fabritius_in_catalog():
+    """Carel Fabritius (session 95) must be in the catalog."""
+    assert "carel_fabritius" in CATALOG
+
+
+def test_carel_fabritius_movement():
+    s = get_style("carel_fabritius")
+    assert "Dutch" in s.movement or "dutch" in s.movement.lower()
+
+
+def test_carel_fabritius_nationality():
+    s = get_style("carel_fabritius")
+    assert "Dutch" in s.nationality
+
+
+def test_carel_fabritius_palette_length():
+    s = get_style("carel_fabritius")
+    assert len(s.palette) >= 5, "Fabritius palette should have at least 5 key colours"
+
+
+def test_carel_fabritius_palette_in_range():
+    """All Fabritius palette RGB values must be in [0, 1]."""
+    s = get_style("carel_fabritius")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Fabritius palette {rgb}")
+
+
+def test_carel_fabritius_ground_color_pale():
+    """Fabritius used a pale grey ground — all channels should be above 0.55."""
+    s = get_style("carel_fabritius")
+    for ch in s.ground_color:
+        assert ch >= 0.55, (
+            f"Fabritius ground channel {ch:.3f} should be pale (≥ 0.55); "
+            "he painted on light grounds, not Rembrandt-dark imprimatura")
+
+
+def test_carel_fabritius_stroke_size_moderate():
+    """Fabritius worked with confident, direct brushwork — not fijnschilder fineness."""
+    s = get_style("carel_fabritius")
+    assert s.stroke_size >= 6, (
+        f"Fabritius stroke_size should be ≥ 6 (confident brushwork); got {s.stroke_size}")
+
+
+def test_carel_fabritius_no_glazing():
+    """Fabritius did not use a unifying final glaze — his pale ground provides the unity."""
+    s = get_style("carel_fabritius")
+    assert s.glazing is None, "Fabritius should have no glazing colour"
+
+
+def test_carel_fabritius_has_crackle():
+    s = get_style("carel_fabritius")
+    assert s.crackle is True
+
+
+def test_carel_fabritius_no_chromatic_split():
+    s = get_style("carel_fabritius")
+    assert s.chromatic_split is False
+
+
+def test_carel_fabritius_famous_works_not_empty():
+    s = get_style("carel_fabritius")
+    assert len(s.famous_works) >= 3
+
+
+def test_carel_fabritius_famous_works_include_goldfinch():
+    """The Goldfinch (1654) is Fabritius's most famous surviving work."""
+    s = get_style("carel_fabritius")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Goldfinch" in t for t in titles), (
+        f"Expected 'The Goldfinch' among famous works; got {titles}")
+
+
+def test_carel_fabritius_technique_mentions_contre_jour():
+    s = get_style("carel_fabritius")
+    assert "contre" in s.technique.lower() or "light" in s.technique.lower()
+
+
+def test_carel_fabritius_technique_mentions_vermeer():
+    """Fabritius was Vermeer's teacher — technique must mention this lineage."""
+    s = get_style("carel_fabritius")
+    assert "Vermeer" in s.technique
+
+
+def test_carel_fabritius_inspiration_references_pass():
+    """Inspiration field must reference fabritius_contre_jour_pass()."""
+    s = get_style("carel_fabritius")
+    assert "fabritius_contre_jour_pass" in s.inspiration
+
+
+def test_carel_fabritius_period_enum_present():
+    """DUTCH_LIGHT_GROUND must exist in Period enum (session 95)."""
+    assert hasattr(Period, "DUTCH_LIGHT_GROUND"), "Period.DUTCH_LIGHT_GROUND not found"
+    assert Period.DUTCH_LIGHT_GROUND in list(Period)
+
+
+def test_carel_fabritius_stroke_params():
+    """DUTCH_LIGHT_GROUND stroke_params must reflect confident moderate brushwork."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_LIGHT_GROUND, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    # Fabritius: confident direct strokes — larger than fijnschilder but not Baroque bravura
+    assert params["stroke_size_face"] >= 6, (
+        f"DUTCH_LIGHT_GROUND stroke_size_face must be ≥ 6 (confident brushwork); "
+        f"got {params['stroke_size_face']}")
+    # Moderate wet blending — not extreme glazing, not alla prima dry
+    assert 0.35 <= params["wet_blend"] <= 0.65, (
+        f"DUTCH_LIGHT_GROUND wet_blend must be moderate [0.35, 0.65]; "
+        f"got {params['wet_blend']:.2f}")
+    # Moderate edges — not sfumato, not Flemish razor-precision
+    assert 0.30 <= params["edge_softness"] <= 0.60, (
+        f"DUTCH_LIGHT_GROUND edge_softness must be moderate [0.30, 0.60]; "
         f"got {params['edge_softness']:.2f}")
