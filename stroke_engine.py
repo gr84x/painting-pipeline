@@ -4735,10 +4735,10 @@ class Painter:
             horizon_row = horizon_y_frac * (h - 1)
             row_dist = (np.arange(h, dtype=np.float32) - horizon_row) / sigma_px
             glow_profile = np.exp(-0.5 * row_dist ** 2)        # (H,) Gaussian
-            glow_profile = glow_profile[:, np.newaxis]          # (H, 1) broadcast
+            glow_profile = glow_profile[:, np.newaxis, np.newaxis]  # (H, 1, 1) broadcast
 
             # Apply only to background region (same mask as rest of pass).
-            glow_weight = glow_profile * bg_weight[:, :, np.newaxis] * horizon_glow_band
+            glow_weight = glow_profile * bg_weight[:, :, np.newaxis] * horizon_glow_band  # (H, W, 1)
 
             # Warm ivory-amber glow colour — the pale diffuse sky at the Mona
             # Lisa horizon reads as warm ivory cooling into pale blue-grey.
