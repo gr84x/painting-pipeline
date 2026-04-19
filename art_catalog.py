@@ -8034,6 +8034,100 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Carel Fabritius ───────────────────────────────────────────────────────
+    "carel_fabritius": ArtStyle(
+        artist="Carel Fabritius",
+        movement="Dutch Golden Age / Delft School",
+        nationality="Dutch",
+        period="1640–1654",
+        palette=[
+            (0.94, 0.90, 0.78),   # pale buff ivory — the light ground against which everything is set
+            (0.88, 0.80, 0.62),   # warm cream — lit skin midtone; warm but not amber-heavy
+            (0.70, 0.60, 0.44),   # golden ochre — shadow transition, warm without deep imprimatura darkness
+            (0.52, 0.46, 0.34),   # warm mid-brown — deep flesh shadow; never near-black, always warm
+            (0.78, 0.72, 0.58),   # pale warm stone — the Delft wall/ground colour; buff plaster warmth
+            (0.56, 0.52, 0.40),   # warm grey-brown — drapery shadow on a light ground
+            (0.36, 0.30, 0.20),   # rich warm umber — the deepest darks; warm, not cold
+            (0.82, 0.74, 0.50),   # straw gold — the Goldfinch yellow; warm feather-light highlight
+        ],
+        ground_color=(0.86, 0.82, 0.68),    # pale buff ground — the Fabritius signature: light, not dark
+        stroke_size=4,
+        wet_blend=0.70,                      # smooth blending, less extreme than Dou — broader strokes
+        edge_softness=0.38,                  # slightly soft: light-to-light boundaries need gentle dissolution
+        jitter=0.018,                        # subtle variation — his surfaces are smooth but not enamel
+        glazing=(0.82, 0.76, 0.58),          # pale straw glaze — unifying warm cream over the pale ground
+        crackle=True,                        # 17th-century panel; The Goldfinch survives with fine craquelure
+        chromatic_split=False,
+        technique=(
+            "Carel Fabritius (1622–1654) was the most gifted of Rembrandt's pupils "
+            "and the direct artistic ancestor of Vermeer.  He studied with Rembrandt "
+            "in Amsterdam c. 1641–1643, absorbing his master's dramatic chiaroscuro — "
+            "but then did something radical: he reversed it.  Where Rembrandt placed "
+            "light figures against dark grounds to achieve maximum tonal contrast, "
+            "Fabritius placed light figures against light grounds.  This contre-jour "
+            "inversion required forms to be described through very subtle value "
+            "differentials — shapes barely distinguishable from their backgrounds, "
+            "held apart only by warm/cool temperature contrast and the gentlest of "
+            "edges.  The result is an atmosphere of luminous calm that Rembrandt "
+            "never achieved: the sensation of a figure existing in the same "
+            "light-saturated space as the viewer, rather than emerging from dramatic "
+            "darkness.  "
+            "His masterpiece is The Goldfinch (1654, Mauritshuis), a small trompe-"
+            "l'oeil panel showing a chained finch on a pale buff stone ledge.  The "
+            "bird's warm tawny-gold plumage is set against a pale warm stone wall "
+            "that is barely darker than the highlights on the bird itself — the "
+            "entire tonal range compressed into a warm cream-to-warm-ochre register.  "
+            "The illusion is achieved not through darkness but through the most "
+            "exquisitely subtle value and temperature differences.  "
+            "Fabritius died in the Delft Powder Magazine explosion on 12 October 1654 "
+            "at the age of 32, destroying most of his studio and much of his work.  "
+            "Fewer than a dozen paintings are securely attributed to him.  His "
+            "influence on Vermeer, whose light-flooded domestic interiors share the "
+            "same pale-ground, contre-jour philosophy, is profound and direct — "
+            "Fabritius was working in Delft in the years before his death, and "
+            "Vermeer almost certainly knew him personally.  "
+            "Apply fabritius_contre_jour_pass() after the main build passes to "
+            "implement the three key qualities of his contre-jour approach: "
+            "(1) Pale-ground brightening — the background is gently lifted toward "
+            "warm buff, compressing the distance between figure and field; "
+            "(2) Contre-jour boundary dissolution — at figure/background edges, a "
+            "very subtle warm luminous fringe blurs the boundary, as if both surfaces "
+            "share the same ambient light; (3) Straw-gold surface warmth — a pale "
+            "straw-gold tint shifts the overall tonality from Rembrandt amber to "
+            "Fabritius cream, giving the image the pale, sunlit quality of The Goldfinch."
+        ),
+        famous_works=[
+            ("The Goldfinch",                   "1654"),
+            ("A View of Delft",                 "c. 1652"),
+            ("The Sentry",                      "c. 1654"),
+            ("Young Man with a Skull",          "c. 1646"),
+            ("Self-Portrait in a Gorget",       "c. 1648–1650"),
+            ("Hagar and the Angel",             "c. 1645"),
+            ("Mercury and Argus",               "c. 1645–1647"),
+        ],
+        inspiration=(
+            "fabritius_contre_jour_pass() implements Fabritius's contre-jour light-"
+            "ground philosophy in three stages: "
+            "(1) Pale-ground warm lift — in background zones (lum_bg > 0.55), gently "
+            "brighten toward pale buff cream (R+buff_lift, G+buff_lift*0.9, "
+            "B+buff_lift*0.55); this compresses the tonal distance between figure "
+            "and background toward the pale stone register of The Goldfinch; "
+            "(2) Contre-jour halation — at figure/background boundary zones (mid-"
+            "luminance, lum 0.42–0.66, near the gradient edge), introduce a very "
+            "subtle warm luminous fringe (sigma ≈ 2.5 px Gaussian), blurring the "
+            "boundary between figure and light ground; this is the essential quality "
+            "that distinguishes Fabritius from Rembrandt — forms do not emerge from "
+            "darkness but dissolve into shared ambient light; "
+            "(3) Straw-gold surface register — a very pale straw-gold tint shifts "
+            "highlights (lum > 0.70) toward warm cream (R+ straw_r, G+ straw_g, "
+            "B neutral or slight reduction), replacing Rembrandt/Dou amber warmth "
+            "with the lighter, more luminous warmth of a pale stone wall in "
+            "afternoon sunlight.  wet_blend=0.70 and edge_softness=0.38 produce "
+            "smooth, light-ground forms; stroke_size=4 is finer than the Dutch "
+            "Golden Age average but broader than Dou's magnifying-glass precision."
+        ),
+    ),
+
 }
 
 

@@ -24506,3 +24506,159 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Gerrit Dou fijnschilder pass complete.")
+
+    def fabritius_contre_jour_pass(
+        self,
+        buff_lift:       float = 0.028,  # warm-buff brightening in background zones (pale ground lift)
+        buff_bg_lo:      float = 0.52,   # lower lum threshold for pale-ground brightening
+        halation_lo:     float = 0.42,   # lower lum bound of contre-jour boundary zone
+        halation_hi:     float = 0.66,   # upper lum bound of contre-jour boundary zone
+        halation_sigma:  float = 2.5,    # Gaussian sigma for contre-jour fringe dissolution (pixels)
+        halation_str:    float = 0.022,  # peak warm lift strength in contre-jour boundary zone
+        straw_lo:        float = 0.70,   # lower lum threshold for straw-gold highlight tint
+        straw_r:         float = 0.018,  # R boost in straw-gold highlight zone (pale warmth)
+        straw_g:         float = 0.012,  # G boost in straw-gold highlights (cream, not amber)
+        straw_b:         float = 0.006,  # B slight reduction in straw-gold zone (damp cool)
+        blur_radius:     float = 3.5,    # Gaussian sigma for mask feathering
+        opacity:         float = 0.36,   # overall pass composite opacity
+    ) -> None:
+        """
+        Carel Fabritius contre-jour pass — session 95 new artist pass.
+
+        Carel Fabritius (1622–1654) was the most gifted of Rembrandt's pupils and
+        the direct ancestor of Vermeer.  His central artistic innovation was the
+        reversal of Rembrandt's chiaroscuro: instead of placing light figures
+        against dark grounds, Fabritius placed light figures against light grounds.
+        This contre-jour (against-the-light) philosophy required describing form
+        through extremely subtle value and temperature differentials rather than
+        strong tonal contrast.
+
+        His masterpiece The Goldfinch (1654, Mauritshuis) exemplifies this: a small
+        finch on a pale buff stone wall, its warm tawny plumage barely distinguishable
+        from the background in luminosity, held apart only by temperature — the bird
+        warm gold, the wall cool cream.  The effect is of a figure floating in the
+        same ambient light as the viewer, rather than emerging from theatrical darkness.
+
+        This pass encodes three defining qualities of Fabritius's contre-jour technique:
+
+          1. Pale-ground warm lift — In background zones where luminosity exceeds
+             buff_bg_lo, gently brighten toward pale buff cream (R + buff_lift,
+             G + buff_lift × 0.9, B + buff_lift × 0.55).  This compresses the tonal
+             distance between figure and background, shifting the dark Rembrandt ground
+             toward Fabritius's pale Delft stone register.
+
+          2. Contre-jour boundary dissolution — In mid-luminance zones (lum in
+             [halation_lo, halation_hi]) near figure/background boundaries, introduce
+             a very subtle warm luminous fringe (halation_sigma ≈ 2.5 px Gaussian
+             blurred bell-mask, lifted by halation_str in R and G × 0.6).  This is
+             the essential quality that distinguishes Fabritius from Rembrandt: forms
+             do not emerge from darkness but dissolve gently into shared ambient light.
+             The contre-jour halo is imperceptible individually but shifts the
+             accumulated boundary register toward luminous warmth.
+
+          3. Straw-gold surface tint — In the upper highlights (lum > straw_lo),
+             a pale straw-gold tint shifts highlights from Rembrandt/Dou amber warmth
+             toward Fabritius cream (R + straw_r, G + straw_g, B − straw_b).  This
+             is lighter and more luminous than candle-amber: the warmth of pale stone
+             in afternoon sunlight rather than a warm candle in a dark interior.
+
+        Parameters
+        ----------
+        buff_lift        : warm-buff brightness lift in background (light-ground effect)
+        buff_bg_lo       : lower lum threshold for background brightening
+        halation_lo      : lower lum bound of contre-jour boundary zone
+        halation_hi      : upper lum bound of contre-jour boundary zone
+        halation_sigma   : Gaussian sigma for contre-jour fringe blurring (pixels)
+        halation_str     : peak R lift in contre-jour boundary zone
+        straw_lo         : lower lum threshold for straw-gold highlight tint
+        straw_r          : R boost in straw-gold highlights
+        straw_g          : G boost in straw-gold highlights
+        straw_b          : B reduction in straw-gold highlights
+        blur_radius      : Gaussian sigma for mask feathering
+        opacity          : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Fabritius contre-jour pass "
+              f"(buff_lift={buff_lift:.3f}  halation_str={halation_str:.3f}  "
+              f"straw_r={straw_r:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Fabritius contre-jour pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Stage 1: Pale-ground warm lift (contre-jour light ground) ─────────
+        # In background zones (lum > buff_bg_lo), gently lift toward warm buff cream.
+        # This is the Fabritius inversion: compress the tonal distance between
+        # figure and field, replacing dark Rembrandt grounds with pale Delft stone.
+        if buff_lift > 0.0:
+            bg_ramp = _np.clip((lum - buff_bg_lo) / max(1.0 - buff_bg_lo, 1e-6),
+                               0.0, 1.0)
+            bg_mask = _gf(bg_ramp, sigma=blur_radius)
+            bw = bg_mask * opacity
+
+            r_out = _np.clip(r_out + bw * buff_lift, 0.0, 1.0)
+            g_out = _np.clip(g_out + bw * buff_lift * 0.90, 0.0, 1.0)
+            b_out = _np.clip(b_out + bw * buff_lift * 0.55, 0.0, 1.0)
+
+        # ── Stage 2: Contre-jour boundary dissolution (halation fringe) ───────
+        # Bell-shaped mask over [halation_lo, halation_hi] — the transition zone
+        # between figure and light background.  Gaussian-blur the bell and add a
+        # warm luminous lift, dissolving the figure/ground boundary into shared light.
+        if halation_str > 0.0:
+            hal_mid  = (halation_lo + halation_hi) * 0.5
+            hal_half = max((halation_hi - halation_lo) * 0.5, 1e-6)
+            hal_bell = _np.clip(
+                1.0 - _np.abs(lum - hal_mid) / hal_half, 0.0, 1.0)
+            hal_mask = _gf(hal_bell, sigma=halation_sigma)
+            hw = hal_mask * opacity
+
+            r_out = _np.clip(r_out + hw * halation_str, 0.0, 1.0)
+            # G lift at 60% of R lift — warm cream rather than red
+            g_out = _np.clip(g_out + hw * halation_str * 0.60, 0.0, 1.0)
+
+        # ── Stage 3: Straw-gold surface register ──────────────────────────────
+        # In bright highlights (lum > straw_lo), shift toward pale straw-gold:
+        # lighter and more luminous than Dou's candle amber.  The warmth of pale
+        # stone in afternoon sunlight rather than a candle in a dark niche.
+        if straw_r > 0.0 or straw_g > 0.0:
+            straw_ramp = _np.clip((lum - straw_lo) / max(1.0 - straw_lo, 1e-6),
+                                  0.0, 1.0)
+            straw_mask = _gf(straw_ramp, sigma=blur_radius * 0.5)
+            sw = straw_mask * opacity
+
+            r_out = _np.clip(r_out + sw * straw_r, 0.0, 1.0)
+            g_out = _np.clip(g_out + sw * straw_g, 0.0, 1.0)
+            b_out = _np.clip(b_out - sw * straw_b, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Fabritius contre-jour pass complete.")
