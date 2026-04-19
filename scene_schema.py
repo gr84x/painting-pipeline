@@ -263,6 +263,7 @@ class Period(Enum):
     DUTCH_LIGHT_GROUND   = auto()  # Carel Fabritius — contre-jour technique, pale grey ground, figures reading against bright background, confident impressionistic brushwork, atmospheric ambient light
     DUTCH_CANDLELIT_GENRE = auto()  # Judith Leyster — warm candlelit genre scenes, Hals-adjacent bravura, Utrecht Caravaggist amber warmth, joyful animated figures, warm brown imprimatura vitality
     DUTCH_BRAVURA_PORTRAIT = auto()  # Frans Hals — alla prima directional energy, confident tache brushwork, psychological vivacity, warm imprimatura with low wet-blend, crisp directional marks
+    MILANESE_SFUMATO       = auto()  # Bernardino Luini — Leonardo-school Milanese sfumato, warm ivory highlights, cool-violet shadow delicacy, seamless flesh surfaces, sweet idealized expressions
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1113,6 +1114,17 @@ class Style:
             # edge_softness=0.22: crisp — psychological vivacity lives in clear, direct edges
             # and confident tonal transitions, not sfumato dissolution.
             Period.DUTCH_BRAVURA_PORTRAIT: dict(stroke_size_face=10, stroke_size_bg=28, wet_blend=0.14, edge_softness=0.22),
+            # MILANESE_SFUMATO (Bernardino Luini) — Leonardo-school Milanese sfumato.
+            # stroke_size_face=4: fine, polished strokes building up a seamless ivory-flesh
+            # surface through many thin glazes; not the minute fineness of Dou, but clearly
+            # in the Leonardesque tradition of small-scale refinement.
+            # stroke_size_bg=20: backgrounds receive broader handling; often warm neutral or
+            # landscape distance dissolved in sfumato haze.
+            # wet_blend=0.72: high — Luini's surfaces are seamlessly blended, following
+            # Leonardo's own multi-glaze sfumato; no visible brushwork on the face.
+            # edge_softness=0.78: very soft — edges melt into one another without hard lines,
+            # the defining quality of Leonardo's Milan school.
+            Period.MILANESE_SFUMATO: dict(stroke_size_face=4, stroke_size_bg=20, wet_blend=0.72, edge_softness=0.78),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

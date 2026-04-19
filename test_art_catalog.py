@@ -11739,3 +11739,155 @@ def test_Frans_hals_stroke_params():
     assert params["edge_softness"] <= 0.30, (
         f"DUTCH_BRAVURA_PORTRAIT edge_softness must be ≤ 0.30 (tache crispness); "
         f"got {params['edge_softness']:.2f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bernardino Luini — session 97
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_bernardino_luini_in_catalog():
+    """bernardino_luini must be present in the CATALOG (session 97)."""
+    from art_catalog import CATALOG
+    assert "bernardino_luini" in CATALOG, "bernardino_luini not found in CATALOG"
+
+
+def test_bernardino_luini_style_fields():
+    """bernardino_luini ArtStyle must have artist, nationality, movement, and period."""
+    s = get_style("bernardino_luini")
+    assert "Luini" in s.artist
+    assert "Italian" in s.nationality or "Milanese" in s.nationality
+    assert "Milanese" in s.movement or "Renaissance" in s.movement
+    assert s.period is not None and len(s.period) > 0
+
+
+def test_bernardino_luini_palette_size():
+    """bernardino_luini must have at least 6 palette entries."""
+    s = get_style("bernardino_luini")
+    assert len(s.palette) >= 6, (
+        f"bernardino_luini palette must have ≥ 6 entries; got {len(s.palette)}")
+
+
+def test_bernardino_luini_palette_warm_ivory():
+    """bernardino_luini palette must include warm-ivory highlight (R > 0.85, all channels high)."""
+    s = get_style("bernardino_luini")
+    warm_ivory_found = any(
+        r > 0.85 and g > 0.75 and b > 0.55
+        for r, g, b in s.palette
+    )
+    assert warm_ivory_found, (
+        f"bernardino_luini palette must include a warm-ivory highlight (R>0.85, G>0.75, B>0.55); "
+        f"got {s.palette}")
+
+
+def test_bernardino_luini_soft_edges():
+    """bernardino_luini edge_softness must be >= 0.65 (Leonardesque sfumato dissolution)."""
+    s = get_style("bernardino_luini")
+    assert s.edge_softness >= 0.65, (
+        f"bernardino_luini edge_softness must be >= 0.65 (sfumato); got {s.edge_softness:.2f}")
+
+
+def test_bernardino_luini_high_wet_blend():
+    """bernardino_luini wet_blend must be >= 0.60 (multi-glaze seamless surface)."""
+    s = get_style("bernardino_luini")
+    assert s.wet_blend >= 0.60, (
+        f"bernardino_luini wet_blend must be >= 0.60 (glaze layers); got {s.wet_blend:.2f}")
+
+
+def test_bernardino_luini_fine_stroke_size():
+    """bernardino_luini stroke_size must be <= 6 (fine polished Renaissance brushwork)."""
+    s = get_style("bernardino_luini")
+    assert s.stroke_size <= 6, (
+        f"bernardino_luini stroke_size must be <= 6; got {s.stroke_size}")
+
+
+def test_bernardino_luini_has_glazing():
+    """bernardino_luini must have a glazing colour (multi-layer glazed surface)."""
+    s = get_style("bernardino_luini")
+    assert s.glazing is not None, "bernardino_luini should have a glazing colour (multi-glaze)"
+
+
+def test_bernardino_luini_has_crackle():
+    """bernardino_luini crackle must be True (oil on panel, aged)."""
+    s = get_style("bernardino_luini")
+    assert s.crackle is True
+
+
+def test_bernardino_luini_no_chromatic_split():
+    """bernardino_luini chromatic_split must be False (warm unified glaze, not split)."""
+    s = get_style("bernardino_luini")
+    assert s.chromatic_split is False
+
+
+def test_bernardino_luini_technique_mentions_leonardo():
+    """Technique field must reference Leonardo da Vinci."""
+    s = get_style("bernardino_luini")
+    assert "Leonardo" in s.technique, "bernardino_luini technique must mention Leonardo da Vinci"
+
+
+def test_bernardino_luini_technique_mentions_sfumato():
+    """Technique field must reference sfumato."""
+    s = get_style("bernardino_luini")
+    assert "sfumato" in s.technique.lower(), "bernardino_luini technique must mention sfumato"
+
+
+def test_bernardino_luini_famous_works_not_empty():
+    """bernardino_luini must have at least 4 famous works."""
+    s = get_style("bernardino_luini")
+    assert len(s.famous_works) >= 4, (
+        f"bernardino_luini must have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_bernardino_luini_famous_works_include_susanna():
+    """Susanna at the Bath (c. 1520-1523) is among Luini's most celebrated works."""
+    s = get_style("bernardino_luini")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Susanna" in t for t in titles), (
+        f"Expected 'Susanna at the Bath' among famous works; got {titles}")
+
+
+def test_bernardino_luini_inspiration_references_pass():
+    """Inspiration field must reference luini_leonardesque_glow_pass()."""
+    s = get_style("bernardino_luini")
+    assert "luini_leonardesque_glow_pass" in s.inspiration
+
+
+def test_bernardino_luini_period_enum_present():
+    """MILANESE_SFUMATO must exist in Period enum (session 97)."""
+    assert hasattr(Period, "MILANESE_SFUMATO"), "Period.MILANESE_SFUMATO not found"
+    assert Period.MILANESE_SFUMATO in list(Period)
+
+
+def test_bernardino_luini_stroke_params():
+    """MILANESE_SFUMATO stroke_params must reflect soft Leonardesque sfumato technique."""
+    style = Style(medium=Medium.OIL, period=Period.MILANESE_SFUMATO, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    # Fine strokes — polished Milanese sfumato
+    assert params["stroke_size_face"] <= 6, (
+        f"MILANESE_SFUMATO stroke_size_face must be <= 6 (fine sfumato); "
+        f"got {params['stroke_size_face']}")
+    # High wet blend — seamless multi-glaze surface
+    assert params["wet_blend"] >= 0.60, (
+        f"MILANESE_SFUMATO wet_blend must be >= 0.60 (glaze seamlessness); "
+        f"got {params['wet_blend']:.2f}")
+    # Very soft edges — sfumato dissolution
+    assert params["edge_softness"] >= 0.65, (
+        f"MILANESE_SFUMATO edge_softness must be >= 0.65 (sfumato edge loss); "
+        f"got {params['edge_softness']:.2f}")
+
+
+def test_sfumato_veil_pass_highlight_ivory_lift_parameter_exists():
+    """sfumato_veil_pass must accept highlight_ivory_lift parameter (session 97)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sfumato_veil_pass)
+    assert "highlight_ivory_lift" in sig.parameters, (
+        "sfumato_veil_pass must have highlight_ivory_lift parameter (session 97)")
+
+
+def test_sfumato_veil_pass_highlight_ivory_thresh_parameter_exists():
+    """sfumato_veil_pass must accept highlight_ivory_thresh parameter (session 97)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sfumato_veil_pass)
+    assert "highlight_ivory_thresh" in sig.parameters, (
+        "sfumato_veil_pass must have highlight_ivory_thresh parameter (session 97)")
