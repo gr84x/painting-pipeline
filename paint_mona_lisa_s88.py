@@ -460,7 +460,7 @@ def paint(out_dir: str = ".") -> str:
     print("  -- jewel saturation lift: intensify chromatic mid-luminance zones")
     print()
     print("Session 88 artistic improvement: spectral_dispersion in luminous_haze_pass()")
-    print("  Rayleigh scattering: blue channel blurred more than red (λ⁻⁴ law),")
+    print("  Rayleigh scattering: blue channel blurred more than red (lambda^-4 law),")
     print("  creating subtle cool-blue horizon haze / warm figure zone temperature split.")
     print()
 
@@ -546,89 +546,127 @@ def paint(out_dir: str = ".") -> str:
     # Session 65: Subsurface scatter pass
     print("Subsurface scatter pass (session 65)...")
     p.subsurface_scatter_pass(
-        scatter_color   = (0.86, 0.52, 0.32),
-        scatter_depth   = 0.10,
-        scatter_radius  = 4.0,
-        opacity         = 0.18,
+        scatter_strength = 0.10,
+        scatter_radius   = 4.0,
+        scatter_low      = 0.42,
+        scatter_high     = 0.82,
+        penumbra_warm    = 0.04,
+        opacity          = 0.18,
     )
 
     # Session 66: Alma-Tadema marble luminance pass
     print("Alma-Tadema marble luminance pass (session 66)...")
     p.alma_tadema_marble_luminance_pass(
-        vein_opacity    = 0.06,
-        surface_polish  = 0.08,
-        warm_sheen      = 0.05,
-        opacity         = 0.22,
+        marble_warm_strength = 0.05,
+        specular_cool_shift  = 0.04,
+        specular_thresh      = 0.86,
+        translucent_low      = 0.52,
+        translucent_high     = 0.86,
+        opacity              = 0.22,
     )
 
     # Session 67: Crystalline surface pass
     print("Crystalline surface pass (session 67)...")
     p.crystalline_surface_pass(
-        crystal_strength = 0.05,
-        edge_glint       = 0.06,
-        opacity          = 0.18,
+        specular_radius   = 2.5,
+        specular_strength = 0.05,
+        specular_thresh   = 0.82,
+        micro_cool_shift  = 0.03,
+        halo_radius       = 6.0,
+        halo_warmth       = 0.04,
+        halo_thresh       = 0.72,
+        opacity           = 0.18,
     )
 
     # Session 68: Mantegna sculptural form pass
     print("Mantegna sculptural form pass (session 68)...")
     p.mantegna_sculptural_form_pass(
-        contour_strength = 0.08,
-        shadow_carve     = 0.06,
-        highlight_lift   = 0.05,
-        opacity          = 0.28,
+        highlight_lift = 0.05,
+        shadow_deepen  = 0.06,
+        edge_crisp     = 0.05,
+        blur_radius    = 4.0,
+        opacity        = 0.28,
     )
 
     # Session 69: Warm-cool form duality pass
     print("Warm-cool form duality pass (session 69)...")
     p.warm_cool_form_duality_pass(
-        warm_strength = 0.06,
-        cool_strength = 0.08,
-        opacity       = 0.30,
+        warm_strength    = 0.06,
+        cool_strength    = 0.08,
+        opacity          = 0.30,
     )
 
     # Session 69: Skin zone temperature pass
     print("Skin zone temperature pass (session 69)...")
     p.skin_zone_temperature_pass(
-        forehead_cool   = 0.04,
-        cheek_warm      = 0.06,
-        chin_warm       = 0.03,
-        shadow_cool     = 0.05,
-        opacity         = 0.40,
+        face_cx        = 0.515,
+        face_cy        = 0.215,
+        face_rx        = 0.13,
+        face_ry        = 0.18,
+        forehead_warm  = 0.03,
+        temple_cool    = 0.03,
+        nose_pink      = 0.04,
+        lip_rose       = 0.03,
+        jaw_cool       = 0.02,
+        blur_radius    = 8.0,
+        opacity        = 0.40,
     )
 
     # Session 70: Guido Reni angelic grace pass
     print("Guido Reni angelic grace pass (session 70)...")
     p.guido_reni_angelic_grace_pass(
-        radiance_strength = 0.08,
-        cool_grace        = 0.06,
-        silver_highlight  = 0.05,
-        opacity           = 0.28,
+        face_cx       = 0.515,
+        face_cy       = 0.215,
+        face_rx       = 0.20,
+        face_ry       = 0.25,
+        pearl_lift    = 0.06,
+        pearl_cool    = 0.04,
+        cheek_rose    = 0.04,
+        lip_rose      = 0.04,
+        shadow_violet = 0.03,
+        blur_radius   = 8.0,
+        opacity       = 0.28,
     )
 
     # Session 70: David neoclassical clarity pass
     print("David neoclassical clarity pass (session 70)...")
     p.david_neoclassical_clarity_pass(
-        contour_strength = 0.06,
-        cool_light       = 0.04,
-        opacity          = 0.24,
+        figure_cx      = 0.515,
+        figure_top     = 0.02,
+        figure_bottom  = 0.85,
+        figure_rx      = 0.28,
+        bg_cool_shift  = 0.05,
+        contour_crisp  = 0.04,
+        amber_glaze    = 0.03,
+        blur_radius    = 6.0,
+        opacity        = 0.24,
     )
 
     # Translucent gauze pass (session 62)
     print("Translucent gauze pass (session 62)...")
     p.translucent_gauze_pass(
-        gauze_color   = (0.72, 0.65, 0.50),
-        transparency  = 0.70,
-        softness      = 0.08,
-        opacity       = 0.28,
+        zone_top       = 0.40,
+        zone_bottom    = 0.72,
+        cool_shift     = 0.04,
+        weave_strength = 0.014,
+        blur_radius    = 4.0,
+        opacity        = 0.28,
     )
 
     # Session 71: Correggio golden tenderness pass
     print("Correggio golden tenderness pass (session 71)...")
     p.correggio_golden_tenderness_pass(
-        golden_warmth     = 0.08,
-        penumbra_glow     = 0.06,
-        sfumato_blend     = 0.05,
-        opacity           = 0.32,
+        midtone_low  = 0.32,
+        midtone_high = 0.78,
+        gold_lift    = 0.06,
+        amber_shadow = 0.04,
+        face_cx      = 0.515,
+        face_cy      = 0.215,
+        face_rx      = 0.140,
+        face_ry      = 0.190,
+        glow_strength = 0.04,
+        blur_radius  = 10.0,
+        opacity      = 0.32,
     )
 
     # Session 71: Luminous haze pass — SESSION 88 IMPROVEMENT: spectral_dispersion=0.28
@@ -733,7 +771,7 @@ def paint(out_dir: str = ".") -> str:
         silk_cool_r     = 0.02,
         skin_r_lo       = 0.45, skin_r_hi = 0.92,
         skin_g_lo       = 0.28, skin_g_hi = 0.80,
-        skin_b_lo       = 0.15, skin_b_hi = 0.65,
+        skin_b_hi       = 0.65,
         blur_radius     = 8.0,
         opacity         = 0.32,
     )
@@ -760,7 +798,7 @@ def paint(out_dir: str = ".") -> str:
         bg_blue_lift    = 0.012,
         skin_r_lo       = 0.45, skin_r_hi = 0.92,
         skin_g_lo       = 0.28, skin_g_hi = 0.80,
-        skin_b_lo       = 0.15, skin_b_hi = 0.65,
+        skin_b_hi       = 0.65,
         blur_radius     = 7.0,
         opacity         = 0.36,
     )
@@ -779,7 +817,7 @@ def paint(out_dir: str = ".") -> str:
         harmony_pull    = 0.08,
         skin_r_lo       = 0.45, skin_r_hi = 0.92,
         skin_g_lo       = 0.28, skin_g_hi = 0.80,
-        skin_b_lo       = 0.15, skin_b_hi = 0.65,
+        skin_b_hi       = 0.65,
         blur_radius     = 7.0,
         opacity         = 0.40,
     )
@@ -819,9 +857,10 @@ def paint(out_dir: str = ".") -> str:
     # Session 82 IMPROVED: sfumato veil with shadow warm recovery
     print("Sfumato veil pass (session 82 improved -- shadow_warm_recovery)...")
     p.sfumato_veil_pass(
+        reference            = ref,
         n_veils              = 4,
         veil_opacity         = 0.14,
-        veil_color           = (0.62, 0.52, 0.32),
+        warmth               = 0.35,
         shadow_warm_recovery = 0.10,
     )
 
@@ -846,12 +885,11 @@ def paint(out_dir: str = ".") -> str:
     # Session 83 IMPROVED: highlight bloom with chromatic_bloom=True
     print("Highlight bloom pass (session 83 improved -- chromatic_bloom=True)...")
     p.highlight_bloom_pass(
-        bloom_threshold = 0.78,
-        bloom_radius    = 6.0,
-        bloom_strength  = 0.18,
+        threshold       = 0.78,
+        bloom_sigma     = 6.0,
+        bloom_opacity   = 0.18,
         bloom_color     = (0.88, 0.80, 0.62),
         chromatic_bloom = True,
-        opacity         = 0.28,
     )
 
     # Session 84: Perugino serene grace pass
