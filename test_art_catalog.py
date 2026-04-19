@@ -106,6 +106,7 @@ EXPECTED_ARTISTS = [
     "leon_spilliaert",
     "ferdinand_hodler",
     "gustave_caillebotte",
+    "franz_marc",
 ]
 
 
@@ -10959,3 +10960,104 @@ def test_gustave_caillebotte_technique_mentions_paris():
     s = get_style("gustave_caillebotte")
     assert "Paris" in s.technique or "paris" in s.technique.lower(), (
         "Caillebotte technique should mention Paris")
+
+
+# ── Session 91 — Franz Marc ────────────────────────────────────────────────────
+
+def test_franz_marc_in_catalog():
+    """franz_marc must be present in CATALOG (session 91)."""
+    assert "franz_marc" in CATALOG, "franz_marc not found in CATALOG"
+
+
+def test_franz_marc_in_expected_artists():
+    """EXPECTED_ARTISTS list must include franz_marc (session 91)."""
+    assert "franz_marc" in EXPECTED_ARTISTS
+
+
+def test_franz_marc_palette_values_in_range():
+    """All Franz Marc palette RGB values must be in [0, 1]."""
+    s = get_style("franz_marc")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Marc palette channel {ch} out of [0, 1] in {rgb}")
+
+
+def test_franz_marc_palette_contains_spiritual_blue():
+    """Marc's palette must contain an ultramarine spiritual blue (B > R, B > G)."""
+    s = get_style("franz_marc")
+    has_blue = any(b > r and b > g for r, g, b in s.palette)
+    assert has_blue, (
+        "Marc palette must include a spiritual ultramarine blue — "
+        "the defining symbolic colour of Der Blaue Reiter")
+
+
+def test_franz_marc_palette_contains_cadmium_yellow():
+    """Marc's palette must contain a cadmium yellow (R > B, G > B, high luminance)."""
+    s = get_style("franz_marc")
+    has_yellow = any(r > b and g > b and (0.299 * r + 0.587 * g + 0.114 * b) > 0.65
+                     for r, g, b in s.palette)
+    assert has_yellow, (
+        "Marc palette must include a cadmium yellow — "
+        "the feminine/vitality colour in his symbolic system")
+
+
+def test_franz_marc_ground_is_blue_dominant():
+    """Marc's ground colour must be blue-dominant (B > R) — deep spiritual ground."""
+    s = get_style("franz_marc")
+    r, g, b = s.ground_color
+    assert b > r, (
+        f"Marc ground should be blue-dominant (B > R); got R={r:.2f} B={b:.2f}")
+
+
+def test_franz_marc_low_wet_blend():
+    """Marc's wet_blend must be below 0.45 — colour planes stay clearly bounded."""
+    s = get_style("franz_marc")
+    assert s.wet_blend < 0.45, (
+        f"Marc wet_blend should be low; colour planes must stay bounded; "
+        f"got {s.wet_blend:.2f}")
+
+
+def test_franz_marc_no_crackle():
+    """Marc crackle must be False — his canvases are not heavily aged."""
+    s = get_style("franz_marc")
+    assert not s.crackle, "Marc crackle should be False"
+
+
+def test_franz_marc_warm_glazing():
+    """Marc's glazing must be warm (R > B) — amber glaze unifies the primaries."""
+    s = get_style("franz_marc")
+    assert s.glazing is not None, "Marc should have a glazing colour"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"Marc glazing should be warm amber (R > B); got {s.glazing}")
+
+
+def test_franz_marc_famous_works_not_empty():
+    """Marc's famous_works must not be empty."""
+    s = get_style("franz_marc")
+    assert len(s.famous_works) > 0, "Marc famous_works must not be empty"
+
+
+def test_franz_marc_famous_works_include_blue_horse():
+    """Marc's famous works must include Blue Horse I (1911)."""
+    s = get_style("franz_marc")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("blue horse" in t for t in titles), (
+        "Marc famous_works must include Blue Horse I (1911) — his most iconic work")
+
+
+def test_franz_marc_famous_works_include_fate_of_animals():
+    """Marc's famous works must include Fate of the Animals (1913)."""
+    s = get_style("franz_marc")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("fate" in t or "animals" in t for t in titles), (
+        "Marc famous_works must include Fate of the Animals (1913)")
+
+
+def test_franz_marc_inspiration_references_prismatic_pass():
+    """Marc's inspiration must reference franz_marc_prismatic_vitality_pass()."""
+    s = get_style("franz_marc")
+    assert "franz_marc_prismatic_vitality_pass" in s.inspiration, (
+        "Marc inspiration should reference franz_marc_prismatic_vitality_pass()")

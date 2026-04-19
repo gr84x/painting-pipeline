@@ -256,6 +256,7 @@ class Period(Enum):
     AMERICAN_TONALIST = auto()  # Whistler — cool silver-grey tonal harmony, nocturne atmospheric dissolution, peripheral edge loss, minimal palette keyed to a single tonal register
     BELGIAN_SYMBOLIST = auto()  # Spilliaert — near-monochrome ink-black voids, vertiginous geometric perspective, pale isolated figures, cold blue-grey ink darkness, profound solitude
     PARISIAN_REALIST = auto()  # Caillebotte — radical perspective foreshortening, photographic cropping, cool grey urban palette, wet cobblestone reflections, geometric receding planes
+    DER_BLAUE_REITER = auto()  # Franz Marc / Kandinsky — spiritual prismatic primaries, symbolic colour assignment, bold simplified animal/landscape forms, ultramarine grounds, unmixed pigment zones
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1036,6 +1037,16 @@ class Style:
             # wet_blend=0.18: moderate realism, not impressionistic blending.
             # edge_softness=0.25: crisp edges for architectural geometry and perspective lines.
             Period.PARISIAN_REALIST: dict(stroke_size_face=5, stroke_size_bg=14, wet_blend=0.18, edge_softness=0.25),
+            # DER_BLAUE_REITER (Franz Marc / Kandinsky) — prismatic spiritual primaries, bold simplified forms.
+            # stroke_size_face=6: confident, clean strokes — Marc's animal forms are bold, each mark
+            # defines a clear bounded plane of pure colour rather than a subtle tonal transition.
+            # stroke_size_bg=22: landscape resolved in strong planes — Alpine ridges and meadows are
+            # geometric colour bands; no impressionist flicker, no sfumato dissolution.
+            # wet_blend=0.28: low-moderate; adjacent colour planes retain their individual identity
+            # rather than blending; the chromatic contrast between blue/yellow/red is the subject.
+            # edge_softness=0.32: low-moderate; clear form boundaries with just enough softening at
+            # the very edge to avoid woodcut harshness; the colour does the modelling, not the edge.
+            Period.DER_BLAUE_REITER: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.28, edge_softness=0.32),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

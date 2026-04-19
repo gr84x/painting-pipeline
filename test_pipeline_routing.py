@@ -11451,3 +11451,132 @@ def test_atmospheric_depth_pass_horizon_glow_band_brightens_horizon():
     assert lum_with_glow > lum_no_glow, (
         f"atmospheric_depth_pass horizon_glow_band should brighten the horizon zone; "
         f"no_glow_lum={lum_no_glow:.4f}  with_glow_lum={lum_with_glow:.4f}")
+
+
+# ── Session 91 — DER_BLAUE_REITER Period + franz_marc_prismatic_vitality_pass
+#                + warm_ground_glow artistic improvement ──────────────────────
+
+def test_der_blaue_reiter_period_accessible():
+    """Period.DER_BLAUE_REITER must be accessible from scene_schema (session 91)."""
+    from scene_schema import Period
+    assert hasattr(Period, 'DER_BLAUE_REITER'), (
+        'Period.DER_BLAUE_REITER not found in scene_schema — add it')
+    assert Period.DER_BLAUE_REITER in list(Period)
+
+
+def test_der_blaue_reiter_stroke_params_keys():
+    """DER_BLAUE_REITER stroke_params must contain the expected keys."""
+    from scene_schema import Style, Medium, Period
+    sp = Style(medium=Medium.OIL, period=Period.DER_BLAUE_REITER).stroke_params
+    for key in ('stroke_size_face', 'stroke_size_bg', 'wet_blend', 'edge_softness'):
+        assert key in sp, f"DER_BLAUE_REITER stroke_params missing key: {key!r}"
+
+
+def test_der_blaue_reiter_wet_blend_low():
+    """DER_BLAUE_REITER wet_blend must be below 0.45 — colour planes stay bounded."""
+    from scene_schema import Style, Medium, Period
+    sp = Style(medium=Medium.OIL, period=Period.DER_BLAUE_REITER).stroke_params
+    assert sp['wet_blend'] < 0.45, (
+        f"DER_BLAUE_REITER wet_blend should keep colour planes bounded; "
+        f"got {sp['wet_blend']:.2f}")
+
+
+def test_franz_marc_prismatic_vitality_pass_zero_opacity_noop():
+    """franz_marc_prismatic_vitality_pass at opacity=0 must leave the surface unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=48, height=48)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((48, 48, 4)).copy()
+    data[:, :, :] = [80, 140, 60, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.franz_marc_prismatic_vitality_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "franz_marc_prismatic_vitality_pass at opacity=0 should not modify the surface")
+
+
+def test_franz_marc_prismatic_vitality_pass_blue_intensification():
+    """franz_marc_prismatic_vitality_pass should intensify blue in blue-dominant pixels."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=32, height=32)
+    # Fill with a blue-dominant colour (B >> R, B >> G)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((32, 32, 4)).copy()
+    data[:, :, 0] = 180   # B channel (BGRA)
+    data[:, :, 1] = 60    # G
+    data[:, :, 2] = 40    # R
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    b_before = data[:, :, 0].astype(float).mean()
+    p.franz_marc_prismatic_vitality_pass(blue_push=0.20, opacity=1.0)
+    arr_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((32, 32, 4))
+    b_after = arr_after[:, :, 0].astype(float).mean()
+    assert b_after >= b_before, (
+        f"franz_marc_prismatic_vitality_pass should intensify blue in blue-dominant pixels; "
+        f"B before={b_before:.1f}  B after={b_after:.1f}")
+
+
+def test_cool_atmospheric_recession_warm_ground_glow_zero_identical():
+    """cool_atmospheric_recession_pass warm_ground_glow=0 result must equal default."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    def _run(glow):
+        p = Painter(width=64, height=64)
+        arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+        arr[:, :, :] = [90, 130, 80, 255]
+        p.canvas.surface.get_data()[:] = arr.tobytes()
+        p.cool_atmospheric_recession_pass(
+            horizon_y=0.40,
+            cool_strength=0.20,
+            bright_lift=0.08,
+            desaturate=0.25,
+            blur_background=0.5,
+            feather=0.12,
+            opacity=0.60,
+            lateral_horizon_asymmetry=0.0,
+            warm_ground_glow=glow,
+        )
+        return np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    result_no_glow   = _run(0.0)
+    result_zero_glow = _run(0.0)
+    assert np.array_equal(result_no_glow, result_zero_glow), (
+        "cool_atmospheric_recession_pass warm_ground_glow=0.0 must be deterministic")
+
+
+def test_cool_atmospheric_recession_warm_ground_glow_warms_near_horizon():
+    """warm_ground_glow > 0 should produce warmer (higher R) values near the horizon."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    def _run(glow):
+        p = Painter(width=64, height=64)
+        arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+        arr[:, :, :] = [90, 110, 80, 255]   # neutral mid-tone fill
+        p.canvas.surface.get_data()[:] = arr.tobytes()
+        p.cool_atmospheric_recession_pass(
+            horizon_y=0.50,
+            cool_strength=0.15,
+            bright_lift=0.06,
+            desaturate=0.20,
+            blur_background=0.0,
+            feather=0.05,
+            opacity=0.80,
+            lateral_horizon_asymmetry=0.0,
+            warm_ground_glow=glow,
+        )
+        result = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4))
+        # Sample the near-horizon zone (rows 26–34, just above the horizon at row 32)
+        zone = result[26:34, :, :]
+        r = zone[:, :, 2].astype(float) / 255.0
+        b = zone[:, :, 0].astype(float) / 255.0
+        return r.mean(), b.mean()
+
+    r_no_glow, b_no_glow   = _run(0.0)
+    r_with_glow, b_with_glow = _run(0.25)
+
+    assert r_with_glow >= r_no_glow, (
+        f"warm_ground_glow should raise R near horizon; "
+        f"R no_glow={r_no_glow:.4f}  R with_glow={r_with_glow:.4f}")

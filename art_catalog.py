@@ -7644,6 +7644,102 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Franz Marc ─────────────────────────────────────────────────────────────
+    "franz_marc": ArtStyle(
+        artist="Franz Marc",
+        movement="German Expressionism / Der Blaue Reiter",
+        nationality="German",
+        period="1880–1916",
+        palette=[
+            (0.12, 0.20, 0.72),   # ultramarine spiritual blue — the defining Marc hue; horses, deer, sky
+            (0.92, 0.82, 0.10),   # cadmium yellow — feminine vitality; cows, meadows, sunlight
+            (0.82, 0.22, 0.14),   # cadmium red — violence, matter, earth; accents on bodies and ground
+            (0.18, 0.62, 0.28),   # emerald green — nature ground; landscape planes beneath animals
+            (0.55, 0.30, 0.65),   # violet — spiritual transition between blue and red; shadow masses
+            (0.08, 0.08, 0.12),   # warm near-black — deep shadow, outline boundary planes
+            (0.92, 0.90, 0.88),   # warm ivory — highlight zones, sky margin, lightest flesh
+        ],
+        ground_color=(0.18, 0.28, 0.55),   # deep ultramarine-blue ground — the spiritual ground of existence
+        stroke_size=6,
+        wet_blend=0.28,
+        edge_softness=0.32,
+        jitter=0.018,
+        glazing=(0.62, 0.55, 0.22),        # warm amber glaze — unifies the prismatic primaries across the canvas
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Franz Marc (1880–1916) was co-founder, with Wassily Kandinsky, of Der "
+            "Blaue Reiter (The Blue Rider) — the Munich-based German Expressionist "
+            "movement that sought to use colour as a direct vehicle of spiritual truth "
+            "rather than a description of observed reality.  Marc's central conviction "
+            "was that specific colours carried inherent symbolic meaning: blue for "
+            "spirituality and the masculine principle, yellow for warmth, gentleness "
+            "and the feminine, red for violence, matter, and the earthly.  These were "
+            "not arbitrary assignments but beliefs derived from Goethe's colour theory "
+            "and theosophical spiritualism that Marc studied intensively.  "
+            "In practice this meant that Marc's animals — the blue horses, the yellow "
+            "cow, the red deer — are not naturalistic descriptions but chromatic "
+            "arguments: the horse painted ultramarine is a spiritual being; the same "
+            "animal painted red would be earthy and violent; yellow would be gentle and "
+            "feminine.  His canvases are therefore colour-philosophies as much as "
+            "paintings.  "
+            "Formally, Marc moved steadily toward abstraction.  His early animal works "
+            "are recognisably figurative but rendered in pure unmixed primaries applied "
+            "in clearly bounded planes with minimal atmospheric blending.  By 1912–1913 "
+            "the planes begin to fragment into the angular, faceted geometry of Cubism "
+            "(which Marc encountered in Paris in 1912 through Delaunay's Orphism) while "
+            "retaining the prismatic colour symbolism.  Fate of the Animals (1913) is "
+            "the culmination: a shattering cascade of prismatic shards implying "
+            "apocalyptic destruction, with the symbolic colour system now embedded in "
+            "a Cubist-shattered space.  Marc himself called it a premonition — he was "
+            "killed at Verdun in 1916, aged 35.  "
+            "Technique: Marc worked with a limited palette of pure primaries — "
+            "ultramarine, cadmium yellow, cadmium red, emerald green — and avoided "
+            "greys, browns, and earth tones wherever possible.  His canvases have an "
+            "almost stained-glass luminosity: each colour plane glows independently "
+            "rather than participating in a unified tonal system.  His grounds were "
+            "often blue or violet — the spiritual colour — so that it could seep "
+            "through the upper paint layers as a unifying undertone.  "
+            "Apply franz_marc_prismatic_vitality_pass() to encode the characteristic "
+            "Marc surface: symbolic colour intensification, prismatic clarity of "
+            "individual colour planes, and the spiritual luminosity of pure unmixed "
+            "primaries glowing against a deep blue ground."
+        ),
+        famous_works=[
+            ("Blue Horse I", "1911"),
+            ("The Large Blue Horses", "1911"),
+            ("Yellow Cow", "1911"),
+            ("The Tiger", "1912"),
+            ("Deer in the Forest II", "1913"),
+            ("Fate of the Animals", "1913"),
+            ("Tower of Blue Horses", "1913"),
+            ("The Foxes", "1913"),
+            ("Fighting Forms", "1914"),
+            ("Stables", "1913"),
+        ],
+        inspiration=(
+            "Apply franz_marc_prismatic_vitality_pass() to encode Marc's symbolic "
+            "colour language.  Three stages: (1) symbolic colour intensification — "
+            "identify dominant hue of each pixel zone; pixels where blue dominates "
+            "(B > R×1.15, B > G×1.10) receive a further push toward ultramarine "
+            "(spiritual elevation); pixels where warm yellow dominates (R > B×1.15, "
+            "G > B×1.10, high luminance > 0.70) receive a gentle golden warmth push; "
+            "pixels with red-dominant mid-darks (R > B×1.20, lum in [0.25, 0.60]) "
+            "receive a slight deepening into warm crimson; this simulates Marc's "
+            "symbolic colour assignment in which each primary retains and amplifies "
+            "its own emotional character; (2) prismatic form bloom — compute per-pixel "
+            "chroma (max_rgb − min_rgb); at high-chroma boundaries (chroma > "
+            "bloom_thresh) apply a per-channel Gaussian bloom (sigma=3.0) weighted "
+            "by the excess chroma, producing the glowing luminous aureole around pure "
+            "colour planes characteristic of Marc's stained-glass quality; (3) "
+            "prismatic clarity lift — in mid-luminance zones (lum in [0.30, 0.75]) "
+            "boost saturation by boost_amount × chroma_gate (chroma > sat_thresh), "
+            "moving each channel further from the luminance mean; this maintains the "
+            "unmixed-pigment vibrancy of Marc's pure primary palette and prevents "
+            "any overall muddying of the colour zones.  Use at opacity 0.32–0.45."
+        ),
+    ),
+
 }
 
 

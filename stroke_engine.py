@@ -20687,7 +20687,8 @@ class Painter:
                                          blur_background:            float = 0.8,
                                          feather:                    float = 0.15,
                                          opacity:                    float = 0.75,
-                                         lateral_horizon_asymmetry:  float = 0.0) -> None:
+                                         lateral_horizon_asymmetry:  float = 0.0,
+                                         warm_ground_glow:           float = 0.0) -> None:
         """
         Cool atmospheric recession pass — session 74 artistic improvement.
 
@@ -20767,6 +20768,23 @@ class Painter:
                            that varies linearly across the canvas width; when zero the
                            behaviour is identical to the prior single-horizon formulation.
                            Typical range: −0.10 to +0.10 (up to 10 % of canvas height).
+        warm_ground_glow   : Strength of warm amber glow near the base of the recession
+                           zone — session 91 artistic improvement.  In Renaissance and
+                           Venetian landscape painting, the terrain just above the
+                           figure's horizon is not simply the coolest point; it retains
+                           a warm, golden character where sunlit earth and reflected
+                           ground-light heat the lower atmosphere.  The cool aerial
+                           blue-grey only dominates higher up, where the line of sight
+                           passes through more atmosphere.  When > 0, pixels in the
+                           lower portion of the recession zone (within ~20 % above the
+                           per-column horizon) receive a warm amber push (R↑, G↑ slightly,
+                           B↓) that softly fades as the recession weight increases toward
+                           the top of canvas, where the cool atmospheric haze takes over.
+                           The warm zone is bell-curve profiled so there is no hard edge:
+                           deepest warmth at ≈ 8 % above the horizon, tapering to zero
+                           both at the horizon itself and at the cool zone above.  When
+                           warm_ground_glow = 0 the behaviour is identical to the
+                           prior formulation.  Typical range: 0.05–0.20.
         """
         import numpy as _np
         from scipy.ndimage import gaussian_filter as _gf
@@ -20774,7 +20792,8 @@ class Painter:
         print(f"  Cool atmospheric recession pass "
               f"(horizon_y={horizon_y:.2f}  cool={cool_strength:.2f}  "
               f"lift={bright_lift:.2f}  desat={desaturate:.2f}  "
-              f"opacity={opacity:.2f}  lateral_asym={lateral_horizon_asymmetry:+.3f}) ...")
+              f"opacity={opacity:.2f}  lateral_asym={lateral_horizon_asymmetry:+.3f}  "
+              f"warm_ground_glow={warm_ground_glow:.2f}) ...")
 
         if opacity <= 0.0:
             print("    Cool atmospheric recession pass skipped (opacity=0)")
@@ -20838,12 +20857,37 @@ class Painter:
         # Combined recession weight: depth × background mask
         recession_w = depth_w * suppress   # (H, W)
 
+        # ── 0. Warm ground glow (session 91 improvement) ──────────────────────
+        # In Renaissance landscape painting the terrain just above the horizon
+        # glows with warm amber — reflected ground light and low-angle sun warm
+        # the lower atmosphere before the cool aerial haze dominates higher up.
+        # A bell-curve weight centred at ~8 % above the horizon drives a warm
+        # push (R↑, G↑, B↓) that peaks just above the horizon and tapers to
+        # zero both at the horizon itself and well into the cool zone above.
+        # Initialise working buffers (may be modified by warm glow below).
+        r_out = r_f.copy()
+        g_out = g_f.copy()
+        b_out = b_f.copy()
+        if warm_ground_glow > 0.0:
+            # glow_t: normalised distance above horizon in [0, 1], but only within
+            # the lower 30 % of the recession zone where the warm glow lives.
+            glow_t_raw = _np.clip(t_raw * (1.0 / 0.30), 0.0, 1.0)   # 0 at horizon, 1 at 30 % up
+            # Bell curve peaking at glow_t ≈ 0.27 (≈ 8 % above horizon in depth_w terms)
+            glow_bell = _np.exp(-((glow_t_raw - 0.27) ** 2) / (2.0 * 0.12 ** 2))
+            # Suppress glow at the horizon itself and taper it out above 30 %
+            glow_mask = glow_bell * _np.clip(t_raw / 0.05, 0.0, 1.0) * suppress
+            glow_mask = _np.clip(_gf(glow_mask, sigma=4.0) * warm_ground_glow, 0.0, 1.0)
+            # Warm amber push: R↑, G↑ slightly, B↓
+            r_out = _np.clip(r_out + glow_mask * 0.14, 0.0, 1.0)
+            g_out = _np.clip(g_out + glow_mask * 0.07, 0.0, 1.0)
+            b_out = _np.clip(b_out - glow_mask * 0.06, 0.0, 1.0)
+
         # ── 1. Progressive colour cooling ─────────────────────────────────────
         # Target: cool grey-blue horizon haze — pale blue-grey
         haze_r, haze_g, haze_b = 0.72, 0.76, 0.82   # cool pale blue-grey
-        r_out = r_f * (1.0 - recession_w * cool_strength) + haze_r * recession_w * cool_strength
-        g_out = g_f * (1.0 - recession_w * cool_strength * 0.85) + haze_g * recession_w * cool_strength * 0.85
-        b_out = b_f * (1.0 - recession_w * cool_strength * 0.65) + haze_b * recession_w * cool_strength * 0.65
+        r_out = r_out * (1.0 - recession_w * cool_strength) + haze_r * recession_w * cool_strength
+        g_out = g_out * (1.0 - recession_w * cool_strength * 0.85) + haze_g * recession_w * cool_strength * 0.85
+        b_out = b_out * (1.0 - recession_w * cool_strength * 0.65) + haze_b * recession_w * cool_strength * 0.65
 
         # ── 2. Atmospheric brightness lift ────────────────────────────────────
         # Distant zones brighten toward the pale horizon haze
@@ -23687,9 +23731,6 @@ class Painter:
             sharpened = (sharpened_h + sharpened_v) * 0.5
             ch_in[:] = sharpened
 
-        # Update r_out, g_out, b_out (in-place modification above already did it via slice)
-        # (numpy arrays are already updated in-place)
-
         # ── Stage 2: Cobblestone reflection lift ──────────────────────────────
         # In dark, desaturated zones, brighten the blue channel slightly.
         max_rgb = _np.maximum(_np.maximum(r_out, g_out), b_out)
@@ -23730,3 +23771,192 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Caillebotte perspective pass complete.")
+
+    def franz_marc_prismatic_vitality_pass(
+        self,
+        blue_push:           float = 0.18,   # spiritual blue intensification strength
+        yellow_push:         float = 0.12,   # cadmium yellow warmth push strength
+        red_deepen:          float = 0.10,   # crimson deepening in warm mid-darks
+        bloom_thresh:        float = 0.40,   # chroma threshold for prismatic bloom
+        bloom_sigma:         float = 3.0,    # Gaussian sigma for bloom aureole
+        bloom_strength:      float = 0.15,   # bloom blend weight
+        sat_boost_lo:        float = 0.30,   # lower luminance bound for clarity lift
+        sat_boost_hi:        float = 0.75,   # upper luminance bound for clarity lift
+        sat_boost_amount:    float = 0.22,   # saturation lift in mid-tone clarity zone
+        sat_boost_thresh:    float = 0.16,   # minimum chroma for clarity boost
+        blur_radius:         float = 3.0,    # Gaussian sigma for mask feathering
+        opacity:             float = 0.38,   # final composite opacity
+    ) -> None:
+        """
+        Franz Marc prismatic vitality pass — session 91 new artist pass.
+
+        Franz Marc (1880–1916), co-founder of Der Blaue Reiter, built his art
+        on a symbolic colour theory in which specific primaries carry inherent
+        spiritual meaning: blue (ultramarine) = spirituality and the masculine;
+        yellow = gentleness, femininity, warmth; red = violence, matter, the
+        earthly.  His canvases have an almost stained-glass luminosity — each
+        colour plane glows independently, unmixed primaries vibrate against one
+        another, and a deep blue-violet undertone permeates the whole.  This
+        pass encodes the three hallmarks of that language.
+
+        Three operations:
+
+          1. Symbolic colour intensification — each pixel's dominant hue is
+             detected and that hue is further amplified in Marc's symbolic
+             direction.  Pixels where blue dominates (B > R × 1.15 and B > G ×
+             1.10) receive a push toward ultramarine (spiritual elevation: B↑,
+             slight G↓, slight R↓).  Pixels where warm yellow dominates (R >
+             B × 1.15 and G > B × 1.10, luminance > 0.65) receive a golden
+             warmth push (R↑, G↑, B↓ slightly).  Pixels with a warm red
+             dominant in mid-dark luminance (R > B × 1.20, lum in [0.25,
+             0.62]) receive a deepening into warm crimson (R↑, B↓).  All
+             three gates are smooth (Gaussian-feathered) and mutually
+             exclusive so no pixel is doubly processed.
+
+          2. Prismatic form bloom — per-pixel chroma (max_rgb − min_rgb) is
+             computed; where chroma > bloom_thresh the excess drives a soft
+             per-channel Gaussian bloom (sigma=bloom_sigma) that is added back
+             at bloom_strength weight.  This produces the luminous aureole
+             around Marc's pure colour planes — the characteristic glow at the
+             boundary between a deep ultramarine body and the warm ground — that
+             gives his work its stained-glass quality.
+
+          3. Prismatic clarity lift — in the mid-luminance zone (lum in
+             [sat_boost_lo, sat_boost_hi]) and where chroma > sat_boost_thresh,
+             each channel is pushed further from the luminance mean by
+             sat_boost_amount × clarity_mask.  Near-neutrals are unchanged.
+             This maintains the unmixed-pigment vibrancy and prevents the
+             optical muddying that would otherwise occur where Marc's pure
+             colour planes touch.
+
+        Parameters
+        ----------
+        blue_push         : spiritual blue intensification strength (0–0.3)
+        yellow_push       : cadmium yellow warmth push strength (0–0.2)
+        red_deepen        : crimson deepening in warm mid-darks (0–0.2)
+        bloom_thresh      : chroma threshold for prismatic bloom activation (0–1)
+        bloom_sigma       : Gaussian sigma for bloom aureole (pixels)
+        bloom_strength    : bloom composite weight (0–0.3)
+        sat_boost_lo      : lower luminance bound for clarity lift zone
+        sat_boost_hi      : upper luminance bound for clarity lift zone
+        sat_boost_amount  : saturation push per unit of clarity_mask
+        sat_boost_thresh  : minimum chroma to qualify for clarity boost
+        blur_radius       : Gaussian sigma for mask edge feathering
+        opacity           : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Franz Marc prismatic vitality pass "
+              f"(blue_push={blue_push:.2f}  yellow_push={yellow_push:.2f}  "
+              f"bloom_thresh={bloom_thresh:.2f}  sat_boost={sat_boost_amount:.2f}  "
+              f"opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Franz Marc prismatic vitality pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Symbolic colour intensification ─────────────────────────
+        # Gate 1a: Blue spiritual zone — B dominates R and G
+        blue_gate_raw = _np.clip(
+            _np.minimum(b0 - r0 * 1.15, b0 - g0 * 1.10), 0.0, 1.0
+        )
+        blue_gate = _gf(blue_gate_raw, sigma=blur_radius)
+        blue_w = _np.clip(blue_gate * (1.0 / max(blue_gate.max(), 1e-6)) *
+                          blue_push, 0.0, blue_push)
+        r_out = _np.clip(r_out - blue_w * 0.6, 0.0, 1.0)
+        g_out = _np.clip(g_out - blue_w * 0.3, 0.0, 1.0)
+        b_out = _np.clip(b_out + blue_w, 0.0, 1.0)
+
+        # Gate 1b: Yellow feminine zone — R > B×1.15, G > B×1.10, high luminance
+        yellow_gate_raw = _np.clip(
+            _np.minimum(r0 - b0 * 1.15, g0 - b0 * 1.10), 0.0, 1.0
+        ) * _np.clip((lum - 0.60) / 0.25, 0.0, 1.0)   # only bright pixels
+        yellow_gate = _gf(yellow_gate_raw, sigma=blur_radius)
+        yellow_w = _np.clip(yellow_gate * (1.0 / max(yellow_gate.max(), 1e-6)) *
+                            yellow_push, 0.0, yellow_push)
+        r_out = _np.clip(r_out + yellow_w * 0.8, 0.0, 1.0)
+        g_out = _np.clip(g_out + yellow_w * 0.6, 0.0, 1.0)
+        b_out = _np.clip(b_out - yellow_w * 0.5, 0.0, 1.0)
+
+        # Gate 1c: Red earthly zone — R dominates B in mid-darks
+        lum_range_r = _np.clip((lum - 0.25) / 0.37, 0.0, 1.0) * \
+                      _np.clip((0.62 - lum) / 0.37, 0.0, 1.0)
+        red_gate_raw = _np.clip(r0 - b0 * 1.20, 0.0, 1.0) * lum_range_r
+        red_gate = _gf(red_gate_raw, sigma=blur_radius)
+        red_w = _np.clip(red_gate * (1.0 / max(red_gate.max(), 1e-6)) *
+                         red_deepen, 0.0, red_deepen)
+        r_out = _np.clip(r_out + red_w, 0.0, 1.0)
+        b_out = _np.clip(b_out - red_w * 0.5, 0.0, 1.0)
+
+        # ── Stage 2: Prismatic form bloom ─────────────────────────────────────
+        # Identify high-chroma pixels; bloom their colour outward.
+        max_rgb = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        min_rgb = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma  = max_rgb - min_rgb
+
+        bloom_excess = _np.clip((chroma - bloom_thresh) /
+                                max(1.0 - bloom_thresh, 0.01), 0.0, 1.0)
+        r_bloom = _gf(r_out * bloom_excess, sigma=bloom_sigma)
+        g_bloom = _gf(g_out * bloom_excess, sigma=bloom_sigma)
+        b_bloom = _gf(b_out * bloom_excess, sigma=bloom_sigma)
+
+        bloom_w = _np.clip(bloom_excess * bloom_strength, 0.0, bloom_strength)
+        r_out = _np.clip(r_out + r_bloom * bloom_w, 0.0, 1.0)
+        g_out = _np.clip(g_out + g_bloom * bloom_w, 0.0, 1.0)
+        b_out = _np.clip(b_out + b_bloom * bloom_w, 0.0, 1.0)
+
+        # ── Stage 3: Prismatic clarity lift ───────────────────────────────────
+        lum2    = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        max_rgb2 = _np.maximum(_np.maximum(r_out, g_out), b_out)
+        min_rgb2 = _np.minimum(_np.minimum(r_out, g_out), b_out)
+        chroma2  = max_rgb2 - min_rgb2
+
+        lum_range_s = max(sat_boost_hi - sat_boost_lo, 0.01)
+        bell = _np.minimum(
+            _np.clip((lum2 - sat_boost_lo) / lum_range_s, 0.0, 1.0),
+            _np.clip((sat_boost_hi - lum2) / lum_range_s, 0.0, 1.0),
+        ) * 2.0
+        chroma_gate2 = _np.clip(
+            (chroma2 - sat_boost_thresh) / max(1.0 - sat_boost_thresh, 0.01),
+            0.0, 1.0
+        )
+        clarity_mask = _gf(bell * chroma_gate2, sigma=blur_radius)
+
+        r_out = _np.clip(r_out + clarity_mask * sat_boost_amount * (r_out - lum2),
+                         0.0, 1.0)
+        g_out = _np.clip(g_out + clarity_mask * sat_boost_amount * (g_out - lum2),
+                         0.0, 1.0)
+        b_out = _np.clip(b_out + clarity_mask * sat_boost_amount * (b_out - lum2),
+                         0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Franz Marc prismatic vitality pass complete.")
