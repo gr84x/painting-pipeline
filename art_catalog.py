@@ -8026,6 +8026,84 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Frans Hals ────────────────────────────────────────────────────────────
+    "frans_hals": ArtStyle(
+        artist="Frans Hals",
+        movement="Dutch Golden Age / Bravura Portrait",
+        nationality="Dutch (Haarlem)",
+        period="1610–1666",
+        palette=[
+            (0.92, 0.82, 0.66),   # warm ivory highlight — lit flesh peak; naples yellow warmth
+            (0.76, 0.62, 0.44),   # amber-ochre mid-flesh — warm imprimatura showing through thin paint
+            (0.52, 0.40, 0.26),   # raw sienna shadow — warm, earthy shadow transition
+            (0.22, 0.16, 0.10),   # near-black ground — rich dark void; Hals let ground read in shadows
+            (0.08, 0.06, 0.04),   # near-black void — deeply receding background passages
+            (0.86, 0.72, 0.52),   # sunlit highlight — characteristic bright warm cream for lit faces
+            (0.64, 0.52, 0.36),   # ochre middle — confident impasto on cheek and brow planes
+            (0.38, 0.28, 0.18),   # warm umber — drapery and shadow; richer than neutral grey
+        ],
+        ground_color=(0.44, 0.34, 0.20),    # warm amber-brown imprimatura — standard Haarlem tradition
+        stroke_size=10,                      # confident, bold taches — loaded brush, placed once
+        wet_blend=0.14,                      # very low: alla prima means no layered blending
+        edge_softness=0.22,                  # crisp directional edges — psychological vivacity not sfumato
+        jitter=0.038,                        # significant variation per tache — spontaneous, not mechanical
+        glazing=None,                        # no unifying glaze — alla prima; paint is applied once
+        crackle=True,                        # 17th-century canvas; aged craquelure in originals
+        chromatic_split=False,
+        technique=(
+            "Frans Hals (1582/3–1666) is the master of alla prima ('all at once') "
+            "oil painting — a technique in which wet paint is applied in a single session "
+            "without waiting for earlier passages to dry.  Where Gerrit Dou took hours "
+            "over a single inch of canvas, Hals completed entire portraits in one energetic "
+            "sitting.  The result is a surface alive with visible, directional brushmarks — "
+            "called taches — that read from a distance as vivid, observed flesh but reveal, "
+            "close up, as a sequence of astonishingly confident individual strokes.  "
+            "Hals worked on a warm amber-brown imprimatura (standard Haarlem practice), "
+            "building the dark background broadly first, then blocking in the major flesh "
+            "masses with loaded brushwork, and finally placing the highlights in single "
+            "definitive strokes — never overworked, never blended out.  The highlights "
+            "arrive as pure cream-ivory taches that read as sunlight catching a brow or "
+            "cheekbone.  His brushstrokes follow the form of the face — they are not random "
+            "gestures but contour-following marks that describe volume through their direction "
+            "as much as through their tone.  "
+            "The result is the first great tradition of 'painterly painting' in Western art — "
+            "a surface that acknowledges its own materiality.  Hals's influence on the "
+            "Impressionists (particularly Manet) was profound: they saw in his taches the "
+            "permission to let the mark show.  "
+            "Psychologically, his portraits capture a vivacity no other old-master achieves: "
+            "subjects laugh, grin, gesture, and look caught in mid-thought — an impression "
+            "that is partly artistic skill and partly the inevitable result of alla prima "
+            "speed: the paint's spontaneity mirrors the subject's spontaneity.  "
+            "Apply hals_alla_prima_vivacity_pass() after build_form() to add the three "
+            "defining qualities: directional tache energy (gradient-direction modulation), "
+            "warm imprimatura vivacity in mid-tones, and psychological edge crispness in the "
+            "focal area."
+        ),
+        famous_works=[
+            ("The Laughing Cavalier",                   "1624"),
+            ("Banquet of the Officers of the St George Militia", "1616"),
+            ("Malle Babbe",                             "c. 1633"),
+            ("The Gypsy Girl",                          "c. 1628–1630"),
+            ("Regents of the Old Men's Almshouse",      "c. 1664"),
+            ("Regentesses of the Old Men's Almshouse",  "c. 1664"),
+            ("Portrait of Isaac Abrahamszoon Massa",     "1626"),
+            ("Young Man with a Skull",                  "c. 1626–1628"),
+        ],
+        inspiration=(
+            "Apply hals_bravura_stroke_pass() as the primary stroke layer encoding Hals's "
+            "alla prima bravura: strokes placed once with absolute confidence, following "
+            "the form contour flow field at angle_jitter_deg variation (±30° for Hals's "
+            "energetic directional range); broken_tone=True activates per-stroke colour "
+            "variation simulating wet-into-wet paint picking up slightly different pigment "
+            "mixes at each tache; low wet_blend=0.12 keeps strokes distinct and unblended.  "
+            "Additionally apply hals_alla_prima_vivacity_pass() after the stroke layer for "
+            "three pixel-level refinements: (1) Directional tache energy via gradient "
+            "direction field modulation — a spatially new concept in the pipeline; "
+            "(2) Warm mid-tone imprimatura vivacity in the flesh zone; (3) Focal "
+            "psychological crispness via unsharp mask in the face region."
+        ),
+    ),
+
     "gerrit_dou": ArtStyle(
         artist="Gerrit Dou",
         movement="Dutch Golden Age / Fijnschilder",
