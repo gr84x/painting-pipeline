@@ -262,6 +262,7 @@ class Period(Enum):
     DUTCH_FIJNSCHILDER   = auto()  # Gerrit Dou — extreme enamel-like surface fineness, 30+ glaze layers, candle-warm amber highlights, niche-framed compositions, glass-smooth skin, magnifying-glass precision
     DUTCH_LIGHT_GROUND   = auto()  # Carel Fabritius — contre-jour technique, pale grey ground, figures reading against bright background, confident impressionistic brushwork, atmospheric ambient light
     DUTCH_CANDLELIT_GENRE = auto()  # Judith Leyster — warm candlelit genre scenes, Hals-adjacent bravura, Utrecht Caravaggist amber warmth, joyful animated figures, warm brown imprimatura vitality
+    DUTCH_BRAVURA_PORTRAIT = auto()  # Frans Hals — alla prima directional energy, confident tache brushwork, psychological vivacity, warm imprimatura with low wet-blend, crisp directional marks
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1102,6 +1103,16 @@ class Style:
             # edge_softness=0.50: moderate — her figures read crisply against the warm
             # brown shadow ground, with soft transitions in the candlelit flesh zones.
             Period.DUTCH_CANDLELIT_GENRE: dict(stroke_size_face=9, stroke_size_bg=28, wet_blend=0.38, edge_softness=0.50),
+            # DUTCH_BRAVURA_PORTRAIT (Frans Hals) — alla prima directional energy.
+            # stroke_size_face=10: confident, loaded-brush taches — larger than fijnschilder precision;
+            # each stroke is placed once, with absolute assurance, never overworked.
+            # stroke_size_bg=28: bold background coverage; Hals's backgrounds are dark and broadly
+            # handled so attention concentrates on the vivid face.
+            # wet_blend=0.14: very low — alla prima means wet-on-wet within a stroke but no
+            # deep blending across strokes; edges stay crisply distinct, forms are not melted.
+            # edge_softness=0.22: crisp — psychological vivacity lives in clear, direct edges
+            # and confident tonal transitions, not sfumato dissolution.
+            Period.DUTCH_BRAVURA_PORTRAIT: dict(stroke_size_face=10, stroke_size_bg=28, wet_blend=0.14, edge_softness=0.22),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

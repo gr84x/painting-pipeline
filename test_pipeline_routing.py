@@ -11840,3 +11840,85 @@ def test_fabritius_contre_jour_pass_shadow_veil_lifts_darks():
     assert after_mean > before_mean, (
         f"Cool ground veil must lift dark pixels; "
         f"mean before={before_mean:.1f}  after={after_mean:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Frans Hals — hals_alla_prima_vivacity_pass() (session 96)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_hals_alla_prima_vivacity_pass_exists():
+    """Painter must have hals_alla_prima_vivacity_pass() method after session 96."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hals_alla_prima_vivacity_pass"), (
+        "hals_alla_prima_vivacity_pass not found on Painter")
+    assert callable(getattr(Painter, "hals_alla_prima_vivacity_pass"))
+
+
+def test_hals_alla_prima_vivacity_pass_no_error():
+    """hals_alla_prima_vivacity_pass() runs without error on a small synthetic canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.44, 0.34, 0.20), texture_strength=0.05)
+    p.hals_alla_prima_vivacity_pass()
+
+
+def test_hals_alla_prima_vivacity_pass_modifies_canvas():
+    """hals_alla_prima_vivacity_pass() must modify at least some pixels on a non-trivial canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.44, 0.34, 0.20), texture_strength=0.05)
+    ref = _solid_reference(64, 64)
+    p.block_in(ref, stroke_size=8, n_strokes=15)
+
+    before = _canvas_bytes(p)
+    p.hals_alla_prima_vivacity_pass(opacity=0.60)
+    after = _canvas_bytes(p)
+
+    assert before != after, "hals_alla_prima_vivacity_pass must modify the canvas at opacity=0.60"
+
+
+def test_hals_alla_prima_vivacity_pass_zero_opacity_noop():
+    """hals_alla_prima_vivacity_pass() at opacity=0 must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.44, 0.34, 0.20), texture_strength=0.05)
+
+    before = _canvas_bytes(p)
+    p.hals_alla_prima_vivacity_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, (
+        "hals_alla_prima_vivacity_pass at opacity=0.0 must be a no-op")
+
+
+def test_hals_alla_prima_vivacity_pass_warms_midtones():
+    """hals_alla_prima_vivacity_pass must lift R in mid-luminance flesh pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Fill with mid-luminance warm flesh: BGRA B=100, G=140, R=180
+    # lum ≈ 0.299*180/255 + 0.587*140/255 + 0.114*100/255 ≈ 0.534
+    p = Painter(width=48, height=48)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4)).copy()
+    arr[:, :, 0] = 100   # B
+    arr[:, :, 1] = 140   # G
+    arr[:, :, 2] = 180   # R
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+
+    r_before = arr[:, :, 2].astype(float).mean()
+    p.hals_alla_prima_vivacity_pass(
+        vivacity_lo=0.35, vivacity_hi=0.78, warm_r_lift=0.06, opacity=1.0)
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((48, 48, 4))
+    r_after = arr_after[:, :, 2].astype(float).mean()
+
+    assert r_after >= r_before, (
+        f"hals_alla_prima_vivacity_pass must warm mid-tone pixels (R↑); "
+        f"R before={r_before:.2f}  R after={r_after:.2f}")
+
+
+def test_hals_alla_prima_vivacity_pass_preserves_canvas_shape():
+    """hals_alla_prima_vivacity_pass must not change canvas dimensions."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=32, height=64)
+    p.hals_alla_prima_vivacity_pass(opacity=0.50)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 32, 4))
+    assert arr.shape == (64, 32, 4), "Canvas shape must be preserved after pass"
