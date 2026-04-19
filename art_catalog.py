@@ -7286,6 +7286,85 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
 
+    # ── Léon Spilliaert ───────────────────────────────────────────────────────
+    "leon_spilliaert": ArtStyle(
+        artist="Léon Spilliaert",
+        movement="Belgian Symbolism / Expressionism",
+        nationality="Belgian",
+        period="1900–1940",
+        palette=[
+            (0.06, 0.05, 0.07),   # near-black ink void — Spilliaert's Indian-ink ground
+            (0.20, 0.20, 0.24),   # cold dark grey — penumbra of the void
+            (0.75, 0.76, 0.80),   # cold pale grey-white — isolated figure tone
+            (0.92, 0.93, 0.96),   # near-white ivory — the most exposed lit surface
+            (0.82, 0.80, 0.30),   # acid chartreuse-yellow — eerie lamp-light accent
+            (0.18, 0.30, 0.52),   # electric blue-grey — moonlit sea and sky
+            (0.38, 0.34, 0.40),   # muted mauve-grey — transitional mid-tone
+        ],
+        ground_color=(0.08, 0.07, 0.10),   # deep blue-black — supports the noir ground
+        stroke_size=3,
+        wet_blend=0.22,
+        edge_softness=0.18,                # near-crisp — Spilliaert's ink lines are precise
+        jitter=0.008,
+        glazing=(0.10, 0.10, 0.14),        # cool near-black glaze — deepens the void
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Léon Spilliaert (1881–1946) was the most solitary and least classified "
+            "of all the Belgian Symbolists.  Where Ensor exploded into carnival masks "
+            "and Khnopff retreated into aristocratic silence, Spilliaert simply walked "
+            "alone on the beach at Ostend at night, and painted what he found there.  "
+            "His work is dominated by vertiginous perspective — empty corridors "
+            "receding into darkness, seafronts stretching toward a vanishing point, "
+            "staircases descending into void.  The human figure, when it appears at "
+            "all, is usually himself: a pale, narrow presence against an engulfing "
+            "dark field, like a mark of punctuation in a sentence that has forgotten "
+            "its own meaning.  Spilliaert worked primarily in Indian ink, watercolour, "
+            "and pastel — often combined in the same work, each medium fighting the "
+            "others.  The ink established the near-black scaffolding; the watercolour "
+            "floated across it as cool grey washes; the pastel — rare, used sparingly "
+            "— provided the occasional acid accent: a strip of pale yellow lamplight, "
+            "an electric blue moonlit sea.  His palette is nearly monochromatic.  The "
+            "blacks are cold — ink blacks, not oil-paint blacks, which carry no residual "
+            "warmth.  The whites are exposed paper or very pale grey wash.  Between "
+            "them, almost nothing.  The power of his work comes entirely from tonal "
+            "contrast, geometric depth, and the specific quality of emptiness that "
+            "fills the spaces between figure and frame.  His masterwork 'Dizziness' "
+            "(also called 'Vertigo', 1908) shows a spiral staircase receding into "
+            "a void so absolute that the viewer's sense of scale collapses — it is "
+            "simultaneously a perfectly rendered architectural interior and a diagram "
+            "of existential dissolution.  Apply spilliaert_vertiginous_void_pass() "
+            "to encode his characteristic shadow compression and isolated-figure "
+            "paleness — the near-black deep field against which pale forms emerge."
+        ),
+        famous_works=[
+            ("Dizziness (Vertigo)", "1908"),
+            ("Moonlit Shore", "1906"),
+            ("Young Woman at the Window", "1908"),
+            ("Self-Portrait", "1907"),
+            ("The Seafront at Night", "1908"),
+            ("Reflection", "1908"),
+            ("The Promenade", "1907"),
+            ("Woman Reading", "1920"),
+        ],
+        inspiration=(
+            "Apply spilliaert_vertiginous_void_pass() to encode Spilliaert's "
+            "characteristic near-monochrome tonal architecture.  Three operations: "
+            "(1) shadow compression — push all dark pixels (lum < void_thresh ≈ 0.30) "
+            "further toward near-black with a cold blue-grey undertone (Spilliaert's "
+            "ink blacks are cool, carrying a faint blue-grey cast, not the warm brown "
+            "of oil-paint darkness); (2) mid-tone isolation — pale areas in the "
+            "upper luminance band (lum > pale_thresh ≈ 0.70) receive a very slight "
+            "cool-grey lift, isolating them as pale islands against the dark field, "
+            "the characteristic 'figure emerging from void' quality; (3) peripheral "
+            "vignette deepening — the canvas perimeter darkens further toward absolute "
+            "black, reinforcing the geometric vertiginous depth that pulls the eye "
+            "toward the composition centre.  Use at opacity 0.30–0.40; the effect "
+            "should feel like a shift from oil warmth toward ink austerity."
+        ),
+    ),
+
+
     # ── Odilon Redon ──────────────────────────────────────────────────────────
     "odilon_redon": ArtStyle(
         artist="Odilon Redon",

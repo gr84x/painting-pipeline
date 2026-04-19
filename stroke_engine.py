@@ -2399,7 +2399,8 @@ class Painter:
                           edge_only:             bool  = True,
                           chroma_dampen:         float = 0.18,
                           depth_gradient:        float = 0.0,
-                          shadow_warm_recovery:  float = 0.0):
+                          shadow_warm_recovery:  float = 0.0,
+                          chroma_gate:           float = 0.0):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2481,6 +2482,18 @@ class Painter:
         logic — near-foreground forms are less hazed than distant ones.  The
         gradient weight corrects this by modulating veil opacity per-row.
 
+        chroma_gate  : When > 0, reduces veil opacity in high-chroma (saturated)
+                       zones of the reference — Leonardo applied sfumato most
+                       heavily to near-neutral transitions (the shadow/light
+                       boundary at the mouth corners, the temple region) rather
+                       than to the chromatic accents (the warm sienna dress
+                       fabric, the muted rose of the lips).  A ``chroma_gate``
+                       of 0.4–0.6 gates the sfumato away from saturated pixels
+                       proportionally, preserving their chromatic identity while
+                       still dissolving the grey-amber transitions.  At 0.0
+                       (default) the behaviour is unchanged from prior sessions.
+                       This is the session-89 improvement.
+
         shadow_warm_recovery : When > 0, warms the current canvas in deep shadow
                                zones (luminance < ~0.35) before applying the sfumato
                                veils.  This corrects a subtle residual coolness in
@@ -2501,11 +2514,23 @@ class Painter:
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
               f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f}"
               f"  depth_gradient={depth_gradient:.2f}"
-              f"  shadow_warm_recovery={shadow_warm_recovery:.2f})…")
+              f"  shadow_warm_recovery={shadow_warm_recovery:.2f}"
+              f"  chroma_gate={chroma_gate:.2f})…")
 
         ref  = self._prep(reference)
         rarr = ref[:, :, :3].astype(np.float32) / 255.0
         h, w = ref.shape[:2]
+
+        # ── Session 89: Chroma gate — pre-compute reference chroma map ────────
+        # In high-chroma (saturated) zones, sfumato is gated back proportionally.
+        # Leonardo applied sfumato most heavily to near-neutral transitions, not
+        # to the chromatic accents (warm dress fabric, rose lips, etc.).
+        if chroma_gate > 0.0:
+            ref_max = np.maximum(np.maximum(rarr[:, :, 0], rarr[:, :, 1]), rarr[:, :, 2])
+            ref_min = np.minimum(np.minimum(rarr[:, :, 0], rarr[:, :, 1]), rarr[:, :, 2])
+            _ref_chroma = np.clip(ref_max - ref_min, 0.0, 1.0)  # per-pixel chroma [0, 1]
+        else:
+            _ref_chroma = None
 
         # ── Warm the reference toward amber (Leonardo's characteristic tone) ──
         # The sfumato is not a neutral grey haze but a warm golden one —
@@ -2623,6 +2648,12 @@ class Painter:
             # Composite: only where edge_mask is active; modulate by depth gradient
             # so distant (upper) regions receive stronger sfumato.
             alpha = edge_mask * veil_opacity * depth_w  # (H, W) float
+
+            # Session 89: Chroma gate — reduce sfumato in saturated areas.
+            # High-chroma pixels (vivid dress, warm skin accents) retain more of
+            # their colour identity; desaturated transitions receive full sfumato.
+            if _ref_chroma is not None:
+                alpha = alpha * (1.0 - _ref_chroma * chroma_gate)
 
             # Build an ARGB32 Cairo surface for this veil.
             # IMPORTANT: Cairo's FORMAT_ARGB32 uses PREMULTIPLIED alpha.
@@ -22974,6 +23005,157 @@ class Painter:
 
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Whistler tonal harmony pass complete.")
+
+    # Session 89 — Léon Spilliaert — Vertiginous void pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def spilliaert_vertiginous_void_pass(
+        self,
+        void_thresh:      float = 0.30,   # luminance ceiling for shadow compression
+        void_cool_b:      float = 0.030,  # cold blue-grey lift in deep shadows
+        void_damp_r:      float = 0.015,  # red dampen — removes warm oil cast from darks
+        void_damp_g:      float = 0.010,  # green dampen — Spilliaert's ink black is blue-grey
+        pale_thresh:      float = 0.72,   # luminance floor for pale-isolation zone
+        pale_grey_lift:   float = 0.018,  # cool-grey lift in the pale zone
+        pale_cool_b:      float = 0.012,  # slight blue-cool shift in pale highlights
+        vignette_strength: float = 0.18,  # peripheral near-black deepening
+        vignette_radius:  float = 0.60,   # normalised radius where vignette begins
+        blur_radius:      float = 8.0,    # Gaussian sigma for soft mask transitions
+        opacity:          float = 0.35,   # final composite opacity
+    ):
+        """
+        Spilliaert vertiginous void pass — inspired by Léon Spilliaert.
+
+        Léon Spilliaert (1881–1946) worked almost exclusively in Indian ink,
+        watercolour, and pastel on paper.  His palette is near-monochromatic:
+        deep near-black ink voids, cold grey washes, and occasional pale ivory
+        highlights, with sparse acid-yellow or electric-blue accents.  His
+        defining compositional device is vertiginous geometric depth — corridors,
+        staircases, and seafronts recede into absolute darkness, creating a
+        sense of existential dissolution.
+
+        Three operations encode this visual world:
+
+        1. **Shadow compression**: Dark pixels (lum < void_thresh) are pushed
+           further toward near-black with a cold blue-grey undertone.  Unlike
+           the warm oil-paint darks of the Old Masters, Spilliaert's ink blacks
+           are cool — they carry a faint blue-grey cast derived from his Indian
+           ink medium.  Red and green channels are slightly damped; blue is
+           lifted.  This creates the characteristic cold austerity that
+           distinguishes his work from anything painted in oil.
+
+        2. **Pale isolation**: Bright areas (lum > pale_thresh) receive a slight
+           cool-grey lift, isolating pale forms as luminous islands against the
+           dark void.  This is the 'figure emerging from darkness' quality —
+           Spilliaert's self-portraits appear as pale smudges of face and collar
+           against engulfing black, barely differentiated from the paper they
+           are on.
+
+        3. **Peripheral vignette**: The canvas perimeter is darkened toward
+           near-absolute black, reinforcing the geometric vertiginous depth and
+           pulling the eye toward the composition centre.  Spilliaert's drawings
+           almost always have this quality — the corners are dead black, the
+           receding geometry creates depth, and only the focal zone retains
+           significant luminance.
+
+        Parameters
+        ----------
+        void_thresh      : Luminance ceiling for shadow compression (pixels below
+                           this receive the cold blue-grey push).  Default 0.30.
+        void_cool_b      : Blue channel lift in void zone — the cold ink cast.
+        void_damp_r      : Red dampen in void — removes residual warm cast.
+        void_damp_g      : Green dampen in void — Spilliaert's black is blue, not olive.
+        pale_thresh      : Luminance floor for pale isolation (pixels above this
+                           receive the cool-grey lift).  Default 0.72.
+        pale_grey_lift   : Luminance boost in the pale zone — isolates light forms.
+        pale_cool_b      : Slight blue-cool shift in pale highlights — ink-on-paper
+                           whites are cooler than oil-on-canvas lights.
+        vignette_strength: How much the periphery darkens toward near-black.
+        vignette_radius  : Normalised radius (0–1) inside which vignette is zero.
+        blur_radius      : Gaussian sigma for mask transitions.
+        opacity          : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Spilliaert vertiginous void pass "
+              f"(void_thresh={void_thresh:.2f}  pale_thresh={pale_thresh:.2f}  "
+              f"vignette={vignette_strength:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Spilliaert vertiginous void pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        buf  = _np.frombuffer(self.canvas.surface.get_data(),
+                              dtype=_np.uint8).reshape((h, w, 4)).copy()
+        orig = buf.copy()
+
+        # Cairo stores BGRA
+        b0 = buf[:, :, 0].astype(_np.float32) / 255.0
+        g0 = buf[:, :, 1].astype(_np.float32) / 255.0
+        r0 = buf[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Shadow compression (cold ink void) ───────────────────────
+        # Dark pixels pushed toward near-black with cold blue-grey undertone.
+        void_raw  = _np.clip(1.0 - lum / max(void_thresh, 0.01), 0.0, 1.0)
+        void_mask = _gf(void_raw.astype(_np.float32), sigma=blur_radius)
+        void_mask = _np.clip(void_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out - void_mask * void_damp_r, 0.0, 1.0)
+        g_out = _np.clip(g_out - void_mask * void_damp_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + void_mask * void_cool_b, 0.0, 1.0)
+
+        # ── Stage 2: Pale isolation (figure as luminous island) ───────────────
+        # Bright areas lifted toward cool ivory-grey — isolated pale forms
+        # against the engulfing dark field.
+        pale_raw  = _np.clip((lum - pale_thresh) / max(1.0 - pale_thresh, 0.01),
+                             0.0, 1.0)
+        pale_mask = _gf(pale_raw.astype(_np.float32), sigma=blur_radius)
+        pale_mask = _np.clip(pale_mask, 0.0, 1.0)
+
+        # Lift all channels equally (grey) then add a slight blue-cool shift
+        r_out = _np.clip(r_out + pale_mask * pale_grey_lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + pale_mask * pale_grey_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + pale_mask * (pale_grey_lift + pale_cool_b), 0.0, 1.0)
+
+        # ── Stage 3: Peripheral vignette (geometric vertiginous depth) ────────
+        # Canvas perimeter darkened toward near-absolute black.  The vignette
+        # reinforces the sense of a corridor or staircase receding into darkness.
+        ys = _np.linspace(0.0, 1.0, h, dtype=_np.float32)[:, _np.newaxis]
+        xs = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[_np.newaxis, :]
+        dist = _np.sqrt((xs - 0.5) ** 2 + (ys - 0.5) ** 2) / (0.5 * _np.sqrt(2.0))
+        vig_raw = _np.clip(
+            (dist - vignette_radius) / max(1.0 - vignette_radius, 0.01),
+            0.0, 1.0,
+        ).astype(_np.float32)
+        vig_mask = _gf(vig_raw, sigma=blur_radius * 1.5)
+        vig_mask = _np.clip(vig_mask * vignette_strength, 0.0, 1.0)
+
+        r_out = _np.clip(r_out * (1.0 - vig_mask), 0.0, 1.0)
+        g_out = _np.clip(g_out * (1.0 - vig_mask), 0.0, 1.0)
+        b_out = _np.clip(b_out * (1.0 - vig_mask), 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Spilliaert vertiginous void pass complete.")
 
     # Session 88 — Odilon Redon — Luminous reverie pass
     # ─────────────────────────────────────────────────────────────────────────

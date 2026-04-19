@@ -11037,3 +11037,229 @@ def test_luminous_haze_spectral_dispersion_shifts_blue():
     # so we just verify the pass ran without error and channels are valid
     assert after[:, :, 2].mean() > 0, "R channel should be positive after haze pass"
     assert after[:, :, 0].mean() > 0, "B channel should be positive after haze pass"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 89 — Léon Spilliaert — spilliaert_vertiginous_void_pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_spilliaert_vertiginous_void_pass_exists():
+    """spilliaert_vertiginous_void_pass must exist as a method on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "spilliaert_vertiginous_void_pass"), (
+        "Painter must have spilliaert_vertiginous_void_pass method (session 89)")
+    assert callable(getattr(Painter, "spilliaert_vertiginous_void_pass"))
+
+
+def test_spilliaert_vertiginous_void_pass_runs():
+    """spilliaert_vertiginous_void_pass must complete without raising on a default canvas."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.spilliaert_vertiginous_void_pass(opacity=0.35)
+
+
+def test_spilliaert_vertiginous_void_pass_darkens_shadows():
+    """
+    spilliaert_vertiginous_void_pass must darken dark pixels further — the average
+    luminance in a near-black canvas region should decrease after the pass.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(width=128, height=128)
+    # Fill with dark pixels — luminance ≈ 0.18 (inside void_thresh=0.30)
+    data = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, 2] = 55    # R (cairo ch 2)
+    data[:, :, 1] = 55    # G
+    data[:, :, 0] = 55    # B
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+
+    before_mean = 55.0
+
+    p.spilliaert_vertiginous_void_pass(
+        void_thresh=0.30,
+        void_damp_r=0.025,
+        void_damp_g=0.015,
+        void_cool_b=0.020,
+        pale_thresh=0.80,   # disable pale isolation (no bright pixels)
+        vignette_strength=0.0,   # disable vignette for isolation
+        opacity=1.0,
+    )
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    # R and G channels should decrease (damped), overall luminance should fall
+    after_r = after[:, :, 2].astype(float).mean()
+    after_g = after[:, :, 1].astype(float).mean()
+    assert after_r < before_mean or after_g < before_mean, (
+        f"spilliaert_vertiginous_void_pass should darken/cool shadow pixels; "
+        f"before_mean={before_mean:.1f}  after_r={after_r:.1f}  after_g={after_g:.1f}")
+
+
+def test_spilliaert_vertiginous_void_pass_cools_shadows():
+    """
+    spilliaert_vertiginous_void_pass must add a cold blue-grey cast to dark pixels —
+    the blue channel should increase in the void zone.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(width=128, height=128)
+    data = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4)).copy()
+    # Near-black pixels well inside the void zone
+    data[:, :, 2] = 40    # R
+    data[:, :, 1] = 40    # G
+    data[:, :, 0] = 40    # B
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+
+    before_b = 40.0
+
+    p.spilliaert_vertiginous_void_pass(
+        void_thresh=0.30,
+        void_cool_b=0.040,
+        void_damp_r=0.0,
+        void_damp_g=0.0,
+        pale_thresh=0.80,
+        vignette_strength=0.0,
+        opacity=1.0,
+    )
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).reshape((128, 128, 4))
+    after_b = after[:, :, 0].astype(float).mean()   # B channel in Cairo BGRA
+
+    assert after_b > before_b, (
+        f"spilliaert_vertiginous_void_pass should lift B channel in void zone; "
+        f"before={before_b:.2f} after={after_b:.2f}")
+
+
+def test_spilliaert_vertiginous_void_pass_zero_opacity_noop():
+    """spilliaert_vertiginous_void_pass at opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(width=64, height=64)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.spilliaert_vertiginous_void_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "spilliaert_vertiginous_void_pass at opacity=0 must not modify the canvas")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 89 — BELGIAN_SYMBOLIST Period enum
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_belgian_symbolist_period_accessible():
+    """Period.BELGIAN_SYMBOLIST must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, 'BELGIAN_SYMBOLIST'), (
+        'Period.BELGIAN_SYMBOLIST not found in scene_schema — add it')
+    assert Period.BELGIAN_SYMBOLIST in list(Period)
+
+
+def test_belgian_symbolist_stroke_params_valid():
+    """BELGIAN_SYMBOLIST stroke_params must be a valid dict with expected keys."""
+    from scene_schema import Period, Style, Medium
+    sp = Style(medium=Medium.OIL, period=Period.BELGIAN_SYMBOLIST).stroke_params
+    assert isinstance(sp, dict), "stroke_params must return a dict"
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in sp, f"BELGIAN_SYMBOLIST stroke_params missing key: {key!r}"
+
+
+def test_belgian_symbolist_wet_blend_low():
+    """BELGIAN_SYMBOLIST wet_blend must be low (< 0.35) — ink/watercolour medium."""
+    from scene_schema import Period, Style, Medium
+    sp = Style(medium=Medium.OIL, period=Period.BELGIAN_SYMBOLIST).stroke_params
+    assert sp['wet_blend'] < 0.35, (
+        f"BELGIAN_SYMBOLIST wet_blend should be low for Spilliaert's ink/watercolour "
+        f"medium; got {sp['wet_blend']:.2f}")
+
+
+def test_belgian_symbolist_edge_softness_low():
+    """BELGIAN_SYMBOLIST edge_softness must be low (< 0.30) — ink precision."""
+    from scene_schema import Period, Style, Medium
+    sp = Style(medium=Medium.OIL, period=Period.BELGIAN_SYMBOLIST).stroke_params
+    assert sp['edge_softness'] < 0.30, (
+        f"BELGIAN_SYMBOLIST edge_softness should be low for Spilliaert's ink "
+        f"line precision; got {sp['edge_softness']:.2f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 89 — sfumato_veil_pass chroma_gate improvement
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_sfumato_veil_pass_accepts_chroma_gate():
+    """sfumato_veil_pass must accept chroma_gate parameter without error."""
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    ref = Image.fromarray(
+        (np.ones((64, 64, 3), dtype=np.uint8) * 160), "RGB")
+    p.sfumato_veil_pass(ref, n_veils=2, chroma_gate=0.5, veil_opacity=0.2)
+
+
+def test_sfumato_veil_pass_chroma_gate_zero_unchanged():
+    """
+    sfumato_veil_pass with chroma_gate=0.0 must produce the same result
+    as calling it without the parameter — backward compatibility.
+    """
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+
+    def _run_with_gate(gate):
+        p = Painter(width=64, height=64)
+        # Seed canvas deterministically
+        data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+        data[:, :, :] = [120, 100, 140, 255]
+        p.canvas.surface.get_data()[:] = data.tobytes()
+        ref_arr = np.zeros((64, 64, 3), dtype=np.uint8)
+        ref_arr[:, :, 0] = 140
+        ref_arr[:, :, 1] = 120
+        ref_arr[:, :, 2] = 90
+        ref = Image.fromarray(ref_arr, "RGB")
+        p.sfumato_veil_pass(ref, n_veils=2, veil_opacity=0.05, chroma_gate=gate)
+        return np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    result_no_gate = _run_with_gate(0.0)
+    result_with_gate = _run_with_gate(0.0)
+    assert np.array_equal(result_no_gate, result_with_gate), (
+        "sfumato_veil_pass with chroma_gate=0.0 must be deterministic and backward-compatible")
+
+
+def test_sfumato_veil_pass_chroma_gate_neutral_on_grey_reference():
+    """
+    sfumato_veil_pass with chroma_gate > 0 on a purely grey (zero-chroma) reference
+    must produce the same result as chroma_gate=0, because grey has no saturation
+    to gate against.  This verifies the gate formula correctly gates only on chroma.
+    """
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+
+    def _run(gate):
+        p = Painter(width=64, height=64)
+        # Seed canvas identically each time
+        data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4)).copy()
+        data[:, :, :] = [120, 120, 120, 255]
+        p.canvas.surface.get_data()[:] = data.tobytes()
+        # Neutral grey reference — chroma=0, so chroma_gate has no effect
+        ref_arr = np.full((64, 64, 3), 150, dtype=np.uint8)
+        ref = Image.fromarray(ref_arr, "RGB")
+        p.sfumato_veil_pass(ref, n_veils=2, veil_opacity=0.08,
+                            edge_only=False, chroma_gate=gate)
+        return np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    result_no_gate   = _run(0.0)
+    result_with_gate = _run(0.8)
+
+    # On a grey (zero-chroma) reference, the gate should have no effect
+    assert np.array_equal(result_no_gate, result_with_gate), (
+        "sfumato_veil_pass chroma_gate must have no effect when reference chroma=0 "
+        "(grey reference): gate should not alter the result")
