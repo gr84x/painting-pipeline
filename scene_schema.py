@@ -267,6 +267,7 @@ class Period(Enum):
     UMBRIAN_MANNERIST      = auto()  # Federico Barocci — petal-soft rose-pink penumbra flush, pasteletti bianca ground luminosity, proto-Baroque tenderness, warm perimeter dissolution
     CHROMATIC_INTIMISME    = auto()  # Pierre Bonnard — warm/cool chromatic oscillation in mid-tones, hallucinatory colour saturation, cadmium-yellow dominance, violet-shadow complements, domestic Mediterranean light
     PROTO_RENAISSANCE      = auto()  # Masaccio — architectonic mass modeling, deep directional shadow, warm ochre highlights, sculptural gravity, no sfumato
+    BELLE_EPOQUE           = auto()  # Toulouse-Lautrec — peinture à l'essence matte surface, spidery diagonal hatching, warm-cool separation, bold flat-color zones, Japonisme-influenced graphic flatness
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1157,6 +1158,18 @@ class Style:
             # a found edge, not an atmospheric gradient.  This is the defining
             # contrast with his Florentine successor Leonardo (edge_softness=0.85).
             Period.PROTO_RENAISSANCE: dict(stroke_size_face=8, stroke_size_bg=24, wet_blend=0.42, edge_softness=0.38),
+            # BELLE_EPOQUE (Toulouse-Lautrec) — peinture à l'essence on cardboard.
+            # stroke_size_face=6: Lautrec's faces are resolved with confident, graphic marks —
+            # not the fine glazing of the Old Masters but the deliberate, calligraphic touch of a
+            # draughtsman painting: marks are visible, directional, and purposeful.
+            # stroke_size_bg=20: flat-colour backgrounds — influenced by Japonisme, backgrounds
+            # are resolved in simple tonal zones, not elaborate depth-recession landscapes.
+            # wet_blend=0.08: very low — turpentine-diluted "essence" paint soaks into cardboard
+            # and dries immediately; there is no wet-on-wet blending; colours sit beside each
+            # other as graphic zones, never fusing into sfumato transitions.
+            # edge_softness=0.14: crisp, graphic edges — Lautrec was a draughtsman first; his
+            # contours are clear, bold, and specific, never dissolved into atmosphere.
+            Period.BELLE_EPOQUE:  dict(stroke_size_face=6,  stroke_size_bg=20, wet_blend=0.08, edge_softness=0.14),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

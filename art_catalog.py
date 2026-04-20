@@ -8629,6 +8629,101 @@ CATALOG: Dict[str, ArtStyle] = {
             "atmospheric surface of the 99 prior sessions."
         ),
     ),
+
+    # ── Henri de Toulouse-Lautrec (1864–1901) ────────────────────────────────────
+    # Pipeline key: lautrec_essence_pass() — matte surface desaturation, spidery
+    # diagonal hatching in mid-tones, warm-cool graphic separation.
+    "toulouse_lautrec": ArtStyle(
+        artist      = "Henri de Toulouse-Lautrec",
+        movement    = "Post-Impressionism / Belle Époque",
+        nationality = "French",
+        period      = "1880–1901",
+        palette     = [
+            (0.78, 0.62, 0.18),   # warm mustard / cadmium yellow ochre
+            (0.52, 0.12, 0.18),   # burgundy red / carmine
+            (0.26, 0.36, 0.22),   # deep olive / sap green
+            (0.20, 0.20, 0.28),   # charcoal blue-grey (shadow zone)
+            (0.82, 0.68, 0.58),   # warm cream / cardboard ground tone
+            (0.58, 0.32, 0.48),   # dusty rose-violet (mid flesh)
+        ],
+        ground_color  = (0.76, 0.66, 0.50),   # raw cardboard warm mid-tone
+        stroke_size   = 6,
+        wet_blend     = 0.08,
+        edge_softness = 0.14,
+        jitter        = 0.055,
+        glazing       = None,
+        crackle       = False,
+        chromatic_split = False,
+        technique     = (
+            "Henri de Toulouse-Lautrec developed his signature technique, known as "
+            "'peinture à l'essence', by thinning oil paint heavily with turpentine "
+            "and applying it directly to raw cardboard rather than stretched canvas.  "
+            "The absorbent cardboard surface immediately drew the oil binder out of "
+            "the paint, leaving behind a layer of dry, chalky pigment with an almost "
+            "matte, poster-like quality quite unlike the luminous oil surfaces of the "
+            "Old Master tradition.  This was not a technical limitation but a deliberate "
+            "aesthetic choice: Lautrec was drawn to the flat, graphic quality that the "
+            "technique produced, which resonated with his deep engagement with Japanese "
+            "ukiyo-e woodblock prints and their bold, unmodulated color zones separated "
+            "by clear, purposeful contour lines.  "
+            "His approach to form was that of a draughtsman who happened also to be a "
+            "painter.  He drew constantly — in cafés, brothels, backstage at the Moulin "
+            "Rouge — building an extraordinary vocabulary of expressive posture, gesture, "
+            "and psychological character through line alone.  When he painted, this linear "
+            "intelligence survived in the directional, spidery hatching that appears in his "
+            "shadow zones and mid-tone passages: loose parallel strokes, each carrying both "
+            "tonal and directional information simultaneously, a technique that recalls the "
+            "engravers he admired and the lithographic process in which he worked in parallel "
+            "to his paintings.  "
+            "His palette for portraiture was warm and contrasted: the cardboard ground itself "
+            "contributed an ochre warmth that read through any thinly applied layer; shadows "
+            "were pushed toward cool charcoal or blue-grey; mid-tone flesh zones sat between "
+            "these poles in a distinctive dusty rose-violet that was more graphic than "
+            "naturalistic.  Highlights were spare — a warm cream or mustard-yellow touch "
+            "rather than the white impasto highlight of academic painting.  "
+            "The result is a surface that reads flat in reproduction (as his lithographic "
+            "posters were designed to) but has an immediate, urgent psychological presence "
+            "in the original: the figure seems seized and set down in a single visual "
+            "decision, without the accumulative uncertainty of the academic painter who "
+            "corrects, glazes, and revises toward perfection.  Lautrec's paintings feel "
+            "known at a glance because they were painted by an artist who already knew "
+            "exactly what he was looking for before he picked up the brush."
+        ),
+        famous_works  = [
+            ("At the Moulin Rouge",                 "1892–1895"),
+            ("La Goulue at the Moulin Rouge",        "1891"),
+            ("Jane Avril Dancing",                   "1892"),
+            ("The Laundress",                        "1889"),
+            ("Divan Japonais (poster)",              "1892–1893"),
+            ("Cha-U-Kao at the Moulin Rouge",        "1895"),
+            ("The Clownesse Cha-U-Kao",              "1895"),
+        ],
+        inspiration   = (
+            "Apply lautrec_essence_pass() as the primary stylistic pass for this "
+            "artist.  The pass simulates the three defining qualities of Lautrec's "
+            "peinture à l'essence technique:  "
+            "(1) Matte surface desaturation — a mild, spatially uniform saturation "
+            "reduction across the whole canvas (matte_str ≈ 0.10–0.14) that replaces "
+            "the luminous, oil-rich surface of traditional glazing with the dry, "
+            "chalky quality of turpentine-diluted paint soaked into cardboard.  "
+            "(2) Spidery diagonal hatching — in the mid-tone and shadow zones "
+            "[lum 0.22–0.62], apply sparse diagonal marks at approximately 45° "
+            "(hatch_angle ≈ 42–48°) that darken slightly (hatch_darkness ≈ 0.06–0.10) "
+            "and simulate the loose cross-hatching of his draughtsmanship.  The density "
+            "should remain low (hatch_density ≈ 0.20–0.30) to read as texture rather "
+            "than as a repeating pattern.  "
+            "(3) Warm-cool graphic separation — push warm pixels (high R/G ratio) "
+            "toward mustard-amber (warm_boost ≈ 0.05–0.08 in R channel) and cool "
+            "pixels (high B ratio) toward blue-grey (cool_boost ≈ 0.04–0.06 in B "
+            "channel), separating the warm cardboard-tone foreground from the cool "
+            "shadow zones in the manner of his flat, Japonisme-influenced graphic "
+            "language.  "
+            "Use opacity ≈ 0.28–0.34 so the pass adds the matte, graphic character "
+            "without fully destroying the underlying sfumato depth built by prior "
+            "sessions.  The Mona Lisa should retain her atmospheric mystery while "
+            "gaining Lautrec's dry, immediate, psychological presence."
+        ),
+    ),
 }
 
 
