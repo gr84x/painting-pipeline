@@ -9008,6 +9008,98 @@ CATALOG: Dict[str, ArtStyle] = {
             "without overriding the accumulated sfumato and enamel depth."
         ),
     ),
+
+    # ── Guercino (Giovanni Francesco Barbieri) ───────────────────────────────
+    # Giovanni Francesco Barbieri — universally known as "il Guercino"
+    # (the Squinter, from an eye condition) — was the supreme master of the
+    # Emilian Baroque school, born in Cento near Bologna in 1591.  His early
+    # works (c. 1617–1627) are characterised by a dramatic Caravaggesque
+    # chiaroscuro suffused with warm amber-ochre light and astonishingly
+    # expressive surfaces; his late works (after 1642, influenced by Guido
+    # Reni's idealism) adopt a lighter, more classical palette but retain his
+    # characteristic penumbra warmth and emotional intelligence.
+    #
+    # Defining qualities for the pipeline:
+    #   • Penumbra amber: the transition zone from lit flesh to shadow is
+    #     suffused with a golden ochre-amber warmth — a slow, concentrated
+    #     golden surrender to shadow that is not found in Caravaggio's abrupt
+    #     chiaroscuro or Leonardo's cool sfumato.
+    #   • Upper-left directional light: unlike Giordano's theatrical upper-
+    #     right, Guercino's light enters from the upper left, creating an
+    #     intimate warm gradient across the figure.
+    #   • Deep shadow warm retention: shadows stay warm umber-brown, never
+    #     cold black — the dark ground shows through.
+    #   • Drawing-informed mark-making: perhaps the greatest draughtsman of
+    #     his century; pen-and-wash intelligence informs his painted surfaces.
+    "guercino": ArtStyle(
+        artist        = "Giovanni Francesco Barbieri (il Guercino)",
+        movement      = "Italian Baroque / Emilian School",
+        nationality   = "Italian",
+        period        = "c. 1617–1666",
+        palette       = [
+            (0.90, 0.76, 0.54),   # warm ivory-gold flesh highlight
+            (0.78, 0.60, 0.36),   # golden amber midtone flesh
+            (0.60, 0.44, 0.24),   # warm ochre penumbra — the defining zone
+            (0.38, 0.26, 0.14),   # warm umber transitional shadow
+            (0.14, 0.10, 0.06),   # dark warm-brown shadow void
+            (0.42, 0.18, 0.10),   # deep crimson-brown drapery accent
+            (0.62, 0.58, 0.72),   # muted cerulean-lavender sky/distance
+            (0.72, 0.62, 0.28),   # warm golden-ochre middle ground
+        ],
+        ground_color  = (0.18, 0.13, 0.07),    # warm dark brown — shows through
+                                                # deep shadows, warming the voids
+        stroke_size   = 9,
+        wet_blend     = 0.28,
+        edge_softness = 0.52,
+        jitter        = 0.038,
+        glazing       = (0.62, 0.44, 0.18),    # warm amber-umber glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Guercino's technique is built on a dark warm-brown imprimatura that "
+            "allows shadow zones to breathe with a residual amber warmth rather "
+            "than falling to cold black.  His single-source directional light "
+            "(typically upper-left) creates a warm Gaussian spotlight illuminating "
+            "flesh in golden-amber highlights.  The penumbra zone — the transition "
+            "band from lit flesh to deep shadow — glows with a concentrated ochre-"
+            "amber warmth that is the hallmark of his flesh passages: not "
+            "Caravaggio's hard chiaroscuro, not Leonardo's cool sfumato, but a "
+            "warm confident gradient that spends time in the amber penumbra before "
+            "surrendering to umber shadow.  His draughtsmanship informed his painted "
+            "surfaces — marks are calligraphic and confident in mid-tones, softly "
+            "blended in highlights.  His late-period palette lightens and idealises "
+            "under Guido Reni's influence, but the amber penumbra warmth never leaves."
+        ),
+        famous_works  = [
+            ("The Incredulity of Saint Thomas",    "1621"),
+            ("Samson Captured by the Philistines", "1619"),
+            ("Et in Arcadia ego",                  "c. 1618–1622"),
+            ("The Dead Christ with Angels",        "1617–1618"),
+            ("Aurora (Casino Ludovisi ceiling)",   "1621"),
+            ("Jacob Blessing the Sons of Joseph",  "c. 1620"),
+            ("Semiramis",                          "c. 1645"),
+        ],
+        inspiration   = (
+            "Apply guercino_penumbra_warmth_pass() as the primary stylistic pass. "
+            "Three stages: "
+            "(1) Penumbra amber enrichment — in the luminance band from "
+            "penumbra_lo (≈0.28) to penumbra_hi (≈0.62), apply a warm amber-ochre "
+            "lift (R+ strong, G+ moderate, B- slight) via a Gaussian bell mask "
+            "peaking at the midpoint of the penumbra range.  This is the defining "
+            "quality of Guercino's flesh — a concentrated amber warmth in the "
+            "transition zone that glows with emotional intensity. "
+            "(2) Upper-left directional warmth — apply a gentle warm gradient "
+            "falling off from the upper-left corner (light_cx≈0.18, light_cy≈0.08) "
+            "with a large Gaussian radius (≈0.85 of canvas width), simulating "
+            "Guercino's characteristic upper-left domestic light source. "
+            "(3) Shadow warm retention — in the deepest shadow zone (lum < "
+            "shadow_hi≈0.28), add a subtle warm-umber retention (R+ slight, G+ very "
+            "slight) to prevent cold black voids — the dark ground warmth visible "
+            "through the shadows.  "
+            "Use opacity ≈ 0.25–0.32 so the amber penumbra enrichment adds "
+            "emotional warmth without competing with the accumulated sfumato depth."
+        ),
+    ),
 }
 
 
