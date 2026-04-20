@@ -115,6 +115,7 @@ EXPECTED_ARTISTS = [
     "bernardino_luini",
     "federico_barocci",
     "pierre_bonnard",
+    "masaccio",
 ]
 
 
@@ -277,6 +278,7 @@ EXPECTED_PERIODS = [
     "MILANESE_SFUMATO",
     "UMBRIAN_MANNERIST",
     "CHROMATIC_INTIMISME",
+    "PROTO_RENAISSANCE",
 ]
 
 
