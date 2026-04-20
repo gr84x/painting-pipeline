@@ -531,7 +531,6 @@ def paint(out_dir: str = ".") -> str:
         depth_gamma        = 1.6,
         background_only    = True,
         horizon_glow_band  = 0.15,
-        opacity            = 0.55,
     )
 
     # Skin zone temperature pass (session 67)
@@ -541,21 +540,18 @@ def paint(out_dir: str = ".") -> str:
         face_cy          = 0.215,
         face_rx          = 0.160,
         face_ry          = 0.180,
-        warm_r           = 0.04,
-        warm_g           = 0.02,
-        shadow_cool_b    = 0.03,
-        shadow_thresh    = 0.35,
+        forehead_warm    = 0.04,
+        nose_pink        = 0.04,
+        jaw_cool         = 0.03,
         opacity          = 0.52,
     )
 
     # Warm-cool form duality pass (session 68)
     print("Warm-cool form duality pass (session 68)...")
     p.warm_cool_form_duality_pass(
-        warm_thresh  = 0.60,
-        cool_thresh  = 0.35,
-        warm_color   = (0.78, 0.58, 0.28),
-        cool_color   = (0.36, 0.46, 0.58),
-        opacity      = 0.28,
+        warm_strength   = 0.08,
+        cool_strength   = 0.07,
+        opacity         = 0.28,
     )
 
     # Session 76: Steen warm vitality pass
