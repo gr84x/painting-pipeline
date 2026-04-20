@@ -270,6 +270,7 @@ class Period(Enum):
     BELLE_EPOQUE           = auto()  # Toulouse-Lautrec — peinture à l'essence matte surface, spidery diagonal hatching, warm-cool separation, bold flat-color zones, Japonisme-influenced graphic flatness
     VICTORIAN_SOCIAL_REALIST = auto()  # James Tissot — enamel surface clarity, specular fabric sheen, chromatic richness in warm midtones, cool crystalline highlights, precise atmospheric colour recession
     FLORENTINE_DEVOTIONAL_BAROQUE = auto()  # Carlo Dolci — hyper-smooth devotional enamel finish, deep walnut-brown shadow glazes, crystalline ivory highlights, introspective psychological stillness, obsessive surface polish
+    NEAPOLITAN_BAROQUE = auto()  # Luca Giordano — warm golden-aureole illumination, sweeping Venetian colour, theatrical tenebrism, dynamic aerial grandeur, rapid luminous synthesis of all prior traditions
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1200,6 +1201,15 @@ class Style:
             # they are not sfumato-dissolved (Leonardo) nor sharply found (Antonello),
             # but have a glassy, smooth-glass quality: present but not hard.
             Period.FLORENTINE_DEVOTIONAL_BAROQUE: dict(stroke_size_face=4, stroke_size_bg=20, wet_blend=0.88, edge_softness=0.55),
+            # NEAPOLITAN_BAROQUE (Luca Giordano) — "Fa Presto": fast, sweeping, dynamic.
+            # stroke_size_face=7: Giordano painted rapidly with broad, confident marks —
+            # not Dolci's obsessive miniaturism but energetic, large-scale brushwork.
+            # stroke_size_bg=34: vast, theatrical background sweeps typical of ceiling frescoes.
+            # wet_blend=0.62: moderate-high — his surfaces are rich and blended but retain
+            # directional energy, unlike Dolci's seamless enamel.
+            # edge_softness=0.48: moderate — Giordano's edges are purposeful and dramatic,
+            # neither Caravaggio-hard nor Leonardo-dissolved.
+            Period.NEAPOLITAN_BAROQUE: dict(stroke_size_face=7, stroke_size_bg=34, wet_blend=0.62, edge_softness=0.48),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

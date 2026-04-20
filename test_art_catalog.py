@@ -117,6 +117,7 @@ EXPECTED_ARTISTS = [
     "pierre_bonnard",
     "masaccio",
     "carlo_dolci",
+    "luca_giordano",
 ]
 
 
@@ -280,6 +281,10 @@ EXPECTED_PERIODS = [
     "UMBRIAN_MANNERIST",
     "CHROMATIC_INTIMISME",
     "PROTO_RENAISSANCE",
+    "BELLE_EPOQUE",
+    "VICTORIAN_SOCIAL_REALIST",
+    "FLORENTINE_DEVOTIONAL_BAROQUE",
+    "NEAPOLITAN_BAROQUE",
 ]
 
 
@@ -12645,4 +12650,130 @@ def test_subsurface_scatter_pass_penumbra_warmth_depth_parameter():
     sig = inspect.signature(Painter.subsurface_scatter_pass)
     assert "penumbra_warmth_depth" in sig.parameters, (
         "subsurface_scatter_pass must have 'penumbra_warmth_depth' parameter (session 103)"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 104: Luca Giordano + NEAPOLITAN_BAROQUE + giordano_rapidita_luminosa_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_luca_giordano_in_catalog():
+    """Luca Giordano (session 104) must be in the CATALOG."""
+    assert "luca_giordano" in CATALOG, "Missing artist: 'luca_giordano'"
+
+
+def test_luca_giordano_movement():
+    """Luca Giordano's movement must reference Neapolitan Baroque."""
+    s = get_style("luca_giordano")
+    assert "Baroque" in s.movement or "baroque" in s.movement.lower(), (
+        f"luca_giordano movement {s.movement!r} should mention Baroque"
+    )
+
+
+def test_luca_giordano_palette_length():
+    """Luca Giordano's palette must have at least 5 colours."""
+    s = get_style("luca_giordano")
+    assert len(s.palette) >= 5, (
+        f"luca_giordano palette has only {len(s.palette)} entries"
+    )
+
+
+def test_luca_giordano_palette_values_in_range():
+    """All Luca Giordano palette RGB values must be in [0, 1]."""
+    s = get_style("luca_giordano")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in luca_giordano palette {rgb}"
+            )
+
+
+def test_luca_giordano_famous_works():
+    """Luca Giordano must have at least one famous work."""
+    s = get_style("luca_giordano")
+    assert len(s.famous_works) >= 1, "luca_giordano must have at least one famous work"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Judith" in t or "Rebel" in t or "Escorial" in t for t in titles), (
+        "luca_giordano famous_works should include a known Giordano work"
+    )
+
+
+def test_neapolitan_baroque_period_enum():
+    """NEAPOLITAN_BAROQUE must exist in the Period enum (session 104)."""
+    from scene_schema import Period
+    assert hasattr(Period, "NEAPOLITAN_BAROQUE"), (
+        "Period enum missing NEAPOLITAN_BAROQUE"
+    )
+
+
+def test_neapolitan_baroque_stroke_params():
+    """NEAPOLITAN_BAROQUE must have moderate wet_blend and moderate edge_softness."""
+    from scene_schema import Style, Period
+    s = Style(period=Period.NEAPOLITAN_BAROQUE)
+    params = s.stroke_params
+    assert 0.40 <= params["wet_blend"] <= 0.85, (
+        f"NEAPOLITAN_BAROQUE wet_blend {params['wet_blend']} out of expected range"
+    )
+    assert 0.30 <= params["edge_softness"] <= 0.70, (
+        f"NEAPOLITAN_BAROQUE edge_softness {params['edge_softness']} out of expected range"
+    )
+
+
+def test_giordano_rapidita_luminosa_pass_exists():
+    """Painter must have giordano_rapidita_luminosa_pass method (session 104)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "giordano_rapidita_luminosa_pass"), (
+        "Painter missing giordano_rapidita_luminosa_pass"
+    )
+
+
+def test_giordano_rapidita_luminosa_pass_aureole_parameters():
+    """giordano_rapidita_luminosa_pass must accept aureole_r and aureole_radius."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.giordano_rapidita_luminosa_pass)
+    for param in ("aureole_r", "aureole_radius", "aureole_cx", "aureole_cy"):
+        assert param in sig.parameters, (
+            f"giordano_rapidita_luminosa_pass must have {param!r} parameter"
+        )
+
+
+def test_giordano_rapidita_luminosa_pass_rim_parameters():
+    """giordano_rapidita_luminosa_pass must accept rim_strength."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.giordano_rapidita_luminosa_pass)
+    assert "rim_strength" in sig.parameters, (
+        "giordano_rapidita_luminosa_pass must have 'rim_strength' parameter"
+    )
+
+
+def test_giordano_rapidita_luminosa_pass_shadow_parameters():
+    """giordano_rapidita_luminosa_pass must accept shadow_violet_b."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.giordano_rapidita_luminosa_pass)
+    assert "shadow_violet_b" in sig.parameters, (
+        "giordano_rapidita_luminosa_pass must have 'shadow_violet_b' parameter"
+    )
+
+
+def test_giordano_rapidita_luminosa_pass_opacity_parameter():
+    """giordano_rapidita_luminosa_pass must accept opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.giordano_rapidita_luminosa_pass)
+    assert "opacity" in sig.parameters, (
+        "giordano_rapidita_luminosa_pass must have 'opacity' parameter"
+    )
+
+
+def test_atmospheric_depth_pass_zenith_luminance_boost_parameter():
+    """atmospheric_depth_pass must accept zenith_luminance_boost (session 104 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.atmospheric_depth_pass)
+    assert "zenith_luminance_boost" in sig.parameters, (
+        "atmospheric_depth_pass must have 'zenith_luminance_boost' parameter (session 104)"
     )

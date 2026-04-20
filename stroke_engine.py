@@ -4719,15 +4719,17 @@ class Painter:
 
     def atmospheric_depth_pass(
             self,
-            haze_color:        Color = (0.72, 0.78, 0.88),  # cool blue-grey haze
-            desaturation:      float = 0.65,                  # saturation loss at max depth
-            lightening:        float = 0.50,                  # blend toward haze at max depth
-            depth_gamma:       float = 1.6,                   # depth curve shape (>1 = effect
-                                                              # concentrates near horizon)
-            background_only:   bool  = True,                  # apply only outside figure mask
-            horizon_glow_band: float = 0.0,                   # strength of luminous horizon band
-            horizon_y_frac:    float = 0.55,                  # vertical position (0=top, 1=bottom)
-            horizon_band_sigma: float = 0.06,                 # falloff width as fraction of height
+            haze_color:          Color = (0.72, 0.78, 0.88),  # cool blue-grey haze
+            desaturation:        float = 0.65,                  # saturation loss at max depth
+            lightening:          float = 0.50,                  # blend toward haze at max depth
+            depth_gamma:         float = 1.6,                   # depth curve shape (>1 = effect
+                                                                # concentrates near horizon)
+            background_only:     bool  = True,                  # apply only outside figure mask
+            horizon_glow_band:   float = 0.0,                   # strength of luminous horizon band
+            horizon_y_frac:      float = 0.55,                  # vertical position (0=top, 1=bottom)
+            horizon_band_sigma:  float = 0.06,                  # falloff width as fraction of height
+            zenith_luminance_boost: float = 0.0,                # strength of zenith sky luminance lift
+            zenith_band_sigma:   float = 0.10,                  # falloff width as fraction of height
     ) -> None:
         """
         Atmospheric depth (aerial perspective) pass.
@@ -4804,6 +4806,25 @@ class Painter:
         horizon_band_sigma : Gaussian falloff width as a fraction of canvas height.
                              Larger values create a wider, more diffuse glow;
                              smaller values produce a tighter, more defined band.
+        zenith_luminance_boost : When > 0, adds a luminance lift concentrated at the
+                                 very top of the canvas (y=0), simulating the brilliant
+                                 zenith luminosity of Luca Giordano's ceiling fresco
+                                 tradition.  In Giordano's large ceiling compositions
+                                 (Palazzo Medici-Riccardi, the Escorial) the uppermost
+                                 zone reads as an open, brilliantly lit sky — the
+                                 atmospheric zenith is the brightest zone rather than
+                                 merely the most hazed.  Unlike horizon_glow_band (which
+                                 brightens a mid-canvas horizontal zone), this parameter
+                                 lifts luminance at the canvas ceiling and falls off
+                                 downward with a Gaussian envelope.  Values 0.05–0.12
+                                 produce a subtle, naturalistic zenith sky brightening;
+                                 above 0.20 the effect becomes explicitly theatrical.
+                                 Applied to background only, consistent with the rest of
+                                 the pass.  (Session 104 improvement.)
+        zenith_band_sigma  : Gaussian falloff width for the zenith lift, as a fraction
+                             of canvas height.  Larger values spread the brightening
+                             further down the canvas; default 0.10 confines it to the
+                             uppermost 20–25% of the image.
 
         Notes
         -----
@@ -4824,7 +4845,8 @@ class Painter:
         print(f"Atmospheric depth pass  "
               f"(haze={haze_color}  desat={desaturation:.2f}"
               f"  lighten={lightening:.2f}  gamma={depth_gamma:.1f}"
-              f"  horizon_glow={horizon_glow_band:.2f})…")
+              f"  horizon_glow={horizon_glow_band:.2f}"
+              f"  zenith_boost={zenith_luminance_boost:.2f})…")
 
         w, h = self.canvas.w, self.canvas.h
 
@@ -4892,6 +4914,26 @@ class Painter:
             rgb_final = rgb_final * (1.0 - glow_weight * 0.55) + glow_color * (glow_weight * 0.55)
             # Additional slight luminance lift (brighten toward white).
             rgb_final = rgb_final + glow_weight * 0.08
+
+        # ── Stage 4: Zenith luminance boost (session 104 improvement) ─────────
+        # Luca Giordano's ceiling fresco tradition: the very top of the canvas
+        # (the zenith sky) reads as brilliantly lit and luminous, not merely
+        # hazed.  A Gaussian centred at y=0 lifts luminance and slightly cools
+        # the uppermost zone, simulating the open celestial sky of his vast
+        # ceiling compositions.  Applied only to background pixels.
+        if zenith_luminance_boost > 0.0:
+            zenith_sigma_px = max(zenith_band_sigma * h, 1.0)
+            # Gaussian centred at row 0 (top of canvas)
+            row_dist_z = np.arange(h, dtype=np.float32) / zenith_sigma_px
+            zenith_profile = np.exp(-0.5 * row_dist_z ** 2)          # (H,)
+            zenith_profile = zenith_profile[:, np.newaxis, np.newaxis]  # (H, 1, 1)
+            zenith_weight  = zenith_profile * bg_weight[:, :, np.newaxis] * zenith_luminance_boost
+
+            # Cool-blue zenith: lift luminance uniformly with a slight blue bias
+            # (Giordano's open cerulean sky colour above the dramatic compositions).
+            zenith_color = np.array([0.88, 0.92, 0.98], dtype=np.float32)
+            rgb_final = rgb_final * (1.0 - zenith_weight * 0.45) + zenith_color * (zenith_weight * 0.45)
+            rgb_final = rgb_final + zenith_weight * 0.06
 
         rgb_final = np.clip(rgb_final, 0.0, 1.0)
 
@@ -26384,3 +26426,169 @@ class Painter:
         buf_out[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out.tobytes()
         print("    Carlo Dolci Florentine enamel pass complete.")
+
+    def giordano_rapidita_luminosa_pass(
+        self,
+        aureole_cx:         float = 0.88,
+        aureole_cy:         float = 0.06,
+        aureole_radius:     float = 0.72,
+        aureole_r:          float = 0.055,
+        aureole_g:          float = 0.030,
+        aureole_b:          float = 0.008,
+        rim_strength:       float = 0.042,
+        rim_sigma:          float = 3.0,
+        shadow_hi:          float = 0.30,
+        shadow_violet_b:    float = 0.014,
+        shadow_violet_r:    float = 0.005,
+        blur_radius:        float = 5.0,
+        opacity:            float = 0.32,
+    ) -> None:
+        """
+        Luca Giordano (1634–1705) — "Fa Presto" rapidità luminosa pass.
+
+        Giordano was the most prodigiously fast and versatile painter of the Italian
+        Baroque, capable of executing vast ceiling frescoes in weeks with sustained
+        compositional energy and undiminished luminosity.  His defining illumination
+        quality is a warm golden aureole sweeping from the upper-right — a theatrical
+        celestial radiance characteristic of his altarpieces and ceiling compositions
+        (Palazzo Medici-Riccardi, the Escorial, Certosa di San Martino).
+
+        This pass simulates three defining qualities of his large-scale illumination:
+
+        1. **Upper-right golden aureole** (aureole_cx/cy, aureole_radius, aureole_*):
+           A warm golden radiance centred in the upper-right zone of the canvas,
+           falling off gradually across the background with a large Gaussian radius.
+           R+ strong, G+ moderate, B+ slight — simulating the warm golden light that
+           enters from above in his theatrical ceiling compositions.  Applied with a
+           distance-weighted mask so the effect is atmospheric and gradual, not a
+           spotlight.
+
+        2. **Warm rim on lit figure edges** (rim_strength, rim_sigma):
+           A faint warm-gold brightening along the upper-lit edges of the figure,
+           applied via a gradient of the figure mask's upper-right edge region.
+           Simulates the way Giordano's figures are touched by theatrical upper
+           illumination — a rim of gold separating figure from background.
+
+        3. **Shadow violet depth** (shadow_hi, shadow_violet_*):
+           In the deep shadow zone (lum < shadow_hi), a very faint cool-violet push
+           (B+ slight, R+ tiny warm recovery) in the Venetian tradition absorbed from
+           Titian and Ribera — the shadow colour that separates Giordano's Baroque
+           warmth from the flat Caravaggio-black of pure tenebrism.
+
+        Parameters
+        ----------
+        aureole_cx / aureole_cy : canvas-fraction coordinates of aureole centre (upper-right)
+        aureole_radius          : Gaussian radius of the aureole falloff (as fraction of W)
+        aureole_r/g/b           : warm golden channel lifts in the aureole zone
+        rim_strength            : warm-gold rim brightening on lit figure edges
+        rim_sigma               : Gaussian sigma for figure edge rim computation
+        shadow_hi               : upper luminance threshold for the shadow violet zone
+        shadow_violet_b / _r    : channel shifts in shadow zone (B up, R slight recovery)
+        blur_radius             : Gaussian sigma for mask transitions
+        opacity                 : overall blend weight
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Giordano rapidità luminosa pass "
+              f"(aureole_r={aureole_r:.3f}  rim={rim_strength:.3f}  "
+              f"shadow_violet_b={shadow_violet_b:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Giordano rapidità luminosa pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        # Cairo BGRA layout
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Coordinate grids ──────────────────────────────────────────────────
+        ys, xs = _np.mgrid[:h, :w]
+        xs_f   = xs.astype(_np.float32) / w
+        ys_f   = ys.astype(_np.float32) / h
+
+        # ── 1. Upper-right golden aureole ─────────────────────────────────────
+        # Distance from the upper-right aureole centre, normalised by the
+        # canvas width.  Falls off with a Gaussian envelope so the effect
+        # is atmospheric and gradual rather than a hard spotlight.
+        dist_x     = xs_f - aureole_cx
+        dist_y     = ys_f - aureole_cy
+        dist       = _np.sqrt(dist_x ** 2 + dist_y ** 2).astype(_np.float32)
+        # Gaussian falloff: peak at centre, decays across the canvas
+        aureole_w  = max(aureole_radius, 1e-6)
+        aureole_mask = _np.exp(-0.5 * (dist / aureole_w) ** 2).astype(_np.float32)
+        aureole_mask = _np.clip(aureole_mask, 0.0, 1.0)
+
+        # Apply to background zone (non-figure) and lightly to figure
+        # Background pixels get the full aureole; figure pixels get 30%
+        # of it to add warm rim without washing out the face.
+        fig_mask = _np.zeros((h, w), dtype=_np.float32)
+        if self.figure_mask is not None:
+            fig_mask = _np.array(self.figure_mask, dtype=_np.float32)
+            fig_mask = _np.clip(fig_mask, 0.0, 1.0)
+        bg_weight  = 1.0 - fig_mask
+        fig_weight = fig_mask * 0.30
+        combined   = bg_weight + fig_weight  # blended influence map
+
+        r_out = _np.clip(r_out + aureole_mask * combined * aureole_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + aureole_mask * combined * aureole_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + aureole_mask * combined * aureole_b, 0.0, 1.0)
+
+        # ── 2. Warm golden rim on lit figure edges ────────────────────────────
+        # Compute the figure mask gradient to isolate the upper-right edge region,
+        # then apply a warm-gold brightening there — the theatrical rim that
+        # separates Giordano's figures from the glowing background.
+        if self.figure_mask is not None:
+            fig_smooth = _gf(fig_mask, sigma=rim_sigma)
+            # Edge = original mask minus strongly smoothed version → ring at boundary
+            fig_edge   = _np.clip(fig_mask - fig_smooth, 0.0, 1.0)
+            fig_edge   = _gf(fig_edge.astype(_np.float32), sigma=blur_radius * 0.4)
+            # Weight toward upper-right: ys_f small (top) and xs_f large (right)
+            upper_right_weight = _np.clip(
+                (1.0 - ys_f) * 0.5 + xs_f * 0.5, 0.0, 1.0
+            ).astype(_np.float32)
+            rim_mask = fig_edge * upper_right_weight
+            rim_mask = _np.clip(rim_mask, 0.0, 1.0)
+
+            r_out = _np.clip(r_out + rim_mask * rim_strength * 1.4, 0.0, 1.0)
+            g_out = _np.clip(g_out + rim_mask * rim_strength * 0.9, 0.0, 1.0)
+            b_out = _np.clip(b_out + rim_mask * rim_strength * 0.3, 0.0, 1.0)
+
+        # ── 3. Shadow violet depth — Venetian-influenced shadow colour ────────
+        # In the deepest shadows, add the faint cool-violet resonance absorbed
+        # from Titian and Ribera that distinguishes Giordano's Baroque warmth
+        # from flat tenebrism.
+        shadow_band = _np.clip(
+            (shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0
+        )
+        shadow_band = _gf(shadow_band.astype(_np.float32), sigma=blur_radius)
+        shadow_band = _np.clip(shadow_band, 0.0, 1.0)
+
+        b_out = _np.clip(b_out + shadow_band * shadow_violet_b, 0.0, 1.0)
+        r_out = _np.clip(r_out + shadow_band * shadow_violet_r, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out = orig.copy()
+        buf_out[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out.tobytes()
+        print("    Luca Giordano rapidità luminosa pass complete.")
