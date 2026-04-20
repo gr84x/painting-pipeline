@@ -12359,3 +12359,146 @@ def test_lautrec_essence_pass_rng_seed_parameter():
     assert "rng_seed" in sig.parameters, (
         "lautrec_essence_pass must have 'rng_seed' parameter"
     )
+
+
+# ── Session 102: James Tissot ─────────────────────────────────────────────────
+
+def test_tissot_in_catalog():
+    """tissot must be present in the art catalog."""
+    from art_catalog import CATALOG
+    assert "tissot" in CATALOG, (
+        "tissot missing from CATALOG"
+    )
+
+
+def test_tissot_style_fields():
+    """tissot ArtStyle must have correct artist metadata."""
+    from art_catalog import get_style
+    s = get_style("tissot")
+    assert "Tissot" in s.artist
+    assert "Victorian" in s.movement or "Realism" in s.movement or "Aesthetic" in s.movement
+    assert "French" in s.nationality or "British" in s.nationality
+
+
+def test_tissot_palette_valid():
+    """tissot palette colors must be in [0, 1]."""
+    from art_catalog import get_style
+    s = get_style("tissot")
+    for color in s.palette:
+        for channel in color:
+            assert 0.0 <= channel <= 1.0, (
+                f"tissot palette channel {channel} out of [0,1]"
+            )
+
+
+def test_tissot_stroke_params():
+    """tissot must have high wet_blend (academic glazed finish)."""
+    from art_catalog import get_style
+    s = get_style("tissot")
+    assert s.wet_blend >= 0.70, (
+        f"tissot wet_blend {s.wet_blend} too low for academic glazed finish"
+    )
+    assert s.edge_softness >= 0.50, (
+        f"tissot edge_softness {s.edge_softness} too low for academic surface"
+    )
+
+
+def test_tissot_famous_works():
+    """tissot must list known works."""
+    from art_catalog import get_style
+    s = get_style("tissot")
+    assert len(s.famous_works) >= 3
+    titles = [w[0] for w in s.famous_works]
+    assert any("Ball" in t or "Thames" in t or "Early" in t for t in titles), (
+        "tissot famous_works should include a known Tissot work"
+    )
+
+
+def test_victorian_social_realist_period_enum():
+    """VICTORIAN_SOCIAL_REALIST must exist in the Period enum."""
+    from scene_schema import Period
+    assert hasattr(Period, "VICTORIAN_SOCIAL_REALIST"), (
+        "Period enum missing VICTORIAN_SOCIAL_REALIST"
+    )
+
+
+def test_victorian_social_realist_stroke_params():
+    """VICTORIAN_SOCIAL_REALIST must have high wet_blend and moderate edge_softness."""
+    from scene_schema import Style, Period
+    s = Style(period=Period.VICTORIAN_SOCIAL_REALIST)
+    params = s.stroke_params
+    assert params["wet_blend"] >= 0.70, (
+        f"VICTORIAN_SOCIAL_REALIST wet_blend {params['wet_blend']} too low"
+    )
+    assert params["edge_softness"] >= 0.50, (
+        f"VICTORIAN_SOCIAL_REALIST edge_softness {params['edge_softness']} too low"
+    )
+
+
+def test_tissot_fashionable_gloss_pass_exists():
+    """Painter must have tissot_fashionable_gloss_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "tissot_fashionable_gloss_pass"), (
+        "Painter missing tissot_fashionable_gloss_pass"
+    )
+
+
+def test_tissot_fashionable_gloss_pass_clarity_parameter():
+    """tissot_fashionable_gloss_pass must accept clarity_str."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.tissot_fashionable_gloss_pass)
+    assert "clarity_str" in sig.parameters, (
+        "tissot_fashionable_gloss_pass must have 'clarity_str' parameter"
+    )
+
+
+def test_tissot_fashionable_gloss_pass_sheen_parameters():
+    """tissot_fashionable_gloss_pass must accept sheen_thresh and sheen_strength."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.tissot_fashionable_gloss_pass)
+    for param in ("sheen_thresh", "sheen_strength"):
+        assert param in sig.parameters, (
+            f"tissot_fashionable_gloss_pass must have {param!r} parameter"
+        )
+
+
+def test_tissot_fashionable_gloss_pass_chroma_parameter():
+    """tissot_fashionable_gloss_pass must accept chroma_boost."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.tissot_fashionable_gloss_pass)
+    assert "chroma_boost" in sig.parameters, (
+        "tissot_fashionable_gloss_pass must have 'chroma_boost' parameter"
+    )
+
+
+def test_tissot_fashionable_gloss_pass_highlight_cool_parameter():
+    """tissot_fashionable_gloss_pass must accept highlight_cool."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.tissot_fashionable_gloss_pass)
+    assert "highlight_cool" in sig.parameters, (
+        "tissot_fashionable_gloss_pass must have 'highlight_cool' parameter"
+    )
+
+
+def test_tissot_fashionable_gloss_pass_opacity_parameter():
+    """tissot_fashionable_gloss_pass must accept opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.tissot_fashionable_gloss_pass)
+    assert "opacity" in sig.parameters, (
+        "tissot_fashionable_gloss_pass must have 'opacity' parameter"
+    )
+
+
+def test_sfumato_veil_pass_atmospheric_blue_shift_parameter():
+    """sfumato_veil_pass must accept atmospheric_blue_shift (session 102 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sfumato_veil_pass)
+    assert "atmospheric_blue_shift" in sig.parameters, (
+        "sfumato_veil_pass must have 'atmospheric_blue_shift' parameter (session 102)"
+    )

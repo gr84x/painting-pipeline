@@ -8630,6 +8630,104 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── James Tissot (1836–1902) ──────────────────────────────────────────────────
+    # Pipeline key: tissot_fashionable_gloss_pass() — enamel surface clarity,
+    # specular sheen enhancement, chromatic richness in warm midtones, cool
+    # crystalline highlights.
+    "tissot": ArtStyle(
+        artist      = "James Tissot",
+        movement    = "Victorian Social Realism / Aesthetic Movement",
+        nationality = "French-British",
+        period      = "1860–1902",
+        palette     = [
+            (0.90, 0.86, 0.74),   # warm pale cream / ivory (fashionable dress highlights)
+            (0.62, 0.50, 0.38),   # warm tan / buff (flesh mid-tone)
+            (0.22, 0.26, 0.38),   # deep navy-blue (gentleman's coat / water shadows)
+            (0.72, 0.36, 0.22),   # warm terracotta / rose (fashionable dress accents)
+            (0.54, 0.60, 0.50),   # cool grey-green (Thames riverbank / garden foliage)
+            (0.82, 0.70, 0.44),   # warm amber-gold (Thames light / afternoon sun)
+        ],
+        ground_color  = (0.78, 0.74, 0.62),   # warm pale ochre-cream canvas preparation
+        stroke_size   = 5,
+        wet_blend     = 0.80,
+        edge_softness = 0.62,
+        jitter        = 0.018,
+        glazing       = (0.62, 0.50, 0.28),
+        crackle       = False,
+        chromatic_split = False,
+        technique     = (
+            "James Tissot occupies a distinctive position in Victorian painting — a "
+            "Frenchman in London who combined the precise academic surface of the "
+            "Beaux-Arts with an almost photographic eye for the visual detail of "
+            "fashionable social life.  His technical method belongs firmly to the "
+            "academic tradition of Ingres and Delaroche: oil paint applied in thin, "
+            "controlled layers over a carefully prepared warm-toned ground, each "
+            "surface built up through successive glazes until the result is a "
+            "seamless, almost lacquered finish with no visible brushwork on the "
+            "figure's skin or the principal fabrics.  "
+            "His most distinctive quality is what might be called fashionable gloss: "
+            "a combination of high local contrast in mid-tone passages, specular-like "
+            "sheen in the brightest highlights of silk and satin, and a chromatic "
+            "richness in the warm dress fabrics that makes his women appear almost "
+            "to be lit from within.  This is not the warm impasto glow of Rembrandt "
+            "or the atmospheric shimmer of Monet — it is the precision of a craftsman "
+            "who has studied how woven silk reflects light, and who reproduces that "
+            "observation with systematic fidelity.  "
+            "The palette is warm in the foreground — cream-ivory, buff flesh tones, "
+            "warm amber of afternoon Thames light — and cools progressively into the "
+            "distance: the grey-green of riverside foliage, the deep navy of water "
+            "in shadow, the pale cool sky.  This is not atmospheric sfumato (his "
+            "edges are clear and purposeful) but atmospheric recession through colour "
+            "temperature alone, a quality he shared with the Impressionists he knew "
+            "in Paris but never fully joined.  "
+            "His later career — after the death of his companion Kathleen Newton — "
+            "turned entirely to biblical illustration (La Vie de Notre-Seigneur "
+            "Jésus-Christ, 1886–1896), which required the same technical precision "
+            "applied to Middle Eastern landscape and costume detail.  Both phases — "
+            "fashionable Victorian and devotional biblical — share the same root "
+            "quality: an almost uncomfortable clarity of observation, as if the "
+            "painter trusts the eye more than any system of pictorial convention."
+        ),
+        famous_works  = [
+            ("The Ball on Shipboard",               "c. 1874"),
+            ("Too Early",                           "1873"),
+            ("The Thames",                          "c. 1876"),
+            ("October",                             "1877"),
+            ("La Femme à Paris — L'Ambitieuse",     "1883–1885"),
+            ("The Last Evening",                    "1873"),
+            ("Hush!",                               "1875"),
+            ("The Reception",                       "c. 1883–1885"),
+        ],
+        inspiration   = (
+            "Apply tissot_fashionable_gloss_pass() as the primary stylistic pass for "
+            "this artist.  The pass simulates four defining qualities of Tissot's "
+            "Victorian academic surface:  "
+            "(1) Enamel surface clarity — mild local contrast enhancement in the "
+            "mid-tone range [lum 0.28–0.72] (clarity_str ≈ 0.10–0.14) that sharpens "
+            "the perceived detail of fabric and skin without adding artificial "
+            "HDR-style crunchiness.  Implemented as a mild unsharp-mask: "
+            "canvas − gaussian_blur(canvas, σ≈4) * clarity_str.  "
+            "(2) Specular surface sheen — in the brightest non-highlight zones "
+            "(sheen_thresh ≈ 0.72) add a subtle luminance lift (sheen_strength ≈ "
+            "0.06–0.10) that simulates the specular reflectance of fine silk and "
+            "satin.  This is the micro-quality that makes Tissot's dress fabrics "
+            "look physically present rather than painted.  "
+            "(3) Chromatic richness — in the warm mid-tone zone, apply a modest "
+            "saturation boost (chroma_boost ≈ 0.05–0.08) by pulling each channel "
+            "away from luminance-grey in proportion to its existing deviation.  "
+            "This replicates the vivid fabric quality of his fashionable interiors.  "
+            "(4) Cool highlight crystallization — in the very brightest zones "
+            "(lum > 0.85), apply a slight cool shift (highlight_cool ≈ 0.03–0.06, "
+            "B↑ R↓) that turns hot-white highlights into the crisp, crystalline "
+            "whites of silk and linen under English afternoon light, distinct from "
+            "the warm ivory highlights of the sfumato tradition.  "
+            "Use opacity ≈ 0.24–0.32 so the pass adds Tissot's precise fashionable "
+            "surface without overriding the accumulated atmospheric depth of prior "
+            "sessions.  The Mona Lisa should gain Tissot's clarity and presence "
+            "while retaining Leonardo's atmospheric mystery."
+        ),
+    ),
+
     # ── Henri de Toulouse-Lautrec (1864–1901) ────────────────────────────────────
     # Pipeline key: lautrec_essence_pass() — matte surface desaturation, spidery
     # diagonal hatching in mid-tones, warm-cool graphic separation.

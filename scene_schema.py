@@ -268,6 +268,7 @@ class Period(Enum):
     CHROMATIC_INTIMISME    = auto()  # Pierre Bonnard — warm/cool chromatic oscillation in mid-tones, hallucinatory colour saturation, cadmium-yellow dominance, violet-shadow complements, domestic Mediterranean light
     PROTO_RENAISSANCE      = auto()  # Masaccio — architectonic mass modeling, deep directional shadow, warm ochre highlights, sculptural gravity, no sfumato
     BELLE_EPOQUE           = auto()  # Toulouse-Lautrec — peinture à l'essence matte surface, spidery diagonal hatching, warm-cool separation, bold flat-color zones, Japonisme-influenced graphic flatness
+    VICTORIAN_SOCIAL_REALIST = auto()  # James Tissot — enamel surface clarity, specular fabric sheen, chromatic richness in warm midtones, cool crystalline highlights, precise atmospheric colour recession
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1170,6 +1171,21 @@ class Style:
             # edge_softness=0.14: crisp, graphic edges — Lautrec was a draughtsman first; his
             # contours are clear, bold, and specific, never dissolved into atmosphere.
             Period.BELLE_EPOQUE:  dict(stroke_size_face=6,  stroke_size_bg=20, wet_blend=0.08, edge_softness=0.14),
+            # VICTORIAN_SOCIAL_REALIST (James Tissot) — academic glazed surface.
+            # stroke_size_face=5: Tissot's academic surface finish requires fine,
+            # controlled marks — the skin is built up in thin, imperceptible glazes
+            # with no visible brushwork at the figure scale; marks are smaller and
+            # more controlled than the bravura Baroque tradition.
+            # stroke_size_bg=22: backgrounds are painted with moderate marks —
+            # Tissot's Thames riverbanks and garden settings are carefully observed
+            # but not laboured; the eye is guided firmly toward the figure.
+            # wet_blend=0.80: very high — Tissot's academic method requires smooth,
+            # seamless flesh transitions built up through multiple wet-on-wet layers;
+            # the surface should read as porcelain-smooth in the face and neck.
+            # edge_softness=0.62: moderate-high — edges are clear and purposeful
+            # (not sfumato-dissolved) but not hard; Tissot's precise contours are
+            # softened by the glazing process into found, atmospheric edges.
+            Period.VICTORIAN_SOCIAL_REALIST: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.80, edge_softness=0.62),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
