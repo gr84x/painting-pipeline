@@ -266,6 +266,7 @@ class Period(Enum):
     MILANESE_SFUMATO       = auto()  # Bernardino Luini — Leonardo-school Milanese sfumato, warm ivory highlights, cool-violet shadow delicacy, seamless flesh surfaces, sweet idealized expressions
     UMBRIAN_MANNERIST      = auto()  # Federico Barocci — petal-soft rose-pink penumbra flush, pasteletti bianca ground luminosity, proto-Baroque tenderness, warm perimeter dissolution
     CHROMATIC_INTIMISME    = auto()  # Pierre Bonnard — warm/cool chromatic oscillation in mid-tones, hallucinatory colour saturation, cadmium-yellow dominance, violet-shadow complements, domestic Mediterranean light
+    PROTO_RENAISSANCE      = auto()  # Masaccio — architectonic mass modeling, deep directional shadow, warm ochre highlights, sculptural gravity, no sfumato
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1141,6 +1142,21 @@ class Style:
             # CHROMATIC_INTIMISME (Bonnard) — medium stroke, low wet-blend to keep
             # warm/cool dabs distinct, moderate edge softness for organic surface.
             Period.CHROMATIC_INTIMISME: dict(stroke_size_face=9, stroke_size_bg=28, wet_blend=0.35, edge_softness=0.42),
+            # PROTO_RENAISSANCE (Masaccio) — architectonic directional light modeling.
+            # stroke_size_face=8: confident, architectural marks — Masaccio built his
+            # fresco forms with broad, assured strokes applied into wet intonaco plaster;
+            # not the fine glazing of oil panel, but deliberate tonal planes that
+            # describe structural mass.  stroke_size_bg=24: moderate background marks —
+            # Masaccio's architectural niches and spare landscapes are painted with the
+            # same economy of means as the figures.
+            # wet_blend=0.42: moderate — fresco requires swift, decisive mark-making;
+            # wet-on-wet blending occurs within each giornata (day's work) but not
+            # across dried sections; forms are smooth but not sfumato-dissolved.
+            # edge_softness=0.38: relatively crisp — Masaccio's edges are physically
+            # present and describe mass; the shadow cast by a nose or chin-plane is
+            # a found edge, not an atmospheric gradient.  This is the defining
+            # contrast with his Florentine successor Leonardo (edge_softness=0.85).
+            Period.PROTO_RENAISSANCE: dict(stroke_size_face=8, stroke_size_bg=24, wet_blend=0.42, edge_softness=0.38),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

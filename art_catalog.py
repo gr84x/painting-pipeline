@@ -8544,6 +8544,91 @@ CATALOG: Dict[str, ArtStyle] = {
             "High jitter (0.055) ensures no flat zones — every mark varies."
         ),
     ),
+
+    # ── Masaccio ───────────────────────────────────────────────────────────────
+    "masaccio": ArtStyle(
+        artist="Masaccio",
+        movement="Proto-Renaissance / Early Florentine Renaissance",
+        nationality="Italian",
+        period="1422–1428",
+        palette=[
+            (0.76, 0.52, 0.22),   # warm burnt sienna — primary flesh and robe tone
+            (0.55, 0.38, 0.16),   # raw umber mid-shadow — transition from lit to dark
+            (0.24, 0.16, 0.08),   # deep shadow umber — deepest architectural void
+            (0.82, 0.72, 0.48),   # warm ochre highlight — Masaccio's lit planes
+            (0.46, 0.50, 0.42),   # cool neutral — distant landscape and architectural stone
+            (0.68, 0.58, 0.38),   # golden imprimatura — warm Florentine panel ground
+        ],
+        ground_color=(0.58, 0.48, 0.28),    # warm ochre-umber panel ground
+        stroke_size=8,
+        wet_blend=0.42,                      # moderate: forms built in convincing tonal layers
+        edge_softness=0.38,                  # crisp architectural edges — no sfumato dissolution
+        jitter=0.025,                        # controlled: Masaccio's authority, not impressionistic scatter
+        glazing=(0.62, 0.48, 0.22),          # warm amber unifying final glaze
+        crackle=True,                        # fresco and early tempera surfaces show age
+        chromatic_split=False,               # no chromatic splitting — volumetric tonal unity
+        technique=(
+            "Architectonic mass — Masaccio's defining achievement.  Between 1422 "
+            "and his death at 27 in 1428, he transformed Italian painting by "
+            "replacing the decorative flatness of the International Gothic with a "
+            "rigorous, sculptural approach to form and light.  His figures — in the "
+            "Brancacci Chapel frescoes (c. 1424–1427) and the Trinity at Santa Maria "
+            "Novella (c. 1427) — have genuine physical weight; they stand on the "
+            "ground, cast shadows, and occupy convincing three-dimensional space.  "
+            "This revolution was accomplished through a single, radical insight: "
+            "that natural light, applied consistently from a single source, builds "
+            "believable form more effectively than any amount of linear description.  "
+            "Masaccio's light is not the decorative modelling of his predecessors "
+            "(Giotto's flat tonal zones, the Gothic masters' gold-leaf halos) but a "
+            "genuinely directional, raking source that catches the high planes of "
+            "face and drapery and drops deep, near-black shadows behind projecting "
+            "forms.  The result is a technique often described as 'architectonic': "
+            "forms read as masses of stone or clay modelled in space, not as flat "
+            "silhouettes decorated with pattern.  "
+            "His palette is austere by the standards of his era: burnt sienna, raw "
+            "umber, warm ochre, with architectural stone grey in the backgrounds.  "
+            "There is none of the lapis-lazuli blue or vermilion red that enriched "
+            "the altarpieces of his contemporaries — Masaccio was after solidity, "
+            "not splendour.  "
+            "His shadow modelling is the key contribution to this pipeline: the "
+            "penumbra zone (lum 0.28–0.52) receives a subtle contrast enhancement "
+            "that makes the shadow-to-light transition read as a physical edge rather "
+            "than a tonal gradient.  The highlight side receives a warm ochre lift "
+            "that catches the upper-left light source described in the portrait.  "
+            "Deep shadow zones are gently deepened to maintain the architectural "
+            "void that gives Masaccio's forms their gravity.  "
+            "Pipeline implementation: masaccio_architectonic_mass_pass() targets "
+            "the penumbra transition zone with a localised contrast boost, deepens "
+            "the deep-shadow void slightly, and adds a warm ochre glow to the lit "
+            "side of the figure, restoring sculptural weight that the accumulated "
+            "sfumato-heavy prior passes have softened."
+        ),
+        famous_works=[
+            ("The Expulsion from the Garden of Eden (Brancacci Chapel)", "c. 1424–1427"),
+            ("The Tribute Money (Brancacci Chapel)",                      "c. 1424–1427"),
+            ("The Trinity, Santa Maria Novella",                          "c. 1427"),
+            ("Madonna and Child with Angels (Pisa Altarpiece)",           "1426"),
+            ("St Peter Healing with His Shadow (Brancacci Chapel)",       "c. 1424–1427"),
+        ],
+        inspiration=(
+            "Apply masaccio_architectonic_mass_pass() to restore sculptural mass "
+            "and architectural shadow weight to the accumulated soft-sfumato surface.  "
+            "Target the penumbra zone [lum 0.28–0.52]: apply a gentle S-curve "
+            "contrast boost in this band to sharpen the shadow/light boundary, "
+            "giving forms the physicality Masaccio achieved through raking directional "
+            "light.  "
+            "Deep shadow zone [lum < 0.24]: deepen by a small multiplicative "
+            "factor (shadow_deepen=0.04–0.08) to maintain the architectural void.  "
+            "Lit zone [lum > 0.62]: add warm ochre lift (earth_r=0.018, "
+            "earth_g=0.012) that echoes the burnt-sienna/ochre palette — the upper-"
+            "left light source warms the high planes of face and drapery.  "
+            "The pass respects the figure mask so the background landscape is "
+            "unaffected — Masaccio's sculptural weight is a figure-zone quality.  "
+            "opacity=0.28: this pass should add solidity, not reverse the sfumato; "
+            "the cumulative effect should read as weight and presence beneath the "
+            "atmospheric surface of the 99 prior sessions."
+        ),
+    ),
 }
 
 

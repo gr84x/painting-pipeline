@@ -25640,4 +25640,173 @@ class Painter:
         buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
         buf_out[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out.tobytes()
+
+    def masaccio_architectonic_mass_pass(
+        self,
+        shadow_lo:         float = 0.05,
+        shadow_hi:         float = 0.32,
+        shadow_deepen:     float = 0.05,
+        penumbra_lo:       float = 0.28,
+        penumbra_hi:       float = 0.54,
+        penumbra_contrast: float = 0.08,
+        lit_lo:            float = 0.62,
+        earth_r:           float = 0.018,
+        earth_g:           float = 0.012,
+        blur_radius:       float = 5.0,
+        opacity:           float = 0.28,
+    ) -> None:
+        """
+        Masaccio architectonic mass — Session 100 artistic improvement.
+
+        Tommaso di Ser Giovanni di Simone, called Masaccio (1401–1428), achieved
+        in six short years what no Italian painter had managed in over a century:
+        the convincing illusion of three-dimensional mass in paint.  His Brancacci
+        Chapel frescoes (c. 1424–1427) and the Trinity at Santa Maria Novella
+        (c. 1427) remain the founding monuments of naturalistic Western painting.
+        The revolutionary instrument was directional natural light applied with
+        absolute consistency — a single source from the upper-left that catches the
+        high planes of face and drapery and drops dense architectural shadows behind
+        every projecting form.
+
+        The defining quality of Masaccio's shadow modelling is what can be called
+        'architectonic mass': the penumbra transition — the band of tones between
+        the lit plane and the deep shadow — is narrow, decisive, and physically
+        convincing.  It does not dissolve gradually (as Leonardo's sfumato would do
+        three generations later) but transitions with a controlled sharpness that
+        reads as the edge of a real three-dimensional surface catching or losing the
+        light.  This is the quality Berenson described as 'tactile values': the
+        viewer's visual cortex registers a physical object that could be touched,
+        not a decorative pattern on a flat surface.
+
+        Session 100 centennial artistic improvement: architectonic mass restoration.
+        After 99 sessions of accumulated sfumato-heavy, atmosphere-dissolving passes,
+        the Mona Lisa figure risks losing its sculptural foundation.  This pass
+        restores Masaccio's lesson: deep shadows have genuine weight, lit planes
+        have warm ochre radiance, and the penumbra between them has a physical
+        decisiveness that anchors the entire form.
+
+        The effect is deliberately subtle (opacity=0.28) so it reads as solidity
+        beneath the atmospheric surface of the prior sessions rather than a visible
+        stylistic intrusion.  The figure gains gravity; the sfumato gains something
+        to rest on.
+
+        Implementation:
+
+          1. Deep shadow deepening: in pixels where lum ∈ [shadow_lo, shadow_hi],
+             multiply all channels toward black by shadow_deepen, using a smooth
+             ramp-in and ramp-out so the effect is zero at both boundaries.
+             This prevents the sfumato-heavy deep shadows from reading as neutral
+             grey mid-tones; they retain their architectural void.
+
+          2. Penumbra contrast boost: in pixels where lum ∈ [penumbra_lo, penumbra_hi],
+             apply a gentle S-curve contrast enhancement (penumbra_contrast).  The
+             S-curve lifts lums above the band midpoint and depresses lums below it,
+             sharpening the physical edge of the shadow/light boundary — the
+             Masaccio 'found edge' of light catching a projecting plane.
+
+          3. Lit-side ochre warm lift: in pixels where lum > lit_lo, add a warm
+             ochre channel boost (earth_r, earth_g) proportional to (lum - lit_lo).
+             This echoes the burnt-sienna/ochre palette of Masaccio's fresco
+             technique and reinforces the directional upper-left light source.
+
+          4. All effects are blurred with a Gaussian sigma = blur_radius before
+             compositing, so transitions are smooth and don't create visible
+             banding artefacts.
+
+          5. The figure mask is respected: background and landscape zones are
+             excluded so the sculptural weight applies only to the figure.
+
+        Parameters
+        ----------
+        shadow_lo           : lower lum boundary of deep-shadow deepening zone
+        shadow_hi           : upper lum boundary of deep-shadow deepening zone
+        shadow_deepen       : multiplicative deepening magnitude in shadow zone
+        penumbra_lo         : lower lum boundary of penumbra contrast zone
+        penumbra_hi         : upper lum boundary of penumbra contrast zone
+        penumbra_contrast   : S-curve contrast amplitude in penumbra zone
+        lit_lo              : lower lum threshold for warm ochre lit-side lift
+        earth_r             : R-channel ochre lift magnitude for lit side
+        earth_g             : G-channel ochre lift magnitude for lit side
+        blur_radius         : Gaussian sigma for transition smoothing
+        opacity             : overall composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # Figure mask — restrict all effects to the figure zone
+        if self._figure_mask is not None:
+            fm = self._figure_mask.astype(_np.float32)
+        else:
+            fm = _np.ones((h, w), dtype=_np.float32)
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Deep shadow deepening ──────────────────────────────────────────
+        # Smooth ramp: zero at shadow_lo and shadow_hi, peak at midpoint.
+        band_w = shadow_hi - shadow_lo + 1e-6
+        shadow_ramp = _np.clip(
+            1.0 - _np.abs(2.0 * (lum - shadow_lo) / band_w - 1.0), 0.0, 1.0
+        )
+        shadow_ramp = _gf(shadow_ramp.astype(_np.float32), blur_radius)
+        shadow_ramp = shadow_ramp * fm
+
+        deepen_factor = shadow_ramp * shadow_deepen
+        r_out = _np.clip(r_out - r_out * deepen_factor, 0.0, 1.0)
+        g_out = _np.clip(g_out - g_out * deepen_factor, 0.0, 1.0)
+        b_out = _np.clip(b_out - b_out * deepen_factor, 0.0, 1.0)
+
+        # ── 2. Penumbra contrast boost (Masaccio found-edge sharpening) ───────
+        # S-curve: above midpoint → lift; below midpoint → depress.
+        p_mid = (penumbra_lo + penumbra_hi) * 0.5
+        p_w   = penumbra_hi - penumbra_lo + 1e-6
+        # Ramp mask — non-zero only in the penumbra band
+        p_mask = _np.clip(
+            1.0 - _np.abs(2.0 * (lum - penumbra_lo) / p_w - 1.0), 0.0, 1.0
+        )
+        p_mask = _gf(p_mask.astype(_np.float32), blur_radius)
+        p_mask = p_mask * fm
+
+        # S-curve direction: +1 above midpoint, -1 below
+        s_dir = _np.where(lum >= p_mid, 1.0, -1.0).astype(_np.float32)
+        s_field = p_mask * s_dir * penumbra_contrast
+
+        r_out = _np.clip(r_out + s_field, 0.0, 1.0)
+        g_out = _np.clip(g_out + s_field, 0.0, 1.0)
+        b_out = _np.clip(b_out + s_field, 0.0, 1.0)
+
+        # ── 3. Lit-side warm ochre lift ───────────────────────────────────────
+        # Proportional to how far above lit_lo the pixel sits.
+        lit_ramp = _np.clip((lum - lit_lo) / (1.0 - lit_lo + 1e-6), 0.0, 1.0)
+        lit_ramp = _gf(lit_ramp.astype(_np.float32), blur_radius)
+        lit_ramp = lit_ramp * fm
+
+        r_out = _np.clip(r_out + lit_ramp * earth_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + lit_ramp * earth_g, 0.0, 1.0)
+        # B is not lifted — ochre is warm, not neutral
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out = orig.copy()
+        buf_out[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out.tobytes()
         print("    Federico Barocci petal flush pass complete.")
