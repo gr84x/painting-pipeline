@@ -12225,3 +12225,137 @@ def test_bonnard_chromatic_vibration_pass_opacity_parameter():
     assert "opacity" in sig.parameters, (
         "bonnard_chromatic_vibration_pass must have 'opacity' parameter"
     )
+
+
+# ── Session 101: Toulouse-Lautrec ────────────────────────────────────────────
+
+def test_toulouse_lautrec_in_catalog():
+    """toulouse_lautrec must be present in the art catalog."""
+    from art_catalog import CATALOG
+    assert "toulouse_lautrec" in CATALOG, (
+        "toulouse_lautrec missing from CATALOG"
+    )
+
+
+def test_toulouse_lautrec_style_fields():
+    """toulouse_lautrec ArtStyle must have correct artist metadata."""
+    from art_catalog import get_style
+    s = get_style("toulouse_lautrec")
+    assert "Toulouse-Lautrec" in s.artist
+    assert "Post-Impressionism" in s.movement or "Belle Époque" in s.movement
+    assert s.nationality == "French"
+
+
+def test_toulouse_lautrec_palette_valid():
+    """toulouse_lautrec palette colors must be in [0, 1]."""
+    from art_catalog import get_style
+    s = get_style("toulouse_lautrec")
+    for color in s.palette:
+        for channel in color:
+            assert 0.0 <= channel <= 1.0, (
+                f"toulouse_lautrec palette channel {channel} out of [0,1]"
+            )
+
+
+def test_toulouse_lautrec_stroke_params():
+    """toulouse_lautrec must have low wet_blend (peinture à l'essence)."""
+    from art_catalog import get_style
+    s = get_style("toulouse_lautrec")
+    assert s.wet_blend <= 0.15, (
+        f"toulouse_lautrec wet_blend {s.wet_blend} too high for essence technique"
+    )
+    assert s.edge_softness <= 0.25, (
+        f"toulouse_lautrec edge_softness {s.edge_softness} too high for graphic style"
+    )
+
+
+def test_toulouse_lautrec_famous_works():
+    """toulouse_lautrec must list known works."""
+    from art_catalog import get_style
+    s = get_style("toulouse_lautrec")
+    assert len(s.famous_works) >= 3
+    titles = [w[0] for w in s.famous_works]
+    assert any("Moulin" in t for t in titles), (
+        "toulouse_lautrec famous_works should include a Moulin Rouge work"
+    )
+
+
+def test_belle_epoque_period_enum():
+    """BELLE_EPOQUE must exist in the Period enum."""
+    from scene_schema import Period
+    assert hasattr(Period, "BELLE_EPOQUE"), (
+        "Period enum missing BELLE_EPOQUE"
+    )
+
+
+def test_belle_epoque_stroke_params():
+    """BELLE_EPOQUE must have low wet_blend and low edge_softness."""
+    from scene_schema import Style, Period
+    s = Style(period=Period.BELLE_EPOQUE)
+    params = s.stroke_params
+    assert params["wet_blend"] <= 0.12, (
+        f"BELLE_EPOQUE wet_blend {params['wet_blend']} too high"
+    )
+    assert params["edge_softness"] <= 0.20, (
+        f"BELLE_EPOQUE edge_softness {params['edge_softness']} too high"
+    )
+
+
+def test_lautrec_essence_pass_exists():
+    """Painter must have lautrec_essence_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "lautrec_essence_pass"), (
+        "Painter missing lautrec_essence_pass"
+    )
+
+
+def test_lautrec_essence_pass_matte_parameter():
+    """lautrec_essence_pass must accept matte_str."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lautrec_essence_pass)
+    assert "matte_str" in sig.parameters, (
+        "lautrec_essence_pass must have 'matte_str' parameter"
+    )
+
+
+def test_lautrec_essence_pass_hatch_parameters():
+    """lautrec_essence_pass must accept hatch_angle, hatch_density, hatch_darkness."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lautrec_essence_pass)
+    for param in ("hatch_angle", "hatch_density", "hatch_darkness"):
+        assert param in sig.parameters, (
+            f"lautrec_essence_pass must have {param!r} parameter"
+        )
+
+
+def test_lautrec_essence_pass_warm_cool_parameters():
+    """lautrec_essence_pass must accept warm_boost and cool_boost."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lautrec_essence_pass)
+    for param in ("warm_boost", "cool_boost"):
+        assert param in sig.parameters, (
+            f"lautrec_essence_pass must have {param!r} parameter"
+        )
+
+
+def test_lautrec_essence_pass_opacity_parameter():
+    """lautrec_essence_pass must accept opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lautrec_essence_pass)
+    assert "opacity" in sig.parameters, (
+        "lautrec_essence_pass must have 'opacity' parameter"
+    )
+
+
+def test_lautrec_essence_pass_rng_seed_parameter():
+    """lautrec_essence_pass must accept rng_seed for reproducible hatching."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lautrec_essence_pass)
+    assert "rng_seed" in sig.parameters, (
+        "lautrec_essence_pass must have 'rng_seed' parameter"
+    )

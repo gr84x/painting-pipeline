@@ -25810,3 +25810,155 @@ class Painter:
         buf_out[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out.tobytes()
         print("    Federico Barocci petal flush pass complete.")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # SESSION 101 — Henri de Toulouse-Lautrec (1864–1901)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def lautrec_essence_pass(
+        self,
+        matte_str:      float = 0.11,
+        hatch_angle:    float = 44.0,
+        hatch_density:  float = 0.24,
+        hatch_darkness: float = 0.08,
+        mid_lo:         float = 0.22,
+        mid_hi:         float = 0.62,
+        warm_boost:     float = 0.06,
+        cool_boost:     float = 0.045,
+        blur_radius:    float = 3.5,
+        opacity:        float = 0.30,
+        rng_seed:       int   = 101,
+    ) -> None:
+        """Simulate Toulouse-Lautrec's 'peinture à l'essence' on cardboard.
+
+        Three-stage pass:
+
+        1. **Matte surface desaturation** — mild spatially-uniform saturation
+           reduction that replaces the luminous oil-glaze surface with the dry,
+           chalky quality of turpentine-diluted paint absorbed into raw cardboard.
+
+        2. **Spidery diagonal hatching** — sparse parallel marks at ``hatch_angle``
+           degrees in the mid-tone / shadow zone [``mid_lo`` – ``mid_hi``], each
+           slightly darkening the pixel to simulate the cross-hatching of
+           Lautrec's draughtsmanship.  Density is kept low so the texture reads
+           as handmade rather than mechanical.
+
+        3. **Warm-cool graphic separation** — pushes warm-dominant pixels toward
+           mustard-amber and cool-dominant pixels toward blue-grey, echoing
+           Lautrec's flat, Japonisme-influenced colour language where the warm
+           cardboard ground opposes the cool shadow zones.
+
+        Parameters
+        ----------
+        matte_str       : saturation reduction magnitude [0–1]; 0.10–0.14 typical
+        hatch_angle     : diagonal hatch angle in degrees (42–48 ≈ 45°)
+        hatch_density   : fraction of eligible pixels that receive a hatch mark
+        hatch_darkness  : darkening magnitude applied to hatch pixels [0–1]
+        mid_lo          : lower luminance boundary of hatch / warm-cool zone
+        mid_hi          : upper luminance boundary of hatch / warm-cool zone
+        warm_boost      : R-channel lift for warm-dominant pixels
+        cool_boost      : B-channel lift for cool-dominant pixels
+        blur_radius     : Gaussian sigma for transition smoothing
+        opacity         : overall composite opacity (0–1)
+        rng_seed        : RNG seed for reproducible hatching pattern
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        rng = _np.random.default_rng(rng_seed)
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Matte surface desaturation ────────────────────────────────────
+        # Pull each channel toward luminance by matte_str to kill the oil-glaze
+        # sheen and leave the dry, chalky cardboard quality.
+        r_out = _np.clip(r_out + (lum - r_out) * matte_str, 0.0, 1.0)
+        g_out = _np.clip(g_out + (lum - g_out) * matte_str, 0.0, 1.0)
+        b_out = _np.clip(b_out + (lum - b_out) * matte_str, 0.0, 1.0)
+
+        # ── 2. Spidery diagonal hatching in mid-tone / shadow zone ───────────
+        # Build a binary mask of pixels eligible for hatching: those in the
+        # [mid_lo, mid_hi] luminance band.
+        mid_mask = ((lum >= mid_lo) & (lum <= mid_hi)).astype(_np.float32)
+
+        # Create a diagonal stripe field at hatch_angle degrees.  Each pixel's
+        # projection onto the hatch direction gives a phase; pixels near the
+        # zero-crossing of a sine wave are candidate hatch positions.
+        angle_rad = _np.radians(hatch_angle)
+        ys, xs = _np.mgrid[:h, :w]
+        # Phase: projection of (x, y) onto the hatch-perpendicular direction,
+        # then wrapped to [0, 1) with a spacing of ~6 pixels between strands.
+        hatch_spacing = 6.0
+        phase = (xs * _np.cos(angle_rad) + ys * _np.sin(angle_rad)) / hatch_spacing
+        phase_frac = phase - _np.floor(phase)   # in [0, 1)
+
+        # Mark pixels within the thinnest stripe zone as candidate hatch pixels.
+        stripe_width = 0.18   # fraction of the spacing period that is 'on'
+        stripe_mask = (phase_frac < stripe_width).astype(_np.float32)
+
+        # Combine spatial stripe with luminance eligibility, then subsample by
+        # hatch_density to keep the marks sparse and hand-drawn in character.
+        combined = mid_mask * stripe_mask
+        noise = rng.random((h, w)).astype(_np.float32)
+        hatch_pixels = (combined > 0.5) & (noise < hatch_density)
+
+        r_out[hatch_pixels] = _np.clip(r_out[hatch_pixels] - hatch_darkness, 0.0, 1.0)
+        g_out[hatch_pixels] = _np.clip(g_out[hatch_pixels] - hatch_darkness, 0.0, 1.0)
+        b_out[hatch_pixels] = _np.clip(b_out[hatch_pixels] - hatch_darkness, 0.0, 1.0)
+
+        # Smooth the hatch layer slightly so single-pixel marks acquire a
+        # hair-thin stroke quality rather than isolated pixel noise.
+        r_hatch_effect = _gf((r0 - r_out).clip(0.0, 1.0), sigma=0.6)
+        g_hatch_effect = _gf((g0 - g_out).clip(0.0, 1.0), sigma=0.6)
+        b_hatch_effect = _gf((b0 - b_out).clip(0.0, 1.0), sigma=0.6)
+        r_out = _np.clip(r0 - r_hatch_effect, 0.0, 1.0)
+        g_out = _np.clip(g0 - g_hatch_effect, 0.0, 1.0)
+        b_out = _np.clip(b0 - b_hatch_effect, 0.0, 1.0)
+
+        # Re-apply the matte desaturation on top of the hatch output.
+        lum2 = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        r_out = _np.clip(r_out + (lum2 - r_out) * matte_str, 0.0, 1.0)
+        g_out = _np.clip(g_out + (lum2 - g_out) * matte_str, 0.0, 1.0)
+        b_out = _np.clip(b_out + (lum2 - b_out) * matte_str, 0.0, 1.0)
+
+        # ── 3. Warm-cool graphic separation ──────────────────────────────────
+        # In the mid-tone zone, identify warm-dominant pixels (R > B) and
+        # push them toward mustard-amber; identify cool-dominant pixels
+        # (B > R) and push them toward blue-grey.
+        in_band = mid_mask  # already computed above
+
+        warm_dominant = (r_out > b_out).astype(_np.float32) * in_band
+        warm_ramp = _gf(warm_dominant, sigma=blur_radius)
+        r_out = _np.clip(r_out + warm_ramp * warm_boost, 0.0, 1.0)
+        g_out = _np.clip(g_out + warm_ramp * warm_boost * 0.45, 0.0, 1.0)
+
+        cool_dominant = (b_out > r_out).astype(_np.float32) * in_band
+        cool_ramp = _gf(cool_dominant, sigma=blur_radius)
+        b_out = _np.clip(b_out + cool_ramp * cool_boost, 0.0, 1.0)
+        r_out = _np.clip(r_out - cool_ramp * cool_boost * 0.30, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out = orig.copy()
+        buf_out[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out.tobytes()
+        print("    Toulouse-Lautrec essence pass complete.")
