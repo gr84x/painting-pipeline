@@ -273,6 +273,7 @@ class Period(Enum):
     FLORENTINE_DEVOTIONAL_BAROQUE = auto()  # Carlo Dolci — hyper-smooth devotional enamel finish, deep walnut-brown shadow glazes, crystalline ivory highlights, introspective psychological stillness, obsessive surface polish
     NEAPOLITAN_BAROQUE = auto()  # Luca Giordano — warm golden-aureole illumination, sweeping Venetian colour, theatrical tenebrism, dynamic aerial grandeur, rapid luminous synthesis of all prior traditions
     SPANISH_NEAPOLITAN_BAROQUE = auto()  # Jusepe de Ribera — brutal tenebrism from near-black void, gritty visible shadow texture, warm amber highlights, raw psychological realism, Spanish naturalism grafted onto Caravaggism
+    BERGAMASQUE_PORTRAIT_REALISM = auto()  # Giovanni Battista Moroni — cool silver highlights, warm shadow recovery, mid-tone presence; the most psychologically direct portrait realism in 16th-century Italy
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1223,6 +1224,33 @@ class Style:
             # edge_softness=0.48: moderate — Giordano's edges are purposeful and dramatic,
             # neither Caravaggio-hard nor Leonardo-dissolved.
             Period.NEAPOLITAN_BAROQUE: dict(stroke_size_face=7, stroke_size_bg=34, wet_blend=0.62, edge_softness=0.48),
+            # SPANISH_NEAPOLITAN_BAROQUE (Jusepe de Ribera) — brutal tenebrism, gritty shadow texture.
+            # stroke_size_face=8: Ribera's flesh is modelled with confident, sculptural marks —
+            # larger than the Italian academic tradition, reflecting his directness and the
+            # physical weight he brings to aged, working-class faces.
+            # stroke_size_bg=26: Ribera's backgrounds are near-absolute dark voids, painted
+            # with broad, efficient strokes that establish the shadow ground rather than
+            # depicting space; they are the dark earth from which lit forms emerge.
+            # wet_blend=0.30: low — Ribera's visible brushwork in the shadow zones is a
+            # defining technical quality; his darks retain gritty mark energy rather than
+            # smoothing into seamless enamel; wet blending is reserved for flesh transitions.
+            # edge_softness=0.28: deliberately low — Ribera's chiaroscuro requires hard
+            # found edges where light meets shadow; the dramatic silhouette of his lit forms
+            # against near-black void depends on edge clarity, not atmospheric softening.
+            Period.SPANISH_NEAPOLITAN_BAROQUE: dict(stroke_size_face=8, stroke_size_bg=26, wet_blend=0.30, edge_softness=0.28),
+            # BERGAMASQUE_PORTRAIT_REALISM (Giovanni Battista Moroni) — direct naturalism.
+            # stroke_size_face=5: Moroni's portraits are built with careful, observational
+            # marks — more deliberate than Hals's bravura but less miniaturist than Van Eyck;
+            # each stroke describes a specific tonal plane in the face with quiet precision.
+            # stroke_size_bg=20: Moroni's backgrounds are simple grey-green architectural
+            # surfaces or neutral grounds, painted efficiently to direct focus to the sitter.
+            # wet_blend=0.45: moderate — Moroni's surfaces are smooth and convincing but
+            # not sfumato-dissolved; each tonal zone is clearly defined, giving his sitters
+            # their characteristic sense of physical presence and tactile reality.
+            # edge_softness=0.40: moderate-crisp — Moroni's edges are present and descriptive;
+            # he was a naturalist, not a sfumato painter; contours are found (as in Caravaggio)
+            # rather than dissolved (as in Leonardo), giving his sitters their direct gaze quality.
+            Period.BERGAMASQUE_PORTRAIT_REALISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.45, edge_softness=0.40),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

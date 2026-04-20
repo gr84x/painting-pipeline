@@ -27220,4 +27220,196 @@ class Painter:
         buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 108 — Giovanni Battista Moroni · BERGAMASQUE_PORTRAIT_REALISM
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def moroni_silver_presence_pass(
+        self,
+        hi_lo:          float = 0.68,
+        silver_r:       float = 0.008,
+        silver_g:       float = 0.012,
+        silver_b:       float = 0.020,
+        shadow_hi:      float = 0.35,
+        warm_r:         float = 0.018,
+        warm_g:         float = 0.010,
+        warm_b:         float = 0.006,
+        mid_lo:         float = 0.35,
+        mid_hi:         float = 0.68,
+        mid_gamma_lo:   float = 0.94,
+        mid_gamma_hi:   float = 1.06,
+        blur_radius:    float = 3.5,
+        opacity:        float = 0.36,
+    ) -> None:
+        """
+        Giovanni Battista Moroni silver presence pass — session 108 new artist pass.
+
+        Giovanni Battista Moroni (c. 1520–1579) is the defining master of Bergamasque
+        portrait realism — a tradition of unhurried, psychologically direct observation
+        rooted in the Lombard city of Bergamo and its satellite Brescia, far from the
+        idealising academies of Venice, Florence, and Rome.  He trained under Moretto da
+        Brescia (who had already developed a naturalist approach to the Brescian lighting
+        tradition) and spent his career serving merchants, clergy, and lawyers who wanted
+        to be seen as they were: not as gods, not as symbols, but as people.
+
+        The defining Moroni quality is **silver presence** — the uncanny sense of
+        physical reality his sitters project from the canvas.  Unlike Leonardo (whose
+        sfumato dematerialises form into atmospheric haze) or Bronzino (whose enamel
+        freezes form into cold perfection), Moroni achieves presence through tonal
+        accuracy: the correct luminance value at every point of the face, as observed
+        under real north-window light.
+
+        His highlights are the key diagnostic: where Raphael's lights glow with warm
+        ivory (reading as sunlight from the south, warm and golden) and Bronzino's
+        are cold blue-white (the hard light of Florentine Mannerist clarity), Moroni's
+        highlights are **cool silver** — not warm, not cold, but the neutral, steady
+        light of overcast northern daylight.  Technical analysis of his panels and
+        canvases suggests he used lead white mixed with small quantities of smalt or
+        azurite in his uppermost highlight layers, producing a distinctly cool, slightly
+        bluish-silver quality in the peak lights of forehead, cheekbone, and nose bridge.
+
+        His shadow passages are the complement: warm amber-ochre recovery that prevents
+        the darks from going cold or grey.  Where Ribera lets his voids approach near-
+        black umber, and where Leonardo dissolves them into cool violet haze, Moroni's
+        shadows retain earthy warmth — raw sienna and ochre in the deepest tones —
+        keeping the face readable in three dimensions without theatrical drama.
+
+        The mid-tone zone — where most of his sitters' faces live — is handled with
+        extraordinary tonal precision: a subtle local contrast enhancement that separates
+        tonal planes without visible brushwork boundaries or sfumato dissolution.  This
+        is the quality that makes his sitters seem to exist in real space rather than on
+        a painted surface.
+
+        This pass encodes three defining Moroni qualities:
+
+          1. Cool silver highlight — In the upper highlight zone (lum > hi_lo),
+             apply a graduated cool-silver shift: R - silver_r (small reduction —
+             removes the warm cast), G + silver_g (moderate — silver needs green),
+             B + silver_b (largest lift — the cool north-daylight quality).
+             The shift is graduated by a Gaussian-smoothed luminance mask so it
+             is strongest at the peak highlights and fades smoothly into the midtones.
+
+          2. Warm shadow recovery — In the shadow zone (lum < shadow_hi),
+             add earthy amber-ochre warmth: R + warm_r, G + warm_g (smaller),
+             B - warm_b (tiny reduction — removes blue-grey cast).
+             This prevents Moroni's shadows from going cold and gives his sitters
+             their characteristic grounded warmth even in the darkest passages.
+
+          3. Mid-tone presence enhancement — In the mid-tone zone [mid_lo, mid_hi],
+             apply a mild luminance gamma separation: pixels in the lower half of the
+             mid-tone range receive a subtle darkening (gamma > 1, mid_gamma_lo)
+             while pixels in the upper half receive a subtle lightening (gamma < 1,
+             mid_gamma_hi).  This slightly separates the tonal planes in the
+             transition zone without visible sharpening artifacts, producing the
+             quiet tonal precision that makes Moroni's faces seem physically present.
+
+        Apply after sfumato_veil_pass() (if soft ground is desired) or directly on a
+        clearly-modelled base.  Works well after old_master_varnish_pass() to add the
+        Moroni silver quality over an established warm-toned Italian base.
+
+        Parameters
+        ----------
+        hi_lo           : lower lum threshold for cool silver highlight zone
+        silver_r        : R reduction in highlights (removes warm cast, small)
+        silver_g        : G lift in highlights (moderate — silver needs green balance)
+        silver_b        : B lift in highlights (largest — the cool north-daylight quality)
+        shadow_hi       : upper lum threshold for warm shadow recovery zone
+        warm_r          : R lift in shadows (amber-ochre warmth)
+        warm_g          : G lift in shadows (secondary warm tint, smaller)
+        warm_b          : B reduction in shadows (removes blue-grey cast)
+        mid_lo          : lower lum bound of mid-tone presence zone
+        mid_hi          : upper lum bound of mid-tone presence zone
+        mid_gamma_lo    : gamma for lower mid-tone half (> 1 = subtle darkening)
+        mid_gamma_hi    : gamma for upper mid-tone half (< 1 = subtle lightening)
+        blur_radius     : Gaussian sigma for mask feathering
+        opacity         : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Cool silver highlight ──────────────────────────────────────────
+        # Moroni's north-daylight highlights are cool silver rather than warm ivory.
+        # Graduate the shift by a smoothed mask strongest at the luminance peak.
+        hi_mask = _np.clip(
+            (lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0
+        )
+        hi_mask = _gf(hi_mask.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - hi_mask * silver_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * silver_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask * silver_b, 0.0, 1.0)
+
+        # ── 2. Warm shadow recovery ───────────────────────────────────────────
+        # Moroni's shadows retain amber-ochre warmth — earthy, not cold or grey.
+        sh_mask = _np.clip(
+            (shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0
+        )
+        sh_mask = _gf(sh_mask.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_mask * warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * warm_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - sh_mask * warm_b, 0.0, 1.0)
+
+        # ── 3. Mid-tone presence enhancement ──────────────────────────────────
+        # Mild gamma separation within the mid-tone zone [mid_lo, mid_hi]:
+        # lower mid-tones receive a subtle darkening push (gamma > 1 → values drop);
+        # upper mid-tones receive a subtle lightening push (gamma < 1 → values rise).
+        # This gently separates the mid-tone planes without sharpening artifacts —
+        # the quiet tonal precision behind Moroni's sense of physical presence.
+        mid_range = mid_hi - mid_lo + 1e-6
+
+        # Normalised position within the mid-tone zone [0, 1]
+        t = _np.clip((lum - mid_lo) / mid_range, 0.0, 1.0)
+        t = _gf(t.astype(_np.float32), blur_radius)
+        t = _np.clip(t, 0.0, 1.0)
+
+        # Blend gamma: 0 → mid_gamma_lo (darkening), 1 → mid_gamma_hi (lightening)
+        gamma_map = mid_gamma_lo + t * (mid_gamma_hi - mid_gamma_lo)
+
+        # Mid-tone bell mask — zero outside [mid_lo, mid_hi], smooth inside
+        mid_bell = (
+            _np.clip((lum - mid_lo) / mid_range, 0.0, 1.0) *
+            _np.clip((mid_hi - lum) / mid_range, 0.0, 1.0) * 4.0
+        )
+        mid_bell = _np.clip(mid_bell, 0.0, 1.0)
+        mid_bell = _gf(mid_bell.astype(_np.float32), blur_radius)
+        mid_bell = _np.clip(mid_bell, 0.0, 1.0)
+
+        # Apply gamma within mid-zone; blend with original by mid_bell weight
+        eps = 1e-6
+        r_gamma = _np.clip(_np.power(_np.clip(r_out, eps, 1.0), gamma_map), 0.0, 1.0)
+        g_gamma = _np.clip(_np.power(_np.clip(g_out, eps, 1.0), gamma_map), 0.0, 1.0)
+        b_gamma = _np.clip(_np.power(_np.clip(b_out, eps, 1.0), gamma_map), 0.0, 1.0)
+
+        r_out = r_out * (1.0 - mid_bell) + r_gamma * mid_bell
+        g_out = g_out * (1.0 - mid_bell) + g_gamma * mid_bell
+        b_out = b_out * (1.0 - mid_bell) + b_gamma * mid_bell
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Giovanni Antonio Boltraffio pearled sfumato pass complete.")

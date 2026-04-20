@@ -9290,6 +9290,117 @@ CATALOG: Dict[str, ArtStyle] = {
             "Use opacity ≈ 0.35–0.45."
         ),
     ),
+
+    # ── Giovanni Battista Moroni ───────────────────────────────────────────────
+    # Randomly selected artist for session 108's inspiration.
+    # Giovanni Battista Moroni (c. 1520–1579) was a Bergamasque painter whose
+    # portraits are among the most psychologically direct works of the entire
+    # Italian Renaissance.  He trained under Moretto da Brescia in Brescia — a
+    # city whose painters emphasised naturalism over the idealism of Venice or
+    # Florence — and spent most of his career in Bergamo serving middle-class
+    # patrons: merchants, lawyers, clergy, and guild masters who wanted to be
+    # seen as they were, not as gods.
+    #
+    # The quality that makes Moroni singular in the history of Western portraiture
+    # is what might be called **silver presence**: an uncanny sense of physical
+    # reality achieved not through micro-detail (Flemish) or glossy finish
+    # (Bronzino) but through a startlingly accurate tonal structure.  His
+    # highlights have a distinctive cool silver quality — where Raphael's
+    # lights glow with warm ivory and Bronzino's are cold enamel, Moroni's
+    # occupy a middle register: cool, restrained, almost metallic, yet still
+    # warm enough to read as living flesh.  The effect is of a person caught in
+    # real north-window light in a Bergamasque courtyard.
+    #
+    # His shadow passages are equally characteristic: warm amber-ochre recovery
+    # prevents the darks from going grey or cold.  Unlike Ribera (who lets his
+    # voids go near-black) or Leonardo (whose shadows dissolve into sfumato haze),
+    # Moroni's shadows retain an earthy warmth that keeps the face readable in
+    # three dimensions without theatrical drama.
+    #
+    # Moroni also has a remarkable ability to render textile — brocade, velvet,
+    # lace — with precision that borders on trompe-l'oeil, while keeping the
+    # face broadly painted and psychologically alive.  This contrast between
+    # elaborate costume and direct face is the structural drama of his portraits.
+    #
+    # His most celebrated work, "Il Sarto" (The Tailor, c. 1570, National Gallery
+    # London), captures his essence: a craftsman holding his shears, gazing
+    # directly at the viewer with unnerving calm, his dark costume rendered in
+    # precise detail while his face carries the entire psychological weight of
+    # the picture.  The Louvre's Portrait of an Old Man with a Book and Brera's
+    # various Bergamasque gentlemen show the full range of his cool, unhurried,
+    # profoundly truthful portrait vision.
+    "moroni": ArtStyle(
+        artist="Giovanni Battista Moroni",
+        movement="Bergamasque Portrait Realism / Lombard Renaissance",
+        nationality="Italian",
+        period="c. 1545–1579",
+        palette=[
+            (0.82, 0.72, 0.58),   # warm ivory-buff highlight flesh
+            (0.65, 0.52, 0.38),   # warm sienna mid-tone flesh
+            (0.42, 0.32, 0.22),   # warm umber shadow flesh
+            (0.55, 0.58, 0.52),   # cool grey-green background stone
+            (0.22, 0.20, 0.18),   # near-black costume (velvets, dark wool)
+            (0.72, 0.68, 0.60),   # pale silver highlight (textiles and flesh peak)
+            (0.48, 0.42, 0.32),   # mid warm-brown — shadow recovery anchor
+        ],
+        ground_color=(0.52, 0.48, 0.40),    # warm grey-buff ground — Bergamasque panel tone
+        stroke_size=6,
+        wet_blend=0.45,                      # moderate — smooth but not sfumato-dissolved
+        edge_softness=0.40,                  # moderate-crisp — naturalist found edges
+        jitter=0.020,                        # low: Moroni's precision, not impressionistic scatter
+        glazing=(0.72, 0.68, 0.52),          # warm silver-buff final unifying glaze
+        crackle=True,                        # oil on canvas — 16th-century aging appropriate
+        chromatic_split=False,               # pure tonal naturalism, no colour splitting
+        technique=(
+            "Silver presence — Moroni's defining quality.  Unlike Leonardo's sfumato "
+            "(which dematerialises form into atmospheric haze) or Bronzino's enamel "
+            "(which crystallises form into cold perfection), Moroni achieves physical "
+            "presence through tonal accuracy: the correct luminance value at every "
+            "point of the face, as observed under real north-window light.  His "
+            "highlights are cool silver-grey — not warm ivory — catching the flat "
+            "Bergamasque daylight without the warm amber glaze of the Venetians.  "
+            "His shadows are warm amber-ochre rather than cool grey or near-black "
+            "void: they recover warmth in the darkest passages, keeping the face "
+            "readable and grounded.  "
+            "The mid-tone zone — where most of his sitters' faces live — is handled "
+            "with extraordinary precision: gentle local contrast that makes forms "
+            "emerge from one another without sfumato dissolution or theatrical drama.  "
+            "The result is a sense of the sitter existing in real space and real light, "
+            "observed without flattery or idealization.  "
+            "Moroni's technique was likely influenced by Moretto da Brescia's "
+            "naturalism and Savoldo's tonal approach — the Lombard tradition of "
+            "careful, unhurried observation that predates and parallels (but does not "
+            "descend from) Caravaggio's later naturalist revolution."
+        ),
+        famous_works=[
+            ("Il Sarto (The Tailor)",              "c. 1570"),
+            ("Portrait of a Gentleman (Il Cavaliere)",  "c. 1554"),
+            ("Portrait of an Old Man with a Book",  "c. 1575"),
+            ("Portrait of Gian Gerolamo Grumelli ('The Knight in Pink')", "1560"),
+            ("The Poet Torquato Tasso",             "c. 1560"),
+            ("Portrait of Count Pietro Secco Suardo", "1563"),
+            ("Portrait of a Lady in White",         "c. 1556"),
+        ],
+        inspiration=(
+            "Apply moroni_silver_presence_pass() as the defining stylistic pass.  "
+            "Three stages that encode Moroni's tonal signature: "
+            "(1) Cool silver highlight — in the upper highlight zone (lum > hi_lo ≈ 0.68), "
+            "shift subtly toward cool silver: R - silver_r (tiny), "
+            "G + silver_g (small), B + silver_b (moderate).  This replicates the "
+            "cool north-window quality of Moroni's lit flesh — silver rather than ivory.  "
+            "(2) Warm shadow recovery — in the shadow zone (lum < shadow_hi ≈ 0.35), "
+            "add warm amber-ochre recovery: R + warm_r, G + warm_g (smaller), "
+            "B - warm_b (tiny reduction).  Moroni's shadows never go cold or grey; "
+            "they retain earthy warmth even in the deepest tones.  "
+            "(3) Mid-tone presence enhancement — in the mid-tone zone [0.35, 0.68], "
+            "apply a very mild luminance contrast boost (gamma_mid ≈ 0.92–0.96 in "
+            "the lower half, 1.04–1.08 in the upper half) that slightly separates "
+            "the mid-tone planes without visible sharpening artifacts.  This captures "
+            "Moroni's characteristic tonal precision — the quality that makes his "
+            "sitters seem physically present rather than painted.  "
+            "Use opacity ≈ 0.32–0.42."
+        ),
+    ),
 }
 
 

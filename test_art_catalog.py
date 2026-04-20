@@ -121,6 +121,7 @@ EXPECTED_ARTISTS = [
     "luca_giordano",
     "guercino",
     "ribera",
+    "moroni",
 ]
 
 
@@ -290,6 +291,7 @@ EXPECTED_PERIODS = [
     "NEAPOLITAN_BAROQUE",
     "SPANISH_NEAPOLITAN_BAROQUE",
     "MILANESE_PEARLED",
+    "BERGAMASQUE_PORTRAIT_REALISM",
 ]
 
 
@@ -12988,5 +12990,169 @@ def test_spanish_neapolitan_baroque_period_exists():
     from scene_schema import Period
     assert hasattr(Period, "SPANISH_NEAPOLITAN_BAROQUE"), (
         "Period.SPANISH_NEAPOLITAN_BAROQUE not found — add it to scene_schema.py"
+    )
+
+
+def test_spanish_neapolitan_baroque_stroke_params():
+    """SPANISH_NEAPOLITAN_BAROQUE should have low wet_blend and edge_softness for brutal tenebrism."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.SPANISH_NEAPOLITAN_BAROQUE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.40, (
+        f"SPANISH_NEAPOLITAN_BAROQUE wet_blend should be <= 0.40 for Ribera's gritty brushwork; "
+        f"got {p['wet_blend']}"
+    )
+    assert p["edge_softness"] <= 0.40, (
+        f"SPANISH_NEAPOLITAN_BAROQUE edge_softness should be <= 0.40 for hard tenebrism edges; "
+        f"got {p['edge_softness']}"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 108: Giovanni Battista Moroni + BERGAMASQUE_PORTRAIT_REALISM
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_moroni_in_catalog():
+    """moroni must be present in CATALOG (session 108)."""
+    assert "moroni" in CATALOG, "moroni missing from CATALOG — add ArtStyle entry"
+
+
+def test_moroni_in_expected_artists():
+    """EXPECTED_ARTISTS list must include moroni."""
+    assert "moroni" in EXPECTED_ARTISTS, (
+        "moroni missing from EXPECTED_ARTISTS — add it to the list"
+    )
+
+
+def test_moroni_cool_silver_palette():
+    """moroni palette must contain at least one cool/silver tone (B component >= 0.55)."""
+    s = get_style("moroni")
+    has_silver = any(b >= 0.55 for (_, _, b) in s.palette)
+    assert has_silver, (
+        "moroni palette should include a cool/silver tone (B >= 0.55) — "
+        "Moroni's defining highlight quality is cool north-daylight silver"
+    )
+
+
+def test_moroni_warm_shadow_in_palette():
+    """moroni palette must contain warm earth tones (R > G >= B) for shadow recovery."""
+    s = get_style("moroni")
+    has_warm_earth = any(r > g and g >= b for (r, g, b) in s.palette)
+    assert has_warm_earth, (
+        "moroni palette should include warm earth tones (R > G >= B) for shadow warmth"
+    )
+
+
+def test_moroni_moderate_edge_softness():
+    """moroni edge_softness should be moderate-crisp (0.30–0.55) for naturalist portraiture."""
+    s = get_style("moroni")
+    assert 0.30 <= s.edge_softness <= 0.55, (
+        f"moroni edge_softness should be in [0.30, 0.55] for naturalist found edges; "
+        f"got {s.edge_softness}"
+    )
+
+
+def test_moroni_moderate_wet_blend():
+    """moroni wet_blend should be moderate (0.35–0.58) — smooth but not sfumato."""
+    s = get_style("moroni")
+    assert 0.35 <= s.wet_blend <= 0.58, (
+        f"moroni wet_blend should be in [0.35, 0.58] — smooth without sfumato dissolution; "
+        f"got {s.wet_blend}"
+    )
+
+
+def test_moroni_inspiration_references_pass():
+    """moroni inspiration must reference moroni_silver_presence_pass()."""
+    s = get_style("moroni")
+    assert "moroni_silver_presence_pass" in s.inspiration, (
+        "moroni inspiration must reference moroni_silver_presence_pass()"
+    )
+
+
+def test_moroni_silver_presence_pass_exists():
+    """moroni_silver_presence_pass must be implemented in Painter (session 108)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "moroni_silver_presence_pass"), (
+        "Painter must have moroni_silver_presence_pass method (session 108)"
+    )
+
+
+def test_moroni_silver_presence_pass_opacity_parameter():
+    """moroni_silver_presence_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.moroni_silver_presence_pass)
+    assert "opacity" in sig.parameters, (
+        "moroni_silver_presence_pass must have 'opacity' parameter"
+    )
+
+
+def test_moroni_silver_presence_pass_hi_lo_parameter():
+    """moroni_silver_presence_pass must accept hi_lo parameter for silver highlight threshold."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.moroni_silver_presence_pass)
+    assert "hi_lo" in sig.parameters, (
+        "moroni_silver_presence_pass must have 'hi_lo' parameter"
+    )
+
+
+def test_moroni_silver_presence_pass_shadow_hi_parameter():
+    """moroni_silver_presence_pass must accept shadow_hi parameter for warm shadow recovery."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.moroni_silver_presence_pass)
+    assert "shadow_hi" in sig.parameters, (
+        "moroni_silver_presence_pass must have 'shadow_hi' parameter"
+    )
+
+
+def test_bergamasque_portrait_realism_period_exists():
+    """Period.BERGAMASQUE_PORTRAIT_REALISM must exist in scene_schema (session 108)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BERGAMASQUE_PORTRAIT_REALISM"), (
+        "Period.BERGAMASQUE_PORTRAIT_REALISM not found — add it to scene_schema.py"
+    )
+    assert Period.BERGAMASQUE_PORTRAIT_REALISM in list(Period)
+
+
+def test_bergamasque_portrait_realism_stroke_params():
+    """BERGAMASQUE_PORTRAIT_REALISM should have moderate wet_blend and edge_softness for naturalism."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BERGAMASQUE_PORTRAIT_REALISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.35 <= p["wet_blend"] <= 0.58, (
+        f"BERGAMASQUE_PORTRAIT_REALISM wet_blend should be in [0.35, 0.58] for Moroni's "
+        f"smooth-but-naturalist surfaces; got {p['wet_blend']}"
+    )
+    assert 0.30 <= p["edge_softness"] <= 0.55, (
+        f"BERGAMASQUE_PORTRAIT_REALISM edge_softness should be in [0.30, 0.55] for "
+        f"Moroni's naturalist found edges; got {p['edge_softness']}"
+    )
+
+
+def test_bergamasque_portrait_realism_in_expected_periods():
+    """EXPECTED_PERIODS list must include BERGAMASQUE_PORTRAIT_REALISM."""
+    assert "BERGAMASQUE_PORTRAIT_REALISM" in EXPECTED_PERIODS, (
+        "BERGAMASQUE_PORTRAIT_REALISM missing from EXPECTED_PERIODS — add it to the list"
+    )
+
+
+def test_moroni_famous_works_include_tailor():
+    """moroni famous_works must include 'Il Sarto' — his most celebrated portrait."""
+    s = get_style("moroni")
+    titles = [title for (title, _) in s.famous_works]
+    assert any("Sarto" in t or "Tailor" in t for t in titles), (
+        "moroni famous_works must include 'Il Sarto (The Tailor)' — his canonical work"
+    )
+
+
+def test_moroni_movement_bergamasque():
+    """moroni movement must reference Bergamasque or Lombard heritage."""
+    s = get_style("moroni")
+    assert "Bergam" in s.movement or "Lombard" in s.movement, (
+        f"moroni movement should reference Bergamasque or Lombard; got {s.movement!r}"
     )
     assert Period.SPANISH_NEAPOLITAN_BAROQUE in list(Period)
