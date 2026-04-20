@@ -9100,6 +9100,96 @@ CATALOG: Dict[str, ArtStyle] = {
             "emotional warmth without competing with the accumulated sfumato depth."
         ),
     ),
+
+    # ── Jusepe de Ribera ──────────────────────────────────────────────────────
+    # Jusepe de Ribera (1591–1652), known as "Lo Spagnoletto" (The Little
+    # Spaniard), was born in Valencia but spent his entire mature career in
+    # Naples — then a Spanish viceroyalty — where he fused the Spanish
+    # tradition of austere naturalism with the most brutal form of Italian
+    # Caravaggism.  His tenebrism is the most uncompromising in the history of
+    # painting: near-black void shadows that consume forms completely, from which
+    # lit passages emerge with almost shocking physical presence.
+    #
+    # What distinguishes Ribera from Caravaggio — the primary influence — is the
+    # *texture* he brings to his shadows.  Caravaggio's dark passages are smooth,
+    # pooling, and absolute; Ribera's are alive with gritty, almost granular
+    # visible brushwork.  The physical substance of paint — its body and grain —
+    # is particularly apparent in his shadow areas, as if the darkness itself is
+    # made of rough, inhabited matter rather than an empty void.  His highlighted
+    # passages, conversely, are warm amber-ivory, modelled with a confident
+    # directness that feels sculptural: the light lands and the form is there,
+    # without Leonardo's slow dissolution or Rubens' rosy flush.
+    #
+    # Ribera's subjects — aged philosophers, tortured martyrs, working-class
+    # models with calloused hands — carry a dignity that comes from unflinching
+    # observation.  He painted poverty, age, and suffering as subjects worthy of
+    # the full weight of his technique.  His wrinkled skin, veined hands, and
+    # coarse fabrics are rendered with the same loving precision Flemish masters
+    # reserved for silk and precious metals.
+    "ribera": ArtStyle(
+        artist="Jusepe de Ribera",
+        movement="Spanish-Neapolitan Baroque",
+        nationality="Spanish (worked in Naples)",
+        period="1610–1652",
+        palette=[
+            (0.72, 0.55, 0.35),   # warm amber highlight flesh
+            (0.52, 0.40, 0.25),   # mid-tone warm sienna flesh
+            (0.30, 0.22, 0.13),   # deep warm umber penumbra
+            (0.12, 0.09, 0.06),   # near-black warm void shadow
+            (0.65, 0.52, 0.32),   # ochre costume accent
+            (0.18, 0.15, 0.10),   # dark warm-brown ground tone
+        ],
+        ground_color=(0.10, 0.07, 0.04),    # very dark warm-brown imprimatura
+        stroke_size=8,
+        wet_blend=0.32,                      # low blend — visible brushwork especially in shadows
+        edge_softness=0.28,                  # mostly crisp found edges
+        jitter=0.045,
+        glazing=(0.55, 0.40, 0.22),         # dark warm umber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Ribera's technique begins with an extremely dark warm-brown imprimatura "
+            "that establishes the near-black void as the default state: the ground "
+            "IS the shadow, and the painting is the act of retrieving form from "
+            "darkness through selective illumination.  His light source is invariably "
+            "single and directional — typically upper-left — creating a theatrical "
+            "chiaroscuro even more extreme than Caravaggio's.  Where Caravaggio "
+            "organised his darks into clean, pooling shapes, Ribera's shadow areas "
+            "retain visible gritty brushwork: the marks are present even in the "
+            "deepest darks, giving a granular textural quality to the voids.  His "
+            "highlights on aged skin are warm amber-ivory, applied with sculptural "
+            "directness over a warm sienna mid-tone.  Brushwork is legible "
+            "throughout; his colourist range is narrow — warm earth tones, with "
+            "occasional crimson or blue accents — making rare bright colours explode "
+            "against the dominant warm-black tonality."
+        ),
+        famous_works=[
+            ("The Martyrdom of Saint Philip",          "1639"),
+            ("Jacob and Esau",                          "1637"),
+            ("The Clubfoot",                            "1642"),
+            ("Drunken Silenus",                         "1626"),
+            ("Saint Jerome and the Angel of Judgment",  "1626"),
+            ("The Sense of Touch (Blind Sculptor)",     "c. 1615–1616"),
+            ("Saint Andrew",                            "1631"),
+        ],
+        inspiration=(
+            "Apply ribera_gritty_tenebrism_pass() as the primary stylistic pass. "
+            "Three stages: "
+            "(1) Near-black void reinforcement — in the deepest shadow zone "
+            "(lum < shadow_hi ≈ 0.22), strengthen near-black with warm umber "
+            "ground grain (R+ tiny, G+ tiny) and gritty granular noise that "
+            "simulates the dark brown imprimatura and Ribera's visible shadow "
+            "brushwork, preventing flat digital black. "
+            "(2) Upper-left directional amber spotlight — a Gaussian warmth from "
+            "the upper left (light_cx ≈ 0.15, light_cy ≈ 0.08) that warms and "
+            "lifts the lit zone; more dramatic and sharper than Guercino. "
+            "(3) Gritty shadow penumbra texture — in the mid-dark zone "
+            "(penumbra_lo ≈ 0.22 to penumbra_hi ≈ 0.45), overlay granular noise "
+            "(grain_strength ≈ 0.025–0.040) creating Ribera's distinctive "
+            "shadow grain — darkness as inhabited, textured matter.  "
+            "Use opacity ≈ 0.35–0.45."
+        ),
+    ),
 }
 
 

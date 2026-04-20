@@ -271,6 +271,7 @@ class Period(Enum):
     VICTORIAN_SOCIAL_REALIST = auto()  # James Tissot — enamel surface clarity, specular fabric sheen, chromatic richness in warm midtones, cool crystalline highlights, precise atmospheric colour recession
     FLORENTINE_DEVOTIONAL_BAROQUE = auto()  # Carlo Dolci — hyper-smooth devotional enamel finish, deep walnut-brown shadow glazes, crystalline ivory highlights, introspective psychological stillness, obsessive surface polish
     NEAPOLITAN_BAROQUE = auto()  # Luca Giordano — warm golden-aureole illumination, sweeping Venetian colour, theatrical tenebrism, dynamic aerial grandeur, rapid luminous synthesis of all prior traditions
+    SPANISH_NEAPOLITAN_BAROQUE = auto()  # Jusepe de Ribera — brutal tenebrism from near-black void, gritty visible shadow texture, warm amber highlights, raw psychological realism, Spanish naturalism grafted onto Caravaggism
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
