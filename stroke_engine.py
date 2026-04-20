@@ -25305,3 +25305,189 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Bernardino Luini leonardesque glow pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Federico Barocci — petal flush pass (session 98)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def barocci_petal_flush_pass(
+        self,
+        penumbra_lo:            float = 0.42,   # lower lum bound of petal flush zone
+        penumbra_hi:            float = 0.62,   # upper lum bound of petal flush zone
+        rose_r:                 float = 0.022,  # R boost in penumbra (warm rose)
+        rose_g:                 float = 0.008,  # G boost in penumbra (slight tint)
+        rose_b:                 float = 0.010,  # B reduction in penumbra (dampen cool)
+        bianca_lo:              float = 0.58,   # lower lum bound of bianca luminosity zone
+        bianca_hi:              float = 0.82,   # upper lum bound of bianca luminosity zone
+        bianca_r:               float = 0.018,  # R lift in bianca zone (warm ground showing)
+        bianca_g:               float = 0.012,  # G lift in bianca zone
+        bianca_b:               float = 0.006,  # B lift in bianca zone (warm, not cool)
+        edge_dissolve_sigma:    float = 2.2,    # Gaussian sigma for warm perimeter dissolution
+        edge_dissolve_radius:   float = 0.72,   # relative radius beyond which dissolution begins
+        edge_dissolve_strength: float = 0.35,   # blend fraction toward dissolved in perimeter
+        blur_radius:            float = 4.0,
+        opacity:                float = 0.38,
+    ) -> None:
+        """
+        Federico Barocci petal flush pass — session 98 new artist pass.
+
+        Federico Barocci (c. 1535–1612) was the supreme colorist of Umbrian
+        Mannerism and the critical bridge between late-Renaissance tradition and
+        the fully realised Baroque.  Born in Urbino in the Marche, he worked
+        almost exclusively for central Italy, rejecting prestigious commissions
+        from Rome.  Rubens owned Barocci drawings; Annibale Carracci and Bellori
+        both recognised in him the qualities that the Bolognese reform would
+        systematise a generation later.
+
+        Barocci's most distinctive technical achievement was his use of chalk
+        pastel studies ('pasteletti') as full colour preparatory tools — among
+        the first Italian artists to employ pastels for colour exploration rather
+        than pure draughtsmanship.  This practice fed directly into his oil
+        technique: each surface was built from multiple warm-cool glaze layers
+        over a luminous warm ground (the 'bianca'), creating a quality that
+        appears almost pastellic — soft, powdery, translucent — while retaining
+        the optical depth of oil glazing.
+
+        His defining quality is the handling of the penumbra — the transitional
+        zone between direct light and shadow.  Where Leonardo dissolved this with
+        grey sfumato, and Rembrandt charged it with psychological weight, Barocci
+        filled it with warm rose-pink luminosity uniquely his own.  This petal
+        flush — soft, warm, slightly rosy — gives his flesh a quality closer to
+        living skin than paint: the cheek turned from the light carries a warm
+        rose breath, as if internal warmth rises through the surface from within.
+
+        This pass encodes three defining qualities of Barocci's technique:
+
+          1. Petal flush — In the penumbra zone [penumbra_lo, penumbra_hi], the
+             critical Barocci signature: add a warm rose-pink bloom (R + rose_r,
+             G + rose_g, B - rose_b).  This is the 'pasteletti' quality translated
+             into oil — the transitional zone carries living rose warmth rather
+             than cool grey dissolution.  Feathered with Gaussian blur for organic
+             distribution.
+
+          2. Bianca ground luminosity — In the upper mid-tone zone
+             [bianca_lo, bianca_hi], add a warm creamy lift (R + bianca_r,
+             G + bianca_g, B + bianca_b) simulating the pale warm 'bianca'
+             ground reading through multiple thin transparent glazes — the
+             paper-white luminosity visible in the Vatican Annunciation and
+             the Uffizi Madonna of the People.
+
+          3. Warm perimeter dissolution — In the outer region of the composition
+             (distance > edge_dissolve_radius from canvas centre), apply a gentle
+             Gaussian softening (sigma = edge_dissolve_sigma) at
+             edge_dissolve_strength.  Barocci borrowed Leonardo's sfumato edge
+             loss but warmed and colourised it: figures dissolve into warm
+             ambient haze rather than grey smoke.
+
+        Session 98 artistic improvement: the penumbra as a first-class bloom
+        target.  Prior sessions have treated highlights (session 83 highlight
+        bloom) and shadows (multiple sessions) as zones of special attention.
+        Barocci reveals that the penumbra — the half-lit transitional zone —
+        is where a painting's warmth lives.  The petal flush introduces a new
+        concept to the pipeline: the penumbra bloom, a targeted warm-rose
+        stimulus in the light-to-shadow transition.  This zone is distinct from
+        the Leyster mid-tone animation (session 96, lum 0.35–0.60, amber) in
+        that it is specifically rose-pink rather than amber, and is focused on
+        the upper half of the mid-tone range where light first begins to
+        withdraw — the precise location of Barocci's signature warmth.
+
+        Parameters
+        ----------
+        penumbra_lo       : lower lum threshold of petal flush zone
+        penumbra_hi       : upper lum threshold of petal flush zone
+        rose_r            : R boost in penumbra (warm rose)
+        rose_g            : G boost in penumbra
+        rose_b            : B reduction in penumbra (dampen cool cast)
+        bianca_lo         : lower lum threshold of bianca luminosity zone
+        bianca_hi         : upper lum threshold of bianca luminosity zone
+        bianca_r          : R lift in bianca zone
+        bianca_g          : G lift in bianca zone
+        bianca_b          : B lift in bianca zone
+        edge_dissolve_sigma    : Gaussian sigma for warm perimeter dissolution
+        edge_dissolve_radius   : relative distance from centre beyond which dissolution applies
+        edge_dissolve_strength : blend fraction toward dissolved in periphery
+        blur_radius       : Gaussian sigma for mask feathering
+        opacity           : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Petal flush — penumbra rose bloom ─────────────────────────────
+        # Build a soft tent mask over [penumbra_lo, penumbra_hi]
+        petal_mask = _np.clip(
+            (lum - penumbra_lo) / (penumbra_hi - penumbra_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (penumbra_hi - lum) / (penumbra_hi - penumbra_lo + 1e-6), 0.0, 1.0
+        ) * 4.0
+        petal_mask = _np.clip(petal_mask, 0.0, 1.0)
+        petal_mask = _gf(petal_mask.astype(_np.float32), blur_radius)
+        petal_mask = _np.clip(petal_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + petal_mask * rose_r,  0.0, 1.0)
+        g_out = _np.clip(g_out + petal_mask * rose_g,  0.0, 1.0)
+        b_out = _np.clip(b_out - petal_mask * rose_b,  0.0, 1.0)
+
+        # ── 2. Bianca ground luminosity — upper mid-tone warm lift ────────────
+        bianca_mask = _np.clip(
+            (lum - bianca_lo) / (bianca_hi - bianca_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (bianca_hi - lum) / (bianca_hi - bianca_lo + 1e-6), 0.0, 1.0
+        ) * 4.0
+        bianca_mask = _np.clip(bianca_mask, 0.0, 1.0)
+        bianca_mask = _gf(bianca_mask.astype(_np.float32), blur_radius)
+        bianca_mask = _np.clip(bianca_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + bianca_mask * bianca_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + bianca_mask * bianca_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + bianca_mask * bianca_b, 0.0, 1.0)
+
+        # ── 3. Warm perimeter dissolution ─────────────────────────────────────
+        # Build a distance-from-centre mask for the outer rim.
+        ys, xs = _np.mgrid[0:h, 0:w]
+        cx = w * 0.515
+        cy = h * 0.50
+        # Normalise distances by canvas half-diagonals so radius is consistent.
+        dist = _np.sqrt(
+            ((xs - cx) / (w * 0.5)) ** 2 + ((ys - cy) / (h * 0.5)) ** 2
+        )
+        perimeter_mask = _np.clip(
+            (dist - edge_dissolve_radius) / (1.0 - edge_dissolve_radius + 1e-6),
+            0.0, 1.0
+        )
+        perimeter_mask = _gf(perimeter_mask.astype(_np.float32), blur_radius)
+        perimeter_mask = _np.clip(perimeter_mask, 0.0, 1.0)
+
+        # Softly blur the output in the periphery zone (warm dissolution)
+        r_soft = _gf(r_out.astype(_np.float32), edge_dissolve_sigma)
+        g_soft = _gf(g_out.astype(_np.float32), edge_dissolve_sigma)
+        b_soft = _gf(b_out.astype(_np.float32), edge_dissolve_sigma)
+        w_blend = perimeter_mask * edge_dissolve_strength
+        r_out = r_out * (1.0 - w_blend) + r_soft * w_blend
+        g_out = g_out * (1.0 - w_blend) + g_soft * w_blend
+        b_out = b_out * (1.0 - w_blend) + b_soft * w_blend
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Federico Barocci petal flush pass complete.")

@@ -8351,6 +8351,108 @@ CATALOG: Dict[str, ArtStyle] = {
             "dissolve more gently even than Leonardo's own."
         ),
     ),
+    # ──────────────────────────────────────────────────────────────────────────
+    # Federico Barocci  (session 98)
+    # ──────────────────────────────────────────────────────────────────────────
+    "federico_barocci": ArtStyle(
+        artist      = "Federico Barocci",
+        movement    = "Umbrian Mannerism / proto-Baroque",
+        nationality = "Italian (Marchigian / Urbino)",
+        period      = "c. 1535–1612",
+        palette     = [
+            (0.92, 0.76, 0.62),   # warm rose-ivory highlight
+            (0.86, 0.62, 0.50),   # peach-rose upper midtone
+            (0.76, 0.50, 0.38),   # warm flesh penumbra (petal flush zone)
+            (0.60, 0.36, 0.26),   # shadow flesh — warm sienna
+            (0.44, 0.26, 0.18),   # deep shadow — warm burnt umber
+            (0.36, 0.46, 0.62),   # cool blue-grey ambient veil
+            (0.68, 0.56, 0.38),   # warm amber middle ground
+            (0.30, 0.40, 0.54),   # distant cool blue landscape
+        ],
+        ground_color    = (0.84, 0.78, 0.66),   # warm ivory "bianca" ground
+        stroke_size     = 5,
+        wet_blend       = 0.68,
+        edge_softness   = 0.72,
+        jitter          = 0.018,
+        glazing         = (0.60, 0.44, 0.28),   # amber-rose final glaze
+        crackle         = True,
+        chromatic_split = False,
+        technique       = (
+            "Federico Barocci (c. 1535–1612) was the supreme colorist of Umbrian "
+            "Mannerism and the critical bridge between late-Renaissance tradition and "
+            "the fully realised Baroque.  Born in Urbino in the Marche, he worked "
+            "almost exclusively for the courts and churches of central Italy, refusing "
+            "prestigious commissions from Rome that might have altered his singularly "
+            "personal development.  His work was admired by Rubens (who owned several "
+            "Barocci drawings), Annibale Carracci, and Bellori, all of whom recognised "
+            "in him qualities that the Bolognese reform of painting would systematise "
+            "a generation later.  "
+            "Barocci's most distinctive technical achievement was his use of chalk "
+            "pastel studies — 'pasteletti' — as full colour preparatory tools.  He was "
+            "among the first Italian artists to employ pastels not merely for drawing "
+            "but for exploring the exact colour relationships that would appear in the "
+            "finished oil.  This practice fed directly into his oil technique: each "
+            "finished surface was built from multiple warm-cool glaze layers over a "
+            "luminous warm ground (the 'bianca'), creating a surface quality that "
+            "appears almost pastellic — soft, powdery, translucent — while retaining "
+            "the optical depth of oil glazing.  "
+            "The defining quality of Barocci's flesh passages is his handling of the "
+            "penumbra — the transitional zone between direct light and shadow (roughly "
+            "lum 0.42–0.62).  Where Leonardo dissolved this boundary with grey sfumato "
+            "and Rembrandt charged it with psychological weight, Barocci filled it with "
+            "a warm rose-pink luminosity that is uniquely his own.  This 'petal flush' "
+            "— soft, warm, slightly rosy — gives his flesh surfaces a quality closer "
+            "to living skin than paint: the cheek facing away from the main light "
+            "carries a warm rose breath, as if the body's internal warmth rises through "
+            "the surface.  "
+            "Three defining technical qualities: (1) The petal flush — in the penumbra "
+            "zone [penumbra_lo=0.42, penumbra_hi=0.62], a warm rose-pink bloom (R+ "
+            "rose_r=0.022, G+ rose_g=0.008, B- rose_b=0.010) deposited with organic "
+            "softness; (2) The bianca ground luminosity — in upper mid-tones "
+            "[bianca_lo=0.58, bianca_hi=0.82], a warm creamy lift (bianca_r=0.018, "
+            "bianca_g=0.012, bianca_b=0.006) simulating the pale warm ground reading "
+            "through thin glazes; (3) Warm perimeter dissolution — figure edges dissolve "
+            "into warm ambient haze (edge_dissolve_strength=0.35) like Leonardo's sfumato "
+            "but warmer and more colorful.  Apply barocci_petal_flush_pass() after all "
+            "major sfumato and glaze passes."
+        ),
+        famous_works = [
+            ("Annunciation (Vatican)",                  "1582–1584"),
+            ("Madonna of the People (Uffizi)",          "1575–1579"),
+            ("Rest on the Flight into Egypt (Vatican)", "1570–1573"),
+            ("Entombment (Senigallia)",                 "1579–1582"),
+            ("Portrait of Francesco II della Rovere",   "c. 1572"),
+            ("Nativity (Prado)",                        "c. 1597"),
+            ("Visitation (Santa Maria in Vallicella)",  "1583–1586"),
+            ("Stigmatization of St Francis (Urbino)",   "c. 1594–1595"),
+        ],
+        inspiration = (
+            "Apply barocci_petal_flush_pass() to encode three defining qualities of "
+            "Barocci's Umbrian flesh technique: "
+            "(1) Petal flush — in the penumbra zone [penumbra_lo=0.42, "
+            "penumbra_hi=0.62], where Barocci's most characteristic rose-pink warmth "
+            "lives, add a soft warm flush (R + rose_r=0.022, G + rose_g=0.008, "
+            "B - rose_b=0.010).  This is the 'pasteletti' quality translated into oil: "
+            "the transitional zone between light and shadow carries a living rose warmth "
+            "rather than a grey or cool dissolution.  The flush is distributed with "
+            "Gaussian feathering (blur_radius=4.0) so it appears organic and breathing "
+            "rather than mechanically banded; "
+            "(2) Bianca ground luminosity — in the upper mid-tone zone "
+            "[bianca_lo=0.58, bianca_hi=0.82], add a warm creamy lift "
+            "(R + bianca_r=0.018, G + bianca_g=0.012, B + bianca_b=0.006) simulating "
+            "the pale warm 'bianca' ground reading through Barocci's multiple thin "
+            "transparent glazes — the paper-white luminosity visible in the Madonna of "
+            "the People and the Vatican Annunciation; "
+            "(3) Warm perimeter dissolution — in the outer rim of the figure "
+            "(distance > edge_dissolve_radius=0.72 from composition centre), add a "
+            "gentle Gaussian blur (sigma=edge_dissolve_sigma=2.2) at "
+            "edge_dissolve_strength=0.35, creating the warm ambient edge loss that "
+            "Barocci borrowed from Leonardo but warmed and colourised.  "
+            "wet_blend=0.68 produces the seamlessly blended glaze-on-glaze surface.  "
+            "edge_softness=0.72: very soft Umbrian sfumato, warmer than Leonardo's.  "
+            "Use opacity=0.38 to integrate naturally with the accumulated prior passes."
+        ),
+    ),
 }
 
 

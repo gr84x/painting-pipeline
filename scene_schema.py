@@ -264,6 +264,7 @@ class Period(Enum):
     DUTCH_CANDLELIT_GENRE = auto()  # Judith Leyster — warm candlelit genre scenes, Hals-adjacent bravura, Utrecht Caravaggist amber warmth, joyful animated figures, warm brown imprimatura vitality
     DUTCH_BRAVURA_PORTRAIT = auto()  # Frans Hals — alla prima directional energy, confident tache brushwork, psychological vivacity, warm imprimatura with low wet-blend, crisp directional marks
     MILANESE_SFUMATO       = auto()  # Bernardino Luini — Leonardo-school Milanese sfumato, warm ivory highlights, cool-violet shadow delicacy, seamless flesh surfaces, sweet idealized expressions
+    UMBRIAN_MANNERIST      = auto()  # Federico Barocci — petal-soft rose-pink penumbra flush, pasteletti bianca ground luminosity, proto-Baroque tenderness, warm perimeter dissolution
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1125,6 +1126,17 @@ class Style:
             # edge_softness=0.78: very soft — edges melt into one another without hard lines,
             # the defining quality of Leonardo's Milan school.
             Period.MILANESE_SFUMATO: dict(stroke_size_face=4, stroke_size_bg=20, wet_blend=0.72, edge_softness=0.78),
+            # UMBRIAN_MANNERIST (Federico Barocci) — petal-soft penumbra rose flush.
+            # stroke_size_face=5: fine enough for delicate flesh passages (finer than most Italian
+            # Mannerists) but not as extreme as Dou or Luini; Barocci's surface is painterly-smooth
+            # rather than glass-polished.
+            # stroke_size_bg=22: moderate — landscape backgrounds in Barocci are softly rendered but
+            # not as atmospheric as Leonardo or Turner.
+            # wet_blend=0.68: high — Barocci's multiple warm-cool glaze layers produce seamless
+            # transitions, especially in the penumbra zone where his characteristic rose flush lives.
+            # edge_softness=0.72: very soft — Barocci's edges dissolve warmly into ambient haze,
+            # similar to Leonardo's sfumato but warmer and more colorful.
+            Period.UMBRIAN_MANNERIST: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.68, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
