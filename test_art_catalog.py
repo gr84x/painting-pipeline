@@ -112,7 +112,8 @@ EXPECTED_ARTISTS = [
     "gerrit_dou",
     "carel_fabritius",
     "judith_leyster",
-    "frans_hals",
+    "bernardino_luini",
+    "federico_barocci",
 ]
 
 
@@ -11891,3 +11892,179 @@ def test_sfumato_veil_pass_highlight_ivory_thresh_parameter_exists():
     sig = inspect.signature(Painter.sfumato_veil_pass)
     assert "highlight_ivory_thresh" in sig.parameters, (
         "sfumato_veil_pass must have highlight_ivory_thresh parameter (session 97)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Federico Barocci  (session 98)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_federico_barocci_in_catalog():
+    """federico_barocci must be present in the CATALOG (session 98)."""
+    assert "federico_barocci" in CATALOG, "federico_barocci not found in CATALOG"
+
+
+def test_federico_barocci_style_fields():
+    """federico_barocci ArtStyle must have artist, nationality, movement, and period."""
+    s = get_style("federico_barocci")
+    assert s.artist
+    assert s.nationality
+    assert s.movement
+    assert s.period
+
+
+def test_federico_barocci_palette_size():
+    """federico_barocci must have at least 6 palette entries."""
+    s = get_style("federico_barocci")
+    assert len(s.palette) >= 6, (
+        f"federico_barocci palette must have >= 6 entries; got {len(s.palette)}")
+
+
+def test_federico_barocci_palette_rose_flesh():
+    """federico_barocci palette must include a warm rose-flesh midtone (high R, moderate G and B)."""
+    s = get_style("federico_barocci")
+    has_rose = any(
+        rgb[0] > 0.72 and rgb[1] > 0.44 and rgb[2] > 0.32
+        for rgb in s.palette
+    )
+    assert has_rose, (
+        f"federico_barocci palette must include a warm rose-flesh midtone "
+        f"(R>0.72, G>0.44, B>0.32); got {s.palette}")
+
+
+def test_federico_barocci_soft_edges():
+    """federico_barocci edge_softness must be >= 0.60 (Umbrian sfumato dissolution)."""
+    s = get_style("federico_barocci")
+    assert s.edge_softness >= 0.60, (
+        f"federico_barocci edge_softness must be >= 0.60 (Umbrian sfumato); "
+        f"got {s.edge_softness:.2f}")
+
+
+def test_federico_barocci_high_wet_blend():
+    """federico_barocci wet_blend must be >= 0.55 (multi-glaze pasteletti surface)."""
+    s = get_style("federico_barocci")
+    assert s.wet_blend >= 0.55, (
+        f"federico_barocci wet_blend must be >= 0.55 (multi-glaze); got {s.wet_blend:.2f}")
+
+
+def test_federico_barocci_fine_stroke_size():
+    """federico_barocci stroke_size must be <= 7 (fine Umbrian Mannerist brushwork)."""
+    s = get_style("federico_barocci")
+    assert s.stroke_size <= 7, (
+        f"federico_barocci stroke_size must be <= 7; got {s.stroke_size}")
+
+
+def test_federico_barocci_has_glazing():
+    """federico_barocci must have a glazing colour (multi-layer warm glazed surface)."""
+    s = get_style("federico_barocci")
+    assert s.glazing is not None, "federico_barocci should have a glazing colour"
+
+
+def test_federico_barocci_has_crackle():
+    """federico_barocci crackle must be True (oil on panel / canvas, aged)."""
+    s = get_style("federico_barocci")
+    assert s.crackle is True, "federico_barocci crackle must be True (aged oil)"
+
+
+def test_federico_barocci_no_chromatic_split():
+    """federico_barocci chromatic_split must be False (unified warm-rose glazing)."""
+    s = get_style("federico_barocci")
+    assert s.chromatic_split is False, (
+        "federico_barocci chromatic_split must be False (warm unified palette)")
+
+
+def test_federico_barocci_technique_mentions_penumbra():
+    """federico_barocci technique must mention the penumbra or petal flush concept."""
+    s = get_style("federico_barocci")
+    assert "penumbra" in s.technique.lower() or "petal" in s.technique.lower(), (
+        "federico_barocci technique must describe the penumbra / petal flush quality")
+
+
+def test_federico_barocci_technique_mentions_pasteletti():
+    """federico_barocci technique must mention pasteletti (the preparatory pastel technique)."""
+    s = get_style("federico_barocci")
+    assert "pasteletti" in s.technique.lower() or "pastel" in s.technique.lower(), (
+        "federico_barocci technique must mention pasteletti (chalk pastel studies)")
+
+
+def test_federico_barocci_famous_works_not_empty():
+    """federico_barocci must have at least 4 famous works."""
+    s = get_style("federico_barocci")
+    assert len(s.famous_works) >= 4, (
+        f"federico_barocci must have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_federico_barocci_famous_works_include_annunciation():
+    """Annunciation (Vatican) is Barocci's most celebrated work."""
+    s = get_style("federico_barocci")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Annunciation" in t for t in titles), (
+        f"Expected 'Annunciation' among famous works; got {titles}")
+
+
+def test_federico_barocci_inspiration_references_pass():
+    """Inspiration field must reference barocci_petal_flush_pass()."""
+    s = get_style("federico_barocci")
+    assert "barocci_petal_flush_pass" in s.inspiration, (
+        "federico_barocci inspiration must reference barocci_petal_flush_pass()")
+
+
+def test_federico_barocci_period_enum_present():
+    """UMBRIAN_MANNERIST must exist in Period enum (session 98)."""
+    assert hasattr(Period, "UMBRIAN_MANNERIST"), "Period.UMBRIAN_MANNERIST not found"
+    assert Period.UMBRIAN_MANNERIST in list(Period)
+
+
+def test_federico_barocci_stroke_params():
+    """UMBRIAN_MANNERIST stroke_params must reflect soft Umbrian Mannerist technique."""
+    style = Style(medium=Medium.OIL, period=Period.UMBRIAN_MANNERIST, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    # Fine strokes — polished Umbrian flesh passages
+    assert params["stroke_size_face"] <= 7, (
+        f"UMBRIAN_MANNERIST stroke_size_face must be <= 7 (fine Umbrian brushwork); "
+        f"got {params['stroke_size_face']}")
+    # High wet blend — seamless multi-glaze surface
+    assert params["wet_blend"] >= 0.55, (
+        f"UMBRIAN_MANNERIST wet_blend must be >= 0.55 (glaze seamlessness); "
+        f"got {params['wet_blend']:.2f}")
+    # Soft edges — Umbrian sfumato dissolution
+    assert params["edge_softness"] >= 0.60, (
+        f"UMBRIAN_MANNERIST edge_softness must be >= 0.60 (Umbrian sfumato); "
+        f"got {params['edge_softness']:.2f}")
+
+
+def test_barocci_petal_flush_pass_exists():
+    """Painter must have a barocci_petal_flush_pass() method (session 98)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "barocci_petal_flush_pass"), (
+        "Painter must have barocci_petal_flush_pass() method (session 98)")
+
+
+def test_barocci_petal_flush_pass_penumbra_parameters():
+    """barocci_petal_flush_pass must accept penumbra_lo, penumbra_hi, rose_r, rose_g, rose_b."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.barocci_petal_flush_pass)
+    for param in ("penumbra_lo", "penumbra_hi", "rose_r", "rose_g", "rose_b"):
+        assert param in sig.parameters, (
+            f"barocci_petal_flush_pass must have {param!r} parameter")
+
+
+def test_barocci_petal_flush_pass_bianca_parameters():
+    """barocci_petal_flush_pass must accept bianca_lo, bianca_hi, bianca_r, bianca_g, bianca_b."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.barocci_petal_flush_pass)
+    for param in ("bianca_lo", "bianca_hi", "bianca_r", "bianca_g", "bianca_b"):
+        assert param in sig.parameters, (
+            f"barocci_petal_flush_pass must have {param!r} parameter")
+
+
+def test_barocci_petal_flush_pass_edge_dissolve_parameters():
+    """barocci_petal_flush_pass must accept edge_dissolve_sigma, edge_dissolve_radius,
+    edge_dissolve_strength."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.barocci_petal_flush_pass)
+    for param in ("edge_dissolve_sigma", "edge_dissolve_radius", "edge_dissolve_strength"):
+        assert param in sig.parameters, (
+            f"barocci_petal_flush_pass must have {param!r} parameter")
