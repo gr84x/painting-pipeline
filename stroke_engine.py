@@ -4789,6 +4789,8 @@ class Painter:
             horizon_band_sigma:  float = 0.06,                  # falloff width as fraction of height
             zenith_luminance_boost: float = 0.0,                # strength of zenith sky luminance lift
             zenith_band_sigma:   float = 0.10,                  # falloff width as fraction of height
+            foreground_warmth:   float = 0.0,                   # warm ochre lift at canvas bottom
+            foreground_band_sigma: float = 0.18,                # falloff width for foreground warmth
     ) -> None:
         """
         Atmospheric depth (aerial perspective) pass.
@@ -4884,6 +4886,28 @@ class Painter:
                              of canvas height.  Larger values spread the brightening
                              further down the canvas; default 0.10 confines it to the
                              uppermost 20–25% of the image.
+        foreground_warmth  : When > 0, adds a warm ochre-amber temperature lift
+                             concentrated at the very bottom of the canvas (y=H),
+                             simulating the warm earth tones in the near foreground
+                             of landscape backgrounds.  Leonardo's Mona Lisa
+                             background and Corot's landscapes both exhibit this
+                             warm-foreground / cool-distance temperature gradient:
+                             the earth at the viewer's feet is warm sienna-ochre,
+                             while the distant sky is cool blue-grey.  This parameter
+                             creates that complementary warm base to the cool haze at
+                             the top of the canvas, reinforcing spatial depth through
+                             colour temperature contrast rather than value alone.
+                             A Gaussian centred at y=H falls off upward; default
+                             ``foreground_band_sigma`` of 0.18 applies warmth to
+                             roughly the lowest 35% of the canvas.  Values 0.04–0.10
+                             produce a subtle naturalistic ground warmth; above 0.15
+                             the effect becomes an explicit warm zone.  Applied to
+                             background only, consistent with the rest of the pass.
+                             (Session 106 improvement.)
+        foreground_band_sigma : Gaussian falloff width for the foreground warmth, as
+                             a fraction of canvas height.  Larger values spread the
+                             warmth further up the canvas; default 0.18 confines it
+                             to the lower third.
 
         Notes
         -----
@@ -4905,7 +4929,8 @@ class Painter:
               f"(haze={haze_color}  desat={desaturation:.2f}"
               f"  lighten={lightening:.2f}  gamma={depth_gamma:.1f}"
               f"  horizon_glow={horizon_glow_band:.2f}"
-              f"  zenith_boost={zenith_luminance_boost:.2f})…")
+              f"  zenith_boost={zenith_luminance_boost:.2f}"
+              f"  fg_warmth={foreground_warmth:.2f})…")
 
         w, h = self.canvas.w, self.canvas.h
 
@@ -4993,6 +5018,29 @@ class Painter:
             zenith_color = np.array([0.88, 0.92, 0.98], dtype=np.float32)
             rgb_final = rgb_final * (1.0 - zenith_weight * 0.45) + zenith_color * (zenith_weight * 0.45)
             rgb_final = rgb_final + zenith_weight * 0.06
+
+        # ── Stage 5: Foreground warmth (session 106 improvement) ──────────────
+        # Warm ochre-amber temperature lift at the canvas bottom simulates the
+        # near-foreground earth tones in landscape backgrounds.  Leonardo's
+        # Mona Lisa background, Corot's Barbizon landscapes, and Poussin's
+        # classical scenes all exhibit this warm-ground / cool-sky temperature
+        # gradient.  A Gaussian centred at y=H (bottom) falls off upward,
+        # complementing the cool haze at the top and reinforcing depth through
+        # colour temperature contrast.  Applied to background only.
+        if foreground_warmth > 0.0:
+            fg_sigma_px = max(foreground_band_sigma * h, 1.0)
+            # Gaussian centred at row H-1 (bottom of canvas)
+            row_dist_fg = (h - 1 - np.arange(h, dtype=np.float32)) / fg_sigma_px
+            fg_profile = np.exp(-0.5 * row_dist_fg ** 2)           # (H,)
+            fg_profile = fg_profile[:, np.newaxis, np.newaxis]     # (H, 1, 1)
+            fg_weight  = fg_profile * bg_weight[:, :, np.newaxis] * foreground_warmth
+
+            # Warm ochre-sienna foreground: the warm earth tones of near-ground
+            # that appear at the viewer's feet in Renaissance landscape backgrounds.
+            fg_color = np.array([0.78, 0.62, 0.38], dtype=np.float32)
+            rgb_final = rgb_final * (1.0 - fg_weight * 0.50) + fg_color * (fg_weight * 0.50)
+            # Slight additional warm luminance lift at ground level
+            rgb_final = rgb_final + fg_weight * np.array([0.04, 0.02, 0.0], dtype=np.float32)
 
         rgb_final = np.clip(rgb_final, 0.0, 1.0)
 
@@ -26821,3 +26869,178 @@ class Painter:
         buf_out_g[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out_g.tobytes()
         print("    Luca Giordano rapidità luminosa pass complete.")
+
+    def ribera_gritty_tenebrism_pass(
+        self,
+        shadow_hi:          float = 0.22,
+        shadow_warm_r:      float = 0.018,
+        shadow_warm_g:      float = 0.007,
+        grain_strength:     float = 0.032,
+        penumbra_lo:        float = 0.22,
+        penumbra_hi:        float = 0.45,
+        penumbra_grain:     float = 0.028,
+        light_cx:           float = 0.15,
+        light_cy:           float = 0.08,
+        light_radius:       float = 0.70,
+        amber_r:            float = 0.035,
+        amber_g:            float = 0.014,
+        blur_radius:        float = 3.5,
+        opacity:            float = 0.40,
+    ) -> None:
+        """
+        Jusepe de Ribera (1591–1652) — gritty tenebrism pass.
+
+        Ribera, known as "Lo Spagnoletto" (The Little Spaniard), was born in
+        Valencia but spent his entire career in Naples, fusing Spanish austere
+        naturalism with the most uncompromising Italian Caravaggism.  His
+        tenebrism is darker and more extreme than Caravaggio's: near-black void
+        shadows that consume forms absolutely, from which lit passages emerge
+        with an almost shocking physical presence.
+
+        The quality that distinguishes Ribera from every other tenebrism painter
+        is the **texture of his shadows**.  Caravaggio's darks are smooth,
+        pooling, and absolute — a clean, almost geometric void.  Ribera's shadow
+        areas retain visible gritty brushwork: the paint marks are present even
+        in the deepest darks, giving a granular, inhabited quality to the
+        darkness as if it is made of rough, living matter rather than empty
+        void.  This pass simulates that quality with granular noise applied
+        within the shadow and penumbra zones.
+
+        Three-stage process
+        -------------------
+
+        **Stage 1 — Near-black void reinforcement with warm umber grain:**
+        In the deepest shadow zone (luminance < ``shadow_hi``), add a tiny
+        warm umber lift (R+ slight, G+ very slight) that prevents flat digital
+        black by simulating the warm-brown imprimatura showing through.  A
+        granular noise layer (``grain_strength``) is overlaid within this zone,
+        creating Ribera's characteristic gritty shadow texture — marks visible
+        even in the darkest passages.
+
+        **Stage 2 — Upper-left directional amber spotlight:**
+        Apply a Gaussian directional warmth from the upper left (``light_cx``,
+        ``light_cy``) to warm and lift the illuminated zone.  Ribera's single
+        light source is more dramatic and has a sharper falloff than Guercino's
+        gentler penumbra enrichment — it is a focused spotlight rather than an
+        ambient warmth.
+
+        **Stage 3 — Gritty penumbra texture:**
+        In the mid-dark transition zone (``penumbra_lo`` to ``penumbra_hi``),
+        overlay a second granular noise layer (``penumbra_grain``) that creates
+        the distinctive Ribera shadow grain in the penumbra region — the sense
+        that the transition from light to dark is inhabited and textured rather
+        than a smooth gradient.
+
+        Parameters
+        ----------
+        shadow_hi       : upper luminance bound of the deep shadow zone
+        shadow_warm_r/g : warm-umber channel lifts in the deep shadow
+        grain_strength  : granular noise amplitude in deep shadow zone
+        penumbra_lo/hi  : luminance range for the gritty penumbra zone
+        penumbra_grain  : granular noise amplitude in penumbra zone
+        light_cx/cy     : upper-left spotlight centre (canvas fractions)
+        light_radius    : Gaussian falloff radius as fraction of canvas W
+        amber_r/g       : warm amber spotlight channel lifts
+        blur_radius     : Gaussian sigma for mask softening
+        opacity         : overall blend weight
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Ribera gritty tenebrism pass "
+              f"(grain={grain_strength:.3f}  amber_r={amber_r:.3f}  "
+              f"shadow_hi={shadow_hi:.2f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Ribera gritty tenebrism pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        # Cairo BGRA layout
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # Seed noise from canvas dimensions for deterministic grain
+        rng = _np.random.default_rng(seed=int(h * w) % (2**31))
+
+        # ── 1. Near-black void reinforcement with warm umber grain ────────────
+        # The dark imprimatura shows through Ribera's deepest shadow zones,
+        # and his brushwork is visible even in the voids — gritty, inhabited.
+        deep_mask = _np.clip(
+            (shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0
+        ).astype(_np.float32)
+        deep_mask = _gf(deep_mask, sigma=blur_radius)
+        deep_mask = _np.clip(deep_mask, 0.0, 1.0)
+
+        # Warm umber ground retention
+        r_out = _np.clip(r_out + deep_mask * shadow_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + deep_mask * shadow_warm_g, 0.0, 1.0)
+
+        # Gritty grain in shadow voids — the defining Ribera quality
+        shadow_noise = (rng.random((h, w), dtype=_np.float32) - 0.5) * 2.0
+        shadow_noise = _gf(shadow_noise, sigma=0.8)   # slight softening
+        r_out = _np.clip(r_out + deep_mask * shadow_noise * grain_strength, 0.0, 1.0)
+        g_out = _np.clip(g_out + deep_mask * shadow_noise * grain_strength * 0.7, 0.0, 1.0)
+        b_out = _np.clip(b_out + deep_mask * shadow_noise * grain_strength * 0.5, 0.0, 1.0)
+
+        # ── 2. Upper-left directional amber spotlight ─────────────────────────
+        # Ribera's single upper-left light source — more dramatic and sharper
+        # than Guercino's gentle penumbra enrichment.
+        ys, xs = _np.mgrid[:h, :w]
+        xs_f = xs.astype(_np.float32) / w
+        ys_f = ys.astype(_np.float32) / h
+
+        dist2 = ((xs_f - light_cx) ** 2 + (ys_f - light_cy) ** 2)
+        dir_mask = _np.exp(-0.5 * dist2 / (light_radius ** 2)).astype(_np.float32)
+        dir_mask = _gf(dir_mask, sigma=blur_radius * 2.0)
+        dir_mask = _np.clip(dir_mask, 0.0, 1.0)
+
+        # Only warm the lit zone (not deep shadow)
+        lit_zone = _np.clip((lum - shadow_hi) / (0.5 + 1e-6), 0.0, 1.0)
+        dir_mask = dir_mask * lit_zone
+
+        r_out = _np.clip(r_out + dir_mask * amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + dir_mask * amber_g, 0.0, 1.0)
+
+        # ── 3. Gritty penumbra texture ────────────────────────────────────────
+        # In the transition zone, Ribera's marks are visible — darkness as
+        # inhabited, textured matter, not smooth Caravaggiesque void.
+        pb_mask = _np.clip(
+            1.0 - _np.abs(lum - (penumbra_lo + penumbra_hi) * 0.5)
+            / ((penumbra_hi - penumbra_lo) * 0.5 + 1e-6),
+            0.0, 1.0,
+        ).astype(_np.float32)
+        pb_mask = _gf(pb_mask, sigma=blur_radius)
+        pb_mask = _np.clip(pb_mask, 0.0, 1.0)
+
+        # Penumbra grain: warm noise in the transition band
+        pb_noise = (rng.random((h, w), dtype=_np.float32) - 0.5) * 2.0
+        pb_noise = _gf(pb_noise, sigma=1.2)
+        r_out = _np.clip(r_out + pb_mask * pb_noise * penumbra_grain, 0.0, 1.0)
+        g_out = _np.clip(g_out + pb_mask * pb_noise * penumbra_grain * 0.6, 0.0, 1.0)
+        b_out = _np.clip(b_out + pb_mask * pb_noise * penumbra_grain * 0.35, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out = orig.copy()
+        buf_out[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out.tobytes()
+        print("    Ribera gritty tenebrism pass complete.")

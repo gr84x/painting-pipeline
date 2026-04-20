@@ -119,6 +119,7 @@ EXPECTED_ARTISTS = [
     "carlo_dolci",
     "luca_giordano",
     "guercino",
+    "ribera",
 ]
 
 
@@ -12777,4 +12778,93 @@ def test_atmospheric_depth_pass_zenith_luminance_boost_parameter():
     sig = inspect.signature(Painter.atmospheric_depth_pass)
     assert "zenith_luminance_boost" in sig.parameters, (
         "atmospheric_depth_pass must have 'zenith_luminance_boost' parameter (session 104)"
+    )
+
+
+def test_ribera_in_catalog():
+    """ribera (Jusepe de Ribera, session 106) must be in the catalog."""
+    assert "ribera" in CATALOG, "ribera missing from CATALOG — add it"
+
+
+def test_ribera_movement():
+    """ribera movement must reference Spanish-Neapolitan or Baroque."""
+    s = get_style("ribera")
+    assert "baroque" in s.movement.lower() or "neapolitan" in s.movement.lower(), (
+        f"ribera movement should reference Baroque or Neapolitan, got: {s.movement!r}"
+    )
+
+
+def test_ribera_palette_length():
+    """ribera palette must have at least 5 colours."""
+    s = get_style("ribera")
+    assert len(s.palette) >= 5, f"ribera palette too short: {len(s.palette)}"
+
+
+def test_ribera_palette_values_in_range():
+    """All ribera palette RGB values must be in [0, 1]."""
+    s = get_style("ribera")
+    for c in s.palette:
+        for v in c:
+            assert 0.0 <= v <= 1.0, f"ribera palette value out of range: {v}"
+
+
+def test_ribera_wet_blend_low():
+    """ribera wet_blend should be low — visible brushwork, not smooth sfumato."""
+    s = get_style("ribera")
+    assert s.wet_blend < 0.50, (
+        f"ribera wet_blend should be < 0.50 (gritty visible brushwork); got {s.wet_blend}"
+    )
+
+
+def test_ribera_dark_ground():
+    """ribera ground_color should be very dark — near-black imprimatura."""
+    s = get_style("ribera")
+    lum = 0.299 * s.ground_color[0] + 0.587 * s.ground_color[1] + 0.114 * s.ground_color[2]
+    assert lum < 0.20, (
+        f"ribera ground_color should be near-black (lum < 0.20); got lum={lum:.3f}"
+    )
+
+
+def test_ribera_expected_artists_list():
+    """ribera must appear in the EXPECTED_ARTISTS list."""
+    assert "ribera" in EXPECTED_ARTISTS, (
+        "ribera missing from EXPECTED_ARTISTS — add it to the list"
+    )
+
+
+def test_ribera_gritty_tenebrism_pass_exists():
+    """ribera_gritty_tenebrism_pass must be implemented in Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "ribera_gritty_tenebrism_pass"), (
+        "Painter must have ribera_gritty_tenebrism_pass method"
+    )
+
+
+def test_ribera_gritty_tenebrism_pass_grain_parameter():
+    """ribera_gritty_tenebrism_pass must accept grain_strength parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.ribera_gritty_tenebrism_pass)
+    assert "grain_strength" in sig.parameters, (
+        "ribera_gritty_tenebrism_pass must have 'grain_strength' parameter"
+    )
+
+
+def test_ribera_gritty_tenebrism_pass_opacity_parameter():
+    """ribera_gritty_tenebrism_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.ribera_gritty_tenebrism_pass)
+    assert "opacity" in sig.parameters, (
+        "ribera_gritty_tenebrism_pass must have 'opacity' parameter"
+    )
+
+
+def test_atmospheric_depth_pass_foreground_warmth_parameter():
+    """atmospheric_depth_pass must accept foreground_warmth (session 106 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.atmospheric_depth_pass)
+    assert "foreground_warmth" in sig.parameters, (
+        "atmospheric_depth_pass must have 'foreground_warmth' parameter (session 106)"
     )
