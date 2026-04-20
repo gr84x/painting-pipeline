@@ -8913,6 +8913,101 @@ CATALOG: Dict[str, ArtStyle] = {
             "gaining Lautrec's dry, immediate, psychological presence."
         ),
     ),
+
+    # ── Luca Giordano (1634–1705) ────────────────────────────────────────────────
+    # Known as "Fa Presto" (does-it-quickly) for his astonishing speed.
+    # Pipeline key: giordano_rapidita_luminosa_pass() — warm golden aureole
+    # sweeping from upper-right, dynamic baroque radiance, Venetian colour richness.
+    "luca_giordano": ArtStyle(
+        artist      = "Luca Giordano",
+        movement    = "Neapolitan Baroque",
+        nationality = "Italian",
+        period      = "1650–1705",
+        palette     = [
+            (0.92, 0.78, 0.42),   # warm golden aureole — sunlit ivory-gold
+            (0.72, 0.52, 0.22),   # mid amber-gold — penumbra warmth
+            (0.30, 0.18, 0.08),   # deep warm brown shadow — Baroque void
+            (0.62, 0.74, 0.88),   # cool blue zenith — ceiling fresco sky
+            (0.80, 0.60, 0.36),   # warm ochre flesh highlight
+            (0.22, 0.28, 0.44),   # cool violet-blue deep shadow
+        ],
+        ground_color  = (0.42, 0.30, 0.14),   # warm walnut-brown imprimatura
+        stroke_size   = 7,
+        wet_blend     = 0.62,
+        edge_softness = 0.48,
+        jitter        = 0.040,
+        glazing       = (0.68, 0.52, 0.22),    # warm golden resin glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Luca Giordano was the most prodigiously prolific painter of the Italian "
+            "Baroque and arguably the most technically versatile: a Neapolitan master "
+            "who could absorb, synthesise, and deploy any prior style — Raphael, "
+            "Titian, Veronese, Rubens, Rembrandt, Velázquez — with equal facility and "
+            "then move on.  His nickname 'Fa Presto' (does-it-quickly) came from his "
+            "father, who would drive him to work faster, but it captured a genuine "
+            "quality of his genius: a speed that was not carelessness but concentrated "
+            "intelligence, an ability to read a large composition whole and execute it "
+            "in a single sustained arc of energy without losing coherence or luminosity.  "
+            "He was reportedly able to paint ceiling frescoes of vast scope — the "
+            "Palazzo Medici-Riccardi, the Escorial Library, the Certosa di San "
+            "Martino — in weeks that other painters would spend months planning.  "
+            "His technique was built on the Venetian tradition transmitted through "
+            "Ribera (with whom he trained in Naples) and enriched by direct study of "
+            "Titian, Veronese, and Rubens: a warm imprimatura of reddish-brown or "
+            "walnut-brown, over which he built form rapidly in broad, confident wet-"
+            "into-wet strokes, using a palette dominated by warm golden yellows, deep "
+            "warm browns, and cool cerulean or lapis blue accents.  His light source "
+            "was typically theatrical and upper-right, creating a warm golden aureole "
+            "that swept diagonally across the composition — a celestial radiance "
+            "characteristic of his altarpieces and ceiling frescoes.  "
+            "Unlike the slow accretion of Dolci's enamel passes or the sfumato "
+            "dissolution of Leonardo, Giordano's surfaces are built in a single "
+            "confident day: visible directional brushwork, active edges, and a surface "
+            "energy that reads as dynamic rather than perfected.  His shadows are warm "
+            "and deep — rich Baroque voids with a residual amber warmth — and his "
+            "highlights are warm golden-ivory rather than cool or crystalline.  "
+            "The defining quality in the pipeline is the 'rapidità luminosa': a warm "
+            "golden radiance that sweeps across the upper portion of the composition "
+            "from the upper-right, brightening and warming the background sky zone "
+            "and adding a subtle warm-gold rim to the lit edges of the figure — "
+            "simulating the theatrical upper illumination that characterises his "
+            "altarpieces and the grand narrative sweep of his ceiling paintings."
+        ),
+        famous_works  = [
+            ("Triumph of Judith",                                "c. 1704"),
+            ("The Rape of the Sabine Women",                     "c. 1680–1685"),
+            ("Allegory of Human Life and the Medici (ceiling)",  "1682–1683"),
+            ("Escorial Library ceiling frescoes",                "1692–1694"),
+            ("Saint Michael Vanquishing Satan",                  "c. 1663"),
+            ("The Fall of the Rebel Angels",                     "c. 1660–1665"),
+            ("Certosa di San Martino Treasury frescoes",         "1704"),
+        ],
+        inspiration   = (
+            "Apply giordano_rapidita_luminosa_pass() as the primary stylistic pass "
+            "for this artist.  The pass simulates the defining quality of Giordano's "
+            "large-scale Baroque illumination — the warm golden aureole that sweeps "
+            "from the upper-right across the composition — in three stages:  "
+            "(1) Upper-right golden aureole in background — in the upper-right "
+            "quadrant of the background zone, apply a warm golden brightening "
+            "(R+ strong, G+ moderate, B+ slight) that falls off with distance from "
+            "the upper-right corner.  The aureole should feel like celestial light "
+            "entering from above, not a spotlight: use aureole_r ≈ 0.04–0.07, "
+            "aureole_g ≈ 0.02–0.04, aureole_b ≈ 0.005–0.012 with a large Gaussian "
+            "radius (radius ≈ 0.65–0.80 of canvas width) so the effect is gradual "
+            "and atmospheric, not concentrated.  "
+            "(2) Warm golden rim on figure's lit edges — on the lit (upper-right) "
+            "side of the figure silhouette, add a very faint warm-gold edge "
+            "brightening (rim_strength ≈ 0.03–0.06) to simulate the way his figures "
+            "are touched by the theatrical upper illumination.  "
+            "(3) Shadow violet depth — in the deep shadow zone (lum < 0.30), add a "
+            "very faint cool violet push (B+ very slight, R+ very slight warm "
+            "recovery) simulating the Venetian-influenced shadow colour that "
+            "Giordano absorbed from Titian and Ribera.  "
+            "Use opacity ≈ 0.28–0.36 so the golden sweep adds luminous drama "
+            "without overriding the accumulated sfumato and enamel depth."
+        ),
+    ),
 }
 
 
