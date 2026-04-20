@@ -2403,7 +2403,10 @@ class Painter:
                           chroma_gate:           float = 0.0,
                           highlight_ivory_lift:  float = 0.0,
                           highlight_ivory_thresh: float = 0.82,
-                          atmospheric_blue_shift: float = 0.0):
+                          atmospheric_blue_shift: float = 0.0,
+                          penumbra_bloom:         float = 0.0,
+                          penumbra_bloom_lo:      float = 0.30,
+                          penumbra_bloom_hi:      float = 0.60):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2553,6 +2556,24 @@ class Painter:
                                backgrounds shift consistently toward cooler blue-grey
                                even when the foreground is painted in warm amber light.
                                (Session 102 improvement.)
+        penumbra_bloom        : When > 0, adds a warm amber bloom in the penumbra zone
+                               (the transition band between lit flesh and deep shadow)
+                               BEFORE the sfumato veils are composited.  The veils
+                               then naturally feather the edges of the bloom, integrating
+                               it into the sfumato haze.  This enriches the penumbra
+                               with Guercino's characteristic amber-ochre warmth —
+                               the transitional zone where golden light makes its last
+                               stand before surrendering to shadow.  A Gaussian bell
+                               mask centred at the midpoint of [penumbra_bloom_lo,
+                               penumbra_bloom_hi] applies the warm lift selectively
+                               to the penumbra without affecting the full highlights
+                               or deep shadows.  Practical values: 0.04–0.10 for
+                               a subtle enrichment; 0.12–0.18 for a more pronounced
+                               Guercinesque amber glow.
+                               (Session 105 improvement, inspired by il Guercino.)
+        penumbra_bloom_lo / _hi : luminance range for the penumbra bloom bell mask.
+                               Default [0.30, 0.60] targets the mid-tone transition
+                               zone typical of flesh passages.
         """
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
               f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f}"
@@ -2691,6 +2712,44 @@ class Painter:
             self.canvas.ctx.paint()
             print(f"    Highlight ivory lift applied (lift={highlight_ivory_lift:.2f}"
                   f"  thresh={highlight_ivory_thresh:.2f}).")
+
+        # ── Session 105: Penumbra bloom (Guercino-inspired) ──────────────────
+        # Before the sfumato veils, add a warm amber bloom in the penumbra zone —
+        # the transition band from lit flesh to deep shadow.  Inspired by
+        # Guercino's observation that the penumbra carries the greatest emotional
+        # warmth: where golden candlelight breathes before surrendering to umber.
+        # The sfumato veils that follow naturally feather the edges of the bloom,
+        # integrating it into the smoky haze without hard boundaries.
+        if penumbra_bloom > 0.0:
+            pb_raw = np.frombuffer(
+                self.canvas.surface.get_data(), dtype=np.uint8
+            ).reshape(h, w, 4).copy()
+            pb_b = pb_raw[:, :, 0].astype(np.float32) / 255.0
+            pb_g = pb_raw[:, :, 1].astype(np.float32) / 255.0
+            pb_r = pb_raw[:, :, 2].astype(np.float32) / 255.0
+            pb_lum = 0.299 * pb_r + 0.587 * pb_g + 0.114 * pb_b
+            # Gaussian bell centred at midpoint of [penumbra_bloom_lo, penumbra_bloom_hi]
+            pb_mid   = (penumbra_bloom_lo + penumbra_bloom_hi) * 0.5
+            pb_width = (penumbra_bloom_hi - penumbra_bloom_lo) * 0.5 + 1e-6
+            pb_mask  = np.exp(
+                -0.5 * ((pb_lum - pb_mid) / pb_width) ** 2
+            ).astype(np.float32)
+            pb_mask  = ndimage.gaussian_filter(pb_mask, sigma=4.0)
+            pb_mask  = np.clip(pb_mask * penumbra_bloom, 0.0, 1.0)
+            # Warm amber bloom: R↑ (amber), G↑ slight, B↓ (cool dampen for warmth)
+            pb_r_out = np.clip(pb_r + pb_mask * 0.042, 0.0, 1.0)
+            pb_g_out = np.clip(pb_g + pb_mask * 0.018, 0.0, 1.0)
+            pb_b_out = np.clip(pb_b - pb_mask * 0.008, 0.0, 1.0)
+            pb_buf = pb_raw.copy()
+            pb_buf[:, :, 2] = np.clip(pb_r_out * 255.0, 0, 255).astype(np.uint8)
+            pb_buf[:, :, 1] = np.clip(pb_g_out * 255.0, 0, 255).astype(np.uint8)
+            pb_buf[:, :, 0] = np.clip(pb_b_out * 255.0, 0, 255).astype(np.uint8)
+            pb_surf = cairo.ImageSurface.create_for_data(
+                bytearray(pb_buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            self.canvas.ctx.set_source_surface(pb_surf, 0, 0)
+            self.canvas.ctx.paint()
+            print(f"    Penumbra bloom applied (bloom={penumbra_bloom:.2f}"
+                  f"  lo={penumbra_bloom_lo:.2f}  hi={penumbra_bloom_hi:.2f}).")
 
         # ── Multi-veil accumulation ───────────────────────────────────────────
         # Each veil: blur the warmed reference at a slightly larger radius,
@@ -26591,4 +26650,174 @@ class Painter:
         buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
         buf_out[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out.tobytes()
+
+    # ── guercino_penumbra_warmth_pass ─────────────────────────────────────────
+    # Inspired by Giovanni Francesco Barbieri (il Guercino, 1591–1666),
+    # Emilian Baroque master and supreme draughtsman of the Italian Baroque.
+    # Session 105.
+
+    def guercino_penumbra_warmth_pass(
+        self,
+        penumbra_lo:        float = 0.28,
+        penumbra_hi:        float = 0.62,
+        amber_r:            float = 0.038,
+        amber_g:            float = 0.018,
+        amber_b:            float = 0.008,
+        light_cx:           float = 0.18,
+        light_cy:           float = 0.08,
+        light_radius:       float = 0.85,
+        directional_str:    float = 0.018,
+        shadow_lo:          float = 0.05,
+        shadow_hi:          float = 0.28,
+        shadow_warm_r:      float = 0.022,
+        shadow_warm_g:      float = 0.008,
+        blur_radius:        float = 4.5,
+        opacity:            float = 0.28,
+    ) -> None:
+        """
+        Giovanni Francesco Barbieri (il Guercino, 1591–1666) — penumbra warmth pass.
+
+        Guercino was the supreme master of the Emilian Baroque school and one of
+        the greatest draughtsmen in the history of Western art.  His pen-and-wash
+        drawings — sweeping calligraphic marks building form with breathtaking
+        economy — directly inform the intelligence of his painted surfaces.  His
+        early works (c. 1617–1627) deploy a dramatic Caravaggesque chiaroscuro
+        suffused with extraordinary amber warmth; his late works (after 1642,
+        influenced by Guido Reni) adopt a lighter, more idealised palette but
+        retain the defining quality that separates him from every other Baroque
+        painter: the concentrated golden warmth of his penumbra.
+
+        Where Caravaggio moves abruptly from the lit zone to cold shadow, and
+        Leonardo dissolves everything into cool grey sfumato, Guercino's light
+        makes a slow, warm journey.  The penumbra — the transition band between
+        lit flesh and deep shadow — glows with concentrated amber-ochre warmth,
+        as if the golden light is spending its last intensity there before
+        surrendering to the dark.  This zone is not incidental; it is the
+        emotional centre of Guercino's flesh passages.
+
+        This pass simulates three defining qualities:
+
+        1. **Penumbra amber enrichment** (penumbra_lo/hi, amber_*):
+           In the luminance band [penumbra_lo, penumbra_hi], apply a warm amber-
+           ochre lift via a Gaussian bell mask peaking at the midpoint of the
+           range.  R+ strong (amber), G+ moderate, B- slight (cool dampen) — the
+           signature golden ochre of Guercino's transitional flesh.  The bell
+           shape ensures the effect peaks at the penumbra midpoint and fades
+           smoothly at the lit and shadow extremes.
+
+        2. **Upper-left directional warmth** (light_cx/cy, light_radius, directional_str):
+           Apply a gentle warm gradient falling off from the upper-left corner
+           with a large Gaussian radius (≈0.85 of canvas width).  Guercino's
+           light was typically upper-left — intimate and domestic rather than
+           Giordano's theatrical upper-right celestial drama.  The effect
+           brightens the canvas in warm ochre near the light source, creating
+           a directional warmth across the composition.
+
+        3. **Deep shadow warm retention** (shadow_lo/hi, shadow_warm_*):
+           In the deepest shadow zone (lum < shadow_hi), add a gentle warm-umber
+           retention (R+ slight, G+ very slight) to prevent cold black voids.
+           Guercino prepared on a dark warm-brown imprimatura that shows through
+           the shadow zones, warming the darks with residual amber ground rather
+           than the cold nihilism of pure tenebrism.
+
+        Parameters
+        ----------
+        penumbra_lo / penumbra_hi : luminance range for the penumbra zone bell mask
+        amber_r / amber_g / amber_b : channel shifts in the penumbra zone
+                                      (amber_b is subtracted to warm by reducing blue)
+        light_cx / light_cy         : canvas-fraction coordinates of the upper-left
+                                      light source centre
+        light_radius                : Gaussian falloff radius (as fraction of W)
+        directional_str             : strength of the upper-left directional warmth
+        shadow_lo / shadow_hi       : luminance range for the deep shadow zone
+        shadow_warm_r / _g          : warm-umber retention channel shifts in shadows
+        blur_radius                 : Gaussian sigma for mask transitions
+        opacity                     : overall blend weight
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Guercino penumbra warmth pass "
+              f"(amber_r={amber_r:.3f}  directional_str={directional_str:.3f}  "
+              f"shadow_warm_r={shadow_warm_r:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Guercino penumbra warmth pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        # Cairo BGRA layout
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Coordinate grids ──────────────────────────────────────────────────
+        ys, xs = _np.mgrid[:h, :w]
+        xs_f   = xs.astype(_np.float32) / w
+        ys_f   = ys.astype(_np.float32) / h
+
+        # ── 1. Penumbra amber enrichment ─────────────────────────────────────
+        # The defining quality of Guercino's flesh: the penumbra zone glows
+        # with concentrated amber-ochre warmth before surrendering to shadow.
+        # Gaussian bell peaking at the midpoint of [penumbra_lo, penumbra_hi].
+        pb_mid   = (penumbra_lo + penumbra_hi) * 0.5
+        pb_width = (penumbra_hi - penumbra_lo) * 0.5 + 1e-6
+        pb_mask  = _np.exp(
+            -0.5 * ((lum - pb_mid) / pb_width) ** 2
+        ).astype(_np.float32)
+        pb_mask  = _gf(pb_mask, sigma=blur_radius)
+        pb_mask  = _np.clip(pb_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + pb_mask * amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + pb_mask * amber_g, 0.0, 1.0)
+        # amber_b is subtracted (reduces blue) to increase the amber quality.
+        b_out = _np.clip(b_out - pb_mask * amber_b, 0.0, 1.0)
+
+        # ── 2. Upper-left directional warmth ─────────────────────────────────
+        # Guercino's light entered from the upper left — intimate and warm
+        # rather than Giordano's theatrical upper-right celestial drama.
+        dist_x   = xs_f - light_cx
+        dist_y   = ys_f - light_cy
+        dist     = _np.sqrt(dist_x ** 2 + dist_y ** 2).astype(_np.float32)
+        dir_mask = _np.exp(-0.5 * (dist / max(light_radius, 1e-6)) ** 2)
+        dir_mask = _np.clip(dir_mask, 0.0, 1.0).astype(_np.float32)
+
+        # Warm directional lift: R↑ (amber warmth), G↑ slight
+        r_out = _np.clip(r_out + dir_mask * directional_str * 1.2, 0.0, 1.0)
+        g_out = _np.clip(g_out + dir_mask * directional_str * 0.5, 0.0, 1.0)
+
+        # ── 3. Deep shadow warm retention ─────────────────────────────────────
+        # The dark warm-brown imprimatura shows through Guercino's shadow zones,
+        # preventing cold voids.  Apply a gentle umber retention in deep shadow.
+        shadow_mask = _np.clip(
+            (shadow_hi - lum) / (shadow_hi - shadow_lo + 1e-6), 0.0, 1.0
+        )
+        shadow_mask = _gf(shadow_mask.astype(_np.float32), sigma=blur_radius * 0.8)
+        shadow_mask = _np.clip(shadow_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + shadow_mask * shadow_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + shadow_mask * shadow_warm_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out_g = orig.copy()
+        buf_out_g[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out_g[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out_g[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out_g[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out_g.tobytes()
         print("    Luca Giordano rapidità luminosa pass complete.")

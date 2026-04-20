@@ -118,6 +118,7 @@ EXPECTED_ARTISTS = [
     "masaccio",
     "carlo_dolci",
     "luca_giordano",
+    "guercino",
 ]
 
 
