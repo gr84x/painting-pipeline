@@ -25490,4 +25490,154 @@ class Painter:
         buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # ── Session 99 — Pierre Bonnard / Chromatic Intimisme ────────────────────
+
+    def bonnard_chromatic_vibration_pass(
+        self,
+        *,
+        mid_lo: float = 0.28,
+        mid_hi: float = 0.76,
+        warm_amp: float = 0.030,
+        cool_amp: float = 0.025,
+        noise_scale: float = 18.0,
+        noise_octaves: int = 4,
+        noise_persistence: float = 0.50,
+        blur_radius: float = 3.5,
+        opacity: float = 0.35,
+        rng_seed: int = 99,
+    ) -> None:
+        """
+        Bonnard chromatic vibration — Session 99 artistic improvement.
+
+        Pierre Bonnard (1867–1947) developed his most distinctive late technique
+        at Villa Le Bosquet, Le Cannet (c. 1920–1947): a pervasive warm/cool
+        oscillation throughout the mid-tone zone of every surface.  Unlike
+        Seurat's systematic pointillist dots or the Impressionists' atmospheric
+        broken colour, Bonnard's vibration is organic and emotional — patches of
+        warm cadmium-yellow push alternate with patches of cool violet-cerulean
+        pull, spatially distributed by an intuitive irregular rhythm rather than
+        a grid or theory.
+
+        The result is a chromatic shimmer: the eye reads the warm/cool pairs
+        simultaneously as colour and as light, making the surface appear to pulse
+        and breathe.  This is the quality that distinguishes his Le Cannet
+        interiors from all other Post-Impressionist work — an optical vibration
+        that transcends the actual luminance range of the pigments.
+
+        Session 99 artistic improvement: chromatic vibration as a pervasive
+        surface quality.  Prior sessions have added tonal passes (Whistler,
+        session 87), penumbra blooms (Barocci, session 98), and sfumato veils
+        (Leonardo, session 82/89/97).  Bonnard introduces a new axis: not
+        tonal unity but chromatic aliveness — the warm/cool oscillation that
+        makes every mid-tone zone feel inhabited by light rather than merely
+        lit by it.
+
+        Implementation:
+
+          1. Build a spatial oscillation field using layered Perlin noise —
+             this gives an organic, irregular rhythm to the warm/cool patches
+             (noise > 0 = warm phase; noise ≤ 0 = cool phase).
+
+          2. Warm phase: in pixels where noise > 0 AND lum ∈ [mid_lo, mid_hi],
+             apply +R warm_amp, -B warm_amp * 0.55 (cadmium-yellow / orange push).
+
+          3. Cool phase: in pixels where noise ≤ 0 AND lum ∈ [mid_lo, mid_hi],
+             apply +B cool_amp, -R cool_amp * 0.45 (violet / cerulean push).
+
+          4. Apply a small Gaussian blur (sigma = blur_radius) to soften the raw
+             noise boundary so the warm/cool beats blend organically rather than
+             reading as hard-edged patches.
+
+          5. Composite at opacity.
+
+        Parameters
+        ----------
+        mid_lo           : lower luminance threshold for mid-tone zone
+        mid_hi           : upper luminance threshold for mid-tone zone
+        warm_amp         : magnitude of warm oscillation (R boost / B dampen)
+        cool_amp         : magnitude of cool oscillation (B boost / R dampen)
+        noise_scale      : Perlin noise frequency (higher = finer oscillation patches)
+        noise_octaves    : Perlin octave count for organic detail
+        noise_persistence: Perlin persistence (controls contrast of noise field)
+        blur_radius      : Gaussian sigma for softening oscillation boundaries
+        opacity          : overall composite opacity (0–1)
+        rng_seed         : random seed for reproducibility
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+        from noise import pnoise2 as _pn2
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Build organic oscillation field via Perlin noise ──────────────────
+        # The noise field maps each pixel to a warm/cool phase value.
+        # Values > 0 → warm push; values ≤ 0 → cool push.
+        # A fixed offset from rng_seed shifts the noise origin for each session.
+        inv_w = 1.0 / w
+        inv_h = 1.0 / h
+        osc = _np.zeros((h, w), dtype=_np.float32)
+        ox = (rng_seed * 37.1) % 100.0   # stable but session-unique offset
+        oy = (rng_seed * 53.7) % 100.0
+        for y in range(h):
+            for x in range(w):
+                osc[y, x] = _pn2(
+                    x * inv_w * noise_scale + ox,
+                    y * inv_h * noise_scale + oy,
+                    octaves=noise_octaves,
+                    persistence=noise_persistence,
+                )
+
+        # ── Build mid-tone mask — tent function over [mid_lo, mid_hi] ─────────
+        mid_mask = _np.clip(
+            (lum - mid_lo) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (mid_hi - lum) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0
+        ) * 4.0
+        mid_mask = _np.clip(mid_mask, 0.0, 1.0)
+
+        # ── Warm phase — cadmium yellow / orange push ─────────────────────────
+        # +R, -B in pixels where noise > 0
+        warm_phase = _np.clip(osc, 0.0, None)          # positive lobe
+        warm_phase = warm_phase / (warm_phase.max() + 1e-6)  # normalise to [0,1]
+        warm_field = warm_phase * mid_mask
+        warm_field = _gf(warm_field.astype(_np.float32), blur_radius)
+        warm_field = _np.clip(warm_field, 0.0, 1.0)
+
+        r_out = _np.clip(r0 + warm_field * warm_amp,           0.0, 1.0)
+        g_out = g0.copy()
+        b_out = _np.clip(b0 - warm_field * warm_amp * 0.55,    0.0, 1.0)
+
+        # ── Cool phase — violet / cerulean push ───────────────────────────────
+        # +B, -R in pixels where noise ≤ 0
+        cool_phase = _np.clip(-osc, 0.0, None)          # negative lobe flipped
+        cool_phase = cool_phase / (cool_phase.max() + 1e-6)
+        cool_field = cool_phase * mid_mask
+        cool_field = _gf(cool_field.astype(_np.float32), blur_radius)
+        cool_field = _np.clip(cool_field, 0.0, 1.0)
+
+        r_out = _np.clip(r_out - cool_field * cool_amp * 0.45, 0.0, 1.0)
+        b_out = _np.clip(b_out + cool_field * cool_amp,        0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out = orig.copy()
+        buf_out[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out.tobytes()
         print("    Federico Barocci petal flush pass complete.")
