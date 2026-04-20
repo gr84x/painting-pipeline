@@ -26536,8 +26536,8 @@ class Painter:
         # Background pixels get the full aureole; figure pixels get 30%
         # of it to add warm rim without washing out the face.
         fig_mask = _np.zeros((h, w), dtype=_np.float32)
-        if self.figure_mask is not None:
-            fig_mask = _np.array(self.figure_mask, dtype=_np.float32)
+        if self._figure_mask is not None:
+            fig_mask = _np.array(self._figure_mask, dtype=_np.float32)
             fig_mask = _np.clip(fig_mask, 0.0, 1.0)
         bg_weight  = 1.0 - fig_mask
         fig_weight = fig_mask * 0.30
@@ -26551,7 +26551,7 @@ class Painter:
         # Compute the figure mask gradient to isolate the upper-right edge region,
         # then apply a warm-gold brightening there — the theatrical rim that
         # separates Giordano's figures from the glowing background.
-        if self.figure_mask is not None:
+        if self._figure_mask is not None:
             fig_smooth = _gf(fig_mask, sigma=rim_sigma)
             # Edge = original mask minus strongly smoothed version → ring at boundary
             fig_edge   = _np.clip(fig_mask - fig_smooth, 0.0, 1.0)
