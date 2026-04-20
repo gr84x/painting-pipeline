@@ -116,6 +116,7 @@ EXPECTED_ARTISTS = [
     "federico_barocci",
     "pierre_bonnard",
     "masaccio",
+    "carlo_dolci",
 ]
 
 
@@ -12501,4 +12502,147 @@ def test_sfumato_veil_pass_atmospheric_blue_shift_parameter():
     sig = inspect.signature(Painter.sfumato_veil_pass)
     assert "atmospheric_blue_shift" in sig.parameters, (
         "sfumato_veil_pass must have 'atmospheric_blue_shift' parameter (session 102)"
+    )
+
+
+# ── Session 103: Carlo Dolci ──────────────────────────────────────────────────
+
+def test_carlo_dolci_in_catalog():
+    """carlo_dolci must be present in the art catalog."""
+    from art_catalog import CATALOG
+    assert "carlo_dolci" in CATALOG, (
+        "carlo_dolci missing from CATALOG"
+    )
+
+
+def test_carlo_dolci_style_fields():
+    """carlo_dolci ArtStyle must have correct artist metadata."""
+    from art_catalog import get_style
+    s = get_style("carlo_dolci")
+    assert "Dolci" in s.artist
+    assert "Baroque" in s.movement or "Devotional" in s.movement
+    assert s.nationality == "Italian"
+
+
+def test_carlo_dolci_palette_valid():
+    """carlo_dolci palette colors must be in [0, 1]."""
+    from art_catalog import get_style
+    s = get_style("carlo_dolci")
+    for color in s.palette:
+        for channel in color:
+            assert 0.0 <= channel <= 1.0, (
+                f"carlo_dolci palette channel {channel} out of [0,1]"
+            )
+
+
+def test_carlo_dolci_stroke_params():
+    """carlo_dolci must have very high wet_blend (enamel glazed finish)."""
+    from art_catalog import get_style
+    s = get_style("carlo_dolci")
+    assert s.wet_blend >= 0.80, (
+        f"carlo_dolci wet_blend {s.wet_blend} too low for enamel glazed finish"
+    )
+    assert s.edge_softness >= 0.45, (
+        f"carlo_dolci edge_softness {s.edge_softness} too low for glassy surface"
+    )
+
+
+def test_carlo_dolci_famous_works():
+    """carlo_dolci must list known works."""
+    from art_catalog import get_style
+    s = get_style("carlo_dolci")
+    assert len(s.famous_works) >= 3
+    titles = [w[0] for w in s.famous_works]
+    assert any("Cecilia" in t or "Magdalene" in t or "David" in t for t in titles), (
+        "carlo_dolci famous_works should include a known Dolci devotional work"
+    )
+
+
+def test_florentine_devotional_baroque_period_enum():
+    """FLORENTINE_DEVOTIONAL_BAROQUE must exist in the Period enum."""
+    from scene_schema import Period
+    assert hasattr(Period, "FLORENTINE_DEVOTIONAL_BAROQUE"), (
+        "Period enum missing FLORENTINE_DEVOTIONAL_BAROQUE"
+    )
+
+
+def test_florentine_devotional_baroque_stroke_params():
+    """FLORENTINE_DEVOTIONAL_BAROQUE must have very high wet_blend and moderate edge_softness."""
+    from scene_schema import Style, Period
+    s = Style(period=Period.FLORENTINE_DEVOTIONAL_BAROQUE)
+    params = s.stroke_params
+    assert params["wet_blend"] >= 0.80, (
+        f"FLORENTINE_DEVOTIONAL_BAROQUE wet_blend {params['wet_blend']} too low"
+    )
+    assert params["edge_softness"] >= 0.45, (
+        f"FLORENTINE_DEVOTIONAL_BAROQUE edge_softness {params['edge_softness']} too low"
+    )
+
+
+def test_dolci_florentine_enamel_pass_exists():
+    """Painter must have dolci_florentine_enamel_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "dolci_florentine_enamel_pass"), (
+        "Painter missing dolci_florentine_enamel_pass"
+    )
+
+
+def test_dolci_florentine_enamel_pass_smooth_parameters():
+    """dolci_florentine_enamel_pass must accept smooth_sigma and smooth_strength."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.dolci_florentine_enamel_pass)
+    for param in ("smooth_sigma", "smooth_strength"):
+        assert param in sig.parameters, (
+            f"dolci_florentine_enamel_pass must have {param!r} parameter"
+        )
+
+
+def test_dolci_florentine_enamel_pass_shadow_parameters():
+    """dolci_florentine_enamel_pass must accept shadow_depth_str."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.dolci_florentine_enamel_pass)
+    assert "shadow_depth_str" in sig.parameters, (
+        "dolci_florentine_enamel_pass must have 'shadow_depth_str' parameter"
+    )
+
+
+def test_dolci_florentine_enamel_pass_highlight_parameters():
+    """dolci_florentine_enamel_pass must accept highlight_lift."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.dolci_florentine_enamel_pass)
+    assert "highlight_lift" in sig.parameters, (
+        "dolci_florentine_enamel_pass must have 'highlight_lift' parameter"
+    )
+
+
+def test_dolci_florentine_enamel_pass_penumbra_parameters():
+    """dolci_florentine_enamel_pass must accept penumbra_amber_r."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.dolci_florentine_enamel_pass)
+    assert "penumbra_amber_r" in sig.parameters, (
+        "dolci_florentine_enamel_pass must have 'penumbra_amber_r' parameter"
+    )
+
+
+def test_dolci_florentine_enamel_pass_opacity_parameter():
+    """dolci_florentine_enamel_pass must accept opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.dolci_florentine_enamel_pass)
+    assert "opacity" in sig.parameters, (
+        "dolci_florentine_enamel_pass must have 'opacity' parameter"
+    )
+
+
+def test_subsurface_scatter_pass_penumbra_warmth_depth_parameter():
+    """subsurface_scatter_pass must accept penumbra_warmth_depth (session 103 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.subsurface_scatter_pass)
+    assert "penumbra_warmth_depth" in sig.parameters, (
+        "subsurface_scatter_pass must have 'penumbra_warmth_depth' parameter (session 103)"
     )

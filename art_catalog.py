@@ -8728,6 +8728,97 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Carlo Dolci (1616–1686) ───────────────────────────────────────────────────
+    # Pipeline key: dolci_florentine_enamel_pass() — hyper-smooth devotional enamel
+    # surface finish, deep walnut-brown shadow glazes, crystalline ivory highlights,
+    # and an introspective psychological stillness inspired by his devotional panels.
+    "carlo_dolci": ArtStyle(
+        artist      = "Carlo Dolci",
+        movement    = "Florentine Baroque / Devotional Realism",
+        nationality = "Italian",
+        period      = "1640–1686",
+        palette     = [
+            (0.90, 0.78, 0.62),   # warm ivory flesh highlight — naples-cream
+            (0.72, 0.54, 0.36),   # mid-tone flesh — warm amber ochre
+            (0.42, 0.28, 0.14),   # deep shadow — warm walnut-brown
+            (0.14, 0.08, 0.04),   # absolute dark — near-black void
+            (0.58, 0.44, 0.28),   # penumbra zone — amber-brown transition
+            (0.82, 0.70, 0.50),   # highlight bloom — ivory over warm ground
+        ],
+        ground_color  = (0.38, 0.28, 0.16),   # warm walnut imprimatura (copper panels)
+        stroke_size   = 4,
+        wet_blend     = 0.88,
+        edge_softness = 0.55,
+        jitter        = 0.008,
+        glazing       = (0.55, 0.40, 0.18),    # warm amber resin glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Carlo Dolci was the most technically obsessive painter of the Florentine "
+            "Baroque: a devotional artist who approached each painting as an act of "
+            "spiritual discipline and who was capable of spending years — sometimes "
+            "literally years — on a single figure.  His speed was negligible; his "
+            "surface finish was extraordinary.  He worked primarily on copper panels "
+            "and small-format wood, which provided the ideal non-absorbent ground for "
+            "his technique of building form through dozens of thin, transparent oil-"
+            "glaze layers, each dried before the next was applied, in the Flemish "
+            "tradition transmitted through Florentine channels.  The result is a skin "
+            "surface that approaches the quality of fine enamelware: seamless, warm, "
+            "extraordinarily deep in its shadows, and crystalline in its highlights.  "
+            "His shadows are among the richest in the tradition — built from repeated "
+            "glazes of warm walnut-brown and raw umber over a warmly toned copper "
+            "ground, the depth of darkness achieved not through a single opaque dark "
+            "but through the accumulation of many transparent layers, each adding a "
+            "fraction of absorption while retaining the translucency of the paint film.  "
+            "The result is a shadow zone that appears to have interior depth — you seem "
+            "to look into the shadow rather than at an opaque surface.  "
+            "His highlights are the opposite: pure, almost glassy ivory touches over "
+            "the smooth flesh surface, applied with the finest possible brush — "
+            "crystalline and precise in a way that has more in common with a goldsmith's "
+            "work than with the wet-into-wet oil traditions of his Venetian contemporaries.  "
+            "The devotional stillness of his figures — heavy-lidded saints, weeping "
+            "Madonnas, absorbed Magdalenes — is amplified by the surface quality: "
+            "a portrait that feels as if it has been resolved to absolute completion, "
+            "with no rough edge, no unresolved mark, no evidence of hesitation."
+        ),
+        famous_works  = [
+            ("St. Cecilia at the Organ",               "c. 1671–1672"),
+            ("The Virgin and Child with Saints",        "c. 1665"),
+            ("Salome with the Head of St. John",        "c. 1670"),
+            ("David in Prayer",                         "c. 1640"),
+            ("The Penitent Magdalene",                  "c. 1660–1665"),
+            ("Christ Carrying the Cross",               "c. 1646"),
+            ("Portrait of Ainolfo de' Bardi",           "c. 1632–1635"),
+        ],
+        inspiration   = (
+            "Apply dolci_florentine_enamel_pass() as the primary stylistic pass for "
+            "this artist.  The pass simulates four defining qualities of Dolci's "
+            "hyper-smooth devotional enamel surface:  "
+            "(1) Enamel surface refinement — a bilateral-style local smoothing in the "
+            "flesh and mid-tone zones, going beyond Tissot's unsharp-mask clarity to "
+            "actively reduce micro-texture variation.  Applied with a narrow Gaussian "
+            "blend (sigma ≈ 2.5–3.5) to merge adjacent tonal variations within skin "
+            "zones — simulating the glass-smooth surface of paint glazed over copper.  "
+            "(2) Shadow depth enrichment — in the deep shadow zone (lum < 0.32), apply "
+            "warm walnut-brown glazes (R+ modest, G+ very slight, B dampened) that add "
+            "interior depth without lifting the darks toward grey.  The key quality is "
+            "warmth without brightness: the shadows should feel deep and amber-brown, "
+            "not lifted.  Use shadow_depth_str ≈ 0.06–0.12.  "
+            "(3) Crystal highlight clarification — in the very brightest zones "
+            "(lum > 0.82), apply a subtle luminance lift (highlight_lift ≈ 0.04–0.08) "
+            "that brings the very tip of the highlight to a near-white crystalline "
+            "purity — the goldsmith's touch on the enamel surface.  Unlike Tissot's "
+            "cool crystallization (B↑ R↓), Dolci's highlights remain warm ivory "
+            "(R+ modest, neutral G, B neutral).  "
+            "(4) Penumbra amber resonance — in the transition zone between light and "
+            "shadow (lum 0.30–0.55), apply a very faint warm-amber glow (R+ slight, "
+            "G+ very slight, B dampened) that simulates the amber radiance of his "
+            "penumbra zones, built from many transparent layers of warm-coloured glaze.  "
+            "Use opacity ≈ 0.28–0.38 so the pass adds Dolci's enamel depth and devotional "
+            "stillness without overriding the accumulated sfumato atmosphere of prior sessions."
+        ),
+    ),
+
     # ── Henri de Toulouse-Lautrec (1864–1901) ────────────────────────────────────
     # Pipeline key: lautrec_essence_pass() — matte surface desaturation, spidery
     # diagonal hatching in mid-tones, warm-cool graphic separation.
