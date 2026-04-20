@@ -113,6 +113,7 @@ EXPECTED_ARTISTS = [
     "carel_fabritius",
     "judith_leyster",
     "bernardino_luini",
+    "boltraffio",
     "federico_barocci",
     "pierre_bonnard",
     "masaccio",
@@ -287,6 +288,8 @@ EXPECTED_PERIODS = [
     "VICTORIAN_SOCIAL_REALIST",
     "FLORENTINE_DEVOTIONAL_BAROQUE",
     "NEAPOLITAN_BAROQUE",
+    "SPANISH_NEAPOLITAN_BAROQUE",
+    "MILANESE_PEARLED",
 ]
 
 
@@ -12868,3 +12871,122 @@ def test_atmospheric_depth_pass_foreground_warmth_parameter():
     assert "foreground_warmth" in sig.parameters, (
         "atmospheric_depth_pass must have 'foreground_warmth' parameter (session 106)"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 107 — Giovanni Antonio Boltraffio + MILANESE_PEARLED + SPANISH_NEAPOLITAN_BAROQUE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_boltraffio_in_catalog():
+    """boltraffio must be present in art_catalog.CATALOG (session 107)."""
+    from art_catalog import CATALOG
+    assert "boltraffio" in CATALOG, (
+        "boltraffio missing from CATALOG — add it to art_catalog.py"
+    )
+
+
+def test_boltraffio_expected_artists_list():
+    """boltraffio must appear in the EXPECTED_ARTISTS list."""
+    assert "boltraffio" in EXPECTED_ARTISTS, (
+        "boltraffio missing from EXPECTED_ARTISTS — add it to the list"
+    )
+
+
+def test_boltraffio_catalog_fields():
+    """boltraffio catalog entry must have correct artist name and movement."""
+    s = get_style("boltraffio")
+    assert "Boltraffio" in s.artist, (
+        f"boltraffio artist field should contain 'Boltraffio'; got: {s.artist!r}"
+    )
+    assert "Milanese" in s.movement or "Leonardo" in s.movement, (
+        f"boltraffio movement should reference Milanese or Leonardesque; got: {s.movement!r}"
+    )
+
+
+def test_boltraffio_palette_cool_highlights():
+    """boltraffio palette must have a cool highlight (B >= R in first entry)."""
+    s = get_style("boltraffio")
+    r, g, b = s.palette[0]
+    assert b >= r, (
+        f"boltraffio first palette entry should be cool-pearl (B >= R); "
+        f"got R={r:.3f}, B={b:.3f}"
+    )
+
+
+def test_boltraffio_inspiration_references_pass():
+    """Inspiration field must reference boltraffio_pearled_sfumato_pass()."""
+    s = get_style("boltraffio")
+    assert "boltraffio_pearled_sfumato_pass" in s.inspiration, (
+        "boltraffio inspiration must reference boltraffio_pearled_sfumato_pass()"
+    )
+
+
+def test_boltraffio_high_edge_softness():
+    """boltraffio edge_softness must be >= 0.75 (extreme sfumato dissolution)."""
+    s = get_style("boltraffio")
+    assert s.edge_softness >= 0.75, (
+        f"boltraffio edge_softness should be >= 0.75 (Leonardesque sfumato); "
+        f"got {s.edge_softness}"
+    )
+
+
+def test_boltraffio_pearled_sfumato_pass_exists():
+    """boltraffio_pearled_sfumato_pass must be implemented in Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "boltraffio_pearled_sfumato_pass"), (
+        "Painter must have boltraffio_pearled_sfumato_pass method (session 107)"
+    )
+
+
+def test_boltraffio_pearled_sfumato_pass_pearl_parameter():
+    """boltraffio_pearled_sfumato_pass must accept pearl_lo parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.boltraffio_pearled_sfumato_pass)
+    assert "pearl_lo" in sig.parameters, (
+        "boltraffio_pearled_sfumato_pass must have 'pearl_lo' parameter"
+    )
+
+
+def test_boltraffio_pearled_sfumato_pass_opacity_parameter():
+    """boltraffio_pearled_sfumato_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.boltraffio_pearled_sfumato_pass)
+    assert "opacity" in sig.parameters, (
+        "boltraffio_pearled_sfumato_pass must have 'opacity' parameter"
+    )
+
+
+def test_milanese_pearled_period_exists():
+    """Period.MILANESE_PEARLED must exist in scene_schema (session 107)."""
+    from scene_schema import Period
+    assert hasattr(Period, "MILANESE_PEARLED"), (
+        "Period.MILANESE_PEARLED not found — add it to scene_schema.py"
+    )
+    assert Period.MILANESE_PEARLED in list(Period)
+
+
+def test_milanese_pearled_stroke_params():
+    """MILANESE_PEARLED should have high wet_blend for Boltraffio's smooth sfumato."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.MILANESE_PEARLED,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.65, (
+        f"MILANESE_PEARLED wet_blend should be >= 0.65 for Boltraffio's sfumato; "
+        f"got {p['wet_blend']}"
+    )
+    assert p["edge_softness"] >= 0.70, (
+        f"MILANESE_PEARLED edge_softness should be >= 0.70 for extreme sfumato dissolution; "
+        f"got {p['edge_softness']}"
+    )
+
+
+def test_spanish_neapolitan_baroque_period_exists():
+    """Period.SPANISH_NEAPOLITAN_BAROQUE must exist in scene_schema (session 106)."""
+    from scene_schema import Period
+    assert hasattr(Period, "SPANISH_NEAPOLITAN_BAROQUE"), (
+        "Period.SPANISH_NEAPOLITAN_BAROQUE not found — add it to scene_schema.py"
+    )
+    assert Period.SPANISH_NEAPOLITAN_BAROQUE in list(Period)

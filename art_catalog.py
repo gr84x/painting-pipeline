@@ -8352,6 +8352,106 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
     # ──────────────────────────────────────────────────────────────────────────
+    # Giovanni Antonio Boltraffio  (session 107)
+    # ──────────────────────────────────────────────────────────────────────────
+    "boltraffio": ArtStyle(
+        artist="Giovanni Antonio Boltraffio",
+        movement="Milanese High Renaissance / Leonardesque",
+        nationality="Italian (Milanese)",
+        period="1467–1516",
+        palette=[
+            (0.88, 0.90, 0.92),   # cool pearl highlight — the signature Boltraffio quality;
+                                   # silver-white rather than warm ivory; lead-white ground
+                                   # reading through cool pearl glazes, not warm amber;
+                                   # B slightly exceeds R, giving a barely perceptible
+                                   # cool-silver luminosity at the highlight peak
+            (0.85, 0.76, 0.60),   # warm mid-tone flesh — the broad modelled register;
+                                   # slightly cooler than Luini, retaining more neutral flesh
+            (0.65, 0.54, 0.40),   # amber-grey transition — sfumato dissolution zone;
+                                   # Boltraffio's transitions are crisper than Luini's but
+                                   # still imperceptibly edged
+            (0.38, 0.32, 0.28),   # cool umber mid-shadow — deeper and more neutral than
+                                   # Luini's warm amber shadow; Boltraffio retains cool air
+            (0.22, 0.22, 0.28),   # cool blue-grey deep shadow — the defining Boltraffio
+                                   # shadow quality: distinctly cool-blue, not violet-grey;
+                                   # suggests candle or north-light studio illumination
+            (0.14, 0.14, 0.20),   # near-black void with blue undertone — shadow terminus;
+                                   # preserves Leonardesque void depth but with cool quality
+            (0.50, 0.55, 0.48),   # olive-green landscape — Milanese background distance;
+                                   # the verdant Lombard plain seen in his Virgin and Child
+            (0.72, 0.76, 0.84),   # cool lavender-grey sky — pale atmospheric sky quality;
+                                   # cooler and more silvery than Luini's violet-grey
+        ],
+        ground_color=(0.68, 0.58, 0.42),    # warm amber panel ground — Milanese tradition;
+                                             # slightly cooler and darker than Luini's ground
+        stroke_size=5,                       # fine, controlled — more precise than Luini
+        wet_blend=0.78,                      # high but less extreme than Luini; surfaces are
+                                             # smooth but retain slight tonal precision
+        edge_softness=0.82,                  # very high sfumato — edges dissolve thoroughly;
+                                             # Boltraffio's sfumato is as extreme as Leonardo's
+        jitter=0.012,                        # very low — controlled Milanese precision
+        glazing=(0.64, 0.56, 0.40),          # cool-warm amber glaze — unifying but cooler than
+                                             # Luini's; the pearl surface shows through
+        crackle=True,                        # oil on panel; aged craquelure in originals
+        chromatic_split=False,
+        technique=(
+            "Giovanni Antonio Boltraffio (1467–1516) was Leonardo da Vinci's most gifted and "
+            "personally close Milanese pupil.  While Bernardino Luini distilled Leonardo's "
+            "sfumato into warmth and sweetness — a Madonna-type idealism of amber ivory flesh "
+            "and serene expression — Boltraffio refined the same technique into a crystalline, "
+            "psychologically penetrating idiom that is in many ways closer to the master's own "
+            "complex spirit.  Giorgio Vasari named him among Leonardo's best pupils, and Boltraffio "
+            "was the only Milanese pupil to sign work jointly with Leonardo (the Louvre Narcissus).  "
+            "The defining Boltraffio quality — the one that immediately distinguishes his work from "
+            "Luini's — is the pearl highlight: where Luini's highest flesh lights glow with warm "
+            "ivory luminosity (lead-white ground reading through amber glaze), Boltraffio's peak "
+            "highlights have a cool, almost silver-white quality — pearl rather than ivory, "
+            "cool-luminous rather than warm-glowing.  This is achieved through a slightly cooler "
+            "glaze sequence and a tendency toward neutral-silver in the final highlight layer.  "
+            "His shadow quality is equally distinctive: where Luini's shadows retain amber warmth "
+            "throughout, Boltraffio's deepen into genuinely cool blue-grey in the deepest passages, "
+            "suggesting ambient north light or reflected sky in the shadow.  The mid-flesh "
+            "transitions are sfumato-dissolved but have a jewel-like tonal precision that makes "
+            "his portraits appear almost crystalline — forms emerge from shadow with extraordinary "
+            "clarity at the moment of emergence, then dissolve back into darkness with equal "
+            "imperceptibility.  Technically, the Portrait of Ginevra Bentivenuti (Louvre) shows "
+            "his mastery of the three-quarter pose, with an expression of cool, withdrawn "
+            "psychological depth that influenced portraiture across the Milanese school.  "
+            "Apply boltraffio_pearled_sfumato_pass() as the primary Boltraffio effect: this adds "
+            "the pearl highlight clarification (cool-silver rather than warm-ivory), the deep "
+            "cool-blue shadow atmosphere, and the mid-flesh crystalline clarity that distinguish "
+            "Boltraffio from his warmer Milanese colleagues."
+        ),
+        famous_works=[
+            ("Portrait of Ginevra Bentivenuti",    "c. 1490–1500"),
+            ("Virgin and Child",                    "c. 1490–1495"),
+            ("Narcissus",                           "c. 1490–1500"),
+            ("Madonna of the Rose",                 "c. 1510"),
+            ("Portrait of a Young Man",             "c. 1490"),
+            ("Casio's Virgin",                      "c. 1500"),
+            ("Polymnia (Muse)",                     "c. 1490–1500"),
+        ],
+        inspiration=(
+            "Apply boltraffio_pearled_sfumato_pass() to add the three defining Boltraffio "
+            "qualities that separate his sfumato from Luini's warmer variant: "
+            "(1) Pearl highlight clarification — in upper highlight zones (lum > pearl_lo=0.72), "
+            "add a cool-silver push (R + pearl_r=0.012, G + pearl_g=0.018, B + pearl_b=0.025) "
+            "creating silver-pearl rather than warm-ivory; Boltraffio's peaks are neutrally "
+            "bright, approaching silver-white on the forehead and cheekbone ridge; "
+            "(2) Cool-blue deep shadow atmosphere — in deep shadow zones (lum < shadow_hi=0.30), "
+            "add a distinctly cool-blue atmospheric lift "
+            "(B + shadow_b=0.024, G + shadow_g=0.008, R - shadow_r=0.006) creating the ambient "
+            "north-light or sky-reflection quality in Boltraffio's darkest passages — deeper and "
+            "more distinctly blue than Luini's gentle violet-grey; "
+            "(3) Mid-flesh crystalline clarity — in the mid-flesh zone (flesh_lo=0.38, "
+            "flesh_hi=0.70), blend toward a very mildly sharpened version of the canvas "
+            "(clarity_sigma=0.8, clarity_strength=0.18) to simulate the jewel-like tonal "
+            "precision that makes Boltraffio's forms emerge from shadow with unusual clarity; "
+            "use opacity=0.38.  Precede with sfumato_veil_pass() to establish the dissolved "
+            "edge quality before adding the Boltraffio pearl clarification over it."
+        ),
+    ),
+    # ──────────────────────────────────────────────────────────────────────────
     # Federico Barocci  (session 98)
     # ──────────────────────────────────────────────────────────────────────────
     "federico_barocci": ArtStyle(

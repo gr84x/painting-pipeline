@@ -27044,3 +27044,180 @@ class Painter:
         buf_out[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out.tobytes()
         print("    Ribera gritty tenebrism pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Giovanni Antonio Boltraffio — pearled sfumato pass (session 107)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def boltraffio_pearled_sfumato_pass(
+        self,
+        pearl_lo:          float = 0.72,
+        pearl_r:           float = 0.012,
+        pearl_g:           float = 0.018,
+        pearl_b:           float = 0.025,
+        shadow_hi:         float = 0.30,
+        shadow_b:          float = 0.024,
+        shadow_g:          float = 0.008,
+        shadow_r:          float = 0.006,
+        flesh_lo:          float = 0.38,
+        flesh_hi:          float = 0.70,
+        clarity_sigma:     float = 0.8,
+        clarity_strength:  float = 0.18,
+        blur_radius:       float = 4.0,
+        opacity:           float = 0.38,
+    ) -> None:
+        """
+        Giovanni Antonio Boltraffio pearled sfumato pass — session 107 new artist pass.
+
+        Giovanni Antonio Boltraffio (1467–1516) was Leonardo da Vinci's most gifted
+        and personally close Milanese pupil — the only one to sign a work jointly with
+        the master (the Louvre Narcissus).  While Bernardino Luini distilled Leonardo's
+        sfumato into warmth, sweetness, and seamless ivory flesh, Boltraffio refined it
+        into a crystalline, psychologically penetrating idiom: cooler, more jewel-like,
+        and charged with a withdrawn psychological depth that reflects the master's own
+        complex spirit more faithfully than Luini's serene Madonnas.
+
+        The defining Boltraffio quality is the **pearl highlight**: where Luini's flesh
+        lights glow with warm ivory luminosity (lead-white reading through amber glaze),
+        Boltraffio's peak highlights approach a cool silver-white — pearl rather than
+        ivory, cool-luminous rather than warm-golden.  This is the result of a cooler
+        final glaze sequence and a tendency toward neutral silver in the uppermost
+        impasto layer.  Technical analysis of the Portrait of Ginevra Bentivenuti
+        (Louvre) confirms this cool-silver quality at the forehead and cheekbone ridge.
+
+        His shadow passages are equally distinctive: where Luini's shadows retain amber
+        warmth even in the deepest voids, Boltraffio's deepen into a genuinely cool
+        blue-grey — suggesting ambient north-light or reflected sky in the shadow, a
+        Leonardo principle Boltraffio carried further than any other Milanese pupil.
+        The overall tonal range is thus bracketed between a cool pearl summit and a
+        cool blue-grey nadir, with warm flesh tones occupying the broad mid-register.
+
+        The mid-flesh zone in Boltraffio exhibits a jewel-like crystalline precision:
+        forms emerge from shadow with unusual tonal clarity at the moment of first
+        illumination, creating what art historians describe as a "crystalline sfumato" —
+        the edge is as dissolved as Leonardo's, but the tonal gradation has more
+        structure and precision than Luini's seamless enamel.
+
+        This pass encodes three defining Boltraffio qualities:
+
+          1. Pearl highlight clarification — In upper highlight zones (lum > pearl_lo),
+             apply a cool-silver push: R + pearl_r (small), G + pearl_g (moderate),
+             B + pearl_b (largest).  The result is a shift from warm-ivory toward neutral-
+             silver-pearl at the highlight summit — Boltraffio's cool luminous quality.
+
+          2. Cool-blue deep shadow atmosphere — In deep shadow zones (lum < shadow_hi),
+             add a distinctly cool-blue atmospheric lift: B + shadow_b, G + shadow_g,
+             R - shadow_r.  This is more pronounced and more distinctly blue than Luini's
+             gentle violet-grey — it reads as north light or reflected sky in the void.
+
+          3. Mid-flesh crystalline clarity — In the mid-flesh zone [flesh_lo, flesh_hi],
+             blend very mildly toward a slightly sharpened (high-pass) version of the
+             canvas at clarity_strength.  This captures the jewel-like tonal precision
+             that makes Boltraffio's emerging-from-shadow forms appear crystalline —
+             the sfumato is complete but the tonal structure is preserved within it.
+             Implemented as: canvas + (canvas - blurred_canvas) * clarity_strength,
+             i.e. an unsharp-mask at low strength, blended only in the mid-flesh zone.
+
+        Apply after sfumato_veil_pass() and luini_leonardesque_glow_pass() to add the
+        Boltraffio pearl quality over the established Leonardesque sfumato foundation —
+        or use alone as a cool-sfumato alternative to the warm Luini variant.
+
+        Parameters
+        ----------
+        pearl_lo          : lower lum threshold for pearl highlight zone
+        pearl_r           : R lift in highlights (small — pearl has little extra red)
+        pearl_g           : G lift in highlights (moderate — neutral silver needs green)
+        pearl_b           : B lift in highlights (largest — the cool-pearl quality)
+        shadow_hi         : upper lum threshold for cool-blue shadow zone
+        shadow_b          : B lift in shadows (cool north-light atmosphere)
+        shadow_g          : G lift in shadows (secondary cool tint)
+        shadow_r          : R reduction in shadows (removes warm cast)
+        flesh_lo          : lower lum bound of crystalline clarity zone
+        flesh_hi          : upper lum bound of crystalline clarity zone
+        clarity_sigma     : Gaussian blur sigma for unsharp-mask base
+        clarity_strength  : fraction of high-pass detail added in mid-flesh zone
+        blur_radius        : Gaussian sigma for mask feathering
+        opacity            : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Pearl highlight clarification ──────────────────────────────────
+        # Boltraffio's highlight summit is cool-silver/pearl, not warm-ivory.
+        # Apply a graduated lift that shifts the uppermost lights toward neutral silver.
+        hi_mask = _np.clip(
+            (lum - pearl_lo) / (1.0 - pearl_lo + 1e-6), 0.0, 1.0
+        )
+        hi_mask = _gf(hi_mask.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * pearl_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * pearl_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask * pearl_b, 0.0, 1.0)
+
+        # ── 2. Cool-blue deep shadow atmosphere ───────────────────────────────
+        # Boltraffio's deepest shadows carry ambient north-light / reflected sky —
+        # more distinctly blue than Luini's gentle violet-grey quality.
+        sh_mask = _np.clip(
+            (shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0
+        )
+        sh_mask = _gf(sh_mask.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - sh_mask * shadow_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * shadow_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * shadow_b, 0.0, 1.0)
+
+        # ── 3. Mid-flesh crystalline clarity ──────────────────────────────────
+        # Unsharp-mask at very low strength in the mid-flesh zone.
+        # Canvas + (Canvas - Blurred) * clarity_strength — adds tonal precision
+        # without visible sharpening artifacts.  Only applied in the mid-flesh
+        # register [flesh_lo, flesh_hi] where Boltraffio's jewel quality lives.
+        flesh_bell = _np.clip(
+            (lum - flesh_lo) / (flesh_hi - flesh_lo + 1e-6), 0.0, 1.0
+        ) * _np.clip(
+            (flesh_hi - lum) / (flesh_hi - flesh_lo + 1e-6), 0.0, 1.0
+        ) * 4.0
+        flesh_bell = _np.clip(flesh_bell, 0.0, 1.0)
+        flesh_bell = _gf(flesh_bell.astype(_np.float32), blur_radius)
+        flesh_bell = _np.clip(flesh_bell, 0.0, 1.0)
+
+        r_blur = _gf(r_out.astype(_np.float32), clarity_sigma)
+        g_blur = _gf(g_out.astype(_np.float32), clarity_sigma)
+        b_blur = _gf(b_out.astype(_np.float32), clarity_sigma)
+
+        # High-pass residual: original minus blurred
+        r_hp = r_out - r_blur
+        g_hp = g_out - g_blur
+        b_hp = b_out - b_blur
+
+        cw = flesh_bell * clarity_strength
+        r_out = _np.clip(r_out + r_hp * cw, 0.0, 1.0)
+        g_out = _np.clip(g_out + g_hp * cw, 0.0, 1.0)
+        b_out = _np.clip(b_out + b_hp * cw, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Giovanni Antonio Boltraffio pearled sfumato pass complete.")

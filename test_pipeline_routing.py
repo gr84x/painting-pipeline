@@ -12218,3 +12218,152 @@ def test_subsurface_scatter_penumbra_warmth_depth_warms_penumbra():
         f"subsurface_scatter_pass penumbra_warmth_depth must lift R in penumbra zone; "
         f"R before={r_before:.2f}  R after={r_after:.2f}"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Giovanni Antonio Boltraffio — boltraffio_pearled_sfumato_pass() (session 107)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_boltraffio_pearled_sfumato_pass_exists():
+    """Painter must have boltraffio_pearled_sfumato_pass() method after session 107."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "boltraffio_pearled_sfumato_pass"), (
+        "boltraffio_pearled_sfumato_pass not found on Painter")
+    assert callable(getattr(Painter, "boltraffio_pearled_sfumato_pass"))
+
+
+def test_boltraffio_pearled_sfumato_pass_no_error():
+    """boltraffio_pearled_sfumato_pass() runs without error on a small synthetic canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.58, 0.42), texture_strength=0.05)
+    p.boltraffio_pearled_sfumato_pass()
+
+
+def test_boltraffio_pearled_sfumato_pass_modifies_canvas():
+    """boltraffio_pearled_sfumato_pass() must modify at least some pixels on a non-trivial canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.58, 0.42), texture_strength=0.05)
+    ref = _solid_reference(64, 64)
+    p.block_in(ref, stroke_size=8, n_strokes=15)
+
+    before = _canvas_bytes(p)
+    p.boltraffio_pearled_sfumato_pass(opacity=0.60)
+    after = _canvas_bytes(p)
+
+    assert before != after, "boltraffio_pearled_sfumato_pass must modify the canvas at opacity=0.60"
+
+
+def test_boltraffio_pearled_sfumato_pass_zero_opacity_noop():
+    """boltraffio_pearled_sfumato_pass() at opacity=0 must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.58, 0.42), texture_strength=0.05)
+
+    before = _canvas_bytes(p)
+    p.boltraffio_pearled_sfumato_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, (
+        "boltraffio_pearled_sfumato_pass at opacity=0.0 must be a no-op")
+
+
+def test_boltraffio_pearled_sfumato_pass_cools_highlights():
+    """boltraffio_pearled_sfumato_pass must lift B more than R in bright highlight pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Bright highlight: lum ~0.82 (above pearl_lo=0.72 default)
+    p = Painter(width=32, height=32)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 198   # B  (BGRA layout)
+    arr[:, :, 1] = 205   # G
+    arr[:, :, 2] = 215   # R   lum ~0.818
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    b_before = arr[:, :, 0].astype(float).mean()
+    r_before = arr[:, :, 2].astype(float).mean()
+
+    p.boltraffio_pearled_sfumato_pass(
+        pearl_lo=0.72,
+        pearl_r=0.012,
+        pearl_g=0.018,
+        pearl_b=0.025,
+        shadow_hi=0.10,    # disable shadow effect (far below lum 0.82)
+        opacity=1.0,
+    )
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4))
+    b_after = arr_after[:, :, 0].astype(float).mean()
+    r_after = arr_after[:, :, 2].astype(float).mean()
+
+    b_delta = b_after - b_before
+    r_delta = r_after - r_before
+
+    assert b_delta > r_delta, (
+        f"boltraffio_pearled_sfumato_pass must lift B more than R in highlights "
+        f"(pearl = cool silver, not warm ivory); "
+        f"B delta={b_delta:.2f}, R delta={r_delta:.2f}"
+    )
+
+
+def test_boltraffio_pearled_sfumato_pass_cools_shadows():
+    """boltraffio_pearled_sfumato_pass must lift B in deep shadow pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Deep shadow: lum ~0.18 (below shadow_hi=0.30 default)
+    p = Painter(width=32, height=32)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 40    # B
+    arr[:, :, 1] = 44    # G
+    arr[:, :, 2] = 50    # R   lum ~0.176
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    b_before = arr[:, :, 0].astype(float).mean()
+
+    p.boltraffio_pearled_sfumato_pass(
+        shadow_hi=0.30,
+        shadow_b=0.024,
+        shadow_g=0.008,
+        shadow_r=0.006,
+        pearl_lo=0.90,    # disable pearl effect (far above lum 0.18)
+        clarity_strength=0.0,
+        opacity=1.0,
+    )
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4))
+    b_after = arr_after[:, :, 0].astype(float).mean()
+
+    assert b_after > b_before, (
+        f"boltraffio_pearled_sfumato_pass must lift B in deep shadows (cool atmosphere); "
+        f"B before={b_before:.2f}  B after={b_after:.2f}"
+    )
+
+
+def test_boltraffio_pearled_sfumato_pass_preserves_canvas_shape():
+    """boltraffio_pearled_sfumato_pass must not change canvas dimensions."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.68, 0.58, 0.42), texture_strength=0.05)
+    p.boltraffio_pearled_sfumato_pass(opacity=0.40)
+    assert (p.h, p.w) == (64, 64), "Canvas dimensions must not change"
+
+
+# Period.MILANESE_PEARLED — session 107 routing
+
+def test_milanese_pearled_period_accessible():
+    """Period.MILANESE_PEARLED must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, "MILANESE_PEARLED"), (
+        "Period.MILANESE_PEARLED not found in scene_schema — add it")
+    assert Period.MILANESE_PEARLED in list(Period)
+
+
+def test_milanese_pearled_stroke_params_high_blend():
+    """is_milanese_pearled stroke params must have high wet_blend for smooth sfumato."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.MILANESE_PEARLED,
+                  palette=PaletteHint.COOL_GREY)
+    assert style.period == Period.MILANESE_PEARLED, (
+        "Style.period must equal MILANESE_PEARLED when set as such")
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.65, (
+        f"MILANESE_PEARLED wet_blend should be >= 0.65 for Boltraffio's sfumato; "
+        f"got {p['wet_blend']}"
+    )
