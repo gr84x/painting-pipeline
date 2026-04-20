@@ -9329,6 +9329,125 @@ CATALOG: Dict[str, ArtStyle] = {
     # the picture.  The Louvre's Portrait of an Old Man with a Book and Brera's
     # various Bergamasque gentlemen show the full range of his cool, unhurried,
     # profoundly truthful portrait vision.
+    # ── Session 109 — new artist: Bernardo Strozzi ────────────────────────────
+    #
+    # Bernardo Strozzi (1581–1644), called "Il Cappuccino" (having taken Capuchin
+    # orders in 1597, though he later left and was briefly imprisoned) and "Il Prete
+    # Genovese" (The Genoese Priest), occupies a pivotal position between the
+    # Genoese and Venetian schools of the early seventeenth century.  Born in Genoa,
+    # he trained under Pietro Sorri before immersing himself in the rich Genoese
+    # painting culture that had been galvanised by Peter Paul Rubens's two extended
+    # visits (1600–02 and 1607–08).  Rubens left Genoa transformed: the fluid alla
+    # prima loading of the brush, the warm amber-chestnut shadows, the frank
+    # vitality of flesh — all these qualities permeate Strozzi's mature Genoese work.
+    #
+    # Strozzi moved to Venice around 1631, where he remained until his death.  There
+    # he absorbed the Venetian tradition — the warm glazing depth of Titian, the
+    # theatrical chiaroscuro of Tintoretto, the luminous atmosphere of the lagoon —
+    # and synthesised it with his Genoese Rubensian foundation to produce a bravura
+    # oil style unlike any other in the seicento: rich, saturated, physically
+    # present, and emotionally direct.
+    #
+    # His palette is one of the warmest in seventeenth-century painting.  The
+    # shadows are not the near-black voids of Caravaggio or Ribera but warm
+    # chestnut-amber darks, as if the darkness itself were suffused with candlelight.
+    # His midtones glow with rose-peach warmth; his highlights are loaded and creamy,
+    # applied with a confidence that suggests he rarely needed to rework a surface.
+    # His famous "Old Woman at the Mirror" (c. 1615) encodes all of this: warm amber
+    # darks, rosy flesh, impasto cream highlights, the whole surface singing with
+    # physical and chromatic energy.
+    #
+    # Technically, Strozzi worked on a warm brown imprimatura — raw umber or burnt
+    # sienna thinned to translucency — which glows through the paint layers and
+    # unifies the image with a golden internal warmth.  Over this he built form
+    # with fluid, loaded strokes, wet into wet, adjusting colour temperature as the
+    # forms turned from light into shadow.  His brushwork is confident and visible,
+    # especially in the shadows and backgrounds, where broad calligraphic marks
+    # are left unreworked.  His flesh surfaces are more finished, but even there
+    # the underlying energy of the loaded brush is perceptible.
+    "strozzi": ArtStyle(
+        artist="Bernardo Strozzi",
+        movement="Genoese-Venetian Baroque",
+        nationality="Italian",
+        period="c. 1581–1644",
+        palette=[
+            (0.92, 0.80, 0.62),   # warm Naples-ivory highlight flesh — the cream of a loaded brush
+            (0.78, 0.58, 0.42),   # warm rose-sienna mid-flesh — glowing with Genoese warmth
+            (0.55, 0.36, 0.22),   # warm chestnut mid-shadow — amber heat in the turning flesh
+            (0.35, 0.22, 0.14),   # warm umber deep shadow — not cold, not black; glowing amber dark
+            (0.20, 0.14, 0.10),   # near-black warm void — Strozzi's darkest passages retain warmth
+            (0.68, 0.45, 0.28),   # golden ochre accent — collar trim, fabric highlights
+            (0.42, 0.28, 0.38),   # deep wine-violet drapery — rich Venetian costume depth
+            (0.82, 0.62, 0.48),   # warm buff imprimatura tone — the ground showing through
+        ],
+        ground_color=(0.42, 0.30, 0.18),   # warm burnt-sienna-umber imprimatura ground
+        stroke_size=7,
+        wet_blend=0.50,
+        edge_softness=0.38,
+        jitter=0.028,              # moderate: Strozzi's loaded brush introduces organic variation
+        glazing=(0.58, 0.42, 0.22),  # warm amber-chestnut unifying glaze
+        crackle=True,              # oil on canvas — 17th-century aging appropriate
+        chromatic_split=False,     # warm Baroque colorism, not divisionist splitting
+        technique=(
+            "Bravura warmth — Strozzi's defining quality.  His paintings are physically "
+            "present in a way that pure chiaroscuro painters (Caravaggio, Ribera) never "
+            "quite achieve: the warmth lives in the shadows as much as in the lights, "
+            "unifying the entire tonal range in a golden amber-chestnut coherence.  "
+            "His ground is warm — raw umber or burnt sienna — and it shows through, "
+            "especially in the mid-tones and at the edges of forms, contributing an "
+            "internal luminosity that cannot be faked by surface glazing alone.  "
+            "Over this warm ground he built flesh with rose-peach mid-tones, loading "
+            "the brush for the cream highlights and laying them in confident single "
+            "strokes.  The shadows he resolved with broad amber-chestnut marks, "
+            "warm enough to read as part of the same colour family as the lights.  "
+            "This is the opposite of the Caravaggist approach: where Caravaggio uses "
+            "near-black voids to intensify the drama of light, Strozzi keeps his "
+            "shadows warm and accessible, maintaining the sitter's presence even in "
+            "the darkest passages.  "
+            "His handling of the loaded brush — the impasto highlight — is the most "
+            "immediately distinctive quality.  Where Rembrandt reserves his thickest "
+            "paint for the darkest shadows, Strozzi loads the brush for the lights, "
+            "creating a physical relief on the canvas surface that catches raking "
+            "illumination and gives the flesh an almost tactile luminosity.  "
+            "The Venetian influence, absorbed after his move to Venice in 1631, "
+            "added a deeper colour saturation and a greater range of atmospheric "
+            "transitions — qualities he merged seamlessly with his Genoese Rubensian "
+            "foundation, producing the richest, most chromatic Baroque portraits of "
+            "northern Italy."
+        ),
+        famous_works=[
+            ("Old Woman at the Mirror",          "c. 1615"),
+            ("The Cook",                          "c. 1625"),
+            ("Parable of the Talents",            "c. 1630"),
+            ("Portrait of Antonio Grimani",       "c. 1635–40"),
+            ("Saint Cecilia with Two Angels",     "c. 1620"),
+            ("Allegory of Fame",                  "c. 1635–36"),
+            ("Portrait of a Gentleman in Armour", "c. 1630"),
+        ],
+        inspiration=(
+            "Apply strozzi_amber_impasto_pass() as the defining stylistic pass.  "
+            "Three stages that encode Strozzi's warm Genoese-Venetian signature: "
+            "(1) Amber shadow enrichment — in the shadow zone (lum < shadow_hi ≈ 0.38), "
+            "shift decisively toward warm chestnut-amber: R + amber_r (strong), "
+            "G + amber_g (moderate), B - amber_b (notable reduction — removes cold cast).  "
+            "Strozzi's darks glow; they are never cold or grey.  This warms the deepest "
+            "tonal zones and gives the shadow passages their characteristic candlelit quality.  "
+            "(2) Impasto highlight bloom — in the upper highlight zone (lum > hi_lo ≈ 0.72), "
+            "apply a warm creamy bloom: slight R + cream_r, slight G + cream_g, "
+            "slight B - cream_b.  This is the loaded-brush quality: cream-warm, "
+            "not cool-silver like Moroni, not pearl-blue like Boltraffio, but warm "
+            "Naples-ivory loaded paint.  Also apply a subtle local luminance boost "
+            "(multiply by hi_boost ≈ 1.04) to push the peak highlights slightly brighter, "
+            "simulating the physical relief of impasto paint catching the light.  "
+            "(3) Warm mid-tone vitality — in the mid-tone zone [mid_lo, mid_hi], "
+            "apply a gentle warm-rose saturation tint: small R + rose_r, tiny B - rose_b.  "
+            "Strozzi's flesh mid-tones are warm rose-sienna; this step adds the "
+            "characteristic glowing vitality that distinguishes his flesh from the "
+            "cooler mid-tones of the Venetians.  "
+            "Use opacity ≈ 0.38–0.48."
+        ),
+    ),
+
     "moroni": ArtStyle(
         artist="Giovanni Battista Moroni",
         movement="Bergamasque Portrait Realism / Lombard Renaissance",
