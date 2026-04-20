@@ -274,6 +274,7 @@ class Period(Enum):
     NEAPOLITAN_BAROQUE = auto()  # Luca Giordano — warm golden-aureole illumination, sweeping Venetian colour, theatrical tenebrism, dynamic aerial grandeur, rapid luminous synthesis of all prior traditions
     SPANISH_NEAPOLITAN_BAROQUE = auto()  # Jusepe de Ribera — brutal tenebrism from near-black void, gritty visible shadow texture, warm amber highlights, raw psychological realism, Spanish naturalism grafted onto Caravaggism
     BERGAMASQUE_PORTRAIT_REALISM = auto()  # Giovanni Battista Moroni — cool silver highlights, warm shadow recovery, mid-tone presence; the most psychologically direct portrait realism in 16th-century Italy
+    GENOESE_VENETIAN_BAROQUE = auto()  # Bernardo Strozzi — warm chestnut-amber shadows, bravura impasto highlights, saturated Venetian-Genoese colorism, loaded-brush vitality
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1251,6 +1252,19 @@ class Style:
             # he was a naturalist, not a sfumato painter; contours are found (as in Caravaggio)
             # rather than dissolved (as in Leonardo), giving his sitters their direct gaze quality.
             Period.BERGAMASQUE_PORTRAIT_REALISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.45, edge_softness=0.40),
+            # GENOESE_VENETIAN_BAROQUE (Bernardo Strozzi) — bravura loaded-brush alla prima.
+            # stroke_size_face=7: Strozzi painted with confidence and physical energy;
+            # his strokes are larger than Moroni's careful marks, loaded with paint,
+            # describing form through bold tonal jumps rather than patient blending.
+            # stroke_size_bg=28: Strozzi's backgrounds are broadly handled — warm amber
+            # or dark umber grounds that frame the figure without competing with it.
+            # wet_blend=0.50: moderate — Strozzi blends where transitions require it,
+            # but he is not a sfumato painter; edges are found and assertive, rooted
+            # in the Caravaggist tradition he absorbed through Genoese patronage of Rubens.
+            # edge_softness=0.38: moderately crisp — his portraits have psychological
+            # directness encoded in clear, decisive found edges, especially around
+            # the eyes and mouth; periphery may soften slightly but the focal face is sharp.
+            Period.GENOESE_VENETIAN_BAROQUE: dict(stroke_size_face=7, stroke_size_bg=28, wet_blend=0.50, edge_softness=0.38),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

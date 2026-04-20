@@ -27,6 +27,7 @@ from scene_schema import Period, Style, Medium, PaletteHint
 # ──────────────────────────────────────────────────────────────────────────────
 
 EXPECTED_ARTISTS = [
+    "strozzi",
     "anders_zorn",
     "anthony_van_dyck",
     "artemisia_gentileschi",
@@ -292,6 +293,7 @@ EXPECTED_PERIODS = [
     "SPANISH_NEAPOLITAN_BAROQUE",
     "MILANESE_PEARLED",
     "BERGAMASQUE_PORTRAIT_REALISM",
+    "GENOESE_VENETIAN_BAROQUE",
 ]
 
 
@@ -13156,3 +13158,149 @@ def test_moroni_movement_bergamasque():
         f"moroni movement should reference Bergamasque or Lombard; got {s.movement!r}"
     )
     assert Period.SPANISH_NEAPOLITAN_BAROQUE in list(Period)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 109 — Bernardo Strozzi + GENOESE_VENETIAN_BAROQUE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_strozzi_in_catalog():
+    """strozzi (session 109) must be in the catalog."""
+    assert "strozzi" in CATALOG, "strozzi missing from CATALOG — add it to art_catalog.py"
+
+
+def test_strozzi_in_expected_artists():
+    """EXPECTED_ARTISTS list must include strozzi."""
+    assert "strozzi" in EXPECTED_ARTISTS, (
+        "strozzi missing from EXPECTED_ARTISTS — add it to the list"
+    )
+
+
+def test_strozzi_palette_values_in_range():
+    """strozzi palette RGB values must all be in [0, 1]."""
+    s = get_style("strozzi")
+    for i, color in enumerate(s.palette):
+        for j, channel in enumerate(color):
+            assert 0.0 <= channel <= 1.0, (
+                f"strozzi palette[{i}][{j}] = {channel} is outside [0, 1]"
+            )
+
+
+def test_strozzi_palette_length():
+    """strozzi palette must have between 5 and 8 colours."""
+    s = get_style("strozzi")
+    assert 5 <= len(s.palette) <= 8, (
+        f"strozzi palette has {len(s.palette)} colours; expected 5–8"
+    )
+
+
+def test_strozzi_stroke_size_in_range():
+    """strozzi stroke_size must be in the valid range [4, 18]."""
+    s = get_style("strozzi")
+    assert 4 <= s.stroke_size <= 18, (
+        f"strozzi stroke_size={s.stroke_size} is outside [4, 18]"
+    )
+
+
+def test_strozzi_movement_genoese_venetian():
+    """strozzi movement must reference Genoese and/or Venetian Baroque heritage."""
+    s = get_style("strozzi")
+    assert "Genoese" in s.movement or "Venetian" in s.movement or "Baroque" in s.movement, (
+        f"strozzi movement should reference Genoese-Venetian Baroque; got {s.movement!r}"
+    )
+
+
+def test_strozzi_famous_works_include_old_woman():
+    """strozzi famous_works must include 'Old Woman at the Mirror' — his canonical genre work."""
+    s = get_style("strozzi")
+    titles = [title for (title, _) in s.famous_works]
+    assert any("Old Woman" in t or "Mirror" in t for t in titles), (
+        "strozzi famous_works must include 'Old Woman at the Mirror'"
+    )
+
+
+def test_strozzi_famous_works_count():
+    """strozzi famous_works must have at least 3 entries."""
+    s = get_style("strozzi")
+    assert len(s.famous_works) >= 3, (
+        f"strozzi famous_works has only {len(s.famous_works)} entries; expected at least 3"
+    )
+
+
+def test_strozzi_inspiration_references_pass():
+    """strozzi inspiration must reference strozzi_amber_impasto_pass."""
+    s = get_style("strozzi")
+    assert "strozzi_amber_impasto_pass" in s.inspiration, (
+        "strozzi inspiration must reference strozzi_amber_impasto_pass()"
+    )
+
+
+def test_genoese_venetian_baroque_period_exists():
+    """Period.GENOESE_VENETIAN_BAROQUE must exist in scene_schema (session 109)."""
+    from scene_schema import Period
+    assert hasattr(Period, "GENOESE_VENETIAN_BAROQUE"), (
+        "Period.GENOESE_VENETIAN_BAROQUE not found — add it to scene_schema.py"
+    )
+    assert Period.GENOESE_VENETIAN_BAROQUE in list(Period)
+
+
+def test_genoese_venetian_baroque_stroke_params():
+    """GENOESE_VENETIAN_BAROQUE must have warm bravura stroke params for Strozzi."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.GENOESE_VENETIAN_BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["wet_blend"] <= 0.65, (
+        f"GENOESE_VENETIAN_BAROQUE wet_blend should be in [0.40, 0.65] for Strozzi's "
+        f"bravura alla prima surfaces; got {p['wet_blend']}"
+    )
+    assert 0.28 <= p["edge_softness"] <= 0.55, (
+        f"GENOESE_VENETIAN_BAROQUE edge_softness should be in [0.28, 0.55] for "
+        f"Strozzi's assertive found edges; got {p['edge_softness']}"
+    )
+
+
+def test_genoese_venetian_baroque_in_expected_periods():
+    """EXPECTED_PERIODS list must include GENOESE_VENETIAN_BAROQUE."""
+    assert "GENOESE_VENETIAN_BAROQUE" in EXPECTED_PERIODS, (
+        "GENOESE_VENETIAN_BAROQUE missing from EXPECTED_PERIODS — add it to the list"
+    )
+
+
+def test_strozzi_amber_impasto_pass_exists():
+    """strozzi_amber_impasto_pass must be defined in stroke_engine.Painter (session 109)."""
+    import inspect
+    from stroke_engine import Painter
+    assert hasattr(Painter, "strozzi_amber_impasto_pass"), (
+        "Painter.strozzi_amber_impasto_pass not found — add it to stroke_engine.py"
+    )
+
+
+def test_strozzi_amber_impasto_pass_opacity_parameter():
+    """strozzi_amber_impasto_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.strozzi_amber_impasto_pass)
+    assert "opacity" in sig.parameters, (
+        "strozzi_amber_impasto_pass must have 'opacity' parameter"
+    )
+
+
+def test_strozzi_amber_impasto_pass_shadow_hi_parameter():
+    """strozzi_amber_impasto_pass must accept shadow_hi parameter for amber shadow enrichment."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.strozzi_amber_impasto_pass)
+    assert "shadow_hi" in sig.parameters, (
+        "strozzi_amber_impasto_pass must have 'shadow_hi' parameter"
+    )
+
+
+def test_strozzi_amber_impasto_pass_hi_boost_parameter():
+    """strozzi_amber_impasto_pass must accept hi_boost parameter for impasto luminance boost."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.strozzi_amber_impasto_pass)
+    assert "hi_boost" in sig.parameters, (
+        "strozzi_amber_impasto_pass must have 'hi_boost' parameter"
+    )

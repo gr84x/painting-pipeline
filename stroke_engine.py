@@ -27412,4 +27412,181 @@ class Painter:
         buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
-        print("    Giovanni Antonio Boltraffio pearled sfumato pass complete.")
+        print("    Giovanni Battista Moroni silver presence pass complete.")
+
+    def strozzi_amber_impasto_pass(
+        self,
+        shadow_hi:   float = 0.38,
+        amber_r:     float = 0.032,
+        amber_g:     float = 0.016,
+        amber_b:     float = 0.024,
+        hi_lo:       float = 0.72,
+        cream_r:     float = 0.014,
+        cream_g:     float = 0.008,
+        cream_b:     float = 0.010,
+        hi_boost:    float = 1.04,
+        mid_lo:      float = 0.38,
+        mid_hi:      float = 0.72,
+        rose_r:      float = 0.016,
+        rose_b:      float = 0.008,
+        blur_radius: float = 4.0,
+        opacity:     float = 0.42,
+    ) -> None:
+        """
+        Bernardo Strozzi amber impasto pass — session 109 new artist pass.
+
+        Bernardo Strozzi (1581–1644), nicknamed "Il Cappuccino" (Capuchin friar) and
+        "Il Prete Genovese" (The Genoese Priest), is one of the most physically
+        compelling painters of the Italian seventeenth century.  Born in Genoa, he
+        absorbed the Rubensian energy that Peter Paul Rubens left in Genoa after his
+        two extended visits (1600–02 and 1607–08): the loaded brush, the warm amber
+        shadows, the frank vitality of flesh seen in honest northern light.  Moving to
+        Venice around 1631, he merged this Genoese bravura foundation with the deep
+        colour saturation and atmospheric warmth of the Venetian tradition, producing
+        portraits and religious paintings of extraordinary richness.
+
+        The defining Strozzi quality is **warm amber bravura** — a chromatic unity
+        across the entire tonal range that keeps even the darkest shadows warm and
+        accessible.  This is the opposite of the Caravaggist approach: where Caravaggio
+        and Ribera use near-black voids to intensify the drama of light, Strozzi's
+        shadows are warm chestnut-amber, as if the darkness itself were suffused with
+        candlelight.  His famous "Old Woman at the Mirror" (c. 1615) is the canonical
+        demonstration: even the deepest darks of her robe are warm brown, not cold
+        umber-black, and the whole image glows with an amber internal coherence.
+
+        His impasto highlights are the second diagnostic: where Rembrandt loads his
+        darkest shadow passages with thick paint, Strozzi loads the lights, depositing
+        cream-warm paint in single confident strokes on the highest points of forehead,
+        cheekbone, and nose.  These are not cool-silver Moroni highlights or pearl-blue
+        Boltraffio lights — they are warm Naples-ivory, the colour of cream in candlelight.
+
+        His flesh mid-tones are rose-sienna — warm, saturated, alive — giving his
+        sitters a physical vitality that cold-palette painters (Zurbarán, Moroni,
+        Boltraffio) never attempt.  The mid-tone warmth is reinforced by a warm
+        burnt-sienna imprimatura that shows through at the edges of forms and in the
+        thinner paint passages, contributing an internal golden warmth.
+
+        This pass encodes three defining Strozzi qualities:
+
+          1. Amber shadow enrichment — In the shadow zone (lum < shadow_hi),
+             shift decisively toward warm chestnut-amber: R + amber_r (strong),
+             G + amber_g (moderate), B - amber_b (notable reduction — removes cold cast).
+             This is Strozzi's most distinctive quality: his shadows glow with the
+             same amber-chestnut warmth as a warm brown imprimatura seen through
+             semi-transparent paint layers.  The mask is graduated from maximum
+             strength at the deepest shadows to zero at shadow_hi, smoothed by
+             a Gaussian to prevent any visible transition boundary.
+
+          2. Impasto highlight bloom — In the upper highlight zone (lum > hi_lo),
+             apply a warm creamy colour shift: R + cream_r, G + cream_g,
+             B - cream_b (cream is warm — more red and green than blue).
+             Additionally apply a local luminance boost (multiply by hi_boost ≈ 1.04)
+             to push the peak highlights slightly brighter, simulating the physical
+             relief of loaded impasto paint catching the light.  The combined effect
+             is a warm, luminous bloom on the highest flesh planes, distinct from
+             the cool-silver quality of Moroni or the pearl-blue of Boltraffio.
+
+          3. Warm mid-tone vitality — In the mid-tone zone [mid_lo, mid_hi],
+             apply a gentle warm-rose tint: R + rose_r (small warm push),
+             B - rose_b (tiny reduction — removes the slight blue-grey cast
+             that can accumulate in mid-tones from underlying cool layers).
+             This adds the characteristic rose-sienna flesh warmth that makes
+             Strozzi's sitters seem physically present and vitally alive —
+             the quality the Venetians called "color di carne" (flesh colour).
+
+        Apply after old_master_varnish_pass() or warm_ground_pass() to build on a
+        warm tonal foundation.  Can be applied over sfumato_veil_pass() results to
+        add Strozzi's amber warmth over a softened base.
+
+        Parameters
+        ----------
+        shadow_hi    : upper lum threshold for amber shadow enrichment zone
+        amber_r      : R lift in shadows (warm chestnut-amber — the dominant shift)
+        amber_g      : G lift in shadows (secondary warm tint, smaller)
+        amber_b      : B reduction in shadows (removes cold blue-grey cast)
+        hi_lo        : lower lum threshold for impasto highlight bloom zone
+        cream_r      : R lift in highlights (warm cream, Naples-ivory quality)
+        cream_g      : G lift in highlights (cream needs green balance)
+        cream_b      : B reduction in highlights (cream is warm — remove blue)
+        hi_boost     : multiplicative luminance boost for peak highlights (>1 = brighter)
+        mid_lo       : lower lum bound of warm mid-tone vitality zone
+        mid_hi       : upper lum bound of warm mid-tone vitality zone
+        rose_r       : R lift in mid-tones (rose-sienna warm flesh tint)
+        rose_b       : B reduction in mid-tones (removes cool accumulation)
+        blur_radius  : Gaussian sigma for mask feathering
+        opacity      : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Amber shadow enrichment ────────────────────────────────────────
+        # Strozzi's shadows are warm chestnut-amber — not cold grey, not near-black void.
+        # Graduate from maximum strength at the deepest shadows to zero at shadow_hi.
+        sh_mask = _np.clip(
+            (shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0
+        )
+        sh_mask = _gf(sh_mask.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_mask * amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * amber_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - sh_mask * amber_b, 0.0, 1.0)
+
+        # ── 2. Impasto highlight bloom ────────────────────────────────────────
+        # Warm creamy Naples-ivory colour shift + slight luminance boost in the
+        # upper highlight zone.  Simulates Strozzi's loaded-brush impasto lights.
+        hi_mask = _np.clip(
+            (lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0
+        )
+        hi_mask = _gf(hi_mask.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        # Warm cream colour shift
+        r_out = _np.clip(r_out + hi_mask * cream_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * cream_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * cream_b, 0.0, 1.0)
+        # Luminance boost — simulates physical impasto relief catching light
+        boost_factor = 1.0 + hi_mask * (hi_boost - 1.0)
+        r_out = _np.clip(r_out * boost_factor, 0.0, 1.0)
+        g_out = _np.clip(g_out * boost_factor, 0.0, 1.0)
+        b_out = _np.clip(b_out * boost_factor, 0.0, 1.0)
+
+        # ── 3. Warm mid-tone vitality ─────────────────────────────────────────
+        # Rose-sienna warm tint in the mid-tone zone — Strozzi's "color di carne"
+        # quality that makes his sitters seem vitally present and alive.
+        mid_range = mid_hi - mid_lo + 1e-6
+        mid_bell = (
+            _np.clip((lum - mid_lo) / mid_range, 0.0, 1.0) *
+            _np.clip((mid_hi - lum) / mid_range, 0.0, 1.0) * 4.0
+        )
+        mid_bell = _np.clip(mid_bell, 0.0, 1.0)
+        mid_bell = _gf(mid_bell.astype(_np.float32), blur_radius)
+        mid_bell = _np.clip(mid_bell, 0.0, 1.0)
+        r_out = _np.clip(r_out + mid_bell * rose_r, 0.0, 1.0)
+        b_out = _np.clip(b_out - mid_bell * rose_b, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Bernardo Strozzi amber impasto pass complete.")
