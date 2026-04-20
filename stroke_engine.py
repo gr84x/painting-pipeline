@@ -2402,7 +2402,8 @@ class Painter:
                           shadow_warm_recovery:  float = 0.0,
                           chroma_gate:           float = 0.0,
                           highlight_ivory_lift:  float = 0.0,
-                          highlight_ivory_thresh: float = 0.82):
+                          highlight_ivory_thresh: float = 0.82,
+                          atmospheric_blue_shift: float = 0.0):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2533,13 +2534,33 @@ class Painter:
                                Default 0.82 targets only the very brightest flesh zones
                                (forehead peak, nose bridge, chin highlight) without
                                affecting the mid-tone flesh range.
+        atmospheric_blue_shift : When > 0, applies a cool blue-grey colour temperature
+                               shift to the upper portion of the canvas (distant
+                               background) AFTER all sfumato veils have been composited.
+                               This complements ``depth_gradient`` (which controls veil
+                               *opacity* as a function of depth) with a matching colour
+                               *temperature* recession: the very distant landscape shifts
+                               toward the cool blue-grey that Leonardo's aerial
+                               perspective imposes on forms seen through miles of
+                               atmosphere.  The shift is a linear gradient from full
+                               strength at the top canvas edge to zero at the midpoint
+                               — below the midpoint (the figure zone) there is no
+                               blue-grey push.  Practical values: 0.30–0.60 for a
+                               clearly legible atmospheric recession; 0.15–0.25 for a
+                               subtle improvement to background colour temperature.
+                               Inspired by James Tissot's precise atmospheric colour
+                               recession in his outdoor Thames scenes, where distant
+                               backgrounds shift consistently toward cooler blue-grey
+                               even when the foreground is painted in warm amber light.
+                               (Session 102 improvement.)
         """
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
               f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f}"
               f"  depth_gradient={depth_gradient:.2f}"
               f"  shadow_warm_recovery={shadow_warm_recovery:.2f}"
               f"  chroma_gate={chroma_gate:.2f}"
-              f"  highlight_ivory_lift={highlight_ivory_lift:.2f})…")
+              f"  highlight_ivory_lift={highlight_ivory_lift:.2f}"
+              f"  atmospheric_blue_shift={atmospheric_blue_shift:.2f})…")
 
         ref  = self._prep(reference)
         rarr = ref[:, :, :3].astype(np.float32) / 255.0
@@ -2734,6 +2755,41 @@ class Painter:
                 bytearray(veil_rgba.tobytes()), cairo.FORMAT_ARGB32, w, h)
             ctx.set_source_surface(veil_surf, 0, 0)
             ctx.paint()   # alpha is premultiplied into R/G/B
+
+        # ── Session 102: Atmospheric blue shift ──────────────────────────────────
+        # After all sfumato veils are composited, apply a cool blue-grey colour
+        # temperature shift to the upper canvas (distant background landscape).
+        # This complements depth_gradient (which modulates opacity) with a physical
+        # colour temperature change: atmosphere seen through depth is not merely
+        # hazier, it is cooler and bluer — a well-documented phenomenon in colour
+        # science (Rayleigh scattering) and in Leonardo's own aerial perspective.
+        # Inspired by Tissot's precise cool recession in outdoor Thames scenes.
+        if atmospheric_blue_shift > 0.0:
+            atm_raw = np.frombuffer(
+                self.canvas.surface.get_data(), dtype=np.uint8
+            ).reshape(h, w, 4).copy()
+            # Cairo BGRA channel layout
+            ab = atm_raw[:, :, 0].astype(np.float32) / 255.0
+            ag = atm_raw[:, :, 1].astype(np.float32) / 255.0
+            ar = atm_raw[:, :, 2].astype(np.float32) / 255.0
+            # Vertical weight: 1.0 at row 0 (top / distant sky), fading to 0.0
+            # at the midpoint (row h//2), zero below — upper half only.
+            atm_ys = np.linspace(1.0, 0.0, h // 2, dtype=np.float32)
+            atm_full = np.concatenate([atm_ys, np.zeros(h - h // 2, dtype=np.float32)])
+            atm_w = (atm_full * atmospheric_blue_shift)[:, np.newaxis]  # (H, 1)
+            # Shift: R↓ G↓ B↑ — pull toward cool atmospheric blue-grey
+            ar_out = np.clip(ar - atm_w * 0.09, 0.0, 1.0)
+            ag_out = np.clip(ag - atm_w * 0.05, 0.0, 1.0)
+            ab_out = np.clip(ab + atm_w * 0.07, 0.0, 1.0)
+            atm_buf = atm_raw.copy()
+            atm_buf[:, :, 2] = np.clip(ar_out * 255.0, 0, 255).astype(np.uint8)
+            atm_buf[:, :, 1] = np.clip(ag_out * 255.0, 0, 255).astype(np.uint8)
+            atm_buf[:, :, 0] = np.clip(ab_out * 255.0, 0, 255).astype(np.uint8)
+            atm_surf = cairo.ImageSurface.create_for_data(
+                bytearray(atm_buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            self.canvas.ctx.set_source_surface(atm_surf, 0, 0)
+            self.canvas.ctx.paint()
+            print(f"    Atmospheric blue shift applied (strength={atmospheric_blue_shift:.2f}).")
 
         print(f"  Sfumato complete ({n_veils} veils accumulated).")
 
@@ -25962,3 +26018,153 @@ class Painter:
         buf_out[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out.tobytes()
         print("    Toulouse-Lautrec essence pass complete.")
+
+    def tissot_fashionable_gloss_pass(
+        self,
+        clarity_str:    float = 0.11,
+        sheen_thresh:   float = 0.72,
+        sheen_strength: float = 0.07,
+        chroma_boost:   float = 0.06,
+        mid_lo:         float = 0.28,
+        mid_hi:         float = 0.72,
+        highlight_cool: float = 0.04,
+        blur_radius:    float = 4.0,
+        opacity:        float = 0.27,
+    ) -> None:
+        """Simulate James Tissot's Victorian academic surface — fashionable gloss.
+
+        Tissot's defining technical quality is what might be called 'fashionable
+        gloss': the combination of an enamelled, lacquer-like surface finish with
+        vivid chromatic richness in the dress fabrics and a crystalline cool-white
+        quality in the finest silk highlights.  This is the surface of an academic
+        painter who has studied how woven textiles reflect light at the micro-scale
+        and reproduced it with systematic fidelity.
+
+        Four-stage pass:
+
+        1. **Enamel surface clarity** — mild unsharp-mask in the mid-tone band
+           [``mid_lo`` – ``mid_hi``] (``clarity_str`` ≈ 0.10–0.14) that sharpens
+           perceived surface detail without artificial HDR crunchiness.  Implemented
+           as canvas - gaussian_blur(canvas, σ=``blur_radius``) * ``clarity_str``.
+
+        2. **Specular surface sheen** — in pixels above ``sheen_thresh``, apply a
+           luminance lift of ``sheen_strength`` that simulates the specular
+           reflectance of fine silk and satin.  This is the micro-quality that makes
+           Tissot's dress fabrics physically present rather than merely painted.
+
+        3. **Chromatic richness** — in the warm mid-tone zone [``mid_lo`` –
+           ``mid_hi``], boost saturation by ``chroma_boost`` by pulling each channel
+           away from its luminance-grey equivalent in proportion to its existing
+           colour deviation.  Replicates the vivid fabric quality of his fashionable
+           interiors.
+
+        4. **Cool highlight crystallization** — in the very brightest zones
+           (lum > 0.85), apply a cool shift of ``highlight_cool`` (B↑, R↓) that
+           turns hot-white into the crisp, crystalline whites of silk and linen under
+           English afternoon light.  Distinct from the warm-ivory highlights of the
+           sfumato tradition: Tissot's whites are cool and precise.
+
+        Parameters
+        ----------
+        clarity_str     : unsharp-mask strength in mid-tones [0–1]; 0.09–0.13 typical
+        sheen_thresh    : luminance threshold above which sheen is applied (0.70–0.76)
+        sheen_strength  : luminance lift in the sheen zone [0–1]; 0.05–0.10 typical
+        chroma_boost    : saturation increase in warm mid-tones [0–1]; 0.04–0.08 typical
+        mid_lo          : lower luminance boundary of mid-tone zone for clarity + chroma
+        mid_hi          : upper luminance boundary of mid-tone zone
+        highlight_cool  : cool shift (B↑ R↓) in very bright highlight zone [0–1]
+        blur_radius     : Gaussian sigma for unsharp-mask and zone transition smoothing
+        opacity         : overall composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        # Cairo BGRA layout
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Enamel surface clarity (unsharp mask in mid-tone band) ─────────
+        # Build mid-tone band mask, Gaussian-feathered for smooth transitions.
+        mid_band = _np.clip(
+            _np.minimum(lum - mid_lo, mid_hi - lum) / (0.5 * (mid_hi - mid_lo) + 1e-6),
+            0.0, 1.0
+        )
+        mid_band = _gf(mid_band.astype(_np.float32), sigma=blur_radius)
+        mid_band = _np.clip(mid_band, 0.0, 1.0)
+
+        # Unsharp mask: sharpened = original + (original - blurred) * strength
+        r_blur = _gf(r0, sigma=blur_radius)
+        g_blur = _gf(g0, sigma=blur_radius)
+        b_blur = _gf(b0, sigma=blur_radius)
+
+        r_sharp = _np.clip(r0 + (r0 - r_blur) * clarity_str, 0.0, 1.0)
+        g_sharp = _np.clip(g0 + (g0 - g_blur) * clarity_str, 0.0, 1.0)
+        b_sharp = _np.clip(b0 + (b0 - b_blur) * clarity_str, 0.0, 1.0)
+
+        # Apply sharpening only in mid-tone band
+        r_out = r0 * (1.0 - mid_band) + r_sharp * mid_band
+        g_out = g0 * (1.0 - mid_band) + g_sharp * mid_band
+        b_out = b0 * (1.0 - mid_band) + b_sharp * mid_band
+
+        # ── 2. Specular surface sheen in bright zones ─────────────────────────
+        # Build a smooth sheen mask: pixels above sheen_thresh receive a
+        # luminance lift proportional to how bright they already are.
+        sheen_mask = _np.clip(
+            (lum - sheen_thresh) / (1.0 - sheen_thresh + 1e-6), 0.0, 1.0
+        )
+        sheen_mask = _gf(sheen_mask.astype(_np.float32), sigma=blur_radius * 0.6)
+        sheen_mask = _np.clip(sheen_mask * sheen_strength, 0.0, 1.0)
+
+        # Apply sheen as a uniform luminance lift (preserves hue)
+        r_out = _np.clip(r_out + sheen_mask, 0.0, 1.0)
+        g_out = _np.clip(g_out + sheen_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out + sheen_mask, 0.0, 1.0)
+
+        # ── 3. Chromatic richness in warm mid-tones ───────────────────────────
+        # Pull each channel away from its luminance-grey equivalent to boost
+        # saturation.  Applied only in the mid-tone band to avoid over-saturating
+        # highlights or muddying the deep shadows.
+        lum2 = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        r_boost = _np.clip(r_out + (r_out - lum2) * chroma_boost * mid_band, 0.0, 1.0)
+        g_boost = _np.clip(g_out + (g_out - lum2) * chroma_boost * mid_band, 0.0, 1.0)
+        b_boost = _np.clip(b_out + (b_out - lum2) * chroma_boost * mid_band, 0.0, 1.0)
+        r_out = r_boost
+        g_out = g_boost
+        b_out = b_boost
+
+        # ── 4. Cool highlight crystallization ────────────────────────────────
+        # In the very brightest zone (lum > 0.85), shift toward cool white:
+        # B↑ R↓, making Tissot's silk highlights crisp and crystalline rather
+        # than warm and ivory (Leonardo's approach).
+        hi_mask = _np.clip((lum - 0.85) / (1.0 - 0.85 + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_mask.astype(_np.float32), sigma=blur_radius * 0.5)
+        hi_mask = _np.clip(hi_mask * highlight_cool, 0.0, 1.0)
+
+        r_out = _np.clip(r_out - hi_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out = orig.copy()
+        buf_out[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out.tobytes()
+        print("    James Tissot fashionable gloss pass complete.")
