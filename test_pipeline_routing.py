@@ -12100,3 +12100,121 @@ def test_sfumato_veil_pass_highlight_ivory_lift_stronger_than_zero():
     assert r_full_lift >= r_no_lift, (
         f"sfumato_veil_pass highlight_ivory_lift=1.0 must yield R >= highlight_ivory_lift=0.0; "
         f"R(lift=0)={r_no_lift:.2f}  R(lift=1.0)={r_full_lift:.2f}")
+
+
+# ── Session 103: Carlo Dolci ──────────────────────────────────────────────────
+
+def test_dolci_florentine_enamel_pass_exists():
+    """Painter must have dolci_florentine_enamel_pass method (session 103)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "dolci_florentine_enamel_pass"), (
+        "dolci_florentine_enamel_pass not found on Painter")
+    assert callable(getattr(Painter, "dolci_florentine_enamel_pass"))
+
+
+def test_dolci_florentine_enamel_pass_runs():
+    """dolci_florentine_enamel_pass must execute without error on a small canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    p = Painter(width=64, height=64)
+    # Prime the canvas with a mid-tone warm flesh (lum ~0.65)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    arr[:, :, 0] = 145   # B
+    arr[:, :, 1] = 160   # G
+    arr[:, :, 2] = 195   # R  — warm flesh mid-tone
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    p.dolci_florentine_enamel_pass(opacity=0.35)
+
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    # Canvas must have been modified (not all-zero, not unchanged)
+    assert after[:, :, :3].sum() > 0, "dolci_florentine_enamel_pass produced a blank canvas"
+
+
+def test_dolci_florentine_enamel_pass_zero_opacity_no_change():
+    """dolci_florentine_enamel_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    p = Painter(width=32, height=32)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 140
+    arr[:, :, 1] = 158
+    arr[:, :, 2] = 190
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    before_bytes = bytes(p.canvas.surface.get_data())
+
+    p.dolci_florentine_enamel_pass(opacity=0.0)
+
+    after_bytes = bytes(p.canvas.surface.get_data())
+    assert before_bytes == after_bytes, (
+        "dolci_florentine_enamel_pass with opacity=0 must not modify the canvas"
+    )
+
+
+def test_dolci_shadow_depth_warms_dark_pixels():
+    """dolci_florentine_enamel_pass must add R warmth to deep shadow pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Fill with dark shadow pixels (lum ~0.15 — inside shadow_lo=0.05..shadow_hi=0.32)
+    p = Painter(width=32, height=32)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 30    # B
+    arr[:, :, 1] = 35    # G
+    arr[:, :, 2] = 40    # R  — dark warm shadow zone
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    r_before = arr[:, :, 2].astype(float).mean()
+
+    p.dolci_florentine_enamel_pass(
+        shadow_depth_str=0.30,   # strong shadow enrichment
+        smooth_strength=0.0,     # disable smoothing so only shadow depth acts
+        highlight_lift=0.0,      # disable highlight lift
+        penumbra_amber_r=0.0, penumbra_amber_g=0.0, penumbra_amber_b=0.0,
+        opacity=1.0,
+    )
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4))
+    r_after = arr_after[:, :, 2].astype(float).mean()
+
+    assert r_after >= r_before, (
+        f"dolci_florentine_enamel_pass shadow_depth_str must add R warmth to shadow pixels; "
+        f"R before={r_before:.2f}  R after={r_after:.2f}"
+    )
+
+
+def test_subsurface_scatter_penumbra_warmth_depth_warms_penumbra():
+    """subsurface_scatter_pass penumbra_warmth_depth must warm the penumbra zone (session 103)."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Penumbra zone: lum ~0.36  (pen_mid for defaults = (0.28 + 0.42)/2 = 0.35)
+    p = Painter(width=32, height=32)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 80    # B
+    arr[:, :, 1] = 88    # G
+    arr[:, :, 2] = 97    # R   lum ~0.358
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    r_before = arr[:, :, 2].astype(float).mean()
+
+    p.subsurface_scatter_pass(
+        scatter_strength=0.0,
+        penumbra_warm=0.0,
+        shadow_cool=0.0,
+        shadow_pellucidity=0.0,
+        penumbra_warmth_depth=0.50,   # strong depth signal
+        opacity=1.0,
+    )
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4))
+    r_after = arr_after[:, :, 2].astype(float).mean()
+
+    assert r_after >= r_before, (
+        f"subsurface_scatter_pass penumbra_warmth_depth must lift R in penumbra zone; "
+        f"R before={r_before:.2f}  R after={r_after:.2f}"
+    )

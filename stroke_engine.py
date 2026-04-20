@@ -18317,6 +18317,7 @@ class Painter:
         penumbra_warm:       float = 0.06,
         shadow_cool:         float = 0.04,
         shadow_pellucidity:  float = 0.0,
+        penumbra_warmth_depth: float = 0.0,
         opacity:             float = 0.65,
     ) -> None:
         """
@@ -18378,6 +18379,16 @@ class Painter:
         penumbra_warm       : warm push in the penumbra zone (0.28–scatter_low)
         shadow_cool         : cool push in deepest shadows (lum < 0.28)
         shadow_pellucidity  : Antonello/Flemish faint lift in absolute darks (lum < 0.18)
+        penumbra_warmth_depth : Carlo Dolci — concentrated amber resonance at the very
+                              centre of the penumbra zone, simulating the warm interior
+                              depth built from layered amber-brown glazes on copper
+                              panels.  Unlike penumbra_warm (which is broadly applied
+                              across the whole 0.28–scatter_low band), this parameter
+                              concentrates a narrow, intense amber glow at the exact
+                              mid-point of the penumbra, where light and shadow meet
+                              most evenly — the zone where Dolci's glazed warmth is
+                              most visible.  Use 0.04–0.10 for his devotional panels;
+                              leave at 0.0 (default) for all other artists.
         opacity             : overall blend weight
         """
         import numpy as _np
@@ -18388,6 +18399,7 @@ class Painter:
               f"lum=[{scatter_low:.2f},{scatter_high:.2f}]  "
               f"penumbra={penumbra_warm:.3f}  shadow_cool={shadow_cool:.3f}  "
               f"shadow_pellucidity={shadow_pellucidity:.3f}  "
+              f"penumbra_warmth_depth={penumbra_warmth_depth:.3f}  "
               f"opacity={opacity:.2f}) ...")
 
         if opacity <= 0.0:
@@ -18449,6 +18461,20 @@ class Painter:
         sc_w = shadow_mask * shadow_cool * opacity
         r_out = _np.clip(r_out - sc_w * 0.50, 0.0, 1.0)
         b_out = _np.clip(b_out + sc_w * 0.60, 0.0, 1.0)
+
+        # ── 4½. Penumbra warmth depth (session 103 — Carlo Dolci) ────────────
+        # Concentrated amber resonance at the exact penumbra midpoint — the
+        # zone where Dolci's layered copper-panel glazes create maximum amber
+        # depth.  A narrow Gaussian spike centred on pen_mid, applied as a
+        # warm-amber push (R+, G+ slight, B-) that is more concentrated than
+        # the broad penumbra_warm spread.  Only active when > 0.0.
+        if penumbra_warmth_depth > 0.0:
+            pen_depth_mask = _np.clip(
+                1.0 - _np.abs(lum - pen_mid) / max(pen_h * 0.45, 1e-8), 0.0, 1.0)
+            pd_w = pen_depth_mask * penumbra_warmth_depth * opacity
+            r_out = _np.clip(r_out + pd_w * 0.80, 0.0, 1.0)   # warm amber R
+            g_out = _np.clip(g_out + pd_w * 0.20, 0.0, 1.0)   # slight amber G
+            b_out = _np.clip(b_out - pd_w * 0.25, 0.0, 1.0)   # damp blue
 
         # ── 4. Shadow pellucidity (session 92 — Antonello da Messina) ─────────
         # Flemish oil-glaze quality: white gesso ground glows faintly through
@@ -26168,3 +26194,193 @@ class Painter:
         buf_out[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf_out.tobytes()
         print("    James Tissot fashionable gloss pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 103 — Carlo Dolci Florentine enamel pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def dolci_florentine_enamel_pass(
+        self,
+        smooth_sigma:        float = 2.8,
+        smooth_strength:     float = 0.55,
+        flesh_lo:            float = 0.38,
+        flesh_hi:            float = 0.84,
+        shadow_lo:           float = 0.05,
+        shadow_hi:           float = 0.32,
+        shadow_depth_str:    float = 0.08,
+        shadow_warm_r:       float = 0.040,
+        shadow_warm_g:       float = 0.012,
+        highlight_lo:        float = 0.80,
+        highlight_lift:      float = 0.05,
+        highlight_ivory_r:   float = 0.018,
+        highlight_ivory_g:   float = 0.010,
+        penumbra_lo:         float = 0.30,
+        penumbra_hi:         float = 0.55,
+        penumbra_amber_r:    float = 0.022,
+        penumbra_amber_g:    float = 0.008,
+        penumbra_amber_b:    float = 0.012,
+        blur_radius:         float = 4.0,
+        opacity:             float = 0.32,
+    ) -> None:
+        """
+        Carlo Dolci (1616–1686) — Florentine devotional enamel surface pass.
+
+        Carlo Dolci was the most technically obsessive painter of the Florentine
+        Baroque, capable of spending years on a single figure in pursuit of a
+        surface quality that approaches fine enamelware.  He built form through
+        dozens of thin, transparent oil-glaze layers on copper panels, achieving
+        a skin surface that is seamless, deep in its shadows, and crystalline in
+        its highlights.
+
+        This pass simulates four defining qualities of his devotional surface:
+
+        1. **Enamel surface refinement** (smooth_sigma, smooth_strength, flesh_lo/hi):
+           A local Gaussian smooth applied within the flesh/mid-tone luminance band,
+           reducing micro-texture variation to simulate the glass-smooth quality of
+           paint glazed over copper.  This is more thorough than Tissot's unsharp-mask
+           clarity — it actively reduces variation rather than sharpening it.  Applied
+           only in the flesh zone to preserve landscape texture.
+
+        2. **Shadow depth enrichment** (shadow_lo/hi, shadow_depth_str, shadow_warm_*):
+           In the deep shadow zone, warm walnut-brown glazes (R+ modest, G+ very slight,
+           B not lifted) add interior depth without lifting the darks toward grey.
+           The key Dolci quality: shadows feel warm and deep, not cool and opaque.
+
+        3. **Crystal highlight clarification** (highlight_lo, highlight_lift,
+           highlight_ivory_*): In the very brightest zones, a warm ivory lift (R+,
+           G+ slight, B neutral) brings the highlight tip to near-white crystalline
+           purity.  Unlike Tissot's cool crystallization (B↑ R↓), Dolci's highlights
+           remain warm ivory — the goldsmith's touch on enamel.
+
+        4. **Penumbra amber resonance** (penumbra_lo/hi, penumbra_amber_*):
+           In the transition zone between light and shadow, a very faint warm-amber
+           push (R+, G+ very slight, B-) simulates the amber radiance built from
+           many transparent layers of warm-coloured glaze in the penumbra zone.
+
+        Parameters
+        ----------
+        smooth_sigma        : Gaussian sigma for local smoothing within flesh band
+        smooth_strength     : blend weight of the smoothed layer vs. original
+        flesh_lo / flesh_hi : luminance range of the flesh zone to smooth
+        shadow_lo / shadow_hi : luminance range of deep shadow zone
+        shadow_depth_str    : strength of the shadow depth enrichment blend
+        shadow_warm_r/g     : warm walnut-brown channel lifts in shadow zone
+        highlight_lo        : lower luminance threshold for crystalline highlight zone
+        highlight_lift      : overall luminance lift in highlight zone
+        highlight_ivory_r/g : warm ivory channel lifts in highlight zone (R, G)
+        penumbra_lo/hi      : luminance range of penumbra amber resonance zone
+        penumbra_amber_r/g/b : amber channel shifts in penumbra zone (b is dampened)
+        blur_radius         : Gaussian sigma for smooth zone-mask transitions
+        opacity             : overall blend weight
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print(f"  Dolci Florentine enamel pass "
+              f"(smooth_sigma={smooth_sigma:.1f}  smooth_str={smooth_strength:.2f}  "
+              f"shadow_depth={shadow_depth_str:.3f}  "
+              f"highlight_lift={highlight_lift:.3f}  opacity={opacity:.2f}) ...")
+
+        if opacity <= 0.0:
+            print("    Dolci Florentine enamel pass skipped (opacity=0)")
+            return
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        # Cairo BGRA layout
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── 1. Enamel surface refinement — local smoothing in flesh zone ──────
+        # Build a smooth flesh-band mask and apply Gaussian smoothing within it.
+        # This reduces micro-texture noise to simulate the glass-smooth quality
+        # of paint built up through many glazes over copper.
+        flesh_band = _np.clip(
+            _np.minimum(lum - flesh_lo, flesh_hi - lum) / (0.5 * (flesh_hi - flesh_lo) + 1e-6),
+            0.0, 1.0
+        )
+        flesh_band = _gf(flesh_band.astype(_np.float32), sigma=blur_radius)
+        flesh_band = _np.clip(flesh_band, 0.0, 1.0)
+
+        # Gaussian smooth of each channel
+        r_smooth = _gf(r0, sigma=smooth_sigma)
+        g_smooth = _gf(g0, sigma=smooth_sigma)
+        b_smooth = _gf(b0, sigma=smooth_sigma)
+
+        # Blend smooth into flesh zone only, weighted by smooth_strength
+        blend = flesh_band * smooth_strength
+        r_out = r0 * (1.0 - blend) + r_smooth * blend
+        g_out = g0 * (1.0 - blend) + g_smooth * blend
+        b_out = b0 * (1.0 - blend) + b_smooth * blend
+
+        # ── 2. Shadow depth enrichment — warm walnut-brown glazes ─────────────
+        # In the deep shadow zone, add a warm, concentrated amber-brown push.
+        # R+ (warm walnut), G+ (very slight — earth brown), B unchanged.
+        # This creates the "interior depth" quality of Dolci's glazed shadows.
+        shadow_band = _np.clip(
+            _np.minimum(lum - shadow_lo, shadow_hi - lum) / (0.5 * (shadow_hi - shadow_lo) + 1e-6),
+            0.0, 1.0
+        )
+        shadow_band = _gf(shadow_band.astype(_np.float32), sigma=blur_radius)
+        shadow_band = _np.clip(shadow_band, 0.0, 1.0)
+        shadow_blend = shadow_band * shadow_depth_str
+
+        r_out = _np.clip(r_out + shadow_blend * shadow_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + shadow_blend * shadow_warm_g, 0.0, 1.0)
+        # B: deliberately not lifted — keep shadows warm-brown, not neutral
+
+        # ── 3. Crystal highlight clarification — warm ivory lift ──────────────
+        # In the very brightest zones, bring the highlight tip to a pure warm
+        # ivory.  Unlike Tissot's cool-crystalline (B↑ R↓), Dolci's highlights
+        # remain warm — the goldsmith's touch on enamel, not English silk-white.
+        hi_band = _np.clip(
+            (lum - highlight_lo) / (1.0 - highlight_lo + 1e-6), 0.0, 1.0
+        )
+        hi_band = _gf(hi_band.astype(_np.float32), sigma=blur_radius * 0.5)
+        hi_band = _np.clip(hi_band, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + hi_band * (highlight_lift + highlight_ivory_r), 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_band * (highlight_lift + highlight_ivory_g), 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_band * highlight_lift, 0.0, 1.0)
+
+        # ── 4. Penumbra amber resonance — layered copper-panel warmth ─────────
+        # In the transition zone between light and shadow, apply a concentrated
+        # warm-amber push: the zone where Dolci's many transparent amber glazes
+        # create maximum resonance, visually separating the warmly lit flesh from
+        # the cooler deep shadow in a way that is characteristic of copper-panel
+        # technique.
+        pen_mid = (penumbra_lo + penumbra_hi) * 0.5
+        pen_h   = max((penumbra_hi - penumbra_lo) * 0.5, 1e-8)
+        pen_band = _np.clip(
+            1.0 - _np.abs(lum - pen_mid) / pen_h, 0.0, 1.0
+        )
+        pen_band = _gf(pen_band.astype(_np.float32), sigma=blur_radius * 0.6)
+        pen_band = _np.clip(pen_band, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + pen_band * penumbra_amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + pen_band * penumbra_amber_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - pen_band * penumbra_amber_b, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf_out = orig.copy()
+        buf_out[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf_out[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_out.tobytes()
+        print("    Carlo Dolci Florentine enamel pass complete.")

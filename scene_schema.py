@@ -269,6 +269,7 @@ class Period(Enum):
     PROTO_RENAISSANCE      = auto()  # Masaccio — architectonic mass modeling, deep directional shadow, warm ochre highlights, sculptural gravity, no sfumato
     BELLE_EPOQUE           = auto()  # Toulouse-Lautrec — peinture à l'essence matte surface, spidery diagonal hatching, warm-cool separation, bold flat-color zones, Japonisme-influenced graphic flatness
     VICTORIAN_SOCIAL_REALIST = auto()  # James Tissot — enamel surface clarity, specular fabric sheen, chromatic richness in warm midtones, cool crystalline highlights, precise atmospheric colour recession
+    FLORENTINE_DEVOTIONAL_BAROQUE = auto()  # Carlo Dolci — hyper-smooth devotional enamel finish, deep walnut-brown shadow glazes, crystalline ivory highlights, introspective psychological stillness, obsessive surface polish
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1186,6 +1187,19 @@ class Style:
             # (not sfumato-dissolved) but not hard; Tissot's precise contours are
             # softened by the glazing process into found, atmospheric edges.
             Period.VICTORIAN_SOCIAL_REALIST: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.80, edge_softness=0.62),
+            # FLORENTINE_DEVOTIONAL_BAROQUE (Carlo Dolci) — obsessively smooth enamel surface.
+            # stroke_size_face=4: Dolci built his skin surfaces through dozens of
+            # tiny, imperceptible strokes — the smallest face marks in the pipeline,
+            # reflecting his infamous slowness (he could spend years on a single face).
+            # stroke_size_bg=20: backgrounds are simple, architectural, or near-black —
+            # Dolci's devotional panels often place the figure against a dark velvet
+            # void or a plain stone setting; the eye should go nowhere else.
+            # wet_blend=0.88: extremely high — Dolci's enamel finish requires total
+            # wet-on-wet integration; the surface should have no visible mark-making.
+            # edge_softness=0.55: moderate — Dolci's edges are soft but purposeful;
+            # they are not sfumato-dissolved (Leonardo) nor sharply found (Antonello),
+            # but have a glassy, smooth-glass quality: present but not hard.
+            Period.FLORENTINE_DEVOTIONAL_BAROQUE: dict(stroke_size_face=4, stroke_size_bg=20, wet_blend=0.88, edge_softness=0.55),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
