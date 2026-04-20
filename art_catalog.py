@@ -8453,6 +8453,97 @@ CATALOG: Dict[str, ArtStyle] = {
             "Use opacity=0.38 to integrate naturally with the accumulated prior passes."
         ),
     ),
+
+    # ── Pierre Bonnard ────────────────────────────────────────────────────────
+    # Randomly selected artist for session 99's inspiration.
+    # Pierre Bonnard (1867–1947) began as a founding member of the Nabis group —
+    # young Post-Impressionists who admired Gauguin's flat colour zones and dark
+    # cloisonné outlines — but his mature work departed radically from that early
+    # aesthetic into something sui generis: a late style (c. 1920–1947, painted
+    # largely at his villa Le Cannet near Cannes) of almost hallucinatory colour
+    # saturation, where hot orange, cadmium yellow, and acid violet jostle in
+    # domestic spaces bathed in Mediterranean light.  Bonnard's signature effect
+    # is 'chromatic vibration': warm and cool notes placed in immediate proximity
+    # so the eye reads them simultaneously as colour and as light — a perceptual
+    # oscillation that makes his interiors pulse and breathe.
+    "pierre_bonnard": ArtStyle(
+        artist="Pierre Bonnard",
+        movement="Post-Impressionism / Nabi / Chromatic Intimisme",
+        nationality="French",
+        period="1891–1947",
+        palette=[
+            (0.96, 0.72, 0.18),   # cadmium yellow — the dominant hot note
+            (0.88, 0.45, 0.15),   # burnt orange — warm mid-tone anchor
+            (0.55, 0.18, 0.52),   # warm violet — shadow complement to the yellows
+            (0.30, 0.62, 0.42),   # muted sage green — garden / tablecloth
+            (0.70, 0.82, 0.88),   # pale cerulean — cool window light
+            (0.92, 0.85, 0.58),   # warm cream — sunlit interior surfaces
+            (0.20, 0.14, 0.38),   # deep indigo — darkest shadow
+        ],
+        ground_color=(0.88, 0.78, 0.52),    # warm ochre-cream (sun-baked Cannet wall)
+        stroke_size=9,
+        wet_blend=0.35,                      # low: adjacent dabs remain distinct
+        edge_softness=0.42,                  # moderate: forms readable but not crisp
+        jitter=0.055,                        # high: each stroke varies — no flat zones
+        glazing=(0.76, 0.62, 0.28),          # warm amber-ochre final glaze
+        crackle=False,
+        chromatic_split=False,               # not pointillist dots — organic warm/cool oscillation
+        technique=(
+            "Chromatic vibration — Bonnard's defining mature technique.  In the "
+            "intimate interiors and garden scenes painted at Le Cannet (1920–1947), "
+            "he placed warm (cadmium yellow, burnt orange) and cool (cerulean, "
+            "muted violet) touches in immediate adjacency throughout every zone of "
+            "the canvas: not just in the highlights or shadows, but pervasively in "
+            "mid-tones and even in the deep shadows.  The eye, unable to resolve "
+            "these near-complementary pairs into a single flat tone, reads them as "
+            "light itself — a pulsing optical shimmer that transcends the actual "
+            "luminance range of the pigments.  "
+            "This is distinct from Seurat's pointillism (which is systematic and "
+            "retinal-theory-driven) and from Impressionist broken colour (which "
+            "pursues atmospheric naturalism).  Bonnard's oscillation is emotional "
+            "and perceptual: the warm-cool pairs are calibrated to the mood of the "
+            "room, the hour, the season.  His method was to pin a canvas to his "
+            "studio wall and work on it intermittently over months or years, "
+            "adjusting the colour temperature of each zone until the vibration felt "
+            "right — an intuitive, atmospheric calibration rather than a system.  "
+            "The palette is notoriously warm-dominant: cadmium yellow and burnt "
+            "orange anchor most compositions, with cool violet and cerulean serving "
+            "as the oscillating complement.  Shadows are never grey or black — they "
+            "are deep indigo-violet, warm brown, or saturated green.  Lights are "
+            "not white — they are the warmest possible yellow or cream.  "
+            "Pipeline implementation: bonnard_chromatic_vibration_pass() injects "
+            "warm/cool oscillation pairs across the mid-tone zone using a "
+            "low-frequency sinusoidal spatial pattern seeded by Perlin noise, "
+            "so the warm/cool beats appear organic rather than mechanical.  "
+            "The oscillation amplitude is small (0.02–0.04 per channel) so it "
+            "reads as texture and life rather than as visible colour change."
+        ),
+        famous_works=[
+            ("The Dining Room in the Country",      "1913"),
+            ("The Bowl of Milk",                    "c. 1919"),
+            ("Nude in the Bath",                    "1936"),
+            ("The Garden",                          "1936"),
+            ("Table in Front of the Window",        "1934–1935"),
+            ("Mimosa, Le Cannet",                   "1945"),
+            ("The Studio with Mimosa",              "1939–1946"),
+            ("Marthe at Her Toilette",              "1908"),
+        ],
+        inspiration=(
+            "Apply bonnard_chromatic_vibration_pass() to inject the signature "
+            "warm/cool oscillation throughout the mid-tone zone [lum 0.28–0.76].  "
+            "The oscillation is spatially organic — driven by a low-frequency "
+            "Perlin noise field — so warm and cool beats alternate in patches "
+            "of 15–30 px rather than pixel-by-pixel.  "
+            "Warm phase: +R warm_amp, -B warm_amp * 0.55 (orange-yellow push).  "
+            "Cool phase: +B cool_amp, -R cool_amp * 0.45 (violet-cerulean push).  "
+            "The pass is intentionally subtle (opacity 0.30–0.40): it should read "
+            "as a warm quality of light in the flesh and costume zones rather than "
+            "as visible colour manipulation.  "
+            "wet_blend=0.35 keeps adjacent dabs distinct so the vibration is "
+            "preserved in the final surface.  "
+            "High jitter (0.055) ensures no flat zones — every mark varies."
+        ),
+    ),
 }
 
 

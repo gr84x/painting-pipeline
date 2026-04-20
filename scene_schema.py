@@ -265,6 +265,7 @@ class Period(Enum):
     DUTCH_BRAVURA_PORTRAIT = auto()  # Frans Hals — alla prima directional energy, confident tache brushwork, psychological vivacity, warm imprimatura with low wet-blend, crisp directional marks
     MILANESE_SFUMATO       = auto()  # Bernardino Luini — Leonardo-school Milanese sfumato, warm ivory highlights, cool-violet shadow delicacy, seamless flesh surfaces, sweet idealized expressions
     UMBRIAN_MANNERIST      = auto()  # Federico Barocci — petal-soft rose-pink penumbra flush, pasteletti bianca ground luminosity, proto-Baroque tenderness, warm perimeter dissolution
+    CHROMATIC_INTIMISME    = auto()  # Pierre Bonnard — warm/cool chromatic oscillation in mid-tones, hallucinatory colour saturation, cadmium-yellow dominance, violet-shadow complements, domestic Mediterranean light
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1137,6 +1138,9 @@ class Style:
             # edge_softness=0.72: very soft — Barocci's edges dissolve warmly into ambient haze,
             # similar to Leonardo's sfumato but warmer and more colorful.
             Period.UMBRIAN_MANNERIST: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.68, edge_softness=0.72),
+            # CHROMATIC_INTIMISME (Bonnard) — medium stroke, low wet-blend to keep
+            # warm/cool dabs distinct, moderate edge softness for organic surface.
+            Period.CHROMATIC_INTIMISME: dict(stroke_size_face=9, stroke_size_bg=28, wet_blend=0.35, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

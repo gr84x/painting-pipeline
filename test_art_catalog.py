@@ -114,6 +114,7 @@ EXPECTED_ARTISTS = [
     "judith_leyster",
     "bernardino_luini",
     "federico_barocci",
+    "pierre_bonnard",
 ]
 
 
@@ -273,6 +274,9 @@ EXPECTED_PERIODS = [
     "DUTCH_LIGHT_GROUND",
     "DUTCH_CANDLELIT_GENRE",
     "DUTCH_BRAVURA_PORTRAIT",
+    "MILANESE_SFUMATO",
+    "UMBRIAN_MANNERIST",
+    "CHROMATIC_INTIMISME",
 ]
 
 
@@ -12068,3 +12072,154 @@ def test_barocci_petal_flush_pass_edge_dissolve_parameters():
     for param in ("edge_dissolve_sigma", "edge_dissolve_radius", "edge_dissolve_strength"):
         assert param in sig.parameters, (
             f"barocci_petal_flush_pass must have {param!r} parameter")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pierre Bonnard / CHROMATIC_INTIMISME — session 99 additions
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_pierre_bonnard_in_catalog():
+    """pierre_bonnard (session 99) must be in the catalog."""
+    assert "pierre_bonnard" in CATALOG, "pierre_bonnard missing from CATALOG"
+
+
+def test_pierre_bonnard_movement():
+    """Bonnard's movement must reference Post-Impressionism or Nabi."""
+    s = get_style("pierre_bonnard")
+    mvmt = s.movement.lower()
+    assert "nabi" in mvmt or "impressi" in mvmt or "intimisme" in mvmt, (
+        f"pierre_bonnard movement {s.movement!r} should mention Nabi or Post-Impressionism"
+    )
+
+
+def test_pierre_bonnard_palette_length():
+    """Bonnard palette must have at least 5 entries."""
+    s = get_style("pierre_bonnard")
+    assert len(s.palette) >= 5, (
+        f"pierre_bonnard palette should have ≥ 5 entries; got {len(s.palette)}"
+    )
+
+
+def test_pierre_bonnard_palette_values_in_range():
+    """All Bonnard palette RGB channels must be in [0, 1]."""
+    s = get_style("pierre_bonnard")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"pierre_bonnard palette channel {ch} out of [0, 1]"
+            )
+
+
+def test_pierre_bonnard_wet_blend_low():
+    """Bonnard's low wet_blend keeps warm/cool dabs distinct — must be ≤ 0.45."""
+    s = get_style("pierre_bonnard")
+    assert s.wet_blend <= 0.45, (
+        f"pierre_bonnard wet_blend should be ≤ 0.45 (chromatic vibration requires "
+        f"distinct dabs); got {s.wet_blend}"
+    )
+
+
+def test_pierre_bonnard_jitter_elevated():
+    """Bonnard's elevated jitter prevents flat zones — must be > 0.03."""
+    s = get_style("pierre_bonnard")
+    assert s.jitter > 0.03, (
+        f"pierre_bonnard jitter should be > 0.03 (no flat zones); got {s.jitter}"
+    )
+
+
+def test_pierre_bonnard_famous_works_present():
+    """Bonnard must have at least 4 famous works catalogued."""
+    s = get_style("pierre_bonnard")
+    assert len(s.famous_works) >= 4, (
+        f"pierre_bonnard should have ≥ 4 famous works; got {len(s.famous_works)}"
+    )
+
+
+# CHROMATIC_INTIMISME period tests
+
+def test_chromatic_intimisme_period_present():
+    """CHROMATIC_INTIMISME must exist in Period enum (session 99)."""
+    assert hasattr(Period, "CHROMATIC_INTIMISME"), "Period.CHROMATIC_INTIMISME not found"
+    assert Period.CHROMATIC_INTIMISME in list(Period)
+
+
+def test_chromatic_intimisme_stroke_params_keys():
+    """CHROMATIC_INTIMISME stroke_params must contain all four required keys."""
+    style = Style(medium=Medium.OIL, period=Period.CHROMATIC_INTIMISME,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in p, f"CHROMATIC_INTIMISME stroke_params missing key: {key!r}"
+
+
+def test_chromatic_intimisme_wet_blend_low():
+    """CHROMATIC_INTIMISME should have low wet_blend (distinct dabs for vibration)."""
+    style = Style(medium=Medium.OIL, period=Period.CHROMATIC_INTIMISME,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.45, (
+        f"CHROMATIC_INTIMISME wet_blend should be ≤ 0.45 for chromatic vibration; "
+        f"got {p['wet_blend']}"
+    )
+
+
+def test_chromatic_intimisme_in_expected_periods():
+    """EXPECTED_PERIODS list must include CHROMATIC_INTIMISME."""
+    assert "CHROMATIC_INTIMISME" in EXPECTED_PERIODS, (
+        "CHROMATIC_INTIMISME missing from EXPECTED_PERIODS — add it to the list"
+    )
+
+
+# bonnard_chromatic_vibration_pass signature tests
+
+def test_bonnard_chromatic_vibration_pass_exists():
+    """Painter must have a bonnard_chromatic_vibration_pass method (session 99)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bonnard_chromatic_vibration_pass"), (
+        "Painter missing bonnard_chromatic_vibration_pass"
+    )
+
+
+def test_bonnard_chromatic_vibration_pass_mid_parameters():
+    """bonnard_chromatic_vibration_pass must accept mid_lo and mid_hi."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.bonnard_chromatic_vibration_pass)
+    for param in ("mid_lo", "mid_hi"):
+        assert param in sig.parameters, (
+            f"bonnard_chromatic_vibration_pass must have {param!r} parameter"
+        )
+
+
+def test_bonnard_chromatic_vibration_pass_amp_parameters():
+    """bonnard_chromatic_vibration_pass must accept warm_amp and cool_amp."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.bonnard_chromatic_vibration_pass)
+    for param in ("warm_amp", "cool_amp"):
+        assert param in sig.parameters, (
+            f"bonnard_chromatic_vibration_pass must have {param!r} parameter"
+        )
+
+
+def test_bonnard_chromatic_vibration_pass_noise_parameters():
+    """bonnard_chromatic_vibration_pass must accept noise_scale, noise_octaves,
+    noise_persistence."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.bonnard_chromatic_vibration_pass)
+    for param in ("noise_scale", "noise_octaves", "noise_persistence"):
+        assert param in sig.parameters, (
+            f"bonnard_chromatic_vibration_pass must have {param!r} parameter"
+        )
+
+
+def test_bonnard_chromatic_vibration_pass_opacity_parameter():
+    """bonnard_chromatic_vibration_pass must accept opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.bonnard_chromatic_vibration_pass)
+    assert "opacity" in sig.parameters, (
+        "bonnard_chromatic_vibration_pass must have 'opacity' parameter"
+    )
