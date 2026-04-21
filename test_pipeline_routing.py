@@ -12796,3 +12796,136 @@ def test_roman_grand_tour_classicism_stroke_params_moderate_blend():
     assert 0.50 <= p["edge_softness"] <= 0.80, (
         f"ROMAN_GRAND_TOUR_CLASSICISM edge_softness should be moderate (0.50–0.80) "
         f"for clear Neoclassical definition; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# lotto_restless_vivacity_pass() tests — session 120
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_lotto_restless_vivacity_pass_exists():
+    """Painter must have lotto_restless_vivacity_pass() method after session 120."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "lotto_restless_vivacity_pass"), (
+        "lotto_restless_vivacity_pass not found on Painter — add it in stroke_engine.py")
+    assert callable(getattr(Painter, "lotto_restless_vivacity_pass"))
+
+
+def test_lotto_restless_vivacity_pass_no_error():
+    """lotto_restless_vivacity_pass() must run without error on a small toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.44, 0.30), texture_strength=0.06)
+    p.lotto_restless_vivacity_pass(opacity=0.30)
+
+
+def test_lotto_restless_vivacity_pass_modifies_canvas():
+    """lotto_restless_vivacity_pass() must modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.44, 0.30), texture_strength=0.00)
+
+    before = _canvas_bytes(p)
+    p.lotto_restless_vivacity_pass(opacity=1.0, vivacity_r=0.10, shadow_cool_b=0.10,
+                                    vibration_str=0.05)
+    after = _canvas_bytes(p)
+
+    assert before != after, "lotto_restless_vivacity_pass should modify the canvas"
+
+
+def test_lotto_restless_vivacity_pass_zero_opacity_no_op():
+    """lotto_restless_vivacity_pass() with opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.52, 0.44, 0.30), texture_strength=0.06)
+
+    before = _canvas_bytes(p)
+    p.lotto_restless_vivacity_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, "lotto_restless_vivacity_pass with opacity=0 must be a no-op"
+
+
+def test_lotto_restless_vivacity_pass_warms_bright_pixels():
+    """lotto_restless_vivacity_pass() must raise R on a bright canvas (vivacity lift)."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.72, 0.64), texture_strength=0.00)
+
+    orig_buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    orig_r = orig_buf[:, :, 2].astype(_np.float32).mean()
+
+    p.lotto_restless_vivacity_pass(vivacity_r=0.08, opacity=1.0, vibration_str=0.0)
+
+    after_buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+
+    assert after_r >= orig_r, (
+        f"lotto_restless_vivacity_pass must raise R channel on bright canvas; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_lotto_restless_vivacity_pass_preserves_canvas_shape():
+    """lotto_restless_vivacity_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.52, 0.44, 0.30), texture_strength=0.05)
+    p.lotto_restless_vivacity_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after lotto_restless_vivacity_pass: {img.size}")
+
+
+def test_lotto_restless_vivacity_pass_noise_scale_parameter():
+    """lotto_restless_vivacity_pass must accept noise_scale (session 120 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lotto_restless_vivacity_pass)
+    assert "noise_scale" in sig.parameters, (
+        "lotto_restless_vivacity_pass must have 'noise_scale' parameter "
+        "(primary Gaussian sigma for multi-scale chromatic vibration — session 120)")
+
+
+def test_lotto_restless_vivacity_pass_vibration_str_parameter():
+    """lotto_restless_vivacity_pass must accept vibration_str."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lotto_restless_vivacity_pass)
+    assert "vibration_str" in sig.parameters, (
+        "lotto_restless_vivacity_pass must have 'vibration_str' parameter "
+        "(amplitude of the multi-scale chromatic vibration field)")
+
+
+def test_lotto_restless_vivacity_pass_shadow_cool_b_parameter():
+    """lotto_restless_vivacity_pass must accept shadow_cool_b for eccentric shadow accent."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lotto_restless_vivacity_pass)
+    assert "shadow_cool_b" in sig.parameters, (
+        "lotto_restless_vivacity_pass must have 'shadow_cool_b' parameter "
+        "(cool blue accent in Lotto's darks)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# VENETIAN_ECCENTRIC_PORTRAITURE Period — session 120
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_venetian_eccentric_portraiture_period_exists():
+    """Period.VENETIAN_ECCENTRIC_PORTRAITURE must be in the Period enum (session 120)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_ECCENTRIC_PORTRAITURE"), (
+        "Period.VENETIAN_ECCENTRIC_PORTRAITURE not found in scene_schema — add it")
+    assert Period.VENETIAN_ECCENTRIC_PORTRAITURE in list(Period)
+
+
+def test_venetian_eccentric_portraiture_stroke_params_moderate_blend():
+    """VENETIAN_ECCENTRIC_PORTRAITURE stroke params: moderate wet_blend, moderate edge_softness."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_ECCENTRIC_PORTRAITURE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.35 <= p["wet_blend"] <= 0.60, (
+        f"VENETIAN_ECCENTRIC_PORTRAITURE wet_blend should be moderate (0.35–0.60) "
+        f"for chromatic energy (not full Titian blend); got {p['wet_blend']}")
+    assert 0.40 <= p["edge_softness"] <= 0.70, (
+        f"VENETIAN_ECCENTRIC_PORTRAITURE edge_softness should be moderate (0.40–0.70) "
+        f"for psychological acuity; got {p['edge_softness']}")

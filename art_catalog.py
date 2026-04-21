@@ -10348,6 +10348,88 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Lorenzo Lotto ──────────────────────────────────────────────────────────
+    "lotto": ArtStyle(
+        artist="Lorenzo Lotto",
+        movement="Venetian Renaissance / Bergamask Eccentric School",
+        nationality="Italian (Venetian, later Bergamask)",
+        period="c. 1480–1556/57",
+        palette=[
+            (0.86, 0.72, 0.54),   # warm cream flesh — luminous Lotto portraits
+            (0.58, 0.72, 0.42),   # vivid grass-green — eccentric costume accent
+            (0.75, 0.48, 0.38),   # warm rose-salmon — chromatic vitality in flesh
+            (0.32, 0.30, 0.42),   # cool blue-grey shadow — Lotto's cold dark accents
+            (0.68, 0.52, 0.22),   # warm golden ochre — Venetian ground warmth
+            (0.52, 0.32, 0.22),   # deep warm umber — shadow depth
+        ],
+        ground_color=(0.52, 0.44, 0.30),    # warm Venetian ochre imprimatura
+        stroke_size=5,
+        wet_blend=0.45,                      # moderate — visible chromatic energy, not Titian's full blend
+        edge_softness=0.52,                  # moderate — psychological acuity; clearer than sfumato masters
+        jitter=0.035,                        # higher — chromatic restlessness
+        glazing=(0.72, 0.58, 0.32),          # warm golden glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Eccentric Venetian portraiture with psychological intensity and "
+            "chromatic restlessness.  Lotto's portraits are distinguished by three "
+            "qualities: vivid, unexpected color contrasts (grass-green against mauve, "
+            "cool grey against warm ochre); diagonal compositional energy that creates "
+            "a sense of psychological instability or mid-thought alertness; and a "
+            "chromatic vitality in flesh tones that results from the optical mixture "
+            "of multiple thin glazes over a textured Venetian ground.  Unlike Titian's "
+            "smooth seamless warm flesh, Lotto's surfaces carry a slight hum of warm "
+            "and cool color — visible when examined at close range — that contemporary "
+            "viewers described as a 'living quality.'  His portrait sitters appear "
+            "caught mid-thought: the Portrait of Andrea Odoni (1527) is an almost "
+            "disquieting study of a collector surrounded by antique fragments, his "
+            "gaze turned inward.  Lotto moved restlessly between Venice, Bergamo, "
+            "the Marche, and Treviso, never settling into a single courtly idiom, "
+            "which may account for the psychological edge and formal eccentricity "
+            "that distinguishes him from his more celebrated Venetian contemporaries."
+        ),
+        famous_works=[
+            ("Portrait of Andrea Odoni",              "1527"),
+            ("Portrait of a Young Man",               "c. 1505"),
+            ("Venus and Cupid",                       "c. 1520–1525"),
+            ("Triumph of Chastity",                   "c. 1529–1530"),
+            ("Saint Jerome in the Wilderness",        "c. 1506"),
+            ("Portrait of Lucina Brembati",           "c. 1520"),
+            ("Annunciation (Recanati)",                "1527"),
+            ("Portrait of a Man with a Golden Paw",  "c. 1527"),
+        ],
+        inspiration=(
+            "Apply lotto_restless_vivacity_pass() as the defining stylistic pass.  "
+            "Three stages encoding Lotto's eccentric Venetian signature: "
+            "(1) Warm vivacity lift in highlights — above hi_lo (≈ 0.68), apply a "
+            "warm rose-ivory lift: R + vivacity_r (≈ 0.014), G + vivacity_g (≈ 0.008), "
+            "B - vivacity_b (≈ 0.004).  Lotto's highlights are warm and slightly "
+            "saturated — neither the cool pearl of Boltraffio nor the neutral ivory "
+            "of Raphael, but a rose-warm quality reflecting his Venetian-ground warmth.  "
+            "(2) Cool eccentric shadow accent — below shadow_hi (≈ 0.36), apply a "
+            "slight blue-grey shift: B + shadow_cool_b (≈ 0.012), G - shadow_warm_g "
+            "(≈ 0.004).  Lotto's darks often carry unexpected cool accents — a quality "
+            "that distinguishes his psychological intensity from the warm-dark tradition "
+            "of Giorgione and early Titian.  "
+            "(3) Multi-scale chromatic vibration field — the session 120 artistic "
+            "improvement.  A noise field composed of Gaussian-smoothed random noise "
+            "at three spatial scales (σ ≈ 0.32×, 1×, 2.4× noise_scale, default 25 px) "
+            "is weighted and combined to produce a smooth, non-uniform modulation map.  "
+            "Applied in the mid-tone zone (mid_lo–mid_hi) with amplitude vibration_str "
+            "(≈ 0.010), it adds a spatially varying warm/cool shift to each pixel — "
+            "some areas slightly warmer, others slightly cooler — modelling the optical "
+            "complexity of Venetian multi-glaze technique.  Each spatial scale models "
+            "one glaze layer: fine grain (σ × 0.32) captures stroke-level pigment "
+            "variation; medium (σ × 1) models the glaze layer; coarse (σ × 2.4) "
+            "models the atmospheric imprimatura breathing through.  Their weighted "
+            "combination (0.50 fine + 0.35 medium + 0.15 coarse) creates the chromatic "
+            "'singing quality' that Lotto's flesh is known for — the warm-cool "
+            "variation that makes skin look alive rather than uniformly tinted.  "
+            "Use opacity ≈ 0.26–0.34."
+        ),
+    ),
+
 }
 
 

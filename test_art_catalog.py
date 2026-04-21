@@ -14324,3 +14324,188 @@ def test_savoldo_silver_veil_pass_penumbra_lo_parameter():
     assert "penumbra_lo" in sig.parameters, (
         "savoldo_silver_veil_pass must have 'penumbra_lo' parameter "
         "(lower bound of Gaussian penumbra window)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 120: Lorenzo Lotto + VENETIAN_ECCENTRIC_PORTRAITURE
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_lotto_in_catalog():
+    """Lotto (session 120) must be present in CATALOG."""
+    assert "lotto" in CATALOG, "lotto not found in CATALOG — add it to art_catalog.py"
+
+
+def test_lotto_movement():
+    """Lotto movement must reference Venetian or Bergamask school."""
+    s = get_style("lotto")
+    assert "Venetian" in s.movement or "venetian" in s.movement.lower() or "Bergam" in s.movement, (
+        f"lotto movement should reference Venetian or Bergamask; got {s.movement!r}")
+
+
+def test_lotto_nationality():
+    """Lotto nationality must reference Italian."""
+    s = get_style("lotto")
+    assert "Italian" in s.nationality, (
+        f"lotto nationality should include 'Italian'; got {s.nationality!r}")
+
+
+def test_lotto_palette_length():
+    """Lotto palette must have at least 5 characteristic colours."""
+    s = get_style("lotto")
+    assert len(s.palette) >= 5, (
+        f"Lotto palette should have at least 5 colours (vivid contrasts); got {len(s.palette)}")
+
+
+def test_lotto_palette_values_in_range():
+    """All Lotto palette RGB values must be in [0, 1]."""
+    s = get_style("lotto")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range channel {ch} in Lotto palette {rgb}"
+
+
+def test_lotto_has_vivid_green_in_palette():
+    """Lotto palette must include a vivid green (eccentric costume accent)."""
+    s = get_style("lotto")
+    has_green = any(g > 0.60 and g > r and g > b for r, g, b in s.palette)
+    assert has_green, (
+        "Lotto palette must include a vivid green — his eccentric costume accent "
+        "(e.g. grass-green against mauve in Portrait of Andrea Odoni)")
+
+
+def test_lotto_has_cool_shadow_in_palette():
+    """Lotto palette must include a cool blue-grey shadow entry."""
+    s = get_style("lotto")
+    has_cool = any(b >= r and b >= g and b < 0.55 for r, g, b in s.palette)
+    assert has_cool, (
+        "Lotto palette must include a cool blue-grey shadow — his cold dark accents "
+        "distinguish him from the warm-shadow Giorgionesque tradition")
+
+
+def test_lotto_ground_color_valid():
+    """Lotto ground_color must be a valid RGB triple in [0, 1]."""
+    s = get_style("lotto")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, f"Out-of-range ground_color channel: {ch}"
+
+
+def test_lotto_moderate_wet_blend():
+    """Lotto wet_blend must be moderate (chromatic energy, not full Titian blend)."""
+    s = get_style("lotto")
+    assert 0.35 <= s.wet_blend <= 0.60, (
+        f"Lotto wet_blend should be moderate [0.35, 0.60]; got {s.wet_blend}")
+
+
+def test_lotto_moderate_edge_softness():
+    """Lotto edge_softness must be moderate (psychological acuity)."""
+    s = get_style("lotto")
+    assert 0.40 <= s.edge_softness <= 0.70, (
+        f"Lotto edge_softness should be moderate [0.40, 0.70]; got {s.edge_softness}")
+
+
+def test_lotto_higher_jitter():
+    """Lotto jitter must be higher than typical (chromatic restlessness)."""
+    s = get_style("lotto")
+    assert s.jitter >= 0.028, (
+        f"Lotto jitter should be higher (>= 0.028) for chromatic restlessness; got {s.jitter}")
+
+
+def test_lotto_has_glazing():
+    """Lotto must define a glazing colour (Venetian warm golden unifier)."""
+    s = get_style("lotto")
+    assert s.glazing is not None, "Lotto must have a glazing colour (warm Venetian golden glaze)"
+    assert len(s.glazing) == 3
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_lotto_famous_works_include_odoni():
+    """Lotto famous_works must include the Portrait of Andrea Odoni."""
+    s = get_style("lotto")
+    titles_lower = [t.lower() for t, _ in s.famous_works]
+    has_odoni = any("odoni" in t for t in titles_lower)
+    assert has_odoni, (
+        "Lotto famous_works must include Portrait of Andrea Odoni — his defining masterwork")
+
+
+def test_lotto_inspiration_references_vivacity_pass():
+    """Lotto inspiration must reference lotto_restless_vivacity_pass."""
+    s = get_style("lotto")
+    assert "lotto_restless_vivacity_pass" in s.inspiration, (
+        "Lotto inspiration must reference lotto_restless_vivacity_pass()")
+
+
+def test_lotto_inspiration_references_chromatic_vibration():
+    """Lotto inspiration must reference the multi-scale chromatic vibration improvement."""
+    s = get_style("lotto")
+    insp = s.inspiration.lower()
+    assert "vibration" in insp or "multi-scale" in insp or "chromatic" in insp, (
+        "Lotto inspiration must reference the multi-scale chromatic vibration field (session 120)")
+
+
+def test_venetian_eccentric_portraiture_period_present():
+    """Period.VENETIAN_ECCENTRIC_PORTRAITURE must be in the Period enum (session 120)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_ECCENTRIC_PORTRAITURE"), (
+        "Period.VENETIAN_ECCENTRIC_PORTRAITURE not found — add it to scene_schema.py")
+    assert Period.VENETIAN_ECCENTRIC_PORTRAITURE in list(Period)
+
+
+def test_venetian_eccentric_portraiture_stroke_params_moderate_wet_blend():
+    """VENETIAN_ECCENTRIC_PORTRAITURE stroke_params must have moderate wet_blend."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_ECCENTRIC_PORTRAITURE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.35 <= p["wet_blend"] <= 0.60, (
+        f"VENETIAN_ECCENTRIC_PORTRAITURE wet_blend should be moderate [0.35, 0.60] "
+        f"for chromatic energy; got {p['wet_blend']}")
+
+
+def test_venetian_eccentric_portraiture_stroke_params_moderate_edge_softness():
+    """VENETIAN_ECCENTRIC_PORTRAITURE stroke_params must have moderate edge_softness."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_ECCENTRIC_PORTRAITURE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["edge_softness"] <= 0.70, (
+        f"VENETIAN_ECCENTRIC_PORTRAITURE edge_softness should be moderate [0.40, 0.70] "
+        f"for psychological acuity; got {p['edge_softness']}")
+
+
+def test_lotto_restless_vivacity_pass_exists():
+    """Painter must expose lotto_restless_vivacity_pass (session 120)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "lotto_restless_vivacity_pass"), (
+        "Painter.lotto_restless_vivacity_pass not found — add it to stroke_engine.py")
+
+
+def test_lotto_restless_vivacity_pass_opacity_parameter():
+    """lotto_restless_vivacity_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lotto_restless_vivacity_pass)
+    assert "opacity" in sig.parameters, (
+        "lotto_restless_vivacity_pass must have 'opacity' parameter")
+
+
+def test_lotto_restless_vivacity_pass_vivacity_r_parameter():
+    """lotto_restless_vivacity_pass must accept vivacity_r for the warm highlight lift."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lotto_restless_vivacity_pass)
+    assert "vivacity_r" in sig.parameters, (
+        "lotto_restless_vivacity_pass must have 'vivacity_r' parameter "
+        "(warm rose-ivory highlight red component)")
+
+
+def test_lotto_restless_vivacity_pass_noise_scale_parameter():
+    """lotto_restless_vivacity_pass must accept noise_scale (session 120 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.lotto_restless_vivacity_pass)
+    assert "noise_scale" in sig.parameters, (
+        "lotto_restless_vivacity_pass must have 'noise_scale' parameter "
+        "(primary Gaussian sigma for multi-scale chromatic vibration — session 120 improvement)")

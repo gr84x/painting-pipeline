@@ -29036,3 +29036,153 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Pompeo Batoni anisotropic silk-sheen pass complete.")
+
+    def lotto_restless_vivacity_pass(
+        self,
+        hi_lo:          float = 0.68,
+        vivacity_r:     float = 0.014,
+        vivacity_g:     float = 0.008,
+        vivacity_b:     float = 0.004,
+        shadow_hi:      float = 0.36,
+        shadow_cool_b:  float = 0.012,
+        shadow_warm_g:  float = 0.004,
+        mid_lo:         float = 0.36,
+        mid_hi:         float = 0.68,
+        vibration_str:  float = 0.010,
+        noise_scale:    float = 25.0,
+        blur_radius:    float = 4.0,
+        opacity:        float = 0.30,
+    ) -> None:
+        """
+        Lorenzo Lotto multi-scale chromatic vibration pass — session 120 new artist pass.
+
+        Lorenzo Lotto (c. 1480–1556/57), Venetian painter later based in Bergamo
+        and the Marche, is one of the most psychologically intense and formally
+        eccentric portraitists of the Italian Renaissance.  His famous sitters
+        appear caught mid-thought — the Portrait of Andrea Odoni (1527, Hampton
+        Court) depicts a collector surrounded by antique fragments, his gaze turned
+        inward with an almost disquieting self-absorption — and his palette makes
+        unexpected colour contrasts: vivid grass-green against mauve, cool grey-blue
+        against warm ochre, acidic yellow-green in shadow zones.
+
+        Three qualities define his visual signature:
+
+        **Warm vivacity lift in highlights** — above hi_lo (≈ 0.68), a warm rose-
+        ivory lift: R + vivacity_r, G + vivacity_g, B - vivacity_b.  Lotto's
+        highlights are warm and slightly saturated — neither the cool pearl of
+        Boltraffio nor the neutral ivory of Raphael, but a rose-warm quality
+        reflecting his Venetian-ground warmth and his restless chromatic sensibility.
+
+        **Cool eccentric shadow accent** — below shadow_hi (≈ 0.36), a slight blue-
+        grey shift: B + shadow_cool_b, G - shadow_warm_g.  Lotto's darks often carry
+        unexpected cool accents — a quality that distinguishes his psychological
+        intensity from the warm-dark Giorgionesque tradition.  The blue-grey
+        shadows give his figures a slightly chilly, searching quality.
+
+        **Multi-scale chromatic vibration field** — the session 120 artistic
+        improvement.  A noise field is built from Gaussian-smoothed random noise at
+        three spatial scales:
+          - Fine grain  (σ = noise_scale × 0.32) — stroke-level pigment variation
+          - Medium      (σ = noise_scale × 1.00) — single glaze layer variation
+          - Coarse      (σ = noise_scale × 2.40) — atmospheric imprimatura breathing
+        Weighted combination: 0.50 fine + 0.35 medium + 0.15 coarse.  The result is
+        a smooth, spatially non-uniform field normalised to [-1, 1], applied in the
+        mid-tone zone (mid_lo–mid_hi) via a sin²-bell mask with amplitude
+        vibration_str.  This adds ± vibration_str to the R channel (and ± 0.5 ×
+        vibration_str to G) at each pixel — some areas slightly warmer, others
+        slightly cooler — modelling the optical complexity of Venetian multi-glaze
+        technique.  Unlike the uniform single-frequency effects of previous sessions
+        (sin-window s116, sin²-window s117, Gaussian-peaked s118, anisotropic streak
+        s119), the multi-scale field captures the full spatial frequency content of
+        oil glazing over canvas texture: each scale models one part of the layering
+        stack, and their combination produces the chromatic 'singing quality' that
+        Lotto's flesh is known for.
+
+        Parameters
+        ----------
+        hi_lo          : luminance threshold above which warm vivacity lift applies
+        vivacity_r/g/b : warm rose-ivory highlight increment (b is subtracted)
+        shadow_hi      : luminance threshold below which cool shadow accent applies
+        shadow_cool_b  : cool blue increment in shadows
+        shadow_warm_g  : green reduction in shadows (removes warm cast)
+        mid_lo / mid_hi: luminance range for the vibration field bell mask
+        vibration_str  : amplitude of the multi-scale chromatic vibration (± value)
+        noise_scale    : primary Gaussian sigma (px) for the noise field
+        blur_radius    : Gaussian blur radius for zone transition smoothing
+        opacity        : blend factor against the original canvas
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Warm vivacity lift in highlights ──────────────────────────────────
+        # Lotto's highlights are warm rose-ivory — the Venetian ground warmth
+        # expressing itself through thin highlight glazes.
+        hi_raw  = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * vivacity_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * vivacity_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * vivacity_b, 0.0, 1.0)
+
+        # ── 2. Cool eccentric shadow accent ──────────────────────────────────────
+        # Lotto's darks carry unexpected cool blue-grey — distinguishing his
+        # psychological intensity from the warm-dark Giorgionesque tradition.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        cos_win = 0.5 * (1.0 - _np.cos(_np.pi * sh_raw))
+        sh_mask = _gf(cos_win.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * shadow_cool_b, 0.0, 1.0)
+        g_out = _np.clip(g_out - sh_mask * shadow_warm_g, 0.0, 1.0)
+
+        # ── 3. Multi-scale chromatic vibration field (session 120 improvement) ───
+        # A weighted sum of Gaussian-smoothed noise at three spatial scales models
+        # the optical complexity of Venetian multi-glaze technique — each scale
+        # corresponds to one layer of the glazing stack:
+        #   fine grain  (σ × 0.32) → stroke-level pigment variation
+        #   medium      (σ × 1.00) → single glaze layer variation
+        #   coarse      (σ × 2.40) → imprimatura breathing through
+        # The combination creates chromatic 'singing quality' in the mid-tones.
+        rng = _np.random.default_rng(seed=120)
+        noise_raw = rng.standard_normal((H, W)).astype(_np.float32)
+        fine   = _gf(noise_raw, sigma=noise_scale * 0.32)
+        medium = _gf(noise_raw, sigma=noise_scale)
+        coarse = _gf(noise_raw, sigma=noise_scale * 2.40)
+        vibration_field = 0.50 * fine + 0.35 * medium + 0.15 * coarse
+        vf_max = _np.abs(vibration_field).max() + 1e-6
+        vibration_field = vibration_field / vf_max  # normalise to [-1, 1]
+
+        # Bell mask: sin² window in the mid-tone zone
+        mid_raw  = _np.clip((lum - mid_lo) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0)
+        mid_bell = _np.sin(_np.pi * mid_raw) ** 2
+        mid_mask = _gf(mid_bell.astype(_np.float32), blur_radius)
+        mid_mask = _np.clip(mid_mask, 0.0, 1.0)
+
+        vib = vibration_field * mid_mask * vibration_str
+        r_out = _np.clip(r_out + vib, 0.0, 1.0)
+        g_out = _np.clip(g_out + vib * 0.50, 0.0, 1.0)  # green follows red at half amplitude
+
+        # ── Composite at opacity ─────────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Lorenzo Lotto multi-scale chromatic vibration pass complete.")
