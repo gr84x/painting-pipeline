@@ -84,7 +84,7 @@ Session 116 additions:
 
 Warm-start base: mona_lisa_s101.png
 Applies: s102 (Tissot), s103 (Dolci), s104 (Giordano), s105 (Guercino),
-         s106 (Ribera + foreground_warmth), s107 (Boltraffio pearled sfumato),
+         s106 (Ribera + atmospheric_depth), s107 (Boltraffio pearled sfumato),
          s108 (Moroni silver presence), s109 (Strozzi amber impasto),
          s110 (Sassoferrato pure devotion),
          s111 (Orazio Gentileschi silver daylight),
@@ -320,190 +320,186 @@ def paint(out_dir: str = ".") -> str:
         penumbra_bloom_hi       = 0.60,
     )
 
-    # ── Session 106: Jusepe de Ribera tenebrism pass ─────────────────────────
-    print("Ribera tenebrism pass (session 106)...", flush=True)
-    p.ribera_tenebrism_pass(
-        shadow_lo        = 0.0,
-        shadow_hi        = 0.30,
-        void_black_r     = 0.014,
-        void_black_g     = 0.006,
-        highlight_lo     = 0.72,
-        grit_strength    = 0.022,
-        grit_sigma       = 1.2,
-        warm_r           = 0.028,
-        warm_g           = 0.010,
-        blur_radius      = 4.0,
-        opacity          = 0.28,
+    # ── Session 106: Jusepe de Ribera gritty tenebrism pass ──────────────────
+    print("Ribera gritty tenebrism pass (session 106)...", flush=True)
+    p.ribera_gritty_tenebrism_pass(
+        shadow_hi        = 0.22,
+        shadow_warm_r    = 0.015,
+        shadow_warm_g    = 0.006,
+        grain_strength   = 0.020,
+        penumbra_lo      = 0.22,
+        penumbra_hi      = 0.45,
+        penumbra_grain   = 0.018,
+        light_cx         = 0.15,
+        light_cy         = 0.08,
+        light_radius     = 0.70,
+        amber_r          = 0.028,
+        amber_g          = 0.012,
+        blur_radius      = 3.5,
+        opacity          = 0.12,
     )
 
-    # ── Session 106 IMPROVED: foreground_warmth_pass ──────────────────────────
-    print("Foreground warmth pass (s106 improved)...", flush=True)
-    p.foreground_warmth_pass(
-        warmth_r    = 0.045,
-        warmth_g    = 0.018,
-        warmth_b    = 0.005,
-        depth_lo    = 0.55,
-        depth_hi    = 1.00,
-        blur_sigma  = 8.0,
-        opacity     = 0.32,
+    # ── Session 106 IMPROVED: atmospheric_depth_pass with foreground_warmth ──
+    print("Atmospheric depth pass (s106 improvement -- foreground_warmth=0.08)...", flush=True)
+    p.atmospheric_depth_pass(
+        haze_color             = (0.68, 0.74, 0.84),
+        desaturation           = 0.62,
+        lightening             = 0.46,
+        depth_gamma            = 1.6,
+        background_only        = True,
+        horizon_glow_band      = 0.12,
+        horizon_y_frac         = 0.55,
+        horizon_band_sigma     = 0.06,
+        zenith_luminance_boost = 0.06,
+        zenith_band_sigma      = 0.10,
+        foreground_warmth      = 0.08,
+        foreground_band_sigma  = 0.18,
     )
 
-    # ── Session 107: Boltraffio pearled sfumato pass ───────────────────────────
+    # ── Session 107: Giovanni Antonio Boltraffio pearled sfumato pass ─────────
     print("Boltraffio pearled sfumato pass (session 107)...", flush=True)
     p.boltraffio_pearled_sfumato_pass(
-        hi_lo        = 0.72,
-        pearl_r      = 0.006,
-        pearl_g      = 0.008,
-        pearl_b      = 0.014,
-        penumbra_lo  = 0.30,
-        penumbra_hi  = 0.68,
-        cool_b       = 0.012,
-        cool_r       = 0.006,
-        shadow_hi    = 0.28,
-        shadow_b     = 0.008,
-        shadow_r     = 0.010,
-        smooth_sigma = 2.0,
-        smooth_lo    = 0.32,
-        smooth_hi    = 0.80,
-        smooth_str   = 0.42,
-        blur_radius  = 3.5,
-        opacity      = 0.28,
+        pearl_lo          = 0.72,
+        pearl_r           = 0.010,
+        pearl_g           = 0.015,
+        pearl_b           = 0.022,
+        shadow_hi         = 0.28,
+        shadow_b          = 0.018,
+        shadow_g          = 0.006,
+        shadow_r          = 0.004,
+        flesh_lo          = 0.40,
+        flesh_hi          = 0.72,
+        clarity_sigma     = 0.8,
+        clarity_strength  = 0.14,
+        blur_radius       = 4.0,
+        opacity           = 0.32,
     )
 
-    # ── Session 108: Moroni silver presence pass ───────────────────────────────
+    # ── Session 108: Giovanni Battista Moroni silver presence pass ────────────
     print("Moroni silver presence pass (session 108)...", flush=True)
     p.moroni_silver_presence_pass(
-        hi_lo        = 0.68,
-        silver_r     = 0.004,
-        silver_g     = 0.005,
-        silver_b     = 0.010,
-        shadow_hi    = 0.35,
-        warm_r       = 0.018,
-        warm_g       = 0.008,
-        warm_b       = 0.003,
-        mid_gamma    = 0.94,
-        blur_radius  = 3.0,
-        opacity      = 0.26,
+        hi_lo         = 0.70,
+        silver_r      = 0.006,
+        silver_g      = 0.010,
+        silver_b      = 0.016,
+        shadow_hi     = 0.35,
+        warm_r        = 0.016,
+        warm_g        = 0.008,
+        warm_b        = 0.005,
+        mid_lo        = 0.35,
+        mid_hi        = 0.70,
+        mid_gamma_lo  = 0.95,
+        mid_gamma_hi  = 1.05,
+        blur_radius   = 3.5,
+        opacity       = 0.34,
     )
 
-    # ── Session 109: Strozzi amber impasto pass ───────────────────────────────
+    # ── Session 109: Bernardo Strozzi amber impasto pass ─────────────────────
     print("Strozzi amber impasto pass (session 109)...", flush=True)
     p.strozzi_amber_impasto_pass(
-        impasto_thresh   = 0.70,
-        impasto_r        = 0.030,
-        impasto_g        = 0.016,
-        impasto_b        = 0.005,
-        chestnut_lo      = 0.22,
-        chestnut_hi      = 0.52,
-        chestnut_r       = 0.025,
-        chestnut_g       = 0.010,
-        chestnut_b       = 0.005,
-        shadow_hi        = 0.22,
-        amber_r          = 0.016,
-        amber_g          = 0.007,
-        smooth_lo        = 0.28,
-        smooth_hi        = 0.75,
-        smooth_str       = 0.42,
-        blur_radius      = 3.5,
-        opacity          = 0.30,
+        shadow_hi    = 0.36,
+        amber_r      = 0.028,
+        amber_g      = 0.014,
+        amber_b      = 0.020,
+        hi_lo        = 0.74,
+        cream_r      = 0.012,
+        cream_g      = 0.008,
+        cream_b      = 0.010,
+        hi_boost     = 1.035,
+        mid_lo       = 0.36,
+        mid_hi       = 0.74,
+        rose_r       = 0.014,
+        rose_b       = 0.007,
+        blur_radius  = 4.0,
+        opacity      = 0.38,
     )
 
-    # ── Session 110: Sassoferrato pure devotion pass ───────────────────────────
+    # ── Session 110: Sassoferrato pure devotion pass ──────────────────────────
     print("Sassoferrato pure devotion pass (session 110)...", flush=True)
     p.sassoferrato_pure_devotion_pass(
-        ultramarine_lo   = 0.22,
-        ultramarine_hi   = 0.55,
-        ultra_b          = 0.022,
-        ultra_g          = 0.005,
-        ultra_r          = 0.006,
-        porcelain_lo     = 0.68,
-        porcelain_r      = 0.006,
-        porcelain_g      = 0.004,
-        porcelain_b      = 0.010,
-        smooth_sigma     = 3.0,
-        smooth_lo        = 0.30,
-        smooth_hi        = 0.82,
-        smooth_str       = 0.48,
-        blur_radius      = 4.0,
-        opacity          = 0.28,
+        ultra_thresh  = 0.04,
+        ultra_b_lift  = 0.022,
+        ultra_r_damp  = 0.016,
+        pearl_lo      = 0.76,
+        pearl_b_lift  = 0.010,
+        pearl_r_damp  = 0.007,
+        shadow_hi     = 0.30,
+        shadow_b_lift = 0.016,
+        shadow_r_damp = 0.008,
+        blur_radius   = 3.5,
+        opacity       = 0.30,
     )
 
-    # ── Session 111: Orazio Gentileschi silver daylight pass ──────────────────
+    # ── Session 111: Orazio Gentileschi silver daylight pass ─────────────────
     print("Orazio Gentileschi silver daylight pass (session 111)...", flush=True)
-    p.orazio_gentileschi_silver_daylight_pass(
-        hi_lo            = 0.70,
-        silver_r         = 0.004,
-        silver_g         = 0.005,
-        silver_b         = 0.012,
-        fabric_lo        = 0.30,
-        fabric_hi        = 0.68,
-        fabric_b         = 0.010,
-        fabric_g         = 0.005,
-        shadow_hi        = 0.28,
-        shadow_cool_b    = 0.008,
-        shadow_cool_r    = 0.006,
-        smooth_sigma     = 2.5,
-        smooth_lo        = 0.28,
-        smooth_hi        = 0.78,
-        smooth_str       = 0.40,
-        blur_radius      = 3.5,
-        opacity          = 0.26,
+    p.orazio_silver_daylight_pass(
+        hi_lo          = 0.68,
+        silver_r_damp  = 0.010,
+        silver_b_lift  = 0.016,
+        mid_lo         = 0.32,
+        mid_hi         = 0.68,
+        chroma_lift    = 0.018,
+        shadow_hi      = 0.34,
+        cool_r_damp    = 0.008,
+        cool_b_lift    = 0.012,
+        blur_radius    = 3.0,
+        opacity        = 0.30,
     )
 
     # ── Session 112: Jacob Jordaens earthy vitality pass ─────────────────────
     print("Jordaens earthy vitality pass (session 112)...", flush=True)
     p.jordaens_earthy_vitality_pass(
-        hi_lo         = 0.72,
-        cream_r       = 0.020,
-        cream_g       = 0.012,
-        cream_b       = 0.004,
-        mid_lo        = 0.30,
-        mid_hi        = 0.70,
-        sienna_r      = 0.018,
-        sienna_g      = 0.008,
-        shadow_hi     = 0.28,
-        amber_r       = 0.016,
-        amber_g       = 0.007,
-        blur_radius   = 3.5,
-        opacity       = 0.28,
+        hi_lo        = 0.72,
+        cream_r      = 0.014,
+        cream_g      = 0.007,
+        mid_lo       = 0.28,
+        mid_hi       = 0.72,
+        ruddy_r      = 0.024,
+        ruddy_g      = 0.010,
+        ruddy_b      = 0.009,
+        shadow_hi    = 0.38,
+        ochre_r      = 0.020,
+        ochre_g      = 0.010,
+        blur_radius  = 4.0,
+        opacity      = 0.34,
     )
 
     # ── Session 113: Guido Cagnacci rose flesh pass ───────────────────────────
     print("Guido Cagnacci rose flesh pass (session 113)...", flush=True)
     p.cagnacci_rose_flesh_pass(
-        rose_lo       = 0.40,
-        rose_hi       = 0.80,
-        rose_r        = 0.022,
-        rose_g        = 0.006,
-        rose_b        = 0.010,
-        hi_lo         = 0.75,
-        ivory_r       = 0.012,
-        ivory_g       = 0.006,
-        shadow_hi     = 0.30,
-        warm_r        = 0.014,
-        warm_g        = 0.005,
-        blur_radius   = 3.5,
-        opacity       = 0.28,
+        hi_lo        = 0.70,
+        rose_r_lift  = 0.010,
+        rose_b_damp  = 0.005,
+        mid_lo       = 0.34,
+        mid_hi       = 0.70,
+        peach_r      = 0.016,
+        peach_g      = 0.006,
+        peach_b      = 0.008,
+        shadow_hi    = 0.34,
+        warm_r       = 0.014,
+        warm_g       = 0.006,
+        blur_radius  = 3.5,
+        opacity      = 0.32,
     )
 
     # ── Session 114: Francesco Furini melancholic sfumato pass ───────────────
     print("Francesco Furini melancholic sfumato pass (session 114)...", flush=True)
     p.furini_melancholic_sfumato_pass(
         hi_lo          = 0.68,
-        ivory_r        = 0.012,
-        ivory_g        = 0.008,
-        ivory_b        = 0.004,
+        ivory_r        = 0.010,
+        ivory_g        = 0.007,
+        ivory_b        = 0.003,
         penumbra_lo    = 0.28,
         penumbra_hi    = 0.60,
-        lavender_b     = 0.018,
-        lavender_r     = 0.008,
-        shadow_hi      = 0.26,
-        shadow_b       = 0.010,
-        shadow_r       = 0.012,
+        lavender_b     = 0.015,
+        lavender_r     = 0.007,
+        shadow_hi      = 0.24,
+        shadow_b       = 0.008,
+        shadow_r       = 0.010,
         smooth_sigma   = 2.2,
-        smooth_lo      = 0.30,
-        smooth_hi      = 0.78,
-        smooth_str     = 0.45,
+        smooth_lo      = 0.28,
+        smooth_hi      = 0.76,
+        smooth_str     = 0.40,
         blur_radius    = 3.5,
         opacity        = 0.30,
     )
@@ -524,7 +520,7 @@ def paint(out_dir: str = ".") -> str:
         amber_r      = 0.012,
         amber_g      = 0.005,
         blur_radius  = 3.0,
-        opacity      = 0.26,  # slightly reduced to make room for Solario
+        opacity      = 0.26,
     )
 
     # ── SESSION 116: Andrea Solario pellucid amber pass (NEW) ─────────────────
@@ -536,25 +532,15 @@ def paint(out_dir: str = ".") -> str:
     #     Moroni's silver, Furini's warm ivory, Fontana's rose-ivory.  Solario's
     #     amber_r (0.016) adds a distinctly amber-honey warmth — warmer than any
     #     of the preceding highlight treatments, more golden and pellucid.
-    #     The amber_b reduction (0.003) prevents the cumulative blue from ivory
-    #     and pearl passes from neutralising the amber quality.
     #
     # (2) Cool violet shadow — raised-cosine blue-violet in zones below lum=0.32.
-    #     After Furini's cool shadow (shadow_r reduction) and Fontana's amber
-    #     counter-correction, Solario's violet_b (0.014) introduces the Venetian
-    #     atmospheric shadow quality — a blue-violet coolness in the deepest zones
-    #     that reads as spatial recession rather than mere darkness.  This is
-    #     fundamentally different from the warm amber shadows of the Bolognese
-    #     tradition (Guercino, Strozzi, Fontana) — it gives the shadow zones an
-    #     atmospheric, recessive quality that matches Solario's landscape backgrounds.
+    #     Solario's violet_b (0.014) introduces the Venetian atmospheric shadow
+    #     quality — a blue-violet coolness in the deepest zones that reads as
+    #     spatial recession rather than mere darkness.
     #
     # (3) Chromatic arc mid-tone warmth — sin-window pulse in [0.32, 0.62].
     #     arc_r (0.012) and arc_g (0.005) create a continuously-varying warmth
-    #     gradient that peaks in the penumbra centre and fades toward both shadow
-    #     and highlight extremes.  This is the session 116 improvement: a smooth,
-    #     physically motivated transition zone that connects Solario's cool shadows
-    #     and amber highlights through a warm amber penumbra — replicating the
-    #     actual behaviour of semi-transparent amber oil glazes.
+    #     gradient that peaks in the penumbra centre — the session 116 improvement.
     print("Andrea Solario pellucid amber pass (session 116 -- NEW)...", flush=True)
     p.solario_pellucid_amber_pass(
         hi_lo        = 0.62,
@@ -597,7 +583,7 @@ def paint(out_dir: str = ".") -> str:
         opacity         = 0.28,
     )
 
-    # Final glaze — warm amber reflecting Lombard-Leonardesque amber warmth
+    # Final glaze — warm amber reflecting Lombard-Leonardesque pellucidity
     print("Final glaze (warm amber for Lombard-Leonardesque pellucidity)...", flush=True)
     p.glaze((0.58, 0.44, 0.18), opacity=0.024)
 
