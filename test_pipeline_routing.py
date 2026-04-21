@@ -12515,3 +12515,48 @@ def test_italo_courtly_baroque_stroke_params_moderate_blend():
         f"ITALO_COURTLY_BAROQUE wet_blend should be in [0.35, 0.75] for Orazio's "
         f"controlled naturalism (not sfumato, not alla prima); got {p['wet_blend']}"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# jordaens_earthy_vitality_pass — session 112 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_jordaens_earthy_vitality_pass_exists():
+    """Painter must have jordaens_earthy_vitality_pass() method after session 112."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "jordaens_earthy_vitality_pass"), (
+        "jordaens_earthy_vitality_pass not found on Painter")
+    assert callable(getattr(Painter, "jordaens_earthy_vitality_pass"))
+
+
+def test_jordaens_earthy_vitality_pass_no_error():
+    """jordaens_earthy_vitality_pass() runs on a warm canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.48, 0.36, 0.20), texture_strength=0.06)
+    p.jordaens_earthy_vitality_pass(opacity=0.34)
+
+
+def test_jordaens_earthy_vitality_pass_modifies_canvas():
+    """jordaens_earthy_vitality_pass() must modify the canvas (non-trivial opacity)."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.48, 0.36, 0.20), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+
+    before = _canvas_bytes(p)
+    p.jordaens_earthy_vitality_pass(opacity=0.34)
+    after = _canvas_bytes(p)
+
+    assert before != after, "jordaens_earthy_vitality_pass should modify the canvas"
+
+
+def test_jordaens_earthy_vitality_pass_zero_opacity_no_op():
+    """jordaens_earthy_vitality_pass() with opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.48, 0.36, 0.20), texture_strength=0.06)
+
+    before = _canvas_bytes(p)
+    p.jordaens_earthy_vitality_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, "jordaens_earthy_vitality_pass with opacity=0 must be a no-op"

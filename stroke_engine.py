@@ -27918,3 +27918,157 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Orazio Gentileschi silver daylight pass complete.")
+
+    def jordaens_earthy_vitality_pass(
+        self,
+        hi_lo:        float = 0.72,
+        cream_r:      float = 0.014,
+        cream_g:      float = 0.007,
+        mid_lo:       float = 0.28,
+        mid_hi:       float = 0.72,
+        ruddy_r:      float = 0.024,
+        ruddy_g:      float = 0.010,
+        ruddy_b:      float = 0.009,
+        shadow_hi:    float = 0.38,
+        ochre_r:      float = 0.020,
+        ochre_g:      float = 0.010,
+        blur_radius:  float = 4.0,
+        opacity:      float = 0.34,
+    ) -> None:
+        """
+        Jacob Jordaens earthy vitality pass — session 112 new artist pass.
+
+        Jacob Jordaens (1593–1678) was the leading painter of Antwerp Baroque after
+        Rubens' death in 1640 — robust, earthy, and resolutely Flemish in a way that
+        his more cosmopolitan contemporaries were not.  Unlike Rubens, who absorbed the
+        Italian grand manner through extended time in Italy, Jordaens never left Antwerp.
+        His art reflects this: warm, physically grounded, and unashamedly artisan in the
+        best sense of the word.
+
+        Trained by Adam van Noort (also Rubens' early teacher), Jordaens built on the
+        Flemish workshop tradition of warm ochre-sienna imprimatura grounds and direct
+        loaded-brush painting.  His technique is often described as alla prima but his
+        hand is heavier and more impasto than Rubens' fluid blending — he built up his
+        highlights in thick paste, leaving the brushwork visible in the lit zones while
+        the shadows are leaner and more transparent.
+
+        Three qualities define his visual signature:
+
+        **Earthy ruddy flesh tones** — Jordaens' flesh is characteristically warm and
+        sienna-based.  Not the cool silver of Moroni or Orazio, not the warm gold of
+        Rembrandt, not the rosy pink of Rubens — but an honest, earthy warmth that reads
+        as real Flemish skin under warm ambient indoor light.  The mid-tones in his faces
+        have a ruddy, ochre-sienna quality that is entirely his own: more physical, more
+        grounded, less idealised than any of the court portraitists.
+
+        **Warm cream impasto highlights** — Where Orazio's highlights are cool silver and
+        Rembrandt's are warm gold, Jordaens' are warm cream-ivory.  Built up in thick
+        impasto on the lit sides of faces, shoulders, and drapery highlights, they give
+        his figures a sense of physical mass: the paint itself has weight and the light
+        registers as accumulated substance rather than reflected glaze.
+
+        **Amber shadow retention** — Even in his deepest shadows, Jordaens never lets his
+        tones go cold or grey.  The warm umber-chestnut quality that prevails throughout
+        his shadow zones keeps figures grounded and alive — there is no void in Jordaens,
+        no near-black emptiness of the sort Caravaggio or Ribera embrace.  His darkest
+        passages are deep warm brown, retaining a residual amber warmth that prevents any
+        figure from sinking into dissolution.
+
+        This pass encodes all three qualities through three controlled tonal operations:
+
+          1. Warm cream highlight lift — In the upper highlight zone (lum > hi_lo), apply
+             a warm cream boost: R + cream_r, G + cream_g.  Graduated smoothly by a
+             Gaussian-blurred luminance mask, this builds Jordaens' characteristic
+             impasto cream quality in the brightest pixels.  No blue lift — the contrast
+             with Orazio's cool silver quality is precisely the difference between warm
+             Antwerp naturalism and courtly Italian silver daylight.
+
+          2. Earthy sienna midtone warmth — In the mid-tone band [mid_lo, mid_hi], apply
+             a warm earthy boost using a raised-cosine window: R + ruddy_r, G + ruddy_g
+             (smaller), B - ruddy_b (gentle damp).  The cosine window peaks at the centre
+             of the mid-tone range, so the effect is smoothly graduated.  This captures
+             the ruddy, sienna-based flesh quality of Jordaens' mid-tones — physically
+             present and warm without tipping into theatrical orange.
+
+          3. Shadow amber retention — In shadow zones (lum < shadow_hi), apply a warm
+             ochre-amber boost: R + ochre_r, G + ochre_g (half-strength).  This prevents
+             the accumulated cool shifts from Orazio's pass from making the shadows read
+             as Moroni-silver or Boltraffio-cool.  Jordaens' shadows are warm umber-amber
+             throughout — grounded and earthbound.
+
+        Parameters
+        ----------
+        hi_lo        : lower luminance threshold for highlight zone (lum > this)
+        cream_r      : red channel lift in highlights (warm cream impasto quality)
+        cream_g      : green channel lift in highlights (cream warmth, less than R)
+        mid_lo       : lower bound of earthy mid-tone band
+        mid_hi       : upper bound of earthy mid-tone band
+        ruddy_r      : red boost in mid-tones (earthy Antwerp flesh warmth)
+        ruddy_g      : green boost in mid-tones (sienna quality, subdued)
+        ruddy_b      : blue damp in mid-tones (remove cool contamination from prior passes)
+        shadow_hi    : upper luminance threshold for shadow amber zone (lum < this)
+        ochre_r      : red lift in shadows (warm amber-ochre retention)
+        ochre_g      : green lift in shadows (amber warmth, half-strength)
+        blur_radius  : Gaussian sigma for mask feathering
+        opacity      : overall composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Warm cream highlight lift ──────────────────────────────────────
+        # Jordaens' impasto peak-lights: warm cream-ivory, not cool silver.
+        # Graduated by luminance above hi_lo, smoothed with Gaussian.
+        hi_raw  = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * cream_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * cream_g, 0.0, 1.0)
+        # No blue lift — warm cream, not cool silver (contrast with Orazio pass)
+
+        # ── 2. Earthy sienna midtone warmth ──────────────────────────────────
+        # Ruddy sienna-based flesh quality in the mid-tone zone.
+        # Raised-cosine window peaks at the centre of [mid_lo, mid_hi].
+        mid_cos    = _np.clip((lum - mid_lo) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0)
+        mid_window = 0.5 * (1.0 - _np.cos(_np.pi * mid_cos))   # 0→1→0 across band
+        mid_mask   = _gf(mid_window.astype(_np.float32), blur_radius)
+        mid_mask   = _np.clip(mid_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + mid_mask * ruddy_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + mid_mask * ruddy_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - mid_mask * ruddy_b, 0.0, 1.0)
+
+        # ── 3. Shadow amber retention ─────────────────────────────────────────
+        # Warm umber-chestnut quality in shadow zones — Jordaens never goes cold.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        sh_mask = _gf(sh_raw.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_mask * ochre_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * ochre_g, 0.0, 1.0)
+        # No blue adjustment in shadows — amber warmth only, no cool correction
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Jacob Jordaens earthy vitality pass complete.")

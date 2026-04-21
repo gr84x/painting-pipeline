@@ -9607,6 +9607,80 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jacob Jordaens ────────────────────────────────────────────────────────
+    "jordaens": ArtStyle(
+        artist="Jacob Jordaens",
+        movement="Antwerp Baroque / Flemish Naturalism",
+        nationality="Flemish",
+        period="c. 1615–1678",
+        palette=[
+            (0.88, 0.74, 0.55),   # warm ivory-cream highlight flesh — Antwerp daylight quality
+            (0.78, 0.58, 0.36),   # warm sienna mid-tone flesh — earthy, ruddy vitality
+            (0.54, 0.36, 0.18),   # warm umber-brown shadow flesh — never cold, always grounded
+            (0.68, 0.42, 0.22),   # deep ruddy shadow — warm chestnut, Jordaens' characteristic shadow colour
+            (0.82, 0.68, 0.28),   # warm golden ochre — sunlit fabric and drapery highlight
+            (0.58, 0.26, 0.16),   # deep red-brown — saturated shadow in warm fabric zones
+            (0.44, 0.38, 0.28),   # warm olive-grey background — earthy neutral ground
+        ],
+        ground_color=(0.48, 0.36, 0.20),    # warm sienna-ochre imprimatura — Antwerp Baroque ground
+        stroke_size=9,
+        wet_blend=0.38,                      # moderate-low — alla prima vitality; not Rubens' fluid alla prima but vigorous impasto
+        edge_softness=0.38,                  # moderate-crisp — naturalist found edges, more physical than Leonardo
+        jitter=0.035,                        # moderate — earthy spontaneity, not impressionistic scatter
+        glazing=(0.62, 0.48, 0.22),          # warm amber-ochre final glaze — unifying Antwerp warmth
+        crackle=True,                        # oil on canvas — 17th-century aging appropriate
+        chromatic_split=False,               # pure naturalism; no optical colour-splitting
+        technique=(
+            "Earthy vitality — the defining quality of Jacob Jordaens' Antwerp Baroque.  "
+            "Where his contemporary Rubens was cosmopolitan, drawing on Italian grand manner "
+            "and courtly elegance, Jordaens was resolutely Antwerp: earthy, robust, grounded "
+            "in the Flemish artisan tradition.  He never left Antwerp for Italy, and his art "
+            "reflects this: warmer, more ruddy, more physically present than Rubens' celestial "
+            "grandeur, with a vitality that feels genuinely observed rather than idealised.  "
+            "His flesh tones are characteristically warm and sienna-based — a ruddy, earthy quality "
+            "that reflects real Flemish skin under warm indoor light, without the polish of court "
+            "portraiture or the theatrical pallor of tenebrism.  His highlights are warm cream-ivory, "
+            "built up in thick impasto on the lit sides of faces and drapery — physically present "
+            "rather than glazed.  His shadows retain warmth even in the deepest passages: a warm "
+            "umber-chestnut that prevents figures from sinking into cold void.  "
+            "He was trained by Adam van Noort (also Rubens' teacher), absorbed the Flemish "
+            "workshop tradition of warm imprimatura grounds, and built his technique on loaded-brush "
+            "work with wet-into-wet blending — but his hand is heavier and more earthy than Rubens', "
+            "and his figures are more physically grounded.  After Rubens' death in 1640 he became the "
+            "leading master of Antwerp, executing large commissions and decorative schemes that "
+            "demonstrate his command of scale without losing his characteristic earthy intimacy.  "
+            "His palette is dominated by warm amber-ochre, sienna, and raw umber — the palette "
+            "of the Flemish artisan tradition — with brilliant highlights of warm cream-ivory "
+            "built in thick impasto on lit surfaces."
+        ),
+        famous_works=[
+            ("The King Drinks (Le Roi Boit)", "c. 1638"),
+            ("Satyr and Peasant", "c. 1620"),
+            ("The Allegory of Fertility", "c. 1617–1618"),
+            ("As the Old Sing, So the Young Pipe", "1638"),
+            ("The Triumph of Prince Frederick Henry", "1652"),
+            ("Portrait of a Young Married Couple", "c. 1620–1625"),
+            ("The Holy Family with Saint Anne", "c. 1616"),
+        ],
+        inspiration=(
+            "Apply jordaens_earthy_vitality_pass() as the defining stylistic pass.  "
+            "Three stages encoding Jordaens' warm Antwerp naturalism: "
+            "(1) Warm cream highlight lift — in the upper highlight zone (lum > hi_lo ≈ 0.72), "
+            "apply a warm cream lift: R + cream_r (modest), G + cream_g_small.  This is "
+            "Jordaens' impasto peak-light quality — warm cream-ivory, not cool silver — "
+            "built up in loaded-brush strokes on forehead, nose bridge, cheekbone, and chin.  "
+            "(2) Earthy sienna midtone warmth — in the mid-tone band [mid_lo, mid_hi], apply "
+            "a warm earthy boost: R + ruddy_r, G + ruddy_g, B - ruddy_b_damp.  This encodes "
+            "Jordaens' characteristic flesh quality — ruddy, warm, sienna-based — the quality "
+            "of real Flemish skin under warm indoor-ambient light.  "
+            "(3) Shadow amber retention — in shadow zones (lum < shadow_hi ≈ 0.38), add "
+            "warm amber-ochre: R + ochre_r, G + ochre_g_small.  Jordaens' shadows never go "
+            "cold or grey; they retain a warm chestnut-amber quality that keeps figures "
+            "physically grounded and alive.  "
+            "Use opacity ≈ 0.30–0.40."
+        ),
+    ),
+
     "moroni": ArtStyle(
         artist="Giovanni Battista Moroni",
         movement="Bergamasque Portrait Realism / Lombard Renaissance",

@@ -277,6 +277,7 @@ class Period(Enum):
     GENOESE_VENETIAN_BAROQUE = auto()  # Bernardo Strozzi — warm chestnut-amber shadows, bravura impasto highlights, saturated Venetian-Genoese colorism, loaded-brush vitality
     ROMAN_DEVOTIONAL_BAROQUE = auto()  # Sassoferrato — pure ultramarine glazing, porcelain skin translucency, devotional calm, seamless blending, psychological stillness
     ITALO_COURTLY_BAROQUE = auto()  # Orazio Gentileschi — cool silver north-window daylight, restrained Caravaggesque naturalism, chromatic fabric precision, courtly aristocratic elegance
+    ANTWERP_BAROQUE = auto()        # Jacob Jordaens — warm sienna-ochre ground, earthy ruddy flesh vitality, warm cream impasto highlights, amber shadow retention, grounded Flemish naturalism
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1282,6 +1283,12 @@ class Style:
             # wet_blend=0.52: controlled blending — smooth enough for ivory flesh, crisp enough for fabric edges.
             # edge_softness=0.48: moderate — softer than Bronzino's enamel, crisper than Leonardo's sfumato.
             Period.ITALO_COURTLY_BAROQUE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.52, edge_softness=0.48),
+            # ANTWERP_BAROQUE (Jacob Jordaens) — earthy loaded-brush vitality, warm imprimatura.
+            # stroke_size_face=8: robust brushwork — heavier than Moroni's precision, lighter than Hals' bravura.
+            # stroke_size_bg=26: backgrounds are often warm curtains or domestic interiors — moderate-broad.
+            # wet_blend=0.38: moderate — alla prima vitality; not Rubens' fluid blending, but vigorous impasto.
+            # edge_softness=0.38: moderate-crisp — naturalist found edges, physically grounded.
+            Period.ANTWERP_BAROQUE: dict(stroke_size_face=8, stroke_size_bg=26, wet_blend=0.38, edge_softness=0.38),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

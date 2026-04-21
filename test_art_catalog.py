@@ -125,6 +125,7 @@ EXPECTED_ARTISTS = [
     "moroni",
     "sassoferrato",
     "orazio_gentileschi",
+    "jordaens",
 ]
 
 
@@ -297,6 +298,8 @@ EXPECTED_PERIODS = [
     "BERGAMASQUE_PORTRAIT_REALISM",
     "GENOESE_VENETIAN_BAROQUE",
     "ROMAN_DEVOTIONAL_BAROQUE",
+    "ITALO_COURTLY_BAROQUE",
+    "ANTWERP_BAROQUE",
 ]
 
 
@@ -13467,3 +13470,72 @@ def test_roman_devotional_baroque_period_in_period_enum():
     """Period.ROMAN_DEVOTIONAL_BAROQUE must be accessible from scene_schema (session 110)."""
     from scene_schema import Period
     assert Period.ROMAN_DEVOTIONAL_BAROQUE in list(Period)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Jacob Jordaens — session 112 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_jordaens_in_catalog():
+    """Jordaens (session 112) must be present in CATALOG."""
+    assert "jordaens" in CATALOG
+
+
+def test_jordaens_movement():
+    s = get_style("jordaens")
+    assert "Antwerp" in s.movement or "Flemish" in s.movement
+
+
+def test_jordaens_palette_length():
+    s = get_style("jordaens")
+    assert len(s.palette) >= 5, "Jordaens palette should have at least 5 key colours"
+
+
+def test_jordaens_palette_values_in_range():
+    """All Jordaens palette RGB values must be in [0, 1]."""
+    s = get_style("jordaens")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Jordaens palette {rgb}")
+
+
+def test_jordaens_famous_works_includes_king_drinks():
+    s = get_style("jordaens")
+    titles = [w[0] for w in s.famous_works]
+    assert any("King" in t or "Roi" in t for t in titles), (
+        "Jordaens catalog entry should include 'The King Drinks' (Le Roi Boit)"
+    )
+
+
+def test_antwerp_baroque_period_in_period_enum():
+    """Period.ANTWERP_BAROQUE must be accessible from scene_schema (session 112)."""
+    from scene_schema import Period
+    assert Period.ANTWERP_BAROQUE in list(Period)
+
+
+def test_jordaens_earthy_vitality_pass_exists():
+    """Painter must have jordaens_earthy_vitality_pass() method after session 112."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "jordaens_earthy_vitality_pass"), (
+        "jordaens_earthy_vitality_pass not found on Painter")
+    assert callable(getattr(Painter, "jordaens_earthy_vitality_pass"))
+
+
+def test_jordaens_earthy_vitality_pass_runs():
+    """jordaens_earthy_vitality_pass() must run without error on a small canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.48, 0.36, 0.20), texture_strength=0.06)
+    p.jordaens_earthy_vitality_pass(opacity=0.34)
+
+
+def test_antwerp_baroque_stroke_params():
+    """ANTWERP_BAROQUE stroke_params must be a valid dict with expected warm impasto values."""
+    style = Style(medium=Medium.OIL, period=Period.ANTWERP_BAROQUE, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    assert params["stroke_size_face"] >= 6
+    assert 0.0 <= params["wet_blend"] <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
