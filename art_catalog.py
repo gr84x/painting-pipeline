@@ -10294,6 +10294,60 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Pompeo Batoni ─────────────────────────────────────────────────────────
+    "batoni": ArtStyle(
+        artist="Pompeo Batoni",
+        movement="Roman Classicism / Rococo-Classicism",
+        nationality="Italian",
+        period="1740–1787",
+        palette=[
+            (0.88, 0.74, 0.56),   # warm cream flesh — Batoni's celebrated carnations
+            (0.72, 0.56, 0.38),   # mid-tone ochre shadow
+            (0.48, 0.32, 0.18),   # deep umber shadow
+            (0.82, 0.68, 0.78),   # cool rose highlight — characteristic pink warmth
+            (0.42, 0.55, 0.72),   # Prussian blue drapery
+            (0.72, 0.35, 0.28),   # vermilion red — Grand Tour sitter coats
+            (0.88, 0.82, 0.60),   # warm ivory silk sheen highlight
+            (0.55, 0.62, 0.44),   # Roman verdaccio shadow green
+        ],
+        ground_color=(0.60, 0.50, 0.34),    # warm Roman imprimatura
+        stroke_size=6,
+        wet_blend=0.55,
+        edge_softness=0.65,
+        jitter=0.025,
+        glazing=(0.78, 0.65, 0.42),          # warm amber varnish
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Polished Roman Classicism with Rococo elegance.  Batoni's flesh tones "
+            "are warm, smooth, and luminous — a Roman refinement of Venetian colorism.  "
+            "His defining specialty: the rendering of silk and satin drapery via thin "
+            "anisotropic highlight streaks along the weave direction, creating a "
+            "directional shimmer unlike the isotropic highlights of his contemporaries.  "
+            "Glazed with warm amber to unify the palette; figures set against classical "
+            "Roman architecture or antique statuary backgrounds.  "
+            "Grand Tour portraiture: aristocratic sitters of impeccable finish."
+        ),
+        famous_works=[
+            ("Portrait of a Young Man (Grand Tour sitter)", "c. 1760"),
+            ("Thomas William Coke, later 1st Earl of Leicester", "1774"),
+            ("Portrait of Francis Basset", "1778"),
+            ("John Staples", "1773"),
+        ],
+        inspiration=(
+            "Apply batoni_silk_sheen_pass() as the defining stylistic pass.  "
+            "Batoni's silk rendering: directional anisotropic specular streaks along "
+            "a set angle (default 45°), Gaussian-profiled across their width.  "
+            "The session 119 artistic improvement is the anisotropic_silk_streak() "
+            "kernel — physically models the elongated highlight lobe of woven silk "
+            "(where the warp and weft threads reflect specular light preferentially "
+            "along the weave direction).  Warm ivory streaks (R + streak_r ≈ 0.032, "
+            "G + streak_g ≈ 0.022) applied only where luminance exceeds silk_lo ≈ 0.48.  "
+            "Streak width ~ 3–7 px, spacing ~ 8–14 px, angle ~ 40–50°.  "
+            "Use opacity ≈ 0.22–0.30."
+        ),
+    ),
+
 }
 
 

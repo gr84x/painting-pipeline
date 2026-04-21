@@ -197,6 +197,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_northern_renaissance":       period == Period.NORTHERN_RENAISSANCE,
         "is_quattrocento":               period == Period.QUATTROCENTO,
         "is_barbizon":                   period == Period.BARBIZON,
+        "is_roman_grand_tour":           period == Period.ROMAN_GRAND_TOUR_CLASSICISM,
         "is_renaissance_soft":           (period == Period.RENAISSANCE
                                           and sp.get("edge_softness", 0.0) >= 0.80),
     }
@@ -12690,3 +12691,108 @@ def test_lombard_leonardesque_stroke_params_high_sfumato():
     assert p["edge_softness"] >= 0.75, (
         f"LOMBARD_LEONARDESQUE edge_softness should be >= 0.75 for sfumato dissolution; "
         f"got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# batoni_silk_sheen_pass() tests — session 119
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_batoni_silk_sheen_pass_exists():
+    """Painter must have batoni_silk_sheen_pass() method after session 119."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "batoni_silk_sheen_pass"), (
+        "batoni_silk_sheen_pass not found on Painter — add it in stroke_engine.py")
+    assert callable(getattr(Painter, "batoni_silk_sheen_pass"))
+
+
+def test_batoni_silk_sheen_pass_no_error():
+    """batoni_silk_sheen_pass() must run without error on a small toned canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.34), texture_strength=0.06)
+    p.batoni_silk_sheen_pass(opacity=0.26)
+
+
+def test_batoni_silk_sheen_pass_modifies_canvas():
+    """batoni_silk_sheen_pass() must modify a bright canvas with high streak strength."""
+    p = _make_small_painter(64, 64)
+    # Use a bright canvas (lum >> silk_lo=0.48) to ensure the sheen mask is active
+    p.tone_ground((0.82, 0.74, 0.60), texture_strength=0.00)
+
+    before = _canvas_bytes(p)
+    # Use high streak_r/opacity so the sub-pixel rounding issue cannot mask the effect
+    p.batoni_silk_sheen_pass(silk_lo=0.20, streak_r=0.10, streak_g=0.06, opacity=1.0)
+    after = _canvas_bytes(p)
+
+    assert before != after, "batoni_silk_sheen_pass should modify the canvas"
+
+
+def test_batoni_silk_sheen_pass_zero_opacity_no_op():
+    """batoni_silk_sheen_pass() with opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.34), texture_strength=0.06)
+
+    before = _canvas_bytes(p)
+    p.batoni_silk_sheen_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, "batoni_silk_sheen_pass with opacity=0 must be a no-op"
+
+
+def test_batoni_silk_sheen_pass_warms_bright_pixels():
+    """batoni_silk_sheen_pass() must raise R channel on a bright mid-tone canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Use a bright warm-grey ground that exceeds silk_lo (0.48) everywhere
+    p.tone_ground((0.72, 0.65, 0.58), texture_strength=0.00)
+
+    orig_buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    orig_r = orig_buf[:, :, 2].astype(_np.float32).mean()
+
+    p.batoni_silk_sheen_pass(streak_r=0.08, opacity=1.0)
+
+    after_buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+
+    assert after_r >= orig_r, (
+        f"batoni_silk_sheen_pass must not reduce R channel on a bright canvas; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_batoni_silk_sheen_pass_preserves_canvas_shape():
+    """batoni_silk_sheen_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.55, 0.48, 0.36), texture_strength=0.05)
+    p.batoni_silk_sheen_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after batoni_silk_sheen_pass: {img.size}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ROMAN_GRAND_TOUR_CLASSICISM Period — session 119
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_roman_grand_tour_classicism_period_exists():
+    """Period.ROMAN_GRAND_TOUR_CLASSICISM must be in the Period enum (session 119)."""
+    from scene_schema import Period
+    assert hasattr(Period, "ROMAN_GRAND_TOUR_CLASSICISM"), (
+        "Period.ROMAN_GRAND_TOUR_CLASSICISM not found in scene_schema — add it")
+    assert Period.ROMAN_GRAND_TOUR_CLASSICISM in list(Period)
+
+
+def test_roman_grand_tour_classicism_stroke_params_moderate_blend():
+    """ROMAN_GRAND_TOUR_CLASSICISM stroke params: moderate wet_blend, moderate edge_softness."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ROMAN_GRAND_TOUR_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["wet_blend"] <= 0.75, (
+        f"ROMAN_GRAND_TOUR_CLASSICISM wet_blend should be moderate (0.40–0.75) "
+        f"for polished Classicist flesh; got {p['wet_blend']}")
+    assert 0.50 <= p["edge_softness"] <= 0.80, (
+        f"ROMAN_GRAND_TOUR_CLASSICISM edge_softness should be moderate (0.50–0.80) "
+        f"for clear Neoclassical definition; got {p['edge_softness']}")

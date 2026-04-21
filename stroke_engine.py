@@ -28936,3 +28936,103 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Giovanni Gerolamo Savoldo silver moonveil pass complete.")
+
+    def batoni_silk_sheen_pass(
+        self,
+        streak_angle:   float = 45.0,
+        streak_width:   float = 4.0,
+        streak_spacing: float = 11.0,
+        silk_lo:        float = 0.48,
+        streak_r:       float = 0.032,
+        streak_g:       float = 0.022,
+        streak_b:       float = 0.008,
+        blur_along:     float = 12.0,
+        blur_across:    float = 1.5,
+        opacity:        float = 0.26,
+    ) -> None:
+        """
+        Pompeo Batoni anisotropic silk-sheen pass — session 119 new artist pass.
+
+        Pompeo Batoni (1708–1787), the most celebrated portraitist in 18th-century
+        Rome, was famed above all for his rendering of silk and satin drapery.  His
+        technique produced a directional sheen unlike anything achieved by his
+        contemporaries — a pattern of warm ivory highlight streaks running along the
+        weave direction of the fabric, creating an anisotropic shimmer that reads
+        immediately as woven silk.  This quality is vivid in his Grand Tour portraits
+        (Thomas William Coke, Francis Basset, John Staples) where the sitters'
+        red, blue, or gold coats have a liquid, fabric-specific luminosity.
+
+        The defining optical phenomenon is *anisotropic specular reflectance*: woven
+        silk reflects specular light preferentially along the warp/weft thread
+        direction rather than isotropically.  Each thread acts as a cylindrical
+        mirror; the highlight lobe is elongated along the thread axis and narrow
+        across it.  This is distinct from the diffuse or spherical-Gaussian
+        highlights of portrait masters working in oil without this speciality.
+
+        The session 119 artistic improvement is the *anisotropic_silk_streak kernel*:
+        a directional Gaussian kernel whose sigma along the streak angle (blur_along)
+        is much larger than its sigma across it (blur_across).  Applied only where
+        luminance exceeds silk_lo (the mid-bright zone where silk sheen is visible),
+        the elongated kernel creates streaks of warm ivory at the given angle.
+        Warm ivory tone: R + streak_r, G + streak_g, B + streak_b — slightly warm,
+        never cold.  This models the warm daylight reflected by high-quality silk
+        in a Roman interior lit by tall south-facing windows, as in Batoni's studio.
+
+        Parameters
+        ----------
+        streak_angle   : angle of silk weave direction in degrees (0 = horizontal)
+        streak_width   : Gaussian sigma *across* the streak (px) — narrower = finer
+        streak_spacing : not used in the kernel but documents the visual periodicity
+        silk_lo        : luminance threshold below which no sheen is applied
+        streak_r/g/b   : warm ivory colour increment of the sheen
+        blur_along     : Gaussian sigma *along* the streak — controls streak length
+        blur_across    : Gaussian sigma across the streak (controls streak width)
+        opacity        : blend factor against the original canvas
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Silk luminance mask — sheen only in mid-bright zone ────────────────
+        silk_mask_raw = _np.clip((lum - silk_lo) / (1.0 - silk_lo + 1e-6), 0.0, 1.0)
+
+        # ── Anisotropic directional blur — the session 119 improvement ────────
+        # Build an anisotropic Gaussian kernel by filtering twice in rotated
+        # coordinates.  The streak direction is streak_angle degrees; we rotate
+        # the image, apply separable 1-D Gaussians (long along axis-1, short along
+        # axis-0), then rotate back.  scipy.ndimage.rotate handles the geometry.
+        from scipy.ndimage import rotate as _rot
+        theta = streak_angle % 180.0
+        silk_rot = _rot(silk_mask_raw, -theta, reshape=False, order=1, mode="nearest")
+        # Along-streak (axis=1) — elongated highlight lobe
+        silk_rot = _gf(silk_rot, sigma=[blur_across, blur_along])
+        # Rotate back
+        silk_dir = _rot(silk_rot, theta, reshape=False, order=1, mode="nearest")
+        silk_dir = _np.clip(silk_dir, 0.0, 1.0)
+
+        # ── Apply warm ivory sheen increment ──────────────────────────────────
+        r_out = _np.clip(r0 + silk_dir * streak_r, 0.0, 1.0)
+        g_out = _np.clip(g0 + silk_dir * streak_g, 0.0, 1.0)
+        b_out = _np.clip(b0 + silk_dir * streak_b, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Pompeo Batoni anisotropic silk-sheen pass complete.")
