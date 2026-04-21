@@ -12929,3 +12929,114 @@ def test_venetian_eccentric_portraiture_stroke_params_moderate_blend():
     assert 0.40 <= p["edge_softness"] <= 0.70, (
         f"VENETIAN_ECCENTRIC_PORTRAITURE edge_softness should be moderate (0.40–0.70) "
         f"for psychological acuity; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Giovanni Boldini / ITALIAN_BELLE_EPOQUE_PORTRAITURE / boldini_swirl_bravura_pass -- s121
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_boldini_swirl_bravura_pass_exists():
+    """Painter must have a boldini_swirl_bravura_pass method (session 121)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, 'boldini_swirl_bravura_pass'), (
+        'Painter is missing boldini_swirl_bravura_pass -- add it to stroke_engine.py')
+
+
+def test_boldini_swirl_bravura_pass_modifies_canvas():
+    """boldini_swirl_bravura_pass() must alter the canvas from its initial state."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [130, 145, 190, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.boldini_swirl_bravura_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4))
+    assert not _np.array_equal(before, after), (
+        'boldini_swirl_bravura_pass should change the canvas when opacity=1.0')
+
+
+def test_boldini_swirl_bravura_pass_opacity_zero_is_noop():
+    """boldini_swirl_bravura_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [130, 145, 190, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.boldini_swirl_bravura_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        'boldini_swirl_bravura_pass(opacity=0) should be a noop')
+
+
+def test_boldini_swirl_bravura_pass_brightens_highlights():
+    """
+    boldini_swirl_bravura_pass must brighten highlight pixels in the figure zone
+    (the swirl field adds warm ivory to upper mid-tones and highlights).
+    """
+    import numpy as _np
+    from stroke_engine import Painter
+    p = _make_small_painter(64, 64)
+    # Fill with bright mid-tone — well above swirl_lo default (0.42)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    # BGRA: B=130, G=150, R=190, A=255 → lum ≈ 0.56 (in swirl zone)
+    data[:, :, :] = [130, 150, 190, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+
+    p.boldini_swirl_bravura_pass(swirl_str=0.12, opacity=1.0,
+                                  dark_factor=1.0, bg_warm_r=0.0)
+
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+
+    assert after_r >= orig_r, (
+        f"boldini_swirl_bravura_pass must raise R channel on bright canvas; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_boldini_swirl_bravura_pass_preserves_canvas_shape():
+    """boldini_swirl_bravura_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.28, 0.20, 0.13), texture_strength=0.05)
+    p.boldini_swirl_bravura_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after boldini_swirl_bravura_pass: {img.size}")
+
+
+def test_boldini_swirl_bravura_pass_dual_angle_parameters():
+    """boldini_swirl_bravura_pass must accept both primary_angle and secondary_angle."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.boldini_swirl_bravura_pass)
+    assert "primary_angle" in sig.parameters, (
+        "boldini_swirl_bravura_pass must have 'primary_angle' parameter "
+        "(dominant swirl direction — session 121 dual-angle improvement)")
+    assert "secondary_angle" in sig.parameters, (
+        "boldini_swirl_bravura_pass must have 'secondary_angle' parameter "
+        "(crossing swirl direction — session 121 dual-angle improvement)")
+
+
+def test_italian_belle_epoque_portraiture_period_exists():
+    """Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE must be in the Period enum (session 121)."""
+    from scene_schema import Period
+    assert hasattr(Period, "ITALIAN_BELLE_EPOQUE_PORTRAITURE"), (
+        "Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE not found in scene_schema -- add it")
+    assert Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE in list(Period)
+
+
+def test_italian_belle_epoque_portraiture_stroke_params_low_wet_blend():
+    """ITALIAN_BELLE_EPOQUE_PORTRAITURE stroke params: low wet_blend for directional bravura."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] < 0.45, (
+        f"ITALIAN_BELLE_EPOQUE_PORTRAITURE wet_blend should be low (< 0.45) "
+        f"for Boldini's directional swirl bravura; got {p['wet_blend']}")

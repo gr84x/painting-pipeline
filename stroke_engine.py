@@ -29186,3 +29186,196 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Lorenzo Lotto multi-scale chromatic vibration pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def boldini_swirl_bravura_pass(
+        self,
+        primary_angle:   float = 45.0,    # primary swirl angle (degrees from horizontal)
+        secondary_angle: float = -28.0,   # secondary swirl angle (degrees from horizontal)
+        swirl_lo:        float = 0.42,    # luminance floor for swirl mask
+        blur_along:      float = 14.0,    # aniso Gaussian sigma along streak axis (px)
+        blur_across:     float = 1.5,     # aniso Gaussian sigma across streak axis (px)
+        swirl_str:       float = 0.038,   # primary streak brightness increment
+        flesh_lo:        float = 0.50,    # luminance floor for flesh luminosity zone
+        flesh_hi:        float = 0.85,    # luminance ceiling for flesh luminosity zone
+        flesh_r:         float = 0.016,   # R lift in flesh zone (warm ivory)
+        flesh_g:         float = 0.009,   # G lift in flesh zone
+        flesh_b:         float = 0.005,   # B reduction in flesh zone (de-cool)
+        dark_factor:     float = 0.94,    # background darkening multiplier
+        bg_warm_r:       float = 0.005,   # warm undertone added to background
+        blur_radius:     float = 4.0,     # Gaussian sigma for mask transitions
+        opacity:         float = 0.32,
+    ) -> None:
+        """
+        Giovanni Boldini dual-angle swirl bravura pass — session 121 new artist pass.
+
+        Giovanni Boldini (1842–1931), the Ferrarese-born 'Master of Swirl' and supreme
+        virtuoso of Belle Époque portraiture in Paris, developed a technique unlike any
+        of his contemporaries: the diagonal swirling brushstroke applied at two or more
+        competing angles across the canvas surface.  The result is a visual vibration —
+        the painted surface itself appears to be in motion.  Only the face and hands
+        emerge as resolved zones of focus; drapery, hair, and background environment
+        dissolve into directional gestural energy.
+
+        This pass encodes Boldini's visual signature in three interlocking stages:
+
+        **Stage 1 — Dual-angle diagonal swirl field** (session 121 artistic improvement)
+        The defining feature of Boldini's technique is that his strokes cross at two
+        competing angles rather than aligning in a single direction like Batoni's silk
+        sheen (session 119).  Two anisotropic streak fields are computed:
+
+          - Primary field at primary_angle (default 45°): the dominant swirl direction.
+          - Secondary field at secondary_angle (default -28°): the crossing energy.
+
+        Each field is built by:
+          (a) Extracting the luminance swirl mask (lum > swirl_lo, cosine ramp).
+          (b) Rotating the mask by -angle, applying an anisotropic Gaussian
+              (σ_along >> σ_across: long along axis-1, narrow along axis-0), rotating back.
+          (c) Clipping to [0, 1].
+
+        The two fields are combined: primary at swirl_str, secondary at swirl_str × 0.50.
+        Applied as a warm ivory brightness increment (R += total_swirl * swirl_str,
+        G += total_swirl * swirl_str * 0.65, B += total_swirl * swirl_str * 0.20) in
+        the figure zone.  The warm-ivory tint mimics the loaded-lead-white highlights
+        that Boldini dragged across his canvases.
+
+        **Stage 2 — Warm flesh luminosity lift**
+        In the upper mid-tone zone of the figure (luminance 0.50–0.85), apply a
+        sin²-bell-weighted lift: R + flesh_r, G + flesh_g, B - flesh_b.  Boldini's
+        flesh tones are warmer than those of his Impressionist contemporaries — a warm
+        ivory with a faint rose-tawny undertone that contrasts sharply with the cool
+        near-black background.  This stage reinforces the luminous emergence of the
+        figure from the dark ground.
+
+        **Stage 3 — Background darkening**
+        In the background zone (outside the figure mask), multiply all channels by
+        dark_factor (< 1.0) and add a faint warm undertone (R += bg_warm_r).  Boldini's
+        backgrounds have a deep chestnut-umber quality — not pure neutral black but a
+        very dark warm ground that reinforces the warm tonal hierarchy of the composition
+        and makes the luminous flesh advance powerfully.
+
+        Parameters
+        ----------
+        primary_angle   : angle of the dominant swirl direction (degrees from horizontal)
+        secondary_angle : angle of the crossing swirl direction (degrees from horizontal)
+        swirl_lo        : luminance floor for the swirl activation mask
+        blur_along      : Gaussian sigma along the streak axis (px) — controls streak length
+        blur_across     : Gaussian sigma across the streak axis (px) — controls streak width
+        swirl_str       : warm ivory brightness increment for the primary streak field
+        flesh_lo        : luminance floor of the flesh luminosity zone (0–1)
+        flesh_hi        : luminance ceiling of the flesh luminosity zone (0–1)
+        flesh_r/g/b     : warm ivory flesh lift (flesh_b is subtracted to de-cool)
+        dark_factor     : background darkening multiplier (< 1.0 darkens)
+        bg_warm_r       : warm amber undertone added to background R channel
+        blur_radius     : Gaussian sigma for zone transition masks
+        opacity         : global compositing weight (0 = no effect, 1 = full)
+
+        Notes
+        -----
+        Characteristic works:
+          *Portrait of the Marchesa Luisa Casati* (1908, private collection) —
+              the fullest expression of the dual-angle swirl technique.
+          *Portrait of Madame Charles Max* (1896, Musée d'Orsay) —
+              luminous warm flesh, near-black swirling background.
+        """
+        print(f"Boldini dual-angle swirl bravura pass  "
+              f"(opacity={opacity:.2f}  primary={primary_angle:.0f}°  "
+              f"secondary={secondary_angle:.0f}°  swirl_str={swirl_str:.3f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+        from scipy.ndimage import rotate as _rot
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Figure / background masks ────────────────────────────────────────
+        if self._figure_mask is not None:
+            fig_mask = _np.clip(self._figure_mask, 0.0, 1.0)
+        else:
+            fig_mask = _np.ones((H, W), dtype=_np.float32)
+        bg_mask = _np.clip(1.0 - fig_mask, 0.0, 1.0)
+
+        # ── Stage 1: Dual-angle diagonal swirl field ─────────────────────────
+        # Boldini's signature: two competing diagonal stroke directions.
+        # Base swirl mask: smooth cosine ramp above swirl_lo.
+        swirl_raw = _np.clip((lum - swirl_lo) / (1.0 - swirl_lo + 1e-6), 0.0, 1.0)
+        swirl_cos = 0.5 * (1.0 - _np.cos(_np.pi * swirl_raw))
+        swirl_cos = _gf(swirl_cos.astype(_np.float32), sigma=blur_radius)
+        swirl_cos = _np.clip(swirl_cos, 0.0, 1.0)
+
+        def _aniso_streak(mask_2d, angle_deg):
+            """Anisotropic Gaussian in direction angle_deg: long along, narrow across."""
+            theta = float(angle_deg) % 180.0
+            # Rotate so the desired direction becomes horizontal (axis-1)
+            rotated = _rot(mask_2d, -theta, reshape=False, order=1, mode="nearest")
+            # axis=0 = across (narrow), axis=1 = along (elongated)
+            blurred = _gf(rotated, sigma=[blur_across, blur_along])
+            # Rotate back
+            result = _rot(blurred, theta, reshape=False, order=1, mode="nearest")
+            return _np.clip(result, 0.0, 1.0)
+
+        primary_streak   = _aniso_streak(swirl_cos, primary_angle)
+        secondary_streak = _aniso_streak(swirl_cos, secondary_angle)
+
+        # Combine: primary at full strength, secondary at half
+        total_swirl = primary_streak + secondary_streak * 0.50
+        # Clamp to avoid over-brightening
+        total_swirl = _np.clip(total_swirl, 0.0, 1.0) * fig_mask
+
+        # Apply warm ivory brightness along streak axes
+        r_out = _np.clip(r_out + total_swirl * swirl_str,          0.0, 1.0)
+        g_out = _np.clip(g_out + total_swirl * swirl_str * 0.65,   0.0, 1.0)
+        b_out = _np.clip(b_out + total_swirl * swirl_str * 0.20,   0.0, 1.0)
+
+        # ── Stage 2: Warm flesh luminosity lift ──────────────────────────────
+        # Boldini's flesh tones are warm ivory-rose — warmer than Sargent.
+        # Bell mask over the flesh luminosity zone.
+        flesh_raw  = _np.clip(
+            (lum - flesh_lo) / max(0.01, flesh_hi - flesh_lo), 0.0, 1.0
+        ) * _np.clip(
+            1.0 - (lum - flesh_hi) / max(0.01, 1.0 - flesh_hi), 0.0, 1.0
+        ) * fig_mask
+        flesh_mask = _gf(flesh_raw.astype(_np.float32), sigma=blur_radius)
+        flesh_mask = _np.clip(flesh_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + flesh_mask * flesh_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + flesh_mask * flesh_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - flesh_mask * flesh_b, 0.0, 1.0)
+
+        # ── Stage 3: Background darkening ────────────────────────────────────
+        # Boldini's backgrounds: deep warm chestnut-umber, not pure neutral black.
+        bg = _gf(bg_mask, sigma=blur_radius)
+        bg = _np.clip(bg, 0.0, 1.0)
+
+        r_out = r_out * (1.0 - bg) + (r_out * dark_factor + bg_warm_r) * bg
+        g_out = g_out * (1.0 - bg) + (g_out * dark_factor) * bg
+        b_out = b_out * (1.0 - bg) + (b_out * dark_factor) * bg
+        r_out = _np.clip(r_out, 0.0, 1.0)
+        g_out = _np.clip(g_out, 0.0, 1.0)
+        b_out = _np.clip(b_out, 0.0, 1.0)
+
+        # ── Composite at opacity ─────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Giovanni Boldini dual-angle swirl bravura pass complete.")

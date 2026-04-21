@@ -286,6 +286,7 @@ class Period(Enum):
     BRESCIAN_SILVER_NOCTURNE  = auto()  # Savoldo — cool silver moonveil at the penumbra boundary, phosphorescent drapery shimmer, warm ivory highlights, near-nocturnal atmospheric depth
     ROMAN_GRAND_TOUR_CLASSICISM = auto()  # Batoni — polished Roman-Classicist flesh with anisotropic silk-sheen streaks, warm Rococo carnations, amber-glazed finish
     VENETIAN_ECCENTRIC_PORTRAITURE = auto()  # Lotto — vivid eccentric color contrasts, multi-scale chromatic vibration field, warm rose-ivory highlights, cool shadow accents, psychological intensity
+    ITALIAN_BELLE_EPOQUE_PORTRAITURE = auto()  # Boldini — dual-angle swirl bravura, luminous warm flesh emerging from near-black grounds, aristocratic vivacity
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1345,6 +1346,12 @@ class Style:
             # wet_blend=0.45: moderate — surfaces have chromatic energy, not fully blended like Titian.
             # edge_softness=0.52: moderate — psychological acuity; clearer than sfumato masters.
             Period.VENETIAN_ECCENTRIC_PORTRAITURE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.45, edge_softness=0.52),
+            # ITALIAN_BELLE_EPOQUE_PORTRAITURE (Giovanni Boldini) — dual-angle swirl bravura, dark grounds, luminous warm flesh.
+            # stroke_size_face=6: medium-fine for flesh — face rendered with more precision than flowing, gestural surroundings.
+            # stroke_size_bg=24: loose background strokes — Boldini's backgrounds dissolve into directional gestural energy.
+            # wet_blend=0.28: low — loose directional marks, each stroke retaining individual energy; not heavily blended.
+            # edge_softness=0.50: moderate — figures emerge softly from dark grounds with luminous edge quality.
+            Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE: dict(stroke_size_face=6, stroke_size_bg=24, wet_blend=0.28, edge_softness=0.50),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
