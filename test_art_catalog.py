@@ -128,6 +128,7 @@ EXPECTED_ARTISTS = [
     "jordaens",
     "guido_cagnacci",
     "furini",
+    "lavinia_fontana",
 ]
 
 
@@ -13681,3 +13682,148 @@ def test_emilian_rosy_baroque_period_in_period_enum():
     from scene_schema import Period
     assert Period.EMILIAN_ROSY_BAROQUE in list(Period), (
         "Period.EMILIAN_ROSY_BAROQUE not found — add it to scene_schema.py Period enum")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# lavinia_fontana — session 115 new artist
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_lavinia_fontana_in_catalog():
+    """lavinia_fontana must be present in CATALOG after session 115."""
+    assert "lavinia_fontana" in CATALOG, (
+        "lavinia_fontana not found in CATALOG — add her to art_catalog.py")
+
+
+def test_lavinia_fontana_in_expected_artists():
+    """lavinia_fontana must appear in EXPECTED_ARTISTS."""
+    assert "lavinia_fontana" in EXPECTED_ARTISTS
+
+
+def test_lavinia_fontana_palette_valid():
+    """All palette colours must be in [0, 1]."""
+    s = get_style("lavinia_fontana")
+    for i, rgb in enumerate(s.palette):
+        for j, v in enumerate(rgb):
+            assert 0.0 <= v <= 1.0, (
+                f"lavinia_fontana palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_lavinia_fontana_warm_rose_highlight():
+    """
+    Fontana's highlight flesh is warm rose-ivory — R must dominate (R > B).
+    """
+    s = get_style("lavinia_fontana")
+    r, g, b = s.palette[0]
+    assert r > b, (
+        f"lavinia_fontana palette[0]: highlight must be warm (R={r:.3f} > B={b:.3f}) "
+        "— Bolognese rose-ivory warmth, not cool silver")
+
+
+def test_lavinia_fontana_crimson_costume_entry():
+    """
+    Fontana's crimson costume palette entry must be strongly red-dominant (R >> B).
+    """
+    s = get_style("lavinia_fontana")
+    r, g, b = s.palette[3]
+    assert r > b * 2.0, (
+        f"lavinia_fontana palette[3] (crimson costume): R={r:.3f} should be strongly "
+        f"greater than B={b:.3f} — deep crimson velvet signature")
+
+
+def test_lavinia_fontana_warm_ground():
+    """
+    Fontana's ground must be warm (R > B) — Bolognese warm ochre tradition.
+    """
+    s = get_style("lavinia_fontana")
+    r, _, b = s.ground_color
+    assert r > b, (
+        f"lavinia_fontana ground_color must be warm (R={r:.3f} > B={b:.3f}) "
+        "— Bolognese warm ochre ground")
+
+
+def test_lavinia_fontana_moderate_wet_blend():
+    """
+    Fontana's wet_blend must be moderate-high (>= 0.55) for glazed Bolognese finish.
+    """
+    s = get_style("lavinia_fontana")
+    assert s.wet_blend >= 0.55, (
+        f"lavinia_fontana wet_blend={s.wet_blend:.2f} too low — should be >= 0.55 "
+        "for glazed Bolognese high finish")
+
+
+def test_lavinia_fontana_moderate_edge_softness():
+    """
+    Fontana's edge_softness must be moderate (>= 0.50) — refined edges, not Bronzino enamel.
+    """
+    s = get_style("lavinia_fontana")
+    assert s.edge_softness >= 0.50, (
+        f"lavinia_fontana edge_softness={s.edge_softness:.2f} too low — should be >= 0.50 "
+        "for refined Bolognese edges")
+
+
+def test_lavinia_fontana_warm_glaze():
+    """
+    Fontana's unifying glaze must be warm amber-rose (R > B).
+    """
+    s = get_style("lavinia_fontana")
+    assert s.glazing is not None, "lavinia_fontana glazing should not be None"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"lavinia_fontana glazing must be warm (R={r:.3f} > B={b:.3f}) "
+        "— warm amber-rose unifying glaze, Bolognese warmth tradition")
+
+
+def test_lavinia_fontana_movement_bolognese():
+    """
+    Fontana's movement must reference the Bolognese tradition.
+    """
+    s = get_style("lavinia_fontana")
+    assert "Bolognese" in s.movement or "bolognese" in s.movement.lower(), (
+        f"lavinia_fontana movement={s.movement!r} must reference Bolognese tradition")
+
+
+def test_fontana_jewel_costume_pass_exists():
+    """Painter must expose fontana_jewel_costume_pass (session 115 new pass)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "fontana_jewel_costume_pass"), (
+        "Painter.fontana_jewel_costume_pass not found — add it to stroke_engine.py"
+    )
+
+
+def test_fontana_jewel_costume_pass_opacity_parameter():
+    """fontana_jewel_costume_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.fontana_jewel_costume_pass)
+    assert "opacity" in sig.parameters, (
+        "fontana_jewel_costume_pass must have 'opacity' parameter"
+    )
+
+
+def test_fontana_jewel_costume_pass_crimson_r_parameter():
+    """fontana_jewel_costume_pass must accept crimson_r for costume zone warmth."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.fontana_jewel_costume_pass)
+    assert "crimson_r" in sig.parameters, (
+        "fontana_jewel_costume_pass must have 'crimson_r' parameter "
+        "(primary costume crimson warmth component)"
+    )
+
+
+def test_fontana_jewel_costume_pass_ivory_r_parameter():
+    """fontana_jewel_costume_pass must accept ivory_r for highlight warmth."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.fontana_jewel_costume_pass)
+    assert "ivory_r" in sig.parameters, (
+        "fontana_jewel_costume_pass must have 'ivory_r' parameter "
+        "(warm ivory lift at highlight peaks)"
+    )
+
+
+def test_bolognese_mannerist_portraiture_period_in_period_enum():
+    """Period.BOLOGNESE_MANNERIST_PORTRAITURE must be accessible from scene_schema (session 115)."""
+    from scene_schema import Period
+    assert Period.BOLOGNESE_MANNERIST_PORTRAITURE in list(Period), (
+        "Period.BOLOGNESE_MANNERIST_PORTRAITURE not found — add it to scene_schema.py Period enum")

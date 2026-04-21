@@ -28432,3 +28432,152 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Francesco Furini melancholic sfumato pass complete.")
+
+    def fontana_jewel_costume_pass(
+        self,
+        hi_lo:          float = 0.70,
+        ivory_r:        float = 0.012,
+        ivory_g:        float = 0.007,
+        ivory_b:        float = 0.002,
+        costume_lo:     float = 0.18,
+        costume_hi:     float = 0.46,
+        crimson_r:      float = 0.020,
+        crimson_g:      float = 0.003,
+        crimson_b:      float = 0.007,
+        shadow_hi:      float = 0.22,
+        amber_r:        float = 0.014,
+        amber_g:        float = 0.006,
+        blur_radius:    float = 3.0,
+        opacity:        float = 0.28,
+    ) -> None:
+        """
+        Lavinia Fontana jewel costume pass — session 115 new artist pass.
+
+        Lavinia Fontana (1552–1614) was the first woman in Western history to
+        establish herself as a fully professional artist.  Daughter of the Bolognese
+        painter Prospero Fontana, she trained in one of the most technically rigorous
+        workshops in northern Italy — the same Bolognese environment that would,
+        within a generation, produce the Carracci academy and its reform of European
+        painting.  She eventually received a papal invitation to Rome from Clement VIII,
+        and her work entered royal and papal collections across Europe.
+
+        Her technical inheritance is unmistakably Bolognese: a warm, amber-toned
+        ground, smooth flesh modelling built up through careful glazed layers, and an
+        approach to luminosity that owes more to Correggio's atmospheric warmth than
+        to the cool silver precision of the Lombard portrait tradition.  Where Moroni
+        observes his sitters under flat north light with tonal accuracy, Fontana
+        idealises slightly — lifting the flesh toward a rose-ivory warmth that flatters
+        without falsifying.
+
+        Her defining technical signature is the rendering of costume and jewellery.
+        No other Italian painter of the late sixteenth century matched her command of
+        deep crimson velvet — the fabric of choice for Bolognese nobility — rendered
+        with such material convincingness.  The darkness of the velvet is not the
+        near-black void of a Caravaggio or the flat black of a Bronzino; it is a warm,
+        rich darkness with crimson depth visible in the folds and highlights, achieved
+        through multiple translucent glazes of vermilion and lake over a warm umber
+        underlayer.  Against this costume depth, gold jewellery — pearl necklaces,
+        gold chains, gem-set brooches — reads with extraordinary vivacity because the
+        warm gold simultaneously highlights against dark velvet and ties the figure's
+        costume palette together.
+
+        Bolognese painters never let their shadows go cold or grey; even in the
+        near-black void of the background, there is recoverable warm amber — the
+        quality that makes Bolognese portraits feel inhabited and warm rather than
+        theatrically dramatic.
+
+        This pass encodes all three qualities through three controlled operations:
+
+          1. Highlight warm brilliance — In the upper highlight zone (lum > hi_lo),
+             apply a gentle warm ivory lift: R + ivory_r, G + ivory_g, B + ivory_b.
+             The Gaussian-blurred mask ensures the highlight blooms without a hard
+             edge — Bolognese luminosity is warm and present, distinct from Moroni's
+             cool silver or Boltraffio's pearled quality.
+
+          2. Costume crimson depth — In the dark costume zone [costume_lo, costume_hi],
+             apply a raised-cosine warm crimson enrichment: R + crimson_r,
+             G + crimson_g (tiny), B - crimson_b (slight reduction to prevent purple
+             drift).  This replicates Fontana's signature deep crimson velvet quality —
+             the warm, saturated darkness that gives costume zones their material
+             richness, contrasting with the cold dark of a Bronzino or the void dark
+             of a Caravaggio.
+
+          3. Shadow amber warmth — In the deepest shadow zone (lum < shadow_hi), add
+             warm amber retention: R + amber_r, G + amber_g.  The Bolognese warmth
+             in the deepest tones — never cold grey, never void black.
+
+        Parameters
+        ----------
+        hi_lo       : lower luminance threshold for highlight zone (lum > this)
+        ivory_r     : red lift in highlights (warm Bolognese ivory glow)
+        ivory_g     : green lift in highlights (warm but not pure yellow)
+        ivory_b     : blue lift in highlights (tiny — prevents coolness)
+        costume_lo  : lower bound of costume crimson zone
+        costume_hi  : upper bound of costume crimson zone
+        crimson_r   : red lift in costume zone (warm crimson velvet depth)
+        crimson_g   : green lift in costume zone (tiny — amber quality, not pure red)
+        crimson_b   : blue reduction in costume zone (prevents purple shift)
+        shadow_hi   : upper luminance threshold for shadow amber zone (lum < this)
+        amber_r     : red lift in deep shadows (amber warmth retention)
+        amber_g     : green lift in deep shadows (amber, not pure red)
+        blur_radius : Gaussian sigma for mask feathering
+        opacity     : overall composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Highlight warm brilliance ──────────────────────────────────────
+        # Warm rose-ivory luminosity at peak flesh — Bolognese warmth, not cool silver.
+        hi_raw  = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * ivory_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * ivory_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask * ivory_b, 0.0, 1.0)
+
+        # ── 2. Costume crimson depth ──────────────────────────────────────────
+        # Raised-cosine enrichment in the dark costume zone — Fontana's velvet signature.
+        # Peaks at the centre of [costume_lo, costume_hi], fading toward both extremes.
+        cos_raw    = _np.clip((lum - costume_lo) / (costume_hi - costume_lo + 1e-6), 0.0, 1.0)
+        cos_window = 0.5 * (1.0 - _np.cos(_np.pi * cos_raw))
+        cos_mask   = _gf(cos_window.astype(_np.float32), blur_radius)
+        cos_mask   = _np.clip(cos_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + cos_mask * crimson_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + cos_mask * crimson_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - cos_mask * crimson_b, 0.0, 1.0)
+
+        # ── 3. Shadow amber warmth ────────────────────────────────────────────
+        # Warm amber retention in the deepest shadow zones — Bolognese never goes cold.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        sh_mask = _gf(sh_raw.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_mask * amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * amber_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Lavinia Fontana jewel costume pass complete.")

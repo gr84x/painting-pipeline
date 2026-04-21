@@ -9844,6 +9844,102 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "lavinia_fontana": ArtStyle(
+        artist="Lavinia Fontana",
+        movement="Bolognese Mannerism / Post-Tridentine Portrait Realism",
+        nationality="Italian",
+        period="c. 1575–1614",
+        palette=[
+            (0.88, 0.74, 0.62),   # warm rose-ivory highlight flesh (Bolognese warmth)
+            (0.74, 0.56, 0.44),   # warm peach mid-tone flesh
+            (0.50, 0.32, 0.24),   # warm sienna shadow flesh
+            (0.62, 0.16, 0.16),   # deep crimson costume (signature velvet richness)
+            (0.14, 0.10, 0.08),   # near-black velvet costume shadow
+            (0.78, 0.66, 0.26),   # warm gold jewellery and trim
+            (0.54, 0.46, 0.36),   # warm buff architectural background
+        ],
+        ground_color=(0.46, 0.38, 0.28),    # warm ochre Bolognese ground
+        stroke_size=5,
+        wet_blend=0.62,                      # moderate-high — glazed finish, not full sfumato
+        edge_softness=0.58,                  # moderate-soft — refined Bolognese edges
+        jitter=0.016,                        # low: controlled portrait precision
+        glazing=(0.68, 0.54, 0.38),          # warm amber-rose unifying glaze
+        crackle=True,                        # oil on canvas — appropriate for period
+        chromatic_split=False,               # pure tonal portraiture, no colour splitting
+        technique=(
+            "Lavinia Fontana (1552–1614) was the first woman in Western history to "
+            "establish herself as a fully professional artist — not a court ornament or "
+            "noble amateur, but a working painter who supported her household through "
+            "commissions, employed her husband as studio assistant, and eventually "
+            "received a papal invitation to Rome from Clement VIII.  Daughter of the "
+            "Bolognese painter Prospero Fontana, she trained in one of the most "
+            "technically rigorous workshops in northern Italy — the same Bolognese "
+            "environment that would, within a generation, produce the Carracci academy "
+            "and its reform of European painting.  "
+            "Her technical inheritance is unmistakably Bolognese: a warm, amber-toned "
+            "ground, smooth flesh modeling built up through careful glazed layers, and "
+            "an approach to luminosity that owes more to Correggio's atmospheric warmth "
+            "than to the cool silver precision of the Lombard portrait tradition.  "
+            "Where Moroni observes his sitters under flat north light and records them "
+            "with tonal accuracy, Fontana idealises slightly — lifting the flesh toward "
+            "a rose-ivory warmth that flatters without falsifying.  "
+            "Her defining technical signature, however, is the rendering of costume and "
+            "jewellery.  No other Italian painter of the late sixteenth century matched "
+            "her command of deep crimson velvet — the fabric of choice for Bolognese "
+            "nobility — rendered with such material convincingness.  The darkness of the "
+            "velvet is not the near-black void of a Caravaggio or the flat black of a "
+            "Bronzino; it is a warm, rich darkness with crimson depth visible in the "
+            "folds and highlights, a quality achieved through multiple translucent "
+            "glazes of vermilion and lake over a warm umber underlayer.  Against this "
+            "costume depth, gold jewellery — pearl necklaces, gold chains, gem-set "
+            "brooches — reads with extraordinary vivacity because the warm gold is "
+            "simultaneously a highlight against the dark velvet and a colour accent "
+            "that ties the figure's costume palette together.  "
+            "Her flesh handling in the face and hands is smooth and controlled — "
+            "no visible brushwork, edges softened but not dissolved into sfumato.  "
+            "The Bolognese glazing tradition gives her flesh a layered, luminous quality "
+            "different from either the crisp enamel of Bronzino or the atmospheric "
+            "dissolution of Leonardo: the forms are solid and present, but the surface "
+            "is warm and softly translucent, as if lit from within rather than from "
+            "above.  Her shadow handling retains the warm amber retention of the "
+            "Bolognese tradition — never the cold grey of the north or the near-black "
+            "void of the tenebristi.  Even in the deepest costume shadows, there is "
+            "recoverable warmth."
+        ),
+        famous_works=[
+            ("Self-Portrait at the Clavichord",          "1577"),
+            ("Noli me tangere",                          "1581"),
+            ("Portrait of the Gozzadini Family",         "c. 1584"),
+            ("Portrait of a Noblewoman",                 "c. 1580"),
+            ("Minerva Dressing",                         "1613"),
+            ("Portrait of Costanza Alidosi",             "c. 1594"),
+            ("Holy Family with Saints",                  "c. 1578"),
+        ],
+        inspiration=(
+            "Apply fontana_jewel_costume_pass() as the defining stylistic pass.  "
+            "Three stages encoding Fontana's Bolognese portrait signature: "
+            "(1) Highlight warm brilliance — in the upper highlight zone (lum > hi_lo ≈ 0.70), "
+            "apply a gentle warm ivory lift: R + ivory_r (≈0.012), G + ivory_g (≈0.007), "
+            "B + ivory_b (≈0.002).  The Gaussian-blurred mask ensures the highlight "
+            "blooms outward without a hard edge — Bolognese luminosity is warm and "
+            "present, not cool silver (Moroni) or pearled (Boltraffio).  "
+            "(2) Costume crimson depth — in the dark costume zone [costume_lo, costume_hi] "
+            "≈ [0.18, 0.46], apply a raised-cosine warm crimson enrichment: "
+            "R + crimson_r (≈0.020), G + crimson_g (≈0.003, tiny), B - crimson_b (≈0.007, "
+            "reduces blue to avoid purple shift).  This replicates Fontana's signature "
+            "deep crimson velvet quality — the warm, saturated darkness that gives her "
+            "costume zones their material richness and depth, contrasting with the cold "
+            "dark of a Bronzino or the void dark of a Caravaggio.  "
+            "(3) Shadow amber warmth — in the deepest shadow zone (lum < shadow_hi ≈ 0.22), "
+            "add warm amber retention: R + amber_r (≈0.014), G + amber_g (≈0.006).  "
+            "Bolognese painters never let their shadows go cold or grey; even in the "
+            "near-black void of the background, there is recoverable warm amber — the "
+            "quality that makes Bolognese portraits feel inhabited and warm rather than "
+            "theatrically dramatic.  "
+            "Use opacity ≈ 0.26–0.34."
+        ),
+    ),
+
     "moroni": ArtStyle(
         artist="Giovanni Battista Moroni",
         movement="Bergamasque Portrait Realism / Lombard Renaissance",
