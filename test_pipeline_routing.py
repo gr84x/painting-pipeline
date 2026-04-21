@@ -12626,3 +12626,67 @@ def test_bolognese_mannerist_portraiture_stroke_params_moderate_blend():
         f"BOLOGNESE_MANNERIST_PORTRAITURE wet_blend should be in [0.50, 0.80] for "
         f"glazed Bolognese finish (not full sfumato, not alla prima); got {p['wet_blend']}"
     )
+
+
+# solario_pellucid_amber_pass — session 116 addition
+
+
+def test_solario_pellucid_amber_pass_exists():
+    """Painter must have solario_pellucid_amber_pass() method after session 116."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "solario_pellucid_amber_pass"), (
+        "solario_pellucid_amber_pass not found on Painter")
+    assert callable(getattr(Painter, "solario_pellucid_amber_pass"))
+
+
+def test_solario_pellucid_amber_pass_no_error():
+    """solario_pellucid_amber_pass() runs on a warm canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.44, 0.36, 0.24), texture_strength=0.06)
+    p.solario_pellucid_amber_pass(opacity=0.30)
+
+
+def test_solario_pellucid_amber_pass_modifies_canvas():
+    """solario_pellucid_amber_pass() must modify the canvas (non-trivial opacity)."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.44, 0.36, 0.24), texture_strength=0.06)
+
+    before = _canvas_bytes(p)
+    p.solario_pellucid_amber_pass(opacity=0.30)
+    after = _canvas_bytes(p)
+
+    assert before != after, "solario_pellucid_amber_pass should modify the canvas"
+
+
+def test_solario_pellucid_amber_pass_zero_opacity_no_op():
+    """solario_pellucid_amber_pass() with opacity=0 must not modify the canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.44, 0.36, 0.24), texture_strength=0.06)
+
+    before = _canvas_bytes(p)
+    p.solario_pellucid_amber_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, "solario_pellucid_amber_pass with opacity=0 must be a no-op"
+
+
+def test_lombard_leonardesque_period_exists():
+    """Period.LOMBARD_LEONARDESQUE must be in the Period enum (session 116)."""
+    from scene_schema import Period
+    assert hasattr(Period, "LOMBARD_LEONARDESQUE"), (
+        "Period.LOMBARD_LEONARDESQUE not found in scene_schema — add it")
+    assert Period.LOMBARD_LEONARDESQUE in list(Period)
+
+
+def test_lombard_leonardesque_stroke_params_high_sfumato():
+    """LOMBARD_LEONARDESQUE stroke params must have high wet_blend and edge_softness."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_LEONARDESQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.70, (
+        f"LOMBARD_LEONARDESQUE wet_blend should be >= 0.70 for Leonardesque sfumato; "
+        f"got {p['wet_blend']}")
+    assert p["edge_softness"] >= 0.75, (
+        f"LOMBARD_LEONARDESQUE edge_softness should be >= 0.75 for sfumato dissolution; "
+        f"got {p['edge_softness']}")

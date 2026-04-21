@@ -28581,3 +28581,125 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Lavinia Fontana jewel costume pass complete.")
+
+    def solario_pellucid_amber_pass(
+        self,
+        hi_lo:          float = 0.62,
+        amber_r:        float = 0.018,
+        amber_g:        float = 0.010,
+        amber_b:        float = 0.004,
+        shadow_hi:      float = 0.32,
+        violet_b:       float = 0.016,
+        violet_g:       float = 0.004,
+        violet_r:       float = 0.005,
+        arc_lo:         float = 0.32,
+        arc_hi:         float = 0.62,
+        arc_r:          float = 0.014,
+        arc_g:          float = 0.006,
+        blur_radius:    float = 3.5,
+        opacity:        float = 0.30,
+    ) -> None:
+        """
+        Andrea Solario pellucid amber pass — session 116 new artist pass.
+
+        Andrea Solario (c. 1460–1524) is one of the most refined practitioners
+        of Leonardesque sfumato in the Milanese school — a painter who absorbed
+        Leonardo's atmospheric technique during the master's Milanese years and
+        fused it with a Venetian chromatic sensibility to produce a style of
+        singular luminous pellucidity.
+
+        Three qualities define his visual signature:
+
+        **Pellucid amber highlight** — Solario's highlight flesh carries a warm
+        amber-honey tone unlike any other Lombard painter.  Boltraffio's highlights
+        are cool pearl; Furini's are warm ivory; Solario's are amber — a honey-gold
+        quality in the upper highlight zone (lum > hi_lo ≈ 0.62) that suggests
+        physical depth in the paint surface: layers of thin amber-tinted glaze
+        built over a warm ground, each adding warmth and transparency.
+
+        **Cool violet shadow** — Solario's Venetian training manifests in his shadow
+        treatment.  The deepest shadow zones (lum < shadow_hi ≈ 0.32) carry a
+        subtle blue-violet undertone — the atmospheric shadow quality of Venetian
+        painting that never appears in purely Lombard or Florentine painters.  This
+        prevents the shadows from going merely warm-dark and gives them an
+        atmospheric, spatially recessive quality.
+
+        **Chromatic arc mid-tone warmth** — the penumbra zone [arc_lo, arc_hi]
+        receives a sin-window warmth pulse (R + arc_r * sin_window, G + arc_g).
+        This encodes Solario's continuously-varying colour temperature across the
+        flesh: the transition from cool shadows through warm amber mid-tones to
+        amber highlights creates a chromatic arc that gives his portraits an unusual
+        sense of atmospheric depth.  The sin-window peaks at the centre of the
+        penumbra range and fades toward both shadow and highlight — a smooth,
+        physically motivated warmth gradient inspired by the actual behaviour of
+        semi-transparent amber oil glazes.
+
+        This is the session 116 artistic improvement: a chromatic arc mid-tone
+        warmth technique, mathematically smooth and physically grounded, that
+        creates continuously varying colour temperature across the flesh — more
+        sophisticated than previous passes that handled highlights and shadows
+        independently without modelling the transition zone.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Pellucid amber highlight ───────────────────────────────────────
+        # Warm amber-honey lift at peak flesh — Solario's pellucid warmth quality.
+        # Warmer than Boltraffio's pearl, more amber than Furini's ivory.
+        hi_raw  = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * amber_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * amber_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * amber_b, 0.0, 1.0)
+
+        # ── 2. Cool violet shadow ─────────────────────────────────────────────
+        # Raised-cosine blue-violet in the deepest shadow zone — Venetian inheritance.
+        # Prevents purely warm-dark shadows; gives spatial, atmospheric recession.
+        sh_raw    = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        cos_raw   = _np.clip(sh_raw, 0.0, 1.0)
+        cos_win   = 0.5 * (1.0 - _np.cos(_np.pi * cos_raw))
+        sh_mask   = _gf(cos_win.astype(_np.float32), blur_radius)
+        sh_mask   = _np.clip(sh_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * violet_b, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * violet_g, 0.0, 1.0)
+        r_out = _np.clip(r_out - sh_mask * violet_r, 0.0, 1.0)
+
+        # ── 3. Chromatic arc mid-tone warmth ──────────────────────────────────
+        # Sin-window warmth pulse in the penumbra zone [arc_lo, arc_hi].
+        # Models the continuously-varying colour temperature of Solario's flesh:
+        # cool shadows → warm penumbra → amber highlights.  The sin-window ensures
+        # the warmth peaks at the centre of the penumbra and fades toward both
+        # extremes — a smooth, physically motivated amber gradient.
+        arc_raw    = _np.clip((lum - arc_lo) / (arc_hi - arc_lo + 1e-6), 0.0, 1.0)
+        arc_window = _np.sin(_np.pi * arc_raw)        # peaks at 0.5 of the range
+        arc_mask   = _gf(arc_window.astype(_np.float32), blur_radius)
+        arc_mask   = _np.clip(arc_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + arc_mask * arc_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + arc_mask * arc_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Andrea Solario pellucid amber pass complete.")
