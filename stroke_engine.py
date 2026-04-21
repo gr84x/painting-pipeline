@@ -27753,3 +27753,168 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Giovanni Battista Salvi da Sassoferrato pure devotion pass complete.")
+
+    def orazio_silver_daylight_pass(
+        self,
+        hi_lo:           float = 0.68,
+        silver_r_damp:   float = 0.010,
+        silver_b_lift:   float = 0.018,
+        mid_lo:          float = 0.32,
+        mid_hi:          float = 0.68,
+        chroma_lift:     float = 0.020,
+        shadow_hi:       float = 0.34,
+        cool_r_damp:     float = 0.008,
+        cool_b_lift:     float = 0.012,
+        blur_radius:     float = 3.0,
+        opacity:         float = 0.32,
+    ) -> None:
+        """
+        Orazio Gentileschi silver daylight pass — session 111 new artist pass.
+
+        Orazio Gentileschi (1563–1639) is the great bridge figure of the Italian
+        Baroque: shaped by Caravaggio's naturalist revolution in Rome around 1600,
+        he absorbed the tenebrism programme but never surrendered to its extremes.
+        Where Caravaggio carved figures from near-black void with a single theatrical
+        spotlight, Orazio worked with something altogether more refined: cool, even,
+        north-facing daylight — aristocratic, clear, and honest.
+
+        Born in Pisa, trained in Florence, he worked in Rome (1578–1621), Genoa
+        (1621–1624), Paris at the court of Marie de' Medici (1624–1626), and finally
+        London as court painter to Charles I (1626–1639), where he died.  Each
+        successive court required a more polished, restrained naturalism — and Orazio
+        delivered.  His London works, in particular, are among the most luminously
+        precise paintings of the 17th century: figures inhabiting real space under
+        real light, observed without drama and without flattery.
+
+        Three qualities define him:
+
+        **Cool silver daylight** — His highlights are unlike any other Baroque master's.
+        Caravaggio's are warm amber (candlelight quality), Rembrandt's are warm gold
+        (the dark studio with a single window), Rubens' are warm ivory (Flemish sun).
+        Orazio's are cool silver-grey — the quality of lead white mixed with a trace
+        of smalt under overcast northern sky.  This single chromatic decision separates
+        his flesh tones from every other Baroque tradition.  In the highest lights of
+        forehead, cheekbone, and nose bridge, the colour shifts from the warm flesh
+        mid-tone toward cool, slightly bluish silver — as if the skin at its most
+        illuminated passes from opacity to translucency.
+
+        **Chromatic fabric precision** — Where Caravaggio's draperies are generalised
+        carriers of form, Orazio's are specific observed objects: a gold satin shift
+        shimmering with warm highlights and cool shadows, a red damask with saturation
+        maintained even in its darkest passages, a blue silk whose cool hue stays
+        vivid from highlight to shadow.  He achieves this through chromatic accuracy:
+        he does not mix his colours toward neutral as they darken, but maintains their
+        hue identity deeper into shadow than most of his contemporaries.  The result
+        is a chromatic richness that is not theatrical (it does not shout) but precise
+        (each colour is itself, clearly and fully).
+
+        **Controlled shadow coolness** — Orazio's shadows are cool and atmospheric,
+        never the warm brown void of the Italian Caravaggisti (who inherited
+        Caravaggio's oil-blackened dark grounds) nor the warm amber recovery of the
+        Venetian tradition.  In his shadowed flesh, a slight cool-grey quality
+        prevails — not cold enough to feel artificial, but cool enough to read as the
+        diffuse complement to his silver highlights.  The shadow-to-light transition
+        is gradual and measured: none of Ribera's brutal chiaroscuro, none of
+        Leonardo's atmospheric dissolution — just careful, observed tonal progression.
+
+        This pass encodes all three qualities through three controlled tonal operations:
+
+          1. Silver highlight coolness — In the upper highlight zone (lum > hi_lo),
+             apply a gentle cool shift: R - silver_r_damp and B + silver_b_lift.
+             Graduated smoothly by a Gaussian-blurred luminance mask, this produces
+             the characteristic Orazio cool-silver quality at peak highlights without
+             visible seams into the warmer mid-tone below.
+
+          2. Midtone chroma lift — In the mid-tone band [mid_lo, mid_hi], apply a
+             saturation boost toward each pixel's hue direction (away from grey).
+             The magnitude is chroma_lift * mid_mask, where mid_mask is a raised-
+             cosine window that peaks at the mid-tone centre.  This encodes Orazio's
+             chromatic fabric precision: his colours are more themselves in the
+             mid-tones — not pushed to impressionistic scatter, but precisely more
+             vivid than the warm-glaze accumulation of prior sessions would allow.
+
+          3. Cool shadow control — In shadow zones (lum < shadow_hi), apply a gentle
+             cool-grey correction: R - cool_r_damp and B + cool_b_lift.  This
+             counteracts the accumulated warm-shadow deposits from Guercino, Ribera,
+             and Strozzi passes, restoring an Orazio-appropriate atmospheric coolness
+             in the darkest passages without inverting their tonal character.
+
+        Parameters
+        ----------
+        hi_lo         : lower luminance threshold for highlight zone (lum > this)
+        silver_r_damp : red channel reduction in highlights (cool silver, not warm ivory)
+        silver_b_lift : blue channel lift in highlights (cool daylight quality)
+        mid_lo        : lower bound of mid-tone chroma-lift band
+        mid_hi        : upper bound of mid-tone chroma-lift band
+        chroma_lift   : saturation enhancement strength in mid-tones
+        shadow_hi     : upper luminance threshold for shadow cool correction (lum < this)
+        cool_r_damp   : red reduction in shadows (removes accumulated warm-amber deposits)
+        cool_b_lift   : blue lift in shadows (cool atmospheric shadow quality)
+        blur_radius   : Gaussian sigma for mask feathering
+        opacity       : overall composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Silver highlight coolness ──────────────────────────────────────
+        # Cool north-window daylight quality at peak highlights.
+        # Graduated by luminance above hi_lo, smoothed with Gaussian.
+        hi_raw = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - hi_mask * silver_r_damp, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask * silver_b_lift, 0.0, 1.0)
+
+        # ── 2. Midtone chroma lift ────────────────────────────────────────────
+        # Saturation boost in mid-tones encoding Orazio's chromatic fabric precision.
+        # Raised-cosine window peaks at the centre of [mid_lo, mid_hi].
+        mid_centre = 0.5 * (mid_lo + mid_hi)
+        mid_half   = 0.5 * (mid_hi - mid_lo) + 1e-6
+        mid_cos    = _np.clip((lum - mid_lo) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0)
+        mid_window = 0.5 * (1.0 - _np.cos(_np.pi * mid_cos))   # 0→1→0 across band
+        mid_mask   = _gf(mid_window.astype(_np.float32), blur_radius)
+        mid_mask   = _np.clip(mid_mask, 0.0, 1.0)
+        # Chroma lift: move pixel away from its luminance-grey toward its colour
+        grey_r = lum; grey_g = lum; grey_b = lum
+        dr = r_out - grey_r; dg = g_out - grey_g; db = b_out - grey_b
+        lift = mid_mask * chroma_lift
+        r_out = _np.clip(r_out + lift * dr, 0.0, 1.0)
+        g_out = _np.clip(g_out + lift * dg, 0.0, 1.0)
+        b_out = _np.clip(b_out + lift * db, 0.0, 1.0)
+
+        # ── 3. Cool shadow control ────────────────────────────────────────────
+        # Atmospheric coolness in shadow zones — Orazio's shadows are never
+        # the warm amber void of the Italian Caravaggisti.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        sh_mask = _gf(sh_raw.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - sh_mask * cool_r_damp, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * cool_b_lift, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Orazio Gentileschi silver daylight pass complete.")

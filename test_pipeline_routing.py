@@ -12367,3 +12367,151 @@ def test_milanese_pearled_stroke_params_high_blend():
         f"MILANESE_PEARLED wet_blend should be >= 0.65 for Boltraffio's sfumato; "
         f"got {p['wet_blend']}"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Orazio Gentileschi — orazio_silver_daylight_pass() (session 111)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_orazio_silver_daylight_pass_exists():
+    """Painter must have orazio_silver_daylight_pass() method after session 111."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "orazio_silver_daylight_pass"), (
+        "orazio_silver_daylight_pass not found on Painter")
+    assert callable(getattr(Painter, "orazio_silver_daylight_pass"))
+
+
+def test_orazio_silver_daylight_pass_no_error():
+    """orazio_silver_daylight_pass() runs without error on a small synthetic canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.55, 0.40), texture_strength=0.05)
+    p.orazio_silver_daylight_pass()
+
+
+def test_orazio_silver_daylight_pass_modifies_canvas():
+    """orazio_silver_daylight_pass() must modify at least some pixels on a non-trivial canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.55, 0.40), texture_strength=0.05)
+    ref = _solid_reference(64, 64)
+    p.block_in(ref, stroke_size=8, n_strokes=15)
+
+    before = _canvas_bytes(p)
+    p.orazio_silver_daylight_pass(opacity=0.60)
+    after = _canvas_bytes(p)
+
+    assert before != after, "orazio_silver_daylight_pass must modify the canvas at opacity=0.60"
+
+
+def test_orazio_silver_daylight_pass_zero_opacity_noop():
+    """orazio_silver_daylight_pass() at opacity=0 must leave the canvas unchanged."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.55, 0.40), texture_strength=0.05)
+
+    before = _canvas_bytes(p)
+    p.orazio_silver_daylight_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+
+    assert before == after, (
+        "orazio_silver_daylight_pass at opacity=0.0 must be a no-op")
+
+
+def test_orazio_silver_daylight_pass_cools_highlights():
+    """orazio_silver_daylight_pass must lift B more than R in bright highlight pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Bright highlight: lum ~0.82 (above hi_lo=0.68 default)
+    p = Painter(width=32, height=32)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 200   # B  (BGRA layout)
+    arr[:, :, 1] = 206   # G
+    arr[:, :, 2] = 215   # R   lum ~0.82
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    b_before = arr[:, :, 0].astype(float).mean()
+    r_before = arr[:, :, 2].astype(float).mean()
+
+    p.orazio_silver_daylight_pass(
+        hi_lo=0.68,
+        silver_r_damp=0.012,
+        silver_b_lift=0.020,
+        shadow_hi=0.05,    # disable shadow effect
+        chroma_lift=0.0,   # disable chroma lift to isolate highlight test
+        opacity=1.0,
+    )
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4))
+    b_after = arr_after[:, :, 0].astype(float).mean()
+    r_after = arr_after[:, :, 2].astype(float).mean()
+
+    b_delta = b_after - b_before
+    r_delta = r_after - r_before
+
+    assert b_delta > r_delta, (
+        f"orazio_silver_daylight_pass must lift B more than R in highlights "
+        f"(cool silver daylight, not warm ivory); "
+        f"B delta={b_delta:.2f}, R delta={r_delta:.2f}"
+    )
+
+
+def test_orazio_silver_daylight_pass_cools_shadows():
+    """orazio_silver_daylight_pass must lift B in deep shadow pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Deep shadow: lum ~0.18 (below shadow_hi=0.34 default)
+    p = Painter(width=32, height=32)
+    arr = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4)).copy()
+    arr[:, :, 0] = 42    # B
+    arr[:, :, 1] = 46    # G
+    arr[:, :, 2] = 52    # R   lum ~0.179
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    b_before = arr[:, :, 0].astype(float).mean()
+
+    p.orazio_silver_daylight_pass(
+        shadow_hi=0.34,
+        cool_r_damp=0.010,
+        cool_b_lift=0.014,
+        hi_lo=0.95,       # disable highlight effect
+        chroma_lift=0.0,  # disable chroma lift
+        opacity=1.0,
+    )
+    arr_after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((32, 32, 4))
+    b_after = arr_after[:, :, 0].astype(float).mean()
+
+    assert b_after > b_before, (
+        f"orazio_silver_daylight_pass must lift B in deep shadows (cool atmospheric shadow); "
+        f"B before={b_before:.2f}  B after={b_after:.2f}"
+    )
+
+
+def test_orazio_silver_daylight_pass_preserves_canvas_shape():
+    """orazio_silver_daylight_pass must not change canvas dimensions."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.62, 0.55, 0.40), texture_strength=0.05)
+    p.orazio_silver_daylight_pass(opacity=0.40)
+    assert (p.h, p.w) == (64, 64), "Canvas dimensions must not change"
+
+
+# Period.ITALO_COURTLY_BAROQUE — session 111 routing
+
+def test_italo_courtly_baroque_period_accessible():
+    """Period.ITALO_COURTLY_BAROQUE must be accessible from scene_schema."""
+    from scene_schema import Period
+    assert hasattr(Period, "ITALO_COURTLY_BAROQUE"), (
+        "Period.ITALO_COURTLY_BAROQUE not found in scene_schema — add it")
+    assert Period.ITALO_COURTLY_BAROQUE in list(Period)
+
+
+def test_italo_courtly_baroque_stroke_params_moderate_blend():
+    """ITALO_COURTLY_BAROQUE stroke params must have moderate wet_blend for controlled naturalism."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ITALO_COURTLY_BAROQUE,
+                  palette=PaletteHint.COOL_GREY)
+    assert style.period == Period.ITALO_COURTLY_BAROQUE, (
+        "Style.period must equal ITALO_COURTLY_BAROQUE when set as such")
+    p = style.stroke_params
+    assert 0.35 <= p["wet_blend"] <= 0.75, (
+        f"ITALO_COURTLY_BAROQUE wet_blend should be in [0.35, 0.75] for Orazio's "
+        f"controlled naturalism (not sfumato, not alla prima); got {p['wet_blend']}"
+    )
