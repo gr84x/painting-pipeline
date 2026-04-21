@@ -129,6 +129,8 @@ EXPECTED_ARTISTS = [
     "guido_cagnacci",
     "furini",
     "lavinia_fontana",
+    "moroni",
+    "andrea_solario",
 ]
 
 
@@ -13827,3 +13829,195 @@ def test_bolognese_mannerist_portraiture_period_in_period_enum():
     from scene_schema import Period
     assert Period.BOLOGNESE_MANNERIST_PORTRAITURE in list(Period), (
         "Period.BOLOGNESE_MANNERIST_PORTRAITURE not found — add it to scene_schema.py Period enum")
+
+
+# ── Session 116: Andrea Solario + Period.LOMBARD_LEONARDESQUE ─────────────────
+
+
+def test_andrea_solario_in_catalog():
+    """andrea_solario must be present in CATALOG (session 116)."""
+    from art_catalog import CATALOG
+    assert "andrea_solario" in CATALOG, (
+        "andrea_solario not found in CATALOG — add it to art_catalog.py")
+
+
+def test_andrea_solario_movement():
+    """andrea_solario movement must reference Lombard or Leonardesque tradition."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    mv = s.movement.lower()
+    assert "lombard" in mv or "leonardesque" in mv, (
+        f"andrea_solario movement={s.movement!r} must reference Lombard or Leonardesque")
+
+
+def test_andrea_solario_nationality():
+    """andrea_solario must be listed as Italian."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    assert "italian" in s.nationality.lower(), (
+        f"andrea_solario nationality={s.nationality!r} should be Italian")
+
+
+def test_andrea_solario_palette_length():
+    """andrea_solario palette must have at least 5 colours."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    assert len(s.palette) >= 5, (
+        f"andrea_solario palette has {len(s.palette)} colours; expected >= 5")
+
+
+def test_andrea_solario_palette_values_in_range():
+    """All andrea_solario palette RGB values must be in [0, 1]."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    for i, col in enumerate(s.palette):
+        for j, ch in enumerate(col):
+            assert 0.0 <= ch <= 1.0, (
+                f"andrea_solario palette[{i}][{j}] = {ch} out of [0, 1]")
+
+
+def test_andrea_solario_has_amber_highlight():
+    """andrea_solario palette must include warm amber highlight (R > 0.80, G > 0.70)."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    warm_highlights = [(r, g, b) for r, g, b in s.palette if r > 0.80 and g > 0.70]
+    assert warm_highlights, (
+        "andrea_solario palette must include at least one warm amber highlight "
+        "(R > 0.80, G > 0.70) — his defining pellucid flesh quality")
+
+
+def test_andrea_solario_has_cool_shadow():
+    """andrea_solario palette must include a cool violet/blue shadow."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    cool_shadows = [(r, g, b) for r, g, b in s.palette if b > r and b > 0.20]
+    assert cool_shadows, (
+        "andrea_solario palette must include a cool shadow (B > R, B > 0.20) "
+        "— his Venetian shadow inheritance")
+
+
+def test_andrea_solario_high_wet_blend():
+    """andrea_solario wet_blend must be >= 0.70 (Leonardesque sfumato)."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    assert s.wet_blend >= 0.70, (
+        f"andrea_solario wet_blend={s.wet_blend} should be >= 0.70 for sfumato quality")
+
+
+def test_andrea_solario_high_edge_softness():
+    """andrea_solario edge_softness must be >= 0.75 (sfumato edge dissolution)."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    assert s.edge_softness >= 0.75, (
+        f"andrea_solario edge_softness={s.edge_softness} should be >= 0.75 for sfumato")
+
+
+def test_andrea_solario_has_glazing():
+    """andrea_solario must define glazing (warm amber overlay)."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    assert s.glazing is not None, "andrea_solario must have glazing (amber depth)"
+    r, g, b = s.glazing
+    assert r > g > b, (
+        f"andrea_solario glazing={s.glazing!r} should be warm amber (R > G > B)")
+
+
+def test_andrea_solario_famous_works_include_madonna():
+    """andrea_solario famous_works must reference at least one Madonna work."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    assert any("madonna" in w[0].lower() or "madonna" in w[0].lower()
+               for w in s.famous_works), (
+        "andrea_solario famous_works must include at least one Madonna painting")
+
+
+def test_andrea_solario_inspiration_references_pellucid():
+    """andrea_solario inspiration must reference pellucid or amber quality."""
+    from art_catalog import get_style
+    s = get_style("andrea_solario")
+    insp = s.inspiration.lower()
+    assert "pellucid" in insp or "amber" in insp, (
+        "andrea_solario inspiration must reference pellucid amber quality")
+
+
+def test_lombard_leonardesque_period_present():
+    """Period.LOMBARD_LEONARDESQUE must be in the Period enum (session 116)."""
+    from scene_schema import Period
+    assert hasattr(Period, "LOMBARD_LEONARDESQUE"), (
+        "Period.LOMBARD_LEONARDESQUE not found — add it to scene_schema.py")
+    assert Period.LOMBARD_LEONARDESQUE in list(Period)
+
+
+def test_lombard_leonardesque_stroke_params_high_wet_blend():
+    """LOMBARD_LEONARDESQUE stroke_params must have wet_blend >= 0.70."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_LEONARDESQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.70, (
+        f"LOMBARD_LEONARDESQUE wet_blend should be >= 0.70 for Leonardesque sfumato; "
+        f"got {p['wet_blend']}")
+
+
+def test_lombard_leonardesque_stroke_params_high_edge_softness():
+    """LOMBARD_LEONARDESQUE stroke_params must have edge_softness >= 0.75."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_LEONARDESQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.75, (
+        f"LOMBARD_LEONARDESQUE edge_softness should be >= 0.75 for sfumato dissolution; "
+        f"got {p['edge_softness']}")
+
+
+def test_solario_pellucid_amber_pass_exists():
+    """Painter must expose solario_pellucid_amber_pass (session 116)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "solario_pellucid_amber_pass"), (
+        "Painter.solario_pellucid_amber_pass not found — add it to stroke_engine.py")
+
+
+def test_solario_pellucid_amber_pass_opacity_parameter():
+    """solario_pellucid_amber_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.solario_pellucid_amber_pass)
+    assert "opacity" in sig.parameters, (
+        "solario_pellucid_amber_pass must have 'opacity' parameter")
+
+
+def test_solario_pellucid_amber_pass_amber_r_parameter():
+    """solario_pellucid_amber_pass must accept amber_r for highlight warmth."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.solario_pellucid_amber_pass)
+    assert "amber_r" in sig.parameters, (
+        "solario_pellucid_amber_pass must have 'amber_r' parameter "
+        "(primary amber highlight component)")
+
+
+def test_solario_pellucid_amber_pass_violet_b_parameter():
+    """solario_pellucid_amber_pass must accept violet_b for cool shadow."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.solario_pellucid_amber_pass)
+    assert "violet_b" in sig.parameters, (
+        "solario_pellucid_amber_pass must have 'violet_b' parameter "
+        "(Venetian cool violet shadow component)")
+
+
+def test_solario_pellucid_amber_pass_arc_r_parameter():
+    """solario_pellucid_amber_pass must accept arc_r (chromatic arc mid-tone warmth)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.solario_pellucid_amber_pass)
+    assert "arc_r" in sig.parameters, (
+        "solario_pellucid_amber_pass must have 'arc_r' parameter "
+        "(chromatic arc mid-tone warmth — session 116 improvement)")
+
+
+def test_lombard_leonardesque_period_in_period_enum():
+    """Period.LOMBARD_LEONARDESQUE must be accessible from scene_schema (session 116)."""
+    from scene_schema import Period
+    assert Period.LOMBARD_LEONARDESQUE in list(Period), (
+        "Period.LOMBARD_LEONARDESQUE not found — add it to scene_schema.py Period enum")

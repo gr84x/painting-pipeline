@@ -281,6 +281,7 @@ class Period(Enum):
     EMILIAN_ROSY_BAROQUE = auto()  # Guido Cagnacci — dreamlike rose-flesh luminescence, pinkish peach mid-tone glow, smooth Reni-derived sfumato, warm shadow recovery, glazed inner-light quality
     FLORENTINE_MELANCHOLIC_BAROQUE = auto()  # Francesco Furini — evanescent ivory skin bloom, cool lavender penumbra at shadow edges, ultra-smooth Florentine sfumato, figures emerging from deep darkness with melancholic inwardness
     BOLOGNESE_MANNERIST_PORTRAITURE = auto()  # Lavinia Fontana — warm rose-ivory flesh brilliance, deep crimson costume richness, amber velvet shadow warmth, Bolognese glazed high finish
+    LOMBARD_LEONARDESQUE = auto()  # Solario — pellucid amber-honey flesh, cool violet Venetian shadows, ultra-smooth Leonardesque sfumato, warm amber glazing depth
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1310,6 +1311,12 @@ class Style:
             # wet_blend=0.62: moderate-high blending — glazed but not fully sfumato-dissolved.
             # edge_softness=0.58: moderate-soft — refined Bolognese edges, softer than Bronzino, crisper than Leonardo.
             Period.BOLOGNESE_MANNERIST_PORTRAITURE: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.62, edge_softness=0.58),
+            # LOMBARD_LEONARDESQUE (Andrea Solario) — Leonardesque sfumato with Lombard amber warmth + Venetian cool shadows.
+            # stroke_size_face=4: very fine marks — smooth pellucid surface, Leonardesque care on flesh.
+            # stroke_size_bg=16: narrow background strokes — landscape detail with atmospheric recession.
+            # wet_blend=0.78: high blending — very smooth, approaching full Leonardesque sfumato.
+            # edge_softness=0.82: near-sfumato — edges dissolve without completely vanishing; Lombard warmth prevents full dissolution.
+            Period.LOMBARD_LEONARDESQUE: dict(stroke_size_face=4, stroke_size_bg=16, wet_blend=0.78, edge_softness=0.82),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

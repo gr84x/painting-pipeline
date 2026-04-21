@@ -10012,6 +10012,107 @@ CATALOG: Dict[str, ArtStyle] = {
             "Use opacity ≈ 0.32–0.42."
         ),
     ),
+
+    "andrea_solario": ArtStyle(
+        artist="Andrea Solario",
+        movement="Lombard Leonardesque / Venetian-Influenced Milanese Renaissance",
+        nationality="Italian",
+        period="c. 1490–1524",
+        palette=[
+            (0.90, 0.78, 0.58),   # pellucid amber-honey highlight flesh (Lombard warmth)
+            (0.76, 0.60, 0.42),   # warm amber mid-tone flesh
+            (0.50, 0.36, 0.24),   # warm sienna shadow flesh
+            (0.24, 0.22, 0.36),   # cool blue-violet deep shadow (Venetian influence)
+            (0.16, 0.14, 0.12),   # near-black background void
+            (0.72, 0.64, 0.42),   # warm honey-gold ambient (amber glaze quality)
+            (0.44, 0.52, 0.48),   # cool blue-grey atmospheric recession (landscape)
+        ],
+        ground_color=(0.44, 0.36, 0.24),    # warm amber-ochre Lombard ground
+        stroke_size=4,
+        wet_blend=0.78,                      # high — very smooth, Leonardesque sfumato quality
+        edge_softness=0.82,                  # near-sfumato — edges dissolve with Lombard warmth
+        jitter=0.012,                        # very low: pellucid surface, no scatter
+        glazing=(0.64, 0.52, 0.30),          # warm amber glazing — honey depth in accumulated layers
+        crackle=True,                        # oil on panel — early 16th-century aging
+        chromatic_split=False,               # tonal luminosity, not chromatic scattering
+        technique=(
+            "Andrea Solario (c. 1460–1524) is among the most refined and least "
+            "celebrated painters of the Lombard Renaissance — a figure who absorbed "
+            "Leonardo's sfumato technique with a depth perhaps exceeding any other "
+            "painter in Leonardo's orbit save Bernardino Luini, and who combined "
+            "this Leonardesque inheritance with a Venetian chromatic sensibility "
+            "acquired during his probable visit to Venice in the early 1490s.  The "
+            "result is a style of singular luminous quality: the sfumato is present, "
+            "but it is warmer than Leonardo's — suffused with an amber-honey tone "
+            "that gives his flesh the quality of light filtered through a thin amber "
+            "panel rather than the cooler, more silvery atmospheric haze of the "
+            "master himself.  "
+            "His key technical signature is what might be called pellucid warmth — "
+            "a quality of flesh that appears lit from within by warm amber light, "
+            "as if the skin were itself slightly translucent.  This is not the "
+            "cool pearl luminosity of Boltraffio (who was also in Leonardo's "
+            "orbit), nor is it the ivory warmth of Furini's later Baroque sfumato.  "
+            "It is specifically amber — a honey-gold quality in the upper highlight "
+            "zone that suggests a physical depth to the paint surface: layers of "
+            "thin amber-tinted glaze built up over a warm ground, each layer "
+            "adding a fractional degree of warmth and depth.  "
+            "The Venetian influence manifests most clearly in his shadow treatment.  "
+            "Unlike the warm amber shadows of the Bolognese tradition or the warm "
+            "umber darkness of the Lombard panel tradition, Solario's deepest shadows "
+            "carry a slight cool blue-violet undertone — the characteristic Venetian "
+            "shadow quality that one sees in Giorgione and early Titian, where the "
+            "cool atmosphere of the lagoon seems to enter even the interior light of "
+            "a portrait.  This chromatic arc — from warm amber highlights through "
+            "neutral mid-tones to cool violet shadows — creates a subtle, continuously "
+            "varying colour temperature across the face that gives his portraits an "
+            "unusual sense of spatial depth and atmospheric presence.  "
+            "His famous Madonna paintings (especially the Madonna with Green Cushion "
+            "in the Louvre) demonstrate the full synthesis: sfumato-softened edges, "
+            "amber-glowing flesh, cool-shadowed drapery, and a landscape background "
+            "of Leonardesque geological fantasy that dissolves into pale blue-grey "
+            "atmospheric haze in a manner almost indistinguishable from Leonardo's own.  "
+            "His portrait of Cristoforo Longoni (c. 1505) is perhaps the closest any "
+            "Lombard painter came to matching Leonardo's psychological presence "
+            "in portraiture: the sitter exists in real atmospheric space, his skin "
+            "warm and luminous, his eyes meeting the viewer with a calm directness "
+            "that never tips into the theatrical."
+        ),
+        famous_works=[
+            ("Madonna with Green Cushion",              "c. 1507–1510"),
+            ("Salome with the Head of Saint John the Baptist", "c. 1507–1510"),
+            ("Portrait of a Man (Cristoforo Longoni?)", "c. 1505"),
+            ("Rest on the Flight into Egypt",           "c. 1515"),
+            ("Head of Saint John the Baptist on a Platter", "c. 1507"),
+            ("The Lamentation over the Dead Christ",    "c. 1505"),
+            ("Madonna of the Veil",                     "c. 1508–1510"),
+        ],
+        inspiration=(
+            "Apply solario_pellucid_amber_pass() as the defining stylistic pass.  "
+            "Three stages encoding Solario's Lombard-Leonardesque signature: "
+            "(1) Pellucid amber highlight — in the upper highlight zone (lum > hi_lo ≈ 0.62), "
+            "apply a warm amber-honey lift: R + amber_r (≈0.018), G + amber_g (≈0.010), "
+            "B - amber_b (≈0.004, reduces blue to avoid ivory drift).  The Gaussian-blurred "
+            "mask ensures the amber warmth blooms outward without a hard edge — Solario's "
+            "highlights are warm amber, not cool silver (Moroni), not pearl (Boltraffio), "
+            "not ivory (Furini): specifically amber, as if light passes through warm honey glass.  "
+            "(2) Cool violet shadow — in the deep shadow zone (lum < shadow_hi ≈ 0.32), "
+            "apply a raised-cosine cool blue-violet undertone: B + violet_b (≈0.016), "
+            "G + violet_g (≈0.004), R - violet_r (≈0.005, tiny desaturation).  This is "
+            "Solario's Venetian inheritance: even in Lombard interiors, his shadows carry "
+            "a slight atmospheric coolness — the blue-violet quality of Venetian shadow "
+            "that never appears in purely Florentine or Bolognese painters.  "
+            "(3) Chromatic arc mid-tone warmth — in the penumbra zone [arc_lo, arc_hi] "
+            "≈ [0.32, 0.62], apply a sin-window warmth pulse: R + arc_r * sin_window, "
+            "G + arc_g * sin_window (smaller).  This encodes the continuously-varying "
+            "colour temperature across Solario's flesh — the transition from cool shadows "
+            "through warm amber mid-tones and back to amber highlights creates a "
+            "chromatic arc that gives the portrait its unusual depth and atmospheric "
+            "presence.  The sin-window ensures the warmth peaks in the penumbra centre "
+            "and fades toward both shadow and highlight.  "
+            "Use opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 
