@@ -10219,6 +10219,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giovanni Gerolamo Savoldo ──────────────────────────────────────────────
+    "savoldo": ArtStyle(
+        artist="Giovanni Gerolamo Savoldo",
+        movement="Brescian Renaissance / Venetian-Lombard School",
+        nationality="Italian (Brescian)",
+        period="c. 1480/85–1548",
+        palette=[
+            (0.82, 0.78, 0.72),   # warm silver-ivory highlight — moonlit peak flesh
+            (0.62, 0.60, 0.65),   # cool silver-grey — phosphorescent penumbra shimmer
+            (0.48, 0.44, 0.40),   # warm mid-tone — Brescian amber under-glow
+            (0.28, 0.24, 0.20),   # deep warm umber shadow — never cold black
+            (0.55, 0.58, 0.68),   # cool blue-grey atmosphere — nocturnal distance haze
+            (0.70, 0.65, 0.52),   # warm ochre-ivory — Venetian-Lombard ground warmth
+        ],
+        ground_color=(0.52, 0.46, 0.34),    # warm amber-ochre Venetian imprimatura
+        stroke_size=5,
+        wet_blend=0.70,                      # high blending — nocturnal surface seamlessness
+        edge_softness=0.78,                  # high softness — silver moonveil dissolves edges
+        jitter=0.018,
+        glazing=(0.58, 0.54, 0.48),          # warm amber-grey unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Silver moonveil — a phosphorescent cool-silver shimmer concentrated "
+            "at the penumbra boundary (the transitional zone between illuminated "
+            "surface and shadow).  Savoldo places his most luminous grey-silver "
+            "exactly at the midpoint of the light-to-shadow transition, creating "
+            "the illusion of moonlight scattering through drapery and atmosphere.  "
+            "Highlights are warm silver-ivory (not cold blue); shadows retain warm "
+            "amber depth (never dead black); only the penumbra transition itself "
+            "carries the characteristic cool silver cast.  "
+            "Unlike Leonardo's sfumato (which dissolves all edges equally through "
+            "atmospheric smoke) or Boltraffio's pearl (a cool-blue highlight quality), "
+            "Savoldo's silver is concentrated, atmospheric, and location-specific — "
+            "it belongs to the boundary between light and dark, not to the light "
+            "itself.  His nocturnal scenes (Saint Mary Magdalen, Adoration of the "
+            "Shepherds) demonstrate this quality most fully: drapery lit by moonlight "
+            "reads as luminous silver-grey at the fold crests while the shadows "
+            "below retain warm amber earth tones, and the transition between the "
+            "two carries a distinctive phosphorescent shimmer."
+        ),
+        famous_works=[
+            ("Saint Mary Magdalen Approaching the Sepulchre", "c. 1535–1540"),
+            ("Portrait of a Knight",                           "c. 1525"),
+            ("Tobias and the Angel",                           "c. 1527–1530"),
+            ("Adoration of the Shepherds (Brescia)",           "c. 1540"),
+            ("Portrait of a Man in Armour",                    "c. 1522"),
+            ("Saint Matthew and the Angel",                    "c. 1534"),
+        ],
+        inspiration=(
+            "Apply savoldo_silver_veil_pass() as the defining stylistic pass.  "
+            "Three stages encoding Savoldo's Brescian-nocturnal signature: "
+            "(1) Silver moonveil at the penumbra boundary — a Gaussian-peaked "
+            "weight centred at the midpoint of [penumbra_lo, penumbra_hi] (default "
+            "[0.28, 0.62]).  The Gaussian window (σ ≈ 0.20 of the range) concentrates "
+            "the silver shimmer exactly at the light-shadow boundary: R - silver_r "
+            "(≈0.010), G unchanged, B + silver_b (≈0.022).  This Gaussian-peaked "
+            "penumbra window is the session 118 artistic improvement: a more "
+            "physically accurate model of scattered moonlight than the sin-windowed "
+            "penumbra arc (session 116) or sin²-windowed ground warmth (session 117) "
+            "— a Gaussian naturally models the bell-shaped distribution of scattered "
+            "light at a surface tangent to the illumination direction.  "
+            "(2) Warm ivory highlight — in the upper highlight zone (lum > hi_lo ≈ 0.70), "
+            "apply a warm ivory lift (R + ivory_r ≈ 0.012, G + ivory_g ≈ 0.007).  "
+            "Savoldo's highlights are warm silver-ivory, not cold blue — the warmth "
+            "of reflected moonlight against warm Venetian-ground flesh, not arctic "
+            "silver.  "
+            "(3) Warm shadow retention — in the shadow zone (lum < shadow_hi ≈ 0.32), "
+            "a gentle raised-cosine warm recovery (R + warm_r ≈ 0.012, G + warm_g ≈ 0.005) "
+            "prevents cold black voids — Savoldo's nocturnal shadows retain Brescian "
+            "warmth and depth even in their deepest passages.  "
+            "Use opacity ≈ 0.26–0.34."
+        ),
+    ),
+
 }
 
 

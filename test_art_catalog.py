@@ -132,6 +132,7 @@ EXPECTED_ARTISTS = [
     "moroni",
     "andrea_solario",
     "perugino",
+    "savoldo",
 ]
 
 
@@ -307,6 +308,7 @@ EXPECTED_PERIODS = [
     "ITALO_COURTLY_BAROQUE",
     "ANTWERP_BAROQUE",
     "UMBRIAN_CLASSICAL_HARMONY",
+    "BRESCIAN_SILVER_NOCTURNE",
 ]
 
 
@@ -14221,3 +14223,103 @@ def test_umbrian_classical_harmony_period_in_period_enum():
     from scene_schema import Period
     assert Period.UMBRIAN_CLASSICAL_HARMONY in list(Period), (
         "Period.UMBRIAN_CLASSICAL_HARMONY not found — add it to scene_schema.py Period enum")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 118: Giovanni Gerolamo Savoldo + BRESCIAN_SILVER_NOCTURNE
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_savoldo_in_catalog():
+    """Savoldo (session 118) must be present in CATALOG."""
+    assert "savoldo" in CATALOG
+
+
+def test_savoldo_movement():
+    s = get_style("savoldo")
+    assert "Bresci" in s.movement or "bresci" in s.movement.lower() or "Venetian" in s.movement
+
+
+def test_savoldo_palette_length():
+    s = get_style("savoldo")
+    assert len(s.palette) >= 5, "Savoldo palette should have at least 5 key colours"
+
+
+def test_savoldo_palette_values_in_range():
+    """All Savoldo palette RGB values must be in [0, 1]."""
+    s = get_style("savoldo")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Savoldo palette {rgb}")
+
+
+def test_savoldo_ground_color_valid():
+    s = get_style("savoldo")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_savoldo_high_wet_blend():
+    """Savoldo should have high wet_blend (smooth nocturnal surfaces)."""
+    s = get_style("savoldo")
+    assert s.wet_blend >= 0.60, "Savoldo wet_blend should be high for smooth nocturnal surfaces"
+
+
+def test_savoldo_high_edge_softness():
+    """Savoldo should have high edge_softness (moonveil dissolves edges)."""
+    s = get_style("savoldo")
+    assert s.edge_softness >= 0.65, "Savoldo edge_softness should be high for silver moonveil"
+
+
+def test_brescian_silver_nocturne_period_in_period_enum():
+    """Period.BRESCIAN_SILVER_NOCTURNE must be accessible from scene_schema (session 118)."""
+    from scene_schema import Period
+    assert Period.BRESCIAN_SILVER_NOCTURNE in list(Period), (
+        "Period.BRESCIAN_SILVER_NOCTURNE not found — add it to scene_schema.py Period enum")
+
+
+def test_brescian_silver_nocturne_stroke_params():
+    """BRESCIAN_SILVER_NOCTURNE must return valid stroke_params."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BRESCIAN_SILVER_NOCTURNE, palette=PaletteHint.COOL_GREY)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.55, "Savoldo wet_blend should be >= 0.55 (smooth nocturnal)"
+    assert params["edge_softness"] >= 0.65, "Savoldo edge_softness should be >= 0.65 (silver moonveil)"
+
+
+def test_savoldo_silver_veil_pass_exists():
+    """Painter must expose savoldo_silver_veil_pass (session 118)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "savoldo_silver_veil_pass"), (
+        "Painter.savoldo_silver_veil_pass not found — add it to stroke_engine.py")
+
+
+def test_savoldo_silver_veil_pass_opacity_parameter():
+    """savoldo_silver_veil_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.savoldo_silver_veil_pass)
+    assert "opacity" in sig.parameters, (
+        "savoldo_silver_veil_pass must have 'opacity' parameter")
+
+
+def test_savoldo_silver_veil_pass_silver_b_parameter():
+    """savoldo_silver_veil_pass must accept silver_b for the cool moonveil shimmer."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.savoldo_silver_veil_pass)
+    assert "silver_b" in sig.parameters, (
+        "savoldo_silver_veil_pass must have 'silver_b' parameter "
+        "(cool blue-silver moonveil component — session 118 Gaussian improvement)")
+
+
+def test_savoldo_silver_veil_pass_penumbra_lo_parameter():
+    """savoldo_silver_veil_pass must accept penumbra_lo for the Gaussian-peaked window."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.savoldo_silver_veil_pass)
+    assert "penumbra_lo" in sig.parameters, (
+        "savoldo_silver_veil_pass must have 'penumbra_lo' parameter "
+        "(lower bound of Gaussian penumbra window)")

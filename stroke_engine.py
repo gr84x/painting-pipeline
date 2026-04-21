@@ -28821,3 +28821,118 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Pietro Perugino serene grace pass complete.")
+
+    def savoldo_silver_veil_pass(
+        self,
+        penumbra_lo:  float = 0.28,
+        penumbra_hi:  float = 0.62,
+        silver_r:     float = 0.010,
+        silver_b:     float = 0.022,
+        hi_lo:        float = 0.70,
+        ivory_r:      float = 0.012,
+        ivory_g:      float = 0.007,
+        shadow_hi:    float = 0.32,
+        warm_r:       float = 0.012,
+        warm_g:       float = 0.005,
+        blur_radius:  float = 4.0,
+        opacity:      float = 0.28,
+    ) -> None:
+        """
+        Giovanni Gerolamo Savoldo silver moonveil pass — session 118 new artist pass.
+
+        Giovanni Gerolamo Savoldo (c. 1480/85–1548), Brescian painter working in
+        Venice, pioneered a distinctive treatment of nocturnal and candlelit light
+        that has no exact parallel in the Renaissance tradition.  His defining
+        quality — visible most fully in Saint Mary Magdalen Approaching the
+        Sepulchre (National Gallery, London) — is a phosphorescent silver-grey
+        shimmer concentrated at the transitional boundary between light and shadow.
+        In his nocturnal drapery passages, the fold crests read as luminous silver-
+        grey while the shadowed valleys retain warm amber depth; the transition
+        between them carries a cool silver cast that resembles scattered moonlight
+        diffusing through cloth and atmosphere.
+
+        Three qualities define his visual signature:
+
+        **Silver moonveil at the penumbra boundary** — a Gaussian-peaked weight
+        centred at the midpoint of [penumbra_lo, penumbra_hi].  The Gaussian
+        concentrates the silver shimmer at the precise light-shadow transition:
+        R - silver_r, B + silver_b.  This Gaussian-peaked penumbra window is the
+        session 118 artistic improvement: a more physically grounded model of
+        scattered moonlight than the sin window (session 116 arc) or sin²-window
+        (session 117 ground warmth) — a Gaussian naturally models the bell-shaped
+        distribution of scattered radiance at a surface whose normal is tangent to
+        the illumination direction, exactly the condition at the penumbra boundary.
+
+        **Warm ivory highlight** — in the bright zone (lum > hi_lo), R + ivory_r,
+        G + ivory_g.  Savoldo's highlights are warm silver-ivory, not cold blue.
+        The warmth comes from the Venetian-Lombard imprimatura still visible through
+        thin highlights — it moderates the silver with Brescian earth warmth.
+
+        **Warm shadow retention** — in the shadow zone (lum < shadow_hi), a gentle
+        raised-cosine warm recovery (R + warm_r, G + warm_g) prevents cold black
+        voids.  Savoldo's nocturnal shadows retain warmth even at their deepest —
+        the Brescian ground warmth prevents the shadows from becoming the arctic
+        cold black of Caravaggio's Roman tenebrism.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Silver moonveil (Gaussian-peaked penumbra window) ──────────────
+        # The defining Savoldo quality: phosphorescent silver at the light-shadow
+        # boundary.  A Gaussian centred at the penumbra midpoint concentrates the
+        # cool-silver shimmer exactly at the transition zone.  This is the session
+        # 118 improvement: a Gaussian penumbra peak is a more physically accurate
+        # model of scattered moonlight at a tangent surface than the sin or sin²
+        # windows of previous sessions.
+        p_mid    = 0.5 * (penumbra_lo + penumbra_hi)
+        p_sigma  = 0.20 * (penumbra_hi - penumbra_lo)
+        gauss_win = _np.exp(-0.5 * ((lum - p_mid) / (p_sigma + 1e-6)) ** 2)
+        silver_mask = _gf(gauss_win.astype(_np.float32), blur_radius)
+        silver_mask = _np.clip(silver_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - silver_mask * silver_r, 0.0, 1.0)
+        b_out = _np.clip(b_out + silver_mask * silver_b, 0.0, 1.0)
+
+        # ── 2. Warm ivory highlight ───────────────────────────────────────────
+        # Savoldo's highlights are warm silver-ivory — the Venetian-Lombard
+        # imprimatura moderates the silver with Brescian warmth.
+        hi_raw  = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * ivory_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * ivory_g, 0.0, 1.0)
+
+        # ── 3. Warm shadow retention (raised-cosine) ──────────────────────────
+        # Savoldo's nocturnal darks retain Brescian warmth — never the arctic cold
+        # of Caravaggio.  Raised-cosine recovery in the shadow zone.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        cos_win = 0.5 * (1.0 - _np.cos(_np.pi * sh_raw))
+        sh_mask = _gf(cos_win.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_mask * warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * warm_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Giovanni Gerolamo Savoldo silver moonveil pass complete.")
