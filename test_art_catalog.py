@@ -133,6 +133,7 @@ EXPECTED_ARTISTS = [
     "andrea_solario",
     "perugino",
     "savoldo",
+    "batoni",
 ]
 
 
