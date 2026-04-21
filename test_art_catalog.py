@@ -127,6 +127,7 @@ EXPECTED_ARTISTS = [
     "orazio_gentileschi",
     "jordaens",
     "guido_cagnacci",
+    "furini",
 ]
 
 
