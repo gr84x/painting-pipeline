@@ -9756,6 +9756,94 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "furini": ArtStyle(
+        artist="Francesco Furini",
+        movement="Florentine Melancholic Baroque / Naturalist Sfumato",
+        nationality="Italian",
+        period="c. 1625–1646",
+        palette=[
+            (0.95, 0.88, 0.76),   # evanescent ivory highlight flesh
+            (0.82, 0.68, 0.54),   # warm buff mid-tone flesh
+            (0.52, 0.42, 0.36),   # deep warm umber-brown shadow flesh
+            (0.60, 0.58, 0.62),   # lavender-grey penumbra transition (his signature)
+            (0.18, 0.14, 0.12),   # near-black warm void background ground
+            (0.72, 0.62, 0.48),   # warm amber mid-shadow recovery
+        ],
+        ground_color=(0.22, 0.18, 0.14),    # very dark warm-brown void ground — figures emerge from darkness
+        stroke_size=4,
+        wet_blend=0.82,                      # the highest blending of any Baroque period; near-Leonardo continuity
+        edge_softness=0.88,                  # extreme sfumato — forms dissolve at periphery without edge
+        jitter=0.010,                        # very low — seamless, controlled, no visible mark variation
+        glazing=(0.68, 0.52, 0.34),          # warm amber-ochre unifying glaze — holds the figure in warm space
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Evanescent sfumato — the defining quality of Francesco Furini's Florentine Baroque.  "
+            "Born in Florence in 1603, Furini trained under Matteo Rosselli before spending "
+            "the formative years of his career in Rome (c. 1619–1622), where he absorbed "
+            "both the Caravaggist tradition of tenebrism and the continuing influence of "
+            "Correggio's Parma sfumato.  He returned to Florence and remained there until "
+            "his early death in 1646 — ordained a priest in 1633, yet continuing to paint "
+            "mythological and biblical subjects of extraordinary sensuality throughout his "
+            "priestly career.  "
+            "What makes Furini unique among his Florentine contemporaries is his synthesis "
+            "of deep Caravaggist darkness with soft Correggesque sfumato.  His technique "
+            "was described by contemporary sources as 'di marmo' (like marble) — yet warm "
+            "and alive.  The comparison to marble points to the key quality: an almost "
+            "impossible surface continuity, as if the skin were not painted but grown, "
+            "with no visible brushstroke, no transition, no edge anywhere on the face "
+            "or torso.  "
+            "His most distinctive technical signature is a cool lavender-grey quality "
+            "at the penumbra — the transition zone between the illuminated flesh and "
+            "the surrounding deep brown shadow.  Where Correggio uses warm amber at "
+            "his penumbra edges and Guido Reni uses cool ivory, Furini uses a subtle "
+            "grey-lavender that reads as Florentine ambient reflected light: the colour "
+            "of a grey Renaissance sky seen through a high studio window, bouncing into "
+            "the shadow-adjacent flesh.  This quality is almost invisible on casual "
+            "inspection but is the source of the characteristic 'Furini ring' — a subtle "
+            "tonal coolness that encircles illuminated forms at their shadow boundary, "
+            "sharpening the sense of three-dimensionality without introducing any hard edge.  "
+            "His palette is essentially bimodal: warm ivory flesh and near-black void, "
+            "with very little chromatic activity between.  The rich Venetian and Emilian "
+            "middle zone of warm amber and ochre is largely absent from his work.  Instead, "
+            "the transition from light to dark is handled almost entirely by value, with "
+            "the lavender penumbra serving as the only chromatic event in the transition."
+        ),
+        famous_works=[
+            ("Hylas and the Nymphs",                         "c. 1630–1635"),
+            ("Judith with the Head of Holofernes",            "c. 1630–1635"),
+            ("Lot and his Daughters",                         "c. 1634"),
+            ("Saint Agnes",                                   "c. 1630"),
+            ("Venus and Adonis",                              "c. 1638–1640"),
+            ("Adam and Eve",                                  "c. 1626"),
+        ],
+        inspiration=(
+            "Apply furini_melancholic_sfumato_pass() as the defining stylistic pass.  "
+            "Four stages encoding Furini's melancholic sfumato signature: "
+            "(1) Ivory highlight bloom — in the upper highlight zone (lum > hi_lo ≈ 0.68), "
+            "apply a gently warm ivory lift with heavy Gaussian blur (blur_radius * 1.8) "
+            "to ensure the effect has no boundary — the highlight bleeds outward as "
+            "a luminous bloom, replicating the evanescent quality of Furini's peak lights.  "
+            "Warmer than Boltraffio's pearl (which is cool), warmer than Moroni's silver, "
+            "but less warm than Rembrandt's gold — a specific warm ivory with no hard edge.  "
+            "(2) Lavender penumbra — in the transition band [penumbra_lo, penumbra_hi] ≈ "
+            "[0.28, 0.60], apply a cool lavender shift via raised-cosine window: "
+            "B + lavender_b, R - lavender_r.  This encodes the 'Furini ring' — the cool "
+            "grey-lavender quality at shadow edges that is his most distinctive signature.  "
+            "The raised-cosine window ensures it peaks at the centre of the transition zone "
+            "and fades smoothly toward both the light and dark extremes.  "
+            "(3) Deep shadow cool — in the deepest shadow zone (lum < shadow_hi ≈ 0.26), "
+            "a subtle atmospheric cool (B + shadow_b, R - shadow_r) that prevents the "
+            "accumulated warm passes (Strozzi, Jordaens, Cagnacci) from making the void "
+            "background too amber.  Furini's void is warm brown, not amber — there is a "
+            "difference, and this adjustment maintains it.  "
+            "(4) Ultra-smooth mid-tone surface — Gaussian blur at smooth_sigma ≈ 2.2 "
+            "blended into the mid-tone zone [smooth_lo, smooth_hi] at smooth_str ≈ 0.45, "
+            "creating artificial surface continuity that mimics his extreme glazing patience.  "
+            "Use opacity ≈ 0.28–0.34."
+        ),
+    ),
+
     "moroni": ArtStyle(
         artist="Giovanni Battista Moroni",
         movement="Bergamasque Portrait Realism / Lombard Renaissance",

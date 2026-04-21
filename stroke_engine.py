@@ -28222,3 +28222,213 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Jacob Jordaens earthy vitality pass complete.")
+
+    def furini_melancholic_sfumato_pass(
+        self,
+        hi_lo:          float = 0.68,
+        ivory_r:        float = 0.012,
+        ivory_g:        float = 0.008,
+        ivory_b:        float = 0.004,
+        penumbra_lo:    float = 0.28,
+        penumbra_hi:    float = 0.60,
+        lavender_b:     float = 0.018,
+        lavender_r:     float = 0.008,
+        shadow_hi:      float = 0.26,
+        shadow_b:       float = 0.010,
+        shadow_r:       float = 0.012,
+        smooth_sigma:   float = 2.2,
+        smooth_lo:      float = 0.30,
+        smooth_hi:      float = 0.78,
+        smooth_str:     float = 0.45,
+        blur_radius:    float = 3.5,
+        opacity:        float = 0.30,
+    ) -> None:
+        """
+        Francesco Furini melancholic sfumato pass — session 114 new artist pass.
+
+        Francesco Furini (1603–1646) is one of the great undiscovered masters of the
+        Florentine Baroque — a painter whose technique represents perhaps the most
+        extreme development of sfumato in the entire seventeenth century.  Born in
+        Florence, he trained first under his father Filippo Furini (a minor goldsmith-
+        painter) before entering the studio of Matteo Rosselli, whose workshop produced
+        several of the most significant Florentine painters of the next generation,
+        including Jacopo Vignali and Lorenzo Lippi.  Furini's decisive formative
+        experience, however, came during his time in Rome in the early 1620s, where he
+        absorbed both the Caravaggist tradition of tenebrism and — crucially — the
+        continuing influence of Correggio's Parma sfumato that had been transmitted
+        through the Roman environment.
+
+        What makes Furini unique among his Florentine contemporaries is his synthesis
+        of these two seemingly opposed impulses: the deep darkness of Caravaggism and
+        the soft, almost evanescent sfumato of the Correggio-Leonardo lineage.  In a
+        Caravaggio, the darkness is void — a near-black that defines form through
+        sudden emergence into light.  In Furini, the darkness is atmospheric and
+        enveloping, more like Leonardo's aerial perspective than Caravaggio's void:
+        his figures dissolve at the periphery not into emptiness but into a warm,
+        tonally continuous darkness that suggests infinite recessive depth.
+
+        Three qualities define his visual signature:
+
+        **Evanescent ivory skin bloom** — Furini's highlight flesh is among the
+        softest and most luminous in all of Baroque painting.  Where Boltraffio's
+        highlights are cool pearl and Moroni's are cool silver, Furini's are warm
+        ivory — a very slightly warmer, creamier quality than either.  But the
+        defining characteristic is not the colour but the *continuity*: Furini's
+        highlights have no edge, no boundary, no point where they begin or end.
+        They bloom outward from the peak of the form as an almost imperceptible
+        warmth — the skin itself appears to emit a faint ivory light.
+
+        **Lavender-grey penumbra at shadow edges** — This is Furini's most
+        distinctive and least-imitated quality.  At the transition zone between
+        the illuminated flesh and the surrounding shadow, Furini introduces a
+        cool lavender-grey quality — neither the warm amber-rose of Guercino nor
+        the cold blue of Sassoferrato, but a specific cool grey-lavender that
+        reads as Florentine ambient reflected light from a grey sky.  This
+        penumbra quality is subtle — it does not announce itself — but it creates
+        a characteristic coolness at the shadow edge that sharpens the contrast
+        between the warm lit flesh above and the dark warm-brown below, while
+        simultaneously softening the transition so that no hard edge is visible.
+        The technical origin is probably a thin grey-blue underpaint or secondary
+        reflected-light source in his studio setup.
+
+        **Ultra-smooth surface continuity** — Furini's surfaces are among the
+        smoothest in all of European painting.  Contemporary sources noted that
+        his flesh appeared "di marmo" — like marble — yet warm and alive.  This
+        was achieved through extraordinary patience in the mid-tone zone: dozens
+        of thin oil glazes blended one into the next with soft badger or fan
+        brushes, creating a surface so continuous that individual pigment
+        particles are invisible even under close examination.  The result is a
+        quality that anticipates the porcelain-smooth academic technique of the
+        nineteenth century, but with a warmth and psychological depth that the
+        academics rarely matched.
+
+        This pass encodes all three qualities through four controlled operations:
+
+          1. Ivory highlight bloom — In the upper highlight zone (lum > hi_lo),
+             apply a gentle warm ivory lift: R + ivory_r, G + ivory_g (smaller),
+             B + ivory_b (very small, to avoid pure yellow).  The mask is heavily
+             Gaussian-blurred so that the effect has no edge — the highlight
+             quality bleeds outward from the peak of each form.  This replicates
+             Furini's characteristic ivory bloom quality at the most luminous
+             flesh zones.
+
+          2. Lavender penumbra at shadow edges — In the transition zone
+             [penumbra_lo, penumbra_hi], apply a cool lavender shift using a
+             raised-cosine window peaking at the centre of the band:
+             B + lavender_b, R - lavender_r.  This introduces Furini's
+             characteristic cool grey-lavender quality exactly at the light-to-
+             shadow transition — the most defining feature of his technique,
+             invisible to casual inspection but responsible for the characteristic
+             Furini "ring of coolness" around illuminated forms.
+
+          3. Deep shadow cool tone — In shadow zones (lum < shadow_hi), apply a
+             very subtle cool correction: B + shadow_b, R - shadow_r.  Where
+             Jordaens and Cagnacci keep their shadows warm, Furini's deep shadows
+             carry a slightly cooler quality — influenced by his Florentine
+             environment and his absorption of Leonardo's atmospheric perspective.
+             The net effect after Cagnacci's warm shadow recovery is a shadows
+             that are warm amber-rose in the mid-shadow but slightly cooler in
+             the deepest zones.
+
+          4. Ultra-smooth mid-tone surface — In the mid-tone zone [smooth_lo,
+             smooth_hi], apply a Gaussian-blurred blend of the current canvas
+             colour with itself: the blurred version is blended in at strength
+             smooth_str, creating an artificial surface continuity that mimics
+             Furini's extreme glazing patience.  This is the single operation most
+             responsible for the "marmo" quality in the output.
+
+        Parameters
+        ----------
+        hi_lo        : lower luminance threshold for ivory highlight bloom (lum > this)
+        ivory_r      : red lift in highlights (warm ivory bloom quality)
+        ivory_g      : green lift in highlights (ivory warmth, less than R)
+        ivory_b      : blue lift in highlights (tiny — prevents pure yellow)
+        penumbra_lo  : lower bound of lavender penumbra band
+        penumbra_hi  : upper bound of lavender penumbra band
+        lavender_b   : blue lift in penumbra (lavender cool quality)
+        lavender_r   : red damp in penumbra (lavender, not warm)
+        shadow_hi    : upper luminance threshold for deep shadow zone (lum < this)
+        shadow_b     : blue lift in deep shadows (atmospheric Florentine cool)
+        shadow_r     : red damp in deep shadows (prevent accumulated warmth)
+        smooth_sigma : Gaussian sigma for mid-tone surface smoothing
+        smooth_lo    : lower bound of smoothed mid-tone zone
+        smooth_hi    : upper bound of smoothed mid-tone zone
+        smooth_str   : blend strength for Gaussian surface smoothing (0–1)
+        blur_radius  : Gaussian sigma for mask feathering
+        opacity      : overall composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Ivory highlight bloom ──────────────────────────────────────────
+        # Warm ivory luminosity at the peak of illuminated flesh forms.
+        # Heavy blur ensures the effect has no edge — it bleeds outward as a bloom.
+        hi_raw  = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius * 1.8)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * ivory_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * ivory_g, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask * ivory_b, 0.0, 1.0)
+
+        # ── 2. Lavender penumbra at shadow edges ──────────────────────────────
+        # Cool lavender-grey at the light-to-shadow transition zone.
+        # Raised-cosine window peaks at centre of [penumbra_lo, penumbra_hi].
+        pen_cos    = _np.clip((lum - penumbra_lo) / (penumbra_hi - penumbra_lo + 1e-6), 0.0, 1.0)
+        pen_window = 0.5 * (1.0 - _np.cos(_np.pi * pen_cos))
+        pen_mask   = _gf(pen_window.astype(_np.float32), blur_radius)
+        pen_mask   = _np.clip(pen_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - pen_mask * lavender_r, 0.0, 1.0)
+        b_out = _np.clip(b_out + pen_mask * lavender_b, 0.0, 1.0)
+
+        # ── 3. Deep shadow cool tone ──────────────────────────────────────────
+        # Subtle atmospheric cool in the deepest shadow zones.
+        # Contrasts with Cagnacci's warm shadow recovery — Furini is slightly cooler.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        sh_mask = _gf(sh_raw.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * shadow_b, 0.0, 1.0)
+        r_out = _np.clip(r_out - sh_mask * shadow_r, 0.0, 1.0)
+
+        # ── 4. Ultra-smooth mid-tone surface ─────────────────────────────────
+        # Gaussian blur of the mid-tone zone to simulate Furini's glazing patience.
+        # The blurred values are blended back in to create surface continuity.
+        r_blur = _gf(r_out.astype(_np.float32), smooth_sigma)
+        g_blur = _gf(g_out.astype(_np.float32), smooth_sigma)
+        b_blur = _gf(b_out.astype(_np.float32), smooth_sigma)
+
+        mid_cos    = _np.clip((lum - smooth_lo) / (smooth_hi - smooth_lo + 1e-6), 0.0, 1.0)
+        mid_window = 0.5 * (1.0 - _np.cos(_np.pi * mid_cos))
+        mid_mask   = _gf(mid_window.astype(_np.float32), blur_radius * 0.5)
+        mid_mask   = _np.clip(mid_mask, 0.0, 1.0)
+
+        r_out = r_out * (1.0 - mid_mask * smooth_str) + r_blur * (mid_mask * smooth_str)
+        g_out = g_out * (1.0 - mid_mask * smooth_str) + g_blur * (mid_mask * smooth_str)
+        b_out = b_out * (1.0 - mid_mask * smooth_str) + b_blur * (mid_mask * smooth_str)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Francesco Furini melancholic sfumato pass complete.")
