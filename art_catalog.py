@@ -10430,6 +10430,106 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giovanni Boldini ───────────────────────────────────────────────────────
+    # Giovanni Boldini (1842–1931) — the Ferrarese-born 'Master of Swirl' and
+    # supreme virtuoso of Belle Époque portraiture in Paris.  Trained in Florence
+    # under Stefano Ussi and in London before settling permanently in Paris in
+    # 1871, Boldini became the most fashionable and technically audacious portrait
+    # painter of the late nineteenth and early twentieth century.  His defining
+    # technique — the diagonal swirling brushstroke applied at two or more
+    # overlapping angles — creates a visual energy unlike anything in academic
+    # portraiture: the surface appears to be in motion even in still repose.
+    # The face and hands emerge as resolved zones of luminous warmth against a
+    # near-black background that dissolves into directional gestural energy.
+    "boldini": ArtStyle(
+        artist="Giovanni Boldini",
+        movement="Italian Belle Époque / Parisian Portraiture",
+        nationality="Italian (Ferrarese, later Parisian)",
+        period="c. 1860–1931",
+        palette=[
+            (0.90, 0.78, 0.62),   # warm ivory flesh — luminous, slightly tawny
+            (0.72, 0.55, 0.42),   # warm rose mid-flesh — characteristic carnation
+            (0.15, 0.10, 0.07),   # near-black background void — deep dramatic ground
+            (0.38, 0.28, 0.18),   # warm brown shadow — chestnut depth in darks
+            (0.60, 0.50, 0.35),   # warm ochre transition — figure-to-background bridge
+            (0.94, 0.88, 0.76),   # cream highlight — luminous peak, warm ivory crest
+        ],
+        ground_color=(0.28, 0.20, 0.13),    # dark warm chestnut — Boldini favoured
+        #                                     near-black grounds from which the
+        #                                     luminous figure emerges dramatically
+        stroke_size=8,
+        wet_blend=0.30,                      # low-moderate — loose directional strokes
+        #                                     retain individual energy; not dissolved
+        edge_softness=0.50,                  # moderate — figures emerge softly from
+        #                                     dark backgrounds with luminous edge quality
+        jitter=0.048,                        # high — gestural energy, varied stroke colour
+        glazing=(0.40, 0.30, 0.15),          # warm amber-chestnut final glaze
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Giovanni Boldini (1842–1931) was the supreme virtuoso of Belle Époque portraiture "
+            "— the Ferrarese-born, Parisian-adopted 'Master of Swirl' whose sitters appeared "
+            "to be caught in a moment of animated movement even in still repose.  Trained in "
+            "Florence and London before settling permanently in Paris in 1871, Boldini combined "
+            "the tonal grandeur of Old Master practice (dark grounds, luminous figures emerging "
+            "from deep shadow) with a new gestural freedom that anticipated twentieth-century "
+            "Expressionism.  His defining technique is the diagonal swirling brushstroke: "
+            "loaded with paint and drawn at two or three overlapping angles across the canvas, "
+            "these marks create a visual vibration — a sense that the painted surface itself is "
+            "in motion.  Fabric, hair, and background environment are almost dissolved into this "
+            "directional energy; only the face and hands emerge as zones of resolution and focus, "
+            "rendered with greater precision against the surrounding swirl.  "
+            "Boldini's palette is organized around a warm tonal hierarchy: near-black grounds "
+            "(raw umber + ivory black), deep warm shadows (Van Dyck brown register), warm "
+            "mid-tones (rose-ochre carnations), and luminous ivory-cream highlights.  The flesh "
+            "tones are warm rather than cool — a deliberate opposition to the silvery flesh of "
+            "his contemporaries like Sargent.  Where Sargent's bravura is crisp and "
+            "architectural, Boldini's is flowing and curvilinear: the strokes follow the "
+            "movement of drapery folds and hair rather than the structure of underlying anatomy.  "
+            "Famous sitters include the Marchesa Luisa Casati (1908), Madame Charles Max (1896), "
+            "Consuelo Vanderbilt Duchess of Marlborough (1906), and Giovinetta Errazuriz (1892).  "
+            "His late works — executed in his eighties with increasingly wild brushwork — "
+            "anticipate the gestural abstraction of Abstract Expressionism by several decades."
+        ),
+        famous_works=[
+            ("Portrait of the Marchesa Luisa Casati",       "1908"),
+            ("Portrait of Madame Charles Max",               "1896"),
+            ("Portrait of the Duchess of Marlborough",       "1906"),
+            ("Portrait of Giovinetta Errazuriz",             "1892"),
+            ("Portrait of James Abbott McNeill Whistler",    "1897"),
+            ("Portrait of Count Robert de Montesquiou",      "1897"),
+            ("Girl in White",                                "c. 1884"),
+            ("Portrait of Mademoiselle Lantelme",            "1907"),
+        ],
+        inspiration=(
+            "Apply boldini_swirl_bravura_pass() as the defining stylistic pass for session 121.  "
+            "The pass encodes Boldini's signature in three stages:  "
+            "(1) Dual-angle diagonal swirl field — the session 121 artistic improvement.  Two "
+            "anisotropic streak fields are computed at primary angle ~45° and secondary angle "
+            "~-28° (Boldini's strokes cross at roughly these competing angles in his most "
+            "characteristic works — the Marchesa Casati 1908, Madame Max 1896).  Each streak "
+            "field is built by rotating the luminance swirl mask, applying an anisotropic "
+            "Gaussian (σ_along=14px >> σ_across=1.5px), then rotating back.  The two fields "
+            "are combined: primary at full swirl_str (≈ 0.038), secondary at half (swirl_str "
+            "× 0.50).  Applied to the upper mid-tone and highlight zone (lum > swirl_lo ≈ "
+            "0.42) via a smooth ramp mask, the result is a warm ivory brightness modulation "
+            "along two crossing axes — approximating the visual complexity of superimposed "
+            "directional brushstrokes.  Unlike Batoni's single-angle silk sheen (session 119), "
+            "the dual crossing angles produce Boldini's characteristic 'swirl' rather than a "
+            "weave-direction shimmer.  "
+            "(2) Warm flesh luminosity lift — in the upper mid-tone zone of the figure (lum "
+            "range 0.50–0.85), lift R + flesh_r (≈ 0.016), G + flesh_g (≈ 0.009), slightly "
+            "reduce B (-flesh_b ≈ 0.005).  Boldini's flesh has a warm, slightly tawny quality "
+            "— ivory with a faint warm rose undertone — contrasting strongly with the cool "
+            "near-black background.  "
+            "(3) Background darkening — in the background zone (outside figure mask), multiply "
+            "all channels by dark_factor (≈ 0.94) and add a faint warm R undertone (bg_warm_r "
+            "≈ 0.005).  Boldini's backgrounds have a slightly warm dark quality — not pure "
+            "neutral black but a deep chestnut-umber register.  "
+            "Use at opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 

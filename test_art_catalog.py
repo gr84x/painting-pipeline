@@ -134,6 +134,7 @@ EXPECTED_ARTISTS = [
     "perugino",
     "savoldo",
     "batoni",
+    "boldini",
 ]
 
 
@@ -14509,3 +14510,129 @@ def test_lotto_restless_vivacity_pass_noise_scale_parameter():
     assert "noise_scale" in sig.parameters, (
         "lotto_restless_vivacity_pass must have 'noise_scale' parameter "
         "(primary Gaussian sigma for multi-scale chromatic vibration — session 120 improvement)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 121 — Giovanni Boldini + ITALIAN_BELLE_EPOQUE_PORTRAITURE
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_boldini_in_catalog():
+    """boldini must be present in CATALOG (session 121)."""
+    assert "boldini" in CATALOG, (
+        "boldini not found in CATALOG -- add the ArtStyle entry")
+
+
+def test_boldini_palette_valid():
+    """Every colour in boldini palette must have RGB channels in [0, 1]."""
+    s = get_style("boldini")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"boldini palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_boldini_dark_ground():
+    """
+    boldini ground_color must be dark (luminance < 0.35) --
+    Boldini favoured near-black chestnut grounds from which the figure
+    emerges luminously.
+    """
+    s = get_style("boldini")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.35, (
+        f"boldini ground_color luminance={lum:.3f} should be dark (< 0.35) "
+        "-- Boldini's near-black chestnut ground is compositionally essential")
+
+
+def test_boldini_low_wet_blend():
+    """
+    boldini wet_blend must be low (< 0.45) -- Boldini's loose directional
+    strokes retain individual energy; they are not heavily blended.
+    """
+    s = get_style("boldini")
+    assert s.wet_blend < 0.45, (
+        f"boldini wet_blend={s.wet_blend:.2f} should be low (< 0.45) "
+        "-- directional swirl strokes are not heavily wet-blended")
+
+
+def test_boldini_famous_works_include_marchesa_casati():
+    """boldini famous_works must include Portrait of the Marchesa Luisa Casati."""
+    s = get_style("boldini")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Casati" in t or "Marchesa" in t for t in titles), (
+        "boldini famous_works must include the Marchesa Casati portrait — "
+        "his defining masterwork of the swirl technique")
+
+
+def test_boldini_inspiration_references_swirl_pass():
+    """boldini inspiration must reference boldini_swirl_bravura_pass."""
+    s = get_style("boldini")
+    assert "boldini_swirl_bravura_pass" in s.inspiration, (
+        "boldini inspiration must reference boldini_swirl_bravura_pass()")
+
+
+def test_boldini_inspiration_references_dual_angle():
+    """boldini inspiration must reference the dual-angle improvement."""
+    s = get_style("boldini")
+    insp = s.inspiration.lower()
+    assert "dual" in insp or "two" in insp or "secondary" in insp, (
+        "boldini inspiration must reference the dual-angle swirl field "
+        "(the session 121 artistic improvement)")
+
+
+def test_italian_belle_epoque_portraiture_period_present():
+    """Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE must be in the Period enum (session 121)."""
+    assert hasattr(Period, "ITALIAN_BELLE_EPOQUE_PORTRAITURE"), (
+        "Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE not found -- add it to scene_schema.py")
+    assert Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE in list(Period)
+
+
+def test_italian_belle_epoque_portraiture_stroke_params_low_wet_blend():
+    """ITALIAN_BELLE_EPOQUE_PORTRAITURE stroke_params must have low wet_blend."""
+    style = Style(medium=Medium.OIL, period=Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] < 0.45, (
+        f"ITALIAN_BELLE_EPOQUE_PORTRAITURE wet_blend should be low (< 0.45) "
+        f"for Boldini's loose directional bravura; got {p['wet_blend']}")
+
+
+def test_italian_belle_epoque_portraiture_stroke_params_moderate_edge_softness():
+    """ITALIAN_BELLE_EPOQUE_PORTRAITURE stroke_params must have moderate edge_softness."""
+    style = Style(medium=Medium.OIL, period=Period.ITALIAN_BELLE_EPOQUE_PORTRAITURE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert 0.35 <= p["edge_softness"] <= 0.70, (
+        f"ITALIAN_BELLE_EPOQUE_PORTRAITURE edge_softness should be moderate [0.35, 0.70] "
+        f"for figures emerging softly from dark grounds; got {p['edge_softness']}")
+
+
+def test_boldini_swirl_bravura_pass_exists():
+    """Painter must expose boldini_swirl_bravura_pass (session 121)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "boldini_swirl_bravura_pass"), (
+        "Painter.boldini_swirl_bravura_pass not found -- add it to stroke_engine.py")
+
+
+def test_boldini_swirl_bravura_pass_opacity_parameter():
+    """boldini_swirl_bravura_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.boldini_swirl_bravura_pass)
+    assert "opacity" in sig.parameters, (
+        "boldini_swirl_bravura_pass must have 'opacity' parameter")
+
+
+def test_boldini_swirl_bravura_pass_dual_angle_parameters():
+    """boldini_swirl_bravura_pass must have both primary_angle and secondary_angle."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.boldini_swirl_bravura_pass)
+    assert "primary_angle" in sig.parameters, (
+        "boldini_swirl_bravura_pass must have 'primary_angle' parameter "
+        "(the dominant swirl direction — session 121 improvement)")
+    assert "secondary_angle" in sig.parameters, (
+        "boldini_swirl_bravura_pass must have 'secondary_angle' parameter "
+        "(the crossing swirl direction — session 121 improvement)")
