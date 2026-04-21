@@ -10113,6 +10113,112 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "perugino": ArtStyle(
+        artist="Pietro Perugino",
+        movement="Umbrian Renaissance / Proto-Classical",
+        nationality="Italian",
+        period="c. 1472–1523",
+        palette=[
+            (0.94, 0.82, 0.64),   # luminous warm ivory highlight flesh (Umbrian light)
+            (0.78, 0.62, 0.45),   # warm peach mid-tone flesh
+            (0.54, 0.38, 0.26),   # warm amber-sienna shadow flesh
+            (0.60, 0.70, 0.80),   # Umbrian sky blue (serene atmospheric distance)
+            (0.38, 0.50, 0.35),   # soft sage-green landscape (harmonious, quiet)
+            (0.82, 0.75, 0.58),   # warm golden ambient — Umbrian plain light
+            (0.30, 0.24, 0.16),   # deep warm shadow — anchor (not cold)
+        ],
+        ground_color=(0.82, 0.72, 0.54),    # warm luminous buff-ivory ground (lum≈0.73) — Umbrian light ground
+        stroke_size=5,
+        wet_blend=0.42,                      # moderate — careful glazed layering, not deep sfumato blending
+        edge_softness=0.65,                  # moderate-high — softened, serene, not sfumato extremes
+        jitter=0.014,
+        glazing=(0.70, 0.60, 0.38),          # warm amber-golden glaze — Umbrian luminosity
+        crackle=True,                        # oil on panel — aging appropriate
+        chromatic_split=False,               # pure tonal harmony, not chromatic scattering
+        technique=(
+            "Pietro Perugino (c. 1446–1523) stands as one of the most significant "
+            "and underestimated painters of the Italian Renaissance — underestimated "
+            "because his supreme pupil Raphael so completely surpassed and absorbed "
+            "him that Perugino's own achievement has been obscured by the very school "
+            "he founded.  Yet the Umbrian school that Perugino created and embodied "
+            "is one of the most distinctive in Italian art: a tradition of serene, "
+            "harmonious composition, soft atmospheric light, and an almost "
+            "otherworldly quality of inner calm that no other regional tradition "
+            "quite matches.  "
+            "His defining technical quality might be called luminous ground warmth — "
+            "a way of handling light that does not produce the theatrical drama of "
+            "Caravaggio's chiaroscuro, nor the intellectual exactitude of Leonardo's "
+            "sfumato, nor the warm vitality of the Venetian colorists, but something "
+            "distinct: a diffuse, pervasive warmth that seems to emanate from the "
+            "ground itself, as if the warm ochre imprimatura is glowing softly "
+            "through every layer of paint.  The shadows in Perugino's paintings are "
+            "never cold or theatrical; they are warm amber-shadow, retaining the "
+            "gentle heat of the Umbrian plain even in the darkest passages.  The "
+            "highlights are not brilliant white flashes but creamy ivory-gold, warm "
+            "and unassuming — the light of an Umbrian afternoon rather than a "
+            "Venetian lagoon or a Flemish studio window.  "
+            "Perugino's landscapes are among the most characteristic elements of "
+            "his style: open, luminous, with gently rolling hills dissolving into "
+            "a soft blue-green atmospheric haze on the horizon.  This atmospheric "
+            "treatment — a precursor to the High Renaissance's full deployment of "
+            "aerial perspective — creates a sense of endless, peaceful recession "
+            "that amplifies the psychological serenity of his figures.  "
+            "His human figures embody this same quality: they are calm, composed, "
+            "slightly idealised without being cold or classical in the Florentine "
+            "sense.  His Madonna faces, in particular, have a quality of gentle "
+            "rapture — eyes slightly downcast, mouths softly curved — that his "
+            "pupil Raphael would refine into one of the most recognizable ideals "
+            "of feminine beauty in Western art.  "
+            "Perugino's key technical contribution to the subsequent tradition: "
+            "the demonstration that a unified warm ground, allowing the imprimatura "
+            "to glow through thin glazes, could create a quality of luminosity "
+            "more harmonious and psychologically gentle than either the cool "
+            "sfumato of Leonardo or the warm impasto of the Venetians.  This "
+            "approach — which might be called glazed ground luminosity — would "
+            "directly influence Raphael's handling of his early Umbrian-period "
+            "paintings before Raphael moved toward the more saturated palette of "
+            "the Roman school."
+        ),
+        famous_works=[
+            ("The Delivery of the Keys",            "1481–1482"),
+            ("Christ Giving the Keys to Saint Peter", "c. 1481"),
+            ("Virgin and Child with Saints",         "c. 1493"),
+            ("The Crucifixion with Saints",          "c. 1496"),
+            ("Lamentation over the Dead Christ",     "c. 1495"),
+            ("Apollo and Marsyas",                   "c. 1495"),
+            ("Portrait of Francesco delle Opere",    "1494"),
+            ("Assumption of the Virgin (Vallombrosa)", "1500"),
+        ],
+        inspiration=(
+            "Apply perugino_serene_grace_pass() as the defining stylistic pass.  "
+            "Three stages encoding Perugino's Umbrian-Renaissance signature: "
+            "(1) Luminous ground warmth — a warm ambient lift applied throughout the "
+            "mid-tone zone [ground_lo, ground_hi] ≈ [0.30, 0.75] via a smooth bell-window "
+            "(sin²(π * t) where t = normalised position in the range).  "
+            "R + ground_r (≈0.014), G + ground_g (≈0.007).  This encodes the defining "
+            "Umbrian quality: the warm ochre imprimatura glowing through thin paint "
+            "layers, suffusing every passage with a gentle inner warmth.  Unlike "
+            "Guercino's penumbra_warmth (concentrated in the penumbra zone) or "
+            "Jordaens's ruddy mid-tone (raw vitality), Perugino's warmth is "
+            "diffuse and harmonious — it is the warmth of the ground itself rather "
+            "than a local flesh-colour effect.  The sin² window (rather than a simple "
+            "sin window) produces a peak that is broader and more gradual than a "
+            "sine peak — more like a warm ambient field than a targeted warmth pulse.  "
+            "(2) Ivory highlight serenity — in the upper highlight zone (lum > hi_lo ≈ 0.70), "
+            "apply a warm ivory-gold lift: R + ivory_r (≈0.010), G + ivory_g (≈0.006), "
+            "B - ivory_b (≈0.003, minor blue reduction to avoid drift).  Perugino's "
+            "highlights are creamy ivory-gold rather than cool pearl (Boltraffio), "
+            "silver (Moroni), or amber-pellucid (Solario): they are warm, unassuming, "
+            "and harmonious — the serene Umbrian quality.  "
+            "(3) Warm amber shadow — in the shadow zone (lum < shadow_hi ≈ 0.35), "
+            "apply a gentle raised-cosine warm amber recovery: R + warm_r (≈0.014), "
+            "G + warm_g (≈0.006).  Perugino's shadows never go cold — unlike the "
+            "violet Venetian shadows of Solario, his dark passages retain the warm "
+            "amber-sienna quality of the Umbrian earth.  "
+            "Use opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 

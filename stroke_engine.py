@@ -28703,3 +28703,121 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Andrea Solario pellucid amber pass complete.")
+
+    def perugino_serene_grace_pass(
+        self,
+        ground_lo:   float = 0.30,
+        ground_hi:   float = 0.75,
+        ground_r:    float = 0.014,
+        ground_g:    float = 0.007,
+        hi_lo:       float = 0.70,
+        ivory_r:     float = 0.010,
+        ivory_g:     float = 0.006,
+        ivory_b:     float = 0.003,
+        shadow_hi:   float = 0.35,
+        warm_r:      float = 0.014,
+        warm_g:      float = 0.006,
+        blur_radius: float = 4.0,
+        opacity:     float = 0.30,
+    ) -> None:
+        """
+        Pietro Perugino serene grace pass — session 117 new artist pass.
+
+        Pietro Perugino (c. 1446–1523), teacher of Raphael, founded the Umbrian
+        school — a tradition of serene, harmonious painting defined by a diffuse
+        warm luminosity that seems to emanate from the ground itself.  Unlike
+        Leonardo's sfumato (atmospheric edge dissolution), Rembrandt's chiaroscuro
+        (dramatic lighting contrast), or the Venetian colorists (saturated chromatic
+        vitality), Perugino achieves his quality through luminous ground warmth:
+        the warm ochre imprimatura glowing softly through thin glazes, suffusing
+        every passage with gentle inner warmth.
+
+        Three qualities define his visual signature:
+
+        **Luminous ground warmth** — a broad warm ambient lift applied throughout
+        the mid-tone zone [ground_lo, ground_hi] via a sin²(π·t) bell-window.
+        R + ground_r, G + ground_g.  The sin² window (broader and more gradual
+        than a simple sine peak) encodes the diffuse, pervasive quality of
+        Perugino's warmth — not a targeted penumbra effect but an ambient field
+        of warmth emanating from the ground layer through thin glazes.  This is
+        the session 117 artistic improvement: sin²-windowed ground warmth, a
+        more spatially uniform and physically grounded warmth model than the
+        sin-windowed penumbra pulse of Solario's arc (session 116) — simulating
+        the optical behaviour of a warm imprimatura viewed through multiple
+        semi-transparent oil layers.
+
+        **Ivory highlight serenity** — in the upper highlight zone (lum > hi_lo),
+        a warm ivory-gold lift (R + ivory_r, G + ivory_g, B - ivory_b).  Perugino's
+        highlights are creamy ivory-gold rather than cool pearl (Boltraffio), silver
+        (Moroni), or amber-pellucid (Solario): warm, unassuming, harmonious — the
+        light of an Umbrian afternoon.
+
+        **Warm amber shadow** — in the shadow zone (lum < shadow_hi), a gentle
+        raised-cosine warm amber recovery (R + warm_r, G + warm_g).  Perugino's
+        shadows never go cold; dark passages retain the warm amber-sienna quality
+        of the Umbrian earth — fundamentally different from Solario's cool violet
+        Venetian shadows.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Luminous ground warmth (sin² bell window) ──────────────────────
+        # The defining Umbrian quality: warm imprimatura glowing through glazes.
+        # sin²(π·t) is broader and more gradual than sin(π·t) — encodes the
+        # diffuse ambient character of ground warmth vs. a targeted penumbra pulse.
+        t_ground = _np.clip(
+            (lum - ground_lo) / (ground_hi - ground_lo + 1e-6), 0.0, 1.0
+        )
+        sin2_win = _np.sin(_np.pi * t_ground) ** 2
+        ground_mask = _gf(sin2_win.astype(_np.float32), blur_radius)
+        ground_mask = _np.clip(ground_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + ground_mask * ground_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + ground_mask * ground_g, 0.0, 1.0)
+
+        # ── 2. Ivory highlight serenity ───────────────────────────────────────
+        # Warm ivory-gold at peak flesh — Perugino's serene Umbrian highlight.
+        # Warmer than Boltraffio's pearl, not as amber as Solario, not as silvery
+        # as Moroni: creamy ivory-gold, harmonious and unassuming.
+        hi_raw = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * ivory_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * ivory_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * ivory_b, 0.0, 1.0)
+
+        # ── 3. Warm amber shadow ──────────────────────────────────────────────
+        # Raised-cosine amber recovery in the shadow zone — Umbrian earth warmth.
+        # Unlike Solario's cool violet shadows, Perugino's darks stay warm and
+        # grounded: the amber-sienna quality of the Umbrian plain even in darkness.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        cos_win = 0.5 * (1.0 - _np.cos(_np.pi * sh_raw))
+        sh_mask = _gf(cos_win.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_mask * warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * warm_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Pietro Perugino serene grace pass complete.")

@@ -131,6 +131,7 @@ EXPECTED_ARTISTS = [
     "lavinia_fontana",
     "moroni",
     "andrea_solario",
+    "perugino",
 ]
 
 
@@ -305,6 +306,7 @@ EXPECTED_PERIODS = [
     "ROMAN_DEVOTIONAL_BAROQUE",
     "ITALO_COURTLY_BAROQUE",
     "ANTWERP_BAROQUE",
+    "UMBRIAN_CLASSICAL_HARMONY",
 ]
 
 
@@ -10182,7 +10184,7 @@ def test_signorelli_technique_mentions_orvieto():
 
 def test_umbrian_renaissance_in_expected_periods():
     """EXPECTED_PERIODS list must include UMBRIAN_RENAISSANCE."""
-    assert "UMBRIAN_RENAISSANCE" in EXPECTED_PERIODS, (
+    assert "UMBRIAN_CLASSICAL_HARMONY" in EXPECTED_PERIODS, (
         "UMBRIAN_RENAISSANCE missing from EXPECTED_PERIODS — add it to the list")
 
 
@@ -14021,3 +14023,201 @@ def test_lombard_leonardesque_period_in_period_enum():
     from scene_schema import Period
     assert Period.LOMBARD_LEONARDESQUE in list(Period), (
         "Period.LOMBARD_LEONARDESQUE not found — add it to scene_schema.py Period enum")
+
+
+# ── Session 117: Pietro Perugino + Period.UMBRIAN_CLASSICAL_HARMONY ──────────
+
+
+def test_perugino_in_catalog():
+    """perugino must be present in CATALOG (session 117)."""
+    from art_catalog import CATALOG
+    assert "perugino" in CATALOG, (
+        "perugino not found in CATALOG — add it to art_catalog.py")
+
+
+def test_perugino_movement():
+    """perugino movement must reference Umbrian tradition."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    mv = s.movement.lower()
+    assert "umbrian" in mv or "proto-classical" in mv, (
+        f"perugino movement={s.movement!r} must reference Umbrian or Proto-Classical")
+
+
+def test_perugino_nationality():
+    """perugino must be listed as Italian."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    assert "italian" in s.nationality.lower(), (
+        f"perugino nationality={s.nationality!r} should be Italian")
+
+
+def test_perugino_palette_length():
+    """perugino palette must have at least 5 colours."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    assert len(s.palette) >= 5, (
+        f"perugino palette has {len(s.palette)} colours; expected >= 5")
+
+
+def test_perugino_palette_values_in_range():
+    """All perugino palette RGB values must be in [0, 1]."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    for i, col in enumerate(s.palette):
+        for j, ch in enumerate(col):
+            assert 0.0 <= ch <= 1.0, (
+                f"perugino palette[{i}][{j}] = {ch} out of [0, 1]")
+
+
+def test_perugino_has_warm_highlight():
+    """perugino palette must include a warm ivory-gold highlight (R > 0.85, G > 0.75)."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    warm_highlights = [(r, g, b) for r, g, b in s.palette if r > 0.85 and g > 0.75]
+    assert warm_highlights, (
+        "perugino palette must include at least one warm ivory-gold highlight "
+        "(R > 0.85, G > 0.75) — his defining Umbrian luminosity")
+
+
+def test_perugino_has_sky_blue():
+    """perugino palette must include a soft blue entry (B > 0.70, B > R)."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    blues = [(r, g, b) for r, g, b in s.palette if b > 0.70 and b > r]
+    assert blues, (
+        "perugino palette must include a sky-blue entry (B > 0.70, B > R) "
+        "— his characteristic serene Umbrian sky")
+
+
+def test_perugino_moderate_wet_blend_s117():
+    """perugino wet_blend must be in [0.25, 0.55] — careful glazed layering, not deep sfumato."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    assert 0.25 <= s.wet_blend <= 0.55, (
+        f"perugino wet_blend={s.wet_blend} should be moderate [0.25, 0.55] for glazed layering")
+
+
+def test_perugino_moderate_edge_softness():
+    """perugino edge_softness must be in [0.50, 0.85] (serene softened edges)."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    assert 0.50 <= s.edge_softness <= 0.85, (
+        f"perugino edge_softness={s.edge_softness} should be in [0.50, 0.85] for serenity")
+
+
+def test_perugino_has_glazing():
+    """perugino must define glazing (warm amber-golden overlay)."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    assert s.glazing is not None, "perugino must have glazing (warm amber-golden depth)"
+    r, g, b = s.glazing
+    assert r > g > b, (
+        f"perugino glazing={s.glazing!r} should be warm amber-golden (R > G > B)")
+
+
+def test_perugino_famous_works_include_delivery_of_keys():
+    """perugino famous_works must reference a key work or religious subject."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    titles_lower = [w[0].lower() for w in s.famous_works]
+    has_known = any(
+        "keys" in t or "christ" in t or "crucifixion" in t or "virgin" in t
+        or "delivery" in t or "lamentation" in t or "portrait" in t
+        for t in titles_lower
+    )
+    assert has_known, (
+        "perugino famous_works must include at least one recognizable work "
+        "(keys, christ, crucifixion, virgin, delivery, lamentation, or portrait)")
+
+
+def test_perugino_inspiration_references_ground_warmth():
+    """perugino inspiration must reference ground warmth or Umbrian quality."""
+    from art_catalog import get_style
+    s = get_style("perugino")
+    insp = s.inspiration.lower()
+    assert "ground" in insp or "umbrian" in insp or "serenity" in insp, (
+        "perugino inspiration must reference ground warmth or Umbrian serenity")
+
+
+def test_umbrian_classical_harmony_period_present():
+    """Period.UMBRIAN_CLASSICAL_HARMONY must be in the Period enum (session 117)."""
+    from scene_schema import Period
+    assert hasattr(Period, "UMBRIAN_CLASSICAL_HARMONY"), (
+        "Period.UMBRIAN_CLASSICAL_HARMONY not found — add it to scene_schema.py")
+    assert Period.UMBRIAN_CLASSICAL_HARMONY in list(Period)
+
+
+def test_umbrian_classical_harmony_stroke_params_high_wet_blend():
+    """UMBRIAN_CLASSICAL_HARMONY stroke_params must have wet_blend >= 0.60."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.UMBRIAN_CLASSICAL_HARMONY,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"UMBRIAN_CLASSICAL_HARMONY wet_blend should be >= 0.60 for harmonious smooth surface; "
+        f"got {p['wet_blend']}")
+
+
+def test_umbrian_classical_harmony_stroke_params_moderate_edge_softness():
+    """UMBRIAN_CLASSICAL_HARMONY stroke_params must have edge_softness in [0.50, 0.85]."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.UMBRIAN_CLASSICAL_HARMONY,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.50 <= p["edge_softness"] <= 0.85, (
+        f"UMBRIAN_CLASSICAL_HARMONY edge_softness should be in [0.50, 0.85] for Umbrian serenity; "
+        f"got {p['edge_softness']}")
+
+
+def test_perugino_serene_grace_pass_exists():
+    """Painter must expose perugino_serene_grace_pass (session 117)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "perugino_serene_grace_pass"), (
+        "Painter.perugino_serene_grace_pass not found — add it to stroke_engine.py")
+
+
+def test_perugino_serene_grace_pass_opacity_parameter():
+    """perugino_serene_grace_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.perugino_serene_grace_pass)
+    assert "opacity" in sig.parameters, (
+        "perugino_serene_grace_pass must have 'opacity' parameter")
+
+
+def test_perugino_serene_grace_pass_ground_r_parameter():
+    """perugino_serene_grace_pass must accept ground_r for luminous ground warmth."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.perugino_serene_grace_pass)
+    assert "ground_r" in sig.parameters, (
+        "perugino_serene_grace_pass must have 'ground_r' parameter "
+        "(primary ground warmth red component — session 117 improvement)")
+
+
+def test_perugino_serene_grace_pass_ivory_r_parameter():
+    """perugino_serene_grace_pass must accept ivory_r for highlight serenity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.perugino_serene_grace_pass)
+    assert "ivory_r" in sig.parameters, (
+        "perugino_serene_grace_pass must have 'ivory_r' parameter "
+        "(ivory-gold highlight warm component)")
+
+
+def test_perugino_serene_grace_pass_warm_r_parameter():
+    """perugino_serene_grace_pass must accept warm_r for amber shadow recovery."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.perugino_serene_grace_pass)
+    assert "warm_r" in sig.parameters, (
+        "perugino_serene_grace_pass must have 'warm_r' parameter "
+        "(warm amber shadow recovery)")
+
+
+def test_umbrian_classical_harmony_period_in_period_enum():
+    """Period.UMBRIAN_CLASSICAL_HARMONY must be accessible from scene_schema (session 117)."""
+    from scene_schema import Period
+    assert Period.UMBRIAN_CLASSICAL_HARMONY in list(Period), (
+        "Period.UMBRIAN_CLASSICAL_HARMONY not found — add it to scene_schema.py Period enum")
