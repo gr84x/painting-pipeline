@@ -13040,3 +13040,132 @@ def test_italian_belle_epoque_portraiture_stroke_params_low_wet_blend():
     assert p["wet_blend"] < 0.45, (
         f"ITALIAN_BELLE_EPOQUE_PORTRAITURE wet_blend should be low (< 0.45) "
         f"for Boldini's directional swirl bravura; got {p['wet_blend']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Annibale Carracci / BOLOGNESE_ACADEMIC_NATURALISM / annibale_carracci_tonal_reform_pass — s122
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_annibale_carracci_tonal_reform_pass_exists():
+    """Painter must have annibale_carracci_tonal_reform_pass (session 122)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, 'annibale_carracci_tonal_reform_pass'), (
+        'Painter is missing annibale_carracci_tonal_reform_pass -- add it to stroke_engine.py')
+
+
+def test_annibale_carracci_tonal_reform_pass_modifies_canvas():
+    """annibale_carracci_tonal_reform_pass() must alter the canvas from its initial state."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    # Dark fill — below default shadow_hi (0.28); lum ≈ 0.15 — triggers warm shadow glow stage.
+    # A uniform canvas has zero gradient so the temperature field is inactive, but the shadow
+    # warm-glow stage (Stage 2) always fires for dark pixels regardless of gradient.
+    data[:, :, :] = [30, 40, 50, 255]  # BGRA: B=30, G=40, R=50; lum ≈ 0.15
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.annibale_carracci_tonal_reform_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        'annibale_carracci_tonal_reform_pass should change the canvas when opacity=1.0')
+
+
+def test_annibale_carracci_tonal_reform_pass_opacity_zero_is_noop():
+    """annibale_carracci_tonal_reform_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [120, 140, 170, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.annibale_carracci_tonal_reform_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        'annibale_carracci_tonal_reform_pass(opacity=0) should be a noop')
+
+
+def test_annibale_carracci_tonal_reform_pass_warms_shadow_zone():
+    """
+    annibale_carracci_tonal_reform_pass must raise R in the deep shadow zone
+    (warm sienna imprimatura glow through shadow glazes).
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Dark fill — well below default shadow_hi (0.28); lum ≈ 0.15
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :, :] = [30, 40, 50, 255]   # BGRA: dark, lum ≈ 0.15
+    p.canvas.surface.get_data()[:] = data.tobytes()
+
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+
+    p.annibale_carracci_tonal_reform_pass(
+        shadow_warm_r=0.08, shadow_warm_g=0.04,
+        warm_r=0.0, cool_r=0.0, cool_b=0.0,  # isolate shadow stage
+        hi_r=0.0, hi_g=0.0,
+        opacity=1.0,
+    )
+
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+
+    assert after_r >= orig_r, (
+        f"annibale_carracci_tonal_reform_pass must raise R in shadow zone (warm ground glow); "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_annibale_carracci_tonal_reform_pass_preserves_canvas_shape():
+    """annibale_carracci_tonal_reform_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.48, 0.36, 0.22), texture_strength=0.05)
+    p.annibale_carracci_tonal_reform_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after annibale_carracci_tonal_reform_pass: {img.size}")
+
+
+def test_annibale_carracci_tonal_reform_pass_light_angle_parameter():
+    """annibale_carracci_tonal_reform_pass must accept light_angle_deg (session 122)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.annibale_carracci_tonal_reform_pass)
+    assert "light_angle_deg" in sig.parameters, (
+        "annibale_carracci_tonal_reform_pass must have 'light_angle_deg' parameter "
+        "(light source direction for the directional temperature field — session 122)")
+
+
+def test_annibale_carracci_tonal_reform_pass_penumbra_parameters():
+    """annibale_carracci_tonal_reform_pass must have penumbra_lo and penumbra_hi."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.annibale_carracci_tonal_reform_pass)
+    assert "penumbra_lo" in sig.parameters, (
+        "annibale_carracci_tonal_reform_pass must have 'penumbra_lo' parameter "
+        "(luminance floor of temperature-active zone)")
+    assert "penumbra_hi" in sig.parameters, (
+        "annibale_carracci_tonal_reform_pass must have 'penumbra_hi' parameter "
+        "(luminance ceiling of temperature-active zone)")
+
+
+def test_bolognese_academic_naturalism_period_exists():
+    """Period.BOLOGNESE_ACADEMIC_NATURALISM must be in the Period enum (session 122)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BOLOGNESE_ACADEMIC_NATURALISM"), (
+        "Period.BOLOGNESE_ACADEMIC_NATURALISM not found in scene_schema -- add it")
+    assert Period.BOLOGNESE_ACADEMIC_NATURALISM in list(Period)
+
+
+def test_bolognese_academic_naturalism_stroke_params_moderate_blend():
+    """BOLOGNESE_ACADEMIC_NATURALISM stroke params: moderate wet_blend, moderate edge_softness."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_ACADEMIC_NATURALISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["wet_blend"] <= 0.70, (
+        f"BOLOGNESE_ACADEMIC_NATURALISM wet_blend should be moderate (0.40–0.70) "
+        f"for Carracci's naturalistic painting; got {p['wet_blend']}")
+    assert 0.40 <= p["edge_softness"] <= 0.70, (
+        f"BOLOGNESE_ACADEMIC_NATURALISM edge_softness should be moderate (0.40–0.70) "
+        f"for clearly resolved forms; got {p['edge_softness']}")

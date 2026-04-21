@@ -14636,3 +14636,141 @@ def test_boldini_swirl_bravura_pass_dual_angle_parameters():
     assert "secondary_angle" in sig.parameters, (
         "boldini_swirl_bravura_pass must have 'secondary_angle' parameter "
         "(the crossing swirl direction — session 121 improvement)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 122 — Annibale Carracci + BOLOGNESE_ACADEMIC_NATURALISM
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_annibale_carracci_in_catalog():
+    """annibale_carracci must be present in CATALOG (session 122)."""
+    assert "annibale_carracci" in CATALOG, (
+        "annibale_carracci not found in CATALOG -- add the ArtStyle entry")
+
+
+def test_annibale_carracci_palette_valid():
+    """Every colour in annibale_carracci palette must have RGB channels in [0, 1]."""
+    s = get_style("annibale_carracci")
+    for i, col in enumerate(s.palette):
+        for j, v in enumerate(col):
+            assert 0.0 <= v <= 1.0, (
+                f"annibale_carracci palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_annibale_carracci_warm_ground():
+    """
+    annibale_carracci ground_color must be warm (R > B) --
+    Carracci built on a warm sienna-brown imprimatura that glows
+    through shadow glazes.
+    """
+    s = get_style("annibale_carracci")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"annibale_carracci ground_color should be warm (R > B); "
+        f"got R={r:.3f}, B={b:.3f}")
+
+
+def test_annibale_carracci_moderate_wet_blend():
+    """
+    annibale_carracci wet_blend must be moderate (0.40 <= wet_blend <= 0.70) --
+    Carracci's naturalistic painting is blended but not dissolved (anti-Mannerist clarity).
+    """
+    s = get_style("annibale_carracci")
+    assert 0.40 <= s.wet_blend <= 0.70, (
+        f"annibale_carracci wet_blend={s.wet_blend:.2f} should be moderate [0.40, 0.70] "
+        "-- naturalistic painting, not sfumato dissolution or dry-brush tenebrism")
+
+
+def test_annibale_carracci_famous_works_include_farnese():
+    """annibale_carracci famous_works must include the Farnese Gallery frescoes."""
+    s = get_style("annibale_carracci")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Farnese" in t for t in titles), (
+        "annibale_carracci famous_works must include the Farnese Gallery frescoes -- "
+        "his defining large-scale masterwork")
+
+
+def test_annibale_carracci_inspiration_references_pass():
+    """annibale_carracci inspiration must reference annibale_carracci_tonal_reform_pass."""
+    s = get_style("annibale_carracci")
+    assert "annibale_carracci_tonal_reform_pass" in s.inspiration, (
+        "annibale_carracci inspiration must reference annibale_carracci_tonal_reform_pass()")
+
+
+def test_annibale_carracci_inspiration_references_temperature():
+    """annibale_carracci inspiration must reference the directional temperature field improvement."""
+    s = get_style("annibale_carracci")
+    insp = s.inspiration.lower()
+    assert "temperature" in insp or "gradient" in insp or "directional" in insp, (
+        "annibale_carracci inspiration must reference the directional tonal temperature "
+        "field (the session 122 artistic improvement)")
+
+
+def test_bolognese_academic_naturalism_period_present():
+    """Period.BOLOGNESE_ACADEMIC_NATURALISM must be in the Period enum (session 122)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BOLOGNESE_ACADEMIC_NATURALISM"), (
+        "Period.BOLOGNESE_ACADEMIC_NATURALISM not found — add it to scene_schema.py")
+    assert Period.BOLOGNESE_ACADEMIC_NATURALISM in list(Period)
+
+
+def test_bolognese_academic_naturalism_stroke_params_moderate_wet_blend():
+    """BOLOGNESE_ACADEMIC_NATURALISM stroke_params must have moderate wet_blend."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_ACADEMIC_NATURALISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["wet_blend"] <= 0.70, (
+        f"BOLOGNESE_ACADEMIC_NATURALISM wet_blend should be moderate [0.40, 0.70] "
+        f"for Carracci's naturalistic blending (not dissolved, not dry); got {p['wet_blend']}")
+
+
+def test_bolognese_academic_naturalism_stroke_params_moderate_edge_softness():
+    """BOLOGNESE_ACADEMIC_NATURALISM stroke_params must have moderate edge_softness."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_ACADEMIC_NATURALISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["edge_softness"] <= 0.70, (
+        f"BOLOGNESE_ACADEMIC_NATURALISM edge_softness should be moderate [0.40, 0.70] "
+        f"for clearly resolved naturalistic forms; got {p['edge_softness']}")
+
+
+def test_annibale_carracci_tonal_reform_pass_exists():
+    """Painter must expose annibale_carracci_tonal_reform_pass (session 122)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "annibale_carracci_tonal_reform_pass"), (
+        "Painter.annibale_carracci_tonal_reform_pass not found — add it to stroke_engine.py")
+
+
+def test_annibale_carracci_tonal_reform_pass_opacity_parameter():
+    """annibale_carracci_tonal_reform_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.annibale_carracci_tonal_reform_pass)
+    assert "opacity" in sig.parameters, (
+        "annibale_carracci_tonal_reform_pass must have 'opacity' parameter")
+
+
+def test_annibale_carracci_tonal_reform_pass_light_angle_parameter():
+    """annibale_carracci_tonal_reform_pass must accept light_angle_deg (session 122 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.annibale_carracci_tonal_reform_pass)
+    assert "light_angle_deg" in sig.parameters, (
+        "annibale_carracci_tonal_reform_pass must have 'light_angle_deg' parameter "
+        "(light source direction for the directional temperature field — session 122 improvement)")
+
+
+def test_annibale_carracci_tonal_reform_pass_gradient_temperature_parameters():
+    """annibale_carracci_tonal_reform_pass must have warm_r and cool_b (temperature field)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.annibale_carracci_tonal_reform_pass)
+    assert "warm_r" in sig.parameters, (
+        "annibale_carracci_tonal_reform_pass must have 'warm_r' parameter "
+        "(warm colour lift on lit face)")
+    assert "cool_b" in sig.parameters, (
+        "annibale_carracci_tonal_reform_pass must have 'cool_b' parameter "
+        "(cool blue lift on shadow face — session 122 directional temperature improvement)")

@@ -29379,3 +29379,210 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Giovanni Boldini dual-angle swirl bravura pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def annibale_carracci_tonal_reform_pass(
+        self,
+        light_angle_deg: float = 135.0,   # direction FROM which light comes (degrees; 0=right, 90=top, 135=upper-left)
+        warm_r:          float = 0.022,   # R lift on lit face (warm amber)
+        warm_g:          float = 0.010,   # G lift on lit face
+        warm_b:          float = 0.014,   # B reduction on lit face (subtract — de-cool)
+        cool_r:          float = 0.012,   # R reduction on shadow face (subtract — de-warm)
+        cool_g:          float = 0.005,   # G lift on shadow face (very slight)
+        cool_b:          float = 0.022,   # B lift on shadow face (blue-violet atmospheric shadow)
+        penumbra_lo:     float = 0.22,    # luminance floor of temperature-shift zone
+        penumbra_hi:     float = 0.72,    # luminance ceiling of temperature-shift zone
+        shadow_hi:       float = 0.28,    # luminance ceiling of deep shadow (warm ground glow)
+        shadow_warm_r:   float = 0.016,   # R lift in deep shadow (warm imprimatura glow)
+        shadow_warm_g:   float = 0.007,   # G lift in deep shadow
+        hi_lo:           float = 0.74,    # luminance floor of specular highlight zone
+        hi_r:            float = 0.012,   # R lift in highlights (warm ivory)
+        hi_g:            float = 0.006,   # G lift in highlights
+        blur_radius:     float = 5.0,     # Gaussian sigma for all zone transitions
+        opacity:         float = 0.32,
+    ) -> None:
+        """
+        Annibale Carracci directional tonal temperature field — session 122 new artist pass.
+
+        Annibale Carracci (1560–1609), co-founder of the Accademia degli Incamminati in Bologna
+        with Agostino Carracci and Ludovico Carracci, led the most important reform of European
+        painting since Raphael: the systematic rejection of late Mannerist artificiality in favour
+        of direct observation of nature.  His paintings are warm, golden, physically grounded,
+        and humanly immediate — and they trained the generation (Reni, Domenichino, Albani) that
+        defined the Baroque.
+
+        The defining technical feature of Bolognese naturalism is the *directional tonal
+        temperature field*: lit surfaces facing the light source (typically upper-left) develop
+        a warm amber-ochre colour temperature, while shadow faces develop a cool blue-violet tone
+        from atmospheric and reflected-light influences.  This warm-light / cool-shadow contrast
+        is physically motivated — it describes how a single warm point source simultaneously
+        modulates luminance and colour temperature — and creates the internal luminosity that
+        distinguishes Bolognese from both flat Venetian tonality and harsh Caravaggesque tenebrism.
+
+        **Session 122 artistic improvement — Spatially-varying directional tonal temperature field**
+
+        All previous temperature or colour-correction passes in this pipeline derive their masks
+        purely from *luminance value*: if a pixel is bright, it receives one treatment; if dark,
+        another.  This is a scalar approach.  The Carracci reform pass introduces a *vector*
+        approach: the luminance gradient (computed via Sobel operators) provides directional
+        information about which way luminance is rising or falling at each pixel.  The dot product
+        between the normalised gradient direction and the light-source direction vector produces
+        a signed temperature field in [-1, 1]:
+
+          - Positive region (gradient points toward light): lit face — warm temperature shift.
+          - Negative region (gradient points away from light): shadow face — cool shift.
+          - Near-zero region (gradient perpendicular to light): penumbra — smooth transition.
+
+        This directional field is restricted to the penumbra luminance zone where the temperature
+        contrast is perceptually dominant (bright highlights and deep shadows are already
+        colour-correct; only the mid-tone ramp benefits from the directional modulation).  The
+        result is a spatially-aware, physically-motivated temperature correction that cannot be
+        achieved by any luminance-only pass.
+
+        Implementation:
+        1. Compute luminance L from BGRA canvas.
+        2. Sobel x-gradient (dL/dx) and y-gradient (dL/dy) → gradient vector at each pixel.
+        3. Normalise gradient vector; handle zero-gradient pixels (set to 0).
+        4. Compute light direction unit vector from light_angle_deg:
+             lx = cos(angle_rad), ly = -sin(angle_rad)  [image y increases downward].
+        5. dot = gradient_x * lx + gradient_y * ly  ∈ [-1, 1].
+        6. warm_mask = clip(dot, 0, 1) * penumbra_bell_mask * figure_mask.
+        7. cool_mask  = clip(-dot, 0, 1) * penumbra_bell_mask * figure_mask.
+        8. Smooth both masks with Gaussian(sigma=blur_radius).
+        9. Apply colour shifts:
+             lit-face:    R += warm_mask * warm_r, G += warm_mask * warm_g, B -= warm_mask * warm_b
+             shadow-face: R -= cool_mask * cool_r, G += cool_mask * cool_g, B += cool_mask * cool_b
+        10. Warm shadow ground glow (lum < shadow_hi): R += shadow_warm_r, G += shadow_warm_g.
+        11. Highlight ivory lift (lum > hi_lo): R += hi_r, G += hi_g.
+        12. Composite at opacity.
+
+        Parameters
+        ----------
+        light_angle_deg : direction from which light comes (degrees; 0=right, 90=top, 135=upper-left)
+        warm_r/g/b      : colour temperature shifts for the lit face (b is subtracted — de-cool)
+        cool_r/g/b      : colour temperature shifts for the shadow face (r is subtracted — de-warm)
+        penumbra_lo     : luminance floor of the temperature-active zone
+        penumbra_hi     : luminance ceiling of the temperature-active zone
+        shadow_hi       : luminance ceiling of deep shadow zone (warm imprimatura glow)
+        shadow_warm_r/g : warm amber lift in deep shadows (Carracci's sienna imprimatura glow)
+        hi_lo           : luminance floor of specular highlight zone
+        hi_r/g          : warm ivory lift in highlights (naturalistic warm peak)
+        blur_radius     : Gaussian sigma for all zone and gradient transitions
+        opacity         : global compositing weight (0 = no effect, 1 = full)
+
+        Notes
+        -----
+        Characteristic works:
+          *Farnese Gallery ceiling frescoes* (1597–1602, Palazzo Farnese, Rome) —
+              the greatest decorative fresco cycle of the Baroque; warm, physically-grounded
+              figures on a simulated architectural vault, every surface modelled with warm/cool
+              temperature contrast.
+          *Self-Portrait on an Easel in a Workshop* (c. 1604, Uffizi) —
+              intimate naturalistic portrait; warm sienna imprimatura glowing through shadow glazes.
+        """
+        print(f"Annibale Carracci tonal reform pass  "
+              f"(opacity={opacity:.2f}  light={light_angle_deg:.0f}°  "
+              f"warm_r={warm_r:.3f}  cool_b={cool_b:.3f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+        from scipy.ndimage import sobel as _sobel
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Figure mask ───────────────────────────────────────────────────────
+        if self._figure_mask is not None:
+            fig_mask = _np.clip(self._figure_mask, 0.0, 1.0)
+        else:
+            fig_mask = _np.ones((H, W), dtype=_np.float32)
+
+        # ── Stage 1: Directional tonal temperature field (session 122 improvement) ──
+        # Sobel gradient of luminance → direction of luminance change
+        lum_smooth = _gf(lum.astype(_np.float32), sigma=1.5)  # pre-smooth to reduce noise
+        gx = _sobel(lum_smooth, axis=1).astype(_np.float32)   # dL/dx
+        gy = _sobel(lum_smooth, axis=0).astype(_np.float32)   # dL/dy
+
+        # Normalise gradient vector to unit length
+        gnorm = _np.sqrt(gx * gx + gy * gy)
+        safe  = gnorm > 1e-6
+        gx_n  = _np.where(safe, gx / gnorm, 0.0)
+        gy_n  = _np.where(safe, gy / gnorm, 0.0)
+
+        # Light direction unit vector (image coords: x right, y downward)
+        angle_rad = _np.deg2rad(float(light_angle_deg))
+        lx = _np.cos(angle_rad)
+        ly = -_np.sin(angle_rad)  # minus because image y increases downward
+
+        # Signed dot product: +1 = gradient points toward light (lit face)
+        #                      -1 = gradient points away from light (shadow face)
+        dot = (gx_n * lx + gy_n * ly).astype(_np.float32)
+
+        # Penumbra bell mask — temperature effects strongest in mid-tone zone
+        t = _np.clip((lum - penumbra_lo) / max(0.01, penumbra_hi - penumbra_lo), 0.0, 1.0)
+        penumbra_bell = (0.5 * (1.0 - _np.cos(_np.pi * t))).astype(_np.float32)
+        # Fade out near the top of the penumbra range
+        t_hi = _np.clip((lum - penumbra_hi) / max(0.01, 1.0 - penumbra_hi), 0.0, 1.0)
+        penumbra_bell = penumbra_bell * (1.0 - t_hi)
+        penumbra_bell = _np.clip(penumbra_bell, 0.0, 1.0)
+
+        # Directed masks restricted to penumbra zone and figure
+        warm_mask_raw = _np.clip(dot, 0.0, 1.0) * penumbra_bell * fig_mask
+        cool_mask_raw = _np.clip(-dot, 0.0, 1.0) * penumbra_bell * fig_mask
+
+        warm_mask = _gf(warm_mask_raw.astype(_np.float32), sigma=blur_radius)
+        cool_mask = _gf(cool_mask_raw.astype(_np.float32), sigma=blur_radius)
+        warm_mask = _np.clip(warm_mask, 0.0, 1.0)
+        cool_mask = _np.clip(cool_mask, 0.0, 1.0)
+
+        # Apply warm shift on lit face, cool shift on shadow face
+        r_out = _np.clip(r_out + warm_mask * warm_r,  0.0, 1.0)
+        g_out = _np.clip(g_out + warm_mask * warm_g,  0.0, 1.0)
+        b_out = _np.clip(b_out - warm_mask * warm_b,  0.0, 1.0)  # subtract to de-cool
+
+        r_out = _np.clip(r_out - cool_mask * cool_r,  0.0, 1.0)  # subtract to de-warm
+        g_out = _np.clip(g_out + cool_mask * cool_g,  0.0, 1.0)
+        b_out = _np.clip(b_out + cool_mask * cool_b,  0.0, 1.0)
+
+        # ── Stage 2: Warm shadow ground glow ─────────────────────────────────
+        # Carracci built on a warm sienna imprimatura that glows through shadow glazes.
+        shadow_raw = _np.clip(1.0 - lum / max(0.01, shadow_hi), 0.0, 1.0) * fig_mask
+        shadow_mask = _gf(shadow_raw.astype(_np.float32), sigma=blur_radius)
+        shadow_mask = _np.clip(shadow_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + shadow_mask * shadow_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + shadow_mask * shadow_warm_g, 0.0, 1.0)
+
+        # ── Stage 3: Highlight ivory lift ────────────────────────────────────
+        # Carracci's highlights are naturalistic warm ivory — not cold blue-white.
+        hi_raw  = _np.clip((lum - hi_lo) / max(0.01, 1.0 - hi_lo), 0.0, 1.0) * fig_mask
+        hi_mask = _gf(hi_raw.astype(_np.float32), sigma=blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + hi_mask * hi_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * hi_g, 0.0, 1.0)
+
+        # ── Composite at opacity ─────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Annibale Carracci tonal reform pass complete.")
