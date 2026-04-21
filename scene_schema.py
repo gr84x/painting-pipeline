@@ -275,6 +275,7 @@ class Period(Enum):
     SPANISH_NEAPOLITAN_BAROQUE = auto()  # Jusepe de Ribera — brutal tenebrism from near-black void, gritty visible shadow texture, warm amber highlights, raw psychological realism, Spanish naturalism grafted onto Caravaggism
     BERGAMASQUE_PORTRAIT_REALISM = auto()  # Giovanni Battista Moroni — cool silver highlights, warm shadow recovery, mid-tone presence; the most psychologically direct portrait realism in 16th-century Italy
     GENOESE_VENETIAN_BAROQUE = auto()  # Bernardo Strozzi — warm chestnut-amber shadows, bravura impasto highlights, saturated Venetian-Genoese colorism, loaded-brush vitality
+    ROMAN_DEVOTIONAL_BAROQUE = auto()  # Sassoferrato — pure ultramarine glazing, porcelain skin translucency, devotional calm, seamless blending, psychological stillness
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1265,6 +1266,15 @@ class Style:
             # directness encoded in clear, decisive found edges, especially around
             # the eyes and mouth; periphery may soften slightly but the focal face is sharp.
             Period.GENOESE_VENETIAN_BAROQUE: dict(stroke_size_face=7, stroke_size_bg=28, wet_blend=0.50, edge_softness=0.38),
+            # ROMAN_DEVOTIONAL_BAROQUE (Sassoferrato) — patient glazing precision.
+            # stroke_size_face=5: tiny careful marks built through repeated glazing passes;
+            # Sassoferrato's seamless surface demands fine, controlled application.
+            # stroke_size_bg=18: backgrounds are often dark and simple, reduced essentials.
+            # wet_blend=0.82: very high — the smooth, seamless glazing of a devotional master
+            # who spent days on a single passage to achieve porcelain-smooth skin.
+            # edge_softness=0.72: high but not full sfumato — edges are soft and calm,
+            # devotionally quiet, but the face outline and mantle boundary remain gently present.
+            Period.ROMAN_DEVOTIONAL_BAROQUE: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.82, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

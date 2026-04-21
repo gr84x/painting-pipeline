@@ -123,6 +123,7 @@ EXPECTED_ARTISTS = [
     "guercino",
     "ribera",
     "moroni",
+    "sassoferrato",
 ]
 
 
@@ -294,6 +295,7 @@ EXPECTED_PERIODS = [
     "MILANESE_PEARLED",
     "BERGAMASQUE_PORTRAIT_REALISM",
     "GENOESE_VENETIAN_BAROQUE",
+    "ROMAN_DEVOTIONAL_BAROQUE",
 ]
 
 
@@ -13304,3 +13306,163 @@ def test_strozzi_amber_impasto_pass_hi_boost_parameter():
     assert "hi_boost" in sig.parameters, (
         "strozzi_amber_impasto_pass must have 'hi_boost' parameter"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 110 — Giovanni Battista Salvi da Sassoferrato + ROMAN_DEVOTIONAL_BAROQUE
+#             + sassoferrato_pure_devotion_pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_sassoferrato_in_catalog():
+    """Sassoferrato (session 110) must be present in CATALOG."""
+    assert "sassoferrato" in CATALOG, (
+        "sassoferrato not found in CATALOG — add it to art_catalog.py"
+    )
+
+
+def test_sassoferrato_artist_name():
+    """Sassoferrato ArtStyle must carry the correct full artist name."""
+    s = get_style("sassoferrato")
+    assert "Sassoferrato" in s.artist or "Salvi" in s.artist, (
+        f"sassoferrato.artist should contain 'Sassoferrato' or 'Salvi'; got {s.artist!r}"
+    )
+
+
+def test_sassoferrato_movement():
+    """Sassoferrato ArtStyle movement should reference Baroque or Devotional."""
+    s = get_style("sassoferrato")
+    mv = s.movement.lower()
+    assert "baroque" in mv or "devotional" in mv or "classicism" in mv, (
+        f"sassoferrato.movement should reference Baroque or Devotional; got {s.movement!r}"
+    )
+
+
+def test_sassoferrato_palette_length():
+    """Sassoferrato palette must have at least 5 colours."""
+    s = get_style("sassoferrato")
+    assert len(s.palette) >= 5, (
+        f"sassoferrato palette should have >= 5 colours; got {len(s.palette)}"
+    )
+
+
+def test_sassoferrato_palette_values_in_range():
+    """All Sassoferrato palette RGB values must be in [0, 1]."""
+    s = get_style("sassoferrato")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Out-of-range channel {ch} in Sassoferrato palette {rgb}"
+            )
+
+
+def test_sassoferrato_wet_blend_high():
+    """Sassoferrato's seamless glazing demands wet_blend >= 0.70."""
+    s = get_style("sassoferrato")
+    assert s.wet_blend >= 0.70, (
+        f"sassoferrato.wet_blend should be >= 0.70 for seamless devotional glazing; "
+        f"got {s.wet_blend}"
+    )
+
+
+def test_sassoferrato_edge_softness():
+    """Sassoferrato's devotional calm requires edge_softness in [0.60, 0.90]."""
+    s = get_style("sassoferrato")
+    assert 0.60 <= s.edge_softness <= 0.90, (
+        f"sassoferrato.edge_softness should be in [0.60, 0.90] for devotional quiet; "
+        f"got {s.edge_softness}"
+    )
+
+
+def test_sassoferrato_ultramarine_in_palette():
+    """Sassoferrato palette must contain a blue-dominant colour (the signature ultramarine)."""
+    s = get_style("sassoferrato")
+    has_blue = any(rgb[2] > rgb[0] and rgb[2] > rgb[1] for rgb in s.palette)
+    assert has_blue, (
+        "sassoferrato palette must include at least one blue-dominant colour "
+        "(the lapislazuli ultramarine that defines his work)"
+    )
+
+
+def test_sassoferrato_in_expected_artists():
+    """sassoferrato must be in EXPECTED_ARTISTS list (session 110)."""
+    assert "sassoferrato" in EXPECTED_ARTISTS, (
+        "sassoferrato missing from EXPECTED_ARTISTS — add it to the list"
+    )
+
+
+def test_roman_devotional_baroque_period_exists():
+    """Period.ROMAN_DEVOTIONAL_BAROQUE must exist in scene_schema (session 110)."""
+    from scene_schema import Period
+    assert hasattr(Period, "ROMAN_DEVOTIONAL_BAROQUE"), (
+        "Period.ROMAN_DEVOTIONAL_BAROQUE not found — add it to scene_schema.py"
+    )
+    assert Period.ROMAN_DEVOTIONAL_BAROQUE in list(Period)
+
+
+def test_roman_devotional_baroque_stroke_params():
+    """ROMAN_DEVOTIONAL_BAROQUE must have high wet_blend and edge_softness for glazing."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ROMAN_DEVOTIONAL_BAROQUE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.70, (
+        f"ROMAN_DEVOTIONAL_BAROQUE wet_blend should be >= 0.70 for Sassoferrato's "
+        f"seamless devotional glazing; got {p['wet_blend']}"
+    )
+    assert p["edge_softness"] >= 0.60, (
+        f"ROMAN_DEVOTIONAL_BAROQUE edge_softness should be >= 0.60 for "
+        f"devotional calm quiet edges; got {p['edge_softness']}"
+    )
+
+
+def test_roman_devotional_baroque_in_expected_periods():
+    """EXPECTED_PERIODS list must include ROMAN_DEVOTIONAL_BAROQUE."""
+    assert "ROMAN_DEVOTIONAL_BAROQUE" in EXPECTED_PERIODS, (
+        "ROMAN_DEVOTIONAL_BAROQUE missing from EXPECTED_PERIODS — add it to the list"
+    )
+
+
+def test_sassoferrato_pure_devotion_pass_exists():
+    """sassoferrato_pure_devotion_pass must be defined in stroke_engine.Painter (session 110)."""
+    import inspect
+    from stroke_engine import Painter
+    assert hasattr(Painter, "sassoferrato_pure_devotion_pass"), (
+        "Painter.sassoferrato_pure_devotion_pass not found — add it to stroke_engine.py"
+    )
+
+
+def test_sassoferrato_pure_devotion_pass_opacity_parameter():
+    """sassoferrato_pure_devotion_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sassoferrato_pure_devotion_pass)
+    assert "opacity" in sig.parameters, (
+        "sassoferrato_pure_devotion_pass must have 'opacity' parameter"
+    )
+
+
+def test_sassoferrato_pure_devotion_pass_ultra_thresh_parameter():
+    """sassoferrato_pure_devotion_pass must accept ultra_thresh for blue zone detection."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sassoferrato_pure_devotion_pass)
+    assert "ultra_thresh" in sig.parameters, (
+        "sassoferrato_pure_devotion_pass must have 'ultra_thresh' parameter"
+    )
+
+
+def test_sassoferrato_pure_devotion_pass_pearl_lo_parameter():
+    """sassoferrato_pure_devotion_pass must accept pearl_lo for porcelain skin glow."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sassoferrato_pure_devotion_pass)
+    assert "pearl_lo" in sig.parameters, (
+        "sassoferrato_pure_devotion_pass must have 'pearl_lo' parameter"
+    )
+
+
+def test_roman_devotional_baroque_period_in_period_enum():
+    """Period.ROMAN_DEVOTIONAL_BAROQUE must be accessible from scene_schema (session 110)."""
+    from scene_schema import Period
+    assert Period.ROMAN_DEVOTIONAL_BAROQUE in list(Period)

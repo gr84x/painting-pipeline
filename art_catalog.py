@@ -9448,6 +9448,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giovanni Battista Salvi da Sassoferrato ────────────────────────────────
+    "sassoferrato": ArtStyle(
+        artist="Giovanni Battista Salvi da Sassoferrato",
+        movement="Roman Baroque / Devotional Classicism",
+        nationality="Italian",
+        period="1609–1685",
+        palette=[
+            (0.88, 0.76, 0.60),   # warm ivory skin highlight — purest flesh
+            (0.72, 0.58, 0.42),   # warm sienna mid-tone flesh
+            (0.12, 0.18, 0.68),   # pure ultramarine — the defining Sassoferrato blue
+            (0.08, 0.10, 0.45),   # deep ultramarine shadow — lapislazuli depth
+            (0.38, 0.30, 0.22),   # warm umber — earth undertone beneath drapery
+            (0.92, 0.90, 0.88),   # cool pearl-white highlight — translucent skin peak
+            (0.28, 0.24, 0.52),   # violet-blue midtone in drapery folds
+        ],
+        ground_color=(0.60, 0.52, 0.36),    # warm ochre imprimatura — Romanist ground
+        stroke_size=5,
+        wet_blend=0.82,                      # very blended — Sassoferrato's seamless glazing
+        edge_softness=0.72,                  # soft devotional calm — edges present but never harsh
+        jitter=0.012,                        # minimal: devotional precision, controlled surface
+        glazing=(0.68, 0.60, 0.45),          # warm amber final unifying glaze
+        crackle=True,                        # oil on canvas — 17th-century aging appropriate
+        chromatic_split=False,               # pure devotional naturalism, no divisionism
+        technique=(
+            "Pure devotion — Sassoferrato's defining quality.  Born Giovanni Battista "
+            "Salvi in the small Marche town of Sassoferrato, he worked in Rome throughout "
+            "the seventeenth century producing an extraordinary corpus of devotional "
+            "Madonnas and saints whose chromatic purity and technical refinement stand "
+            "entirely apart from the theatricality of the Baroque mainstream.  "
+            "His ultramarine is the most saturated blue in Western painting — not the "
+            "purplish-blue of Flemish painters or the grey-blue of atmospheric distance, "
+            "but a burning, concentrated lapis lazuli blue of almost impossible purity, "
+            "built up through multiple glaze layers over a warm ochre ground so that "
+            "the colour seems to glow with internal light rather than reflecting it.  "
+            "This is the blue of the Virgin's mantle — theologically specific (lapis "
+            "lazuli was reserved for the Madonna in medieval and Renaissance iconography) "
+            "and technically consummate.  "
+            "His flesh is the counterpart: ivory-warm in the lights, porcelain-smooth "
+            "in surface, with a cool pearl quality at the highest highlight points that "
+            "gives the impression of light passing through translucent skin rather than "
+            "bouncing off opaque pigment.  Where Leonardo achieves this through sfumato "
+            "(atmospheric dissolution), Sassoferrato achieves it through patient glazing: "
+            "warm ochre imprimatura, warm flesh layers, cool pearl final glaze — the "
+            "cumulative effect of transparent paint over a warm ground that shows through "
+            "every layer.  "
+            "His compositions are reduced to essentials: a face, hands, the blue mantle.  "
+            "No landscape, no drama, no narrative.  The power comes from chromatic purity "
+            "and the quality of psychological stillness — his Virgins appear not "
+            "photographed but distilled: the concept of serene spiritual absorption "
+            "made visible as paint."
+        ),
+        famous_works=[
+            ("Virgin in Prayer",                  "c. 1640–1650"),
+            ("The Virgin and Child",              "c. 1650"),
+            ("Head of the Virgin",                "c. 1640"),
+            ("Virgin and Child with Saint Anne",  "c. 1660"),
+            ("Sleeping Child",                    "c. 1640"),
+            ("The Virgin Mary",                   "c. 1654"),
+        ],
+        inspiration=(
+            "Apply sassoferrato_pure_devotion_pass() as the defining stylistic pass.  "
+            "Three stages encode Sassoferrato's chromatic signature: "
+            "(1) Ultramarine purity — in blue-predominant zones (b0 > r0 + ultra_thresh "
+            "and b0 > g0 + ultra_thresh), boost blue and damp red contamination, "
+            "building the saturated lapis depth through a graduated mask.  "
+            "(2) Porcelain skin glow — in the upper highlight zone (lum > pearl_lo ≈ 0.76), "
+            "apply a subtle cool pearl shift: slight R reduction, slight B lift, giving "
+            "the translucent quality of light through ivory skin rather than opaque "
+            "white paint.  "
+            "(3) Ultramarine shadow depth — in shadow zones where blue is dominant, "
+            "deepen toward lapislazuli darkness with a controlled violet-blue enrichment.  "
+            "Use opacity ≈ 0.28–0.38."
+        ),
+    ),
+
     "moroni": ArtStyle(
         artist="Giovanni Battista Moroni",
         movement="Bergamasque Portrait Realism / Lombard Renaissance",

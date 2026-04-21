@@ -27590,3 +27590,166 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Bernardo Strozzi amber impasto pass complete.")
+
+    def sassoferrato_pure_devotion_pass(
+        self,
+        ultra_thresh:  float = 0.04,
+        ultra_b_lift:  float = 0.025,
+        ultra_r_damp:  float = 0.018,
+        pearl_lo:      float = 0.76,
+        pearl_b_lift:  float = 0.012,
+        pearl_r_damp:  float = 0.008,
+        shadow_hi:     float = 0.30,
+        shadow_b_lift: float = 0.018,
+        shadow_r_damp: float = 0.010,
+        blur_radius:   float = 3.5,
+        opacity:       float = 0.32,
+    ) -> None:
+        """
+        Giovanni Battista Salvi da Sassoferrato pure devotion pass — session 110
+        new artist pass.
+
+        Sassoferrato (1609–1685) worked in Rome producing devotional Madonnas and
+        saints whose chromatic purity and technical refinement stand apart from the
+        Baroque mainstream entirely.  He was not a court painter, not a narrative
+        historian, not a decorator of palace ceilings.  He was a specialist in a
+        single subject — the serene, absorbed face of the Virgin — and he achieved
+        within that narrow domain a level of chromatic and technical perfection that
+        remains unmatched.
+
+        Two chromatic signatures define his work absolutely:
+
+        **Ultramarine blue** — The most saturated, internally luminous blue in
+        Western painting.  Not the purplish-blue of Flemish masters (Jan van Eyck's
+        azurite), not the grey-blue of aerial perspective, not the warm cobalt of
+        Raphael's Madonnas: Sassoferrato's blue is pure lapislazuli, built through
+        multiple transparent glaze layers over a warm ochre imprimatura so that the
+        colour appears to glow from within rather than simply reflecting incident
+        light.  The warm ground glows through the cool glaze, creating a depth and
+        radiance that a single opaque blue layer could never achieve.  Theologically
+        this colour was reserved for the Madonna — lapis lazuli was the most
+        expensive pigment in the medieval and Renaissance palette, imported from
+        Afghanistan, ground and purified by hand, used only for the most sacred
+        subjects.  Sassoferrato understood this tradition and took it to its
+        absolute technical limit.
+
+        **Porcelain skin translucency** — His flesh tones appear lit from within
+        rather than from without.  The mechanism is the same as the blue: warm
+        ochre imprimatura showing through cool final glazes.  In the highlight
+        zones — forehead, cheekbone, bridge of nose — the final passage is a
+        cool pearl white glaze, almost no pigment, mostly medium, that creates
+        the impression of light passing through translucent skin rather than
+        hitting an opaque surface.  The result is the quality that separates
+        Sassoferrato's skin from Dolci's (which is smooth but opaque) and from
+        Leonardo's (which dissolves into atmosphere): Sassoferrato's flesh has
+        a physical translucency, as if the skin itself were luminous.
+
+        This pass encodes three defining Sassoferrato qualities:
+
+          1. Ultramarine purity — In blue-predominant zones
+             (b0 > r0 + ultra_thresh and b0 > g0 + ultra_thresh), shift toward
+             pure ultramarine by lifting blue (B + ultra_b_lift) and damping
+             warm red contamination (R - ultra_r_damp).  The mask graduates from
+             maximum strength at the most intensely blue pixels to zero at the
+             detection threshold, smoothed by a Gaussian to prevent visible seams.
+             This deepens and purifies any blue zones — sky, drapery, shadow
+             passages — toward Sassoferrato's characteristic lapislazuli glow.
+
+          2. Porcelain skin glow — In the upper highlight zone (lum > pearl_lo),
+             apply a cool pearl shift: slight R reduction (R - pearl_r_damp) and
+             slight B lift (B + pearl_b_lift).  This cools the peak highlights
+             from warm ivory toward cool translucent pearl — the quality of light
+             through skin rather than reflected from skin.  Applied at low opacity
+             over the accumulated warm layers (Strozzi amber, Dolci glaze), it
+             adds the final translucent refinement without washing out warmth.
+
+          3. Ultramarine shadow depth — In shadow zones (lum < shadow_hi) where
+             blue is already dominant, deepen toward lapislazuli darkness with a
+             controlled violet-blue enrichment: B + shadow_b_lift, R - shadow_r_damp.
+             This is the characteristic Sassoferrato shadow quality in the drapery:
+             not a neutral dark or a warm brown void (Caravaggio/Rembrandt), but
+             a deep, saturated blue-violet darkness — lapislazuli in the shadows
+             as well as the lights.
+
+        Parameters
+        ----------
+        ultra_thresh  : minimum B-over-R and B-over-G gap to detect blue zones
+        ultra_b_lift  : blue channel boost in ultramarine zones (lapislazuli purity)
+        ultra_r_damp  : red channel damp in ultramarine zones (removes warm contamination)
+        pearl_lo      : lower highlight threshold for porcelain skin glow (lum > this)
+        pearl_b_lift  : subtle blue lift in highlights (cool pearl quality)
+        pearl_r_damp  : slight red damp in highlights (cool ivory, not warm cream)
+        shadow_hi     : upper shadow threshold for ultramarine depth enrichment
+        shadow_b_lift : blue-violet enrichment in deep blue-dominant shadows
+        shadow_r_damp : red damp in deep blue shadows (removes any warm contamination)
+        blur_radius   : Gaussian sigma for mask feathering (prevents hard transitions)
+        opacity       : overall pass composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Ultramarine purity ─────────────────────────────────────────────
+        # Detect blue-dominant pixels and push toward pure lapislazuli.
+        # Both conditions must be met: more blue than red AND more blue than green
+        # by at least ultra_thresh.  Strength scales linearly with the blue excess.
+        blue_over_r = _np.clip((b0 - r0 - ultra_thresh) / (1.0 - ultra_thresh + 1e-6),
+                               0.0, 1.0)
+        blue_over_g = _np.clip((b0 - g0 - ultra_thresh) / (1.0 - ultra_thresh + 1e-6),
+                               0.0, 1.0)
+        ultra_mask = blue_over_r * blue_over_g   # both conditions together
+        ultra_mask = _gf(ultra_mask.astype(_np.float32), blur_radius)
+        ultra_mask = _np.clip(ultra_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out + ultra_mask * ultra_b_lift, 0.0, 1.0)
+        r_out = _np.clip(r_out - ultra_mask * ultra_r_damp, 0.0, 1.0)
+
+        # ── 2. Porcelain skin glow ────────────────────────────────────────────
+        # Cool pearl shift in the upper highlight zone — translucent skin quality.
+        # Cools the peak highlights from warm ivory toward a luminous pearl,
+        # suggesting light through translucent skin layers.
+        hi_mask = _np.clip(
+            (lum - pearl_lo) / (1.0 - pearl_lo + 1e-6), 0.0, 1.0
+        )
+        hi_mask = _gf(hi_mask.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out - hi_mask * pearl_r_damp, 0.0, 1.0)
+        b_out = _np.clip(b_out + hi_mask * pearl_b_lift, 0.0, 1.0)
+
+        # ── 3. Ultramarine shadow depth ───────────────────────────────────────
+        # In shadow zones where blue is already dominant, deepen toward
+        # lapislazuli darkness — Sassoferrato's drapery shadows are blue-violet,
+        # never the warm brown of Italian Baroque nor the neutral grey of Northern painters.
+        sh_mask = _np.clip(
+            (shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0
+        ) * ultra_mask   # only where blue is already dominant
+        sh_mask = _gf(sh_mask.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        b_out = _np.clip(b_out + sh_mask * shadow_b_lift, 0.0, 1.0)
+        r_out = _np.clip(r_out - sh_mask * shadow_r_damp, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Giovanni Battista Salvi da Sassoferrato pure devotion pass complete.")
