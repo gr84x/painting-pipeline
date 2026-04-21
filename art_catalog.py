@@ -9681,6 +9681,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Guido Cagnacci ────────────────────────────────────────────────────────
+    "guido_cagnacci": ArtStyle(
+        artist="Guido Cagnacci",
+        movement="Emilian Baroque / Caravaggesque Idealism",
+        nationality="Italian",
+        period="c. 1620–1663",
+        palette=[
+            (0.92, 0.78, 0.68),   # rose-ivory highlight flesh — pinkish warmth at peak light
+            (0.80, 0.58, 0.48),   # warm peach mid-tone flesh — the defining Cagnacci rose
+            (0.52, 0.32, 0.24),   # warm umber-rose shadow — never cold, retains warmth
+            (0.70, 0.44, 0.36),   # deep rose-amber penumbra — luminous shadow transition
+            (0.38, 0.32, 0.48),   # cool violet-grey deep shadow (rare, sparingly used)
+            (0.62, 0.56, 0.44),   # warm buff background — soft Emilian ground tone
+        ],
+        ground_color=(0.58, 0.46, 0.32),    # warm sienna-ochre ground — Bolognese warm imprimatura
+        stroke_size=5,
+        wet_blend=0.78,                      # smooth, glazed quality — no impasto scatter
+        edge_softness=0.72,                  # softly diffused — forms melt but don't dissolve
+        jitter=0.014,                        # low — controlled, dreamy quality
+        glazing=(0.72, 0.52, 0.38),          # rose-amber unifying glaze — his warm luminosity
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Rose flesh — the defining quality of Guido Cagnacci's Emilian Baroque.  "
+            "Born in Santarcangelo di Romagna in 1601, Cagnacci trained in Bologna "
+            "within the orbit of Guido Reni — absorbing Reni's idealizing grace and "
+            "perfectly smooth sfumato technique — before moving to Rome, Venice, and "
+            "finally Vienna, where he died in 1663 as court painter to Emperor Leopold I.  "
+            "What distinguishes Cagnacci from every other Baroque master is his "
+            "treatment of female flesh: a warm, pinkish, dreamlike luminescence that "
+            "goes beyond mere naturalism into something almost ethereal.  Where Reni's "
+            "flesh is cool ivory-pearl and Guercino's is amber-warm, Cagnacci's is "
+            "rose — a specific warm-pink quality in the mid-tone zone that reads like "
+            "candlelight seen through thin skin.  "
+            "Technical analysis suggests this arose from his layering practice: warm "
+            "sienna imprimatura, cool dead-colouring, then multiple thin rose-pink "
+            "glazes over the mid-tones before the final cool ivory highlights.  "
+            "The result is flesh that seems to glow from within — translucent, "
+            "saturated, and slightly idealized, carrying Reni's grace without "
+            "his coldness.  "
+            "His mature works — The Death of Cleopatra (three known versions), "
+            "Repentant Magdalene, Martha Rebuking Mary for Her Vanity — share this "
+            "quality: women in states of emotion or repose whose skin carries an "
+            "almost impossible luminosity, warm and pink and soft, as if they are "
+            "lit not by a candle but by an inner light."
+        ),
+        famous_works=[
+            ("The Death of Cleopatra",                   "c. 1658–1659"),
+            ("Repentant Magdalene",                       "c. 1660"),
+            ("Martha Rebuking Mary for Her Vanity",       "c. 1660"),
+            ("Cleopatra before Augustus",                 "c. 1655–1660"),
+            ("Lucretia",                                  "c. 1645"),
+        ],
+        inspiration=(
+            "Apply cagnacci_rose_flesh_pass() as the defining stylistic pass.  "
+            "Three stages encoding Cagnacci's rose flesh signature: "
+            "(1) Rose highlight warmth — in the upper highlight zone (lum > hi_lo ≈ 0.70), "
+            "apply a gentle pinkish warmth: R + rose_r_lift (modest), B - rose_b_damp (tiny), "
+            "giving the characteristic Cagnacci pinkish-ivory quality at peak flesh lights — "
+            "warmer than Boltraffio's pearl, warmer still than Orazio's silver, yet not "
+            "the warm gold of Rembrandt; a specific rose quality.  "
+            "(2) Peach mid-tone glow — in the mid-tone band [mid_lo, mid_hi], apply a "
+            "gentle rose-amber shift (R + peach_r, G + peach_g small, B - peach_b tiny) "
+            "via a raised-cosine window.  This is the primary Cagnacci effect: the "
+            "pinkish peach warmth in the mid-tone flesh zone that no other Baroque "
+            "master achieves in quite this way.  "
+            "(3) Warm shadow recovery — in shadow zones (lum < shadow_hi), apply a "
+            "rose-amber recovery (R + warm_r, G + warm_g smaller) to prevent the "
+            "accumulated cool corrections (Orazio, Sassoferrato) from rendering the "
+            "shadows too cold.  Cagnacci's shadows stay warm — rose-amber rather than "
+            "grey-cool.  "
+            "Use opacity ≈ 0.28–0.36."
+        ),
+    ),
+
     "moroni": ArtStyle(
         artist="Giovanni Battista Moroni",
         movement="Bergamasque Portrait Realism / Lombard Renaissance",

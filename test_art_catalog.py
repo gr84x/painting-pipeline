@@ -126,6 +126,7 @@ EXPECTED_ARTISTS = [
     "sassoferrato",
     "orazio_gentileschi",
     "jordaens",
+    "guido_cagnacci",
 ]
 
 
@@ -13539,3 +13540,143 @@ def test_antwerp_baroque_stroke_params():
     assert params["stroke_size_face"] >= 6
     assert 0.0 <= params["wet_blend"] <= 1.0
     assert 0.0 <= params["edge_softness"] <= 1.0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Guido Cagnacci — catalog and pass tests (session 113)
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_guido_cagnacci_in_catalog():
+    """guido_cagnacci must be present in CATALOG (session 112)."""
+    assert "guido_cagnacci" in CATALOG, (
+        "guido_cagnacci not found in CATALOG — add the ArtStyle entry")
+
+
+def test_guido_cagnacci_in_expected_artists():
+    """EXPECTED_ARTISTS list must include guido_cagnacci (session 112)."""
+    assert "guido_cagnacci" in EXPECTED_ARTISTS, (
+        "guido_cagnacci must be in EXPECTED_ARTISTS list")
+
+
+def test_guido_cagnacci_palette_valid():
+    """Every colour in guido_cagnacci palette must have RGB channels in [0, 1]."""
+    s = get_style("guido_cagnacci")
+    for i, rgb in enumerate(s.palette):
+        for j, v in enumerate(rgb):
+            assert 0.0 <= v <= 1.0, (
+                f"guido_cagnacci palette[{i}][{j}]={v:.3f} out of [0, 1]")
+
+
+def test_guido_cagnacci_warm_rose_highlight():
+    """
+    Cagnacci's defining quality is rose-warm flesh at highlights.
+    The first palette entry (highlight flesh) must be warm (R > B) and pinkish (R > G).
+    """
+    s = get_style("guido_cagnacci")
+    r, g, b = s.palette[0]
+    assert r > b, (
+        f"guido_cagnacci highlight palette[0] must be warm (R={r:.3f} > B={b:.3f}) "
+        "— Cagnacci's rose-ivory highlight quality")
+    assert r > g, (
+        f"guido_cagnacci highlight palette[0] must be pinkish (R={r:.3f} > G={g:.3f}) "
+        "— the rose quality distinguishing him from cool-ivory Reni")
+
+
+def test_guido_cagnacci_warm_ground():
+    """
+    Cagnacci used a warm sienna-ochre imprimatura ground.
+    ground_color must be warm (R > B).
+    """
+    s = get_style("guido_cagnacci")
+    r, _, b = s.ground_color
+    assert r > b, (
+        f"guido_cagnacci ground_color must be warm (R={r:.3f} > B={b:.3f}) "
+        "— Bolognese warm sienna imprimatura tradition")
+
+
+def test_guido_cagnacci_high_wet_blend():
+    """
+    Cagnacci's technique is smooth glazed sfumato — high wet_blend expected (>= 0.70).
+    """
+    s = get_style("guido_cagnacci")
+    assert s.wet_blend >= 0.70, (
+        f"guido_cagnacci wet_blend={s.wet_blend:.2f} too low — should be >= 0.70 "
+        "for the smooth Reni-derived sfumato glazing technique")
+
+
+def test_guido_cagnacci_soft_edges():
+    """
+    Cagnacci's forms melt softly — edge_softness must be >= 0.65.
+    """
+    s = get_style("guido_cagnacci")
+    assert s.edge_softness >= 0.65, (
+        f"guido_cagnacci edge_softness={s.edge_softness:.2f} too low — should be >= 0.65 "
+        "for the dreamlike, diffused quality of his flesh")
+
+
+def test_guido_cagnacci_rose_glaze():
+    """
+    Cagnacci's unifying glaze must be warm rose-amber (R > B).
+    """
+    s = get_style("guido_cagnacci")
+    assert s.glazing is not None, "guido_cagnacci glazing should not be None"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"guido_cagnacci glazing must be warm (R={r:.3f} > B={b:.3f}) "
+        "— rose-amber unifying glaze, not cool silver")
+
+
+def test_guido_cagnacci_movement_emilian():
+    """
+    Cagnacci's movement must reference Emilian Baroque lineage.
+    """
+    s = get_style("guido_cagnacci")
+    assert "Emilian" in s.movement or "emilian" in s.movement.lower(), (
+        f"guido_cagnacci movement={s.movement!r} must reference Emilian Baroque tradition")
+
+
+def test_cagnacci_rose_flesh_pass_exists():
+    """Painter must expose cagnacci_rose_flesh_pass (session 112 new pass)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "cagnacci_rose_flesh_pass"), (
+        "Painter.cagnacci_rose_flesh_pass not found — add it to stroke_engine.py"
+    )
+
+
+def test_cagnacci_rose_flesh_pass_opacity_parameter():
+    """cagnacci_rose_flesh_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cagnacci_rose_flesh_pass)
+    assert "opacity" in sig.parameters, (
+        "cagnacci_rose_flesh_pass must have 'opacity' parameter"
+    )
+
+
+def test_cagnacci_rose_flesh_pass_peach_r_parameter():
+    """cagnacci_rose_flesh_pass must accept peach_r for mid-tone rose glow."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cagnacci_rose_flesh_pass)
+    assert "peach_r" in sig.parameters, (
+        "cagnacci_rose_flesh_pass must have 'peach_r' parameter "
+        "(primary mid-tone rose-peach component)"
+    )
+
+
+def test_cagnacci_rose_flesh_pass_rose_r_lift_parameter():
+    """cagnacci_rose_flesh_pass must accept rose_r_lift for highlight warmth."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cagnacci_rose_flesh_pass)
+    assert "rose_r_lift" in sig.parameters, (
+        "cagnacci_rose_flesh_pass must have 'rose_r_lift' parameter "
+        "(pinkish rose warmth at peak flesh highlights)"
+    )
+
+
+def test_emilian_rosy_baroque_period_in_period_enum():
+    """Period.EMILIAN_ROSY_BAROQUE must be accessible from scene_schema (session 113)."""
+    from scene_schema import Period
+    assert Period.EMILIAN_ROSY_BAROQUE in list(Period), (
+        "Period.EMILIAN_ROSY_BAROQUE not found — add it to scene_schema.py Period enum")

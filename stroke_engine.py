@@ -27917,6 +27917,156 @@ class Painter:
         buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
+
+    def cagnacci_rose_flesh_pass(
+        self,
+        hi_lo:        float = 0.70,
+        rose_r_lift:  float = 0.014,
+        rose_b_damp:  float = 0.008,
+        mid_lo:       float = 0.34,
+        mid_hi:       float = 0.70,
+        peach_r:      float = 0.020,
+        peach_g:      float = 0.008,
+        peach_b:      float = 0.010,
+        shadow_hi:    float = 0.34,
+        warm_r:       float = 0.016,
+        warm_g:       float = 0.007,
+        blur_radius:  float = 3.5,
+        opacity:      float = 0.32,
+    ) -> None:
+        """
+        Guido Cagnacci rose flesh pass — session 112 new artist pass.
+
+        Guido Cagnacci (1601–1663) is among the most ravishing and least-celebrated
+        of Emilian Baroque painters.  Born in Santarcangelo di Romagna, he trained
+        in Bologna in the orbit of Guido Reni — the greatest technician of seamless
+        sfumato in 17th-century Italy — before moving through Rome, Venice, and finally
+        to Vienna (c. 1658), where he died in 1663 as court painter to Emperor Leopold I.
+
+        What distinguishes Cagnacci from every other Baroque master is a single,
+        unmistakable quality in his treatment of female flesh: a warm, pinkish,
+        dreamlike luminescence that exists nowhere else in 17th-century painting.
+        Where Guido Reni's flesh is cool ivory-pearl (idealised, remote, spiritual),
+        Guercino's is amber-warm (earthy, direct, Lombard-naturalist), and Orazio
+        Gentileschi's is cool silver (north-window daylight, clear and honest),
+        Cagnacci's is rose — a specific warm-pink quality in the mid-tone zone that
+        reads like candlelight seen through thin skin, or the blush of blood under
+        translucent tissue.
+
+        The technical mechanism was almost certainly his glazing practice: warm sienna
+        imprimatura → cool lead-white dead-colouring → multiple thin rose-pink glazes
+        (likely vermilion + lead white in greatly diluted oil) laid over the mid-tone
+        flesh zones → final cool ivory highlights.  This sequence produces the
+        characteristic Cagnacci quality: flesh that seems to glow from within, warm
+        and saturated in the mid-tones, cooler and paler toward the highlights,
+        always retaining a distinctly rose-amber warmth even in the shadows.
+
+        His mature works — the three known versions of The Death of Cleopatra,
+        the Repentant Magdalene, Martha Rebuking Mary for Her Vanity — all share
+        this quality: women in states of high emotion or private repose whose skin
+        carries an almost impossible warmth, as if lit from within rather than from
+        without.  The effect is not erotic exactly, nor religious exactly, but
+        occupies a dreamlike space between the two that is entirely his own.
+
+        This pass encodes his rose flesh quality through three controlled tonal operations:
+
+          1. Rose highlight warmth — In the upper highlight zone (lum > hi_lo),
+             apply a gentle pinkish-rose warmth: R + rose_r_lift and B - rose_b_damp.
+             This gives Cagnacci's characteristic pinkish-ivory at peak flesh lights —
+             warmer than Boltraffio's pearl, warmer than Orazio's silver, yet not the
+             amber-gold of Rembrandt nor the warm ivory of Raphael: a specific rose.
+             Graduated by a Gaussian-blurred luminance mask so the transition into
+             the warmer mid-tone below is seamless and sfumato-smooth.
+
+          2. Peach mid-tone glow — In the mid-tone band [mid_lo, mid_hi], apply a
+             warm rose-amber shift (R + peach_r, G + peach_g, B - peach_b) via a
+             raised-cosine window peaking at the band centre.  This is the primary
+             Cagnacci effect: the pinkish-peach warmth in the mid-tone flesh zone
+             that defines his Emilian Baroque signature.  Unlike the Guercino amber
+             warmth (which is ochre-based, raw umber quality) or the Strozzi amber
+             impasto (which is loaded and vigorous), Cagnacci's rose glow is smooth,
+             glazed, and inward — a quality of accumulated thin layers rather than
+             visible paint.
+
+          3. Warm shadow recovery — In shadow zones (lum < shadow_hi), apply a gentle
+             rose-amber recovery (R + warm_r, G + warm_g) to prevent the accumulated
+             cool corrections from Orazio's silver daylight pass and Sassoferrato's
+             ultramarine from rendering the darks too cold.  Cagnacci's shadows
+             stay warm — rose-amber rather than grey-cool — even at their deepest.
+
+        Parameters
+        ----------
+        hi_lo        : lower luminance threshold for highlight zone (lum > this)
+        rose_r_lift  : red channel lift in highlights (pinkish rose warmth)
+        rose_b_damp  : blue channel damp in highlights (removes cool silver toward rose)
+        mid_lo       : lower bound of mid-tone peach glow band
+        mid_hi       : upper bound of mid-tone peach glow band
+        peach_r      : red shift in mid-tones (primary rose-peach component)
+        peach_g      : green shift in mid-tones (small — warm amber quality)
+        peach_b      : blue reduction in mid-tones (removes coolness, warms toward rose)
+        shadow_hi    : upper luminance threshold for warm shadow recovery (lum < this)
+        warm_r       : red recovery in shadows (rose-amber warmth, anti-cold)
+        warm_g       : green recovery in shadows (small amber component)
+        blur_radius  : Gaussian sigma for mask feathering
+        opacity      : overall composite opacity (0–1)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        h, w = self.h, self.w
+
+        # ── Read canvas ───────────────────────────────────────────────────────
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((h, w, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── 1. Rose highlight warmth ──────────────────────────────────────────
+        # Pinkish-ivory quality at peak flesh lights — Cagnacci's rose highlight.
+        # Graduated by luminance above hi_lo, smoothed with Gaussian.
+        hi_raw  = _np.clip((lum - hi_lo) / (1.0 - hi_lo + 1e-6), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + hi_mask * rose_r_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * rose_b_damp, 0.0, 1.0)
+
+        # ── 2. Peach mid-tone glow ────────────────────────────────────────────
+        # The primary Cagnacci effect: rose-peach warmth in the mid-tone flesh.
+        # Raised-cosine window peaks at the centre of [mid_lo, mid_hi].
+        mid_cos    = _np.clip((lum - mid_lo) / (mid_hi - mid_lo + 1e-6), 0.0, 1.0)
+        mid_window = 0.5 * (1.0 - _np.cos(_np.pi * mid_cos))   # 0→1→0 across band
+        mid_mask   = _gf(mid_window.astype(_np.float32), blur_radius)
+        mid_mask   = _np.clip(mid_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + mid_mask * peach_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + mid_mask * peach_g, 0.0, 1.0)
+        b_out = _np.clip(b_out - mid_mask * peach_b, 0.0, 1.0)
+
+        # ── 3. Warm shadow recovery ───────────────────────────────────────────
+        # Rose-amber warmth in shadows — Cagnacci's darks never go cool-grey.
+        sh_raw  = _np.clip((shadow_hi - lum) / (shadow_hi + 1e-6), 0.0, 1.0)
+        sh_mask = _gf(sh_raw.astype(_np.float32), blur_radius)
+        sh_mask = _np.clip(sh_mask, 0.0, 1.0)
+        r_out = _np.clip(r_out + sh_mask * warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + sh_mask * warm_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Orazio Gentileschi silver daylight pass complete.")
 
     def jordaens_earthy_vitality_pass(
