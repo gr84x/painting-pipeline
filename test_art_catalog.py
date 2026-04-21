@@ -124,6 +124,7 @@ EXPECTED_ARTISTS = [
     "ribera",
     "moroni",
     "sassoferrato",
+    "orazio_gentileschi",
 ]
 
 

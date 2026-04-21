@@ -9523,6 +9523,90 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Orazio Gentileschi ────────────────────────────────────────────────────
+    "orazio_gentileschi": ArtStyle(
+        artist="Orazio Gentileschi",
+        movement="Italian Baroque / Caravaggesque / Courtly Naturalism",
+        nationality="Italian",
+        period="c. 1590–1639",
+        palette=[
+            (0.90, 0.84, 0.70),   # cool ivory-silver highlight flesh — clear north light
+            (0.72, 0.58, 0.42),   # warm mid-tone flesh — earthy sienna quality
+            (0.42, 0.32, 0.20),   # warm umber shadow — never cold, never void-black
+            (0.80, 0.74, 0.80),   # cool silver-grey highlight — characteristic courtly light
+            (0.88, 0.70, 0.22),   # warm gold-ochre satin — his spectacular fabric colour
+            (0.62, 0.34, 0.26),   # deep red damask — saturated but not theatrical
+            (0.44, 0.52, 0.70),   # cool blue-grey atmospheric recession / sky
+        ],
+        ground_color=(0.50, 0.44, 0.30),    # warm neutral ground — Tuscan warmth under cool daylight
+        stroke_size=6,
+        wet_blend=0.52,                      # moderate — controlled, not dissolved; fabric edges hold
+        edge_softness=0.48,                  # moderate — softer than Bronzino, crisper than sfumato
+        jitter=0.018,                        # restrained — precise naturalism without scatter
+        glazing=(0.70, 0.66, 0.52),          # cool-warm silver-buff final glaze
+        crackle=True,                        # oil on canvas — appropriate for 17th-century aging
+        chromatic_split=False,               # pure naturalism; no optical colour-splitting
+        technique=(
+            "Silver daylight — the defining quality of Orazio Gentileschi's mature "
+            "Baroque naturalism.  Unlike his contemporary Caravaggio (whose single "
+            "harsh light carves figures from near-black void) or the Flemish masters "
+            "(whose light is warm amber-candlelight), Orazio works with cool, even, "
+            "aristocratic north-facing daylight — the light of a London or Genoa "
+            "studio in overcast winter, soft but precise, without drama or obscurity.  "
+            "Trained in Caravaggio's circle in Rome around 1600, he absorbed the "
+            "revolutionary naturalist programme but tempered it: his tenebrism is never "
+            "brutal, his shadows are never void, his light is never theatrical.  Instead "
+            "he achieved a serene, inhabited quality — figures who seem genuinely present "
+            "in real space under real light.  "
+            "His second signature is chromatic precision in fabrics.  Where Caravaggio's "
+            "draperies are generalised vehicles of form, Orazio's are specific: shimmering "
+            "gold satin, vivid red damask, cool blue silk — each rendered with a close "
+            "observation that anticipates the 18th-century tradition of fabric painting.  "
+            "His palette within a given work is often narrow in its range but exceptional "
+            "in its precision: he achieves luminosity through chromatic accuracy rather "
+            "than tonal contrast.  "
+            "Technical analysis of his panels (he worked in both panel and canvas) "
+            "suggests he used a warm ochre imprimatura ground, built his forms through "
+            "a careful dead-colouring stage, then laid cool final lights in lead white "
+            "with small quantities of smalt — giving his highlight flesh tones a cool, "
+            "slightly blue-tinged silver that is entirely characteristic.  "
+            "His career spanned Rome, Genoa, Paris (court of Marie de' Medici), and "
+            "finally London (court of Charles I, 1626–1639), where he died.  Each move "
+            "brought a new courtly audience with sophisticated visual expectations — "
+            "which may explain the refined, elegant quality that distinguishes him from "
+            "the rougher Caravaggisti of Naples and Sicily."
+        ),
+        famous_works=[
+            ("Lute Player", "c. 1612–1620"),
+            ("Rest on the Flight into Egypt", "1628"),
+            ("Danaë", "c. 1621–1622"),
+            ("Judith and Her Maidservant with the Head of Holofernes", "c. 1608–1609"),
+            ("The Penitent Magdalene", "c. 1615–1621"),
+            ("Saint Cecilia Playing a Lute", "c. 1617–1620"),
+        ],
+        inspiration=(
+            "Apply orazio_silver_daylight_pass() as the defining stylistic pass.  "
+            "Three stages encoding Orazio's cool daylight signature: "
+            "(1) Silver highlight coolness — in the upper highlight zone (lum > hi_lo ≈ 0.68), "
+            "apply a gentle cool shift: R - silver_r_damp (tiny), B + silver_b_lift (modest). "
+            "This is the cool north-window daylight quality of Orazio's lead-white highlights "
+            "— not the warm ivory of southern sun nor the cold blue of Mannerist artifice, "
+            "but the honest silver of real overcast daylight.  "
+            "(2) Midtone chroma lift — in the midtone band [mid_lo, mid_hi], apply a "
+            "gentle saturation boost (chroma_lift ≈ 0.015–0.025) that enhances the chromatic "
+            "identity of each colour zone.  This encodes Orazio's precision with fabric colour: "
+            "his golds are more golden, his reds more vivid, without tipping into "
+            "impressionistic scatter.  Implemented as a move toward the mean-hue direction "
+            "from grey.  "
+            "(3) Cool shadow control — in shadow zones (lum < shadow_hi), apply a very gentle "
+            "cool-grey shift that prevents the darks from retaining the Strozzi amber or "
+            "Guercino warm-penumbra warmth: slight R - cool_r_damp, slight B + cool_b_lift.  "
+            "Orazio's shadows are cool and controlled — not the warm umber void of the Roman "
+            "Caravaggisti but a restrained, atmospheric coolness.  "
+            "Use opacity ≈ 0.28–0.38."
+        ),
+    ),
+
     "moroni": ArtStyle(
         artist="Giovanni Battista Moroni",
         movement="Bergamasque Portrait Realism / Lombard Renaissance",
