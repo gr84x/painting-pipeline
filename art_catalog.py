@@ -10530,6 +10530,104 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Annibale Carracci ─────────────────────────────────────────────────────
+    "annibale_carracci": ArtStyle(
+        artist="Annibale Carracci",
+        movement="Bolognese School / Early Baroque",
+        nationality="Italian (Bolognese)",
+        period="c. 1582–1609",
+        palette=[
+            (0.86, 0.71, 0.52),   # warm amber flesh — golden, naturalistic, directly observed
+            (0.63, 0.49, 0.33),   # warm rose-brown mid-flesh — carnation with sienna depth
+            (0.20, 0.14, 0.09),   # deep warm shadow — Vandyke brown, luminous depth
+            (0.42, 0.52, 0.40),   # cool landscape green — atmospheric recession distance
+            (0.66, 0.61, 0.50),   # warm ochre transition — penumbra temperature bridge
+            (0.92, 0.84, 0.70),   # warm ivory highlight — naturalistic, not idealized
+        ],
+        ground_color=(0.42, 0.32, 0.20),    # warm sienna-brown imprimatura — the warm
+        #                                     toned ground characteristic of Bolognese
+        #                                     academic practice, allowing warmth to glow
+        #                                     through glazed shadow zones
+        stroke_size=7,
+        wet_blend=0.55,                      # moderate blending — direct naturalistic
+        #                                     painting; forms resolved without dissolving
+        edge_softness=0.55,                  # moderate — clearly defined forms; Carracci
+        #                                     rejected the artificial vagueness of late
+        #                                     Mannerism in favour of direct observation
+        jitter=0.028,                        # moderate — controlled naturalistic variation
+        glazing=(0.60, 0.48, 0.28),          # warm amber-sienna unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Annibale Carracci (1560–1609) was the central figure of the Bolognese reform movement "
+            "— the anti-Mannerist revolution that restored direct observation of nature as the "
+            "foundation of painting after a generation of artificial elegance.  With his brother "
+            "Agostino and cousin Ludovico, Annibale founded the Accademia degli Incamminati "
+            "('Academy of the Progressives') in Bologna in 1582, the first formal teaching "
+            "academy in European art, which trained a generation of Baroque masters including "
+            "Guido Reni, Albani, and Domenichino.  "
+            "Annibale's mature technique synthesises the warm flesh-tone tradition of Correggio "
+            "(whom he studied carefully), the compositional clarity of Raphael, the coloristic "
+            "richness of Titian, and the naturalistic directness of Flemish genre painting — a "
+            "remarkable fusion of North and South Italian traditions.  His flesh tones are warm "
+            "and golden, built on a sienna-toned ground that allows the warm imprimatura to glow "
+            "through shadow glazes.  The defining characteristic of Bolognese naturalism is the "
+            "directional tonal temperature field: lit surfaces receive warm amber-ochre warmth "
+            "from the light source (typically upper-left in his portraits), while shadow faces "
+            "develop a cool blue-violet tone from atmospheric and reflected light.  This "
+            "warm-light / cool-shadow temperature contrast is physically motivated — it describes "
+            "how a single warm light source modulates both colour temperature and luminance "
+            "simultaneously — and creates an internal luminosity that distinguishes Bolognese "
+            "work from both the uniform tonality of Venetian painting and the harsh tenebrism "
+            "of the Caravaggisti.  "
+            "His most celebrated works include the Farnese Gallery ceiling frescoes (1597–1602, "
+            "Palazzo Farnese, Rome) — one of the most ambitious decorative programs of the "
+            "Baroque era — and a series of intimate portraits including the *Self-Portrait on an "
+            "Easel in a Workshop* (c. 1604) and the *Man with a Monkey* (c. 1591, Uffizi).  "
+            "His genre scenes (*The Bean Eater*, c. 1580–1590) introduced a new dignity for "
+            "humble subject matter that influenced Northern European genre painting for a century."
+        ),
+        famous_works=[
+            ("Farnese Gallery ceiling frescoes",     "1597–1602"),
+            ("Self-Portrait on an Easel in a Workshop", "c. 1604"),
+            ("The Bean Eater",                       "c. 1580–1590"),
+            ("Man with a Monkey",                    "c. 1591"),
+            ("Pietà",                                "c. 1599–1600"),
+            ("Assumption of the Virgin",             "1587"),
+            ("The Butcher's Shop",                   "c. 1582–1583"),
+            ("Flight into Egypt",                    "1604"),
+        ],
+        inspiration=(
+            "Apply annibale_carracci_tonal_reform_pass() as the defining pass for session 122.  "
+            "The pass encodes the Bolognese naturalistic reform in three stages built around the "
+            "session 122 artistic improvement: the spatially-varying directional tonal temperature "
+            "field.  "
+            "(1) Directional temperature field — the session 122 artistic improvement.  Unlike "
+            "prior passes that use only luminance value (a scalar) to drive color adjustments, "
+            "this pass computes the luminance *gradient* (a 2-D vector via Sobel operators) to "
+            "distinguish lit-face from shadow-face pixels.  The dot product between the normalised "
+            "gradient direction and a user-specified light direction vector produces a signed "
+            "field in [-1, 1]: positive values indicate that luminance rises toward the light "
+            "(lit face); negative values indicate that luminance falls toward the light (shadow "
+            "face).  Warm colour temperature shift (R+, G+, B-) is applied proportionally to "
+            "the positive lobe; cool shift (R-, G+, B+) is applied proportionally to the "
+            "negative lobe.  Both effects are restricted to the penumbra luminance zone "
+            "(penumbra_lo...penumbra_hi) where temperature contrast is perceptually strongest, "
+            "and smoothed with a Gaussian to create soft transitions between the two regions.  "
+            "This is a physically motivated model of how a warm point light source (upper-left "
+            "in Bolognese painting) generates simultaneous luminance and temperature gradients.  "
+            "(2) Warm ground glow — in the deep shadow zone (lum < shadow_hi), add a faint warm "
+            "amber undertone (R += shadow_warm_r, G += shadow_warm_g).  Carracci built on a "
+            "warm sienna imprimatura that glows through transparent shadow glazes, giving his "
+            "darks a warm luminous depth rather than neutral blackness.  "
+            "(3) Highlight ivory lift — in the specular highlight zone (lum > hi_lo), add a "
+            "slight warm ivory lift (R += hi_r, G += hi_g).  Carracci's lights are naturalistic "
+            "warm ivory, not the cold blue-white of Northern European masters or the pearl-grey "
+            "of Florentine Mannerism.  "
+            "Use at opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 
