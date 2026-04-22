@@ -205,7 +205,7 @@ def paint(out_dir: str = ".") -> str:
     # Velatura: a thin semi-transparent warm glaze — Dosso often unified his
     # panels with a warm amber veil that deepened the jewel quality.
     print("Velatura warm glaze (Dosso Dossi unifying amber veil)...", flush=True)
-    p.velatura_pass(opacity=0.10)
+    p.velatura_pass(midtone_tint=(0.82, 0.65, 0.38), midtone_opacity=0.10)
 
     # Vignette and crackle
     print("Finishing (vignette + crackle)...", flush=True)
