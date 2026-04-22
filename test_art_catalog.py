@@ -142,6 +142,7 @@ EXPECTED_ARTISTS = [
     "rosso_fiorentino",
     "dosso_dossi",
     "aelbert_cuyp",
+    "lucas_cranach",
 ]
 
 
@@ -16315,3 +16316,156 @@ def test_shadow_temperature_relief_pass_has_opacity_parameter():
     assert "opacity" in sig.parameters, (
         "shadow_temperature_relief_pass must have opacity parameter "
         "(session 133 shadow temperature relief artistic improvement)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 135: Lucas Cranach the Elder + GERMAN_REFORMATION_RENAISSANCE
+#              + cranach_enamel_clarity_pass (13th distinct mode)
+#              + highlight_crystalline_pass (artistic improvement)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_lucas_cranach_in_catalog():
+    """lucas_cranach must be present in the CATALOG dict (session 135)."""
+    assert "lucas_cranach" in CATALOG, (
+        "lucas_cranach not found in CATALOG -- add to art_catalog.py (session 135)")
+
+
+def test_lucas_cranach_movement_german():
+    """lucas_cranach movement must reference German Renaissance or Reformation style."""
+    s = get_style("lucas_cranach")
+    text_lower = s.movement.lower()
+    assert ("german" in text_lower or "reformation" in text_lower
+            or "renaissance" in text_lower), (
+        f"lucas_cranach movement should mention German, Reformation, or Renaissance; "
+        f"got {s.movement!r}")
+
+
+def test_lucas_cranach_palette_valid():
+    """lucas_cranach palette must contain valid RGB tuples in [0, 1] (session 135)."""
+    s = get_style("lucas_cranach")
+    assert len(s.palette) >= 5, (
+        f"lucas_cranach palette should have >=5 colours; got {len(s.palette)}")
+    for colour in s.palette:
+        assert len(colour) == 3, f"Expected 3-tuple; got {colour!r}"
+        for ch in colour:
+            assert 0.0 <= ch <= 1.0, (
+                f"lucas_cranach palette value out of range [0,1]: {ch} in {colour!r}")
+
+
+def test_lucas_cranach_low_wet_blend():
+    """lucas_cranach wet_blend must be low (< 0.35) -- flat enamel-like paint application."""
+    s = get_style("lucas_cranach")
+    assert s.wet_blend < 0.35, (
+        f"lucas_cranach wet_blend should be low (< 0.35, enamel-flat technique); "
+        f"got {s.wet_blend}")
+
+
+def test_lucas_cranach_glazing_set():
+    """lucas_cranach glazing must be set -- warm amber court panel unification."""
+    s = get_style("lucas_cranach")
+    assert s.glazing is not None, (
+        "lucas_cranach glazing should be set (warm amber Saxon court panel glaze)")
+
+
+def test_lucas_cranach_technique_mentions_enamel_or_flat():
+    """lucas_cranach technique must mention enamel or flat colour quality."""
+    s = get_style("lucas_cranach")
+    text_lower = s.technique.lower()
+    assert ("enamel" in text_lower or "flat" in text_lower
+            or "vermilion" in text_lower), (
+        "lucas_cranach technique should describe enamel-flat colour quality or vermilion palette")
+
+
+def test_lucas_cranach_inspiration_mentions_chromaticity():
+    """lucas_cranach inspiration must describe the chromaticity decomposition mode."""
+    s = get_style("lucas_cranach")
+    text_lower = s.inspiration.lower()
+    assert ("chromaticity" in text_lower or "chroma" in text_lower
+            or "decomposition" in text_lower), (
+        "lucas_cranach inspiration should describe CHROMATICITY/LUMINANCE DECOMPOSITION mode")
+
+
+def test_german_reformation_renaissance_period_enum_exists():
+    """GERMAN_REFORMATION_RENAISSANCE must exist in the Period enum (session 135)."""
+    assert hasattr(Period, "GERMAN_REFORMATION_RENAISSANCE"), (
+        "GERMAN_REFORMATION_RENAISSANCE missing from Period enum -- "
+        "add to scene_schema.py (session 135)")
+
+
+def test_cranach_enamel_clarity_pass_exists_catalog():
+    """Painter must have cranach_enamel_clarity_pass() method after session 135."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "cranach_enamel_clarity_pass"), (
+        "cranach_enamel_clarity_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "cranach_enamel_clarity_pass"))
+
+
+def test_cranach_enamel_clarity_pass_no_error_catalog():
+    """cranach_enamel_clarity_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.05)
+    p.cranach_enamel_clarity_pass(opacity=0.30)
+
+
+def test_cranach_enamel_clarity_pass_modifies_canvas_catalog():
+    """cranach_enamel_clarity_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.82, 0.14, 0.08), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.cranach_enamel_clarity_pass(chroma_boost=0.50, opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "cranach_enamel_clarity_pass should modify the canvas at opacity=0.60")
+
+
+def test_cranach_enamel_clarity_pass_preserves_shape_catalog():
+    """cranach_enamel_clarity_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.05)
+    p.cranach_enamel_clarity_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after cranach_enamel_clarity_pass: {img.size}")
+
+
+def test_highlight_crystalline_pass_exists_catalog():
+    """Painter must have highlight_crystalline_pass() method after session 135."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "highlight_crystalline_pass"), (
+        "highlight_crystalline_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "highlight_crystalline_pass"))
+
+
+def test_highlight_crystalline_pass_no_error_catalog():
+    """highlight_crystalline_pass() runs on a canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.05)
+    p.highlight_crystalline_pass(opacity=0.35)
+
+
+def test_highlight_crystalline_pass_modifies_bright_canvas():
+    """highlight_crystalline_pass() must modify a bright canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.90, 0.88, 0.82), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.highlight_crystalline_pass(lum_thresh=0.50, opacity=0.80)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "highlight_crystalline_pass should modify a bright canvas at opacity=0.80")

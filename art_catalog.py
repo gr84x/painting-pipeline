@@ -11691,6 +11691,89 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "lucas_cranach": ArtStyle(
+        artist="Lucas Cranach the Elder",
+        movement="German Renaissance / Protestant Reformation",
+        nationality="German (Saxony)",
+        period="16th century (1472–1553)",
+        palette=[
+            (0.82, 0.14, 0.08),   # vermilion — intense pure red, court robes, symbolic blood
+            (0.10, 0.28, 0.12),   # deep forest green — Germanic woodland, hunting backgrounds
+            (0.06, 0.06, 0.06),   # jet black — costume, Lutheran gravity, contour definition
+            (0.92, 0.85, 0.68),   # pearl ivory flesh — luminous skin, Venus and noble subjects
+            (0.80, 0.68, 0.22),   # warm gold — ornamentation, Saxon court opulence
+            (0.72, 0.72, 0.74),   # cool silver-grey — metalwork, armour, architectural detail
+            (0.45, 0.25, 0.12),   # warm umber — background foliage shadow depth
+            (0.95, 0.94, 0.90),   # near-white — sheer gauze veils, translucent fabric
+        ],
+        ground_color=(0.86, 0.78, 0.62),    # warm honey-ochre — Saxon court panel warmth
+        stroke_size=4,
+        wet_blend=0.20,                      # low — flat-applied paint, little blending
+        edge_softness=0.14,                  # very firm — Gothic linear clarity
+        jitter=0.005,                        # minimal — controlled, definite marks
+        glazing=(0.80, 0.62, 0.32),          # warm amber glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Lucas Cranach the Elder (1472-1553), German (Saxony), was court painter "
+            "to the Saxon Electors and close friend and visual propagandist for Martin "
+            "Luther.  His painting style synthesizes Gothic German linear clarity with "
+            "Italian Renaissance figuration, creating a distinctly Northern idiom.  "
+            "Cranach's surfaces are enamel-flat: each colour area is applied in a "
+            "single uniform tone with minimal gradation, giving his panels the jewel-"
+            "like intensity of stained glass or illuminated manuscript pages.  His "
+            "palette is among the most vivid and saturated of the Renaissance: pure "
+            "vermilion, jet black, and brilliant gold dominate his court portraits; "
+            "deep forest green and warm umber structure his hunting and landscape "
+            "backgrounds.  Flesh tones are pale ivory-pearl with little tonal "
+            "modelling -- faces are almost mask-like in their smooth, even surface, "
+            "emphasising the Gothic idealization of his subjects.  His famous Venus "
+            "series demonstrates mastery of flat, lustrous skin rendering against "
+            "deep dark backgrounds, with each decorative detail (necklace, hat, veil) "
+            "rendered with heraldic precision.  Cranach's outlines are definite and "
+            "unambiguous -- the boundary between figure and ground is sharp and "
+            "authoritative, in contrast to Italian sfumato."
+        ),
+        famous_works=[
+            ("Venus Standing in a Landscape",     "1529"),
+            ("Portrait of Martin Luther",          "1529"),
+            ("Adam and Eve",                       "1526"),
+            ("Portrait of a Lady",                 "1526"),
+            ("Cardinal Albrecht of Brandenburg",   "1526"),
+            ("Judith with the Head of Holofernes", "1530"),
+            ("The Golden Age",                     "c. 1530"),
+            ("Resting Diana on the Hunt",          "c. 1525"),
+        ],
+        inspiration=(
+            "Apply cranach_enamel_clarity_pass() as the defining pass for "
+            "session 135.  The pass encodes Cranach's defining optical quality: "
+            "the jewel-like, enamel-flat COLOR PURITY of his panel surfaces -- "
+            "colours that read at maximum chroma for their luminance level, with "
+            "no grey contamination from blending or atmospheric dissolution.  "
+            "This is the THIRTEENTH distinct processing mode in the pipeline: "
+            "CHROMATICITY/LUMINANCE DECOMPOSITION (mean-achromatic separation "
+            "with chroma boost and spatial pooling).  "
+            "Prior modes: (1) s123 Rosa -- spatial displacement/flow warping; "
+            "(2) s124 Stanzione -- Laplacian pyramid frequency decomposition; "
+            "(3) s125 Albani -- vertical spatial gradient; "
+            "(4) s126 Bartolommeo -- Sobel edge-map modulation; "
+            "(5) s127 Cantarini -- spectral channel-selective diffusion; "
+            "(6) s128 Carpaccio -- local variance std map spatial adaptation; "
+            "(7) s129 Piazzetta -- global histogram percentile tonal sculpting; "
+            "(8) s130 Sebastiano -- image structure tensor coherence-driven smoothing; "
+            "(9) s131 Rosso -- hue-selective chromatic tension mapping (HSV space); "
+            "(10) s132 Dosso -- illumination-reflectance decomposition (Retinex/log); "
+            "(11) s133 Bassano -- anisotropic diffusion (Perona-Malik); "
+            "(12) s134 Cuyp -- luminance-adaptive spatial frequency attenuation (CSF).  "
+            "Session 135 mode: CHROMATICITY/LUMINANCE DECOMPOSITION.  "
+            "Algorithm: grey = (R+G+B)/3; chromatic deviation cr = R-grey (sum=0); "
+            "boost cr by (1+chroma_boost); optionally pool chroma spatially with "
+            "Gaussian sigma_pool; reconstruct R_out = grey + cr_final.  Unlike HSV "
+            "saturation (Mode 9, max-channel), this uses MEAN-CHANNEL grey as the "
+            "achromatic axis -- geometrically distinct.  Use at opacity 0.28--0.38."
+        ),
+    ),
+
 }
 
 

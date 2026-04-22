@@ -300,6 +300,7 @@ class Period(Enum):
     FERRARESE_COLORIST_POESIA  = auto()  # Dosso Dossi — jewel-like chromatic poetry, warm amber-gold illumination, luminous colour saturation from within; illumination-reflectance decomposition (Retinex) mode
     VENETIAN_PASTORAL_LUMINISM = auto()  # Jacopo Bassano — deep umber ground, warm firelight impasto, anisotropic diffusion creates smooth tonal pools bounded by firm chiaroscuro edges; proto-Caravaggesque artificial light
     DUTCH_GOLDEN_AGE_LUMINISM  = auto()  # Aelbert Cuyp — radiant amber-gold afternoon light, luminance-adaptive spatial frequency attenuation dissolves fine detail in bright zones into golden atmosphere; the Dutch Claude
+    GERMAN_REFORMATION_RENAISSANCE = auto()  # Lucas Cranach the Elder — enamel-flat colour zones, Gothic linear clarity, vermilion/jet-black/pearl-flesh palette, chromaticity/luminance decomposition for jewel-like purity
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1465,6 +1466,12 @@ class Style:
             # forms are clearly resolved in shadow but edges dissolve gently in the light,
             # replicating Cuyp's CSF-accurate luminous dissolution effect.
             Period.DUTCH_GOLDEN_AGE_LUMINISM: dict(stroke_size_face=7, stroke_size_bg=32, wet_blend=0.68, edge_softness=0.55),
+            # GERMAN_REFORMATION_RENAISSANCE (Lucas Cranach) — enamel-flat panel surfaces.
+            # stroke_size_face=4: small, meticulous marks — Cranach's portraits are precise.
+            # stroke_size_bg=18: moderate for background foliage and architectural detail.
+            # wet_blend=0.20: low — flat paint application, almost no atmospheric merging.
+            # edge_softness=0.14: very firm — Gothic linear clarity, sharp authoritative outlines.
+            Period.GERMAN_REFORMATION_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.20, edge_softness=0.14),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
