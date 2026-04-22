@@ -11428,6 +11428,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Dosso Dossi ────────────────────────────────────────────────────────────
+    "dosso_dossi": ArtStyle(
+        artist="Dosso Dossi",
+        movement="Ferrarese Colorist Poesia",
+        nationality="Italian (Ferrarese)",
+        period="c. 1490–1542",
+        palette=[
+            (0.88, 0.72, 0.38),   # warm amber-gold — Dosso's defining illumination hue
+            (0.76, 0.54, 0.32),   # rich ochre-sienna — warm mid-tone flesh
+            (0.34, 0.46, 0.62),   # deep lapis-blue — jewel drapery cool
+            (0.62, 0.42, 0.24),   # burnt umber-copper — dark warm ground
+            (0.52, 0.68, 0.42),   # sage forest-green — poetic landscape foliage
+            (0.78, 0.64, 0.52),   # pearl rose-tan — luminous skin highlight
+            (0.22, 0.18, 0.28),   # deep cool indigo-black — atmospheric shadow depth
+        ],
+        ground_color=(0.48, 0.38, 0.26),    # warm umber-amber imprimatura — Ferrarese gold ground
+        stroke_size=6,
+        wet_blend=0.82,                      # high — jewel-like fused surfaces, no visible brushwork
+        edge_softness=0.65,                  # Giorgionesque soft sfumato emergence from shadow
+        jitter=0.012,                        # low — smooth, polished surfaces; Dosso was a careful technician
+        glazing=(0.82, 0.65, 0.38),          # warm amber glaze — Ferrarese golden inner luminosity
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Ferrarese court painter of exceptional coloristic poetry.  Dosso Dossi "
+            "(born Giovanni di Niccolò de Lutteri) absorbed the Giorgionesque sfumato "
+            "and chromatic vision of the Venetian school — especially Giorgione and "
+            "the young Titian — and combined it with a Ferrarese taste for rich, "
+            "jewel-like color intensity and poetic mythological subjects.  His "
+            "palette has a distinctive inner luminosity: colors read as if lit "
+            "from within rather than from an external source — warm amber-golds, "
+            "saturated lapus-blues, and glowing ochre flesh tones that seem to "
+            "emit their own light.  The landscapes behind his figures dissolve "
+            "into cool atmospheric poetry, with dense forest greens and golden "
+            "sky-lit distances.  Surfaces are deeply glazed and richly fused."
+        ),
+        famous_works=[
+            ("Circe and Her Lovers in a Landscape",    "c. 1514–1516"),
+            ("Melissa",                                "c. 1516–1520"),
+            ("Jupiter Painting Butterflies",           "c. 1523–1524"),
+            ("Portrait of a Warrior",                  "c. 1510"),
+            ("Allegory of Hercules",                   "c. 1535"),
+            ("Saints John the Baptist and Bartholomew","c. 1520"),
+            ("Lamentation of Christ",                  "c. 1527–1530"),
+        ],
+        inspiration=(
+            "Apply dosso_luminance_reflectance_pass() as the defining pass for "
+            "session 132.  The pass encodes Dosso Dossi's defining quality: the "
+            "INNER LUMINOSITY of his jewel-like color — surfaces that seem to glow "
+            "from within rather than being merely lit from outside.  "
+            "This is the tenth distinct processing mode in the pipeline: "
+            "ILLUMINATION-REFLECTANCE DECOMPOSITION (Retinex-inspired).  "
+            "Prior modes: (1) s123 Rosa — spatial displacement/flow warping; "
+            "(2) s124 Stanzione — Laplacian pyramid frequency decomposition; "
+            "(3) s125 Albani — vertical spatial gradient; "
+            "(4) s126 Bartolommeo — Sobel edge-map modulation; "
+            "(5) s127 Cantarini — spectral channel-selective diffusion; "
+            "(6) s128 Carpaccio — local variance std map spatial adaptation; "
+            "(7) s129 Piazzetta — global histogram percentile tonal sculpting; "
+            "(8) s130 Sebastiano — image structure tensor coherence-driven smoothing; "
+            "(9) s131 Rosso — hue-selective chromatic tension mapping.  "
+            "Session 132 mode: ILLUMINATION-REFLECTANCE DECOMPOSITION.  "
+            "Algorithm: Treat the RGB image as L = I × R (illumination × reflectance).  "
+            "In log space: log(L) = log(I) + log(R).  "
+            "(1) ILLUMINATION ESTIMATION: For each channel, estimate illumination I "
+            "as a strong Gaussian blur of the log-image (sigma_illum ≈ 60px).  "
+            "(2) REFLECTANCE EXTRACTION: R = L / (I + eps) — the fine-grained "
+            "color-and-detail layer, freed from the slow illumination envelope.  "
+            "(3) REFLECTANCE SATURATION BOOST: In the reflectance layer, convert "
+            "to HSV and boost saturation by sat_boost — this produces the jewel-like "
+            "richness of Dosso's local colors without affecting the overall tonal key.  "
+            "(4) ILLUMINATION WARMTH TINT: Add a warm amber tint to the illumination "
+            "layer (slight positive shift on R and G channels, proportional to "
+            "illum_warm_r, illum_warm_g) — simulating the warm Ferrarese ground "
+            "luminosity that permeates Dosso's canvas.  "
+            "(5) RECONSTRUCTION: Multiply the tinted illumination by the saturation-"
+            "boosted reflectance.  Clamp to [0, 1] and composite at opacity.  "
+            "Unlike all prior modes, this pass operates in LOG-DOMAIN ILLUMINATION/"
+            "REFLECTANCE SPACE — the first pipeline mode to decompose the image into "
+            "its physical illumination and surface-color components and manipulate "
+            "each independently.  "
+            "Use at opacity ≈ 0.28–0.38."
+        ),
+    ),
+
 }
 
 
