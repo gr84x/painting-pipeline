@@ -30772,3 +30772,170 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Piazzetta velvet shadow pass complete.")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # sebastiano_sculptural_depth_pass — Session 130
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def sebastiano_sculptural_depth_pass(
+        self,
+        integration_sigma: float = 2.5,
+        smooth_sigma: float = 4.0,
+        coherence_power: float = 2.0,
+        warm_tint_r: float = 0.012,
+        opacity: float = 0.30,
+    ) -> None:
+        """
+        Sebastiano del Piombo sculptural depth pass.
+
+        Session 130 artistic improvement — eighth distinct processing mode:
+        IMAGE STRUCTURE TENSOR COHERENCE-DRIVEN FORM SMOOTHING.
+
+        Sebastiano del Piombo (1485–1547) trained under Giovanni Bellini and
+        Giorgione in Venice, absorbing their rich colorism and deep blended
+        shadow warmth.  In 1511 he moved permanently to Rome, where he
+        befriended Michelangelo — the only painter Michelangelo ever respected
+        as an equal.  From Michelangelo he absorbed a sense of monumental,
+        gravity-weighted sculptural form.  His mature portraits fuse these two
+        traditions: the Venetian warmth and sfumato-adjacent blending of
+        surface; the Roman weight and carved, three-dimensional solidity of
+        form.
+
+        This pass encodes that fusion through a fundamentally new spatial
+        analysis mode.  All prior processing modes work in either the spatial
+        domain (local neighbourhood statistics) or the tonal domain (global
+        histogram rank):
+          s123 Rosa      — spatial displacement (flow warping)
+          s124 Stanzione — frequency-band decomposition (Laplacian pyramid)
+          s125 Albani    — vertical spatial gradient
+          s126 Bartolommeo — edge-map modulation (Sobel)
+          s127 Cantarini — spectral channel-selective diffusion
+          s128 Carpaccio — local variance std map spatial adaptation
+          s129 Piazzetta — global histogram percentile tonal sculpting
+
+        Session 130 introduces the eighth distinct mode:
+        IMAGE STRUCTURE TENSOR ANALYSIS.
+
+        The structure tensor J is a 2×2 symmetric positive semi-definite
+        matrix field derived from the image gradient.  At each pixel, it is:
+          J = Gaussian_sigma( [Gx, Gy]^T · [Gx, Gy] )
+        where Gx, Gy are the spatial gradient components.
+
+        The two eigenvalues λ1 ≥ λ2 of J describe local image anisotropy:
+          - Both large:  the pixel lies at a corner / complex texture
+          - λ1 large, λ2 ≈ 0: the pixel lies on a smooth, directional edge
+          - Both small:  the pixel lies in a flat / uniform region
+
+        The coherence index c = ((λ1−λ2) / (λ1+λ2+ε))^coherence_power
+        maps this to [0, 1]:
+          - c ≈ 1 (high coherence): strong directional edge — preserve
+          - c ≈ 0 (low coherence): flat interior of a form — smooth freely
+
+        The pass then interpolates at each pixel:
+          result = original · c + Gaussian_smooth(original) · (1−c)
+
+        In high-coherence (edge) regions the original is kept — edges and
+        modelled boundaries remain crisp and present.  In low-coherence
+        (interior) regions, the channel is replaced with a smooth, blended
+        version — the flat planes of a cheek, the interior of a sleeve, the
+        open sky — acquire a deep, rounded, sculptural quality without the
+        haze of sfumato.
+
+        A gentle warm Venetian amber tint (R channel boost, proportional to
+        the smoothed fraction) encodes the warm colour richness Sebastiano
+        brought from Venice.
+
+        Parameters
+        ----------
+        integration_sigma   : Gaussian scale for structure tensor integration
+                              (controls how large a neighbourhood contributes
+                              to each tensor estimate)
+        smooth_sigma        : Gaussian scale for the form-smoothing step
+                              (larger → more sculptural depth roundness)
+        coherence_power     : Exponent applied to the coherence index;
+                              higher values → harder edge/interior separation
+        warm_tint_r         : R-channel warm tint applied to the smoothed
+                              (interior) fraction — Venetian amber warmth
+        opacity             : Composite weight in [0, 1]
+        """
+        print(f"Sebastiano sculptural depth pass "
+              f"(opacity={opacity:.2f} int_sigma={integration_sigma:.1f} "
+              f"smooth_sigma={smooth_sigma:.1f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Stage 1: Build luminance for structure tensor ─────────────────────
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0)
+
+        # ── Stage 2: Compute image gradient (Sobel) ───────────────────────────
+        gx = _sobel(lum, axis=1).astype(_np.float32)
+        gy = _sobel(lum, axis=0).astype(_np.float32)
+
+        # ── Stage 3: Build structure tensor components ────────────────────────
+        # J11 = smoothed(Gx²), J12 = smoothed(Gx·Gy), J22 = smoothed(Gy²)
+        j11 = _gf((gx * gx).astype(_np.float32), sigma=integration_sigma)
+        j12 = _gf((gx * gy).astype(_np.float32), sigma=integration_sigma)
+        j22 = _gf((gy * gy).astype(_np.float32), sigma=integration_sigma)
+
+        # ── Stage 4: Eigenvalues of structure tensor ──────────────────────────
+        # For 2×2 symmetric [[a,b],[b,c]]:
+        #   trace = a + c
+        #   half_disc = sqrt(((a-c)/2)² + b²)
+        #   λ1 = trace/2 + half_disc  (larger eigenvalue)
+        #   λ2 = trace/2 - half_disc  (smaller eigenvalue)
+        trace     = j11 + j22
+        half_diff = (j11 - j22) * 0.5
+        half_disc = _np.sqrt(half_diff * half_diff + j12 * j12 + 1e-12)
+
+        lam1 = 0.5 * trace + half_disc   # larger eigenvalue
+        lam2 = 0.5 * trace - half_disc   # smaller eigenvalue
+
+        # ── Stage 5: Coherence index ──────────────────────────────────────────
+        # c = ((λ1 - λ2) / (λ1 + λ2 + ε))^power
+        # High coherence → edge (directional); low coherence → flat interior
+        coherence = _np.clip(
+            (lam1 - lam2) / (lam1 + lam2 + 1e-7), 0.0, 1.0
+        ) ** coherence_power
+
+        # ── Stage 6: Form-smoothing (Gaussian) of each channel ───────────────
+        r_smooth = _gf(r0.astype(_np.float32), sigma=smooth_sigma)
+        g_smooth = _gf(g0.astype(_np.float32), sigma=smooth_sigma)
+        b_smooth = _gf(b0.astype(_np.float32), sigma=smooth_sigma)
+
+        # ── Stage 7: Coherence-weighted interpolation ─────────────────────────
+        # Edge pixels (high coherence) → keep original
+        # Interior pixels (low coherence) → replace with smooth version
+        smooth_fraction = 1.0 - coherence
+
+        r_out = r0 * coherence + r_smooth * smooth_fraction
+        g_out = g0 * coherence + g_smooth * smooth_fraction
+        b_out = b0 * coherence + b_smooth * smooth_fraction
+
+        # ── Stage 8: Venetian warm tint on smoothed interiors ─────────────────
+        # Sebastiano brought Venetian amber-warmth to Rome.  Apply a gentle
+        # R-channel lift proportional to the smooth_fraction so that the deep,
+        # rounded interior planes acquire a warm Venetian glow.
+        r_out = _np.clip(r_out + smooth_fraction * warm_tint_r, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Sebastiano sculptural depth pass complete.")

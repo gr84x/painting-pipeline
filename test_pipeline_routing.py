@@ -13878,6 +13878,93 @@ def test_piazzetta_velvet_shadow_pass_preserves_canvas_shape():
         f"Canvas shape changed after piazzetta_velvet_shadow_pass: {img.size}")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 130: Sebastiano del Piombo + VENETIAN_ROMAN_SYNTHESIS
+#              + sebastiano_sculptural_depth_pass (structure tensor mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_venetian_roman_synthesis_period_present():
+    """Period.VENETIAN_ROMAN_SYNTHESIS must be in the Period enum (session 130)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_ROMAN_SYNTHESIS"), (
+        "Period.VENETIAN_ROMAN_SYNTHESIS not found -- add it to scene_schema.py")
+    assert Period.VENETIAN_ROMAN_SYNTHESIS in list(Period)
+
+
+def test_venetian_roman_synthesis_stroke_params_high_blend():
+    """VENETIAN_ROMAN_SYNTHESIS wet_blend must be high (>= 0.65) for Venetian blending."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_ROMAN_SYNTHESIS,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.65, (
+        f"VENETIAN_ROMAN_SYNTHESIS wet_blend should be >= 0.65 "
+        f"(strong Venetian blending inheritance); got {p['wet_blend']:.2f}")
+
+
+def test_venetian_roman_synthesis_stroke_params_high_edge_softness():
+    """VENETIAN_ROMAN_SYNTHESIS edge_softness must be >= 0.55 for Venetian soft emergence."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_ROMAN_SYNTHESIS,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.55, (
+        f"VENETIAN_ROMAN_SYNTHESIS edge_softness should be >= 0.55 "
+        f"(Venetian-school soft form emergence); got {p['edge_softness']:.2f}")
+
+
+def test_sebastiano_sculptural_depth_pass_exists_routing():
+    """Painter must have sebastiano_sculptural_depth_pass() method (session 130)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "sebastiano_sculptural_depth_pass"), (
+        "sebastiano_sculptural_depth_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "sebastiano_sculptural_depth_pass"))
+
+
+def test_sebastiano_sculptural_depth_pass_no_error_routing():
+    """sebastiano_sculptural_depth_pass() runs on a warm-ground canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.40, 0.30, 0.16), texture_strength=0.05)
+    p.sebastiano_sculptural_depth_pass(opacity=0.30)
+
+
+def test_sebastiano_sculptural_depth_pass_modifies_canvas_routing():
+    """sebastiano_sculptural_depth_pass() must modify the canvas at non-zero opacity."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.40, 0.30, 0.16), texture_strength=0.05)
+    before = _canvas_bytes(p)
+    p.sebastiano_sculptural_depth_pass(
+        integration_sigma=2.0,
+        smooth_sigma=3.0,
+        warm_tint_r=0.020,
+        opacity=0.60,
+    )
+    after = _canvas_bytes(p)
+    assert before != after, "sebastiano_sculptural_depth_pass should modify the canvas"
+
+
+def test_sebastiano_sculptural_depth_pass_zero_opacity_noop_routing():
+    """sebastiano_sculptural_depth_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.40, 0.30, 0.16), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.sebastiano_sculptural_depth_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "sebastiano_sculptural_depth_pass(opacity=0) should be a noop")
+
+
+def test_sebastiano_sculptural_depth_pass_preserves_canvas_shape_routing():
+    """sebastiano_sculptural_depth_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.40, 0.30, 0.16), texture_strength=0.05)
+    p.sebastiano_sculptural_depth_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after sebastiano_sculptural_depth_pass: {img.size}")
+
+
 def test_venetian_baroque_tenebrism_period_present():
     """Period.VENETIAN_BAROQUE_TENEBRISM must be in the Period enum (session 129)."""
     from scene_schema import Period

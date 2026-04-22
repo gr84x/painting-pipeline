@@ -15735,3 +15735,155 @@ def test_piazzetta_velvet_shadow_pass_has_shadow_percentile_parameter():
     assert "shadow_percentile" in sig.parameters, (
         "piazzetta_velvet_shadow_pass must have shadow_percentile parameter "
         "(session 129 percentile-adaptive tonal sculpting)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 130: Sebastiano del Piombo + VENETIAN_ROMAN_SYNTHESIS
+#              + sebastiano_sculptural_depth_pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_sebastiano_del_piombo_in_catalog():
+    """sebastiano_del_piombo must be in CATALOG after session 130."""
+    assert "sebastiano_del_piombo" in CATALOG, (
+        "sebastiano_del_piombo not found in CATALOG -- "
+        "add entry to art_catalog.py for session 130")
+
+
+def test_sebastiano_del_piombo_get_style():
+    """get_style('sebastiano_del_piombo') must return a valid ArtStyle."""
+    s = get_style("sebastiano_del_piombo")
+    assert s.artist == "Sebastiano del Piombo", (
+        f"Expected artist 'Sebastiano del Piombo', got '{s.artist}'")
+    assert s.movement == "Venetian-Roman Synthesis", (
+        f"Expected movement 'Venetian-Roman Synthesis', got '{s.movement}'")
+    assert s.nationality == "Italian (Venetian-Roman)", (
+        f"Expected nationality 'Italian (Venetian-Roman)', got '{s.nationality}'")
+
+
+def test_sebastiano_del_piombo_palette_warm_venetian():
+    """Sebastiano palette must have >= 5 entries with warm Venetian richness."""
+    s = get_style("sebastiano_del_piombo")
+    assert len(s.palette) >= 5, (
+        f"Sebastiano palette should have >= 5 entries (Venetian richness); "
+        f"got {len(s.palette)}")
+    # First palette entry should be warm (R > B, warm flesh highlight)
+    r, g, b = s.palette[0]
+    assert r > b, (
+        f"Sebastiano first palette entry should be warm (R > B); "
+        f"got R={r:.3f} B={b:.3f}")
+
+
+def test_sebastiano_del_piombo_palette_channels_valid():
+    """All Sebastiano palette channels must be in [0, 1]."""
+    s = get_style("sebastiano_del_piombo")
+    for i, c in enumerate(s.palette):
+        for ch in c:
+            assert 0.0 <= ch <= 1.0, (
+                f"Sebastiano palette[{i}] channel out of range [0,1]: {ch}")
+
+
+def test_sebastiano_del_piombo_ground_warm():
+    """Sebastiano ground_color must be warm (R > B — warm umber-ochre imprimatura)."""
+    s = get_style("sebastiano_del_piombo")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"Sebastiano ground_color should be warm (R > B) for "
+        f"rich umber-ochre imprimatura; got R={r:.3f} B={b:.3f}")
+
+
+def test_sebastiano_del_piombo_wet_blend_high():
+    """Sebastiano wet_blend must be high (>= 0.65) for Venetian blending."""
+    s = get_style("sebastiano_del_piombo")
+    assert s.wet_blend >= 0.65, (
+        f"Sebastiano wet_blend={s.wet_blend:.2f} should be >= 0.65 "
+        f"(strong Venetian blending tradition)")
+
+
+def test_sebastiano_del_piombo_technique_mentions_venetian():
+    """Sebastiano technique text must reference Venetian influence."""
+    s = get_style("sebastiano_del_piombo")
+    tech_lower = s.technique.lower()
+    assert "venetian" in tech_lower or "venice" in tech_lower or "giorgione" in tech_lower, (
+        "Sebastiano technique should reference Venetian influence -- "
+        "his Giorgione/Bellini training is foundational")
+
+
+def test_sebastiano_del_piombo_technique_mentions_michelangelo():
+    """Sebastiano technique text must reference Roman/Michelangelo influence."""
+    s = get_style("sebastiano_del_piombo")
+    tech_lower = s.technique.lower()
+    assert ("michelangelo" in tech_lower or "roman" in tech_lower
+            or "sculptural" in tech_lower), (
+        "Sebastiano technique should reference Michelangelo / Roman sculptural weight -- "
+        "his Roman synthesis is the defining quality")
+
+
+def test_sebastiano_del_piombo_inspiration_mentions_structure_tensor():
+    """Sebastiano inspiration text must mention structure tensor (session 130 technique)."""
+    s = get_style("sebastiano_del_piombo")
+    assert "structure tensor" in s.inspiration.lower(), (
+        "Sebastiano inspiration should reference structure tensor -- "
+        "structure tensor coherence-driven form smoothing is the session 130 improvement")
+
+
+def test_venetian_roman_synthesis_period_exists():
+    """VENETIAN_ROMAN_SYNTHESIS must exist in the Period enum (session 130)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_ROMAN_SYNTHESIS"), (
+        "VENETIAN_ROMAN_SYNTHESIS missing from Period enum -- "
+        "add to scene_schema.py for session 130 (Sebastiano del Piombo)")
+
+
+def test_sebastiano_sculptural_depth_pass_exists():
+    """Painter must have sebastiano_sculptural_depth_pass() method after session 130."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "sebastiano_sculptural_depth_pass"), (
+        "sebastiano_sculptural_depth_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "sebastiano_sculptural_depth_pass"))
+
+
+def test_sebastiano_sculptural_depth_pass_no_error():
+    """sebastiano_sculptural_depth_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.40, 0.30, 0.16), texture_strength=0.05)
+    p.sebastiano_sculptural_depth_pass(opacity=0.30)
+
+
+def test_sebastiano_sculptural_depth_pass_modifies_canvas():
+    """sebastiano_sculptural_depth_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.40, 0.30, 0.16), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.sebastiano_sculptural_depth_pass(opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "sebastiano_sculptural_depth_pass should modify the canvas at opacity=0.60")
+
+
+def test_sebastiano_sculptural_depth_pass_preserves_shape():
+    """sebastiano_sculptural_depth_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.40, 0.30, 0.16), texture_strength=0.05)
+    p.sebastiano_sculptural_depth_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after sebastiano_sculptural_depth_pass: {img.size}")
+
+
+def test_sebastiano_sculptural_depth_pass_has_integration_sigma_parameter():
+    """sebastiano_sculptural_depth_pass must accept integration_sigma parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sebastiano_sculptural_depth_pass)
+    assert "integration_sigma" in sig.parameters, (
+        "sebastiano_sculptural_depth_pass must have integration_sigma parameter "
+        "(session 130 structure tensor integration scale)")

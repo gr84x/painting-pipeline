@@ -11281,6 +11281,74 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Sebastiano del Piombo ──────────────────────────────────────────────────
+    "sebastiano_del_piombo": ArtStyle(
+        artist="Sebastiano del Piombo",
+        movement="Venetian-Roman Synthesis",
+        nationality="Italian (Venetian-Roman)",
+        period="1485–1547",
+        palette=[
+            (0.82, 0.65, 0.46),   # warm Venetian flesh — honey-ivory highlight
+            (0.62, 0.46, 0.30),   # mid flesh — rich warm sienna
+            (0.38, 0.26, 0.14),   # deep umber shadow — Venetian warm dark
+            (0.20, 0.16, 0.10),   # near-black depth — Roman gravity void
+            (0.46, 0.40, 0.28),   # olive-ochre mid-ground — Roman earth
+            (0.55, 0.52, 0.44),   # cool grey-stone — Roman architectural cool
+            (0.62, 0.54, 0.38),   # warm amber-ochre — Venetian glazing unity
+        ],
+        ground_color=(0.40, 0.30, 0.16),    # rich warm umber-ochre imprimatura
+        stroke_size=6,
+        wet_blend=0.78,                      # strong Venetian blending — rich, fused surface
+        edge_softness=0.68,                  # Venetian-school softness; forms emerge without hard edge
+        jitter=0.016,
+        glazing=(0.55, 0.42, 0.24),          # deep amber-umber unifying glaze — Roman grandeur
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Venetian-Roman synthesis: Giorgione-derived sfumato-adjacent blending "
+            "and rich warm color fused with Michelangelesque sculptural weight and "
+            "monumental form gravity.  Smooth, deeply blended surfaces give the figure "
+            "three-dimensional solidity without visible brushwork.  Shadow zones are "
+            "warm and deep; highlights are warm ivory rather than cool silver."
+        ),
+        famous_works=[
+            ("Portrait of a Young Roman Woman",          "c. 1512"),
+            ("The Raising of Lazarus",                   "1519"),
+            ("Portrait of Pope Clement VII",             "c. 1526"),
+            ("Portrait of Ferry Carondelet",             "c. 1512"),
+            ("Portrait of a Man (attributed)",           "c. 1515"),
+            ("Pietà (Viterbo)",                          "c. 1516"),
+            ("Portrait of Christopher Columbus",         "1519"),
+        ],
+        inspiration=(
+            "Apply sebastiano_sculptural_depth_pass() as the defining pass for "
+            "session 130.  The pass encodes Sebastiano's Venetian-Roman synthesis "
+            "through the session 130 artistic improvement: IMAGE STRUCTURE TENSOR "
+            "COHERENCE-DRIVEN FORM SMOOTHING — the eighth distinct processing mode "
+            "in this pipeline.  "
+            "Prior modes: (1) s123 Rosa — spatial displacement/flow warping; "
+            "(2) s124 Stanzione — Laplacian pyramid frequency decomposition; "
+            "(3) s125 Albani — vertical spatial gradient; "
+            "(4) s126 Bartolommeo — Sobel edge-map modulation; "
+            "(5) s127 Cantarini — spectral channel-selective diffusion; "
+            "(6) s128 Carpaccio — local variance std map spatial adaptation; "
+            "(7) s129 Piazzetta — global histogram percentile tonal sculpting.  "
+            "Session 130 mode: IMAGE STRUCTURE TENSOR ANALYSIS.  The 2×2 structure "
+            "tensor J at each pixel is built from integration-sigma-smoothed outer "
+            "products of the image gradient [Gx, Gy].  Its eigenvalues λ1 ≥ λ2 "
+            "encode local anisotropy: λ1≫λ2 at directional edges; λ1≈λ2≈0 in flat "
+            "interior planes.  The coherence index c = ((λ1−λ2)/(λ1+λ2+ε))^p "
+            "maps this to [0,1] — high where structure is directional (edges), "
+            "low where it is isotropic (flat form interiors).  "
+            "Interpolation: result = original·c + Gaussian_smooth·(1−c).  "
+            "Edge pixels keep their original value (crisp boundary preserved).  "
+            "Interior pixels receive the smooth, deeply rounded form surface.  "
+            "A gentle R-channel warm tint (warm_tint_r) on the smooth fraction "
+            "adds Venetian amber warmth to the deepened interior planes.  "
+            "Use integration_sigma≈2.5, smooth_sigma≈4.0, opacity≈0.28–0.34."
+        ),
+    ),
+
 }
 
 
