@@ -12012,6 +12012,80 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Session 139 ─────────────────────────────────────────────────────────────
+    "palma_vecchio": ArtStyle(
+        artist="Palma Vecchio",
+        movement="Venetian High Renaissance",
+        nationality="Italian (Bergamasque/Venetian)",
+        period="c. 1480–1528",
+        palette=[
+            (0.86, 0.74, 0.52),   # warm golden ivory flesh — the defining Palma tone
+            (0.72, 0.52, 0.28),   # amber-ochre shadow — rich warm depth
+            (0.52, 0.36, 0.20),   # warm umber — deep shadow on dark ground
+            (0.78, 0.62, 0.44),   # golden midtone — the "blonde luminance" zone
+            (0.42, 0.56, 0.70),   # cool blue-grey landscape — distant atmosphere
+            (0.62, 0.24, 0.18),   # rich crimson drapery — jewel-tone costume accent
+            (0.30, 0.44, 0.28),   # deep Venetian green — foliage, costume
+            (0.88, 0.80, 0.62),   # pale golden sky — warm Venetian horizon haze
+        ],
+        ground_color=(0.56, 0.42, 0.24),    # warm amber-sienna imprimatura — Venetian glowing ground
+        stroke_size=7,
+        wet_blend=0.60,                      # high — Venetian oil softness; between Titian (0.72) and Giorgione (0.65)
+        edge_softness=0.62,                  # moderate-high — softer than Titian, firmer than Giorgione; naturalistic warmth
+        jitter=0.022,
+        glazing=(0.72, 0.56, 0.28),          # warm amber-golden unifying glaze — the Palma signature warmth
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Palma Vecchio (Jacopo Palma, c. 1480-1528) was among the most gifted "
+            "of the Venetian High Renaissance painters working in the orbit of "
+            "Titian and Giorgione.  Born in Serina near Bergamo, he arrived in Venice "
+            "around 1500 and rapidly absorbed the new Venetian oil technique of warm "
+            "amber imprimatura overlaid with successive glazes.  Palma is above all "
+            "the painter of BLONDE LUMINANCE — his portraits and sacra conversazione "
+            "altarpieces are saturated with a warm golden light that emanates from "
+            "flesh, hair, and drapery alike.  Where Giorgione's tonalism is cool and "
+            "mysterious, and Titian's colorism is rich and saturated, Palma's "
+            "distinctive quality is a warm, golden, almost honeyed naturalism — a "
+            "daylit warmth that makes his surfaces seem to glow with internal amber "
+            "light.  His flesh tones build from a warm amber imprimatura through golden "
+            "midtones to luminous ivory highlights, with almost no cool undertone — "
+            "the entire scale is warm.  His most famous works are the half-length "
+            "portraits of beautiful blonde women (La Bella, Violante, the various "
+            "'Portrait of a Young Woman' canvases) where his golden luminance is "
+            "most concentrated.  He died young (c. 48), leaving many works unfinished; "
+            "Titian and others completed several of his final commissions.  His "
+            "influence on Venetian portraiture was considerable, particularly in "
+            "establishing the half-length beauty portrait as a distinct genre."
+        ),
+        famous_works=[
+            ("Three Sisters (Three Graces)",      "c. 1520"),
+            ("Sacra Conversazione",               "c. 1522"),
+            ("Portrait of a Young Woman (Flora)", "c. 1520"),
+            ("Violante",                          "c. 1514–1520 (attrib.)"),
+            ("Adam and Eve",                      "c. 1510"),
+            ("St Barbara",                        "1522–1524"),
+        ],
+        inspiration=(
+            "Apply palma_blonde_luminance_pass() as the defining pass for session 139.  "
+            "This pass encodes Palma Vecchio's GOLDEN BLONDE LUMINANCE through "
+            "LUMINANCE-ZONED WARM BLOOM SCULPTING — the SEVENTEENTH distinct processing "
+            "mode in the pipeline.  A Gaussian-shaped luminance gate centred on the "
+            "warm midtone zone (centre≈0.60, sigma≈0.22) selectively applies warm "
+            "golden tint (warm_r lift on red channel, warm_g lift on green channel) "
+            "in the mid-to-high luminance zone where Palma's characteristic blonde "
+            "luminance lives — the golden flesh, the luminous hair, the sun-touched "
+            "drapery.  Deep shadows and near-white highlights are excluded by the "
+            "Gaussian gate, preserving tonal structure.  The result is Palma's "
+            "defining quality: a warm golden inner glow radiating from the luminous "
+            "midtone zone, distinguishable from Giorgione's cooler atmospheric "
+            "tonalism and from Titian's saturated colorism.  "
+            "Use luminance_centre=0.60, luminance_sigma=0.22, warm_r=0.08, "
+            "warm_g=0.04, opacity=0.32."
+        ),
+    ),
+
 }
 
 

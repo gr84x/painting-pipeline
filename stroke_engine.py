@@ -32580,3 +32580,84 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Warm shadow lift pass complete.")
+
+    def palma_blonde_luminance_pass(
+        self,
+        luminance_centre: float = 0.60,
+        luminance_sigma:  float = 0.22,
+        warm_r:           float = 0.08,
+        warm_g:           float = 0.04,
+        opacity:          float = 0.32,
+    ) -> None:
+        """
+        Palma Vecchio blonde luminance pass — Session 139 artistic improvement.
+
+        Encodes Palma Vecchio's defining quality: GOLDEN BLONDE LUMINANCE — the
+        warm amber glow that radiates from flesh, hair, and drapery in the
+        mid-to-high luminance zone.  Where Giorgione's tonalism is cool and
+        atmospheric and Titian's is richly saturated, Palma's is warmly golden
+        and naturalistic — an internal amber light concentrated in the midtone zone.
+
+        Algorithm:
+        (1) L = 0.299R + 0.587G + 0.114B
+        (2) Gaussian gate centred on luminance_centre with width luminance_sigma:
+            gate = exp(-0.5 * ((L - centre) / sigma) ** 2)
+            This peaks at the midtone zone and falls smoothly to near-zero at
+            deep shadows and pure highlights — exactly where Palma's golden warmth lives.
+        (3) R += warm_r * gate;  G += warm_g * gate   (warm amber tint)
+        (4) Clip to [0, 1], composite at opacity.
+
+        The Gaussian gate distinguishes this pass from warm_shadow_lift_pass
+        (which targets only deep shadows) and from giorgione_focal_warmth_pass
+        (which is spatially centred on the canvas focal point).  Palma's blonde
+        luminance is luminance-zoned, not spatially zoned — it follows the tonal
+        value of the paint regardless of position.
+
+        Parameters
+        luminance_centre : Peak luminance of the golden warmth zone (0.0–1.0).
+        luminance_sigma  : Gaussian half-width controlling zone breadth.
+        warm_r           : Red channel warm lift at gate peak.
+        warm_g           : Green channel warm lift (amber hue balance).
+        opacity          : Final composite weight (0–1).
+        """
+        print(f"Palma blonde luminance pass (centre={luminance_centre:.2f}, "
+              f"sigma={luminance_sigma:.2f}, opacity={opacity:.2f})…")
+
+        import numpy as _np
+
+        if opacity <= 0.0:
+            print("    Palma blonde luminance pass skipped (opacity=0).")
+            return
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Gaussian luminance gate — peaks at warm midtone zone ─────────────
+        eps = 1e-6
+        gate = _np.exp(
+            -0.5 * ((lum - luminance_centre) / (luminance_sigma + eps)) ** 2
+        )
+
+        # ── Warm amber tint in the golden luminance zone ──────────────────────
+        r_lifted = _np.clip(r0 + warm_r * gate, 0.0, 1.0)
+        g_lifted = _np.clip(g0 + warm_g * gate, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_lifted * opacity
+        g_final = g0 * (1.0 - opacity) + g_lifted * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b0      * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Palma blonde luminance pass complete.")

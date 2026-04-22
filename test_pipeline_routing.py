@@ -15029,3 +15029,105 @@ def test_pearlescent_sfumato_smooth_canvas_brighter_than_textured():
     assert after_smooth_lum >= before_lum - 2.0, (
         f"pearlescent_sfumato_pass should not darken a smooth canvas: "
         f"before={before_lum:.1f}, after={after_smooth_lum:.1f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 139 — palma_blonde_luminance_pass + VENETIAN_GOLDEN_NATURALISM
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_palma_blonde_luminance_pass_exists():
+    """Painter must have palma_blonde_luminance_pass() method after session 139."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "palma_blonde_luminance_pass"), (
+        "palma_blonde_luminance_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "palma_blonde_luminance_pass"))
+
+
+def test_palma_blonde_luminance_pass_no_error():
+    """palma_blonde_luminance_pass() runs on a plain canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.56, 0.44, 0.26), texture_strength=0.05)
+    p.palma_blonde_luminance_pass(opacity=0.32)
+
+
+def test_palma_blonde_luminance_pass_modifies_canvas():
+    """palma_blonde_luminance_pass() must modify a midtone canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.60, 0.58, 0.56), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.palma_blonde_luminance_pass(opacity=0.80)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after), (
+        "palma_blonde_luminance_pass should modify midtone canvas at opacity=0.80")
+
+
+def test_palma_blonde_luminance_pass_preserves_shape():
+    """palma_blonde_luminance_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.05)
+    p.palma_blonde_luminance_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after palma_blonde_luminance_pass: {img.size}")
+
+
+def test_palma_blonde_luminance_pass_has_luminance_centre_parameter():
+    """palma_blonde_luminance_pass must accept luminance_centre parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.palma_blonde_luminance_pass)
+    assert "luminance_centre" in sig.parameters, (
+        "palma_blonde_luminance_pass must have luminance_centre parameter "
+        "(session 139 Gaussian luminance zone centre)")
+
+
+def test_palma_blonde_luminance_pass_has_luminance_sigma_parameter():
+    """palma_blonde_luminance_pass must accept luminance_sigma parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.palma_blonde_luminance_pass)
+    assert "luminance_sigma" in sig.parameters, (
+        "palma_blonde_luminance_pass must have luminance_sigma parameter "
+        "(session 139 Gaussian gate width)")
+
+
+def test_palma_blonde_luminance_pass_zero_opacity_no_op():
+    """palma_blonde_luminance_pass with opacity=0.0 should leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.60, 0.56, 0.52), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.palma_blonde_luminance_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after), (
+        "palma_blonde_luminance_pass with opacity=0 should be a no-op")
+
+
+def test_venetian_golden_naturalism_period_in_period_enum():
+    """VENETIAN_GOLDEN_NATURALISM must be present in the Period enum."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_GOLDEN_NATURALISM"), (
+        "VENETIAN_GOLDEN_NATURALISM missing from Period enum -- "
+        "add to scene_schema.py (session 139)")
+
+
+def test_palma_vecchio_in_catalog_routing():
+    """palma_vecchio must be accessible via get_style for pipeline routing."""
+    from art_catalog import get_style
+    style = get_style("palma_vecchio")
+    assert style.artist == "Palma Vecchio", (
+        f"palma_vecchio artist name mismatch: {style.artist!r}")
+
+
+def test_palma_vecchio_ground_warm_for_routing():
+    """palma_vecchio ground_color must be warm (R >= B) for correct pipeline routing."""
+    from art_catalog import get_style
+    style = get_style("palma_vecchio")
+    r, g, b = style.ground_color
+    assert r >= b, (
+        f"palma_vecchio ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")
