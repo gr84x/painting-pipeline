@@ -139,6 +139,7 @@ EXPECTED_ARTISTS = [
     "salvator_rosa",
     "massimo_stanzione",
     "albani",
+    "rosso_fiorentino",
 ]
 
 
@@ -15887,3 +15888,138 @@ def test_sebastiano_sculptural_depth_pass_has_integration_sigma_parameter():
     assert "integration_sigma" in sig.parameters, (
         "sebastiano_sculptural_depth_pass must have integration_sigma parameter "
         "(session 130 structure tensor integration scale)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 131: Rosso Fiorentino + FLORENTINE_ACIDIC_MANNERISM
+#              + rosso_chromatic_dissonance_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_rosso_fiorentino_in_catalog():
+    """Rosso Fiorentino (session 131) must be in the catalog."""
+    assert "rosso_fiorentino" in CATALOG, (
+        "rosso_fiorentino not found in CATALOG -- add to art_catalog.py (session 131)")
+
+
+def test_rosso_fiorentino_movement_florentine_mannerist():
+    """Rosso movement must reference Florentine Mannerism."""
+    s = get_style("rosso_fiorentino")
+    mv = s.movement.lower()
+    assert "mannerist" in mv or "mannerism" in mv or "florentine" in mv, (
+        "Rosso Fiorentino movement should reference Florentine Mannerism")
+
+
+def test_rosso_fiorentino_palette_valid():
+    """All Rosso Fiorentino palette RGB values must be in [0, 1]."""
+    s = get_style("rosso_fiorentino")
+    assert len(s.palette) >= 5, "Rosso palette must have at least 5 colours"
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range channel {ch} in Rosso palette {rgb}"
+
+
+def test_rosso_fiorentino_low_wet_blend():
+    """Rosso wet_blend must be low (<= 0.30) — dissonant palette stays unresolved."""
+    s = get_style("rosso_fiorentino")
+    assert s.wet_blend <= 0.30, (
+        f"Rosso Fiorentino wet_blend should be <= 0.30 (acidic Mannerism refuses "
+        f"tonal harmony blending) — got {s.wet_blend}")
+
+
+def test_rosso_fiorentino_low_edge_softness():
+    """Rosso edge_softness must be low (<= 0.30) — sharp angular edges, no sfumato."""
+    s = get_style("rosso_fiorentino")
+    assert s.edge_softness <= 0.30, (
+        f"Rosso Fiorentino edge_softness should be <= 0.30 (angular electrified edges) "
+        f"— got {s.edge_softness}")
+
+
+def test_rosso_fiorentino_no_glazing():
+    """Rosso Fiorentino must have no glazing — he refuses harmonic tonal unity."""
+    s = get_style("rosso_fiorentino")
+    assert s.glazing is None, (
+        "Rosso Fiorentino should have no glazing -- "
+        "a unifying glaze would resolve the chromatic tension he deliberately creates")
+
+
+def test_rosso_fiorentino_technique_mentions_dissonance():
+    """Rosso technique text must reference chromatic dissonance or acid/acidic quality."""
+    s = get_style("rosso_fiorentino")
+    tech_lower = s.technique.lower()
+    assert ("dissonant" in tech_lower or "acid" in tech_lower
+            or "dissonance" in tech_lower or "wrong" in tech_lower), (
+        "Rosso Fiorentino technique should reference chromatic dissonance or "
+        "acidic palette — the defining quality of his Florentine Mannerism")
+
+
+def test_rosso_fiorentino_inspiration_mentions_hue():
+    """Rosso inspiration text must reference hue-selective or hue-angle manipulation."""
+    s = get_style("rosso_fiorentino")
+    insp_lower = s.inspiration.lower()
+    assert "hue" in insp_lower, (
+        "Rosso Fiorentino inspiration should reference hue manipulation -- "
+        "HUE-SELECTIVE CHROMATIC TENSION MAPPING is the session 131 improvement")
+
+
+def test_florentine_acidic_mannerism_period_exists():
+    """FLORENTINE_ACIDIC_MANNERISM must exist in the Period enum (session 131)."""
+    assert hasattr(Period, "FLORENTINE_ACIDIC_MANNERISM"), (
+        "FLORENTINE_ACIDIC_MANNERISM missing from Period enum -- "
+        "add to scene_schema.py for session 131 (Rosso Fiorentino)")
+
+
+def test_rosso_chromatic_dissonance_pass_exists():
+    """Painter must have rosso_chromatic_dissonance_pass() method after session 131."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "rosso_chromatic_dissonance_pass"), (
+        "rosso_chromatic_dissonance_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "rosso_chromatic_dissonance_pass"))
+
+
+def test_rosso_chromatic_dissonance_pass_no_error():
+    """rosso_chromatic_dissonance_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.42, 0.42, 0.36), texture_strength=0.05)
+    p.rosso_chromatic_dissonance_pass(opacity=0.26)
+
+
+def test_rosso_chromatic_dissonance_pass_modifies_canvas():
+    """rosso_chromatic_dissonance_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.42, 0.42, 0.36), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.rosso_chromatic_dissonance_pass(opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "rosso_chromatic_dissonance_pass should modify the canvas at opacity=0.60")
+
+
+def test_rosso_chromatic_dissonance_pass_preserves_shape():
+    """rosso_chromatic_dissonance_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.42, 0.42, 0.36), texture_strength=0.05)
+    p.rosso_chromatic_dissonance_pass(opacity=0.26)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after rosso_chromatic_dissonance_pass: {img.size}")
+
+
+def test_rosso_chromatic_dissonance_pass_has_hue_shift_flesh_parameter():
+    """rosso_chromatic_dissonance_pass must accept hue_shift_flesh parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.rosso_chromatic_dissonance_pass)
+    assert "hue_shift_flesh" in sig.parameters, (
+        "rosso_chromatic_dissonance_pass must have hue_shift_flesh parameter "
+        "(session 131 flesh hue tension control)")
