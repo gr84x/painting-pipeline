@@ -31911,3 +31911,186 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Highlight crystalline pass complete.")
+
+    # parmigianino_pearl_refinement_pass — Session 136 main pass (14th mode)
+    # ─────────────────────────────────────────────────────────────────────────
+    def parmigianino_pearl_refinement_pass(
+        self,
+        sigma_chroma: float = 2.5,
+        sigma_luma:   float = 1.0,
+        usm_amount:   float = 0.45,
+        cool_tint:    float = 0.025,
+        opacity:      float = 0.34,
+    ) -> None:
+        """
+        Parmigianino pearl refinement — Session 136 main pass.
+
+        Luminance-chrominance decoupled filtering (14th distinct processing mode).
+        Encodes Parmigianino's defining quality: ultra-smooth pearl skin surfaces
+        with sharp tonal precision and a mercury-cool chroma shift.
+
+        The key insight: Parmigianino separates luminance from chrominance both
+        spatially (smooth colour fields) and tonally (precise light/dark transitions).
+        This is achieved by applying DIFFERENT filters to luma vs chroma:
+          - Chroma receives Gaussian smoothing → smooth, pooled colour zones
+          - Luma receives Unsharp Masking → crisp tonal ridges, precise forms
+
+        This is the FOURTEENTH distinct processing mode, distinct from Mode 13
+        (Cranach mean-grey chromaticity decomposition) in three ways:
+          (a) Uses PERCEPTUAL luminance weighting (0.299R+0.587G+0.114B)
+              vs Cranach's mean grey (R+G+B)/3
+          (b) DUAL filtering: smooth chroma, sharpen luma (not a single operation)
+          (c) Optional directional cool-pearl tint on blue chroma residual
+
+        Algorithm:
+        (1) Luma L = 0.299R + 0.587G + 0.114B
+        (2) Chroma residuals: Cr = R-L, Cg = G-L, Cb = B-L
+        (3) Gaussian smooth each chroma channel with sigma_chroma
+        (4) USM on luma: L_sharp = clip(L + usm_amount*(L - gauss(L, sigma_luma)), 0, 1)
+        (5) Cool tint: Cb_tinted = Cb_smooth + cool_tint
+        (6) Reconstruct: R_out = L_sharp + Cr_smooth, G_out = L_sharp + Cg_smooth,
+                         B_out = L_sharp + Cb_tinted
+        (7) Clip to [0, 1], composite at opacity.
+
+        Parameters
+        sigma_chroma : Gaussian sigma for chroma smoothing (higher = more colour pooling).
+        sigma_luma   : Gaussian sigma for luma USM base blur.
+        usm_amount   : Unsharp mask strength for luminance sharpening.
+        cool_tint    : Positive offset added to Cb residual (nudges toward cool/blue).
+        opacity      : Final composite weight (0–1).
+        """
+        print(f"Parmigianino pearl refinement (luma-chroma decoupled, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA: channel 0=B, 1=G, 2=R, 3=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Perceptual luminance ───────────────────────────────────────────
+        luma = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── (2) Chroma residuals ──────────────────────────────────────────────
+        cr = r0 - luma
+        cg = g0 - luma
+        cb = b0 - luma
+
+        # ── (3) Smooth chroma ─────────────────────────────────────────────────
+        cr_smooth = _gf(cr, sigma=sigma_chroma)
+        cg_smooth = _gf(cg, sigma=sigma_chroma)
+        cb_smooth = _gf(cb, sigma=sigma_chroma)
+
+        # ── (4) USM on luma ───────────────────────────────────────────────────
+        luma_blur  = _gf(luma, sigma=sigma_luma)
+        luma_sharp = _np.clip(luma + usm_amount * (luma - luma_blur), 0.0, 1.0)
+
+        # ── (5) Cool-pearl tint on blue chroma ────────────────────────────────
+        cb_tinted = cb_smooth + cool_tint
+
+        # ── (6) Reconstruct ───────────────────────────────────────────────────
+        r_out = _np.clip(luma_sharp + cr_smooth, 0.0, 1.0)
+        g_out = _np.clip(luma_sharp + cg_smooth, 0.0, 1.0)
+        b_out = _np.clip(luma_sharp + cb_tinted, 0.0, 1.0)
+
+        # ── (7) Composite at opacity ──────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Parmigianino pearl refinement (luma-chroma decoupled) complete.")
+
+    # penumbra_cool_tint_pass — Session 136 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+    def penumbra_cool_tint_pass(
+        self,
+        shadow_lo:  float = 0.15,
+        shadow_hi:  float = 0.52,
+        transition: float = 0.10,
+        blue_lift:  float = 0.055,
+        red_drop:   float = 0.018,
+        opacity:    float = 0.30,
+    ) -> None:
+        """
+        Penumbra cool tint — Session 136 artistic improvement.
+
+        Applies a cool blue-lavender tint specifically in the penumbra / midtone
+        zone (luminance between shadow_lo and shadow_hi).  Deep shadows and bright
+        highlights are left unchanged; only the transitional half-tone penumbra
+        zone receives a cool shift.
+
+        This encodes the warm/cool separation that sfumato masters relied on:
+        warm light sources yield warm highlight zones, while the penumbra --
+        the region of partial shadow -- receives scattered cool skylight.
+        Parmigianino and Leonardo both exploited this to give skin surfaces a
+        simultaneous warmth (illuminated side) and cool depth (half-shadow),
+        implying translucency and three-dimensional form.
+
+        Algorithm:
+        (1) L = 0.299R + 0.587G + 0.114B
+        (2) Penumbra mask: product of two sigmoids bounding [shadow_lo, shadow_hi]
+        (3) In penumbra zone: B += blue_lift * mask; R -= red_drop * mask
+        (4) Clip to [0, 1], composite at opacity.
+
+        Parameters
+        shadow_lo  : Lower luminance boundary of the penumbra zone.
+        shadow_hi  : Upper luminance boundary of the penumbra zone.
+        transition : Sigmoid transition half-width (luminance units).
+        blue_lift  : Amount to raise the blue channel in the penumbra.
+        red_drop   : Amount to drop the red channel in the penumbra.
+        opacity    : Final composite weight (0–1).
+        """
+        print(f"Penumbra cool tint pass (shadow_lo={shadow_lo:.2f}, "
+              f"shadow_hi={shadow_hi:.2f}, opacity={opacity:.2f})…")
+
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        eps = 1e-6
+
+        # ── Penumbra band mask (soft sigmoid product) ──────────────────────────
+        gate_hi = 1.0 / (1.0 + _np.exp(
+            (lum - shadow_hi) / (transition + eps) * 6.0
+        ))
+        gate_lo = 1.0 / (1.0 + _np.exp(
+            -(lum - shadow_lo) / (transition + eps) * 6.0
+        ))
+        penumbra_mask = gate_hi * gate_lo
+
+        # ── Apply cool tint in penumbra zone ───────────────────────────────────
+        b_tinted = _np.clip(b0 + blue_lift * penumbra_mask, 0.0, 1.0)
+        r_tinted = _np.clip(r0 - red_drop  * penumbra_mask, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_tinted * opacity
+        b_final = b0 * (1.0 - opacity) + b_tinted * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g0      * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Penumbra cool tint pass complete.")

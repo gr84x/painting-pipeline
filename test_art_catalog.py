@@ -16469,3 +16469,153 @@ def test_highlight_crystalline_pass_modifies_bright_canvas():
     )
     assert not _np.array_equal(before, after), (
         "highlight_crystalline_pass should modify a bright canvas at opacity=0.80")
+
+
+# ── Session 136: Parmigianino + EMILIAN_ELEGANT_MANNERISM ────────────────────
+#              + parmigianino_pearl_refinement_pass (14th distinct mode)
+#              + penumbra_cool_tint_pass (artistic improvement)
+
+def test_parmigianino_in_catalog():
+    """parmigianino must be present in the CATALOG dict (session 136)."""
+    assert "parmigianino" in CATALOG, (
+        "parmigianino not found in CATALOG -- add to art_catalog.py (session 136)")
+
+
+def test_parmigianino_movement_mannerist():
+    """parmigianino movement must reference Italian Mannerism or Parma School."""
+    s = get_style("parmigianino")
+    text_lower = s.movement.lower()
+    assert ("mannerism" in text_lower or "mannerist" in text_lower
+            or "parma" in text_lower), (
+        f"parmigianino movement should mention Mannerism or Parma; "
+        f"got {s.movement!r}")
+
+
+def test_parmigianino_palette_valid():
+    """parmigianino palette must contain valid RGB tuples in [0, 1] (session 136)."""
+    s = get_style("parmigianino")
+    assert len(s.palette) >= 5, (
+        f"parmigianino palette should have >=5 colours; got {len(s.palette)}")
+    for colour in s.palette:
+        for ch in colour:
+            assert 0.0 <= ch <= 1.0, (
+                f"parmigianino palette value out of range [0,1]: {ch} in {colour!r}")
+
+
+def test_parmigianino_high_wet_blend():
+    """parmigianino wet_blend must be high (>= 0.70) -- ultra-smooth porcelain skin."""
+    s = get_style("parmigianino")
+    assert s.wet_blend >= 0.70, (
+        f"parmigianino wet_blend should be high (>= 0.70, imperceptible transitions); "
+        f"got {s.wet_blend}")
+
+
+def test_parmigianino_glazing_set():
+    """parmigianino glazing must be set -- warm amber-ivory Parma panel unification."""
+    s = get_style("parmigianino")
+    assert s.glazing is not None, (
+        "parmigianino glazing should be set (warm amber-ivory Parma panel glaze)")
+
+
+def test_parmigianino_technique_mentions_pearl_or_sfumato():
+    """parmigianino technique must mention pearl, porcelain, or sfumato quality."""
+    s = get_style("parmigianino")
+    text_lower = s.technique.lower()
+    assert ("pearl" in text_lower or "porcelain" in text_lower
+            or "sfumato" in text_lower or "smooth" in text_lower), (
+        "parmigianino technique should describe pearl/porcelain skin or sfumato quality")
+
+
+def test_parmigianino_inspiration_mentions_luma_chroma():
+    """parmigianino inspiration must describe the luma-chroma decoupled filtering mode."""
+    s = get_style("parmigianino")
+    text_lower = s.inspiration.lower()
+    assert ("luma" in text_lower or "luminance" in text_lower
+            or "chroma" in text_lower or "decoupled" in text_lower), (
+        "parmigianino inspiration should describe LUMINANCE-CHROMINANCE DECOUPLED FILTERING mode")
+
+
+def test_emilian_elegant_mannerism_period_enum_exists():
+    """EMILIAN_ELEGANT_MANNERISM must exist in the Period enum (session 136)."""
+    assert hasattr(Period, "EMILIAN_ELEGANT_MANNERISM"), (
+        "EMILIAN_ELEGANT_MANNERISM missing from Period enum -- "
+        "add to scene_schema.py (session 136)")
+
+
+def test_parmigianino_pearl_refinement_pass_exists_catalog():
+    """Painter must have parmigianino_pearl_refinement_pass() method after session 136."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "parmigianino_pearl_refinement_pass"), (
+        "parmigianino_pearl_refinement_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "parmigianino_pearl_refinement_pass"))
+
+
+def test_parmigianino_pearl_refinement_pass_no_error_catalog():
+    """parmigianino_pearl_refinement_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.05)
+    p.parmigianino_pearl_refinement_pass(opacity=0.34)
+
+
+def test_parmigianino_pearl_refinement_pass_modifies_canvas_catalog():
+    """parmigianino_pearl_refinement_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.72, 0.24, 0.28), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.parmigianino_pearl_refinement_pass(sigma_chroma=2.5, usm_amount=0.45, opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "parmigianino_pearl_refinement_pass should modify the canvas at opacity=0.60")
+
+
+def test_parmigianino_pearl_refinement_pass_preserves_shape_catalog():
+    """parmigianino_pearl_refinement_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.05)
+    p.parmigianino_pearl_refinement_pass(opacity=0.34)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after parmigianino_pearl_refinement_pass: {img.size}")
+
+
+def test_penumbra_cool_tint_pass_exists_catalog():
+    """Painter must have penumbra_cool_tint_pass() method after session 136."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "penumbra_cool_tint_pass"), (
+        "penumbra_cool_tint_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "penumbra_cool_tint_pass"))
+
+
+def test_penumbra_cool_tint_pass_no_error_catalog():
+    """penumbra_cool_tint_pass() runs on a midtone canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.45, 0.42, 0.38), texture_strength=0.05)
+    p.penumbra_cool_tint_pass(opacity=0.30)
+
+
+def test_penumbra_cool_tint_pass_modifies_midtone_canvas():
+    """penumbra_cool_tint_pass() must modify a midtone canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.40, 0.38, 0.35), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.penumbra_cool_tint_pass(shadow_lo=0.10, shadow_hi=0.70, blue_lift=0.20, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "penumbra_cool_tint_pass should modify a midtone canvas at opacity=1.0")
