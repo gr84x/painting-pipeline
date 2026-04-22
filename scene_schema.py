@@ -299,6 +299,7 @@ class Period(Enum):
     FLORENTINE_ACIDIC_MANNERISM = auto()  # Rosso Fiorentino — acid dissonant palette, bleached near-cadaverous flesh, hue-selective chromatic tension mapping, angular electrified Mannerist dissonance
     FERRARESE_COLORIST_POESIA  = auto()  # Dosso Dossi — jewel-like chromatic poetry, warm amber-gold illumination, luminous colour saturation from within; illumination-reflectance decomposition (Retinex) mode
     VENETIAN_PASTORAL_LUMINISM = auto()  # Jacopo Bassano — deep umber ground, warm firelight impasto, anisotropic diffusion creates smooth tonal pools bounded by firm chiaroscuro edges; proto-Caravaggesque artificial light
+    DUTCH_GOLDEN_AGE_LUMINISM  = auto()  # Aelbert Cuyp — radiant amber-gold afternoon light, luminance-adaptive spatial frequency attenuation dissolves fine detail in bright zones into golden atmosphere; the Dutch Claude
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1455,6 +1456,15 @@ class Style:
             # edge_softness=0.44: medium firmness — strong chiaroscuro boundaries, but mid-tones
             # transition with a Venetian softness that keeps the surface breathable, not harsh.
             Period.VENETIAN_PASTORAL_LUMINISM: dict(stroke_size_face=9, stroke_size_bg=30, wet_blend=0.38, edge_softness=0.44),
+            # DUTCH_GOLDEN_AGE_LUMINISM (Aelbert Cuyp) — golden afternoon light, pastoral luminism.
+            # stroke_size_face=7: careful, refined marks — lit faces dissolve into golden warmth,
+            # requiring smooth seamless surface treatment. stroke_size_bg=32: broad, open pastoral
+            # backgrounds — wide strokes for sky, meadow, and river expanses.
+            # wet_blend=0.68: high blending — the golden atmosphere merges and dissolves surfaces
+            # into one another, especially in lit zones. edge_softness=0.55: moderate-soft —
+            # forms are clearly resolved in shadow but edges dissolve gently in the light,
+            # replicating Cuyp's CSF-accurate luminous dissolution effect.
+            Period.DUTCH_GOLDEN_AGE_LUMINISM: dict(stroke_size_face=7, stroke_size_bg=32, wet_blend=0.68, edge_softness=0.55),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -31578,4 +31578,149 @@ class Painter:
         buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
+
+    # cuyp_golden_hour_pass — Session 134
+    # ─────────────────────────────────────────────────────────────────────────
+    def cuyp_golden_hour_pass(
+        self,
+        gold_warm_r:   float = 0.18,
+        gold_warm_g:   float = 0.08,
+        gold_cool_b:   float = 0.10,
+        sigma_base:    float = 0.8,
+        sigma_scale:   float = 6.0,
+        n_blur_levels: int   = 4,
+        opacity:       float = 0.34,
+    ) -> None:
+        """
+        Cuyp golden-hour pass — Session 134 (Aelbert Cuyp).
+
+        TWELFTH DISTINCT PROCESSING MODE IN THE PIPELINE:
+        LUMINANCE-ADAPTIVE SPATIAL FREQUENCY ATTENUATION
+        (Contrast Sensitivity Function simulation).
+
+        Physical / perceptual model:
+        ─────────────────────────────
+        The human visual system's Contrast Sensitivity Function (CSF) is not
+        fixed — it is modulated by background luminance.  At very high
+        background luminance (as in Cuyp's blazing afternoon light), sensitivity
+        to high spatial frequencies (fine texture, sharp edge detail) falls
+        sharply.  This "luminance masking" or "bright-field contrast masking"
+        means that in brightly lit zones, the eye genuinely cannot perceive
+        fine spatial detail — it dissolves into the luminous field.
+
+        Cuyp observed and encoded this perceptual truth two centuries before it
+        was formally measured.  His brightly lit cattle, meadows, and river
+        surfaces appear to merge with the golden air; shadow zones retain their
+        structural definition.
+
+        Algorithm:
+        ──────────
+        (1) LUMINANCE MAP:  L = 0.299R + 0.587G + 0.114B  (float32, [0, 1])
+
+        (2) GOLDEN WARMTH SHIFT:
+              R_warm = clip(R + gold_warm_r × L², 0, 1)   — amber-orange gain
+              G_warm = clip(G + gold_warm_g × L², 0, 1)   — slight yellow tint
+              B_warm = clip(B − gold_cool_b  × L², 0, 1)  — blue depletion
+
+            The L² weighting means only the brightest pixels receive the full
+            golden shift; shadows and mid-tones are almost unaffected.
+
+        (3) LUMINANCE-ADAPTIVE SPATIALLY-VARYING BLUR:
+            The effective Gaussian sigma at each pixel is:
+              σ(x,y) = sigma_base + sigma_scale × L(x,y)²
+
+            A spatially-varying Gaussian is expensive to compute directly.
+            Approximation: pre-compute `n_blur_levels` Gaussian blurs at sigma
+            values evenly distributed from sigma_base to sigma_base +
+            sigma_scale; then for each pixel blend between adjacent levels
+            proportionally to L² — a piecewise-linear approximation of the
+            ideal spatially-variant PSF.
+
+        (4) COMPOSITE:
+            out = original × (1 − opacity) + blurred_warm × opacity
+
+        Unlike anisotropic diffusion (s133, Bassano), which PRESERVES edges
+        while smoothing flat areas, this pass DELIBERATELY DISSOLVES fine
+        detail in proportion to luminance — a fundamentally different physical
+        model (CSF masking vs. PDE conductance function).  This is the
+        twelfth distinct processing mode in the pipeline.
+
+        Parameters
+        ──────────
+        gold_warm_r    : R-channel gain for the golden warm shift (L²-weighted).
+        gold_warm_g    : G-channel gain for the golden warm shift.
+        gold_cool_b    : B-channel loss for the golden warm shift (blue depletion).
+        sigma_base     : Baseline Gaussian sigma (pixels) — applied everywhere.
+        sigma_scale    : Additional sigma at luminance = 1.0 — bright pixels get
+                         this much extra blur dissolving detail into golden glow.
+        n_blur_levels  : Number of pre-computed blur levels for the approximation.
+        opacity        : Final composite weight (0–1).
+        """
+        print(f"Cuyp golden-hour pass (CSF luminance-adaptive blur, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32: buf[y, x, 0]=B, [1]=G, [2]=R, [3]=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Luminance ─────────────────────────────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        lum2 = lum * lum      # quadratic: only brightest pixels get full effect
+
+        # ── (2) Golden warmth shift ───────────────────────────────────────────
+        r_warm = _np.clip(r0 + gold_warm_r * lum2, 0.0, 1.0)
+        g_warm = _np.clip(g0 + gold_warm_g * lum2, 0.0, 1.0)
+        b_warm = _np.clip(b0 - gold_cool_b * lum2, 0.0, 1.0)
+
+        # ── (3) Luminance-adaptive spatially-varying blur ─────────────────────
+        if n_blur_levels < 2:
+            n_blur_levels = 2
+        sigmas = [
+            sigma_base + sigma_scale * (i / (n_blur_levels - 1))
+            for i in range(n_blur_levels)
+        ]
+
+        blurred_r = [_gf(r_warm, sigma=s) for s in sigmas]
+        blurred_g = [_gf(g_warm, sigma=s) for s in sigmas]
+        blurred_b = [_gf(b_warm, sigma=s) for s in sigmas]
+
+        # Piecewise-linear interpolation: lum2 in [0,1] → blur level index
+        t = lum2 * (n_blur_levels - 1)
+        r_blurred = _np.zeros_like(r0)
+        g_blurred = _np.zeros_like(g0)
+        b_blurred = _np.zeros_like(b0)
+
+        for lvl in range(n_blur_levels - 1):
+            alpha = _np.clip(t - lvl, 0.0, 1.0)
+            in_interval = ((t >= lvl) & (t < lvl + 1)).astype(_np.float32)
+            r_blurred += in_interval * ((1.0 - alpha) * blurred_r[lvl] + alpha * blurred_r[lvl + 1])
+            g_blurred += in_interval * ((1.0 - alpha) * blurred_g[lvl] + alpha * blurred_g[lvl + 1])
+            b_blurred += in_interval * ((1.0 - alpha) * blurred_b[lvl] + alpha * blurred_b[lvl + 1])
+        # Handle lum2 == 1.0 edge case (top level)
+        top = (t >= (n_blur_levels - 1)).astype(_np.float32)
+        r_blurred += top * blurred_r[-1]
+        g_blurred += top * blurred_g[-1]
+        b_blurred += top * blurred_b[-1]
+
+        # ── (4) Composite at opacity ──────────────────────────────────────────
+        r_cuyp = r0 * (1.0 - opacity) + r_blurred * opacity
+        g_cuyp = g0 * (1.0 - opacity) + g_blurred * opacity
+        b_cuyp = b0 * (1.0 - opacity) + b_blurred * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_cuyp * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_cuyp * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_cuyp * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Cuyp golden-hour CSF pass complete.")
         print("    Shadow temperature relief pass complete.")
