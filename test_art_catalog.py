@@ -15311,3 +15311,230 @@ def test_bolognese_renesque_silver_classicism_period_exists():
     assert hasattr(Period, "BOLOGNESE_RENESQUE_SILVER_CLASSICISM"), (
         "BOLOGNESE_RENESQUE_SILVER_CLASSICISM missing from Period enum — "
         "add to scene_schema.py for session 127 (Simone Cantarini)")
+
+# Vittore Carpaccio / VENETIAN_NARRATIVE_LUMINISM — session 128 additions
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_carpaccio_in_catalog():
+    """carpaccio must be present in the CATALOG (session 128)."""
+    assert "carpaccio" in CATALOG, "carpaccio not found in CATALOG"
+
+
+def test_carpaccio_style_fields():
+    """carpaccio ArtStyle must have artist, nationality, movement, and period fields."""
+    s = get_style("carpaccio")
+    assert s.artist
+    assert s.nationality
+    assert s.movement
+    assert s.period
+
+
+def test_carpaccio_palette_size():
+    """carpaccio must have at least 6 palette entries (Venetian narrative richness)."""
+    s = get_style("carpaccio")
+    assert len(s.palette) >= 6, (
+        f"carpaccio palette must have >= 6 entries; got {len(s.palette)}")
+
+
+def test_carpaccio_palette_warm_amber_highlight():
+    """carpaccio palette must include a warm amber highlight (high R and G, moderate B)."""
+    s = get_style("carpaccio")
+    has_warm = any(
+        rgb[0] > 0.78 and rgb[1] > 0.60 and rgb[2] < 0.70
+        for rgb in s.palette
+    )
+    assert has_warm, (
+        f"carpaccio palette must include a warm amber highlight "
+        f"(R>0.78, G>0.60, B<0.70); got {s.palette}")
+
+
+def test_carpaccio_palette_cool_blue_shadow():
+    """carpaccio palette must include a cool blue shadow entry (B dominant)."""
+    s = get_style("carpaccio")
+    has_cool = any(
+        rgb[2] > rgb[0] and rgb[2] > 0.60
+        for rgb in s.palette
+    )
+    assert has_cool, (
+        f"carpaccio palette must include a cool blue shadow (B>R, B>0.60); "
+        f"got {s.palette}")
+
+
+def test_carpaccio_moderate_wet_blend():
+    """carpaccio wet_blend must be in [0.50, 0.75] (clear Venetian precision, not sfumato)."""
+    s = get_style("carpaccio")
+    assert 0.50 <= s.wet_blend <= 0.75, (
+        f"carpaccio wet_blend must be 0.50–0.75 (moderate Venetian clarity); "
+        f"got {s.wet_blend:.2f}")
+
+
+def test_carpaccio_moderate_edge_softness():
+    """carpaccio edge_softness must be in [0.35, 0.65] (resolved, not sfumato)."""
+    s = get_style("carpaccio")
+    assert 0.35 <= s.edge_softness <= 0.65, (
+        f"carpaccio edge_softness must be 0.35–0.65 (crisp Venetian edges); "
+        f"got {s.edge_softness:.2f}")
+
+
+def test_carpaccio_has_glazing():
+    """carpaccio must have a glazing colour (warm amber Venetian glaze)."""
+    s = get_style("carpaccio")
+    assert s.glazing is not None, "carpaccio should have a glazing colour"
+
+
+def test_carpaccio_has_crackle():
+    """carpaccio crackle must be True (aged Venetian oil on canvas/panel)."""
+    s = get_style("carpaccio")
+    assert s.crackle is True, "carpaccio crackle must be True (aged oil)"
+
+
+def test_carpaccio_no_chromatic_split():
+    """carpaccio chromatic_split must be False (warm unified palette, no Seurat-style dots)."""
+    s = get_style("carpaccio")
+    assert s.chromatic_split is False, (
+        "carpaccio chromatic_split must be False (unified Venetian palette)")
+
+
+def test_carpaccio_technique_mentions_variance():
+    """carpaccio technique must mention the local variance or clarity concept."""
+    s = get_style("carpaccio")
+    txt = s.technique.lower()
+    assert "variance" in txt or "clarity" in txt or "detail" in txt, (
+        "carpaccio technique must describe local variance / clarity concept")
+
+
+def test_carpaccio_technique_mentions_venetian():
+    """carpaccio technique must mention Venetian or Venice."""
+    s = get_style("carpaccio")
+    assert "venetian" in s.technique.lower() or "venice" in s.technique.lower(), (
+        "carpaccio technique must reference Venetian / Venice")
+
+
+def test_carpaccio_famous_works_not_empty():
+    """carpaccio must have at least 4 famous works."""
+    s = get_style("carpaccio")
+    assert len(s.famous_works) >= 4, (
+        f"carpaccio must have >= 4 famous works; got {len(s.famous_works)}")
+
+
+def test_carpaccio_famous_works_include_saint_ursula():
+    """Saint Ursula cycle is Carpaccio's defining narrative achievement."""
+    s = get_style("carpaccio")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("ursula" in t or "george" in t or "venetian" in t for t in titles), (
+        f"Expected Ursula, George, or Venetian Ladies among famous works; got {s.famous_works}")
+
+
+def test_carpaccio_inspiration_references_pass():
+    """Inspiration field must reference carpaccio_venetian_clarity_pass()."""
+    s = get_style("carpaccio")
+    assert "carpaccio_venetian_clarity_pass" in s.inspiration, (
+        "carpaccio inspiration must reference carpaccio_venetian_clarity_pass()")
+
+
+def test_carpaccio_inspiration_references_variance():
+    """Inspiration field must describe the local variance map improvement."""
+    s = get_style("carpaccio")
+    assert "variance" in s.inspiration.lower() or "local variance" in s.inspiration.lower(), (
+        "carpaccio inspiration must describe the local variance map improvement (session 128)")
+
+
+def test_venetian_narrative_luminism_period_exists():
+    """VENETIAN_NARRATIVE_LUMINISM must exist in the Period enum (session 128)."""
+    assert hasattr(Period, "VENETIAN_NARRATIVE_LUMINISM"), (
+        "VENETIAN_NARRATIVE_LUMINISM missing from Period enum — "
+        "add to scene_schema.py for session 128 (Vittore Carpaccio)")
+    assert Period.VENETIAN_NARRATIVE_LUMINISM in list(Period)
+
+
+def test_venetian_narrative_luminism_stroke_params():
+    """VENETIAN_NARRATIVE_LUMINISM stroke_params must reflect moderate Venetian clarity."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_NARRATIVE_LUMINISM,
+                  palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    # Moderate face strokes — careful Venetian mark-making
+    assert params["stroke_size_face"] <= 8, (
+        f"VENETIAN_NARRATIVE_LUMINISM stroke_size_face must be <= 8 (Venetian precision); "
+        f"got {params['stroke_size_face']}")
+    # Moderate wet blend — clear but not harsh
+    assert 0.45 <= params["wet_blend"] <= 0.80, (
+        f"VENETIAN_NARRATIVE_LUMINISM wet_blend must be 0.45–0.80 (moderate Venetian blend); "
+        f"got {params['wet_blend']:.2f}")
+    # Moderately crisp edges
+    assert params["edge_softness"] <= 0.65, (
+        f"VENETIAN_NARRATIVE_LUMINISM edge_softness must be <= 0.65 (resolved edges); "
+        f"got {params['edge_softness']:.2f}")
+
+
+def test_carpaccio_venetian_clarity_pass_exists():
+    """Painter must have carpaccio_venetian_clarity_pass() method (session 128)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "carpaccio_venetian_clarity_pass"), (
+        "Painter must have carpaccio_venetian_clarity_pass() method (session 128)")
+    assert callable(getattr(Painter, "carpaccio_venetian_clarity_pass"))
+
+
+def test_carpaccio_venetian_clarity_pass_noop_at_zero_opacity():
+    """carpaccio_venetian_clarity_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.78, 0.68, 0.50), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(
+        (64, 64, 4)).copy()
+    p.carpaccio_venetian_clarity_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    assert _np.array_equal(before, after), (
+        "carpaccio_venetian_clarity_pass(opacity=0) should be a noop")
+
+
+def test_carpaccio_venetian_clarity_pass_warms_highlights():
+    """carpaccio_venetian_clarity_pass must raise R in the highlight zone (warm amber lift)."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(
+        (64, 64, 4)).copy()
+    # Bright warm highlight zone (lum ≈ 0.72, above hi_lo=0.65)
+    data[:, :, 2] = 200   # R (BGRA index 2 = R)
+    data[:, :, 1] = 175   # G
+    data[:, :, 0] = 140   # B
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+    p.carpaccio_venetian_clarity_pass(
+        hi_lo=0.65,
+        warm_r=0.10,
+        warm_g=0.0,
+        cool_b=0.0,
+        cool_r=0.0,
+        detail_clarity_boost=0.0,
+        smooth_str=0.0,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    after_r = after[:, :, 2].astype(_np.float32).mean()
+    assert after_r >= orig_r, (
+        f"carpaccio_venetian_clarity_pass must raise R in highlight zone; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_carpaccio_venetian_clarity_pass_preserves_canvas_shape():
+    """carpaccio_venetian_clarity_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=64)
+    p.tone_ground((0.78, 0.68, 0.50), texture_strength=0.05)
+    p.carpaccio_venetian_clarity_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after carpaccio_venetian_clarity_pass: {img.size}")
+
+
+def test_carpaccio_venetian_clarity_pass_has_variance_sigma_parameter():
+    """carpaccio_venetian_clarity_pass must accept variance_sigma (session 128 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.carpaccio_venetian_clarity_pass)
+    assert "variance_sigma" in sig.parameters, (
+        "carpaccio_venetian_clarity_pass must have 'variance_sigma' parameter "
+        "(local variance map estimation window — session 128 improvement)")

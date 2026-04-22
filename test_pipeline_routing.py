@@ -13718,3 +13718,108 @@ def test_bolognese_renesque_silver_classicism_stroke_params_high_edge_softness()
     assert 0.65 <= p["edge_softness"] <= 0.90, (
         f"BOLOGNESE_RENESQUE_SILVER_CLASSICISM edge_softness should be 0.65-0.90 "
         f"(Cantarini's pearl-fog sfumato); got {p['edge_softness']}")
+
+# ── Session 128 — carpaccio_venetian_clarity_pass() ───────────────────────────
+
+def test_carpaccio_venetian_clarity_pass_exists():
+    """Painter must have carpaccio_venetian_clarity_pass() method (session 128)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "carpaccio_venetian_clarity_pass"), (
+        "carpaccio_venetian_clarity_pass not found on Painter")
+    assert callable(getattr(Painter, "carpaccio_venetian_clarity_pass"))
+
+
+def test_carpaccio_venetian_clarity_pass_no_error():
+    """carpaccio_venetian_clarity_pass() must run without error on a small canvas."""
+    p = _make_small_painter()
+    p.carpaccio_venetian_clarity_pass()
+
+
+def test_carpaccio_venetian_clarity_pass_noop_at_opacity_zero():
+    """carpaccio_venetian_clarity_pass(opacity=0) must be a noop."""
+    p = _make_small_painter()
+    p.tone_ground((0.78, 0.68, 0.50), texture_strength=0.05)
+    before = _canvas_bytes(p)
+    p.carpaccio_venetian_clarity_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "carpaccio_venetian_clarity_pass(opacity=0) should be a noop")
+
+
+def test_carpaccio_venetian_clarity_pass_warms_highlight_zone():
+    """carpaccio_venetian_clarity_pass must raise R in a bright highlight zone."""
+    p = _make_small_painter(64, 64)
+    # Bright warm canvas (lum ≈ 0.72, above hi_lo=0.65)
+    data = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(
+        (64, 64, 4)).copy()
+    data[:, :, 2] = 200   # R (BGRA index 2)
+    data[:, :, 1] = 175   # G
+    data[:, :, 0] = 140   # B
+    data[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r = data[:, :, 2].astype(np.float32).mean()
+    p.carpaccio_venetian_clarity_pass(
+        hi_lo=0.65,
+        warm_r=0.10,
+        warm_g=0.0,
+        cool_b=0.0,
+        cool_r=0.0,
+        detail_clarity_boost=0.0,
+        smooth_str=0.0,
+        opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape((64, 64, 4))
+    after_r = after[:, :, 2].astype(np.float32).mean()
+    assert after_r >= orig_r, (
+        f"carpaccio_venetian_clarity_pass must raise R in highlight zone; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_carpaccio_venetian_clarity_pass_preserves_canvas_shape():
+    """carpaccio_venetian_clarity_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.78, 0.68, 0.50), texture_strength=0.05)
+    p.carpaccio_venetian_clarity_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after carpaccio_venetian_clarity_pass: {img.size}")
+
+
+def test_carpaccio_venetian_clarity_pass_variance_sigma_parameter():
+    """carpaccio_venetian_clarity_pass must accept variance_sigma (session 128 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.carpaccio_venetian_clarity_pass)
+    assert "variance_sigma" in sig.parameters, (
+        "carpaccio_venetian_clarity_pass must have 'variance_sigma' parameter "
+        "(local variance estimation window — session 128 improvement)")
+
+
+def test_venetian_narrative_luminism_period_present():
+    """Period.VENETIAN_NARRATIVE_LUMINISM must be in the Period enum (session 128)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_NARRATIVE_LUMINISM"), (
+        "Period.VENETIAN_NARRATIVE_LUMINISM not found -- add it to scene_schema.py")
+    assert Period.VENETIAN_NARRATIVE_LUMINISM in list(Period)
+
+
+def test_venetian_narrative_luminism_stroke_params_moderate_blend():
+    """VENETIAN_NARRATIVE_LUMINISM stroke_params must have moderate wet_blend."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_NARRATIVE_LUMINISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.45 <= p["wet_blend"] <= 0.80, (
+        f"VENETIAN_NARRATIVE_LUMINISM wet_blend should be 0.45–0.80 "
+        f"(moderate Venetian clarity); got {p['wet_blend']:.2f}")
+
+
+def test_venetian_narrative_luminism_stroke_params_crisp_edges():
+    """VENETIAN_NARRATIVE_LUMINISM edge_softness must be moderate-to-crisp (≤ 0.65)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_NARRATIVE_LUMINISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.65, (
+        f"VENETIAN_NARRATIVE_LUMINISM edge_softness should be <= 0.65 "
+        f"(resolved Venetian narrative edges); got {p['edge_softness']:.2f}")

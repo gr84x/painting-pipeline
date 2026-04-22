@@ -30512,3 +30512,159 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Cantarini pearl-fog pass complete.")
+
+    def carpaccio_venetian_clarity_pass(
+        self,
+        variance_sigma:       float = 5.0,
+        detail_clarity_boost: float = 0.08,
+        smooth_zone_sigma:    float = 1.5,
+        smooth_str:           float = 0.18,
+        hi_lo:                float = 0.65,
+        warm_r:               float = 0.018,
+        warm_g:               float = 0.008,
+        shadow_hi:            float = 0.35,
+        cool_b:               float = 0.016,
+        cool_r:               float = 0.008,
+        blur_radius:          float = 4.0,
+        opacity:              float = 0.30,
+    ) -> None:
+        """
+        Vittore Carpaccio Venetian clarity pass — session 128 new artist pass.
+
+        Carpaccio (c. 1465–1526) was the supreme Venetian narrative painter:
+        crystalline detail, warm amber highlights, and luminous cool shadows
+        permeated with reflected Venetian sky-light.
+
+        Session 128 artistic improvement: LOCAL VARIANCE MAP SPATIAL ADAPTATION.
+
+        Previous processing modes in this pipeline:
+          s122 Carracci    — direction-aware RGB temperature field
+          s123 Rosa        — spatial displacement (Perlin noise warp)
+          s124 Stanzione   — frequency decomposition (Laplacian pyramid)
+          s125 Albani      — spatial depth gradient (aerial perspective)
+          s126 Bartolommeo — Sobel edge-map driven selective modulation
+          s128 Carpaccio   — local variance map spatial adaptation [NEW]
+
+        The local luminance standard deviation is computed via the
+        difference-of-blurred-squares identity:
+          std = sqrt(max(GaussBlur(lum²) - GaussBlur(lum)², 0))
+
+        This yields a per-pixel texture measure:
+          std ≈ 0  → smooth zone (skin, background sky, flat fabric)
+          std ≈ max → detail zone (hair, costume, architectural relief)
+
+        Three independent stages compose Carpaccio's clarity:
+
+        Stage 1 — Detail zone clarification.
+          In high-variance regions, push each channel away from its blurred
+          value (local contrast boost), scaled by std_norm.  Sharpens costume
+          and architecture without over-processing smooth skin.
+
+        Stage 2 — Smooth zone refinement.
+          In low-variance regions, blend toward a spatially smoothed version
+          (sigma=smooth_zone_sigma), weighted by (1 - std_norm) × smooth_str.
+          Carpaccio's skin and sky passages are seamless and fresh.
+
+        Stage 3 — Warm/cool luminous atmosphere.
+          In highlight zone (lum > hi_lo): warm amber R/G lift — Carpaccio's
+          golden Venetian daylight on stone and costume.
+          In shadow zone (lum < shadow_hi): cool blue B lift + slight R damp
+          — his shadows are permeated with reflected Venice-sky light; they
+          are never muddy brown.
+
+        Parameters
+        ----------
+        variance_sigma        : Gaussian sigma for local variance estimation
+        detail_clarity_boost  : local contrast boost in high-variance zones
+        smooth_zone_sigma     : smoothing sigma for low-variance zones
+        smooth_str            : blend strength of smooth-zone smoothing
+        hi_lo                 : luminance threshold above which highlights begin
+        warm_r, warm_g        : warm amber channel lifts in highlight zone
+        shadow_hi             : luminance threshold below which shadows begin
+        cool_b                : cool blue lift in shadow zone
+        cool_r                : cool red damp in shadow zone
+        blur_radius           : Gaussian sigma for zone mask transitions
+        opacity               : final blend weight (0 = no effect, 1 = full)
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        # ── Extract surface data ───────────────────────────────────────────────
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Session 128 improvement: local variance map ────────────────────────
+        # Var(X) = E[X²] - E[X]² via Gaussian expectation (efficient, single-pass).
+        lum_sq  = (lum * lum).astype(_np.float32)
+        e_sq    = _gf(lum_sq, sigma=variance_sigma)
+        e_lum   = _gf(lum,    sigma=variance_sigma)
+        var_map = _np.maximum(e_sq - e_lum * e_lum, 0.0)
+        std_map = _np.sqrt(var_map)
+        std_max = std_map.max()
+        std_norm = (std_map / std_max) if std_max > 1e-9 else std_map.copy()
+
+        # Smooth zone mask (strongest where local variance is lowest)
+        detail_mask = _gf(std_norm.astype(_np.float32), sigma=blur_radius)
+        detail_mask = _np.clip(detail_mask, 0.0, 1.0)
+        smooth_mask = _gf((1.0 - std_norm).astype(_np.float32), sigma=blur_radius)
+        smooth_mask = _np.clip(smooth_mask, 0.0, 1.0)
+
+        # ── Stage 1: Detail zone clarification (local contrast boost) ─────────
+        # In high-variance regions, push each channel away from its blurred value.
+        r_blur = _gf(r0.astype(_np.float32), sigma=variance_sigma)
+        g_blur = _gf(g0.astype(_np.float32), sigma=variance_sigma)
+        b_blur = _gf(b0.astype(_np.float32), sigma=variance_sigma)
+
+        r_out = r0 + detail_mask * (r0 - r_blur) * detail_clarity_boost
+        g_out = g0 + detail_mask * (g0 - g_blur) * detail_clarity_boost
+        b_out = b0 + detail_mask * (b0 - b_blur) * detail_clarity_boost
+
+        # ── Stage 2: Smooth zone refinement (adaptive spatial smoothing) ───────
+        r_smooth = _gf(r_out.astype(_np.float32), sigma=smooth_zone_sigma)
+        g_smooth = _gf(g_out.astype(_np.float32), sigma=smooth_zone_sigma)
+        b_smooth = _gf(b_out.astype(_np.float32), sigma=smooth_zone_sigma)
+
+        r_out = r_out + smooth_mask * (r_smooth - r_out) * smooth_str
+        g_out = g_out + smooth_mask * (g_smooth - g_out) * smooth_str
+        b_out = b_out + smooth_mask * (b_smooth - b_out) * smooth_str
+
+        # ── Stage 3: Warm highlights / cool luminous shadows ───────────────────
+        hi_raw  = _np.clip((lum - hi_lo) / max(0.01, 1.0 - hi_lo), 0.0, 1.0)
+        hi_mask = _gf(hi_raw.astype(_np.float32), sigma=blur_radius)
+        hi_mask = _np.clip(hi_mask, 0.0, 1.0)
+
+        shd_raw  = _np.clip((shadow_hi - lum) / max(0.01, shadow_hi), 0.0, 1.0)
+        shd_mask = _gf(shd_raw.astype(_np.float32), sigma=blur_radius)
+        shd_mask = _np.clip(shd_mask, 0.0, 1.0)
+
+        # Warm amber lift in highlights — Carpaccio's golden Venetian daylight
+        r_out = _np.clip(r_out + hi_mask * warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * warm_g, 0.0, 1.0)
+
+        # Cool blue clarity in shadows — Venice sky-reflected luminous penumbra
+        b_out = _np.clip(b_out + shd_mask * cool_b, 0.0, 1.0)
+        r_out = _np.clip(r_out - shd_mask * cool_r, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Carpaccio Venetian clarity pass complete.")

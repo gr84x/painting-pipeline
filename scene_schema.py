@@ -293,6 +293,7 @@ class Period(Enum):
     BOLOGNESE_ARCADIAN_CLASSICISM = auto()  # Francesco Albani — pearl-ivory ambient glow, rose-peach skin bloom, cool sky-reflected shadow, chromatic aerial perspective
     FLORENTINE_MONUMENTAL_CLASSICISM = auto()  # Fra Bartolommeo — warm chestnut-amber ground, rich saturated chiaroscuro, Sobel-gradient velo shadow modulation, monumental devotional serenity
     BOLOGNESE_RENESQUE_SILVER_CLASSICISM = auto()  # Simone Cantarini — ivory-pearl flesh, cool blue-pearl penumbra scatter, rose carnation warmth, spectral channel-selective diffusion, Reni-derived silver classicism
+    VENETIAN_NARRATIVE_LUMINISM = auto()  # Vittore Carpaccio — warm amber highlights, cool sky-blue luminous shadows, local-variance-map spatial adaptation, crystalline Venetian narrative clarity
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1398,6 +1399,15 @@ class Style:
             # Very fine strokes (face=4), very high wet blend (0.82), very soft edges (0.74) —
             # Cantarini's multi-glaze surface is the smoothest in the pipeline.
             Period.BOLOGNESE_RENESQUE_SILVER_CLASSICISM: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.82, edge_softness=0.74),
+            # VENETIAN_NARRATIVE_LUMINISM (Vittore Carpaccio) — crisp narrative clarity, warm/cool
+                        # separation, moderate blending. stroke_size_face=6: careful Venetian mark-making,
+                        # precise but not fine-pointed; architectural precision shapes the figure equally.
+                        # stroke_size_bg=26: narrative backgrounds are richly populated — larger background
+                        # strokes capture panoramic Venetian cityscape efficiently. wet_blend=0.62: moderate
+                        # blending — Carpaccio's forms are clear and resolved, not sfumato-dissolved, but
+                        # not harsh; a clean, patient layering quality. edge_softness=0.48: moderately crisp
+                        # — less sfumato than Albani or Stanzione; his edges are resolved and present.
+                        Period.VENETIAN_NARRATIVE_LUMINISM: dict(stroke_size_face=6, stroke_size_bg=26, wet_blend=0.62, edge_softness=0.48),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

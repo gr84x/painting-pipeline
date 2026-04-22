@@ -11084,6 +11084,112 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Vittore Carpaccio ──────────────────────────────────────────────────────
+    "carpaccio": ArtStyle(
+        artist="Vittore Carpaccio",
+        movement="Venetian Narrative Luminism",
+        nationality="Italian (Venetian)",
+        period="c. 1465–1526",
+        palette=[
+            (0.90, 0.82, 0.66),   # warm ivory highlight — Carpaccio's luminous Venetian daylight
+            (0.82, 0.68, 0.50),   # warm amber midtone — sunlit architectural surfaces, golden stone
+            (0.70, 0.56, 0.40),   # ochre-warm shadow — rich mid-shadow, warm earth undertone
+            (0.58, 0.44, 0.30),   # deep warm shadow — Venetian deep tonal reserve
+            (0.48, 0.58, 0.74),   # cool sky blue — his distinctive Venetian sky-light in shadows
+            (0.62, 0.70, 0.82),   # cool blue-grey — distant architecture, aerial perspective
+            (0.72, 0.62, 0.44),   # mid amber ground — Venetian panel ground, warm honey
+        ],
+        ground_color=(0.78, 0.68, 0.50),    # warm Venetian honey imprimatura
+        stroke_size=6,
+        wet_blend=0.62,                      # moderate blending — crisp but not harsh, clear Venetian precision
+        edge_softness=0.48,                  # moderately crisp — not sfumato; Carpaccio's edges are resolved
+        jitter=0.022,                        # moderate variation — narrative richness, not monotone
+        glazing=(0.70, 0.60, 0.40),          # warm amber-honey final glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Vittore Carpaccio (c. 1465–1526) was the supreme Venetian narrative painter — the artist "
+            "who created some of the most expansive, luminously detailed, and storytelling-rich "
+            "paintings in the entire Venetian tradition.  Born in Venice (possibly of Dalmatian "
+            "origin), he spent almost his entire career in the city, producing the great narrative "
+            "cycles that define Venetian public painting in the late Quattrocento and early "
+            "Cinquecento: the cycle of Saint Ursula (Accademia, Venice), the Scuola di San Giorgio "
+            "degli Schiavoni cycle, and the Miracle of the Relic of the True Cross.  He was deeply "
+            "influenced by Gentile Bellini's documentary realism and by the clear, crystalline "
+            "Venetian light that entered workshops through canal-reflected northern windows.  "
+            "His defining technical quality is a paradoxical clarity: his canvases are filled with "
+            "almost overwhelming detail — architectural panoramas, costumed processions, heraldic "
+            "devices, inscriptions, animals, boats, flags — yet they read with a fresh, crystalline "
+            "luminosity rather than the density of northern Mannerism.  This clarity comes from his "
+            "handling of light: warm golden highlights on architectural surfaces and costume details "
+            "sit against remarkably luminous, cool blue-grey shadow zones that catch the reflected "
+            "light of the Venetian sky and canal water.  His penumbra zones are never muddy or "
+            "opaque — they are permeated with reflected cool ambient light in a way that no "
+            "interior-lit Baroque painter would achieve.  "
+            "His palette is characteristically warm-dominant in highlights (amber-ivory, warm gold, "
+            "ochre) but distinctively cool in shadow (sky blue, canal-reflected blue-grey, distant "
+            "atmospheric lavender) — a warm/cool separation driven by the Venetian outdoor "
+            "environment rather than by candle or torch.  This makes his shadows feel 'open' and "
+            "inhabited by reflected light, giving his paintings their unusual quality of expansive "
+            "luminosity even in complex, detailed narrative contexts.  "
+            "He painted with a careful, moderately-blended technique: not the full sfumato "
+            "dissolution of Leonardo, not the raw alla prima immediacy of Titian, but a clean, "
+            "patient layering that builds crisp forms with carefully modulated transitions.  "
+            "The local variance in his paintings — from the fine detail of embroidered costume to "
+            "the smooth, even sky passages — is among the widest in Venetian painting, and this "
+            "spatial specificity is precisely what carpaccio_venetian_clarity_pass() models: "
+            "detecting high-variance detail zones and low-variance smooth zones, then applying "
+            "fundamentally different refinement to each.  "
+            "Major cycles include: Life of Saint Ursula (1490–1498), Life of Saint George and "
+            "Saint Jerome (Scuola di San Giorgio, 1502–1507), and the Miracle of the True Cross "
+            "(1494–1501, shared cycle with Gentile Bellini).  Individual masterworks include "
+            "Two Venetian Ladies (c. 1490–1510), Dream of Saint Ursula (1495), and "
+            "Presentation of Jesus in the Temple (1510)."
+        ),
+        famous_works=[
+            ("Dream of Saint Ursula",                   "1495"),
+            ("Saint George and the Dragon",              "c. 1502"),
+            ("Two Venetian Ladies",                      "c. 1490–1510"),
+            ("Miracle of the True Cross at the Rialto Bridge", "1494"),
+            ("Presentation of Jesus in the Temple",     "1510"),
+            ("Young Knight in a Landscape",              "1510"),
+            ("Saint Stephen Disputing with the Doctors", "c. 1514"),
+        ],
+        inspiration=(
+            "Apply carpaccio_venetian_clarity_pass() as the defining pass for session 128.  "
+            "The pass encodes Carpaccio's Venetian Narrative Luminism in three stages built "
+            "around the session 128 artistic improvement: LOCAL VARIANCE MAP SPATIAL ADAPTATION.  "
+            "(1) Local variance map — the session 128 artistic improvement.  "
+            "All previous passes in this pipeline operate in one of five modes: "
+            "RGB colour-space transforms (s122 Carracci temperature field), "
+            "spatial displacement (s123 Rosa Perlin warp), "
+            "frequency decomposition (s124 Stanzione Laplacian pyramid), "
+            "spatial depth gradient (s125 Albani aerial perspective), or "
+            "edge-map-driven selective modulation (s126 Bartolommeo Sobel magnitude).  "
+            "This pass introduces a sixth, fundamentally different mode: "
+            "LOCAL VARIANCE MAP SPATIAL ADAPTATION.  "
+            "A per-pixel local luminance standard deviation is computed as: "
+            "std = sqrt(max(GaussBlur(lum²) - GaussBlur(lum)², 0))  "
+            "using the difference-of-blurred-squares identity.  "
+            "The resulting std_norm map distinguishes: "
+            "std_norm ≈ 0 → smooth zone (skin, background sky, flat fabric areas), "
+            "std_norm ≈ 1 → detail zone (hair, costume pattern, architectural relief).  "
+            "These two zones receive fundamentally different treatment:  "
+            "Detail zones get a local contrast boost (push each channel away from its blurred "
+            "value, scaled by std_norm) — sharpening optically rich costume and architecture "
+            "passages without over-sharpening smooth skin.  "
+            "Smooth zones get gentle spatial smoothing (blend toward GaussBlur at smooth_zone_sigma) "
+            "— Carpaccio's skin and sky passages are seamless, fresh, with no rough texture.  "
+            "(2) Warm golden highlights — in lum > hi_lo zones, apply warm amber R/G lift.  "
+            "Carpaccio's highlights on architectural stone and costume gold are distinctively "
+            "warm amber-ivory, never cool or silvery.  "
+            "(3) Cool luminous shadows — in lum < shadow_hi zones, apply cool blue B lift and "
+            "slight R damp.  Carpaccio's shadow zones are permeated with Venice-sky-reflected "
+            "cool blue light — never muddy brown, always luminous and spatially open.  "
+            "Use at opacity ≈ 0.26–0.34."
+        ),
+    ),
+
 }
 
 
