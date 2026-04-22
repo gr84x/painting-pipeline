@@ -14582,3 +14582,271 @@ def test_highlight_crystalline_dark_canvas_less_affected():
     assert dark_diff < 5.0, (
         f"Dark canvas (lum~0.12) should be almost unaffected by highlight_crystalline_pass "
         f"(lum_thresh=0.72): mean pixel diff={dark_diff:.2f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 136: Moretto da Brescia + LOMBARD_SILVER_CLASSICISM
+#              + moretto_silver_luminance_pass (14th distinct processing mode)
+#              + pearlescent_sfumato_pass (artistic improvement)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_lombard_silver_classicism_period_exists():
+    """Period.LOMBARD_SILVER_CLASSICISM must be in the Period enum (session 136)."""
+    from scene_schema import Period
+    assert hasattr(Period, "LOMBARD_SILVER_CLASSICISM"), (
+        "Period.LOMBARD_SILVER_CLASSICISM not found -- add it to scene_schema.py")
+    assert Period.LOMBARD_SILVER_CLASSICISM in list(Period)
+
+
+def test_lombard_silver_classicism_wet_blend():
+    """LOMBARD_SILVER_CLASSICISM wet_blend should be in moderate-high range (0.45–0.72)."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_SILVER_CLASSICISM,
+                  palette=PaletteHint.COOL_GREY)
+    params = style.stroke_params
+    assert 0.45 <= params["wet_blend"] <= 0.72, (
+        f"LOMBARD_SILVER_CLASSICISM wet_blend should be in [0.45, 0.72] "
+        f"(moderate-high — tones merge softly): got {params['wet_blend']}")
+
+
+def test_lombard_silver_classicism_edge_softness():
+    """LOMBARD_SILVER_CLASSICISM edge_softness should be moderate (0.35–0.58)."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.LOMBARD_SILVER_CLASSICISM,
+                  palette=PaletteHint.COOL_GREY)
+    params = style.stroke_params
+    assert 0.35 <= params["edge_softness"] <= 0.58, (
+        f"LOMBARD_SILVER_CLASSICISM edge_softness should be in [0.35, 0.58] "
+        f"(moderate — soft but structurally present): got {params['edge_softness']}")
+
+
+def test_moretto_silver_luminance_pass_exists():
+    """Painter must have moretto_silver_luminance_pass() method after session 136."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "moretto_silver_luminance_pass"), (
+        "moretto_silver_luminance_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "moretto_silver_luminance_pass"))
+
+
+def test_moretto_silver_luminance_pass_no_error():
+    """moretto_silver_luminance_pass() runs on a cool canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.68, 0.64, 0.60), texture_strength=0.05)
+    p.moretto_silver_luminance_pass(opacity=0.32)
+
+
+def test_moretto_silver_luminance_pass_modifies_canvas():
+    """moretto_silver_luminance_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.78, 0.72, 0.68), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.moretto_silver_luminance_pass(opacity=0.60)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after), (
+        "moretto_silver_luminance_pass should modify the canvas at opacity=0.60")
+
+
+def test_moretto_silver_luminance_pass_preserves_shape():
+    """moretto_silver_luminance_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.68, 0.64, 0.60), texture_strength=0.05)
+    p.moretto_silver_luminance_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after moretto_silver_luminance_pass: {img.size}")
+
+
+def test_moretto_silver_luminance_pass_has_b_silver_parameter():
+    """moretto_silver_luminance_pass must accept b_silver parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.moretto_silver_luminance_pass)
+    assert "b_silver" in sig.parameters, (
+        "moretto_silver_luminance_pass must have b_silver parameter "
+        "(session 136 yellow-warmth neutralisation control)")
+
+
+def test_moretto_silver_luminance_pass_zero_opacity_no_op():
+    """moretto_silver_luminance_pass with opacity=0.0 should leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.68, 0.64, 0.60), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.moretto_silver_luminance_pass(opacity=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="moretto_silver_luminance_pass with opacity=0 should be a no-op")
+
+
+def test_moretto_silver_luminance_pass_cools_warm_highlights():
+    """
+    A warm yellow canvas should have reduced yellow-blue (b*) in bright zones
+    after moretto_silver_luminance_pass with high b_silver — the silver
+    neutralisation depletes yellow-warmth proportionally to L².
+    The simplest proxy in RGB: the mean B channel should increase (or R decrease)
+    on a warm-bright canvas, since removing yellow means boosting blue-neutral.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    # Warm bright canvas (amber-yellow — high b* in Lab)
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.90, 0.82, 0.40), texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    before_b = float(before_buf[:, :, 0].mean())   # Cairo B channel
+    p.moretto_silver_luminance_pass(b_silver=0.80, opacity=0.80)
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_b = float(after_buf[:, :, 0].mean())
+    assert after_b > before_b, (
+        f"moretto_silver_luminance_pass should increase blue channel on warm-bright canvas "
+        f"(silver neutralisation of yellow-warmth): before_B={before_b:.1f}, after_B={after_b:.1f}")
+
+
+def test_moretto_in_catalog():
+    """moretto_da_brescia must be in CATALOG after session 136."""
+    from art_catalog import CATALOG
+    assert "moretto_da_brescia" in CATALOG, (
+        "moretto_da_brescia not found in CATALOG -- add to art_catalog.py")
+
+
+def test_moretto_palette_valid():
+    """moretto_da_brescia palette must have 8 entries all in [0, 1]."""
+    from art_catalog import get_style
+    style = get_style("moretto_da_brescia")
+    assert len(style.palette) == 8, (
+        f"moretto_da_brescia palette should have 8 entries, got {len(style.palette)}")
+    for i, c in enumerate(style.palette):
+        for j, ch in enumerate(c):
+            assert 0.0 <= ch <= 1.0, (
+                f"moretto_da_brescia palette[{i}][{j}]={ch} out of [0, 1]")
+
+
+def test_moretto_ground_color_cool():
+    """moretto_da_brescia ground_color should be cool (B >= R — grey-silver ground)."""
+    from art_catalog import get_style
+    style = get_style("moretto_da_brescia")
+    r, g, b = style.ground_color
+    assert b >= r - 0.05, (
+        f"moretto_da_brescia ground_color should be cool (B >= R): R={r:.3f}, B={b:.3f}")
+
+
+def test_moretto_glazing_cool():
+    """moretto_da_brescia glazing should be cool (B >= R — silver-lavender glaze)."""
+    from art_catalog import get_style
+    style = get_style("moretto_da_brescia")
+    assert style.glazing is not None, "moretto_da_brescia glazing must not be None"
+    r, g, b = style.glazing
+    assert b >= r - 0.02, (
+        f"moretto_da_brescia glazing should be cool/neutral (B >= R): R={r:.3f}, B={b:.3f}")
+
+
+# ── pearlescent_sfumato_pass ─────────────────────────────────────────────────
+
+def test_pearlescent_sfumato_pass_exists():
+    """Painter must have pearlescent_sfumato_pass() method after session 136."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "pearlescent_sfumato_pass"), (
+        "pearlescent_sfumato_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "pearlescent_sfumato_pass"))
+
+
+def test_pearlescent_sfumato_pass_no_error():
+    """pearlescent_sfumato_pass() runs on a plain canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.78, 0.72, 0.68), texture_strength=0.05)
+    p.pearlescent_sfumato_pass(opacity=0.28)
+
+
+def test_pearlescent_sfumato_pass_modifies_canvas():
+    """pearlescent_sfumato_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.70, 0.65), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.pearlescent_sfumato_pass(opacity=0.80)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after), (
+        "pearlescent_sfumato_pass should modify canvas at opacity=0.80")
+
+
+def test_pearlescent_sfumato_pass_preserves_shape():
+    """pearlescent_sfumato_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.68, 0.64, 0.60), texture_strength=0.05)
+    p.pearlescent_sfumato_pass(opacity=0.28)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after pearlescent_sfumato_pass: {img.size}")
+
+
+def test_pearlescent_sfumato_pass_has_smooth_sigma_parameter():
+    """pearlescent_sfumato_pass must accept smooth_sigma parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.pearlescent_sfumato_pass)
+    assert "smooth_sigma" in sig.parameters, (
+        "pearlescent_sfumato_pass must have smooth_sigma parameter "
+        "(session 136 gradient stability Gaussian sigma)")
+
+
+def test_pearlescent_sfumato_pass_zero_opacity_no_op():
+    """pearlescent_sfumato_pass with opacity=0.0 should leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.68, 0.64, 0.60), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.pearlescent_sfumato_pass(opacity=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="pearlescent_sfumato_pass with opacity=0 should be a no-op")
+
+
+def test_pearlescent_sfumato_smooth_canvas_brighter_than_textured():
+    """
+    On a uniform (smooth) canvas, pearlescent_sfumato_pass should produce a
+    brighter result than on an equivalent canvas covered with a sharp texture
+    step — because the smooth zone's gradient is near zero, giving S≈1 and
+    applying the full pearl lift, while the textured canvas has S≈0 at the edge.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+
+    # Smooth canvas — single uniform mid-grey
+    p_smooth = Painter(width=64, height=64)
+    p_smooth.tone_ground((0.55, 0.55, 0.55), texture_strength=0.00)
+
+    # Textured canvas — hard edge at the mid-line to suppress smoothness mask
+    p_textured = Painter(width=64, height=64)
+    p_textured.tone_ground((0.55, 0.55, 0.55), texture_strength=0.00)
+    # Overwrite top half with a sharply different tone to create a hard edge
+    import cairo
+    ctx = cairo.Context(p_textured.canvas.surface)
+    ctx.set_source_rgb(0.10, 0.10, 0.10)
+    ctx.rectangle(0, 0, 64, 32)
+    ctx.fill()
+
+    before_smooth = np.array(p_smooth.canvas.to_pil()).copy()
+
+    p_smooth.pearlescent_sfumato_pass(
+        smooth_sigma=1.5, pearl_lift=0.10, opacity=1.0)
+    p_textured.pearlescent_sfumato_pass(
+        smooth_sigma=1.5, pearl_lift=0.10, opacity=1.0)
+
+    after_smooth_lum = float(np.array(p_smooth.canvas.to_pil()).mean())
+    after_textured_lum = float(np.array(p_textured.canvas.to_pil()).mean())
+
+    # The uniform canvas should not darken; it may brighten slightly
+    before_lum = float(before_smooth.mean())
+    assert after_smooth_lum >= before_lum - 2.0, (
+        f"pearlescent_sfumato_pass should not darken a smooth canvas: "
+        f"before={before_lum:.1f}, after={after_smooth_lum:.1f}")

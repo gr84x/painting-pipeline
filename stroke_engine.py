@@ -31911,3 +31911,298 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Highlight crystalline pass complete.")
+
+    # moretto_silver_luminance_pass — Session 136
+    # ─────────────────────────────────────────────────────────────────────────
+    def moretto_silver_luminance_pass(
+        self,
+        l_lift:       float = 0.06,
+        b_silver:     float = 0.55,
+        a_cool_hi:    float = 0.08,
+        opacity:      float = 0.32,
+    ) -> None:
+        """
+        Moretto silver luminance pass — Session 136 (Moretto da Brescia).
+
+        FOURTEENTH DISTINCT PROCESSING MODE IN THE PIPELINE:
+        PERCEPTUAL COLOR SPACE SCULPTING (CIE L*a*b*).
+
+        Historical / physical model:
+        ─────────────────────────────
+        Moretto da Brescia (Alessandro Bonvicino, c. 1498–1554) is the supreme
+        master of the "Lombard silver light" — a cool, pearlescent diffused
+        tonality utterly distinct from the warm amber luminosity of the
+        Venetian school.  Where Titian baths his subjects in golden Mediterranean
+        warmth and Cuyp dissolves them in amber afternoon haze, Moretto wraps
+        his figures in a cool, overcast, northern light that makes surfaces read
+        as silver-grey rather than gold — skin is ivory-pearl, not ochre-flesh;
+        shadows are cool blue-violet, not warm umber; the overall key is
+        high and even, not dramatically contrasted.
+
+        The perceptual basis: Moretto's light is SPECTRALLY NEUTRAL — he
+        observes the colour temperature of a north-facing Brescian studio
+        (approximately D65 daylight, mildly cool) rather than warm candlelight
+        or Mediterranean sun.  In perceptual terms, a neutral cool light has two
+        effects on surface colour:
+          (1) It lifts midtone L* slightly (the scene key is high and airy),
+          (2) It depletes yellow-warmth (b* → 0) in brightly lit areas — surfaces
+              do not take on the amber cast of warm illumination,
+          (3) It introduces a faint cool-blue drift in the highest highlights
+              (sky light reflected from pale skin).
+
+        The CIE L*a*b* colour space is the ideal domain for this manipulation
+        because L*, a*, b* correspond directly to human perceptual channels:
+        L* = lightness; a* = red–green; b* = yellow–blue.  No prior pipeline
+        mode has operated in Lab space — all previous modes used RGB (channels
+        1–8), HSV (mode 9), log-domain illumination/reflectance (mode 10),
+        anisotropic PDE (mode 11), luminance-CSF (mode 12), or mean-achromatic
+        chromaticity (mode 13).  This is the first pure perceptual-space mode.
+
+        Algorithm:
+        ──────────
+        (1) sRGB LINEARIZATION: apply inverse sRGB gamma (IEC 61966-2-1):
+              C_lin = C / 12.92  if C ≤ 0.04045
+              C_lin = ((C + 0.055) / 1.055)^2.4  otherwise
+
+        (2) LINEAR RGB → XYZ (D65 illuminant, sRGB primaries):
+              X = 0.4124564 R + 0.3575761 G + 0.1804375 B
+              Y = 0.2126729 R + 0.7151522 G + 0.0721750 B
+              Z = 0.0193339 R + 0.1191920 G + 0.9503041 B
+
+        (3) XYZ → CIE L*a*b* (D65 whitepoint Xn=0.95047, Yn=1.0, Zn=1.08883):
+              f(t) = t^(1/3)  if t > (6/29)^3
+              f(t) = t / (3 × (6/29)^2) + 4/29  otherwise
+              L* = 116 × f(Y/Yn) − 16   ∈ [0, 100]
+              a* = 500 × (f(X/Xn) − f(Y/Yn))   (red+, green−)
+              b* = 200 × (f(Y/Yn) − f(Z/Zn))   (yellow+, blue−)
+
+        (4) MORETTO SILVER SCULPTING:
+              (a) L* MIDTONE LIFT: a Gaussian bell centred at L*=55 lifts the
+                  midtone range (roughly the half-lit flesh and shadow penumbra)
+                  by l_lift × 100 at the peak, tapering to zero at L*=0 and 100.
+                  This creates the "high-key airy" quality of Moretto's light.
+              (b) b* SILVER NEUTRALISATION: b_new = b × (1 − b_silver × (L/100)²)
+                  In bright zones (high L*) the yellow-warmth b* is progressively
+                  driven toward zero — silver-neutral rather than amber-warm.
+                  In shadows (low L*) b* is preserved (warm umber depth).
+              (c) a* COOL HIGHLIGHT DRIFT: in the brightest zones (L* > 70),
+                  a small negative shift on a* (slight green-cool) models the
+                  faint blue-grey sky light reflected from pale skin highlights.
+                    a_new = a − a_cool_hi × max(0, (L − 70) / 30)
+
+        (5) Lab → XYZ → sRGB: inverse of steps 1–3.
+
+        (6) COMPOSITE at opacity.
+
+        Parameters
+        ──────────
+        l_lift     : Peak midtone L* lift (fraction of L* range, 0–1).
+        b_silver   : b* neutralisation strength in highlights (0 = no change,
+                     1 = fully neutral at L*=100).
+        a_cool_hi  : Negative a* shift in brightest highlights (cool-grey drift).
+        opacity    : Final composite weight (0–1).
+        """
+        print(f"Moretto silver luminance pass (CIE Lab perceptual sculpting, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32: [y,x,0]=B, [1]=G, [2]=R, [3]=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Linearise sRGB ────────────────────────────────────────────────
+        def _lin(c):
+            return _np.where(c <= 0.04045, c / 12.92,
+                             ((c + 0.055) / 1.055) ** 2.4)
+
+        rl, gl, bl = _lin(r0), _lin(g0), _lin(b0)
+
+        # ── (2) Linear RGB → XYZ (D65) ────────────────────────────────────────
+        X = 0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl
+        Y = 0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl
+        Z = 0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl
+
+        # ── (3) XYZ → CIE L*a*b* ─────────────────────────────────────────────
+        Xn, Yn, Zn = 0.95047, 1.00000, 1.08883
+        delta = 6.0 / 29.0
+
+        def _f(t):
+            return _np.where(t > delta ** 3,
+                             t ** (1.0 / 3.0),
+                             t / (3.0 * delta ** 2) + 4.0 / 29.0)
+
+        fx = _f(X / Xn)
+        fy = _f(Y / Yn)
+        fz = _f(Z / Zn)
+
+        L_star = 116.0 * fy - 16.0          # [0, 100]
+        a_star = 500.0 * (fx - fy)
+        b_star = 200.0 * (fy - fz)
+
+        # ── (4a) Midtone L* lift (Gaussian bell centred at L*=55) ─────────────
+        bell = _np.exp(-0.5 * ((L_star - 55.0) / 28.0) ** 2)
+        L_mod = L_star + l_lift * 100.0 * bell
+
+        # ── (4b) b* silver neutralisation (L²-weighted) ──────────────────────
+        Ln = _np.clip(L_mod / 100.0, 0.0, 1.0)
+        b_mod = b_star * (1.0 - b_silver * Ln * Ln)
+
+        # ── (4c) a* cool highlight drift (linear above L*=70) ─────────────────
+        hi_drift = _np.clip((L_mod - 70.0) / 30.0, 0.0, 1.0)
+        a_mod = a_star - a_cool_hi * 10.0 * hi_drift
+
+        # ── (5) L*a*b* → XYZ → linear sRGB → sRGB ───────────────────────────
+        fy2 = (L_mod + 16.0) / 116.0
+        fx2 = a_mod / 500.0 + fy2
+        fz2 = fy2 - b_mod / 200.0
+
+        def _f_inv(t):
+            return _np.where(t > delta,
+                             t ** 3,
+                             3.0 * delta ** 2 * (t - 4.0 / 29.0))
+
+        X2 = Xn * _f_inv(fx2)
+        Y2 = Yn * _f_inv(fy2)
+        Z2 = Zn * _f_inv(fz2)
+
+        rl2 =  3.2404542 * X2 - 1.5371385 * Y2 - 0.4985314 * Z2
+        gl2 = -0.9692660 * X2 + 1.8760108 * Y2 + 0.0415560 * Z2
+        bl2 =  0.0556434 * X2 - 0.2040259 * Y2 + 1.0572252 * Z2
+
+        rl2 = _np.clip(rl2, 0.0, None)
+        gl2 = _np.clip(gl2, 0.0, None)
+        bl2 = _np.clip(bl2, 0.0, None)
+
+        def _gamma(c):
+            return _np.where(c <= 0.0031308,
+                             12.92 * c,
+                             1.055 * c ** (1.0 / 2.4) - 0.055)
+
+        r_out = _np.clip(_gamma(rl2), 0.0, 1.0)
+        g_out = _np.clip(_gamma(gl2), 0.0, 1.0)
+        b_out = _np.clip(_gamma(bl2), 0.0, 1.0)
+
+        # ── (6) Composite at opacity ──────────────────────────────────────────
+        r_fin = r0 * (1.0 - opacity) + r_out * opacity
+        g_fin = g0 * (1.0 - opacity) + g_out * opacity
+        b_fin = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Moretto silver luminance (CIE Lab) pass complete.")
+
+    # pearlescent_sfumato_pass — Session 136 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+    def pearlescent_sfumato_pass(
+        self,
+        smooth_sigma: float = 2.5,
+        pearl_cool:   float = 0.04,
+        pearl_lift:   float = 0.03,
+        grad_thresh:  float = 0.06,
+        opacity:      float = 0.28,
+    ) -> None:
+        """
+        Pearlescent sfumato pass — Session 136 artistic improvement.
+
+        Old Master sfumato surfaces — especially Leonardo's finest passages —
+        have a quality beyond mere blurring: smooth, gradient-free zones of
+        paint read as *opalescent*, as if the light were scattering within the
+        paint layers and emerging with a faint iridescent shimmer.  This effect
+        results from multiple thin glazes built over a lighter ground: the
+        scattering path length within the paint film varies slightly across
+        smooth surfaces, giving a pearl-like luminous depth.
+
+        This pass identifies smooth tonal zones (low local gradient magnitude)
+        and applies a gentle pearlescent modulation:
+          — A slight cool-blue lift in the brightest smooth areas (sky light
+            scattered back through the surface of the paint film)
+          — A subtle luminance boost in smooth midtones (glazing transparency
+            lifting the underlying ground)
+
+        This is distinct from sfumato_veil_pass (which blurs edges), from
+        atmospheric_depth_pass (which applies depth-cued haze), and from
+        moretto_silver_luminance_pass (which sculpts Lab chroma globally).
+        The pearlescent pass is LOCAL and STRUCTURE-SENSITIVE: it only
+        modulates smooth, gradual zones, leaving textured passages untouched.
+
+        Algorithm:
+        ──────────
+        (1) GRADIENT MAGNITUDE: compute per-channel Sobel gradient and combine
+            into a single luminance-weighted magnitude map M(x,y).
+        (2) SMOOTHNESS MASK: S = clip(1 − M / grad_thresh, 0, 1)²
+            S is 1.0 in perfectly uniform zones, 0.0 at edges and textures.
+        (3) PEARLESCENT COOL LIFT: in bright smooth areas, add a slight B
+            channel gain (B_pearl = B + pearl_cool × S × L) — sky light
+            scattering back through the thin paint film.
+        (4) SMOOTH ZONE LUMINANCE LIFT: add a gentle luminance-proportional
+            brightening in smooth areas (all channels):
+            C_lift = C + pearl_lift × S × L   (L = pixel luminance).
+        (5) Composite at opacity.
+
+        Parameters
+        ──────────
+        smooth_sigma : Gaussian pre-smooth sigma for gradient stability.
+        pearl_cool   : Blue channel boost in smooth bright areas.
+        pearl_lift   : Luminance boost in smooth areas.
+        grad_thresh  : Gradient magnitude above which smoothness mask = 0.
+        opacity      : Final composite weight (0–1).
+        """
+        print(f"Pearlescent sfumato pass (smooth-zone opalescent shimmer, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── (1) Gradient magnitude on pre-smoothed luminance ─────────────────
+        lum_smooth = _gf(lum, sigma=smooth_sigma)
+        sx = _sobel(lum_smooth, axis=1)
+        sy = _sobel(lum_smooth, axis=0)
+        grad_mag = _np.sqrt(sx * sx + sy * sy)
+
+        # ── (2) Smoothness mask ───────────────────────────────────────────────
+        eps = 1e-6
+        raw_mask = _np.clip(1.0 - grad_mag / (grad_thresh + eps), 0.0, 1.0)
+        smooth_mask = raw_mask * raw_mask   # square for sharper falloff at edges
+
+        # ── (3) Pearlescent cool lift (B channel boost in bright smooth areas) ─
+        b_pearl = _np.clip(b0 + pearl_cool * smooth_mask * lum, 0.0, 1.0)
+
+        # ── (4) Smooth zone luminance lift (all channels) ─────────────────────
+        r_lift = _np.clip(r0 + pearl_lift * smooth_mask * lum, 0.0, 1.0)
+        g_lift = _np.clip(g0 + pearl_lift * smooth_mask * lum, 0.0, 1.0)
+        b_lift = _np.clip(b_pearl + pearl_lift * smooth_mask * lum, 0.0, 1.0)
+
+        # ── (5) Composite at opacity ──────────────────────────────────────────
+        r_fin = r0 * (1.0 - opacity) + r_lift * opacity
+        g_fin = g0 * (1.0 - opacity) + g_lift * opacity
+        b_fin = b0 * (1.0 - opacity) + b_lift * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Pearlescent sfumato pass complete.")
