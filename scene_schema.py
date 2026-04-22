@@ -292,6 +292,7 @@ class Period(Enum):
     NEAPOLITAN_BAROQUE_CLASSICISM = auto()  # Massimo Stanzione — warm Reni-derived ivory highlights, cool violet shadow penumbra, Laplacian pyramid mid-frequency clarity, golden Bolognese classicist flesh
     BOLOGNESE_ARCADIAN_CLASSICISM = auto()  # Francesco Albani — pearl-ivory ambient glow, rose-peach skin bloom, cool sky-reflected shadow, chromatic aerial perspective
     FLORENTINE_MONUMENTAL_CLASSICISM = auto()  # Fra Bartolommeo — warm chestnut-amber ground, rich saturated chiaroscuro, Sobel-gradient velo shadow modulation, monumental devotional serenity
+    BOLOGNESE_CLASSICAL_NATURALISM = auto()  # Domenichino — cerulean cool shadows in smooth zones, crystalline clarity via local-variance field, rational geometric light structure
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1387,6 +1388,12 @@ class Style:
             # Fine strokes (face=5), soft wet blend (0.80), moderate-high edge softness (0.72) —
             # Albani's forms are resolved but never harsh; ambient light fills every shadow gently.
             Period.BOLOGNESE_ARCADIAN_CLASSICISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.80, edge_softness=0.72),
+            # Bolognese Classical Naturalism (Domenichino) — rational geometric classicism.
+            # stroke_size_face=5: precise, controlled mark-making — Domenichino's rigorous geometry.
+            # stroke_size_bg=20: measured backgrounds with clean architectural spatial order.
+            # wet_blend=0.76: very smooth flesh surfaces (Bolognese discipline + crystalline precision).
+            # edge_softness=0.45: moderate — forms clearly resolved (classicism) but not sfumato-soft.
+            Period.BOLOGNESE_CLASSICAL_NATURALISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.76, edge_softness=0.45),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

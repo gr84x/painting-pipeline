@@ -28594,8 +28594,8 @@ class Painter:
         violet_r:       float = 0.005,
         arc_lo:         float = 0.32,
         arc_hi:         float = 0.62,
-        arc_r:          float = 0.014,
-        arc_g:          float = 0.006,
+        arc_r:          float = 0.040,
+        arc_g:          float = 0.018,
         blur_radius:    float = 3.5,
         opacity:        float = 0.30,
     ) -> None:
@@ -30353,3 +30353,174 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Fra Bartolommeo velo shadow pass complete.")
+
+    # ── Session 127 ───────────────────────────────────────────────────────────
+
+    def domenichino_cerulean_crystalline_pass(
+        self,
+        *,
+        local_window:        int   = 7,
+        cerulean_threshold:  float = 0.005,
+        cerulean_b:          float = 0.038,
+        cerulean_g:          float = 0.010,
+        cerulean_r:          float = 0.012,
+        shadow_limit:        float = 0.52,
+        clarity_threshold:   float = 0.008,
+        clarity_strength:    float = 0.040,
+        clarity_blur:        float = 2.0,
+        blur_radius:         float = 3.0,
+        opacity:             float = 1.0,
+    ) -> None:
+        """
+        Domenichino cerulean crystalline pass — session 127 new artist pass.
+
+        Domenico Zampieri 'Il Domenichino' (1581–1641) was the supreme
+        classicist of the Bolognese school — a direct student of Annibale
+        Carracci alongside Albani and Guido Reni, and arguably the most
+        intellectually rigorous of the three.  Where Albani pursued lyrical
+        pastoral sweetness and Reni pursued transcendent spiritual luminosity,
+        Domenichino pursued rational geometric clarity: figures constructed on
+        precise underlying geometry, light falling in crystalline rational
+        pools, shadow zones of remarkable cerulean coolness — the optical
+        signature of open-sky Bolognese classicism pushed to its ultimate
+        resolution.
+
+        Two qualities define his visual signature:
+
+        **Cerulean shadow cooling** — Domenichino's shadow zones carry a
+        distinctive cool cerulean-blue tone that makes his penumbra zones
+        feel spatially recessive and atmospherically pure.  Unlike Solario's
+        Venetian violet shadow or Albani's sky-reflected cool, Domenichino's
+        cerulean is more saturated and geometrically precise — it appears
+        specifically in the smooth, resolved flat zones of shadow, not at
+        edges or textural complexity.  This is a physically motivated
+        observation: smooth flat surfaces in shadow reflect the colour of
+        the open sky (cerulean), while textured surfaces scatter light more
+        diffusely.
+
+        **Crystalline flat-zone clarity** — Domenichino's lit flesh zones
+        have an extraordinary crystalline smoothness; his textured detail
+        zones (hair, fabric folds, landscape features) have precise, crisp
+        local contrast that reads as intellectually resolved rather than
+        painterly.  The transition between these zones is always rational
+        and controlled — no accident of the brush.
+
+        This is the session 127 artistic improvement: **local-variance-field
+        analysis** — a fifth distinct processing mode for this pipeline:
+
+        Previous processing modes:
+          s123 Rosa:       spatial displacement (turbulent flow warping)
+          s124 Stanzione:  frequency-band decomposition (Laplacian pyramid)
+          s125 Albani:     vertical spatial gradient (chromatic aerial perspective)
+          s126 Bartolommeo: edge-map-driven modulation (Sobel form ridges)
+          s127 Domenichino: LOCAL VARIANCE FIELD (smooth-vs-textured zone detection)
+
+        The algorithm:
+        (1) Compute local luminance variance using a sliding-window
+            uniform filter: var = E[lum²] - E[lum]².
+        (2) Smooth the variance map with a Gaussian to create soft
+            zone boundaries.
+        (3) LOW-VARIANCE zones (smooth, flat areas) below the shadow
+            luminance limit: apply cerulean cooling — increase B, reduce R.
+            This models Domenichino's smooth sky-reflected cerulean shadow.
+        (4) HIGH-VARIANCE zones (textured, complex areas): apply gentle
+            unsharp masking (local contrast enhancement) — sharpen fine
+            details for Domenichino's crystalline precision.
+
+        Parameters
+        ----------
+        local_window : pixel size of the variance-computation window
+        cerulean_threshold : local variance below this → cerulean zone
+        cerulean_b : B channel increase in cerulean shadow zones
+        cerulean_g : G channel increase in cerulean zones (slight teal)
+        cerulean_r : R channel reduction in cerulean zones
+        shadow_limit : luminance ceiling for cerulean activation (shadow/mid-tone only)
+        clarity_threshold : local variance above this → detail clarity zone
+        clarity_strength : unsharp mask strength in high-variance zones
+        clarity_blur : Gaussian sigma for unsharp masking reference
+        blur_radius : Gaussian sigma for smoothing the variance map
+        opacity : global compositing weight
+
+        Notes
+        -----
+        Characteristic works:
+          *The Last Communion of Saint Jerome* (Pinacoteca Vaticana, 1614) —
+            cerulean robe, crystalline pale flesh, supremely rational spatial order
+          *Diana Hunting* (Galleria Borghese, c. 1616–1617) —
+            sky-blue shadows on smooth flesh, crisp detail in foliage and costume
+          *Saint Cecilia* (Fresco, San Luigi dei Francesi, Rome, 1614–1617) —
+            extraordinary clarity and geometric precision of the classicist ideal
+        """
+        print(f"Domenichino cerulean crystalline pass "
+              f"(opacity={opacity:.2f} cerulean_b={cerulean_b:.3f} "
+              f"clarity_strength={clarity_strength:.3f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, uniform_filter as _uf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Local variance field ─────────────────────────────────────
+        # Compute pixel-wise local luminance variance via uniform_filter.
+        # variance = E[X²] - E[X]² — zero on perfectly flat zones.
+        lum_sq    = lum ** 2
+        mean_lum  = _uf(lum.astype(_np.float32),    size=local_window)
+        mean_sq   = _uf(lum_sq.astype(_np.float32), size=local_window)
+        variance  = _np.clip(mean_sq - mean_lum ** 2, 0.0, None)
+        var_smooth = _gf(variance.astype(_np.float32), sigma=blur_radius)
+        var_smooth = _np.clip(var_smooth, 0.0, None)
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Stage 2: Cerulean shadow cooling (low-variance shadow zones) ───────
+        # Smooth zones (low variance) in shadow/mid-tone luminance range receive
+        # the cerulean cooling that characterises Domenichino's shadow geometry.
+        smooth_weight = _np.clip(
+            1.0 - var_smooth / (cerulean_threshold + 1e-7), 0.0, 1.0
+        )
+        shadow_weight = _np.clip(
+            (shadow_limit - lum) / (shadow_limit + 1e-7), 0.0, 1.0
+        )
+        cerulean_mask = smooth_weight * shadow_weight
+
+        b_out = _np.clip(b_out + cerulean_mask * cerulean_b, 0.0, 1.0)
+        g_out = _np.clip(g_out + cerulean_mask * cerulean_g, 0.0, 1.0)
+        r_out = _np.clip(r_out - cerulean_mask * cerulean_r, 0.0, 1.0)
+
+        # ── Stage 3: Crystalline clarity (high-variance detail zones) ──────────
+        # Textured zones receive gentle unsharp masking — the high-frequency
+        # luminance detail is amplified for Domenichino's crisp intellectualism.
+        if clarity_strength > 0.0:
+            detail_weight = _np.clip(
+                (var_smooth - clarity_threshold) / (clarity_threshold + 1e-7),
+                0.0, 1.0,
+            )
+            lum_blurred  = _gf(lum.astype(_np.float32), sigma=clarity_blur)
+            detail_signal = lum - lum_blurred           # high-frequency residual
+            sharpening    = detail_weight * clarity_strength * detail_signal
+            r_out = _np.clip(r_out + sharpening, 0.0, 1.0)
+            g_out = _np.clip(g_out + sharpening, 0.0, 1.0)
+            b_out = _np.clip(b_out + sharpening, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Domenichino cerulean crystalline pass complete.")

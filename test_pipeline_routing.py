@@ -13599,3 +13599,121 @@ def test_neapolitan_baroque_classicism_stroke_params_moderate_edge_softness():
     assert 0.50 <= p["edge_softness"] <= 0.85, (
         f"NEAPOLITAN_BAROQUE_CLASSICISM edge_softness should be 0.50-0.85 "
         f"(moderate sfumato, resolved classical forms); got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 127 — Domenichino cerulean crystalline pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_domenichino_cerulean_crystalline_pass_exists():
+    """Painter must have domenichino_cerulean_crystalline_pass() method after session 127."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "domenichino_cerulean_crystalline_pass"), (
+        "domenichino_cerulean_crystalline_pass not found on Painter — add to stroke_engine.py")
+    assert callable(getattr(Painter, "domenichino_cerulean_crystalline_pass"))
+
+
+def test_domenichino_cerulean_crystalline_pass_no_error():
+    """domenichino_cerulean_crystalline_pass() runs on a warm canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.35, 0.28, 0.18), texture_strength=0.05)
+    p.domenichino_cerulean_crystalline_pass(opacity=0.32)
+
+
+def test_domenichino_cerulean_crystalline_pass_modifies_canvas():
+    """domenichino_cerulean_crystalline_pass() must modify the canvas at non-zero opacity."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.35, 0.28, 0.18), texture_strength=0.05)
+    before = _canvas_bytes(p)
+    p.domenichino_cerulean_crystalline_pass(
+        cerulean_b=0.055,
+        shadow_limit=0.55,
+        opacity=0.60,
+    )
+    after = _canvas_bytes(p)
+    assert before != after, "domenichino_cerulean_crystalline_pass should modify the canvas"
+
+
+def test_domenichino_cerulean_crystalline_pass_zero_opacity_noop():
+    """domenichino_cerulean_crystalline_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.35, 0.28, 0.18), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.domenichino_cerulean_crystalline_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "domenichino_cerulean_crystalline_pass(opacity=0) should be a noop")
+
+
+def test_domenichino_cerulean_crystalline_pass_cools_smooth_shadows():
+    """domenichino_cerulean_crystalline_pass must raise B in smooth dark zones."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = _make_small_painter(W, H)
+    # Uniform dark warm fill — low variance + below shadow_limit → cerulean activates
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4)).copy()
+    data[:, :, :] = [60, 90, 120, 255]   # BGRA: B=60 (low), G=90, R=120, lum ≈ 0.375
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_b = data[:, :, 0].astype(_np.float32).mean()
+    p.domenichino_cerulean_crystalline_pass(
+        cerulean_b=0.060,
+        shadow_limit=0.50,
+        opacity=1.0,
+    )
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4))
+    after_b = after_buf[:, :, 0].astype(_np.float32).mean()
+    assert after_b > orig_b, (
+        f"domenichino_cerulean_crystalline_pass must raise B in dark smooth zones; "
+        f"before={orig_b:.1f}, after={after_b:.1f}")
+
+
+def test_domenichino_cerulean_crystalline_pass_preserves_canvas_shape():
+    """domenichino_cerulean_crystalline_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.62, 0.52, 0.38), texture_strength=0.05)
+    p.domenichino_cerulean_crystalline_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after domenichino_cerulean_crystalline_pass: {img.size}")
+
+
+def test_bolognese_classical_naturalism_period_present():
+    """Period.BOLOGNESE_CLASSICAL_NATURALISM must be in the Period enum (session 127)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BOLOGNESE_CLASSICAL_NATURALISM"), (
+        "Period.BOLOGNESE_CLASSICAL_NATURALISM not found -- add it to scene_schema.py")
+    assert Period.BOLOGNESE_CLASSICAL_NATURALISM in list(Period)
+
+
+def test_bolognese_classical_naturalism_stroke_params_high_wet_blend():
+    """BOLOGNESE_CLASSICAL_NATURALISM stroke_params must have high wet_blend (smooth Domenichino)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_CLASSICAL_NATURALISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.65, (
+        f"BOLOGNESE_CLASSICAL_NATURALISM wet_blend should be >= 0.65 "
+        f"for Domenichino's crystalline smooth surfaces; got {p['wet_blend']}")
+
+
+def test_bolognese_classical_naturalism_stroke_params_moderate_edge_softness():
+    """BOLOGNESE_CLASSICAL_NATURALISM edge_softness must be in moderate range (0.30 to 0.60)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_CLASSICAL_NATURALISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.30 <= p["edge_softness"] <= 0.60, (
+        f"BOLOGNESE_CLASSICAL_NATURALISM edge_softness should be 0.30-0.60 "
+        f"(classically resolved forms, not sfumato); got {p['edge_softness']}")
+
+
+def test_domenichino_cerulean_crystalline_pass_accepts_local_window():
+    """domenichino_cerulean_crystalline_pass must accept local_window parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.domenichino_cerulean_crystalline_pass)
+    assert "local_window" in sig.parameters, (
+        "domenichino_cerulean_crystalline_pass must have 'local_window' parameter "
+        "(variance window size — session 127 local-variance-field improvement)")

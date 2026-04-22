@@ -139,6 +139,7 @@ EXPECTED_ARTISTS = [
     "salvator_rosa",
     "massimo_stanzione",
     "albani",
+    "domenichino",
 ]
 
 
@@ -15235,3 +15236,87 @@ def test_florentine_monumental_classicism_period_exists():
     assert hasattr(Period, "FLORENTINE_MONUMENTAL_CLASSICISM"), (
         "FLORENTINE_MONUMENTAL_CLASSICISM missing from Period enum — "
         "add to scene_schema.py for session 126 (Fra Bartolommeo)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domenichino — session 127 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_domenichino_in_catalog():
+    """Domenichino (session 127) must be in the catalog."""
+    assert "domenichino" in CATALOG, (
+        "domenichino not found in CATALOG — add it to art_catalog.py")
+
+
+def test_domenichino_movement():
+    """Domenichino movement must reference Bolognese or Netherlandish classical lineage."""
+    s = get_style("domenichino")
+    assert ("Bolognese" in s.movement or "bolognese" in s.movement.lower()
+            or "Classical" in s.movement or "Netherlandish" in s.movement), (
+        f"Domenichino movement should reference 'Bolognese' or 'Classical'; got {s.movement!r}")
+
+
+def test_domenichino_palette_length():
+    """Domenichino palette should have at least 7 colours."""
+    s = get_style("domenichino")
+    assert len(s.palette) >= 7, (
+        f"Domenichino palette should have ≥7 colours; got {len(s.palette)}")
+
+
+def test_domenichino_palette_values_in_range():
+    """All Domenichino palette RGB values must be in [0, 1]."""
+    s = get_style("domenichino")
+    for i, rgb in enumerate(s.palette):
+        assert len(rgb) == 3, f"Domenichino palette[{i}] must have 3 components"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"Domenichino palette[{i}] channel out of range [0,1]: {ch}")
+
+
+def test_domenichino_edge_softness_moderate():
+    """Domenichino edge_softness should be between 0.30 and 0.60 — resolved classical forms."""
+    s = get_style("domenichino")
+    assert 0.30 <= s.edge_softness <= 0.60, (
+        f"Domenichino edge_softness={s.edge_softness:.2f} should be 0.30–0.60 "
+        f"(classically resolved forms — not sfumato, not crisp Northern precision)")
+
+
+def test_domenichino_wet_blend_high():
+    """Domenichino wet_blend should be >= 0.65 — very smooth crystalline Bolognese surfaces."""
+    s = get_style("domenichino")
+    assert s.wet_blend >= 0.65, (
+        f"Domenichino wet_blend={s.wet_blend:.2f} should be ≥0.65 "
+        f"(smooth crystalline flesh surface discipline of the Bolognese school)")
+
+
+def test_domenichino_ground_color_valid():
+    """Domenichino ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("domenichino")
+    assert len(s.ground_color) == 3, "Domenichino ground_color not a 3-tuple"
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, (
+            f"Domenichino ground_color channel {ch} out of [0, 1]")
+
+
+def test_domenichino_technique_mentions_cerulean():
+    """Domenichino technique text must mention cerulean (signature shadow colour)."""
+    s = get_style("domenichino")
+    assert "cerulean" in s.technique.lower(), (
+        "Domenichino technique should reference 'cerulean' — "
+        "his shadow zones' cool cerulean blue is his most distinctive quality")
+
+
+def test_domenichino_inspiration_mentions_variance():
+    """Domenichino inspiration text must mention variance (session 127 technique)."""
+    s = get_style("domenichino")
+    assert "variance" in s.inspiration.lower(), (
+        "Domenichino inspiration should reference 'variance' — "
+        "the local-variance field is the session 127 artistic improvement")
+
+
+def test_bolognese_classical_naturalism_period_exists():
+    """BOLOGNESE_CLASSICAL_NATURALISM must exist in the Period enum (session 127)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BOLOGNESE_CLASSICAL_NATURALISM"), (
+        "BOLOGNESE_CLASSICAL_NATURALISM missing from Period enum — "
+        "add to scene_schema.py for session 127 (Domenichino)")

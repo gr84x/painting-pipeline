@@ -11023,6 +11023,89 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 127 ───────────────────────────────────────────────────────────
+    "domenichino": ArtStyle(
+        artist="Domenichino",
+        movement="Early Netherlandish Bolognese Classical Naturalism",
+        nationality="Italian (Bolognese)",
+        period="c. 1598–1641",
+        palette=[
+            (0.84, 0.73, 0.58),   # warm ivory flesh — cool compared to Rosa, warmer than Stanzione
+            (0.66, 0.54, 0.38),   # golden sienna mid-tone — Bolognese academic ground reflection
+            (0.44, 0.40, 0.56),   # cerulean-grey shadow — Domenichino's signature cool shadow zone
+            (0.22, 0.28, 0.48),   # deep cerulean dark — the shadow's inner depth, sky-reflected
+            (0.58, 0.70, 0.82),   # open sky cerulean — source of the shadow colour temperature
+            (0.36, 0.26, 0.16),   # warm umber ground plane — Bolognese imprimatura
+            (0.80, 0.76, 0.90),   # cool pearl-lavender highlight — the crystalline apex of lit flesh
+            (0.52, 0.48, 0.40),   # neutral drapery tone — quiet, subordinate to the figure
+        ],
+        ground_color=(0.62, 0.52, 0.38),   # warm neutral Bolognese ground — golden-amber imprimatura
+        stroke_size=5,
+        wet_blend=0.76,                     # very smooth — crystalline Bolognese surface discipline
+        edge_softness=0.45,                 # moderate — forms clearly resolved, not sfumato-dissolved
+        jitter=0.016,                       # low variation — rational geometric order over painterly accident
+        glazing=(0.74, 0.70, 0.62),         # warm unifying glaze — Bolognese academic finish
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Domenico Zampieri, called Domenichino (1581–1641), was the supreme classicist of the "
+            "Bolognese school and one of the most significant figures in the reform of Italian painting "
+            "after Mannerism.  A direct student of Annibale Carracci in the Bolognese Academy, he "
+            "trained alongside Albani and Guido Reni, absorbing the Carracci reform of naturalism, "
+            "colour discipline, and drawing rigour.  But where Albani pursued pastoral sweetness and "
+            "Reni pursued spiritual transcendence, Domenichino pursued something rarer: rational, "
+            "geometric, intellectually controlled classical beauty — painting as the visible "
+            "embodiment of reason applied to nature.  "
+            "His most immediately recognisable quality is the extraordinary cerulean coolness of his "
+            "shadow zones.  In *The Last Communion of Saint Jerome* (Pinacoteca Vaticana, 1614) — "
+            "a painting that Poussin and generations of subsequent classicists revered as the second "
+            "greatest painting in Rome after the Transfiguration of Raphael — the shadow zones of "
+            "Jerome's pale flesh carry a distinctive blue-cerulean tone that makes the penumbra feel "
+            "physically cool and spatially recessive.  This is not Solario's violet (Venetian) nor "
+            "Albani's sky-blue (pastoral-outdoor) but a precise, saturated cerulean that appears "
+            "only in smooth, flat shadow zones — as if the reflective quality of a perfectly smooth "
+            "surface in shade picks up the colour of the open sky with geometric precision.  "
+            "His surfaces show a complementary split: flat zones (flesh, sky, simple drapery) are "
+            "of extraordinary smoothness and luminous crystalline clarity — Bolognese discipline "
+            "at its maximum — while textured detail zones (hair, complex fabric, landscape features) "
+            "show precise local contrast and crisp, intellectually resolved edges that read as "
+            "the product of rational geometric observation.  The contrast between these two zone "
+            "types — crystalline smoothness vs. precise textural clarity — creates the distinctive "
+            "'rationalist' quality of Domenichino's surfaces.  "
+            "Major works include *Diana Hunting* (Galleria Borghese, c. 1616–17), *The Martyrdom "
+            "of Saint Andrew* (San Gregorio al Celio, Rome), the *Saint Cecilia* fresco cycle "
+            "(San Luigi dei Francesi, Rome, 1614–17), and the Pendentives of San Carlo ai Catinari."
+        ),
+        famous_works=[
+            ("The Last Communion of Saint Jerome",    "1614"),
+            ("Diana Hunting",                         "c. 1616–1617"),
+            ("Saint Cecilia fresco cycle",            "1614–1617"),
+            ("The Martyrdom of Saint Andrew",         "c. 1608"),
+            ("Landscape with Hercules and Cacus",     "c. 1621"),
+            ("Rinaldo and Armida",                    "c. 1621"),
+            ("The Sibyl",                             "c. 1616–1617"),
+        ],
+        inspiration=(
+            "Apply domenichino_cerulean_crystalline_pass() as the defining pass for session 127.  "
+            "The pass encodes Domenichino's Bolognese Classical Naturalism in three stages built "
+            "around the session 127 artistic improvement: local-variance field analysis.  "
+            "(1) Local variance field — the session 127 artistic improvement.  All previous "
+            "colour-manipulation passes in this pipeline operate as: s123 spatial displacement, "
+            "s124 frequency-band decomposition, s125 vertical spatial gradient, s126 edge-map "
+            "modulation.  This pass introduces a fifth distinct mode: LOCAL VARIANCE FIELD — "
+            "computing a sliding-window luminance variance to identify smooth (low-variance) vs. "
+            "textured (high-variance) zones across the canvas.  "
+            "(2) Cerulean shadow cooling — in smooth, flat shadow zones (low variance + low "
+            "luminance), apply Domenichino's characteristic cerulean blue-cooling: B increase, "
+            "mild G lift, R reduction.  This is the physically motivated model of smooth surfaces "
+            "in shade reflecting open-sky cerulean light with geometric precision.  "
+            "(3) Crystalline clarity — in textured, complex zones (high variance), apply gentle "
+            "unsharp masking — amplifying the high-frequency luminance residual to recover "
+            "Domenichino's precise, intellectually resolved textural detail.  "
+            "Use at opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 
