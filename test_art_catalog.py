@@ -140,6 +140,7 @@ EXPECTED_ARTISTS = [
     "massimo_stanzione",
     "albani",
     "rosso_fiorentino",
+    "dosso_dossi",
 ]
 
 
@@ -16023,3 +16024,123 @@ def test_rosso_chromatic_dissonance_pass_has_hue_shift_flesh_parameter():
     assert "hue_shift_flesh" in sig.parameters, (
         "rosso_chromatic_dissonance_pass must have hue_shift_flesh parameter "
         "(session 131 flesh hue tension control)")
+
+
+# Session 132: Dosso Dossi + FERRARESE_COLORIST_POESIA
+#              + dosso_luminance_reflectance_pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_dosso_dossi_in_catalog():
+    """dosso_dossi must be present in the CATALOG dict (session 132)."""
+    assert "dosso_dossi" in CATALOG, (
+        "dosso_dossi not found in CATALOG -- add to art_catalog.py (session 132)")
+
+
+def test_dosso_dossi_movement_ferrarese():
+    """dosso_dossi movement must reference Ferrarese Colorist Poesia (session 132)."""
+    s = get_style("dosso_dossi")
+    assert "Ferrarese" in s.movement or "ferrarese" in s.movement.lower(), (
+        f"dosso_dossi movement should mention 'Ferrarese'; got {s.movement!r}")
+
+
+def test_dosso_dossi_palette_valid():
+    """dosso_dossi palette must contain valid RGB tuples in [0, 1] (session 132)."""
+    s = get_style("dosso_dossi")
+    assert len(s.palette) >= 5, (
+        f"dosso_dossi palette should have ≥5 colours; got {len(s.palette)}")
+    for colour in s.palette:
+        assert len(colour) == 3, f"Expected 3-tuple; got {colour!r}"
+        for ch in colour:
+            assert 0.0 <= ch <= 1.0, (
+                f"dosso_dossi palette value out of range [0,1]: {ch} in {colour!r}")
+
+
+def test_dosso_dossi_high_wet_blend():
+    """dosso_dossi wet_blend must be high (>= 0.70) — rich jewel-like fused surfaces."""
+    s = get_style("dosso_dossi")
+    assert s.wet_blend >= 0.70, (
+        f"dosso_dossi wet_blend should be >= 0.70 (jewel glazed surface); got {s.wet_blend}")
+
+
+def test_dosso_dossi_glazing_set():
+    """dosso_dossi glazing must be set (not None) — depth via transparent layers."""
+    s = get_style("dosso_dossi")
+    assert s.glazing is not None, (
+        "dosso_dossi glazing should be set (transparent glaze layers produce inner luminosity)")
+
+
+def test_dosso_dossi_technique_mentions_luminosity():
+    """dosso_dossi technique must mention luminosity or luminous quality."""
+    s = get_style("dosso_dossi")
+    assert "luminosit" in s.technique.lower() or "luminous" in s.technique.lower(), (
+        "dosso_dossi technique should describe the inner luminosity quality")
+
+
+def test_dosso_dossi_inspiration_mentions_retinex():
+    """dosso_dossi inspiration must describe the Retinex/illumination-reflectance mode."""
+    s = get_style("dosso_dossi")
+    text_lower = s.inspiration.lower()
+    assert "illumination" in text_lower and "reflectance" in text_lower, (
+        "dosso_dossi inspiration should describe ILLUMINATION-REFLECTANCE decomposition")
+
+
+def test_ferrarese_colorist_poesia_period_enum_exists():
+    """FERRARESE_COLORIST_POESIA must exist in the Period enum (session 132)."""
+    assert hasattr(Period, "FERRARESE_COLORIST_POESIA"), (
+        "FERRARESE_COLORIST_POESIA missing from Period enum -- "
+        "add to scene_schema.py (session 132)")
+
+
+def test_dosso_luminance_reflectance_pass_exists():
+    """Painter must have dosso_luminance_reflectance_pass() method after session 132."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "dosso_luminance_reflectance_pass"), (
+        "dosso_luminance_reflectance_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "dosso_luminance_reflectance_pass"))
+
+
+def test_dosso_luminance_reflectance_pass_no_error():
+    """dosso_luminance_reflectance_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.48, 0.38, 0.26), texture_strength=0.05)
+    p.dosso_luminance_reflectance_pass(opacity=0.34)
+
+
+def test_dosso_luminance_reflectance_pass_modifies_canvas():
+    """dosso_luminance_reflectance_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.48, 0.38, 0.26), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.dosso_luminance_reflectance_pass(opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "dosso_luminance_reflectance_pass should modify the canvas at opacity=0.60")
+
+
+def test_dosso_luminance_reflectance_pass_preserves_shape():
+    """dosso_luminance_reflectance_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.48, 0.38, 0.26), texture_strength=0.05)
+    p.dosso_luminance_reflectance_pass(opacity=0.34)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after dosso_luminance_reflectance_pass: {img.size}")
+
+
+def test_dosso_luminance_reflectance_pass_has_sigma_illum_parameter():
+    """dosso_luminance_reflectance_pass must accept sigma_illum parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.dosso_luminance_reflectance_pass)
+    assert "sigma_illum" in sig.parameters, (
+        "dosso_luminance_reflectance_pass must have sigma_illum parameter "
+        "(session 132 illumination estimation control)")

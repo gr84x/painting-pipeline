@@ -31120,3 +31120,170 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Rosso Fiorentino chromatic dissonance pass complete.")
+
+    # dosso_luminance_reflectance_pass — Session 132
+    # ─────────────────────────────────────────────────────────────────────────
+    def dosso_luminance_reflectance_pass(
+        self,
+        sigma_illum:    float = 60.0,
+        sat_boost:      float = 0.22,
+        illum_warm_r:   float = 0.06,
+        illum_warm_g:   float = 0.02,
+        opacity:        float = 0.34,
+    ) -> None:
+        """
+        Dosso Dossi — Ferrarese Colorist Poesia (session 132).
+
+        Giovanni di Niccolò de Lutteri, called Dosso Dossi (c.1490–1542), was
+        the premier court painter of Ferrara under Alfonso I d'Este.  He united
+        the chromatic vision of Giorgione and Titian with Ferrarese jewel-like
+        color intensity and a poetic, mythological imagination.  His palette
+        has an unmistakable quality of inner luminosity: warm amber-gold light
+        seems to emanate from the ground of the canvas itself, saturating colors
+        from below rather than illuminating them from above.  The Circe (c.1514)
+        and Melissa (c.1520) are the defining images — rich, saturated jewel
+        tones, dense forest shadows, and warm ochre-gold light that reads like
+        a dream of Renaissance color.
+
+        This pass encodes Dosso's inner luminosity as the tenth distinct
+        processing mode: ILLUMINATION-REFLECTANCE DECOMPOSITION (Retinex).
+
+        All prior pipeline processing modes:
+          s123 Rosa        — spatial displacement (turbulent flow warping)
+          s124 Stanzione   — frequency-band decomposition (Laplacian pyramid)
+          s125 Albani      — vertical spatial gradient
+          s126 Bartolommeo — edge-map modulation (Sobel form ridges)
+          s127 Cantarini   — spectral channel-selective diffusion
+          s128 Carpaccio   — local variance std-map spatial adaptation
+          s129 Piazzetta   — global histogram percentile tonal sculpting
+          s130 Sebastiano  — image structure tensor coherence analysis
+          s131 Rosso       — hue-selective chromatic tension mapping
+
+        Session 132 introduces the tenth distinct mode:
+        ILLUMINATION-REFLECTANCE DECOMPOSITION (Retinex-inspired).
+
+        Physical model: any image L can be approximated as the product of
+        illumination I (slowly-varying, large-scale light distribution) and
+        reflectance R (fine-grained, local surface color):
+
+            L = I × R   →   log(L) = log(I) + log(R)
+
+        The illumination I is estimated as a strong Gaussian blur of the
+        log-image.  The reflectance R = L / (I + ε) captures the intrinsic
+        local color, liberated from the global light envelope.
+
+        Two artistic interventions are then applied independently:
+
+        (1) REFLECTANCE SATURATION BOOST
+            The reflectance layer R is converted to HSV, and its saturation
+            channel is amplified by sat_boost.  This is Dosso's "jewel"
+            quality: locally saturated colors that read as luminous from
+            within, not as brightly lit from without.
+
+        (2) ILLUMINATION WARMTH TINT
+            The illumination layer I receives a warm amber tint — a slight
+            positive offset on R and G channels (illum_warm_r, illum_warm_g).
+            This models Dosso's warm Ferrarese ground: a pervasive golden
+            warmth that unifies the canvas without flattening the local colors.
+
+        The modified I' and R' are recombined (I' × R'), clamped to [0, 1],
+        and composited at opacity over the original canvas.
+
+        This is the first pipeline mode to operate in LOG-DOMAIN
+        ILLUMINATION/REFLECTANCE SPACE — decomposing the image into its
+        physical lighting component and its surface-color component, then
+        modifying each independently before reconstruction.
+
+        Parameters
+        ----------
+        sigma_illum   : Gaussian blur sigma for illumination estimation (pixels)
+                        Larger → smoother illumination model, more of the
+                        local color detail attributed to reflectance
+        sat_boost     : Saturation multiplier added to reflectance HSV S channel
+                        (0 = no effect; 0.22 = Dosso's jewel richness)
+        illum_warm_r  : Warm amber offset added to illumination R channel (0–1)
+        illum_warm_g  : Warm amber offset added to illumination G channel (0–1)
+        opacity       : Composite weight blended back onto the original (0–1)
+        """
+        print(f"Dosso Dossi illumination-reflectance pass "
+              f"(opacity={opacity:.2f} sigma_illum={sigma_illum:.0f} "
+              f"sat_boost={sat_boost:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32 layout: channel 0 = B, 1 = G, 2 = R, 3 = A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        eps = 1e-6
+
+        # ── Log-domain illumination estimation ───────────────────────────────
+        log_r = _np.log(r0 + eps)
+        log_g = _np.log(g0 + eps)
+        log_b = _np.log(b0 + eps)
+
+        # Illumination = blurred log-image (large scale light distribution)
+        log_I_r = _gf(log_r, sigma=sigma_illum)
+        log_I_g = _gf(log_g, sigma=sigma_illum)
+        log_I_b = _gf(log_b, sigma=sigma_illum)
+
+        I_r = _np.exp(log_I_r)
+        I_g = _np.exp(log_I_g)
+        I_b = _np.exp(log_I_b)
+
+        # Reflectance = image / illumination (intrinsic local color)
+        R_r = _np.clip(r0 / (I_r + eps), 0.0, 4.0)
+        R_g = _np.clip(g0 / (I_g + eps), 0.0, 4.0)
+        R_b = _np.clip(b0 / (I_b + eps), 0.0, 4.0)
+
+        # ── (1) Reflectance saturation boost (Dosso's jewel quality) ─────────
+        # Convert reflectance RGB → HSV, boost S, convert back
+        Cmax_R = _np.maximum(_np.maximum(R_r, R_g), R_b)
+        Cmin_R = _np.minimum(_np.minimum(R_r, R_g), R_b)
+        delta_R = Cmax_R - Cmin_R
+
+        V_R = Cmax_R
+        S_R = _np.where(Cmax_R > eps, delta_R / (Cmax_R + eps), 0.0).astype(_np.float32)
+        S_R_boosted = _np.clip(S_R + sat_boost, 0.0, 1.0)
+
+        # Scale individual channels to preserve hue while boosting saturation
+        # New channel = V - S_new*(V - channel_old/V_old * (V_old - S_old*V_old))
+        # Simplified: channel_out = V * (1 - S_new) + channel_in * (S_new / (S_R + eps))
+        # where S_R here is the old saturation — but this is tricky vectorially.
+        # Simpler approach: desaturate fully then re-saturate at new level.
+        # channel_grey = V_R (pure value, S=0); channel_out = lerp(grey, channel_in, S_new/max(S_R,eps))
+        S_scale = _np.where(S_R > eps, S_R_boosted / (S_R + eps), 1.0)
+        grey_R = V_R  # desaturated target (S=0 means R=G=B=V)
+        R_r_sat = _np.clip(grey_R + (R_r - grey_R) * S_scale, 0.0, 4.0)
+        R_g_sat = _np.clip(grey_R + (R_g - grey_R) * S_scale, 0.0, 4.0)
+        R_b_sat = _np.clip(grey_R + (R_b - grey_R) * S_scale, 0.0, 4.0)
+
+        # ── (2) Illumination warmth tint (Ferrarese amber ground) ─────────────
+        I_r_warm = _np.clip(I_r + illum_warm_r, 0.0, 2.0)
+        I_g_warm = _np.clip(I_g + illum_warm_g, 0.0, 2.0)
+        I_b_warm = I_b  # blue channel unchanged — amber tint = warm R+G shift
+
+        # ── Reconstruct ───────────────────────────────────────────────────────
+        out_r = _np.clip(I_r_warm * R_r_sat, 0.0, 1.0).astype(_np.float32)
+        out_g = _np.clip(I_g_warm * R_g_sat, 0.0, 1.0).astype(_np.float32)
+        out_b = _np.clip(I_b_warm * R_b_sat, 0.0, 1.0).astype(_np.float32)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + out_r * opacity
+        g_final = g0 * (1.0 - opacity) + out_g * opacity
+        b_final = b0 * (1.0 - opacity) + out_b * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Dosso Dossi illumination-reflectance pass complete.")

@@ -297,6 +297,7 @@ class Period(Enum):
     VENETIAN_BAROQUE_TENEBRISM = auto()  # Piazzetta — warm velvet near-black shadow compression, amber impasto highlight lift, percentile-adaptive tonal sculpting, candlelight intimacy
     VENETIAN_ROMAN_SYNTHESIS   = auto()  # Sebastiano del Piombo — Venetian color richness fused with Michelangelesque monumental gravity; structure-tensor coherence-driven form smoothing; deep warm-umber depth
     FLORENTINE_ACIDIC_MANNERISM = auto()  # Rosso Fiorentino — acid dissonant palette, bleached near-cadaverous flesh, hue-selective chromatic tension mapping, angular electrified Mannerist dissonance
+    FERRARESE_COLORIST_POESIA  = auto()  # Dosso Dossi — jewel-like chromatic poetry, warm amber-gold illumination, luminous colour saturation from within; illumination-reflectance decomposition (Retinex) mode
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1436,6 +1437,15 @@ class Style:
             # edge_softness=0.20: sharp, almost aggressive edge definition — no sfumato
             # softness here; forms are stated with angular, electric conviction.
             Period.FLORENTINE_ACIDIC_MANNERISM: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.22, edge_softness=0.20),
+            # FERRARESE_COLORIST_POESIA (Dosso Dossi) — jewel-like colour poetry, warm amber-gold
+            # illumination. stroke_size_face=6: careful, considered mark-making — Dosso's surfaces
+            # are smooth and richly glazed, not rough or impulsive. stroke_size_bg=28: backgrounds
+            # extend into poetic Giorgionesque landscape — broad, atmospheric marks.
+            # wet_blend=0.82: strong blending — surfaces are deeply fused, jewel-like, with no
+            # visible canvas tooth; colour layers merge into inner luminosity. edge_softness=0.65:
+            # Giorgionesque soft edges — forms emerge from shadow rather than being sharply stated;
+            # the sfumato inheritance from North Italian colorism.
+            Period.FERRARESE_COLORIST_POESIA: dict(stroke_size_face=6, stroke_size_bg=28, wet_blend=0.82, edge_softness=0.65),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

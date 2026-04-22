@@ -14065,3 +14065,64 @@ def test_rosso_chromatic_dissonance_pass_accepts_opacity():
     assert "opacity" in sig.parameters, (
         "rosso_chromatic_dissonance_pass must have opacity parameter "
         "(session 131 hue-selective chromatic tension mapping)")
+
+
+# Session 132: Dosso Dossi + FERRARESE_COLORIST_POESIA
+#              + dosso_luminance_reflectance_pass (illumination-reflectance mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ferrarese_colorist_poesia_period_exists():
+    """Period.FERRARESE_COLORIST_POESIA must be in the Period enum (session 132)."""
+    from scene_schema import Period
+    assert hasattr(Period, "FERRARESE_COLORIST_POESIA"), (
+        "Period.FERRARESE_COLORIST_POESIA not found -- add it to scene_schema.py")
+    assert Period.FERRARESE_COLORIST_POESIA in list(Period)
+
+
+def test_ferrarese_colorist_poesia_high_wet_blend():
+    """FERRARESE_COLORIST_POESIA wet_blend must be high (>= 0.70) — jewel-like fused surfaces."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.FERRARESE_COLORIST_POESIA,
+                  wet_blend=None, edge_softness=None)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.70, (
+        f"FERRARESE_COLORIST_POESIA wet_blend should be >= 0.70 "
+        f"(jewel glazed surface quality); got {p['wet_blend']:.2f}")
+
+
+def test_ferrarese_colorist_poesia_soft_edges():
+    """FERRARESE_COLORIST_POESIA edge_softness must be >= 0.55 — Giorgionesque soft edges."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.FERRARESE_COLORIST_POESIA,
+                  wet_blend=None, edge_softness=None)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.55, (
+        f"FERRARESE_COLORIST_POESIA edge_softness should be >= 0.55 "
+        f"(Giorgionesque sfumato-soft edges); got {p['edge_softness']:.2f}")
+
+
+def test_dosso_luminance_reflectance_pass_exists_on_painter():
+    """Painter must have dosso_luminance_reflectance_pass() after session 132."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "dosso_luminance_reflectance_pass"), (
+        "dosso_luminance_reflectance_pass not found on Painter -- "
+        "add to stroke_engine.py for session 132")
+    assert callable(getattr(Painter, "dosso_luminance_reflectance_pass"))
+
+
+def test_dosso_luminance_reflectance_pass_no_error_routing():
+    """dosso_luminance_reflectance_pass() must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.48, 0.38, 0.26), texture_strength=0.05)
+    p.dosso_luminance_reflectance_pass(opacity=0.34)
+
+
+def test_dosso_luminance_reflectance_pass_accepts_opacity():
+    """dosso_luminance_reflectance_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.dosso_luminance_reflectance_pass)
+    assert "opacity" in sig.parameters, (
+        "dosso_luminance_reflectance_pass must have opacity parameter "
+        "(session 132 illumination-reflectance decomposition)")
