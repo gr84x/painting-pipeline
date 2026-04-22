@@ -292,6 +292,7 @@ class Period(Enum):
     NEAPOLITAN_BAROQUE_CLASSICISM = auto()  # Massimo Stanzione — warm Reni-derived ivory highlights, cool violet shadow penumbra, Laplacian pyramid mid-frequency clarity, golden Bolognese classicist flesh
     BOLOGNESE_ARCADIAN_CLASSICISM = auto()  # Francesco Albani — pearl-ivory ambient glow, rose-peach skin bloom, cool sky-reflected shadow, chromatic aerial perspective
     FLORENTINE_MONUMENTAL_CLASSICISM = auto()  # Fra Bartolommeo — warm chestnut-amber ground, rich saturated chiaroscuro, Sobel-gradient velo shadow modulation, monumental devotional serenity
+    BOLOGNESE_RENESQUE_SILVER_CLASSICISM = auto()  # Simone Cantarini — ivory-pearl flesh, cool blue-pearl penumbra scatter, rose carnation warmth, spectral channel-selective diffusion, Reni-derived silver classicism
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1387,6 +1388,16 @@ class Style:
             # Fine strokes (face=5), soft wet blend (0.80), moderate-high edge softness (0.72) —
             # Albani's forms are resolved but never harsh; ambient light fills every shadow gently.
             Period.BOLOGNESE_ARCADIAN_CLASSICISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.80, edge_softness=0.72),
+            # Florentine Monumental Classicism (Fra Bartolommeo): warm chestnut-amber ground,
+            # monumental sculptural weight, Sobel-edge velo shadow precision.
+            # Fine strokes (face=5), high wet blend (0.72), moderate-high edge softness (0.58) —
+            # resolved form ridges with warm-lit crests and cool shadow troughs.
+            Period.FLORENTINE_MONUMENTAL_CLASSICISM: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.72, edge_softness=0.58),
+            # Bolognese Renesque Silver Classicism (Cantarini): ivory-pearl flesh, pearl-fog
+            # penumbra with spectral blue scatter, rose carnation warmth.
+            # Very fine strokes (face=4), very high wet blend (0.82), very soft edges (0.74) —
+            # Cantarini's multi-glaze surface is the smoothest in the pipeline.
+            Period.BOLOGNESE_RENESQUE_SILVER_CLASSICISM: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.82, edge_softness=0.74),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

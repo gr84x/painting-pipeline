@@ -13599,3 +13599,122 @@ def test_neapolitan_baroque_classicism_stroke_params_moderate_edge_softness():
     assert 0.50 <= p["edge_softness"] <= 0.85, (
         f"NEAPOLITAN_BAROQUE_CLASSICISM edge_softness should be 0.50-0.85 "
         f"(moderate sfumato, resolved classical forms); got {p['edge_softness']}")
+
+
+# ── Session 127 — cantarini_pearl_fog_pass() ──────────────────────────────────
+
+def test_cantarini_pearl_fog_pass_exists():
+    """Painter must have cantarini_pearl_fog_pass() method (session 127)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "cantarini_pearl_fog_pass"), (
+        "cantarini_pearl_fog_pass not found on Painter")
+    assert callable(getattr(Painter, "cantarini_pearl_fog_pass"))
+
+
+def test_cantarini_pearl_fog_pass_no_error():
+    """cantarini_pearl_fog_pass() must run without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.52, 0.36), texture_strength=0.0)
+    p.cantarini_pearl_fog_pass()
+
+
+def test_cantarini_pearl_fog_pass_noop_at_opacity_zero():
+    """cantarini_pearl_fog_pass(opacity=0) must be a noop."""
+    p = _make_small_painter(64, 64)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :] = [120, 140, 160, 255]
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.cantarini_pearl_fog_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "cantarini_pearl_fog_pass(opacity=0) should be a noop")
+
+
+def test_cantarini_pearl_fog_pass_preserves_canvas_shape():
+    """cantarini_pearl_fog_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=64)
+    p.tone_ground((0.60, 0.52, 0.36), texture_strength=0.05)
+    p.cantarini_pearl_fog_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after cantarini_pearl_fog_pass: {img.size}")
+
+
+def test_cantarini_pearl_fog_pass_blue_more_diffused_than_red():
+    """cantarini_pearl_fog_pass must diffuse B more than R in penumbra zone (spectral selectivity)."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(
+        (64, 64, 4)).copy()
+    # Set left half bright, right half dark to create a visible penumbra
+    # Use a mid-tone luminance so the penumbra zone activates
+    data[:, :32, :] = [140, 145, 150, 255]   # BGRA — mid-bright
+    data[:, 32:, :] = [90, 95, 100, 255]     # BGRA — mid-dark
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    # Record the sharpness of the R and B channels at the edge boundary
+    # (columns 31 and 32).  After scatter, B should be softer (lower edge contrast).
+    p.cantarini_pearl_fog_pass(
+        sigma_r=0.5,   # very small red blur
+        sigma_b=8.0,   # large blue blur
+        sigma_g=2.0,
+        scatter_strength=1.0,
+        rose_r=0.0,
+        rose_b_damp=0.0,
+        ivory_r=0.0,
+        ivory_g=0.0,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(
+        (64, 64, 4))
+    # Edge contrast = mean(col31) - mean(col32) for each channel
+    # Blue should have lower edge contrast (more diffused) than red
+    r_edge = float(after[:, 31, 2].mean()) - float(after[:, 32, 2].mean())
+    b_edge = float(after[:, 31, 0].mean()) - float(after[:, 32, 0].mean())
+    assert b_edge <= r_edge, (
+        f"cantarini_pearl_fog_pass: blue should be more diffused (lower edge contrast) "
+        f"than red; R edge={r_edge:.2f}, B edge={b_edge:.2f}")
+
+
+def test_cantarini_pearl_fog_pass_sigma_parameters_accepted():
+    """cantarini_pearl_fog_pass must accept sigma_r, sigma_g, sigma_b parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cantarini_pearl_fog_pass)
+    for param in ("sigma_r", "sigma_g", "sigma_b"):
+        assert param in sig.parameters, (
+            f"cantarini_pearl_fog_pass must have '{param}' parameter "
+            f"(spectral channel-selective diffusion — session 127 improvement)")
+
+
+def test_bolognese_renesque_silver_classicism_period_present():
+    """Period.BOLOGNESE_RENESQUE_SILVER_CLASSICISM must be in the Period enum (session 127)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BOLOGNESE_RENESQUE_SILVER_CLASSICISM"), (
+        "Period.BOLOGNESE_RENESQUE_SILVER_CLASSICISM not found -- add it to scene_schema.py")
+    assert Period.BOLOGNESE_RENESQUE_SILVER_CLASSICISM in list(Period)
+
+
+def test_bolognese_renesque_silver_classicism_stroke_params_very_high_wet_blend():
+    """BOLOGNESE_RENESQUE_SILVER_CLASSICISM wet_blend must be >= 0.78 (Cantarini's smoothness)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_RENESQUE_SILVER_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.78, (
+        f"BOLOGNESE_RENESQUE_SILVER_CLASSICISM wet_blend should be >= 0.78 "
+        f"for Cantarini's multi-glaze ultra-smooth surface; got {p['wet_blend']}")
+
+
+def test_bolognese_renesque_silver_classicism_stroke_params_high_edge_softness():
+    """BOLOGNESE_RENESQUE_SILVER_CLASSICISM edge_softness must be in range (0.65 to 0.90)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_RENESQUE_SILVER_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.65 <= p["edge_softness"] <= 0.90, (
+        f"BOLOGNESE_RENESQUE_SILVER_CLASSICISM edge_softness should be 0.65-0.90 "
+        f"(Cantarini's pearl-fog sfumato); got {p['edge_softness']}")

@@ -30353,3 +30353,162 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Fra Bartolommeo velo shadow pass complete.")
+
+    def cantarini_pearl_fog_pass(
+        self,
+        *,
+        penumbra_lo:     float = 0.32,   # lower luminance bound of penumbra zone
+        penumbra_hi:     float = 0.72,   # upper luminance bound of penumbra zone
+        sigma_r:         float = 1.2,    # Gaussian blur sigma for red channel (long wavelength — least scatter)
+        sigma_g:         float = 2.0,    # Gaussian blur sigma for green channel (mid wavelength)
+        sigma_b:         float = 3.5,    # Gaussian blur sigma for blue channel (short wavelength — most scatter)
+        scatter_strength: float = 0.55,  # how much the blurred channels replace the originals in penumbra
+        rose_hi_lo:      float = 0.70,   # luminance threshold for rose highlight lift
+        rose_r:          float = 0.012,  # rose-pink R lift in highlights (Cantarini's warm carnations)
+        rose_b_damp:     float = 0.005,  # slight B damp to keep rose warm rather than lilac
+        ivory_lo:        float = 0.80,   # luminance threshold for ivory specular lift
+        ivory_r:         float = 0.010,  # ivory specular R lift
+        ivory_g:         float = 0.007,  # ivory specular G lift
+        blur_radius:     float = 4.0,    # Gaussian sigma to smooth zone boundary transitions
+        opacity:         float = 1.0,
+    ) -> None:
+        """
+        Simone Cantarini pearl-fog pass — session 127.
+
+        Simone Cantarini (1612–1648), called 'il Pesarese', was Guido Reni's most
+        gifted and difficult pupil.  Born in Oropezza near Pesaro, he arrived in
+        Reni's Bologna workshop around 1635–37 and rapidly absorbed the master's
+        silver-ivory palette while developing a distinctly personal 'pearl-fog'
+        quality: a softly glowing penumbra zone in which flesh tones appear to
+        emit a cool iridescent haze rather than simply recede into shadow.
+        Cantarini achieved this through exceptionally thin multi-layer glazing —
+        as many as eight to twelve superimposed transparent films of lead white,
+        smalt (cobalt-blue glass), and lake — creating a physically layered medium
+        in which different wavelengths of light scatter at different depths.
+
+        This pass encodes Cantarini's glazing physics in the SESSION 127 ARTISTIC
+        IMPROVEMENT: spectral channel-selective diffusion.  This is the fifth
+        distinct processing mode introduced in this pipeline:
+
+          s123 Rosa       — spatial displacement (image warping via turbulent flow)
+          s124 Stanzione  — frequency-band decomposition (Laplacian pyramid)
+          s125 Albani     — vertical spatial gradient (chromatic aerial perspective)
+          s126 Bartolommeo — edge-map-driven selective modulation (Sobel gradient)
+          s127 Cantarini  — SPECTRAL CHANNEL-SELECTIVE DIFFUSION (wavelength-
+                            dependent per-channel Gaussian blur)
+
+        All previous blur operations in this pipeline apply identical Gaussian
+        sigma to all three RGB channels uniformly.  Cantarini's glazing physics
+        demand a different approach: Rayleigh-type scattering in translucent media
+        is inversely proportional to the fourth power of wavelength (λ⁻⁴).
+        Blue light (λ ≈ 450 nm) scatters ~5× more than red (λ ≈ 650 nm).  When
+        thin translucent glazes of smalt and lead white are layered over a warm
+        ground, the short-wavelength blue component diffuses laterally across
+        form boundaries while the long-wavelength red component remains relatively
+        crisp.  This creates the characteristic 'pearl-fog' — the penumbra appears
+        to breathe a soft blue-violet haze while the underlying warm structure
+        stays legible.
+
+        Three stages:
+        (1) Spectral diffusion — extract R, G, B channels independently and apply
+            Gaussian blur with channel-specific sigmas:
+              σ_R = sigma_r  (smallest, red travels deepest before scattering)
+              σ_G = sigma_g  (intermediate)
+              σ_B = sigma_b  (largest, blue scatters most at the surface layers)
+            In the penumbra zone, blend the blurred channels with the originals at
+            scatter_strength.  Outside the penumbra the channels are unchanged.
+        (2) Rose highlight warmth — above rose_hi_lo luminance: lift R by rose_r,
+            damp B by rose_b_damp.  Cantarini's carnations have a distinctly warmer
+            pink than Reni's pure silver-white — a personal inflection that marks
+            his best works with a delicate sensuality.
+        (3) Ivory specular lift — above ivory_lo luminance: lift R + G by ivory_r/g.
+            The highest specular points receive a creamy ivory warmth, preventing
+            the accumulated cool scatter from leaving the painting colourless.
+
+        Parameters
+        ----------
+        penumbra_lo / penumbra_hi  : luminance bounds of the penumbra zone for scatter
+        sigma_r / sigma_g / sigma_b : per-channel Gaussian blur sigmas (R < G < B)
+        scatter_strength           : blend weight of blurred vs original in penumbra
+        rose_hi_lo / rose_r / rose_b_damp : rose carnation warmth in highlights
+        ivory_lo / ivory_r / ivory_g      : ivory specular lift above ivory threshold
+        blur_radius                : sigma for smoothing zone boundary masks
+        opacity                    : global compositing weight
+
+        Notes
+        -----
+        Characteristic works encoding Cantarini's pearl-fog glazing:
+          *Rest on the Flight into Egypt* (c. 1635–40, Pinacoteca di Brera) —
+              the Virgin's face: pearl-grey penumbra with warm rose carnations; the
+              quintessential Cantarini palette.
+          *Madonna and Child with the Young St. John* (Uffizi) —
+              ultra-smooth sfumato with that characteristic cool-haze penumbra
+              and warm ivory highlights.
+          *St. Joseph with the Christ Child* (Pesaro, Musei Civici) —
+              compact compositional warmth; the Christ child's flesh shows the
+              full pearl-fog quality — blue scatter in shadow, rose in mid-tone.
+        """
+        print(f"Cantarini pearl-fog pass  "
+              f"(opacity={opacity:.2f}  sigma_r={sigma_r:.1f}  sigma_g={sigma_g:.1f}  "
+              f"sigma_b={sigma_b:.1f}  scatter_strength={scatter_strength:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Penumbra zone mask ────────────────────────────────────────────────
+        mid_c    = 0.5 * (penumbra_lo + penumbra_hi)
+        mid_span = max(0.01, penumbra_hi - penumbra_lo)
+        pen_raw  = _np.clip(1.0 - _np.abs(lum - mid_c) / (0.5 * mid_span), 0.0, 1.0)
+        pen_mask = _gf(pen_raw.astype(_np.float32), sigma=blur_radius)
+        pen_mask = _np.clip(pen_mask, 0.0, 1.0)
+
+        # ── Stage 1: Spectral channel-selective diffusion ─────────────────────
+        # Apply wavelength-dependent Gaussian blur to each channel independently.
+        # The blur is applied only in the penumbra zone via a weighted blend.
+        r_blurred = _gf(r0.astype(_np.float32), sigma=sigma_r)
+        g_blurred = _gf(g0.astype(_np.float32), sigma=sigma_g)
+        b_blurred = _gf(b0.astype(_np.float32), sigma=sigma_b)
+
+        blend = pen_mask * scatter_strength
+        r_out = r0 * (1.0 - blend) + r_blurred * blend
+        g_out = g0 * (1.0 - blend) + g_blurred * blend
+        b_out = b0 * (1.0 - blend) + b_blurred * blend
+
+        # ── Stage 2: Rose carnation warmth in highlights ──────────────────────
+        hi_raw   = _np.clip((lum - rose_hi_lo) / max(0.01, 1.0 - rose_hi_lo), 0.0, 1.0)
+        hi_mask  = _gf(hi_raw.astype(_np.float32), sigma=blur_radius)
+        hi_mask  = _np.clip(hi_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + hi_mask * rose_r,     0.0, 1.0)
+        b_out = _np.clip(b_out - hi_mask * rose_b_damp, 0.0, 1.0)
+
+        # ── Stage 3: Ivory specular lift ──────────────────────────────────────
+        iv_raw  = _np.clip((lum - ivory_lo) / max(0.01, 1.0 - ivory_lo), 0.0, 1.0)
+        iv_mask = _gf(iv_raw.astype(_np.float32), sigma=blur_radius)
+        iv_mask = _np.clip(iv_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + iv_mask * ivory_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + iv_mask * ivory_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Cantarini pearl-fog pass complete.")

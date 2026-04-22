@@ -15235,3 +15235,79 @@ def test_florentine_monumental_classicism_period_exists():
     assert hasattr(Period, "FLORENTINE_MONUMENTAL_CLASSICISM"), (
         "FLORENTINE_MONUMENTAL_CLASSICISM missing from Period enum — "
         "add to scene_schema.py for session 126 (Fra Bartolommeo)")
+
+
+# ── Session 127 — simone_cantarini ────────────────────────────────────────────
+
+def test_simone_cantarini_in_catalog():
+    """simone_cantarini must be present in the CATALOG dict (session 127)."""
+    from art_catalog import CATALOG
+    assert "simone_cantarini" in CATALOG, (
+        "simone_cantarini missing from CATALOG — add entry for session 127")
+
+
+def test_simone_cantarini_artist_name():
+    """simone_cantarini catalog entry must have correct artist name."""
+    from art_catalog import get_style
+    s = get_style("simone_cantarini")
+    assert "Cantarini" in s.artist, (
+        f"Expected 'Cantarini' in artist name, got {s.artist!r}")
+
+
+def test_simone_cantarini_movement():
+    """simone_cantarini movement must reference Bolognese and Silver Classicism."""
+    from art_catalog import get_style
+    s = get_style("simone_cantarini")
+    assert "Bolognese" in s.movement or "Silver" in s.movement, (
+        f"simone_cantarini movement should reference Bolognese/Silver, got {s.movement!r}")
+
+
+def test_simone_cantarini_high_wet_blend():
+    """simone_cantarini wet_blend must be >= 0.78 (Cantarini's multi-glaze smoothness)."""
+    from art_catalog import get_style
+    s = get_style("simone_cantarini")
+    assert s.wet_blend >= 0.78, (
+        f"simone_cantarini wet_blend should be >= 0.78 for Cantarini's "
+        f"extremely smooth glaze surface; got {s.wet_blend}")
+
+
+def test_simone_cantarini_high_edge_softness():
+    """simone_cantarini edge_softness must be >= 0.65 (pearl-fog sfumato)."""
+    from art_catalog import get_style
+    s = get_style("simone_cantarini")
+    assert s.edge_softness >= 0.65, (
+        f"simone_cantarini edge_softness should be >= 0.65 for Cantarini's "
+        f"pearl-fog penumbra; got {s.edge_softness}")
+
+
+def test_simone_cantarini_has_palette():
+    """simone_cantarini must have a palette with at least 4 entries."""
+    from art_catalog import get_style
+    s = get_style("simone_cantarini")
+    assert len(s.palette) >= 4, (
+        f"simone_cantarini palette should have >= 4 entries; got {len(s.palette)}")
+
+
+def test_simone_cantarini_has_famous_works():
+    """simone_cantarini must have at least 3 famous_works entries."""
+    from art_catalog import get_style
+    s = get_style("simone_cantarini")
+    assert len(s.famous_works) >= 3, (
+        f"simone_cantarini should list >= 3 famous works; got {len(s.famous_works)}")
+
+
+def test_simone_cantarini_inspiration_references_pass():
+    """simone_cantarini inspiration must reference cantarini_pearl_fog_pass."""
+    from art_catalog import get_style
+    s = get_style("simone_cantarini")
+    assert "cantarini_pearl_fog_pass" in s.inspiration, (
+        "simone_cantarini inspiration should reference cantarini_pearl_fog_pass "
+        "as the defining session 127 pass")
+
+
+def test_bolognese_renesque_silver_classicism_period_exists():
+    """BOLOGNESE_RENESQUE_SILVER_CLASSICISM must exist in the Period enum (session 127)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BOLOGNESE_RENESQUE_SILVER_CLASSICISM"), (
+        "BOLOGNESE_RENESQUE_SILVER_CLASSICISM missing from Period enum — "
+        "add to scene_schema.py for session 127 (Simone Cantarini)")

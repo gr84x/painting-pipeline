@@ -11023,6 +11023,67 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Simone Cantarini ──────────────────────────────────────────────────────
+    "simone_cantarini": ArtStyle(
+        artist="Simone Cantarini",
+        movement="Bolognese Renesque Silver Classicism",
+        nationality="Italian",
+        period="1612–1648",
+        palette=[
+            (0.92, 0.84, 0.76),   # ivory-pearl — cool white flesh highlight
+            (0.84, 0.72, 0.65),   # rose-ivory mid-tone — warm carnation blush
+            (0.62, 0.52, 0.48),   # penumbra grey-rose — the 'pearl-fog' zone
+            (0.38, 0.32, 0.30),   # shadow umber — deep but never harsh
+            (0.70, 0.74, 0.80),   # cool blue-pearl — scattered short-wavelength haze
+            (0.58, 0.50, 0.34),   # warm ground — Reni's Bolognese amber imprimatura
+        ],
+        ground_color=(0.60, 0.52, 0.36),    # warm Bolognese amber ground
+        stroke_size=4,
+        wet_blend=0.82,                      # extremely smooth — Cantarini's multi-glaze finish
+        edge_softness=0.74,                  # very soft sfumato, pearl-foggy penumbra
+        jitter=0.04,
+        glazing=(0.88, 0.82, 0.72),          # pale ivory unifying glaze — Reni's silver tonality
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Multi-layer spectral glazing creating wavelength-selective translucency. "
+            "Cantarini applies eight to twelve superimposed transparent films of lead white, "
+            "smalt (cobalt-blue glass), and lake over a warm amber ground, building a physically "
+            "layered medium in which short-wavelength blue light scatters laterally in the upper "
+            "glaze layers while long-wavelength red light penetrates deeper before reflecting. "
+            "The result is the 'pearl-fog' penumbra: the shadow zone glows with a cool blue-violet "
+            "iridescence while the warm ground structure remains legible beneath it. "
+            "Flesh tones are extremely pale and refined — Reni's silver-white palette inflected "
+            "with a distinctly personal rose warmth in the carnation zone. "
+            "Unlike Reni's cooler, more impersonal flesh, Cantarini's has a gentle sensuality."
+        ),
+        famous_works=[
+            ("Rest on the Flight into Egypt", "c.1635–40"),
+            ("Madonna and Child with the Young St. John", "c.1638"),
+            ("St. Joseph with the Christ Child", "c.1640"),
+            ("Portrait of Guido Reni", "c.1637"),
+            ("Holy Family with St. Anne", "c.1642"),
+        ],
+        inspiration=(
+            "Apply cantarini_pearl_fog_pass() as the defining pass for session 127.  "
+            "The pass encodes Cantarini's Bolognese Renesque Silver Classicism through "
+            "spectral channel-selective diffusion — the session 127 artistic improvement.  "
+            "Previous colour-manipulation passes in this pipeline treat all three RGB channels "
+            "identically in their blur operations.  This pass introduces the fifth distinct "
+            "processing mode: wavelength-dependent per-channel Gaussian blur, where σ_B > σ_G > σ_R, "
+            "simulating Rayleigh-type scatter in Cantarini's translucent glaze stack.  "
+            "The blue channel receives maximum blur (σ_B ≈ 3.5) — simulating the way short-wavelength "
+            "light diffuses laterally through superficial smalt/lead-white layers.  "
+            "The red channel receives minimal blur (σ_R ≈ 1.2) — simulating the way long-wavelength "
+            "light penetrates to the warm ground before reflecting with relative crispness.  "
+            "Combined, these create the 'pearl-fog': a softly glowing penumbra zone with a cool "
+            "blue iridescence over warm undertones.  "
+            "The pass also adds a gentle rose warmth in the highlight zone (Cantarini's carnations) "
+            "and an ivory specular lift to prevent accumulated coolness from greying the image.  "
+            "Use at opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 
