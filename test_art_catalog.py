@@ -141,6 +141,7 @@ EXPECTED_ARTISTS = [
     "albani",
     "rosso_fiorentino",
     "dosso_dossi",
+    "aelbert_cuyp",
 ]
 
 

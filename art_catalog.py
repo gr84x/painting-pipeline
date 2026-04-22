@@ -11513,6 +11513,100 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Aelbert Cuyp ──────────────────────────────────────────────────────────
+    "aelbert_cuyp": ArtStyle(
+        artist="Aelbert Cuyp",
+        movement="Dutch Golden Age Luminism",
+        nationality="Dutch",
+        period="c. 1639–1672",
+        palette=[
+            (0.96, 0.84, 0.52),   # blazing amber-gold — Cuyp's signature afternoon sky light
+            (0.88, 0.72, 0.38),   # warm ochre-gold — sunlit cattle hide, lit meadow grass
+            (0.72, 0.60, 0.38),   # golden-sienna — rich warm mid-tone ground
+            (0.52, 0.46, 0.62),   # cool blue-violet — distance and shadow depths
+            (0.38, 0.46, 0.58),   # atmospheric blue-grey — cool sky and river glints
+            (0.28, 0.30, 0.22),   # dark warm-green — shadow foliage, riverbank depth
+            (0.92, 0.88, 0.70),   # pale ivory-gold — lit cloud and water highlight
+            (0.64, 0.52, 0.30),   # raw umber warmth — cattle shadow, earth mid-tone
+        ],
+        ground_color=(0.68, 0.58, 0.38),    # warm amber-gold priming — the "Dutch Claude" ground
+        stroke_size=7,
+        wet_blend=0.68,                      # high — golden light merges and dissolves surfaces
+        edge_softness=0.55,                  # moderate-soft — forms clear but edges dissolve in luminosity
+        jitter=0.022,
+        glazing=(0.90, 0.78, 0.42),          # radiant amber-gold glaze — Cuyp's defining atmosphere
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Aelbert Cuyp (1620–1691) is the supreme master of golden-hour light in "
+            "Dutch painting — the painter who brought the warm Mediterranean luminosity "
+            "of Claude Lorrain's Italian campagna into the flat polders and river meadows "
+            "of the Dordrecht countryside.  His defining quality, so distinctive that he "
+            "was nicknamed 'the Dutch Claude,' is an extraordinary amber-gold atmospheric "
+            "luminosity that seems to dissolve fine spatial detail in brightly lit zones "
+            "into a radiant golden field — forms that in shadow retain their structure "
+            "but in bright light appear to merge with the glowing air around them.  "
+            "This is not a failure of observation but a precise record of how human vision "
+            "actually responds to very bright afternoon light: at high background luminance "
+            "levels, the visual system's sensitivity to high spatial frequencies (fine "
+            "texture, sharp edge detail) falls dramatically — a phenomenon now quantified "
+            "as the luminance-dependent Contrast Sensitivity Function.  Cuyp observed and "
+            "encoded this perceptual truth two centuries before it was measured.  "
+            "His palette is built around a family of warm amber-golds: the sky, the lit "
+            "surfaces of cattle, the gleaming river water, and the long afternoon grass "
+            "all share the same warm luminous register — they dissolve into one another "
+            "as the eye moves from one lit zone to another.  Shadow zones receive "
+            "cool blue-violet accents (the sky reflected in the darkness), creating "
+            "a powerful warm/cool contrast that makes the lights burn all the more "
+            "intensely.  The ground tone — a warm amber imprimatura — reads through "
+            "all thin paint passages, giving the entire canvas a warm tonal unity.  "
+            "His brushwork in lit zones is smooth and barely visible; in shadow "
+            "zones it becomes firmer and more structural.  The total effect is of "
+            "landscape bathed in late-afternoon warmth — golden, still, and profound."
+        ),
+        famous_works=[
+            ("A Herdsman with Cows by a River",        "c. 1650–1655"),
+            ("The Maas at Dordrecht",                   "c. 1650"),
+            ("Horsemen and Herdsmen with Cattle",       "c. 1655–1660"),
+            ("The Large Dort (Dordrecht)",              "c. 1650–1665"),
+            ("River Scene with a View of Dordrecht",   "c. 1660"),
+            ("Young Herdsman with Cows",                "c. 1655"),
+            ("Ubbergen Castle",                         "c. 1655"),
+            ("Riders and Herdsmen with Cattle",        "c. 1658"),
+        ],
+        inspiration=(
+            "Apply cuyp_golden_hour_pass() to encode Cuyp's defining quality: "
+            "the radiant amber-gold afternoon luminosity that dissolves fine detail "
+            "in bright zones while preserving structure in shadow areas.  "
+            "This is the TWELFTH distinct processing mode in the pipeline: "
+            "LUMINANCE-ADAPTIVE SPATIAL FREQUENCY ATTENUATION "
+            "(Contrast Sensitivity Function simulation).  "
+            "Prior modes: (1) s123 Rosa — spatial displacement; (2) s124 Stanzione — "
+            "Laplacian pyramid; (3) s125 Albani — vertical gradient; (4) s126 Bartolommeo — "
+            "Sobel edge-map; (5) s127 Cantarini — channel-selective diffusion; "
+            "(6) s128 Carpaccio — local variance adaptation; (7) s129 Piazzetta — "
+            "histogram percentile sculpting; (8) s130 Sebastiano — structure tensor; "
+            "(9) s131 Rosso — hue-selective chromatic tension; (10) s132 Dosso — "
+            "illumination-reflectance decomposition; (11) s133 Bassano — anisotropic diffusion.  "
+            "Session 134 mode: LUMINANCE-ADAPTIVE SPATIAL FREQUENCY ATTENUATION.  "
+            "Algorithm: (1) LUMINANCE COMPUTATION: L = 0.299R + 0.587G + 0.114B.  "
+            "(2) GOLDEN WARMTH: Compute a warm-shifted version of the image: R += "
+            "gold_warm_r × L² (quadratic so only brightest pixels get full warmth); "
+            "G += gold_warm_g × L²; B -= gold_cool_b × L² (slight blue depletion).  "
+            "(3) LUMINANCE-ADAPTIVE BLUR: For each pixel, the effective Gaussian sigma "
+            "is sigma_base + sigma_scale × L² — bright pixels get much larger sigma "
+            "(detail dissolves into the golden atmosphere); dark pixels get near-zero "
+            "additional blur (structure preserved).  This is a SPATIALLY VARYING BLUR "
+            "implemented via a weighted sum of several pre-computed Gaussian blur levels "
+            "at different sigma values, blended proportionally to L² — a computationally "
+            "tractable approximation of the ideal spatially-variant PSF.  "
+            "(4) COMPOSITE: Blend the spatially-blurred golden version with the "
+            "original at `opacity`.  The result: bright zones glow and dissolve into "
+            "the warm golden atmosphere; shadow zones retain their form and cool structure.  "
+            "Use at opacity ≈ 0.28–0.40."
+        ),
+    ),
+
     "dosso_dossi": ArtStyle(
         artist="Dosso Dossi",
         movement="Ferrarese Colorist Poesia",

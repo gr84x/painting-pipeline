@@ -14215,3 +14215,178 @@ def test_shadow_temperature_relief_pass_accepts_shadow_thresh():
     assert "shadow_thresh" in sig.parameters, (
         "shadow_temperature_relief_pass must have shadow_thresh parameter "
         "(session 133 shadow thermal zone threshold)")
+
+
+# Session 134: Aelbert Cuyp + DUTCH_GOLDEN_AGE_LUMINISM
+#              + cuyp_golden_hour_pass (luminance-adaptive spatial frequency attenuation)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_dutch_golden_age_luminism_period_exists():
+    """Period.DUTCH_GOLDEN_AGE_LUMINISM must be in the Period enum (session 134)."""
+    from scene_schema import Period
+    assert hasattr(Period, "DUTCH_GOLDEN_AGE_LUMINISM"), (
+        "Period.DUTCH_GOLDEN_AGE_LUMINISM not found -- add it to scene_schema.py")
+    assert Period.DUTCH_GOLDEN_AGE_LUMINISM in list(Period)
+
+
+def test_dutch_golden_age_luminism_high_wet_blend():
+    """DUTCH_GOLDEN_AGE_LUMINISM wet_blend must be >= 0.60 — golden light merges surfaces."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_GOLDEN_AGE_LUMINISM,
+                  wet_blend=None, edge_softness=None)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"DUTCH_GOLDEN_AGE_LUMINISM wet_blend should be >= 0.60 "
+        f"(Cuyp's golden light dissolves and merges surfaces); got {p['wet_blend']:.2f}")
+
+
+def test_dutch_golden_age_luminism_moderate_edge_softness():
+    """DUTCH_GOLDEN_AGE_LUMINISM edge_softness must be in [0.40, 0.70] — forms dissolve in light."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_GOLDEN_AGE_LUMINISM,
+                  wet_blend=None, edge_softness=None)
+    p = style.stroke_params
+    assert 0.40 <= p["edge_softness"] <= 0.70, (
+        f"DUTCH_GOLDEN_AGE_LUMINISM edge_softness should be in [0.40, 0.70] "
+        f"(forms dissolve at edges in golden atmospheric light); got {p['edge_softness']:.2f}")
+
+
+def test_cuyp_golden_hour_pass_exists_on_painter():
+    """Painter must have cuyp_golden_hour_pass() after session 134."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "cuyp_golden_hour_pass"), (
+        "cuyp_golden_hour_pass not found on Painter -- "
+        "add to stroke_engine.py for session 134")
+    assert callable(getattr(Painter, "cuyp_golden_hour_pass"))
+
+
+def test_cuyp_golden_hour_pass_no_error_routing():
+    """cuyp_golden_hour_pass() must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.68, 0.58, 0.38), texture_strength=0.05)
+    p.cuyp_golden_hour_pass(opacity=0.34)
+
+
+def test_cuyp_golden_hour_pass_accepts_opacity():
+    """cuyp_golden_hour_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cuyp_golden_hour_pass)
+    assert "opacity" in sig.parameters, (
+        "cuyp_golden_hour_pass must have opacity parameter "
+        "(session 134 luminance-adaptive spatial frequency attenuation)")
+
+
+def test_cuyp_golden_hour_pass_modifies_canvas():
+    """cuyp_golden_hour_pass() with non-zero opacity must modify the canvas."""
+    from stroke_engine import Painter
+    import numpy as np
+    p = Painter(width=64, height=64)
+    # Bright warm canvas — lots of high-luminance pixels for the pass to target
+    p.tone_ground((0.80, 0.68, 0.44), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil(), dtype=np.float32).copy()
+    p.cuyp_golden_hour_pass(
+        gold_warm_r=0.18,
+        gold_warm_g=0.08,
+        gold_cool_b=0.10,
+        sigma_base=0.8,
+        sigma_scale=4.0,
+        n_blur_levels=3,
+        opacity=0.50,
+    )
+    after = np.array(p.canvas.to_pil(), dtype=np.float32)
+    diff = np.abs(after - before).max()
+    assert diff > 0, (
+        "cuyp_golden_hour_pass with non-zero opacity should modify the canvas")
+
+
+def test_cuyp_golden_hour_pass_zero_opacity_no_op():
+    """cuyp_golden_hour_pass with opacity=0.0 should leave the canvas unchanged."""
+    from stroke_engine import Painter
+    import numpy as np
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.72, 0.60, 0.40), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.cuyp_golden_hour_pass(opacity=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="cuyp_golden_hour_pass with opacity=0 should be a no-op")
+
+
+def test_cuyp_golden_hour_pass_warms_bright_pixels():
+    """
+    A very bright warm-grey canvas should become warmer (higher R channel)
+    after cuyp_golden_hour_pass — because bright pixels receive the full
+    quadratic golden warmth shift (gold_warm_r × lum²).
+    """
+    from stroke_engine import Painter
+    import numpy as np
+    p = Painter(width=64, height=64)
+    # Very bright neutral grey — all pixels in the high-lum² zone
+    bright_grey = (0.88, 0.88, 0.88)
+    p.tone_ground(bright_grey, texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    # Cairo BGRA: channel 2 = R, channel 0 = B
+    before_r = float(before_buf[:, :, 2].mean())
+    before_b = float(before_buf[:, :, 0].mean())
+
+    p.cuyp_golden_hour_pass(
+        gold_warm_r=0.22,    # strong warm shift
+        gold_warm_g=0.08,
+        gold_cool_b=0.14,    # strong blue depletion
+        sigma_base=0.5,
+        sigma_scale=3.0,
+        n_blur_levels=3,
+        opacity=0.70,        # high opacity to make the effect measurable
+    )
+
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r = float(after_buf[:, :, 2].mean())
+    after_b = float(after_buf[:, :, 0].mean())
+
+    assert after_r > before_r, (
+        f"Bright pixels should become warmer (higher R) after cuyp_golden_hour_pass: "
+        f"before_r={before_r:.1f}, after_r={after_r:.1f}")
+    assert after_b < before_b, (
+        f"Bright pixels should become less blue (lower B) after cuyp_golden_hour_pass: "
+        f"before_b={before_b:.1f}, after_b={after_b:.1f}")
+
+
+def test_cuyp_golden_hour_pass_dark_pixels_less_affected():
+    """
+    Dark pixels (low luminance) should be much less affected by the golden
+    warmth shift than bright pixels, because the shift is weighted by lum².
+    """
+    from stroke_engine import Painter
+    import numpy as np
+
+    # Dark canvas: lum ≈ 0.15, lum² ≈ 0.02 — minimal warmth shift
+    p_dark = Painter(width=64, height=64)
+    p_dark.tone_ground((0.15, 0.15, 0.15), texture_strength=0.00)
+    before_dark = np.frombuffer(p_dark.canvas.surface.get_data(),
+                                dtype=np.uint8).reshape(64, 64, 4).copy()
+    p_dark.cuyp_golden_hour_pass(
+        gold_warm_r=0.22, gold_warm_g=0.08, gold_cool_b=0.14,
+        sigma_base=0.5, sigma_scale=3.0, n_blur_levels=3, opacity=0.70)
+    after_dark = np.frombuffer(p_dark.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    dark_r_shift = float(after_dark[:, :, 2].mean()) - float(before_dark[:, :, 2].mean())
+
+    # Bright canvas: lum ≈ 0.88, lum² ≈ 0.77 — full warmth shift
+    p_bright = Painter(width=64, height=64)
+    p_bright.tone_ground((0.88, 0.88, 0.88), texture_strength=0.00)
+    before_bright = np.frombuffer(p_bright.canvas.surface.get_data(),
+                                  dtype=np.uint8).reshape(64, 64, 4).copy()
+    p_bright.cuyp_golden_hour_pass(
+        gold_warm_r=0.22, gold_warm_g=0.08, gold_cool_b=0.14,
+        sigma_base=0.5, sigma_scale=3.0, n_blur_levels=3, opacity=0.70)
+    after_bright = np.frombuffer(p_bright.canvas.surface.get_data(),
+                                 dtype=np.uint8).reshape(64, 64, 4)
+    bright_r_shift = float(after_bright[:, :, 2].mean()) - float(before_bright[:, :, 2].mean())
+
+    assert bright_r_shift > dark_r_shift, (
+        f"Bright pixels should receive a larger R warmth shift than dark pixels "
+        f"(lum² weighting): bright_shift={bright_r_shift:.2f}, dark_shift={dark_r_shift:.2f}")
