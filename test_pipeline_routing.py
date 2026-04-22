@@ -200,7 +200,8 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_roman_grand_tour":           period == Period.ROMAN_GRAND_TOUR_CLASSICISM,
         "is_renaissance_soft":           (period == Period.RENAISSANCE
                                           and sp.get("edge_softness", 0.0) >= 0.80),
-        "is_ferrarese_civic_grandeur":   period == Period.FERRARESE_CIVIC_GRANDEUR,
+        "is_ferrarese_civic_grandeur":       period == Period.FERRARESE_CIVIC_GRANDEUR,
+        "is_venetian_gilt_byzantine_splendour": period == Period.VENETIAN_GILT_BYZANTINE_SPLENDOUR,
     }
 
 
@@ -15296,3 +15297,194 @@ def test_cossa_ground_color_warm_for_routing():
     r, g, b = style.ground_color
     assert r >= b, (
         f"cossa ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# crivelli_gold_leaf_pass — session 141 main pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_crivelli_gold_leaf_pass_exists():
+    """Painter must have crivelli_gold_leaf_pass() method after session 141."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "crivelli_gold_leaf_pass"), (
+        "crivelli_gold_leaf_pass not found on Painter")
+    assert callable(getattr(Painter, "crivelli_gold_leaf_pass"))
+
+
+def test_crivelli_gold_leaf_pass_no_error():
+    """crivelli_gold_leaf_pass() runs on a plain canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.58, 0.48, 0.28), texture_strength=0.06)
+    p.crivelli_gold_leaf_pass(opacity=0.38)
+
+
+def test_crivelli_gold_leaf_pass_zero_opacity_no_op():
+    """crivelli_gold_leaf_pass() with opacity=0 must not modify the canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.58, 0.48, 0.28), texture_strength=0.06)
+    before = _canvas_bytes(p)
+    p.crivelli_gold_leaf_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "crivelli_gold_leaf_pass with opacity=0 must not modify the canvas")
+
+
+def test_crivelli_gold_leaf_pass_modifies_bright_canvas():
+    """crivelli_gold_leaf_pass() must modify a canvas that has bright pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Use a very bright ground so pixels exceed the gilt threshold
+    p.tone_ground((0.90, 0.88, 0.80), texture_strength=0.00)
+    before = _canvas_bytes(p)
+    p.crivelli_gold_leaf_pass(gilt_thresh=0.60, gilt_power=1.5, opacity=1.0)
+    after = _canvas_bytes(p)
+    assert before != after, (
+        "crivelli_gold_leaf_pass must modify a bright canvas with pixels "
+        "above the gilt threshold")
+
+
+def test_crivelli_gold_leaf_pass_pixels_in_range():
+    """crivelli_gold_leaf_pass() must not produce out-of-range pixel values."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.85, 0.80, 0.72), texture_strength=0.00)
+    p.crivelli_gold_leaf_pass(gilt_thresh=0.50, gilt_power=2.0, opacity=1.0)
+    buf = _np.frombuffer(p.canvas.surface.get_data(),
+                         dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixel values below 0 after gold leaf pass"
+    assert buf[:, :, :3].max() <= 255, "Pixel values above 255 after gold leaf pass"
+
+
+def test_crivelli_gold_leaf_pass_adds_warmth_to_highlights():
+    """crivelli_gold_leaf_pass() must increase the R channel in bright zones."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Neutral bright canvas — equal R, G, B so warmth effect is measurable
+    p.tone_ground((0.85, 0.85, 0.85), texture_strength=0.00)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(64, 64, 4).astype(_np.float32)
+    r_mean_before = before[:, :, 2].mean()
+
+    p.crivelli_gold_leaf_pass(gilt_thresh=0.60, gilt_power=1.5,
+                               gold_r=0.30, gold_g=0.10, opacity=1.0)
+
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).astype(_np.float32)
+    r_mean_after = after[:, :, 2].mean()
+
+    assert r_mean_after > r_mean_before, (
+        f"crivelli_gold_leaf_pass should add red warmth to bright highlights: "
+        f"before={r_mean_before:.1f}, after={r_mean_after:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# glazing_depth_pass — session 141 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_glazing_depth_pass_exists():
+    """Painter must have glazing_depth_pass() method after session 141."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "glazing_depth_pass"), (
+        "glazing_depth_pass not found on Painter")
+    assert callable(getattr(Painter, "glazing_depth_pass"))
+
+
+def test_glazing_depth_pass_no_error():
+    """glazing_depth_pass() runs on a plain toned canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.06)
+    p.glazing_depth_pass(opacity=0.22)
+
+
+def test_glazing_depth_pass_zero_opacity_no_op():
+    """glazing_depth_pass() with opacity=0 must not modify the canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.06)
+    before = _canvas_bytes(p)
+    p.glazing_depth_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "glazing_depth_pass with opacity=0 must not modify the canvas")
+
+
+def test_glazing_depth_pass_modifies_canvas():
+    """glazing_depth_pass() with opacity > 0 must modify a mid-tone canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Mid-tone ground — squarely within the default depth zone
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.00)
+    before = _canvas_bytes(p)
+    p.glazing_depth_pass(glaze_sigma=2.0, warm_r=0.15, warm_g=0.06,
+                          depth_low=0.25, depth_high=0.75, opacity=1.0)
+    after = _canvas_bytes(p)
+    assert before != after, (
+        "glazing_depth_pass must modify a mid-tone canvas when opacity > 0")
+
+
+def test_glazing_depth_pass_pixels_in_range():
+    """glazing_depth_pass() must not produce out-of-range pixel values."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.00)
+    p.glazing_depth_pass(warm_r=0.20, warm_g=0.10, opacity=1.0)
+    buf = _np.frombuffer(p.canvas.surface.get_data(),
+                         dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixel values below 0 after glazing depth pass"
+    assert buf[:, :, :3].max() <= 255, "Pixel values above 255 after glazing depth pass"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# VENETIAN_GILT_BYZANTINE_SPLENDOUR — session 141 Period enum and routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_venetian_gilt_byzantine_splendour_period_in_period_enum():
+    """VENETIAN_GILT_BYZANTINE_SPLENDOUR must be present in Period enum after session 141."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_GILT_BYZANTINE_SPLENDOUR"), (
+        "VENETIAN_GILT_BYZANTINE_SPLENDOUR missing from Period enum -- "
+        "add to scene_schema.py (session 141)")
+
+
+def test_venetian_gilt_byzantine_splendour_routing_flag_true():
+    """is_venetian_gilt_byzantine_splendour flag must be True for the correct period."""
+    flags = _routing_flags(Period.VENETIAN_GILT_BYZANTINE_SPLENDOUR)
+    assert flags["is_venetian_gilt_byzantine_splendour"] is True
+
+
+def test_venetian_gilt_byzantine_splendour_routing_flag_false_for_other_periods():
+    """is_venetian_gilt_byzantine_splendour must be False for all other periods."""
+    for period in Period:
+        if period == Period.VENETIAN_GILT_BYZANTINE_SPLENDOUR:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_venetian_gilt_byzantine_splendour"], (
+            f"is_venetian_gilt_byzantine_splendour should be False for {period.name}")
+
+
+def test_crivelli_in_catalog_accessible_via_get_style():
+    """crivelli must be accessible via get_style() for pipeline routing."""
+    from art_catalog import get_style
+    style = get_style("crivelli")
+    assert "Crivelli" in style.artist, (
+        f"crivelli artist name mismatch: {style.artist!r}")
+
+
+def test_crivelli_edge_softness_very_low():
+    """crivelli edge_softness must be <= 0.12 (hard Gothic contours)."""
+    from art_catalog import get_style
+    style = get_style("crivelli")
+    assert style.edge_softness <= 0.12, (
+        f"crivelli edge_softness should be very low (<= 0.12) for hard Gothic "
+        f"contours: got {style.edge_softness}")
+
+
+def test_crivelli_ground_color_warm():
+    """crivelli ground_color must be warm (R >= B) for gilt panel imprimatura."""
+    from art_catalog import get_style
+    style = get_style("crivelli")
+    r, g, b = style.ground_color
+    assert r >= b, (
+        f"crivelli ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")

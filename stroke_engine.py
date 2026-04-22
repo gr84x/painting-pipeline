@@ -32755,3 +32755,158 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Cossa enamel structure pass complete.")
+
+    # ── Session 141 ───────────────────────────────────────────────────────────
+
+    def crivelli_gold_leaf_pass(
+        self,
+        gilt_thresh:  float = 0.72,
+        gilt_power:   float = 2.2,
+        gold_r:       float = 0.22,
+        gold_g:       float = 0.12,
+        gold_b_damp:  float = 0.06,
+        opacity:      float = 0.38,
+    ) -> None:
+        """Apply Crivelli's specular power-curve gold-leaf highlight gilding.
+
+        Simulates the optical behaviour of burnished gold leaf: a hard specular
+        spike that fires only in the top luminance percentile.  Pixels above
+        gilt_thresh receive a warm gold tint scaled by
+        ((L - gilt_thresh) / (1 - gilt_thresh)) ^ gilt_power, creating a sharp
+        specular peak at the highest highlights — unlike the diffuse warm bloom
+        of prior modes.
+
+        Nineteenth distinct mode: luminance-threshold specular power-curve
+        gilding.  Distinct from s139 (Gaussian-gated mid-luminance bloom,
+        fires in 0.25–0.85 zone), s138 (sigmoid shadow/midtone dual-temperature),
+        and s140 (gem-zone chroma boost + USM) by operating exclusively in the
+        top luminance percentile (L > gilt_thresh) with a sharp power exponent
+        that produces a hard specular peak rather than a soft tonal lift.
+
+        Args:
+            gilt_thresh : Luminance threshold; no gold added below this value.
+            gilt_power  : Power exponent — higher values create a sharper gilt peak.
+            gold_r      : Red channel addition at maximum specular gate.
+            gold_g      : Green channel addition at maximum specular gate.
+            gold_b_damp : Blue suppression at maximum specular gate (adds warmth).
+            opacity     : Final composite weight (0–1).
+        """
+        print(f"Crivelli gold leaf pass (thresh={gilt_thresh:.2f}, "
+              f"power={gilt_power:.1f}, opacity={opacity:.2f})…")
+
+        import numpy as _np
+
+        if opacity <= 0.0:
+            print("    Crivelli gold leaf pass skipped (opacity=0).")
+            return
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo stores BGRA — channels: 0=B, 1=G, 2=R, 3=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance and specular power-curve gate ────────────────────────
+        lum  = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        denom = max(1.0 - gilt_thresh, 1e-6)
+        gate  = _np.clip((lum - gilt_thresh) / denom, 0.0, 1.0) ** gilt_power
+
+        # ── Gold tint: warm amber spike, slight blue suppression ───────────
+        r_g = _np.clip(r0 + gold_r   * gate, 0.0, 1.0)
+        g_g = _np.clip(g0 + gold_g   * gate, 0.0, 1.0)
+        b_g = _np.clip(b0 - gold_b_damp * gate, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────
+        r_f = r0 * (1.0 - opacity) + r_g * opacity
+        g_f = g0 * (1.0 - opacity) + g_g * opacity
+        b_f = b0 * (1.0 - opacity) + b_g * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Crivelli gold leaf pass complete.")
+
+    def glazing_depth_pass(
+        self,
+        glaze_sigma:  float = 3.0,
+        warm_r:       float = 0.10,
+        warm_g:       float = 0.04,
+        depth_low:    float = 0.25,
+        depth_high:   float = 0.75,
+        opacity:      float = 0.22,
+    ) -> None:
+        """Simulate the optical depth of transparent oil glazing layers.
+
+        Traditional oil painters built up thin transparent glaze layers over
+        opaque paint.  Light penetrates each layer, reflects from the opaque
+        paint beneath, and returns through the glazes — creating a warm internal
+        luminosity.  This pass simulates that effect: a Gaussian-blurred warm
+        echo of the mid-tone zone is composited back at low opacity, adding
+        translucent depth without blurring the overall image.
+
+        The blend is gated by a Gaussian bell centred on the mid-luminance zone
+        (depth_low–depth_high), leaving deep shadows and bright highlights
+        unaffected and concentrating the glaze echo in the zone where thin glazes
+        would most visibly modify the perceived colour.
+
+        Args:
+            glaze_sigma         : Blur radius for the warm echo layer.
+            warm_r, warm_g      : Warm amber tint added to the blurred echo.
+            depth_low, depth_high: Luminance zone receiving maximum glazing effect.
+            opacity             : Maximum composite weight at the bell peak (0–1).
+        """
+        print(f"Glazing depth pass (sigma={glaze_sigma:.1f}, opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            print("    Glazing depth pass skipped (opacity=0).")
+            return
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Gaussian bell gate centred on mid-luminance zone ──────────────
+        lum       = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        mid       = 0.5 * (depth_low + depth_high)
+        sigma_gate = max(0.5 * (depth_high - depth_low), 1e-6)
+        gate      = _np.exp(-0.5 * ((lum - mid) / sigma_gate) ** 2).astype(_np.float32)
+
+        # ── Blurred warm echo of the canvas ───────────────────────────────
+        r_blur = _gf(r0, sigma=glaze_sigma)
+        g_blur = _gf(g0, sigma=glaze_sigma)
+        b_blur = _gf(b0, sigma=glaze_sigma)
+
+        r_glaze = _np.clip(r_blur + warm_r * gate, 0.0, 1.0)
+        g_glaze = _np.clip(g_blur + warm_g * gate, 0.0, 1.0)
+        b_glaze = _np.clip(b_blur,                 0.0, 1.0)
+
+        # ── Composite glazed echo at opacity scaled by gate ───────────────
+        blend = (opacity * gate).astype(_np.float32)
+        r_f = r0 * (1.0 - blend) + r_glaze * blend
+        g_f = g0 * (1.0 - blend) + g_glaze * blend
+        b_f = b0 * (1.0 - blend) + b_glaze * blend
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Glazing depth pass complete.")

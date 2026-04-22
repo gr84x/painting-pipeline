@@ -12176,6 +12176,88 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 141 ───────────────────────────────────────────────────────────
+    "crivelli": ArtStyle(
+        artist      = "Carlo Crivelli",
+        movement    = "Venetian Late Gothic / International Gothic",
+        nationality = "Italian",
+        period      = "c. 1430–1495",
+        palette     = [
+            (0.82, 0.64, 0.18),   # gold leaf — burnished gilt
+            (0.72, 0.14, 0.18),   # vermilion — sharp crimson
+            (0.18, 0.38, 0.72),   # lapis ultramarine — cool jewel blue
+            (0.22, 0.52, 0.28),   # malachite green — translucent emerald
+            (0.94, 0.88, 0.72),   # ivory — pale flesh, near-white highlights
+            (0.44, 0.22, 0.12),   # warm umber — deep brown ground
+            (0.88, 0.76, 0.44),   # amber gold — secondary gilt mid-tone
+        ],
+        ground_color  = (0.58, 0.48, 0.28),   # warm ochre-gold imprimatura
+        stroke_size   = 5,
+        wet_blend     = 0.20,     # very dry — crisp zone separation
+        edge_softness = 0.10,     # hard Gothic contours — no sfumato whatsoever
+        jitter        = 0.018,
+        glazing       = None,     # clean zone separation, no unifying glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Carlo Crivelli (c. 1430–1495) was a Venetian-trained painter who spent "
+            "almost his entire career in the Marche region of Italy, producing devotional "
+            "altarpieces of extraordinary decorative intensity. His style is among the "
+            "most distinctive in all Italian art: a singular fusion of Byzantine "
+            "gold-ground tradition, International Gothic linear precision, and nascent "
+            "Renaissance spatial awareness.  "
+            "Crivelli's forms are obsessively linear — every contour is a hard, crisp "
+            "edge drawn with almost metallic clarity. There is absolutely no sfumato, no "
+            "atmospheric dissolution, no soft transition between tones. The figures occupy "
+            "architectural niches and landscape settings of nail-sharp precision, every "
+            "stone and leaf in hard focus regardless of distance.  "
+            "His most famous signature is the suspension of real objects — cucumbers, "
+            "apples, pears, gourds, swags of fruit — in the picture space as if they "
+            "could be physically plucked. These are rendered with an almost hallucinatory "
+            "realism that contrasts violently with the gold-leaf backgrounds and hieratic "
+            "figures, producing an effect that is simultaneously devotional and bizarre.  "
+            "The palette is electrifying: vermilion of extraordinary sharpness, "
+            "ultramarine of saturated depth, malachite green of translucent brilliance, "
+            "and above all gold. Not merely golden paint, but actual burnished gold leaf "
+            "applied to halos, brocade vestments, and architectural ornament. This gold "
+            "catches light in a purely specular way — a hard, brilliant flash unlike any "
+            "painted surface. The crivelli_gold_leaf_pass() captures this effect.  "
+            "His flesh tones are cool and porcelain-pale, modelled with fine tempera "
+            "hatching rather than wet blending. Drapery is treated as formal, almost "
+            "abstract pattern — crisp ridges and valleys of cloth read as decorative "
+            "geometry rather than naturalistic fabric. This is pure International Gothic "
+            "stylisation elevated to an extreme of refinement.  "
+            "Technically, Crivelli worked in egg tempera on gold-ground panel — a medium "
+            "that enforces precision and penalises wet blending. edge_softness=0.10 "
+            "encodes the absolute hardness of his Gothic contours. wet_blend=0.20 keeps "
+            "colour zones perfectly discrete. The crivelli_gold_leaf_pass() simulates the "
+            "specular highlight behaviour of burnished gold leaf: a hard power-curve spike "
+            "in the brightest luminance zone only, leaving mid-tones and shadows "
+            "untouched."
+        ),
+        famous_works = [
+            ("The Annunciation with Saint Emidius",         "1486"),
+            ("Pietà",                                        "c. 1470"),
+            ("Virgin and Child Enthroned with Saints",       "c. 1476"),
+            ("The Dead Christ Supported by Two Angels",      "c. 1470"),
+            ("Demidoff Altarpiece",                          "1476"),
+            ("Madonna della Rondine",                        "c. 1490–92"),
+        ],
+        inspiration   = (
+            "Use crivelli_gold_leaf_pass() after build_form() to apply Crivelli's "
+            "defining GILT SPECULAR BRILLIANCE: a power-curve highlight gilding that "
+            "simulates the way burnished gold leaf fires a hard specular spike only in "
+            "the top luminance percentile.  "
+            "edge_softness=0.10 enforces Crivelli's absolute Gothic contour hardness — "
+            "sharper even than Cossa's already-firm enamel edges. wet_blend=0.20 keeps "
+            "colour zones perfectly discrete, honouring tempera panel tradition.  "
+            "ground_color=(0.58, 0.48, 0.28) — warm ochre-gold imprimatura appropriate "
+            "to the gold-ground panel tradition.  "
+            "Use gilt_thresh=0.72, gilt_power=2.2, gold_r=0.22, gold_g=0.12, "
+            "gold_b_damp=0.06, opacity=0.38."
+        ),
+    ),
+
 }
 
 

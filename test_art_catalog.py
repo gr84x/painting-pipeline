@@ -146,6 +146,7 @@ EXPECTED_ARTISTS = [
     "moretto_da_brescia",
     "palma_vecchio",
     "cossa",
+    "crivelli",
 ]
 
 
