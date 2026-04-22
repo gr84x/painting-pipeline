@@ -570,6 +570,7 @@ def scene_to_painting(
     # Renaissance with high edge_softness triggers the improved sfumato veil pass
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
+    is_bolognese_arcadian = (scene.style.period == Period.BOLOGNESE_ARCADIAN_CLASSICISM)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3151,6 +3152,37 @@ def scene_to_painting(
                 warmth       = 0.30,
                 veil_opacity = 0.06,
                 edge_only    = True,
+            )
+
+        # ── Bolognese Arcadian Classicism (Albani) — session 125 ─────────────
+        # Two-pass treatment encoding Albani's pastoral Arcadian sweetness:
+        # (1) chromatic_aerial_perspective_pass — the session 125 artistic
+        #     improvement: a vertical gradient of blue-grey cooling and
+        #     saturation reduction that simulates atmospheric depth recession.
+        # (2) albani_arcadian_grace_pass — rose-peach skin bloom, cool sky-
+        #     reflected shadow in outdoor penumbra, and pearl ambient lift.
+        if is_bolognese_arcadian:
+            albani_style = _ART_CATALOG.get("albani")
+            p.chromatic_aerial_perspective_pass(
+                sky_fraction   = 0.52,
+                cool_r         = 0.64,
+                cool_g         = 0.72,
+                cool_b         = 0.85,
+                haze_strength  = 0.16,
+                desat_strength = 0.20,
+                haze_lift      = 0.05,
+                gamma          = 1.25,
+                blur_radius    = 14.0,
+                opacity        = 0.60,
+            )
+            p.albani_arcadian_grace_pass(
+                peach_r        = 0.044,
+                peach_g        = 0.018,
+                sky_b          = 0.046,
+                sky_r          = 0.017,
+                ambient_lift   = 0.010,
+                blur_radius    = 5.0,
+                opacity        = 0.30,
             )
 
         # ── Luminous glow pass for Romantic / Turner atmospheric light ────────

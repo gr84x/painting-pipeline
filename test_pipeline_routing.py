@@ -13396,6 +13396,150 @@ def test_stanzione_noble_repose_pass_mid_freq_boost_parameter():
         "(contrast boost for mid-frequency Laplacian band -- session 124 improvement)")
 
 
+# ── Session 125: Francesco Albani + BOLOGNESE_ARCADIAN_CLASSICISM ─────────────
+
+def test_chromatic_aerial_perspective_pass_is_noop_at_zero_opacity():
+    """chromatic_aerial_perspective_pass(opacity=0) must leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = _make_small_painter(64, 64)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :, :] = [110, 140, 170, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.chromatic_aerial_perspective_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "chromatic_aerial_perspective_pass(opacity=0) should be a noop")
+
+
+def test_chromatic_aerial_perspective_pass_cools_top_region():
+    """chromatic_aerial_perspective_pass must increase blue in the top region."""
+    import numpy as _np
+    from stroke_engine import Painter
+    H, W = 80, 64
+    p = _make_small_painter(W, H)
+    # Warm fill — B channel is low so cooling (B increase) is easily detectable.
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4)).copy()
+    data[:, :, :] = [80, 130, 180, 255]   # BGRA: B=80 (low), warm-ish
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_b_top = data[:H // 4, :, 0].astype(_np.float32).mean()
+    p.chromatic_aerial_perspective_pass(
+        sky_fraction=0.80,
+        haze_strength=0.40,
+        desat_strength=0.0,
+        haze_lift=0.0,
+        blur_radius=1.0,
+        opacity=1.0,
+        cool_b=1.0,   # maximum blue in haze
+    )
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4))
+    after_b_top = after_buf[:H // 4, :, 0].astype(_np.float32).mean()
+    assert after_b_top > orig_b_top, (
+        f"chromatic_aerial_perspective_pass must increase B in the top (distant) region; "
+        f"before={orig_b_top:.1f}, after={after_b_top:.1f}")
+
+
+def test_chromatic_aerial_perspective_pass_preserves_canvas_shape():
+    """chromatic_aerial_perspective_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.74, 0.64, 0.46), texture_strength=0.05)
+    p.chromatic_aerial_perspective_pass(opacity=0.40)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after chromatic_aerial_perspective_pass: {img.size}")
+
+
+def test_albani_arcadian_grace_pass_is_noop_at_zero_opacity():
+    """albani_arcadian_grace_pass(opacity=0) must leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = _make_small_painter(64, 64)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :, :] = [130, 150, 165, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.albani_arcadian_grace_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "albani_arcadian_grace_pass(opacity=0) should be a noop")
+
+
+def test_albani_arcadian_grace_pass_lifts_skin_bloom():
+    """albani_arcadian_grace_pass must raise R in the mid-tone skin bloom zone."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = _make_small_painter(64, 64)
+    # Mid-tone fill (lum ~ 0.60) — squarely in bloom zone (default 0.42..0.78)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :, :] = [150, 155, 160, 255]   # BGRA: mid-tone neutral, lum ~ 0.60
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+    p.albani_arcadian_grace_pass(
+        peach_r=0.08, peach_g=0.0,
+        sky_b=0.0, sky_r=0.0,
+        ambient_lift=0.0,
+        opacity=1.0,
+    )
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+    assert after_r >= orig_r, (
+        f"albani_arcadian_grace_pass must raise R in mid-tone bloom zone; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_albani_arcadian_grace_pass_preserves_canvas_shape():
+    """albani_arcadian_grace_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.74, 0.64, 0.46), texture_strength=0.05)
+    p.albani_arcadian_grace_pass(opacity=0.28)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after albani_arcadian_grace_pass: {img.size}")
+
+
+def test_bolognese_arcadian_classicism_period_present():
+    """Period.BOLOGNESE_ARCADIAN_CLASSICISM must be in the Period enum (session 125)."""
+    from scene_schema import Period
+    assert hasattr(Period, "BOLOGNESE_ARCADIAN_CLASSICISM"), (
+        "Period.BOLOGNESE_ARCADIAN_CLASSICISM not found -- add it to scene_schema.py")
+    assert Period.BOLOGNESE_ARCADIAN_CLASSICISM in list(Period)
+
+
+def test_bolognese_arcadian_classicism_stroke_params_high_wet_blend():
+    """BOLOGNESE_ARCADIAN_CLASSICISM stroke_params must have high wet_blend (smooth Arcadian)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_ARCADIAN_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.65, (
+        f"BOLOGNESE_ARCADIAN_CLASSICISM wet_blend should be >= 0.65 "
+        f"for Albani's silky smooth Arcadian surfaces; got {p['wet_blend']}")
+
+
+def test_bolognese_arcadian_classicism_stroke_params_moderate_edge_softness():
+    """BOLOGNESE_ARCADIAN_CLASSICISM edge_softness must be in moderate range (0.55 to 0.85)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_ARCADIAN_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.55 <= p["edge_softness"] <= 0.85, (
+        f"BOLOGNESE_ARCADIAN_CLASSICISM edge_softness should be 0.55-0.85 "
+        f"(soft but resolved Arcadian forms); got {p['edge_softness']}")
+
+
+def test_chromatic_aerial_perspective_pass_sky_fraction_parameter():
+    """chromatic_aerial_perspective_pass must accept sky_fraction (session 125 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.chromatic_aerial_perspective_pass)
+    assert "sky_fraction" in sig.parameters, (
+        "chromatic_aerial_perspective_pass must have 'sky_fraction' parameter "
+        "(fraction of image height receiving maximum aerial cooling -- session 125 improvement)")
+
+
 def test_neapolitan_baroque_classicism_period_present():
     """Period.NEAPOLITAN_BAROQUE_CLASSICISM must be in the Period enum (session 124)."""
     from scene_schema import Period

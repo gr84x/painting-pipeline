@@ -138,6 +138,7 @@ EXPECTED_ARTISTS = [
     "annibale_carracci",
     "salvator_rosa",
     "massimo_stanzione",
+    "albani",
 ]
 
 
@@ -15092,3 +15093,37 @@ def test_stanzione_noble_repose_pass_preserves_canvas_shape():
     img = p.canvas.to_pil()
     assert img.size == (80, 64), (
         f"Canvas shape changed after stanzione_noble_repose_pass: {img.size}")
+
+
+# ── Session 125: Francesco Albani ────────────────────────────────────────────
+
+def test_albani_in_catalog():
+    """Francesco Albani (session 125) must be in the catalog."""
+    assert "albani" in CATALOG, "albani missing from CATALOG — add to art_catalog.py"
+
+
+def test_albani_palette_valid():
+    """albani palette entries must be valid RGB floats in [0, 1]."""
+    s = get_style("albani")
+    for i, col in enumerate(s.palette):
+        assert len(col) == 3, f"albani palette[{i}] must have 3 components"
+        for ch in col:
+            assert 0.0 <= ch <= 1.0, (
+                f"albani palette[{i}] channel out of range [0,1]: {ch}")
+
+
+def test_albani_wet_blend_high():
+    """albani wet_blend must be >= 0.65 for smooth Arcadian classicism."""
+    s = get_style("albani")
+    assert s.wet_blend >= 0.65, (
+        f"albani wet_blend should be >= 0.65 (Albani's silky smooth surfaces); "
+        f"got {s.wet_blend}")
+
+
+def test_albani_inspiration_mentions_arcadian():
+    """albani inspiration text must mention chromatic aerial perspective."""
+    s = get_style("albani")
+    insp_lower = s.inspiration.lower()
+    assert "aerial" in insp_lower or "arcadian" in insp_lower, (
+        "albani inspiration should reference 'aerial' or 'arcadian' — "
+        "the defining aesthetic and technical improvement of session 125")

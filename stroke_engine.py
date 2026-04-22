@@ -29944,3 +29944,240 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Massimo Stanzione noble repose pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 125 — Francesco Albani + BOLOGNESE_ARCADIAN_CLASSICISM
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def chromatic_aerial_perspective_pass(
+        self,
+        *,
+        sky_fraction:    float = 0.55,
+        cool_r:          float = 0.64,
+        cool_g:          float = 0.72,
+        cool_b:          float = 0.85,
+        haze_strength:   float = 0.18,
+        desat_strength:  float = 0.22,
+        haze_lift:       float = 0.06,
+        gamma:           float = 1.20,
+        blur_radius:     float = 12.0,
+        opacity:         float = 1.0,
+    ) -> None:
+        """
+        Chromatic aerial perspective — session 125 artistic improvement.
+
+        Applies a vertical gradient of progressive blue-grey cooling and saturation
+        reduction from the lower foreground to the upper atmospheric distance,
+        modeling the physical scattering of short-wavelength (blue) light by
+        intervening atmosphere along long sight lines.
+
+        This is the foundation of classical landscape depth: Leonardo's sfumato
+        dell'aria, Albani's pastoral sky-fill, Claude Lorrain's golden-horizon
+        contre-jour — all depend on this physical atmospheric reality.
+
+        Mathematically distinct from the directional tonal temperature field (s122),
+        which operates on per-pixel luminance lookup tables.  This pass operates on
+        a 2D spatial gradient: the atmospheric depth weight increases from bottom
+        (foreground, warm, saturated) to top (distant, cool, desaturated), creating
+        the illusion of recession through chromatic attenuation rather than through
+        tonal darkening alone.
+
+        Parameters
+        ----------
+        sky_fraction   : fraction of image height that receives maximum aerial cooling
+                         (measured from the top); defaults to upper 55%
+        cool_r/g/b     : RGB components of the atmospheric haze colour
+                         (default: cool blue-grey, pale sky tone)
+        haze_strength  : blend weight toward atmospheric haze colour at maximum depth
+        desat_strength : desaturation strength at maximum depth (0 = none, 1 = greyscale)
+        haze_lift      : luminance brightening at maximum depth (atmospheric veiling)
+        gamma          : gradient shaping exponent (>1 = gradual onset; <1 = abrupt)
+        blur_radius    : Gaussian sigma to smooth the gradient edge transition
+        opacity        : global compositing weight
+
+        Notes
+        -----
+        Key applications:
+          Leonardo da Vinci — Mona Lisa background mountains fade to pale blue-grey
+          Francesco Albani — pastoral Arcadian skies fill shadows with cool blue air
+          Claude Lorrain — golden horizons against hazy blue-grey atmospheric distance
+          Caspar David Friedrich — receding mountain ridges dissolve into atmospheric blue
+        """
+        print(f"Chromatic aerial perspective pass  "
+              f"(opacity={opacity:.2f}  sky_fraction={sky_fraction:.2f}  "
+              f"haze_strength={haze_strength:.2f}  desat_strength={desat_strength:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Build vertical depth-weight map ───────────────────────────────────
+        # weight = 1 at top (y=0, atmospheric distance), 0 at bottom (y=H, foreground).
+        # sky_fraction controls how far down the maximum aerial effect extends.
+        ys = _np.linspace(1.0, 0.0, H, dtype=_np.float32)    # top=1, bottom=0
+        # Scale so that ys[y] > sky_fraction clips to ~1, below ramps to 0
+        raw_weight = _np.clip(ys / max(sky_fraction, 0.01), 0.0, 1.0) ** gamma
+        # Broadcast to (H, W)
+        weight_2d  = _np.tile(raw_weight[:, _np.newaxis], (1, W))
+        # Smooth the gradient edge softly
+        weight_2d  = _gf(weight_2d.astype(_np.float32), sigma=blur_radius)
+        weight_2d  = _np.clip(weight_2d, 0.0, 1.0)
+
+        # ── Stage 1: Chromatic haze blend ─────────────────────────────────────
+        # Blend canvas pixels toward the atmospheric cool colour weighted by depth.
+        w_haze = weight_2d * haze_strength
+        r_out = r0 * (1.0 - w_haze) + cool_r * w_haze
+        g_out = g0 * (1.0 - w_haze) + cool_g * w_haze
+        b_out = b0 * (1.0 - w_haze) + cool_b * w_haze
+
+        # ── Stage 2: Desaturation with depth ─────────────────────────────────
+        # Convert to greyscale luma and lerp toward it, reducing chromatic saturation.
+        lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+        w_desat = weight_2d * desat_strength
+        r_out = r_out * (1.0 - w_desat) + lum_out * w_desat
+        g_out = g_out * (1.0 - w_desat) + lum_out * w_desat
+        b_out = b_out * (1.0 - w_desat) + lum_out * w_desat
+
+        # ── Stage 3: Atmospheric veiling lift ────────────────────────────────
+        # Distant objects appear slightly lighter due to atmospheric scattering.
+        w_lift = weight_2d * haze_lift
+        r_out = _np.clip(r_out + w_lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + w_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + w_lift, 0.0, 1.0)
+
+        # ── Composite at opacity ─────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Chromatic aerial perspective pass complete.")
+
+    def albani_arcadian_grace_pass(
+        self,
+        *,
+        bloom_lo:        float = 0.42,
+        bloom_hi:        float = 0.78,
+        peach_r:         float = 0.045,
+        peach_g:         float = 0.018,
+        sky_lo:          float = 0.12,
+        sky_hi:          float = 0.40,
+        sky_b:           float = 0.048,
+        sky_r:           float = 0.018,
+        ambient_lift:    float = 0.012,
+        blur_radius:     float = 5.0,
+        opacity:         float = 1.0,
+    ) -> None:
+        """
+        Francesco Albani arcadian grace pass — session 125.
+
+        Encodes Albani's Bolognese Arcadian Classicism in three stages:
+
+        (1) Rose-peach skin bloom — in mid-tone zones (bloom_lo..bloom_hi),
+        add a delicate rose-peach warmth.  Albani's flesh tones are the
+        sweetest in Bolognese painting: lighter and more peach than Reni's
+        cool pearl, warmer and rosier than Stanzione's Mediterranean gold,
+        with a pastoral innocence that reads as idealized outdoor sunlight
+        on young, smooth skin.
+
+        (2) Cool sky-reflected shadow — in the shadow zone (sky_lo..sky_hi),
+        add a delicate cool blue-lavender tint.  Albani's outdoor pastoral
+        figures catch ambient sky light in their shadows — the cool blue-grey
+        reflected from open sky replaces the warm amber of interior candlelight
+        with the airy luminosity of Arcadian outdoors.
+
+        (3) Pearl ambient lift — a very gentle global luminance lift that
+        gives Albani's pictures their characteristic pearlescent airiness:
+        nothing is truly dark; even shadows have a soft glow as if the entire
+        scene breathes in open sunlit air.
+
+        Parameters
+        ----------
+        bloom_lo/hi    : luminance range for rose-peach skin bloom zone
+        peach_r/g      : red and green channel offsets for rose-peach bloom
+        sky_lo/hi      : luminance range for cool sky-reflected shadow zone
+        sky_b/r        : blue lift and red damp in shadow zone
+        ambient_lift   : uniform luminance lift for pearlescent airiness
+        blur_radius    : Gaussian sigma to smooth zone boundary transitions
+        opacity        : global compositing weight
+
+        Notes
+        -----
+        Characteristic works:
+          *The Four Seasons (Albani Tondi)* (Galleria Borghese, c. 1616–1617) —
+              putti and goddesses in soft Arcadian light; Bolognese pearl skin.
+          *Diana and Actaeon* (c. 1617) —
+              cool sky-shadow on nymph figures beside a forest pool.
+          *Venus with Putti* (Pinacoteca di Bologna, c. 1621) —
+              sweetest rose-peach flesh quality in all Bolognese Baroque.
+        """
+        print(f"Francesco Albani arcadian grace pass  "
+              f"(opacity={opacity:.2f}  peach_r={peach_r:.3f}  "
+              f"sky_b={sky_b:.3f}  ambient_lift={ambient_lift:.3f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Rose-peach skin bloom ────────────────────────────────────
+        # Albani's mid-tone flesh — sweet pastoral peach warmth in mid-tones.
+        bloom_span  = max(0.01, bloom_hi - bloom_lo)
+        bloom_raw   = _np.clip(1.0 - _np.abs(lum - 0.5 * (bloom_lo + bloom_hi))
+                               / (0.5 * bloom_span), 0.0, 1.0)
+        bloom_mask  = _gf(bloom_raw.astype(_np.float32), sigma=blur_radius)
+        bloom_mask  = _np.clip(bloom_mask, 0.0, 1.0)
+
+        r_out = r0 + bloom_mask * peach_r
+        g_out = g0 + bloom_mask * peach_g
+
+        # ── Stage 2: Cool sky-reflected shadow ────────────────────────────────
+        # Outdoor pastoral shadows take on the cool blue-grey of open sky light.
+        sky_span    = max(0.01, sky_hi - sky_lo)
+        sky_raw     = _np.clip(1.0 - _np.abs(lum - 0.5 * (sky_lo + sky_hi))
+                               / (0.5 * sky_span), 0.0, 1.0)
+        sky_mask    = _gf(sky_raw.astype(_np.float32), sigma=blur_radius)
+        sky_mask    = _np.clip(sky_mask, 0.0, 1.0)
+
+        b_out = b0 + sky_mask * sky_b
+        r_out = r_out - sky_mask * sky_r
+
+        # ── Stage 3: Pearl ambient lift ───────────────────────────────────────
+        # Albani's pictures have a pearlescent airiness — a soft global lift
+        # that prevents any region from becoming truly dark or heavy.
+        r_out = _np.clip(r_out + ambient_lift, 0.0, 1.0)
+        g_out = _np.clip(g_out + ambient_lift, 0.0, 1.0)
+        b_out = _np.clip(b_out + ambient_lift, 0.0, 1.0)
+
+        # ── Composite at opacity ─────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Francesco Albani arcadian grace pass complete.")

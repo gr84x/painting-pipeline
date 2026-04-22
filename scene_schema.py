@@ -290,6 +290,7 @@ class Period(Enum):
     BOLOGNESE_ACADEMIC_NATURALISM = auto()   # Annibale Carracci — warm-ground naturalism, directional tonal temperature field, lit-side warmth vs cool-shadow, Bolognese reformist clarity
     ROMAN_BAROQUE_LANDSCAPE = auto()  # Salvator Rosa — gestural turbulent displacement, near-black umber ground, storm-charged atmospheric borders, warm amber focal light from enveloping darkness
     NEAPOLITAN_BAROQUE_CLASSICISM = auto()  # Massimo Stanzione — warm Reni-derived ivory highlights, cool violet shadow penumbra, Laplacian pyramid mid-frequency clarity, golden Bolognese classicist flesh
+    BOLOGNESE_ARCADIAN_CLASSICISM = auto()  # Francesco Albani — pearl-ivory ambient glow, rose-peach skin bloom, cool sky-reflected shadow, chromatic aerial perspective
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1381,6 +1382,10 @@ class Style:
             # sfumato — forms clearly defined (anti-Mannerist classicism) but not sharp (sfumato
             # influence from Bolognese academic training via Reni).
             Period.NEAPOLITAN_BAROQUE_CLASSICISM: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.72, edge_softness=0.68),
+            # Bolognese Arcadian Classicism (Albani): delicate, smoothly blended pastoral sweetness.
+            # Fine strokes (face=5), soft wet blend (0.80), moderate-high edge softness (0.72) —
+            # Albani's forms are resolved but never harsh; ambient light fills every shadow gently.
+            Period.BOLOGNESE_ARCADIAN_CLASSICISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.80, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

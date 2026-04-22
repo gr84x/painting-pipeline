@@ -10843,6 +10843,93 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Francesco Albani ──────────────────────────────────────────────────────
+    "albani": ArtStyle(
+        artist="Francesco Albani",
+        movement="Bolognese Arcadian Classicism",
+        nationality="Italian (Bolognese)",
+        period="c. 1600–1660",
+        palette=[
+            (0.95, 0.88, 0.78),   # pearl ivory — the ambient light that bathes Albani's figures
+            (0.88, 0.72, 0.64),   # rose-peach flesh — his characteristic warm, sweetly idealized skin
+            (0.72, 0.58, 0.44),   # warm mid-shadow — amber penumbra, soft Carracci-derived transition
+            (0.62, 0.70, 0.82),   # sky blue — the cool aerial blue that fills shadow zones in outdoor scenes
+            (0.54, 0.65, 0.42),   # sage green — pastoral foliage, muted and harmonious, never harsh
+            (0.84, 0.76, 0.52),   # warm gold — sunlit grass and distant ground planes, Arcadian warmth
+        ],
+        ground_color=(0.74, 0.64, 0.46),    # warm honey-amber imprimatura — Bolognese academic ground
+        stroke_size=5,
+        wet_blend=0.80,                      # very smooth blending — Albani's surfaces are silky, unified
+        edge_softness=0.72,                  # soft but resolved — pastoral idealism, not sfumato dissolution
+        jitter=0.018,                        # very low variation — sweet, harmonious, no raw stroke tension
+        glazing=(0.78, 0.68, 0.50),          # warm amber-gold unifying glaze — Bolognese warmth
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Francesco Albani (1578–1660) was the Bolognese master of the Arcadian idyll — the painter "
+            "who transformed the severe academic naturalism of his teacher Annibale Carracci into a "
+            "world of sunlit pastoral grace, delicate mythological playfulness, and sweetly idealized "
+            "figures bathed in soft, even ambient light.  He studied in the Carracci Academy alongside "
+            "Guido Reni and Domenichino, absorbing the Bolognese reform of colour temperature and "
+            "tonal discipline, but where Reni pursued transcendent spiritual luminosity and Domenichino "
+            "pursued intellectual narrative clarity, Albani pursued the sensuous pleasure of "
+            "harmonious pastoral beauty — the 'pittore delle Grazie' (painter of the Graces), as he "
+            "was known to his contemporaries.  "
+            "His palette is characteristic and immediately recognizable: pearl-ivory ambient light "
+            "that fills the entire pictorial space, rose-peach flesh tones of exquisite sweetness, "
+            "muted sage-green foliage that never competes with the figures, warm golden ground "
+            "planes in sunlit outdoor scenes, and — his most distinctive technical touch — a "
+            "delicate cool sky-blue that enters the shadow zones of outdoor figures, modeling the "
+            "reflected light from an open sky rather than the warm reflected ground typical of "
+            "interior Baroque chiaroscuro.  This cool sky-reflected shadow is the optical signature "
+            "of painting figures en plein-air in classical Arcadian settings, and Albani deployed it "
+            "with systematic consistency across his entire career.  "
+            "His surfaces are among the smoothest in Bolognese painting — more seamless even than "
+            "Reni in the flesh zones, with a silky, porcelain-adjacent quality that sets his figures "
+            "apart from both the rougher realism of the Caravaggists and the harder idealism of "
+            "later academic painters.  He built up surfaces with thin, patient oil glazes over a "
+            "warm imprimatura, never allowing impasto texture to disrupt the lyrical softness of "
+            "his pastoral world.  "
+            "Major works include the four large *Albani Tondi* (Galleria Borghese, Rome), the "
+            "*Diana and Actaeon* series, the *Venus with Putti* (Pinacoteca di Bologna), and "
+            "numerous oval cabinet pictures of mythological scenes with landscapes — the format "
+            "that became his signature: intimate, harmonious, suffused with outdoor light."
+        ),
+        famous_works=[
+            ("Diana and Actaeon",                          "c. 1617"),
+            ("The Four Seasons (Albani Tondi)",            "c. 1616–1617"),
+            ("Venus with Putti",                           "c. 1621"),
+            ("The Baptism of Christ",                      "c. 1640"),
+            ("Toilet of Venus",                            "c. 1622–1623"),
+            ("Landscape with Diana Hunting",               "c. 1635"),
+            ("Galatea",                                    "c. 1625"),
+        ],
+        inspiration=(
+            "Apply albani_arcadian_grace_pass() as the defining pass for session 125.  "
+            "The pass encodes Albani's Bolognese Arcadian Classicism in three stages built "
+            "around the session 125 artistic improvement: chromatic aerial perspective.  "
+            "(1) Chromatic aerial perspective — the session 125 artistic improvement.  "
+            "All previous colour-manipulation passes in this pipeline operate either as "
+            "uniform tone shifts (temperature field, ivory lift, violet penumbra) or as "
+            "frequency-band operations (Laplacian pyramid, s124).  This pass introduces "
+            "a new spatial dimension: a vertical gradient that applies progressive blue-grey "
+            "cooling and saturation reduction from the lower foreground to the upper "
+            "atmospheric distance — modeling the physical scattering of short-wavelength "
+            "blue light by intervening atmosphere along long sight lines.  This is "
+            "Leonardo's sfumato dell'aria, Albani's pastoral sky-fill, and the "
+            "foundation of classical landscape painting's depth illusion.  "
+            "(2) Rose-peach skin bloom — in mid-tone zones, add a delicate rose-peach "
+            "warmth.  Albani's flesh is idealized and sweetly warm — not the Reni cool-pearl "
+            "or Stanzione's Mediterranean golden ochre, but a lighter, softer peach that "
+            "reads as the embodiment of pastoral innocence.  "
+            "(3) Cool sky-reflected shadow — in the shadow zone, add a delicate cool "
+            "blue-lavender tint.  Albani's shadow zones in outdoor settings catch the "
+            "ambient sky light — pale blue-grey fills the penumbra, replacing the warm "
+            "amber of interior candlelight with the cool reflective light of open sky.  "
+            "Use at opacity ≈ 0.26–0.34."
+        ),
+    ),
+
 }
 
 
