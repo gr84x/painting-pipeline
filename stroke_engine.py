@@ -31912,7 +31912,212 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Highlight crystalline pass complete.")
 
-    # parmigianino_pearl_refinement_pass — Session 136 main pass (14th mode)
+    # moretto_silver_luminance_pass — Session 136
+    # ─────────────────────────────────────────────────────────────────────────
+    def moretto_silver_luminance_pass(
+        self,
+        l_lift:       float = 0.06,
+        b_silver:     float = 0.55,
+        a_cool_hi:    float = 0.08,
+        opacity:      float = 0.32,
+    ) -> None:
+        """
+        Moretto silver luminance pass — Session 136 (Moretto da Brescia).
+
+        FOURTEENTH DISTINCT PROCESSING MODE IN THE PIPELINE:
+        PERCEPTUAL COLOR SPACE SCULPTING (CIE L*a*b*).
+
+        Encodes the Lombard silver light of Moretto da Brescia: cool, pearlescent,
+        diffused tonality achieved by sculpting in CIE L*a*b* perceptual space.
+        First pipeline mode to operate in perceptual Lab space.
+
+        Algorithm:
+        (1) sRGB linearisation + RGB -> XYZ (D65) -> L*a*b*
+        (2) L* midtone lift: Gaussian bell centred at L*=55
+        (3) b* silver neutralisation: b_new = b * (1 - b_silver * (L/100)^2)
+        (4) a* cool highlight drift in brightest zones (L* > 70)
+        (5) L*a*b* -> XYZ -> sRGB; composite at opacity.
+
+        Parameters
+        l_lift    : Peak midtone L* lift (fraction of L* range, 0–1).
+        b_silver  : b* neutralisation strength in highlights.
+        a_cool_hi : Negative a* shift in brightest highlights.
+        opacity   : Final composite weight (0–1).
+        """
+        print(f"Moretto silver luminance pass (CIE Lab perceptual sculpting, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32: [y,x,0]=B, [1]=G, [2]=R, [3]=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Linearise sRGB ────────────────────────────────────────────────
+        def _lin(c):
+            return _np.where(c <= 0.04045, c / 12.92,
+                             ((c + 0.055) / 1.055) ** 2.4)
+
+        rl, gl, bl = _lin(r0), _lin(g0), _lin(b0)
+
+        # ── (2) Linear RGB → XYZ (D65) ────────────────────────────────────────
+        X = 0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl
+        Y = 0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl
+        Z = 0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl
+
+        # ── (3) XYZ → CIE L*a*b* ─────────────────────────────────────────────
+        Xn, Yn, Zn = 0.95047, 1.00000, 1.08883
+        delta = 6.0 / 29.0
+
+        def _f(t):
+            return _np.where(t > delta ** 3,
+                             t ** (1.0 / 3.0),
+                             t / (3.0 * delta ** 2) + 4.0 / 29.0)
+
+        fx = _f(X / Xn)
+        fy = _f(Y / Yn)
+        fz = _f(Z / Zn)
+
+        L_star = 116.0 * fy - 16.0
+        a_star = 500.0 * (fx - fy)
+        b_star = 200.0 * (fy - fz)
+
+        # ── (4a) Midtone L* lift ──────────────────────────────────────────────
+        bell = _np.exp(-0.5 * ((L_star - 55.0) / 28.0) ** 2)
+        L_mod = L_star + l_lift * 100.0 * bell
+
+        # ── (4b) b* silver neutralisation ────────────────────────────────────
+        Ln = _np.clip(L_mod / 100.0, 0.0, 1.0)
+        b_mod = b_star * (1.0 - b_silver * Ln * Ln)
+
+        # ── (4c) a* cool highlight drift ─────────────────────────────────────
+        hi_drift = _np.clip((L_mod - 70.0) / 30.0, 0.0, 1.0)
+        a_mod = a_star - a_cool_hi * 10.0 * hi_drift
+
+        # ── (5) L*a*b* → XYZ → linear sRGB → sRGB ───────────────────────────
+        fy2 = (L_mod + 16.0) / 116.0
+        fx2 = a_mod / 500.0 + fy2
+        fz2 = fy2 - b_mod / 200.0
+
+        def _f_inv(t):
+            return _np.where(t > delta,
+                             t ** 3,
+                             3.0 * delta ** 2 * (t - 4.0 / 29.0))
+
+        X2 = Xn * _f_inv(fx2)
+        Y2 = Yn * _f_inv(fy2)
+        Z2 = Zn * _f_inv(fz2)
+
+        rl2 =  3.2404542 * X2 - 1.5371385 * Y2 - 0.4985314 * Z2
+        gl2 = -0.9692660 * X2 + 1.8760108 * Y2 + 0.0415560 * Z2
+        bl2 =  0.0556434 * X2 - 0.2040259 * Y2 + 1.0572252 * Z2
+
+        rl2 = _np.clip(rl2, 0.0, None)
+        gl2 = _np.clip(gl2, 0.0, None)
+        bl2 = _np.clip(bl2, 0.0, None)
+
+        def _gamma(c):
+            return _np.where(c <= 0.0031308,
+                             12.92 * c,
+                             1.055 * c ** (1.0 / 2.4) - 0.055)
+
+        r_out = _np.clip(_gamma(rl2), 0.0, 1.0)
+        g_out = _np.clip(_gamma(gl2), 0.0, 1.0)
+        b_out = _np.clip(_gamma(bl2), 0.0, 1.0)
+
+        # ── (6) Composite at opacity ──────────────────────────────────────────
+        r_fin = r0 * (1.0 - opacity) + r_out * opacity
+        g_fin = g0 * (1.0 - opacity) + g_out * opacity
+        b_fin = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Moretto silver luminance (CIE Lab) pass complete.")
+
+    # pearlescent_sfumato_pass — Session 136 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+    def pearlescent_sfumato_pass(
+        self,
+        smooth_sigma: float = 2.5,
+        pearl_cool:   float = 0.04,
+        pearl_lift:   float = 0.03,
+        grad_thresh:  float = 0.06,
+        opacity:      float = 0.28,
+    ) -> None:
+        """
+        Pearlescent sfumato pass — Session 136 artistic improvement.
+
+        Identifies smooth tonal zones (low local gradient) and applies a gentle
+        pearlescent modulation: cool-blue lift in bright smooth areas + subtle
+        luminance boost in smooth midtones. Local and structure-sensitive.
+
+        Algorithm:
+        (1) Gradient magnitude on pre-smoothed luminance
+        (2) Smoothness mask S = clip(1 - M/grad_thresh, 0, 1)^2
+        (3) B channel boost in bright smooth areas (pearl_cool * S * L)
+        (4) Luminance lift in smooth areas (pearl_lift * S * L)
+        (5) Composite at opacity.
+        """
+        print(f"Pearlescent sfumato pass (smooth-zone opalescent shimmer, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── (1) Gradient magnitude on pre-smoothed luminance ─────────────────
+        lum_smooth = _gf(lum, sigma=smooth_sigma)
+        sx = _sobel(lum_smooth, axis=1)
+        sy = _sobel(lum_smooth, axis=0)
+        grad_mag = _np.sqrt(sx * sx + sy * sy)
+
+        # ── (2) Smoothness mask ───────────────────────────────────────────────
+        eps = 1e-6
+        raw_mask = _np.clip(1.0 - grad_mag / (grad_thresh + eps), 0.0, 1.0)
+        smooth_mask = raw_mask * raw_mask
+
+        # ── (3) Pearlescent cool lift ─────────────────────────────────────────
+        b_pearl = _np.clip(b0 + pearl_cool * smooth_mask * lum, 0.0, 1.0)
+
+        # ── (4) Smooth zone luminance lift ────────────────────────────────────
+        r_lift = _np.clip(r0 + pearl_lift * smooth_mask * lum, 0.0, 1.0)
+        g_lift = _np.clip(g0 + pearl_lift * smooth_mask * lum, 0.0, 1.0)
+        b_lift = _np.clip(b_pearl + pearl_lift * smooth_mask * lum, 0.0, 1.0)
+
+        # ── (5) Composite at opacity ──────────────────────────────────────────
+        r_fin = r0 * (1.0 - opacity) + r_lift * opacity
+        g_fin = g0 * (1.0 - opacity) + g_lift * opacity
+        b_fin = b0 * (1.0 - opacity) + b_lift * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_fin * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Pearlescent sfumato pass complete.")
+
+    # parmigianino_pearl_refinement_pass — Session 137 main pass (15th mode)
     # ─────────────────────────────────────────────────────────────────────────
     def parmigianino_pearl_refinement_pass(
         self,
@@ -31923,40 +32128,35 @@ class Painter:
         opacity:      float = 0.34,
     ) -> None:
         """
-        Parmigianino pearl refinement — Session 136 main pass.
+        Parmigianino pearl refinement — Session 137 main pass.
 
-        Luminance-chrominance decoupled filtering (14th distinct processing mode).
-        Encodes Parmigianino's defining quality: ultra-smooth pearl skin surfaces
-        with sharp tonal precision and a mercury-cool chroma shift.
+        FIFTEENTH DISTINCT PROCESSING MODE IN THE PIPELINE:
+        LUMINANCE-CHROMINANCE DECOUPLED FILTERING.
 
-        The key insight: Parmigianino separates luminance from chrominance both
-        spatially (smooth colour fields) and tonally (precise light/dark transitions).
-        This is achieved by applying DIFFERENT filters to luma vs chroma:
-          - Chroma receives Gaussian smoothing → smooth, pooled colour zones
-          - Luma receives Unsharp Masking → crisp tonal ridges, precise forms
+        Encodes Parmigianino's defining quality: ultra-smooth pearl skin with
+        crisp tonal precision. Decomposes each pixel into perceptual luma
+        (0.299R+0.587G+0.114B) and chroma residuals, then applies DIFFERENT
+        filters to each — Gaussian smoothing to chroma, USM to luma — plus
+        optional cool-pearl tint on the blue chroma residual.
 
-        This is the FOURTEENTH distinct processing mode, distinct from Mode 13
-        (Cranach mean-grey chromaticity decomposition) in three ways:
-          (a) Uses PERCEPTUAL luminance weighting (0.299R+0.587G+0.114B)
-              vs Cranach's mean grey (R+G+B)/3
-          (b) DUAL filtering: smooth chroma, sharpen luma (not a single operation)
-          (c) Optional directional cool-pearl tint on blue chroma residual
+        Distinct from Mode 13 (Cranach mean-grey chromaticity decomposition):
+          (a) Perceptual luminance weighting vs mean grey (R+G+B)/3
+          (b) DUAL filtering: smooth chroma, sharpen luma
+          (c) Optional directional cool-pearl tint
 
         Algorithm:
         (1) Luma L = 0.299R + 0.587G + 0.114B
         (2) Chroma residuals: Cr = R-L, Cg = G-L, Cb = B-L
-        (3) Gaussian smooth each chroma channel with sigma_chroma
-        (4) USM on luma: L_sharp = clip(L + usm_amount*(L - gauss(L, sigma_luma)), 0, 1)
+        (3) Gaussian smooth each chroma channel (sigma_chroma)
+        (4) USM on luma (sigma_luma, usm_amount)
         (5) Cool tint: Cb_tinted = Cb_smooth + cool_tint
-        (6) Reconstruct: R_out = L_sharp + Cr_smooth, G_out = L_sharp + Cg_smooth,
-                         B_out = L_sharp + Cb_tinted
-        (7) Clip to [0, 1], composite at opacity.
+        (6) Reconstruct + clip + composite at opacity.
 
         Parameters
-        sigma_chroma : Gaussian sigma for chroma smoothing (higher = more colour pooling).
+        sigma_chroma : Gaussian sigma for chroma smoothing.
         sigma_luma   : Gaussian sigma for luma USM base blur.
-        usm_amount   : Unsharp mask strength for luminance sharpening.
-        cool_tint    : Positive offset added to Cb residual (nudges toward cool/blue).
+        usm_amount   : Unsharp mask strength for luminance.
+        cool_tint    : Positive offset added to Cb residual.
         opacity      : Final composite weight (0–1).
         """
         print(f"Parmigianino pearl refinement (luma-chroma decoupled, "
@@ -32013,7 +32213,7 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Parmigianino pearl refinement (luma-chroma decoupled) complete.")
 
-    # penumbra_cool_tint_pass — Session 136 artistic improvement
+    # penumbra_cool_tint_pass — Session 137 artistic improvement
     # ─────────────────────────────────────────────────────────────────────────
     def penumbra_cool_tint_pass(
         self,
@@ -32025,19 +32225,13 @@ class Painter:
         opacity:    float = 0.30,
     ) -> None:
         """
-        Penumbra cool tint — Session 136 artistic improvement.
+        Penumbra cool tint — Session 137 artistic improvement.
 
         Applies a cool blue-lavender tint specifically in the penumbra / midtone
-        zone (luminance between shadow_lo and shadow_hi).  Deep shadows and bright
-        highlights are left unchanged; only the transitional half-tone penumbra
-        zone receives a cool shift.
-
-        This encodes the warm/cool separation that sfumato masters relied on:
-        warm light sources yield warm highlight zones, while the penumbra --
-        the region of partial shadow -- receives scattered cool skylight.
-        Parmigianino and Leonardo both exploited this to give skin surfaces a
-        simultaneous warmth (illuminated side) and cool depth (half-shadow),
-        implying translucency and three-dimensional form.
+        zone (luminance between shadow_lo and shadow_hi). Deep shadows and bright
+        highlights are left unchanged; only the transitional penumbra half-tone
+        zone receives a cool shift — encoding the warm/cool split exploited by
+        Parmigianino and Leonardo for translucent three-dimensional skin.
 
         Algorithm:
         (1) L = 0.299R + 0.587G + 0.114B

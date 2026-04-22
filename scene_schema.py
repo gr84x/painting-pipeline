@@ -302,6 +302,7 @@ class Period(Enum):
     DUTCH_GOLDEN_AGE_LUMINISM  = auto()  # Aelbert Cuyp — radiant amber-gold afternoon light, luminance-adaptive spatial frequency attenuation dissolves fine detail in bright zones into golden atmosphere; the Dutch Claude
     GERMAN_REFORMATION_RENAISSANCE = auto()  # Lucas Cranach the Elder — enamel-flat colour zones, Gothic linear clarity, vermilion/jet-black/pearl-flesh palette, chromaticity/luminance decomposition for jewel-like purity
     EMILIAN_ELEGANT_MANNERISM      = auto()  # Parmigianino — ultra-smooth pearl skin, cool-silver highlights, extreme Mannerist elongation, perceptual luma-chroma decoupled surface refinement, penumbra cool-lavender half-tones
+    LOMBARD_SILVER_CLASSICISM      = auto()  # Moretto da Brescia — cool pearlescent silver light, ivory-cool skin, CIE Lab perceptual colour sculpting depletes yellow-warmth in highlights for silver-neutral tonality
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1473,6 +1474,15 @@ class Style:
             # wet_blend=0.20: low — flat paint application, almost no atmospheric merging.
             # edge_softness=0.14: very firm — Gothic linear clarity, sharp authoritative outlines.
             Period.GERMAN_REFORMATION_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.20, edge_softness=0.14),
+            # LOMBARD_SILVER_CLASSICISM (Moretto da Brescia) — cool pearlescent silver light.
+            # stroke_size_face=5: refined but not as small as Cranach — Moretto's modelling is
+            # more tonal and atmospheric than linear.
+            # stroke_size_bg=22: moderate for architectural and landscape backgrounds.
+            # wet_blend=0.58: moderate-high — tones merge softly but edges are more present than
+            # Venetian sfumato; Moretto preserves more local form than Giorgione.
+            # edge_softness=0.46: moderate — forms are clear but no hard Gothic contours;
+            # the silver light gently dissolves the outline without fully dissolving form.
+            Period.LOMBARD_SILVER_CLASSICISM: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.58, edge_softness=0.46),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -11691,6 +11691,96 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Moretto da Brescia ────────────────────────────────────────────────────
+    "moretto_da_brescia": ArtStyle(
+        artist="Moretto da Brescia",
+        movement="Lombard Silver Classicism",
+        nationality="Italian (Brescian)",
+        period="c. 1498–1554",
+        palette=[
+            (0.90, 0.87, 0.82),   # pearl ivory-white — Moretto's defining cool skin highlight
+            (0.78, 0.72, 0.68),   # silver-grey flesh — lit face midtone, cool and luminous
+            (0.54, 0.50, 0.56),   # cool blue-grey — penumbra and half-shadow flesh
+            (0.38, 0.36, 0.42),   # cool violet-shadow — deep face shadow, cool and clean
+            (0.28, 0.32, 0.38),   # steel blue-dark — background drapery depth
+            (0.62, 0.56, 0.50),   # warm umber mid — dark garment and hair
+            (0.82, 0.78, 0.72),   # pale cool silver — lit collar, white lace, linen
+            (0.44, 0.46, 0.52),   # atmospheric grey-blue — landscape distance, sky shadow
+        ],
+        ground_color=(0.62, 0.64, 0.66),    # cool silver-grey imprimatura — Lombard cool ground (B > R)
+        stroke_size=5,
+        wet_blend=0.58,                      # moderate-high — tones merge softly; clear form but no hard Gothic edges
+        edge_softness=0.46,                  # moderate — soft but not Venetian-dissolved; Lombard structural presence
+        jitter=0.010,                        # low — refined, controlled surface; Moretto was a careful technician
+        glazing=(0.72, 0.70, 0.74),          # cool silver-lavender glaze — Lombard diffused overcast atmosphere
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Moretto da Brescia (Alessandro Bonvicino, c. 1498–1554) is the supreme "
+            "master of the Lombard 'silver light' — a cool, pearlescent, diffused "
+            "tonality utterly unlike the warm amber luminosity of the Venetian school.  "
+            "Where Titian bathes his subjects in Mediterranean gold and Giorgione wraps "
+            "them in smoky dusk, Moretto illuminates his figures with an overcast Brescian "
+            "light: cool, even, and shadowless in the lit zones, with deep cool-violet "
+            "shadow accents.  The result is a quality of extraordinary dignity and "
+            "introspective calm — Moretto's sitters appear to exist in a world of perfect "
+            "tonal quiet.  His palette is built around a family of cool pearl-grey and "
+            "ivory tones: skin does not glow amber-warm but reads as silver-white; "
+            "shadows are cool blue-violet rather than warm umber; and the overall tonal "
+            "key is high and even — no dramatic dark masses or Caravaggesque voids.  "
+            "His technique shows the influence of Raphael's tonal discipline fused with "
+            "the Venetian command of glazed oil surfaces: surfaces are built up in "
+            "multiple thin layers over a cool grey ground, giving a depth and luminosity "
+            "that pure opaque application cannot achieve.  The glazing final pass is "
+            "silver-lavender rather than amber — a colour temperature no other major "
+            "Renaissance master habitually used.  Moretto was also the direct teacher "
+            "and foremost influence on Giovanni Battista Moroni, whose uncompromising "
+            "portrait realism grew directly from Moretto's cool-light objectivity."
+        ),
+        famous_works=[
+            ("Portrait of a Young Man",                "c. 1525–1530"),
+            ("Portrait of Count Fortunato Martinengo", "c. 1543"),
+            ("Madonna and Child with Saints",          "c. 1524"),
+            ("The Supper in the House of Simon",       "c. 1544"),
+            ("Pietà",                                  "c. 1554"),
+            ("Saint Justina with the Unicorn",         "c. 1530"),
+            ("Portrait of a Lady",                     "c. 1540"),
+            ("Elijah in the Wilderness",               "c. 1520–1525"),
+        ],
+        inspiration=(
+            "Apply moretto_silver_luminance_pass() as the defining pass for "
+            "session 136.  The pass encodes Moretto's defining optical quality: "
+            "the LOMBARD SILVER LIGHT — a cool, pearlescent diffused tonality "
+            "achieved by sculpting the image in CIE L*a*b* perceptual colour space.  "
+            "This is the FOURTEENTH distinct processing mode in the pipeline: "
+            "PERCEPTUAL COLOR SPACE SCULPTING (CIE L*a*b*).  "
+            "Prior modes: (1) s123 Rosa — spatial displacement; (2) s124 Stanzione — "
+            "Laplacian pyramid; (3) s125 Albani — vertical gradient; (4) s126 Bartolommeo — "
+            "Sobel edge-map; (5) s127 Cantarini — channel-selective diffusion; "
+            "(6) s128 Carpaccio — local variance adaptation; (7) s129 Piazzetta — "
+            "histogram percentile sculpting; (8) s130 Sebastiano — structure tensor; "
+            "(9) s131 Rosso — hue-selective chromatic tension; (10) s132 Dosso — "
+            "illumination-reflectance decomposition; (11) s133 Bassano — anisotropic "
+            "diffusion; (12) s134 Cuyp — luminance-adaptive CSF attenuation; "
+            "(13) s135 Cranach — chromaticity/luminance decomposition.  "
+            "Session 136 mode: PERCEPTUAL COLOR SPACE SCULPTING (CIE Lab).  "
+            "Algorithm: (1) sRGB -> linear -> XYZ (D65) -> L*a*b*.  "
+            "(2) L* MIDTONE LIFT: Gaussian bell at L*=55 lifts midtones by l_lift "
+            "(high-key Lombard airiness).  (3) b* SILVER NEUTRALISATION: "
+            "b_new = b * (1 - b_silver * (L/100)^2) -- depletes yellow-warmth "
+            "in bright zones proportionally to L^2, giving silver-neutral highlights.  "
+            "(4) a* COOL HIGHLIGHT DRIFT: in zones where L* > 70, a small negative "
+            "a* shift models sky-reflected cool glint from pale skin.  "
+            "(5) Lab -> XYZ -> sRGB.  This is the first pipeline mode to operate in "
+            "perceptual Lab space -- all prior modes used linear RGB, HSV, log-domain, "
+            "or PDE-based operations.  "
+            "Also apply pearlescent_sfumato_pass() (session 136 artistic improvement): "
+            "a structure-sensitive opalescent shimmer that adds pearlescent luminous depth "
+            "to smooth gradient zones, modelling the scattering of light through "
+            "multiple thin glaze layers.  Use at opacity ~0.26-0.34."
+        ),
+    ),
+
     # ── Parmigianino ──────────────────────────────────────────────────────────
     "parmigianino": ArtStyle(
         artist="Francesco Mazzola (Parmigianino)",
@@ -11746,7 +11836,7 @@ CATALOG: Dict[str, ArtStyle] = {
         inspiration=(
             "Apply parmigianino_serpentine_elegance_pass() as the core pipeline pass "
             "for Parmigianino's cool porcelain refinement (session 62).  "
-            "Session 136 adds parmigianino_pearl_refinement_pass() — the FOURTEENTH "
+            "Session 137 adds parmigianino_pearl_refinement_pass() — the FIFTEENTH "
             "distinct processing mode: LUMINANCE-CHROMINANCE DECOUPLED FILTERING.  "
             "Algorithm: Luma = 0.299R + 0.587G + 0.114B (perceptual weighting, "
             "unlike Cranach mode's mean-grey (R+G+B)/3); chroma residuals "
@@ -11755,7 +11845,7 @@ CATALOG: Dict[str, ArtStyle] = {
             "sigma_luma/usm_amount to Luma (sharpen tonal structure); optionally "
             "shift Cb by +cool_tint (nudge penumbra toward cool lavender-pearl); "
             "reconstruct R_out = Luma_sharp + Cr_smooth; composite at opacity.  "
-            "Session 136 also adds penumbra_cool_tint_pass() — zone-targeted cool "
+            "Session 137 also adds penumbra_cool_tint_pass() — zone-targeted cool "
             "tint in the penumbra band (shadow_lo=0.15 to shadow_hi=0.52), encoding "
             "the warm/cool split: warm highlights + cool ambient-scattered half-tones.  "
             "Distinct from Mode 13 (Cranach) in: (a) perceptual vs mean-grey axis; "

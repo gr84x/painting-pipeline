@@ -143,6 +143,7 @@ EXPECTED_ARTISTS = [
     "dosso_dossi",
     "aelbert_cuyp",
     "lucas_cranach",
+    "moretto_da_brescia",
 ]
 
 
