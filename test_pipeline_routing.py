@@ -14389,4 +14389,196 @@ def test_cuyp_golden_hour_pass_dark_pixels_less_affected():
 
     assert bright_r_shift > dark_r_shift, (
         f"Bright pixels should receive a larger R warmth shift than dark pixels "
-        f"(lum² weighting): bright_shift={bright_r_shift:.2f}, dark_shift={dark_r_shift:.2f}")
+        f"(lum2 weighting): bright_shift={bright_r_shift:.2f}, dark_shift={dark_r_shift:.2f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 135: Lucas Cranach the Elder + GERMAN_REFORMATION_RENAISSANCE
+#              + cranach_enamel_clarity_pass (13th distinct processing mode)
+#              + highlight_crystalline_pass (artistic improvement)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_cranach_enamel_clarity_pass_exists():
+    """Painter must have cranach_enamel_clarity_pass() method after session 135."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "cranach_enamel_clarity_pass"), (
+        "cranach_enamel_clarity_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "cranach_enamel_clarity_pass"))
+
+
+def test_cranach_enamel_clarity_pass_no_error():
+    """cranach_enamel_clarity_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.05)
+    p.cranach_enamel_clarity_pass(opacity=0.30)
+
+
+def test_cranach_enamel_clarity_pass_modifies_canvas():
+    """cranach_enamel_clarity_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.82, 0.14, 0.08), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.cranach_enamel_clarity_pass(chroma_boost=0.50, opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "cranach_enamel_clarity_pass should modify the canvas at opacity=0.60")
+
+
+def test_cranach_enamel_clarity_pass_preserves_shape():
+    """cranach_enamel_clarity_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.05)
+    p.cranach_enamel_clarity_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after cranach_enamel_clarity_pass: {img.size}")
+
+
+def test_cranach_enamel_clarity_pass_has_chroma_boost_parameter():
+    """cranach_enamel_clarity_pass must accept chroma_boost parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cranach_enamel_clarity_pass)
+    assert "chroma_boost" in sig.parameters, (
+        "cranach_enamel_clarity_pass must have chroma_boost parameter "
+        "(session 135 chromaticity saturation boost control)")
+
+
+def test_cranach_enamel_clarity_pass_zero_opacity_no_op():
+    """cranach_enamel_clarity_pass with opacity=0.0 should leave the canvas unchanged."""
+    from stroke_engine import Painter
+    import numpy as np
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.00)
+    before = np.array(p.canvas.to_pil()).copy()
+    p.cranach_enamel_clarity_pass(opacity=0.0)
+    after = np.array(p.canvas.to_pil())
+    np.testing.assert_array_equal(before, after,
+        err_msg="cranach_enamel_clarity_pass with opacity=0 should be a no-op")
+
+
+def test_cranach_enamel_clarity_boosts_saturation():
+    """
+    A chromatic (non-grey) canvas should have higher per-channel deviation
+    from grey after cranach_enamel_clarity_pass with high chroma_boost.
+    """
+    from stroke_engine import Painter
+    import numpy as np
+    # Muted reddish canvas -- not fully saturated
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.65, 0.42, 0.38), texture_strength=0.00)
+    before_buf = np.frombuffer(p.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4).copy()
+    before_r = before_buf[:, :, 2].astype(float) / 255.0
+    before_g = before_buf[:, :, 1].astype(float) / 255.0
+    before_b = before_buf[:, :, 0].astype(float) / 255.0
+    before_grey = (before_r + before_g + before_b) / 3.0
+    before_sat = float(np.mean(np.abs(before_r - before_grey) +
+                               np.abs(before_g - before_grey) +
+                               np.abs(before_b - before_grey)))
+
+    p.cranach_enamel_clarity_pass(
+        chroma_boost=0.60,
+        sigma_pool=0.0,
+        pool_weight=0.0,
+        opacity=0.80,
+    )
+    after_buf = np.frombuffer(p.canvas.surface.get_data(),
+                              dtype=np.uint8).reshape(64, 64, 4)
+    after_r = after_buf[:, :, 2].astype(float) / 255.0
+    after_g = after_buf[:, :, 1].astype(float) / 255.0
+    after_b = after_buf[:, :, 0].astype(float) / 255.0
+    after_grey = (after_r + after_g + after_b) / 3.0
+    after_sat = float(np.mean(np.abs(after_r - after_grey) +
+                              np.abs(after_g - after_grey) +
+                              np.abs(after_b - after_grey)))
+
+    assert after_sat > before_sat, (
+        f"cranach_enamel_clarity_pass should boost saturation on chromatic canvas: "
+        f"before_sat={before_sat:.4f}, after_sat={after_sat:.4f}")
+
+
+def test_highlight_crystalline_pass_exists():
+    """Painter must have highlight_crystalline_pass() method after session 135."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "highlight_crystalline_pass"), (
+        "highlight_crystalline_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "highlight_crystalline_pass"))
+
+
+def test_highlight_crystalline_pass_no_error():
+    """highlight_crystalline_pass() runs on a canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.05)
+    p.highlight_crystalline_pass(opacity=0.35)
+
+
+def test_highlight_crystalline_pass_modifies_canvas():
+    """highlight_crystalline_pass() must modify a bright canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.90, 0.88, 0.82), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.highlight_crystalline_pass(lum_thresh=0.50, opacity=0.80)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "highlight_crystalline_pass should modify a bright canvas at opacity=0.80")
+
+
+def test_highlight_crystalline_pass_preserves_shape():
+    """highlight_crystalline_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.86, 0.78, 0.62), texture_strength=0.05)
+    p.highlight_crystalline_pass(opacity=0.35)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after highlight_crystalline_pass: {img.size}")
+
+
+def test_highlight_crystalline_pass_has_lum_thresh_parameter():
+    """highlight_crystalline_pass must accept lum_thresh parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.highlight_crystalline_pass)
+    assert "lum_thresh" in sig.parameters, (
+        "highlight_crystalline_pass must have lum_thresh parameter "
+        "(session 135 highlight gate luminance threshold)")
+
+
+def test_highlight_crystalline_dark_canvas_less_affected():
+    """
+    A dark canvas (below lum_thresh) should be almost unaffected by
+    highlight_crystalline_pass, since the sigmoid mask is near zero in dark regions.
+    """
+    from stroke_engine import Painter
+    import numpy as np
+    p_dark = Painter(width=64, height=64)
+    p_dark.tone_ground((0.12, 0.12, 0.12), texture_strength=0.00)
+    before_dark = np.frombuffer(p_dark.canvas.surface.get_data(),
+                                dtype=np.uint8).reshape(64, 64, 4).copy()
+    p_dark.highlight_crystalline_pass(
+        lum_thresh=0.72, usm_sigma=1.0, usm_amount=1.0, transition=0.05, opacity=1.0
+    )
+    after_dark = np.frombuffer(p_dark.canvas.surface.get_data(),
+                               dtype=np.uint8).reshape(64, 64, 4)
+    dark_diff = float(np.abs(after_dark.astype(float) - before_dark.astype(float)).mean())
+    assert dark_diff < 5.0, (
+        f"Dark canvas (lum~0.12) should be almost unaffected by highlight_crystalline_pass "
+        f"(lum_thresh=0.72): mean pixel diff={dark_diff:.2f}")

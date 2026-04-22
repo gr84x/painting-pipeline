@@ -31723,4 +31723,191 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Cuyp golden-hour CSF pass complete.")
-        print("    Shadow temperature relief pass complete.")
+
+    # cranach_enamel_clarity_pass — Session 135
+    # ─────────────────────────────────────────────────────────────────────────
+    def cranach_enamel_clarity_pass(
+        self,
+        chroma_boost: float = 0.40,
+        sigma_pool:   float = 1.8,
+        pool_weight:  float = 0.30,
+        opacity:      float = 0.32,
+    ) -> None:
+        """
+        Cranach enamel clarity — Session 135 (Lucas Cranach the Elder).
+
+        THIRTEENTH DISTINCT PROCESSING MODE IN THE PIPELINE:
+        CHROMATICITY/LUMINANCE DECOMPOSITION (mean-achromatic separation
+        with chromatic boost and spatial colour pooling).
+
+        Historical / physical model:
+        Each chromatic area in a Cranach panel sits at maximum chromatic
+        purity for its luminance level — vermilion, jet-black, pearl ivory —
+        with no grey contamination from atmospheric blending.  This enamel-like
+        chromatic purity is achieved by decomposing each pixel into its
+        achromatic grey component and chromatic deviation, boosting the
+        deviation, then optionally pooling the chroma layer spatially to
+        create the flat colour zones that define Cranach's panel surfaces.
+
+        Algorithm:
+        (1) grey = (R + G + B) / 3   (achromatic; cr+cg+cb = 0 identically)
+        (2) Chromatic deviation:  cr = R - grey, cg = G - grey, cb = B - grey
+        (3) Boost:  cr *= (1 + chroma_boost), etc.
+        (4) Spatial pooling of chroma only (Gaussian sigma_pool, blend pool_weight)
+        (5) Reconstruct:  R_out = grey + cr_final  →  clamp [0, 1]
+        (6) Composite at opacity.
+
+        Distinct from Mode 9 (Rosso, HSV hue-selective): that uses max-channel
+        V and selects specific hue ranges; this uses mean-channel grey and
+        applies uniformly to all hues.  Distinct from Mode 10 (Dosso, Retinex):
+        that decomposes illumination × reflectance in log space; this decomposes
+        achromatic × chromatic in linear space.  Thirteenth distinct mode.
+
+        Parameters
+        chroma_boost : Fractional saturation boost to the chromatic deviation.
+        sigma_pool   : Gaussian sigma (pixels) for chroma spatial pooling.
+        pool_weight  : Blend weight toward the spatially-pooled chroma layer.
+        opacity      : Final composite weight (0–1).
+        """
+        print(f"Cranach enamel clarity pass (chromaticity decomposition, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32: buf[y, x, 0]=B, [1]=G, [2]=R, [3]=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Achromatic/chromatic decomposition ────────────────────────────
+        grey = (r0 + g0 + b0) / 3.0
+        cr = r0 - grey
+        cg = g0 - grey
+        cb = b0 - grey
+
+        # ── (2) Chromatic saturation boost ───────────────────────────────────
+        scale = 1.0 + chroma_boost
+        cr_boost = cr * scale
+        cg_boost = cg * scale
+        cb_boost = cb * scale
+
+        # ── (3) Chroma spatial pooling (smooths colour within flat zones) ─────
+        if sigma_pool > 0.0 and pool_weight > 0.0:
+            cr_pool = _gf(cr_boost, sigma=sigma_pool)
+            cg_pool = _gf(cg_boost, sigma=sigma_pool)
+            cb_pool = _gf(cb_boost, sigma=sigma_pool)
+            cr_final = cr_boost * (1.0 - pool_weight) + cr_pool * pool_weight
+            cg_final = cg_boost * (1.0 - pool_weight) + cg_pool * pool_weight
+            cb_final = cb_boost * (1.0 - pool_weight) + cb_pool * pool_weight
+        else:
+            cr_final, cg_final, cb_final = cr_boost, cg_boost, cb_boost
+
+        # ── (4) Reconstruct ───────────────────────────────────────────────────
+        r_out = _np.clip(grey + cr_final, 0.0, 1.0)
+        g_out = _np.clip(grey + cg_final, 0.0, 1.0)
+        b_out = _np.clip(grey + cb_final, 0.0, 1.0)
+
+        # ── (5) Composite at opacity ──────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Cranach enamel clarity (chromaticity decomposition) complete.")
+
+    # highlight_crystalline_pass — Session 135 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+    def highlight_crystalline_pass(
+        self,
+        lum_thresh: float = 0.72,
+        usm_sigma:  float = 1.2,
+        usm_amount: float = 0.55,
+        transition: float = 0.14,
+        opacity:    float = 0.35,
+    ) -> None:
+        """
+        Highlight crystalline clarity — Session 135 artistic improvement.
+
+        Van Eyck and Early Netherlandish masters applied pure lead-white
+        touches to the very brightest specular highlights — tiny precise
+        dabs that make surfaces read as three-dimensional and brilliantly lit.
+        This pass applies LUMINANCE-GATED UNSHARP MASKING: only pixels above
+        lum_thresh receive sharpening.  Below threshold, canvas is unaffected.
+
+        This is the complementary operation to the blurring passes elsewhere
+        (Cuyp CSF s134 dissolves bright detail; Bassano anisotropic diffusion
+        s133 smooths within tonal pools).  Van Eyck's highlights SHARPEN.
+
+        Algorithm:
+        (1) L = 0.299R + 0.587G + 0.114B
+        (2) Sigmoid highlight gate centred at lum_thresh (width transition)
+        (3) USM: sharpened = clip(orig + usm_amount × (orig - gauss(orig)), 0, 1)
+        (4) Gated: result = mask × sharpened + (1-mask) × original
+        (5) Composite at opacity.
+
+        Parameters
+        lum_thresh : Luminance threshold above which sharpening applies.
+        usm_sigma  : Gaussian sigma for the unsharp mask base blur.
+        usm_amount : Unsharp mask strength.
+        transition : Sigmoid transition half-width (luminance units).
+        opacity    : Final composite weight (0–1).
+        """
+        print(f"Highlight crystalline pass (luminance-gated USM, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Highlight gate (sigmoid) ──────────────────────────────────────────
+        eps = 1e-6
+        hi_mask = 1.0 / (1.0 + _np.exp(
+            -(lum - lum_thresh) / (transition + eps) * 6.0
+        ))
+
+        # ── Unsharp mask ──────────────────────────────────────────────────────
+        r_blur = _gf(r0, sigma=usm_sigma)
+        g_blur = _gf(g0, sigma=usm_sigma)
+        b_blur = _gf(b0, sigma=usm_sigma)
+        r_sharp = _np.clip(r0 + usm_amount * (r0 - r_blur), 0.0, 1.0)
+        g_sharp = _np.clip(g0 + usm_amount * (g0 - g_blur), 0.0, 1.0)
+        b_sharp = _np.clip(b0 + usm_amount * (b0 - b_blur), 0.0, 1.0)
+
+        # ── Apply only in highlight zone ──────────────────────────────────────
+        r_gated = hi_mask * r_sharp + (1.0 - hi_mask) * r0
+        g_gated = hi_mask * g_sharp + (1.0 - hi_mask) * g0
+        b_gated = hi_mask * b_sharp + (1.0 - hi_mask) * b0
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_gated * opacity
+        g_final = g0 * (1.0 - opacity) + g_gated * opacity
+        b_final = b0 * (1.0 - opacity) + b_gated * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Highlight crystalline pass complete.")
