@@ -289,6 +289,7 @@ class Period(Enum):
     ITALIAN_BELLE_EPOQUE_PORTRAITURE = auto()  # Boldini — dual-angle swirl bravura, luminous warm flesh emerging from near-black grounds, aristocratic vivacity
     BOLOGNESE_ACADEMIC_NATURALISM = auto()   # Annibale Carracci — warm-ground naturalism, directional tonal temperature field, lit-side warmth vs cool-shadow, Bolognese reformist clarity
     ROMAN_BAROQUE_LANDSCAPE = auto()  # Salvator Rosa — gestural turbulent displacement, near-black umber ground, storm-charged atmospheric borders, warm amber focal light from enveloping darkness
+    NEAPOLITAN_BAROQUE_CLASSICISM = auto()  # Massimo Stanzione — warm Reni-derived ivory highlights, cool violet shadow penumbra, Laplacian pyramid mid-frequency clarity, golden Bolognese classicist flesh
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1371,6 +1372,15 @@ class Style:
             # edge_softness=0.38: moderate crispness — agitated, storm-charged edges; not sfumato
             # dissolution, not crisp Velázquez line, but a tense in-between quality.
             Period.ROMAN_BAROQUE_LANDSCAPE: dict(stroke_size_face=10, stroke_size_bg=36, wet_blend=0.22, edge_softness=0.38),
+            # NEAPOLITAN_BAROQUE_CLASSICISM (Massimo Stanzione) — Reni-derived classicism grafted onto
+            # Neapolitan Baroque. stroke_size_face=6: restrained, classicist mark-making; Bolognese
+            # academic discipline applied to Neapolitan warmth. stroke_size_bg=22: moderate background
+            # strokes — architectural and devotional settings painted with Reni-adjacent clarity.
+            # wet_blend=0.72: smooth blending — Stanzione's flesh surfaces are seamlessly resolved,
+            # Reni-influenced; no rough impasto or alla-prima energy. edge_softness=0.68: moderate
+            # sfumato — forms clearly defined (anti-Mannerist classicism) but not sharp (sfumato
+            # influence from Bolognese academic training via Reni).
+            Period.NEAPOLITAN_BAROQUE_CLASSICISM: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.72, edge_softness=0.68),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

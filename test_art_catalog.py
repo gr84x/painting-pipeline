@@ -137,6 +137,7 @@ EXPECTED_ARTISTS = [
     "boldini",
     "annibale_carracci",
     "salvator_rosa",
+    "massimo_stanzione",
 ]
 
 
@@ -14897,3 +14898,197 @@ def test_salvator_rosa_wild_bravura_pass_max_disp_parameter():
     assert "max_disp" in sig.parameters, (
         "salvator_rosa_wild_bravura_pass must have 'max_disp' parameter "
         "(maximum pixel displacement for the turbulent warp — session 123 improvement)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 124: Massimo Stanzione — Neapolitan Baroque Classicism
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_massimo_stanzione_in_catalog():
+    """massimo_stanzione must be present in CATALOG (session 124)."""
+    assert "massimo_stanzione" in CATALOG, (
+        "'massimo_stanzione' not found in CATALOG — add it to art_catalog.py")
+
+
+def test_massimo_stanzione_get_style():
+    """get_style('massimo_stanzione') must return an ArtStyle without error."""
+    s = get_style("massimo_stanzione")
+    assert s.artist == "Massimo Stanzione"
+
+
+def test_massimo_stanzione_movement():
+    """massimo_stanzione movement must identify Neapolitan Baroque Classicism."""
+    s = get_style("massimo_stanzione")
+    assert "Neapolitan" in s.movement or "Baroque" in s.movement, (
+        f"massimo_stanzione movement should reference Neapolitan Baroque; got '{s.movement}'")
+
+
+def test_massimo_stanzione_palette_length():
+    """massimo_stanzione palette must have at least 5 entries."""
+    s = get_style("massimo_stanzione")
+    assert len(s.palette) >= 5, (
+        f"massimo_stanzione palette has {len(s.palette)} entries; expected >= 5")
+
+
+def test_massimo_stanzione_palette_values_in_range():
+    """All massimo_stanzione palette RGB values must be in [0, 1]."""
+    s = get_style("massimo_stanzione")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in massimo_stanzione palette {rgb}")
+
+
+def test_massimo_stanzione_high_wet_blend():
+    """massimo_stanzione wet_blend must be high (smooth Reni-derived blending >= 0.60)."""
+    s = get_style("massimo_stanzione")
+    assert s.wet_blend >= 0.60, (
+        f"massimo_stanzione wet_blend={s.wet_blend:.2f} should be >= 0.60 "
+        "-- Stanzione's flesh surfaces are smooth and seamlessly blended, Reni-influenced")
+
+
+def test_massimo_stanzione_famous_works_non_empty():
+    """massimo_stanzione must list at least one famous work."""
+    s = get_style("massimo_stanzione")
+    assert len(s.famous_works) >= 1, "massimo_stanzione must have at least one famous work"
+
+
+def test_massimo_stanzione_inspiration_references_pass():
+    """massimo_stanzione inspiration must reference stanzione_noble_repose_pass."""
+    s = get_style("massimo_stanzione")
+    assert "stanzione_noble_repose_pass" in s.inspiration, (
+        "massimo_stanzione inspiration must reference stanzione_noble_repose_pass()")
+
+
+def test_massimo_stanzione_inspiration_references_pyramid():
+    """massimo_stanzione inspiration must reference the Laplacian pyramid improvement."""
+    s = get_style("massimo_stanzione")
+    insp = s.inspiration.lower()
+    assert "laplacian" in insp or "pyramid" in insp or "frequency" in insp, (
+        "massimo_stanzione inspiration must reference the Laplacian pyramid "
+        "(the session 124 artistic improvement)")
+
+
+def test_neapolitan_baroque_classicism_period_present():
+    """Period.NEAPOLITAN_BAROQUE_CLASSICISM must be in the Period enum (session 124)."""
+    assert hasattr(Period, "NEAPOLITAN_BAROQUE_CLASSICISM"), (
+        "Period.NEAPOLITAN_BAROQUE_CLASSICISM not found -- add it to scene_schema.py")
+    assert Period.NEAPOLITAN_BAROQUE_CLASSICISM in list(Period)
+
+
+def test_neapolitan_baroque_classicism_stroke_params_high_wet_blend():
+    """NEAPOLITAN_BAROQUE_CLASSICISM stroke_params must have high wet_blend (>= 0.60)."""
+    style = Style(medium=Medium.OIL, period=Period.NEAPOLITAN_BAROQUE_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"NEAPOLITAN_BAROQUE_CLASSICISM wet_blend should be >= 0.60 "
+        f"for Stanzione's smooth Reni-influenced flesh; got {p['wet_blend']}")
+
+
+def test_neapolitan_baroque_classicism_stroke_params_moderate_edge_softness():
+    """NEAPOLITAN_BAROQUE_CLASSICISM edge_softness must be moderate (0.50 to 0.85)."""
+    style = Style(medium=Medium.OIL, period=Period.NEAPOLITAN_BAROQUE_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.50 <= p["edge_softness"] <= 0.85, (
+        f"NEAPOLITAN_BAROQUE_CLASSICISM edge_softness should be 0.50-0.85; got {p['edge_softness']}")
+
+
+def test_stanzione_noble_repose_pass_exists():
+    """Painter must expose stanzione_noble_repose_pass (session 124)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "stanzione_noble_repose_pass"), (
+        "Painter.stanzione_noble_repose_pass not found -- add it to stroke_engine.py")
+
+
+def test_stanzione_noble_repose_pass_opacity_parameter():
+    """stanzione_noble_repose_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.stanzione_noble_repose_pass)
+    assert "opacity" in sig.parameters, (
+        "stanzione_noble_repose_pass must have 'opacity' parameter")
+
+
+def test_stanzione_noble_repose_pass_pyramid_levels_parameter():
+    """stanzione_noble_repose_pass must accept pyramid_levels (session 124 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.stanzione_noble_repose_pass)
+    assert "pyramid_levels" in sig.parameters, (
+        "stanzione_noble_repose_pass must have 'pyramid_levels' parameter "
+        "(number of frequency bands in Laplacian pyramid -- session 124 improvement)")
+
+
+def test_stanzione_noble_repose_pass_mid_freq_boost_parameter():
+    """stanzione_noble_repose_pass must accept mid_freq_boost (Laplacian band boost)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.stanzione_noble_repose_pass)
+    assert "mid_freq_boost" in sig.parameters, (
+        "stanzione_noble_repose_pass must have 'mid_freq_boost' parameter "
+        "(contrast boost for mid-frequency Laplacian band -- session 124 improvement)")
+
+
+def test_stanzione_noble_repose_pass_modifies_canvas():
+    """stanzione_noble_repose_pass() must alter the canvas from its initial state."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.06)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.stanzione_noble_repose_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "stanzione_noble_repose_pass should change the canvas when opacity=1.0")
+
+
+def test_stanzione_noble_repose_pass_opacity_zero_is_noop():
+    """stanzione_noble_repose_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [120, 140, 170, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.stanzione_noble_repose_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "stanzione_noble_repose_pass(opacity=0) should be a noop")
+
+
+def test_stanzione_noble_repose_pass_lifts_highlights():
+    """stanzione_noble_repose_pass must raise R in the bright highlight zone."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Bright fill -- well above default hi_lo (0.70); lum ~ 0.85
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :, :] = [210, 215, 220, 255]   # BGRA: bright, lum ~ 0.85
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+    p.stanzione_noble_repose_pass(
+        ivory_r=0.08, ivory_g=0.04,
+        violet_b=0.0, violet_r=0.0,
+        mid_freq_boost=0.0, fine_suppress=0.0,
+        opacity=1.0,
+    )
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+    assert after_r >= orig_r, (
+        f"stanzione_noble_repose_pass must raise R in highlight zone (warm ivory lift); "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_stanzione_noble_repose_pass_preserves_canvas_shape():
+    """stanzione_noble_repose_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=64)
+    p.tone_ground((0.46, 0.36, 0.22), texture_strength=0.05)
+    p.stanzione_noble_repose_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after stanzione_noble_repose_pass: {img.size}")

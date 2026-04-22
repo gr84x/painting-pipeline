@@ -29776,3 +29776,171 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Salvator Rosa turbulent displacement pass complete.")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 124: Massimo Stanzione — Neapolitan Baroque Classicism
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def stanzione_noble_repose_pass(
+        self,
+        pyramid_levels:      int   = 4,     # number of frequency bands in Laplacian pyramid
+        mid_freq_boost:      float = 0.10,  # contrast boost applied to L1 (mid-frequency band)
+        fine_suppress:       float = 0.08,  # contrast suppression of L0 (finest noise band)
+        hi_lo:               float = 0.70,  # luminance threshold for highlight zone
+        ivory_r:             float = 0.014, # warm ivory lift in highlights (R channel)
+        ivory_g:             float = 0.008, # warm ivory lift in highlights (G channel)
+        penumbra_lo:         float = 0.24,  # luminance floor of cool violet shadow zone
+        penumbra_hi:         float = 0.56,  # luminance ceiling of cool violet shadow zone
+        violet_b:            float = 0.018, # cool violet lift in shadow penumbra (B channel)
+        violet_r:            float = 0.009, # cool violet damp in shadow penumbra (R channel)
+        blur_radius:         float = 4.0,   # Gaussian sigma for smooth zone transitions
+        opacity:             float = 0.30,
+    ) -> None:
+        """
+        Massimo Stanzione noble repose pass — session 124 new artist pass.
+
+        Massimo Stanzione (c. 1585–1656), "il Cavalier Calabrese," was the dominant
+        master of Neapolitan Baroque painting between the raw tenebrism of Caravaggio
+        and the luminous classicism of Guido Reni.  His flesh tones are the defining
+        achievement of his career: warm golden-ivory in the light, cooling through a
+        lavender-violet penumbra into a deep amber shadow that glows rather than darkens.
+        Sometimes called "the Neapolitan Guido Reni," Stanzione grafted Bolognese
+        academic smoothness onto Neapolitan warmth and shadow depth.
+
+        **Session 124 artistic improvement — Laplacian pyramid multi-scale clarity**
+
+        All previous passes in this pipeline operate in one of two modes:
+        colour-space transforms (additive RGB blends, temperature shifts, luminance lifts)
+        or spatial-domain transforms (image warping via displacement fields, session 123).
+        This pass introduces a third, entirely new mode: *frequency-band decomposition*
+        via a stationary Laplacian pyramid.
+
+        The canvas is decomposed into four additive frequency bands:
+          L0 = original − Gauss(σ=2)         finest detail (~2 px scale)
+          L1 = Gauss(σ=2) − Gauss(σ=4)       mid-frequency structural form (~4 px)
+          L2 = Gauss(σ=4) − Gauss(σ=8)       coarse tonal planes (~8 px)
+          L3 = Gauss(σ=8)                     global tonal base
+
+        The pipeline then selectively adjusts contrast within each band:
+          L1 *= (1 + mid_freq_boost)   → boosts mid-frequency form clarity
+          L0 *= (1 − fine_suppress)    → suppresses finest noise for surface smoothness
+
+        Reconstruction: canvas = L0' + L1' + L2 + L3 (applied per channel).
+
+        This replicates the perceptual effect of Bolognese academic glazing — carefully
+        built-up transparent layers that enhance mid-spatial-frequency facial structure
+        (forehead planes, cheekbone volumes, chin form) while smoothing out the finest
+        grain artifacts that accumulate across many painting passes.  The result is
+        increased apparent clarity and structural presence at the middle scale without
+        sharpening noise or disturbing global tonality.
+
+        Implementation:
+        1. Read current canvas as float32 R, G, B.
+        2. Per channel, compute Gaussian pyramid: G0=orig, G1=Gauss(σ=2), G2=Gauss(σ=4),
+           G3=Gauss(σ=8).
+        3. Derive Laplacian bands: L0=G0−G1, L1=G1−G2, L2=G2−G3, L3=G3.
+        4. Apply per-band scaling: L0 *= (1 − fine_suppress); L1 *= (1 + mid_freq_boost).
+        5. Reconstruct: out = L0' + L1' + L2 + L3, clipped to [0, 1].
+        6. Warm ivory highlight lift: pixels where lum > hi_lo receive +ivory_r/+ivory_g.
+        7. Cool violet penumbra: pixels where penumbra_lo < lum < penumbra_hi receive
+           +violet_b (blue lift) and −violet_r (red damp) — Stanzione's Caravaggist shadow
+           depth softened by Reni's cool classicist reflected light.
+        8. Composite at opacity.
+
+        Parameters
+        ----------
+        pyramid_levels   : number of pyramid levels (L0..L{N-1}, L{N} = base)
+        mid_freq_boost   : contrast multiplier increase for L1 (mid-frequency structural band)
+        fine_suppress    : contrast multiplier decrease for L0 (finest noise band)
+        hi_lo            : luminance threshold above which warm ivory lift applies
+        ivory_r/g        : warm ivory channel offsets for highlight zone
+        penumbra_lo/hi   : luminance range for cool violet shadow penumbra zone
+        violet_b/r       : blue lift and red damp in shadow penumbra
+        blur_radius      : Gaussian sigma for smooth zone-boundary transitions
+        opacity          : global compositing weight
+
+        Notes
+        -----
+        Characteristic works:
+          *Judith with the Head of Holofernes* (Prado, c. 1630s) —
+              most psychologically composed Judith of the era; ivory flesh, composed gaze.
+          *Pietà* (Prado, c. 1637) —
+              Reni-derived luminous grief; warm golden flesh against cool atmospheric shadow.
+          *Baptism of Christ* (S. Giovanni dei Fiorentini, Naples, c. 1635) —
+              monumental devotional clarity; classicist form with Neapolitan warmth.
+        """
+        print(f"Massimo Stanzione noble repose pass  "
+              f"(opacity={opacity:.2f}  pyramid_levels={pyramid_levels}  "
+              f"mid_freq_boost={mid_freq_boost:.2f}  fine_suppress={fine_suppress:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Laplacian pyramid multi-scale clarity (session 124 improvement) ──
+        # Stationary Laplacian pyramid — all bands at full resolution.
+        # sigma values: 2.0, 4.0, 8.0 px for 4-level pyramid.
+        def _pyramid_enhance(ch):
+            """Apply Laplacian pyramid enhancement to a single channel (float32 2-D)."""
+            sigmas = [2.0 * (2 ** k) for k in range(pyramid_levels - 1)]
+            # Build Gaussian pyramid levels.
+            gauss = [ch]
+            for s in sigmas:
+                gauss.append(_gf(ch, sigma=s))
+            # Derive Laplacian bands (stationary: all at original resolution).
+            bands = []
+            for i in range(len(gauss) - 1):
+                bands.append(gauss[i] - gauss[i + 1])
+            bands.append(gauss[-1])   # coarsest band = final Gaussian level
+            # Apply per-band scaling.
+            bands[0] = bands[0] * (1.0 - fine_suppress)       # suppress finest noise
+            if len(bands) > 1:
+                bands[1] = bands[1] * (1.0 + mid_freq_boost)  # boost mid-frequency form
+            # Reconstruct.
+            return _np.clip(sum(bands), 0.0, 1.0)
+
+        r_out = _pyramid_enhance(r0)
+        g_out = _pyramid_enhance(g0)
+        b_out = _pyramid_enhance(b0)
+
+        # ── Stage 2: Warm ivory highlight lift ────────────────────────────────
+        # Stanzione's lights are Reni-derived: warm golden-ivory, not cool pearl.
+        hi_raw    = _np.clip((lum - hi_lo) / max(0.01, 1.0 - hi_lo), 0.0, 1.0)
+        hi_mask   = _gf(hi_raw.astype(_np.float32), sigma=blur_radius)
+        hi_mask   = _np.clip(hi_mask, 0.0, 1.0)
+
+        r_out = _np.clip(r_out + hi_mask * ivory_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_mask * ivory_g, 0.0, 1.0)
+
+        # ── Stage 3: Cool violet shadow penumbra ──────────────────────────────
+        # Caravaggist shadow depth softened by Reni's cool reflected-light classicism.
+        span    = max(0.01, penumbra_hi - penumbra_lo)
+        pen_raw = _np.clip(1.0 - _np.abs(lum - 0.5 * (penumbra_lo + penumbra_hi))
+                           / (0.5 * span), 0.0, 1.0)
+        pen_mask = _gf(pen_raw.astype(_np.float32), sigma=blur_radius)
+        pen_mask = _np.clip(pen_mask, 0.0, 1.0)
+
+        b_out = _np.clip(b_out + pen_mask * violet_b, 0.0, 1.0)
+        r_out = _np.clip(r_out - pen_mask * violet_r, 0.0, 1.0)
+
+        # ── Composite at opacity ─────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Massimo Stanzione noble repose pass complete.")

@@ -10748,6 +10748,101 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Massimo Stanzione ─────────────────────────────────────────────────────
+    "massimo_stanzione": ArtStyle(
+        artist="Massimo Stanzione",
+        movement="Neapolitan Baroque Classicism",
+        nationality="Italian (Neapolitan)",
+        period="c. 1620–1656",
+        palette=[
+            (0.90, 0.80, 0.64),   # warm ivory highlight — Reni-derived luminous flesh bloom
+            (0.76, 0.60, 0.40),   # golden mid-flesh — warm Bolognese carnation
+            (0.54, 0.38, 0.22),   # amber penumbra — warm transition zone with golden depth
+            (0.32, 0.24, 0.36),   # cool violet shadow — restrained Caravaggist shadow depth
+            (0.68, 0.64, 0.78),   # lavender penumbra glow — cool reflected light from shadow
+            (0.20, 0.14, 0.10),   # near-black umber — deep shadow ground (Neapolitan Baroque)
+        ],
+        ground_color=(0.46, 0.36, 0.22),    # warm amber-brown imprimatura — Bolognese-derived
+        stroke_size=6,
+        wet_blend=0.72,                      # smooth blending — classicist restraint; Reni-influenced
+        edge_softness=0.68,                  # moderate sfumato — resolved forms, not dissolved
+        jitter=0.022,                        # controlled variation — classical discipline
+        glazing=(0.64, 0.52, 0.30),          # warm amber-sienna unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Massimo Stanzione (c. 1585–1656), known as 'il Cavalier Calabrese' (the Calabrian "
+            "Knight), was the dominant figure of Neapolitan painting in the second quarter of the "
+            "17th century — the master who mediated between the harsh tenebrism of Caravaggio and "
+            "Ribera on one hand and the luminous classicism of Guido Reni on the other.  "
+            "Stanzione trained in Naples under Giovan Battista Caracciolo and made extended visits "
+            "to Rome (c. 1617–1618 and again c. 1625–1630), where prolonged study of Bolognese "
+            "academic painting — especially Guido Reni, whose smooth idealized flesh quality he "
+            "absorbed deeply — transformed his palette from the raw darkness of early Caravaggism "
+            "toward a refined, luminous classicism perfectly suited to devotional altarpieces and "
+            "aristocratic portraiture.  He is sometimes called the 'Neapolitan Guido Reni,' a "
+            "designation that captures both his debt to Reni's alabaster skin quality and his "
+            "independent achievement: Stanzione's flesh is warmer, more golden, more earthily "
+            "Mediterranean than Reni's cool Bolognese pearl.  "
+            "His defining technical quality is the reconciliation of two forces normally in "
+            "opposition: the warm sculptural shadow depth inherited from the Caravaggist tradition "
+            "(deep cast shadows, controlled tenebrism) and the smooth luminous flesh bloom derived "
+            "from Reni (warm ivory highlights, seamlessly blended penumbra transitions, glazed "
+            "inner-light quality).  The result is a flesh tone of unusual complexity: warm golden "
+            "in the light, cooling through a lavender-violet penumbra zone into a deep amber-brown "
+            "shadow that has just enough warmth to glow rather than simply go dark.  His edges are "
+            "resolved — neither sfumato dissolution nor Flemish crispness, but the clear-eyed form "
+            "definition of Bolognese academic training applied to the warmer, darker Neapolitan "
+            "tradition.  "
+            "Major works include the *Judith with the Head of Holofernes* (Prado, c. 1630s) — one "
+            "of the most psychologically composed Judith treatments of the era — the *Pietà* (Prado), "
+            "the *Baptism of Christ* (S. Giovanni dei Fiorentini, Naples, c. 1635), the extensive "
+            "fresco cycles for S. Maria Donna Regina Nuova and S. Paolo Maggiore, and a group of "
+            "refined aristocratic portraits combining Reni's smooth flesh with the psychological "
+            "directness of the Caravaggist naturalist tradition."
+        ),
+        famous_works=[
+            ("Judith with the Head of Holofernes",           "c. 1630s"),
+            ("Pietà",                                         "c. 1637"),
+            ("Baptism of Christ",                             "c. 1635"),
+            ("Assumption of the Virgin",                      "c. 1638"),
+            ("Allegory of Music",                             "c. 1634–1638"),
+            ("Susanna and the Elders",                        "c. 1630"),
+            ("Saint John the Baptist in the Desert",          "c. 1634"),
+            ("Frescoes, S. Maria Donna Regina Nuova, Naples", "c. 1638–1646"),
+        ],
+        inspiration=(
+            "Apply stanzione_noble_repose_pass() as the defining pass for session 124.  "
+            "The pass encodes Stanzione's Neapolitan Baroque classicism in three stages built "
+            "around the session 124 artistic improvement: the Laplacian pyramid multi-scale "
+            "clarity pass.  "
+            "(1) Laplacian pyramid multi-scale clarity — the session 124 artistic improvement.  "
+            "All previous passes in this pipeline operate either in colour-space (additive blends, "
+            "temperature shifts, luminance lifts) or in spatial domain (image warping via "
+            "displacement fields).  This pass introduces a fundamentally different approach: "
+            "frequency-band decomposition via a stationary Laplacian pyramid.  The canvas is "
+            "decomposed into four frequency bands by subtracting progressively smoothed versions "
+            "(sigma = 2, 4, 8 px Gaussian): L0 = fine detail (~2 px); L1 = mid-frequency facial "
+            "structure (~4 px); L2 = coarse tonal form (~8 px); L3 = global tonal base.  The "
+            "mid-frequency band L1 is selectively boosted (contrast enhancement of facial planes "
+            "and structural form), while L0 is gently suppressed (fine noise reduction for "
+            "sfumato-like surface smoothness).  The canvas is then reconstructed with the adjusted "
+            "bands.  This replicates the perceptual effect of careful Bolognese glazing — where "
+            "thin transparent layers built up over time enhance mid-frequency structural clarity "
+            "while smoothing out surface irregularities at the finest scale.  "
+            "(2) Warm ivory highlight lift — in the luminance highlight zone (lum > hi_lo), add a "
+            "warm ivory tone (R += ivory_r, G += ivory_g).  Stanzione's lights are Reni-derived: "
+            "warm golden-ivory, not the cool pearl of Northern masters or the blue-white of "
+            "Florentine academic idealism.  "
+            "(3) Cool violet shadow penumbra — in the mid-shadow zone (penumbra_lo...penumbra_hi), "
+            "add a subtle cool violet shift (B += violet_b, R -= violet_r).  Stanzione's shadows "
+            "retain Caravaggist depth but replace raw darkness with a cool lavender-violet tone "
+            "from atmospheric and reflected light — the zone where warm Bolognese classicism "
+            "meets Caravaggist shadow discipline.  "
+            "Use at opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 

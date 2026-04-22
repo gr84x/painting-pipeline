@@ -13300,3 +13300,127 @@ def test_bolognese_academic_naturalism_stroke_params_moderate_blend():
     assert 0.40 <= p["edge_softness"] <= 0.70, (
         f"BOLOGNESE_ACADEMIC_NATURALISM edge_softness should be moderate (0.40–0.70) "
         f"for clearly resolved forms; got {p['edge_softness']}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 124: Massimo Stanzione — Laplacian pyramid + noble repose pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_stanzione_noble_repose_pass_exists():
+    """Painter must have stanzione_noble_repose_pass (session 124)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "stanzione_noble_repose_pass"), (
+        "Painter is missing stanzione_noble_repose_pass -- add it to stroke_engine.py")
+
+
+def test_stanzione_noble_repose_pass_modifies_canvas():
+    """stanzione_noble_repose_pass() must alter the canvas from its initial state."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    p.tone_ground((0.55, 0.44, 0.28), texture_strength=0.06)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.stanzione_noble_repose_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "stanzione_noble_repose_pass should change the canvas when opacity=1.0")
+
+
+def test_stanzione_noble_repose_pass_opacity_zero_is_noop():
+    """stanzione_noble_repose_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [130, 150, 175, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.stanzione_noble_repose_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "stanzione_noble_repose_pass(opacity=0) should be a noop")
+
+
+def test_stanzione_noble_repose_pass_warms_highlights():
+    """
+    stanzione_noble_repose_pass must raise R in the highlight zone
+    (Reni-derived warm ivory highlight lift).
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Bright fill -- above default hi_lo (0.70); lum ~ 0.84
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :, :] = [205, 212, 218, 255]   # BGRA: bright warm-grey, lum ~ 0.84
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+    p.stanzione_noble_repose_pass(
+        ivory_r=0.08, ivory_g=0.04,
+        violet_b=0.0, violet_r=0.0,
+        mid_freq_boost=0.0, fine_suppress=0.0,
+        opacity=1.0,
+    )
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+    assert after_r >= orig_r, (
+        f"stanzione_noble_repose_pass must raise R in highlight zone (warm ivory lift); "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_stanzione_noble_repose_pass_preserves_canvas_shape():
+    """stanzione_noble_repose_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.46, 0.36, 0.22), texture_strength=0.05)
+    p.stanzione_noble_repose_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after stanzione_noble_repose_pass: {img.size}")
+
+
+def test_stanzione_noble_repose_pass_pyramid_levels_parameter():
+    """stanzione_noble_repose_pass must accept pyramid_levels (session 124 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.stanzione_noble_repose_pass)
+    assert "pyramid_levels" in sig.parameters, (
+        "stanzione_noble_repose_pass must have 'pyramid_levels' parameter "
+        "(number of frequency bands in Laplacian pyramid -- session 124 improvement)")
+
+
+def test_stanzione_noble_repose_pass_mid_freq_boost_parameter():
+    """stanzione_noble_repose_pass must accept mid_freq_boost (Laplacian boost param)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.stanzione_noble_repose_pass)
+    assert "mid_freq_boost" in sig.parameters, (
+        "stanzione_noble_repose_pass must have 'mid_freq_boost' parameter "
+        "(contrast boost for mid-frequency Laplacian band -- session 124 improvement)")
+
+
+def test_neapolitan_baroque_classicism_period_present():
+    """Period.NEAPOLITAN_BAROQUE_CLASSICISM must be in the Period enum (session 124)."""
+    from scene_schema import Period
+    assert hasattr(Period, "NEAPOLITAN_BAROQUE_CLASSICISM"), (
+        "Period.NEAPOLITAN_BAROQUE_CLASSICISM not found -- add it to scene_schema.py")
+    assert Period.NEAPOLITAN_BAROQUE_CLASSICISM in list(Period)
+
+
+def test_neapolitan_baroque_classicism_stroke_params_high_wet_blend():
+    """NEAPOLITAN_BAROQUE_CLASSICISM stroke_params must have high wet_blend (smooth classicism)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.NEAPOLITAN_BAROQUE_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.60, (
+        f"NEAPOLITAN_BAROQUE_CLASSICISM wet_blend should be >= 0.60 "
+        f"for Stanzione's smooth Reni-influenced flesh; got {p['wet_blend']}")
+
+
+def test_neapolitan_baroque_classicism_stroke_params_moderate_edge_softness():
+    """NEAPOLITAN_BAROQUE_CLASSICISM edge_softness must be moderate (0.50 to 0.85)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.NEAPOLITAN_BAROQUE_CLASSICISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.50 <= p["edge_softness"] <= 0.85, (
+        f"NEAPOLITAN_BAROQUE_CLASSICISM edge_softness should be 0.50-0.85 "
+        f"(moderate sfumato, resolved classical forms); got {p['edge_softness']}")
