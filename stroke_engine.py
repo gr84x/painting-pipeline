@@ -30668,3 +30668,107 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Carpaccio Venetian clarity pass complete.")
+
+    def piazzetta_velvet_shadow_pass(
+        self,
+        shadow_percentile:  float = 0.20,
+        highlight_percentile: float = 0.85,
+        shadow_warm_r:      float = 0.018,
+        shadow_warm_b:      float = 0.022,
+        highlight_warm_r:   float = 0.032,
+        highlight_warm_g:   float = 0.012,
+        opacity:            float = 0.32,
+    ) -> None:
+        """
+        Piazzetta velvet shadow pass — session 129.
+
+        Encodes Giovanni Battista Piazzetta's Venetian Baroque Tenebrism via the
+        session 129 artistic improvement: PERCENTILE-ADAPTIVE TONAL SCULPTING.
+
+        All prior passes use LOCAL spatial analysis — sliding windows, pyramids,
+        gradients, edge maps.  This pass operates on the GLOBAL LUMINANCE HISTOGRAM:
+        each pixel is mapped to its rank-order PERCENTILE within the full image
+        distribution.  That percentile rank drives the tonal intervention, not any
+        local neighbourhood relationship.
+
+        Algorithm:
+          (1) Compute luminance for every pixel (BT.601: 0.299R + 0.587G + 0.114B).
+          (2) Argsort the flat luminance array → percentile rank map in [0, 1].
+          (3) Shadow zone (rank < shadow_percentile):
+                R += shadow_warm_r · weight   — warm umber deepening
+                B -= shadow_warm_b · weight   — B pull to warm the velvet dark
+          (4) Highlight zone (rank > highlight_percentile):
+                R += highlight_warm_r · weight  — amber impasto lift
+                G += highlight_warm_g · weight  — golden warmth lift
+          (5) Midtone zone: unchanged — the quiet bridge.
+          (6) Composite result with input at `opacity`.
+
+        Piazzetta reference works:
+          *The Fortune Teller* (Accademia, Venice, c. 1740) —
+            warm near-black velvet ground with glowing amber figure highlight
+          *Saint James Led to Martyrdom* (San Stae, Venice, 1717) —
+            dramatic tenebrism with compressed velvet dark, impasto amber light
+          *Rebecca at the Well* (Pinacoteca di Brera, c. 1735) —
+            characteristic warm-umber darkness and impasto warm ivory highlights
+        """
+        print(f"Piazzetta velvet shadow pass "
+              f"(opacity={opacity:.2f} shadow_pct={shadow_percentile:.2f} "
+              f"hi_pct={highlight_percentile:.2f})…")
+
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Stage 1: Global luminance percentile map ──────────────────────────
+        # Session 129 artistic improvement: rank-order percentile analysis.
+        # Each pixel maps to its position in the global luminance distribution —
+        # a fundamentally different approach from all prior local-spatial modes.
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).ravel()
+        order   = _np.argsort(lum, kind="stable")
+        rank    = _np.empty_like(order)
+        rank[order] = _np.arange(len(lum))
+        pct_map = (rank.astype(_np.float32) / max(len(lum) - 1, 1)).reshape(H, W)
+
+        r_out = r0.copy()
+        g_out = g0.copy()
+        b_out = b0.copy()
+
+        # ── Stage 2: Velvet shadow zone — warm-umber compression ─────────────
+        # In the darkest shadow_percentile fraction of pixels, push R slightly
+        # upward and B slightly downward — warming the dark toward Piazzetta's
+        # characteristic umber near-black (not cold Caravaggio void).
+        shd_weight = _np.clip(
+            (shadow_percentile - pct_map) / (shadow_percentile + 1e-7), 0.0, 1.0
+        )
+        r_out = _np.clip(r_out + shd_weight * shadow_warm_r, 0.0, 1.0)
+        b_out = _np.clip(b_out - shd_weight * shadow_warm_b, 0.0, 1.0)
+
+        # ── Stage 3: Impasto highlight zone — amber warm lift ─────────────────
+        # In the brightest (1 - highlight_percentile) fraction of pixels, lift R
+        # and G — simulating Piazzetta's thick, warm amber impasto highlights
+        # that seem to glow against the surrounding velvet dark.
+        hi_weight = _np.clip(
+            (pct_map - highlight_percentile) / (1.0 - highlight_percentile + 1e-7),
+            0.0, 1.0,
+        )
+        r_out = _np.clip(r_out + hi_weight * highlight_warm_r, 0.0, 1.0)
+        g_out = _np.clip(g_out + hi_weight * highlight_warm_g, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Piazzetta velvet shadow pass complete.")
