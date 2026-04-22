@@ -288,6 +288,7 @@ class Period(Enum):
     VENETIAN_ECCENTRIC_PORTRAITURE = auto()  # Lotto — vivid eccentric color contrasts, multi-scale chromatic vibration field, warm rose-ivory highlights, cool shadow accents, psychological intensity
     ITALIAN_BELLE_EPOQUE_PORTRAITURE = auto()  # Boldini — dual-angle swirl bravura, luminous warm flesh emerging from near-black grounds, aristocratic vivacity
     BOLOGNESE_ACADEMIC_NATURALISM = auto()   # Annibale Carracci — warm-ground naturalism, directional tonal temperature field, lit-side warmth vs cool-shadow, Bolognese reformist clarity
+    ROMAN_BAROQUE_LANDSCAPE = auto()  # Salvator Rosa — gestural turbulent displacement, near-black umber ground, storm-charged atmospheric borders, warm amber focal light from enveloping darkness
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1359,6 +1360,17 @@ class Style:
             # wet_blend=0.55: moderate — naturalistic painting, forms blended but not dissolved (anti-Mannerist clarity).
             # edge_softness=0.55: moderate — clearly defined forms; neither crisp Mannerist line nor sfumato dissolution.
             Period.BOLOGNESE_ACADEMIC_NATURALISM: dict(stroke_size_face=6, stroke_size_bg=20, wet_blend=0.55, edge_softness=0.55),
+            # ROMAN_BAROQUE_LANDSCAPE (Salvator Rosa) — gestural turbulence, near-black grounds, storm-charged wilderness.
+            # stroke_size_face=10: broad, energetic marks — Rosa's alla-prima bravura favours large,
+            # directional strokes that follow the form's energy rather than its contour; no sfumato finesse.
+            # stroke_size_bg=36: very large background strokes — vast storm-sky and craggy rock faces
+            # painted with sweeping gestural economy; the landscape is always more energetically painted
+            # than the figure.
+            # wet_blend=0.22: low blending — direction-less gestural marks retain their individual
+            # energy; heavy blending would destroy the turbulent surface quality Rosa cultivated.
+            # edge_softness=0.38: moderate crispness — agitated, storm-charged edges; not sfumato
+            # dissolution, not crisp Velázquez line, but a tense in-between quality.
+            Period.ROMAN_BAROQUE_LANDSCAPE: dict(stroke_size_face=10, stroke_size_bg=36, wet_blend=0.22, edge_softness=0.38),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

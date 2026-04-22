@@ -135,6 +135,8 @@ EXPECTED_ARTISTS = [
     "savoldo",
     "batoni",
     "boldini",
+    "annibale_carracci",
+    "salvator_rosa",
 ]
 
 
@@ -14774,3 +14776,124 @@ def test_annibale_carracci_tonal_reform_pass_gradient_temperature_parameters():
     assert "cool_b" in sig.parameters, (
         "annibale_carracci_tonal_reform_pass must have 'cool_b' parameter "
         "(cool blue lift on shadow face — session 122 directional temperature improvement)")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 123: Salvator Rosa + ROMAN_BAROQUE_LANDSCAPE
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_salvator_rosa_in_catalog():
+    """salvator_rosa must be in CATALOG (session 123)."""
+    assert "salvator_rosa" in CATALOG, (
+        "salvator_rosa not found in CATALOG — add it to art_catalog.py")
+
+
+def test_salvator_rosa_movement():
+    """salvator_rosa must be classified as Baroque / Proto-Romantic or similar."""
+    s = get_style("salvator_rosa")
+    mv = s.movement.lower()
+    assert "baroque" in mv or "romantic" in mv, (
+        f"salvator_rosa movement should reference Baroque or Romantic; got {s.movement!r}")
+
+
+def test_salvator_rosa_palette_length():
+    """salvator_rosa palette must have at least 5 entries."""
+    s = get_style("salvator_rosa")
+    assert len(s.palette) >= 5, (
+        f"salvator_rosa palette has {len(s.palette)} entries; expected ≥ 5")
+
+
+def test_salvator_rosa_palette_values_in_range():
+    """All salvator_rosa palette RGB values must be in [0, 1]."""
+    s = get_style("salvator_rosa")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in salvator_rosa palette {rgb}")
+
+
+def test_salvator_rosa_low_wet_blend():
+    """salvator_rosa wet_blend must be low (gestural brushwork, not blended sfumato)."""
+    s = get_style("salvator_rosa")
+    assert s.wet_blend <= 0.35, (
+        f"salvator_rosa wet_blend={s.wet_blend:.2f} should be ≤ 0.35 "
+        "-- Rosa's alla-prima gestural marks are direction-less, not heavily blended")
+
+
+def test_salvator_rosa_famous_works_non_empty():
+    """salvator_rosa must list at least one famous work."""
+    s = get_style("salvator_rosa")
+    assert len(s.famous_works) >= 1, "salvator_rosa must have at least one famous work"
+
+
+def test_salvator_rosa_inspiration_references_pass():
+    """salvator_rosa inspiration must reference salvator_rosa_wild_bravura_pass."""
+    s = get_style("salvator_rosa")
+    assert "salvator_rosa_wild_bravura_pass" in s.inspiration, (
+        "salvator_rosa inspiration must reference salvator_rosa_wild_bravura_pass()")
+
+
+def test_salvator_rosa_inspiration_references_displacement():
+    """salvator_rosa inspiration must reference the displacement field improvement."""
+    s = get_style("salvator_rosa")
+    insp = s.inspiration.lower()
+    assert "displacement" in insp or "warp" in insp or "turbul" in insp, (
+        "salvator_rosa inspiration must reference the turbulent displacement field "
+        "(the session 123 artistic improvement)")
+
+
+def test_roman_baroque_landscape_period_present():
+    """Period.ROMAN_BAROQUE_LANDSCAPE must be in the Period enum (session 123)."""
+    from scene_schema import Period
+    assert hasattr(Period, "ROMAN_BAROQUE_LANDSCAPE"), (
+        "Period.ROMAN_BAROQUE_LANDSCAPE not found — add it to scene_schema.py")
+    assert Period.ROMAN_BAROQUE_LANDSCAPE in list(Period)
+
+
+def test_roman_baroque_landscape_stroke_params_low_wet_blend():
+    """ROMAN_BAROQUE_LANDSCAPE stroke_params must have low wet_blend (gestural)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ROMAN_BAROQUE_LANDSCAPE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.35, (
+        f"ROMAN_BAROQUE_LANDSCAPE wet_blend should be ≤ 0.35 "
+        f"for Rosa's gestural turbulence; got {p['wet_blend']}")
+
+
+def test_roman_baroque_landscape_stroke_params_large_bg_strokes():
+    """ROMAN_BAROQUE_LANDSCAPE stroke_params must have large stroke_size_bg (landscape energy)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ROMAN_BAROQUE_LANDSCAPE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_bg"] >= 28, (
+        f"ROMAN_BAROQUE_LANDSCAPE stroke_size_bg should be ≥ 28 "
+        f"for Rosa's sweeping landscape brushwork; got {p['stroke_size_bg']}")
+
+
+def test_salvator_rosa_wild_bravura_pass_exists():
+    """Painter must expose salvator_rosa_wild_bravura_pass (session 123)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "salvator_rosa_wild_bravura_pass"), (
+        "Painter.salvator_rosa_wild_bravura_pass not found — add it to stroke_engine.py")
+
+
+def test_salvator_rosa_wild_bravura_pass_opacity_parameter():
+    """salvator_rosa_wild_bravura_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.salvator_rosa_wild_bravura_pass)
+    assert "opacity" in sig.parameters, (
+        "salvator_rosa_wild_bravura_pass must have 'opacity' parameter")
+
+
+def test_salvator_rosa_wild_bravura_pass_max_disp_parameter():
+    """salvator_rosa_wild_bravura_pass must accept max_disp (session 123 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.salvator_rosa_wild_bravura_pass)
+    assert "max_disp" in sig.parameters, (
+        "salvator_rosa_wild_bravura_pass must have 'max_disp' parameter "
+        "(maximum pixel displacement for the turbulent warp — session 123 improvement)")

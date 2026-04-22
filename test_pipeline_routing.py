@@ -13149,6 +13149,137 @@ def test_annibale_carracci_tonal_reform_pass_penumbra_parameters():
         "(luminance ceiling of temperature-active zone)")
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 123: Salvator Rosa — turbulent displacement field
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_salvator_rosa_wild_bravura_pass_exists():
+    """Painter must have salvator_rosa_wild_bravura_pass (session 123)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, 'salvator_rosa_wild_bravura_pass'), (
+        'Painter is missing salvator_rosa_wild_bravura_pass -- add it to stroke_engine.py')
+
+
+def test_salvator_rosa_wild_bravura_pass_modifies_canvas():
+    """salvator_rosa_wild_bravura_pass() must alter the canvas from its initial state."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    # Dark fill — below default shadow_hi (0.30); lum ≈ 0.15 — triggers warm shadow glow stage.
+    data[:, :, :] = [30, 40, 50, 255]  # BGRA: B=30, G=40, R=50; lum ≈ 0.15
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.salvator_rosa_wild_bravura_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        'salvator_rosa_wild_bravura_pass should change the canvas when opacity=1.0')
+
+
+def test_salvator_rosa_wild_bravura_pass_opacity_zero_is_noop():
+    """salvator_rosa_wild_bravura_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((128, 128, 4)).copy()
+    data[:, :, :] = [120, 140, 170, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.salvator_rosa_wild_bravura_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        'salvator_rosa_wild_bravura_pass(opacity=0) should be a noop')
+
+
+def test_salvator_rosa_wild_bravura_pass_warms_shadow_zone():
+    """
+    salvator_rosa_wild_bravura_pass must raise R in the deep shadow zone
+    (warm raw umber ground glowing through thin transparent paint).
+    """
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Dark fill — well below default shadow_hi (0.30); lum ≈ 0.12
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    data[:, :, :] = [20, 30, 35, 255]   # BGRA: very dark, lum ≈ 0.12
+    p.canvas.surface.get_data()[:] = data.tobytes()
+
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+
+    p.salvator_rosa_wild_bravura_pass(
+        shadow_warm_r=0.10, shadow_warm_g=0.05,
+        vignette_str=0.0,   # disable vignette to isolate shadow stage
+        max_disp=0.0,       # disable displacement to isolate colour stages
+        opacity=1.0,
+    )
+
+    after_buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4))
+    after_r = after_buf[:, :, 2].astype(_np.float32).mean()
+
+    assert after_r >= orig_r, (
+        f"salvator_rosa_wild_bravura_pass must raise R in shadow zone (warm umber ground glow); "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_salvator_rosa_wild_bravura_pass_preserves_canvas_shape():
+    """salvator_rosa_wild_bravura_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.10, 0.07, 0.04), texture_strength=0.05)
+    p.salvator_rosa_wild_bravura_pass(opacity=0.26)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after salvator_rosa_wild_bravura_pass: {img.size}")
+
+
+def test_salvator_rosa_wild_bravura_pass_max_disp_parameter():
+    """salvator_rosa_wild_bravura_pass must accept max_disp (session 123 improvement)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.salvator_rosa_wild_bravura_pass)
+    assert "max_disp" in sig.parameters, (
+        "salvator_rosa_wild_bravura_pass must have 'max_disp' parameter "
+        "(maximum pixel displacement for the turbulent warp — session 123 improvement)")
+
+
+def test_salvator_rosa_wild_bravura_pass_n_octaves_parameter():
+    """salvator_rosa_wild_bravura_pass must accept n_octaves (multi-scale turbulence)."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.salvator_rosa_wild_bravura_pass)
+    assert "n_octaves" in sig.parameters, (
+        "salvator_rosa_wild_bravura_pass must have 'n_octaves' parameter "
+        "(number of pink-noise octaves for the multi-scale turbulence field)")
+
+
+def test_roman_baroque_landscape_period_exists():
+    """Period.ROMAN_BAROQUE_LANDSCAPE must be in the Period enum (session 123)."""
+    from scene_schema import Period
+    assert hasattr(Period, "ROMAN_BAROQUE_LANDSCAPE"), (
+        "Period.ROMAN_BAROQUE_LANDSCAPE not found in scene_schema -- add it")
+    assert Period.ROMAN_BAROQUE_LANDSCAPE in list(Period)
+
+
+def test_roman_baroque_landscape_stroke_params_low_wet_blend():
+    """ROMAN_BAROQUE_LANDSCAPE stroke params: low wet_blend for gestural bravura."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ROMAN_BAROQUE_LANDSCAPE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.35, (
+        f"ROMAN_BAROQUE_LANDSCAPE wet_blend should be ≤ 0.35 "
+        f"for Rosa's gestural turbulence; got {p['wet_blend']}")
+
+
+def test_roman_baroque_landscape_stroke_params_large_bg():
+    """ROMAN_BAROQUE_LANDSCAPE stroke params: large stroke_size_bg for landscape energy."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.ROMAN_BAROQUE_LANDSCAPE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_bg"] >= 28, (
+        f"ROMAN_BAROQUE_LANDSCAPE stroke_size_bg should be ≥ 28 "
+        f"for Rosa's sweeping landscape energy; got {p['stroke_size_bg']}")
+
+
 def test_bolognese_academic_naturalism_period_exists():
     """Period.BOLOGNESE_ACADEMIC_NATURALISM must be in the Period enum (session 122)."""
     from scene_schema import Period

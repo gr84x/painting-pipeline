@@ -10530,6 +10530,126 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Salvator Rosa ─────────────────────────────────────────────────────────
+    # Randomly selected artist for session 123's inspiration.
+    # Salvator Rosa (1615–1673) — Neapolitan/Roman Baroque painter, poet,
+    # musician, and actor — was the most deliberately Romantic personality in
+    # 17th-century European painting before Romanticism had a name.  Born in
+    # Naples during the heyday of Ribera and Caravaggio's influence, Rosa
+    # trained briefly under Francesco Fracanzano (Ribera's son-in-law) before
+    # establishing himself in Rome as a ferocious critic of academic convention
+    # and a champion of wild, unpeopled wilderness landscapes.
+    #
+    # His paintings resist categorisation: part Baroque tenebrism (the dark
+    # grounds and dramatic light inherited from Ribera), part proto-Romantic
+    # sublime (the wind-torn trees, stormy skies, and banditti lurking in
+    # craggy ravines that made him a cult figure for later generations), and
+    # part satirist (his *Satires* in verse skewered academic painters as
+    # parasites).  He refused all court patronage, insisting on complete
+    # artistic independence — a stance almost without parallel in his era.
+    #
+    # Technical signature: Rosa's most distinctive quality is *gestural
+    # turbulence* — a restless, wind-blown energy that animates every surface.
+    # His landscapes feel as if a storm has just passed or is about to break.
+    # Technically this arises from his alla-prima bravura: broad, irregular
+    # strokes that follow no single direction, leaving the surface in a state
+    # of perpetual visual motion.  Deep, raw umber shadows pressed in from
+    # every edge; only the central focus catches warm amber light.
+    #
+    # Pipeline key: salvator_rosa_wild_bravura_pass() — the session 123
+    # artistic improvement: a multi-scale turbulent displacement field that
+    # warps the canvas pixels via stochastic spatial offsets, creating the
+    # impression of gestural energy and atmospheric turbulence.  This is the
+    # first pass in the pipeline to use image-space warping (displacement)
+    # rather than pure per-pixel colour modification.
+    "salvator_rosa": ArtStyle(
+        artist="Salvator Rosa",
+        movement="Baroque / Proto-Romantic Landscape",
+        nationality="Italian (Neapolitan/Roman)",
+        period="c. 1635–1673",
+        palette=[
+            (0.55, 0.38, 0.20),   # warm raw umber — his characteristic dark warm shadow
+            (0.24, 0.18, 0.10),   # deep Vandyke brown — near-black foliage and void
+            (0.72, 0.58, 0.32),   # amber highlight — the sudden warm light in storm dark
+            (0.35, 0.42, 0.28),   # stormy olive green — his landscape distance
+            (0.62, 0.62, 0.70),   # cool grey-blue — storm sky and atmospheric haze
+            (0.88, 0.72, 0.48),   # warm ochre flesh — figures in dramatic light
+        ],
+        ground_color=(0.18, 0.12, 0.07),    # near-black raw umber ground — Rosa
+        #                                     almost always worked on a near-black
+        #                                     ground, so the darks are the canvas
+        #                                     itself showing through thin paint
+        stroke_size=12,
+        wet_blend=0.22,                      # low blending — the gestural brushwork
+        #                                     is directional and energetic, not smoothed
+        edge_softness=0.38,                  # moderate crispness — storm-charged forms
+        #                                     have a tense, agitated edge quality
+        jitter=0.055,                        # high jitter — irregular, turbulent stroke
+        glazing=(0.28, 0.20, 0.10),          # deep umber varnish — unifying dark tonal glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Salvator Rosa (1615–1673) was the most deliberately unconventional personality "
+            "in 17th-century European art — a Neapolitan painter, poet, musician, and actor "
+            "who refused all court patronage and built a career on studied defiance of academic "
+            "convention.  Trained briefly in Naples under the Ribera circle, he moved to Rome "
+            "in 1639 and eventually settled there permanently in 1649, becoming the favourite "
+            "painter of the *bamboccianti* intelligentsia and later a cult figure for the "
+            "Romantics who saw in him a proto-Romantic hero a century before Romanticism existed.  "
+            "His landscapes — vast, craggy, storm-charged wilderness scenes populated by "
+            "armed banditti, hermit philosophers, and mythological wanderers — are the most "
+            "dramatic natural environments in Baroque painting.  Where Claude Lorrain painted "
+            "golden Mediterranean calm, Rosa painted the sublime terror of wilderness: "
+            "wind-tortured trees, fractured rock faces, and skies bruised with threatening cloud.  "
+            "His figure paintings include ambitious allegories (*L'Umana Fragilità*, c. 1656; "
+            "*Fortune*, c. 1658–1659) and self-portraits of studied Romantic melancholy "
+            "(*Self-Portrait as Democritus*, c. 1651–1655) — in which he presents himself as "
+            "a brooding philosopher-artist, not a court craftsman.  "
+            "Technical signature: Rosa's brushwork is deliberately turbulent — broad, irregular, "
+            "direction-less strokes that leave the painted surface in perpetual visual motion.  "
+            "He worked on near-black raw umber grounds so that shadows are simply the canvas "
+            "visible through thin, transparent paint; only the focal areas of warm amber light "
+            "receive opaque, loaded impasto.  The result is a chiaroscuro more extreme than "
+            "Caravaggio's but less systematic — the darkness feels atmospheric and unpredictable "
+            "rather than theatrical and controlled.  His edges are agitated: never crisp like "
+            "Velázquez, never dissolved like Leonardo, but in a perpetual state of energetic "
+            "tension between definition and dissolution."
+        ),
+        famous_works=[
+            ("L'Umana Fragilità (Human Frailty)",         "c. 1656"),
+            ("Self-Portrait as Democritus",                "c. 1651–1655"),
+            ("Landscape with Soldiers and Hunters",        "c. 1670"),
+            ("The Conspiracy of Catiline",                 "c. 1663–1664"),
+            ("Witches at their Incantations",              "c. 1646"),
+            ("Fortune",                                    "c. 1658–1659"),
+            ("Landscape with Tobias and the Angel",        "c. 1660–1665"),
+            ("Jason and the Dragon",                       "c. 1668–1670"),
+        ],
+        inspiration=(
+            "Apply salvator_rosa_wild_bravura_pass() as the defining pass for session 123.  "
+            "The pass encodes Rosa's gestural turbulence in three stages built around the "
+            "session 123 artistic improvement: the multi-scale turbulent displacement field.  "
+            "(1) Turbulent displacement field — the session 123 artistic improvement.  All "
+            "previous passes in this pipeline modify pixel colour values in place (additive "
+            "blends, temperature shifts, saturation adjustments).  This pass introduces a "
+            "fundamentally different operation: spatial image warping via a stochastic "
+            "displacement field.  The field is generated by summing N_OCTAVES octaves of "
+            "Gaussian-filtered random noise at doubling spatial scales (sigma = 2, 4, 8, 16 px), "
+            "each octave weighted by 1/(octave+1) following a 1/f pink-noise power spectrum.  "
+            "The summed field is normalised, then split into two orthogonal displacement "
+            "components (dx, dy) by rotating the field vector by 90°.  These are scaled by "
+            "max_disp (≈ 1.5–2.5 px) and used to warp the canvas via scipy.ndimage.map_coordinates. "
+            "Applied at low opacity (≈ 0.20–0.28), the result is a subtle but pervasive gestural "
+            "turbulence — as if the canvas were viewed through gently disturbed air.  "
+            "(2) Dark vignette deepening — multiply border pixels toward deep umber, pressing "
+            "darkness in from all edges (Rosa's characteristic charged atmospheric borders).  "
+            "(3) Warm shadow glow — add a faint raw umber warmth to the deep shadow zone "
+            "(lum < shadow_hi), reflecting the warm dark canvas ground glowing through thin "
+            "transparent paint.  "
+            "Use at opacity ≈ 0.22–0.30."
+        ),
+    ),
+
     # ── Annibale Carracci ─────────────────────────────────────────────────────
     "annibale_carracci": ArtStyle(
         artist="Annibale Carracci",
