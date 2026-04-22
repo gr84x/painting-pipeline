@@ -14126,3 +14126,92 @@ def test_dosso_luminance_reflectance_pass_accepts_opacity():
     assert "opacity" in sig.parameters, (
         "dosso_luminance_reflectance_pass must have opacity parameter "
         "(session 132 illumination-reflectance decomposition)")
+
+
+# Session 133: Jacopo Bassano + VENETIAN_PASTORAL_LUMINISM
+#              + bassano_pastoral_glow_pass (anisotropic diffusion mode)
+#              + shadow_temperature_relief_pass (artistic improvement)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_venetian_pastoral_luminism_period_exists():
+    """Period.VENETIAN_PASTORAL_LUMINISM must be in the Period enum (session 133)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_PASTORAL_LUMINISM"), (
+        "Period.VENETIAN_PASTORAL_LUMINISM not found -- add it to scene_schema.py")
+    assert Period.VENETIAN_PASTORAL_LUMINISM in list(Period)
+
+
+def test_venetian_pastoral_luminism_moderate_wet_blend():
+    """VENETIAN_PASTORAL_LUMINISM wet_blend must be in [0.25, 0.55] — impasto quality."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_PASTORAL_LUMINISM,
+                  wet_blend=None, edge_softness=None)
+    p = style.stroke_params
+    assert 0.25 <= p["wet_blend"] <= 0.55, (
+        f"VENETIAN_PASTORAL_LUMINISM wet_blend should be in [0.25, 0.55] "
+        f"(Bassano's impasto rough-textured handling); got {p['wet_blend']:.2f}")
+
+
+def test_venetian_pastoral_luminism_medium_edge_softness():
+    """VENETIAN_PASTORAL_LUMINISM edge_softness must be in [0.30, 0.60] — firm chiaroscuro."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_PASTORAL_LUMINISM,
+                  wet_blend=None, edge_softness=None)
+    p = style.stroke_params
+    assert 0.30 <= p["edge_softness"] <= 0.60, (
+        f"VENETIAN_PASTORAL_LUMINISM edge_softness should be in [0.30, 0.60] "
+        f"(firm chiaroscuro with Venetian mid-softness); got {p['edge_softness']:.2f}")
+
+
+def test_bassano_pastoral_glow_pass_exists_on_painter():
+    """Painter must have bassano_pastoral_glow_pass() after session 133."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bassano_pastoral_glow_pass"), (
+        "bassano_pastoral_glow_pass not found on Painter -- "
+        "add to stroke_engine.py for session 133")
+    assert callable(getattr(Painter, "bassano_pastoral_glow_pass"))
+
+
+def test_bassano_pastoral_glow_pass_no_error_routing():
+    """bassano_pastoral_glow_pass() must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.38, 0.28, 0.16), texture_strength=0.05)
+    p.bassano_pastoral_glow_pass(opacity=0.32)
+
+
+def test_bassano_pastoral_glow_pass_accepts_opacity():
+    """bassano_pastoral_glow_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.bassano_pastoral_glow_pass)
+    assert "opacity" in sig.parameters, (
+        "bassano_pastoral_glow_pass must have opacity parameter "
+        "(session 133 anisotropic diffusion pass)")
+
+
+def test_shadow_temperature_relief_pass_exists_on_painter():
+    """Painter must have shadow_temperature_relief_pass() after session 133."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "shadow_temperature_relief_pass"), (
+        "shadow_temperature_relief_pass not found on Painter -- "
+        "add to stroke_engine.py for session 133 artistic improvement")
+    assert callable(getattr(Painter, "shadow_temperature_relief_pass"))
+
+
+def test_shadow_temperature_relief_pass_no_error_routing():
+    """shadow_temperature_relief_pass() must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.42, 0.34, 0.22), texture_strength=0.05)
+    p.shadow_temperature_relief_pass(opacity=0.40)
+
+
+def test_shadow_temperature_relief_pass_accepts_shadow_thresh():
+    """shadow_temperature_relief_pass must accept shadow_thresh parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.shadow_temperature_relief_pass)
+    assert "shadow_thresh" in sig.parameters, (
+        "shadow_temperature_relief_pass must have shadow_thresh parameter "
+        "(session 133 shadow thermal zone threshold)")

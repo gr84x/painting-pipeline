@@ -31287,3 +31287,295 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Dosso Dossi illumination-reflectance pass complete.")
+
+    # bassano_pastoral_glow_pass — Session 133
+    # ─────────────────────────────────────────────────────────────────────────
+    def bassano_pastoral_glow_pass(
+        self,
+        n_iter:           int   = 14,
+        K:                float = 0.07,
+        gamma:            float = 0.10,
+        firelight_warm:   float = 0.22,
+        firelight_thresh: float = 0.45,
+        opacity:          float = 0.32,
+    ) -> None:
+        """
+        Jacopo Bassano — Venetian Pastoral Luminism (session 133).
+
+        Jacopo da Ponte, called Jacopo Bassano (c.1510–1592), spent nearly his
+        entire career in the small Venetian market town of Bassano del Grappa,
+        developing a profoundly personal vision outside the pressures of
+        Serenissima's official culture.  His paintings are structured from a
+        deep warm umber ground: darkness is not empty but warm and inhabited,
+        and light — most often the flickering warmth of torches or candles —
+        erupts from it in creamy, loaded impasto passages.  His later works
+        develop an extraordinary calligraphic looseness that anticipates
+        Tintoretto and prefigures Impressionism.
+
+        This pass encodes Bassano's defining quality as the eleventh distinct
+        processing mode: ANISOTROPIC DIFFUSION (Perona-Malik filter).
+
+        All prior pipeline processing modes:
+          s123 Rosa        — spatial displacement (turbulent flow warping)
+          s124 Stanzione   — frequency-band decomposition (Laplacian pyramid)
+          s125 Albani      — vertical spatial gradient
+          s126 Bartolommeo — edge-map modulation (Sobel form ridges)
+          s127 Cantarini   — spectral channel-selective diffusion
+          s128 Carpaccio   — local variance std-map spatial adaptation
+          s129 Piazzetta   — global histogram percentile tonal sculpting
+          s130 Sebastiano  — image structure tensor coherence analysis
+          s131 Rosso       — hue-selective chromatic tension mapping
+          s132 Dosso       — illumination-reflectance decomposition (Retinex)
+
+        Session 133 introduces the eleventh distinct mode:
+        ANISOTROPIC DIFFUSION (Perona-Malik, 1990).
+
+        Physical model: ordinary Gaussian blur smooths everything equally,
+        destroying edges.  Perona-Malik diffusion is a PDE:
+
+            ∂I/∂t = div( c(|∇I|) · ∇I )
+
+        where the conductance function c(s) = exp(-(s/K)²) approaches:
+          - 1.0  in regions of LOW gradient (flat tonal areas) → smoothed
+          - 0.0  in regions of HIGH gradient (edges) → preserved
+
+        The result is a surface where all the flat, luminous tonal zones
+        merge into smooth, gradient-free pools — while the form-defining
+        edges (the line where lit cheek meets shadow neck, the rim where
+        torchlight carves a shoulder from dark ground) remain exactly as
+        drawn.  This is Bassano's fundamental tonal construction: smooth,
+        pooled lights and shadows, separated by firm chiaroscuro edges.
+
+        After n_iter iterations of anisotropic diffusion, a FIRELIGHT
+        WARMTH BOOST is applied: pixels above firelight_thresh luminance
+        receive a warm copper-amber tint proportional to their brightness.
+        This encodes Bassano's candlelight and torchlight quality — the
+        orange-amber warmth that saturates his highlights and gives them
+        their particular glow.
+
+        Parameters
+        ----------
+        n_iter           : Number of Perona-Malik diffusion iterations.
+                           More iterations → smoother tonal pools, stronger
+                           edge preservation. 10–18 is the useful range.
+        K                : Conductance threshold (gradient magnitude scale).
+                           Smaller K → preserves finer edges (more selective).
+                           Larger K → smooths more aggressively across edges.
+                           Typical range: 0.04–0.15.
+        gamma            : Step size per iteration (stability: gamma ≤ 0.25).
+                           Smaller → more controlled, more iterations needed.
+        firelight_warm   : Strength of the warm amber tint added to bright
+                           pixels above firelight_thresh. 0 = no firelight
+                           effect; 0.22 = Bassano's characteristic warmth.
+        firelight_thresh : Luminance threshold above which firelight warmth
+                           is applied (0–1). Pixels below are in shadow and
+                           receive no warm boost.
+        opacity          : Composite weight blended back onto original (0–1).
+        """
+        print(f"Jacopo Bassano anisotropic diffusion pass "
+              f"(opacity={opacity:.2f} n_iter={n_iter} K={K:.3f})…")
+
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32 layout: channel 0 = B, 1 = G, 2 = R, 3 = A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Stack to (H, W, 3) in RGB order for processing
+        img = _np.stack([r0, g0, b0], axis=2)
+
+        # ── Perona-Malik anisotropic diffusion ───────────────────────────────
+        diffused = img.copy()
+        for _ in range(n_iter):
+            # Compute luminance for conductance (more stable than per-channel)
+            lum = (0.299 * diffused[:, :, 0]
+                   + 0.587 * diffused[:, :, 1]
+                   + 0.114 * diffused[:, :, 2])
+
+            # Neighbour differences in 4 cardinal directions
+            lN = _np.roll(lum, -1, axis=0) - lum
+            lS = _np.roll(lum,  1, axis=0) - lum
+            lE = _np.roll(lum, -1, axis=1) - lum
+            lW = _np.roll(lum,  1, axis=1) - lum
+
+            # Zero-pad boundaries to prevent wrap-around artefacts
+            lN[-1, :] = 0.0
+            lS[0, :]  = 0.0
+            lE[:, -1] = 0.0
+            lW[:, 0]  = 0.0
+
+            # Perona-Malik conductance: c(s) = exp(-(s/K)²)
+            # Broadcast to (H, W, 1) for per-channel update
+            cN = _np.exp(-(lN / K) ** 2)[:, :, _np.newaxis]
+            cS = _np.exp(-(lS / K) ** 2)[:, :, _np.newaxis]
+            cE = _np.exp(-(lE / K) ** 2)[:, :, _np.newaxis]
+            cW = _np.exp(-(lW / K) ** 2)[:, :, _np.newaxis]
+
+            # Per-channel neighbour differences
+            dN = _np.roll(diffused, -1, axis=0) - diffused
+            dS = _np.roll(diffused,  1, axis=0) - diffused
+            dE = _np.roll(diffused, -1, axis=1) - diffused
+            dW = _np.roll(diffused,  1, axis=1) - diffused
+
+            # Boundary zero-pad
+            dN[-1, :, :] = 0.0
+            dS[0,  :, :] = 0.0
+            dE[:,  -1, :] = 0.0
+            dW[:,  0,  :] = 0.0
+
+            diffused = _np.clip(
+                diffused + gamma * (cN * dN + cS * dS + cE * dE + cW * dW),
+                0.0, 1.0
+            )
+
+        # ── Firelight warmth boost ────────────────────────────────────────────
+        # Bright pixels (above firelight_thresh) receive warm copper-amber tint
+        # proportional to their luminance — simulating torchlight saturation.
+        lum_d = (0.299 * diffused[:, :, 0]
+                 + 0.587 * diffused[:, :, 1]
+                 + 0.114 * diffused[:, :, 2])
+        warm_mask = _np.clip(
+            (lum_d - firelight_thresh) / (1.0 - firelight_thresh + 1e-6),
+            0.0, 1.0
+        )[:, :, _np.newaxis]
+
+        # Amber tint: lift R strongly, G slightly, leave B alone
+        fire_r = diffused[:, :, 0:1] + firelight_warm * warm_mask * 0.70
+        fire_g = diffused[:, :, 1:2] + firelight_warm * warm_mask * 0.25
+        fire_b = diffused[:, :, 2:3]  # blue unchanged — warmth = remove cool
+
+        diffused = _np.clip(
+            _np.concatenate([fire_r, fire_g, fire_b], axis=2),
+            0.0, 1.0
+        )
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        result = img * (1.0 - opacity) + diffused * opacity
+        result = _np.clip(result, 0.0, 1.0)
+
+        # Write back (RGB → Cairo BGRA: channel 2=R, 1=G, 0=B)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(result[:, :, 0] * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(result[:, :, 1] * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(result[:, :, 2] * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Jacopo Bassano anisotropic diffusion pass complete.")
+
+    # shadow_temperature_relief_pass — Session 133 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+    def shadow_temperature_relief_pass(
+        self,
+        shadow_thresh:   float = 0.35,
+        shadow_warm_r:   float = 0.04,
+        shadow_warm_g:   float = 0.01,
+        light_cool_b:    float = 0.03,
+        light_thresh:    float = 0.70,
+        transition_zone: float = 0.20,
+        opacity:         float = 0.40,
+    ) -> None:
+        """
+        Shadow temperature relief — Session 133 artistic improvement.
+
+        Old master painters consistently differentiated the COLOR TEMPERATURE
+        of shadows from the color temperature of lights.  This is not a simple
+        warm/cool rule (it reverses by artist and period), but the key insight
+        is that shadows and lights inhabit DIFFERENT thermal registers:
+
+          Warm-light / cool-shadow painters (Baroque, Caravaggio, Rembrandt):
+            Warm amber in shadows (reflected warm ground) + cooler neutral lights.
+
+          Cool-light / warm-shadow painters (Venetian, Titian, Veronese):
+            Warm sienna-red in the shadow half-tones (the "shadow warm recovery"
+            of Venetian colorism) + cooler ivory-white in the direct lights.
+
+          Neutral-light / warm-shadow painters (Leonardo, Raphael):
+            Warm amber-golden shadow bloom — the shadow feels inhabited by
+            residual warmth from the ground, not dead.
+
+        This pass implements SHADOW THERMAL RELIEF — independently modulating
+        the color temperature of the shadow zone and the highlight zone:
+
+        (1) SHADOW ZONE (luminance < shadow_thresh):
+            Receives a warm amber tint (+R, +G slightly) — the "breathing"
+            quality of warm dark interiors.  Baroque and old master shadows
+            are never simply dark; they contain warm ambient glow from
+            adjacent warm surfaces (ochre ground, warm walls, reflected light).
+
+        (2) HIGHLIGHT ZONE (luminance > light_thresh):
+            Receives a slight cool blue lift (+B) — the sky-reflected or
+            diffused-daylight quality of Leonardo's primary lights, which
+            are cool-neutral ivory rather than warm orange.
+
+        (3) TRANSITION ZONE (shadow_thresh ± transition_zone):
+            Smoothly interpolated between 0 and 1 using a sigmoid to avoid
+            any visible discontinuity at the threshold boundaries.
+
+        The result: shadows feel warm and inhabited; highlights feel cool,
+        clear, and reflective of diffused light.  The split gives the
+        painting the characteristic old master tonal resonance.
+
+        Parameters
+        ----------
+        shadow_thresh    : Luminance value below which shadow warmth applies.
+        shadow_warm_r    : R-channel offset added to shadow pixels (warmth).
+        shadow_warm_g    : G-channel offset added to shadow pixels (slight warmth).
+        light_cool_b     : B-channel offset added to bright pixels (cool drift).
+        light_thresh     : Luminance value above which cool highlight drift applies.
+        transition_zone  : Half-width of the sigmoid transition region (luminance units).
+        opacity          : Composite weight blended back onto original (0–1).
+        """
+        print(f"Shadow temperature relief pass "
+              f"(opacity={opacity:.2f} shadow_thresh={shadow_thresh:.2f} "
+              f"light_thresh={light_thresh:.2f})…")
+
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32: channel 0=B, 1=G, 2=R, 3=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Shadow warmth mask (sigmoid) ──────────────────────────────────────
+        # 1.0 deep in shadows, 0.0 in lights, smooth transition at shadow_thresh
+        eps = 1e-6
+        shadow_mask = 1.0 / (1.0 + _np.exp(
+            (lum - shadow_thresh) / (transition_zone + eps) * 4.0
+        ))
+
+        # ── Highlight cool mask (sigmoid) ─────────────────────────────────────
+        # 1.0 in bright highlights, 0.0 in shadows
+        light_mask = 1.0 / (1.0 + _np.exp(
+            -(lum - light_thresh) / (transition_zone + eps) * 4.0
+        ))
+
+        # ── Apply temperature modulation ──────────────────────────────────────
+        r_out = _np.clip(r0 + shadow_warm_r * shadow_mask,              0.0, 1.0)
+        g_out = _np.clip(g0 + shadow_warm_g * shadow_mask,              0.0, 1.0)
+        b_out = _np.clip(b0 + light_cool_b  * light_mask,               0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Shadow temperature relief pass complete.")
