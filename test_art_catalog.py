@@ -16808,3 +16808,182 @@ def test_warm_shadow_lift_pass_preserves_shape_catalog():
     img = p.canvas.to_pil()
     assert img.size == (80, 60), (
         f"Canvas shape changed after warm_shadow_lift_pass: {img.size}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 139 — Palma Vecchio + VENETIAN_GOLDEN_NATURALISM
+#              + palma_blonde_luminance_pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_palma_vecchio_in_catalog():
+    """palma_vecchio must be in the CATALOG dict (session 139)."""
+    assert "palma_vecchio" in CATALOG, (
+        "palma_vecchio not found in CATALOG -- add entry to art_catalog.py (session 139)")
+
+
+def test_palma_vecchio_movement_mentions_venetian():
+    """palma_vecchio movement must mention Venetian or Renaissance."""
+    s = get_style("palma_vecchio")
+    text_lower = s.movement.lower()
+    assert ("venetian" in text_lower or "renaissance" in text_lower), (
+        f"palma_vecchio movement should mention Venetian or Renaissance; got {s.movement!r}")
+
+
+def test_palma_vecchio_palette_valid():
+    """palma_vecchio palette must contain valid RGB tuples in [0, 1] (session 139)."""
+    s = get_style("palma_vecchio")
+    assert len(s.palette) >= 5, (
+        f"palma_vecchio palette should have >=5 colours; got {len(s.palette)}")
+    for colour in s.palette:
+        for ch in colour:
+            assert 0.0 <= ch <= 1.0, (
+                f"palma_vecchio palette value out of range [0,1]: {ch} in {colour!r}")
+
+
+def test_palma_vecchio_warm_ground_color():
+    """palma_vecchio ground_color must be warm (R >= B) -- amber-sienna imprimatura."""
+    s = get_style("palma_vecchio")
+    r, g, b = s.ground_color
+    assert r >= b, (
+        f"palma_vecchio ground_color should be warm (R >= B); got R={r:.3f}, B={b:.3f}")
+
+
+def test_palma_vecchio_high_wet_blend():
+    """palma_vecchio wet_blend must be in range 0.50–0.70 -- Venetian oil softness."""
+    s = get_style("palma_vecchio")
+    assert 0.50 <= s.wet_blend <= 0.70, (
+        f"palma_vecchio wet_blend should be 0.50–0.70 (Venetian oil); got {s.wet_blend}")
+
+
+def test_palma_vecchio_moderate_edge_softness():
+    """palma_vecchio edge_softness must be in range 0.50–0.75 -- naturalistic warmth."""
+    s = get_style("palma_vecchio")
+    assert 0.50 <= s.edge_softness <= 0.75, (
+        f"palma_vecchio edge_softness should be 0.50–0.75; got {s.edge_softness}")
+
+
+def test_palma_vecchio_glazing_warm():
+    """palma_vecchio glazing must be set and warm (R >= B) -- amber-golden Venetian glaze."""
+    s = get_style("palma_vecchio")
+    assert s.glazing is not None, "palma_vecchio glazing must not be None"
+    r, g, b = s.glazing
+    assert r >= b, (
+        f"palma_vecchio glazing should be warm (R >= B); got R={r:.3f}, B={b:.3f}")
+
+
+def test_palma_vecchio_technique_mentions_golden_or_blonde():
+    """palma_vecchio technique must mention golden, blonde, or warm luminance."""
+    s = get_style("palma_vecchio")
+    text_lower = s.technique.lower()
+    assert ("golden" in text_lower or "blonde" in text_lower
+            or "warm" in text_lower or "amber" in text_lower), (
+        "palma_vecchio technique should describe golden/blonde luminance quality")
+
+
+def test_palma_vecchio_inspiration_mentions_blonde_luminance_pass():
+    """palma_vecchio inspiration must reference palma_blonde_luminance_pass (session 139)."""
+    s = get_style("palma_vecchio")
+    text_lower = s.inspiration.lower()
+    assert ("palma_blonde_luminance_pass" in text_lower
+            or "blonde luminance" in text_lower
+            or "gaussian" in text_lower), (
+        "palma_vecchio inspiration should describe the GAUSSIAN LUMINANCE ZONE mode")
+
+
+def test_venetian_golden_naturalism_period_enum_exists():
+    """VENETIAN_GOLDEN_NATURALISM must exist in the Period enum (session 139)."""
+    assert hasattr(Period, "VENETIAN_GOLDEN_NATURALISM"), (
+        "VENETIAN_GOLDEN_NATURALISM missing from Period enum -- "
+        "add to scene_schema.py (session 139)")
+
+
+def test_palma_blonde_luminance_pass_exists_catalog():
+    """Painter must have palma_blonde_luminance_pass() method after session 139."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "palma_blonde_luminance_pass"), (
+        "palma_blonde_luminance_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "palma_blonde_luminance_pass"))
+
+
+def test_palma_blonde_luminance_pass_no_error_catalog():
+    """palma_blonde_luminance_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.56, 0.44, 0.26), texture_strength=0.05)
+    p.palma_blonde_luminance_pass(opacity=0.32)
+
+
+def test_palma_blonde_luminance_pass_modifies_midtone_canvas():
+    """palma_blonde_luminance_pass() must modify a midtone canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    # Mid-grey canvas — squarely in the Gaussian luminance gate centre
+    p.tone_ground((0.60, 0.58, 0.56), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.palma_blonde_luminance_pass(luminance_centre=0.60, luminance_sigma=0.22,
+                                  warm_r=0.20, warm_g=0.10, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "palma_blonde_luminance_pass should modify a midtone canvas at opacity=1.0")
+
+
+def test_palma_blonde_luminance_pass_zero_opacity_no_op():
+    """palma_blonde_luminance_pass with opacity=0.0 should leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.60, 0.56, 0.52), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.palma_blonde_luminance_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert _np.array_equal(before, after), (
+        "palma_blonde_luminance_pass with opacity=0 should be a no-op")
+
+
+def test_palma_blonde_luminance_pass_preserves_shape_catalog():
+    """palma_blonde_luminance_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.56, 0.44, 0.26), texture_strength=0.05)
+    p.palma_blonde_luminance_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after palma_blonde_luminance_pass: {img.size}")
+
+
+def test_palma_blonde_luminance_warms_midtone_more_than_shadow():
+    """palma_blonde_luminance_pass should warm midtone canvas more than a dark canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Midtone canvas — centred on Gaussian gate
+    p_mid = Painter(width=64, height=64)
+    p_mid.tone_ground((0.60, 0.58, 0.56), texture_strength=0.00)
+
+    # Dark canvas — far below gate centre, should receive minimal warming
+    p_dark = Painter(width=64, height=64)
+    p_dark.tone_ground((0.05, 0.04, 0.04), texture_strength=0.00)
+
+    p_mid.palma_blonde_luminance_pass(
+        luminance_centre=0.60, luminance_sigma=0.20, warm_r=0.25, warm_g=0.12, opacity=1.0)
+    p_dark.palma_blonde_luminance_pass(
+        luminance_centre=0.60, luminance_sigma=0.20, warm_r=0.25, warm_g=0.12, opacity=1.0)
+
+    # Red channel: midtone canvas should be warmer (higher R) than dark canvas
+    mid_r = float(_np.frombuffer(p_mid.canvas.surface.get_data(),
+                                 dtype=_np.uint8).reshape(64, 64, 4)[:, :, 2].mean())
+    dark_r = float(_np.frombuffer(p_dark.canvas.surface.get_data(),
+                                  dtype=_np.uint8).reshape(64, 64, 4)[:, :, 2].mean())
+    assert mid_r > dark_r, (
+        f"palma_blonde_luminance_pass should warm midtones more than shadows: "
+        f"mid_r={mid_r:.1f}, dark_r={dark_r:.1f}")

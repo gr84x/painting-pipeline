@@ -304,6 +304,7 @@ class Period(Enum):
     EMILIAN_ELEGANT_MANNERISM      = auto()  # Parmigianino — ultra-smooth pearl skin, cool-silver highlights, extreme Mannerist elongation, perceptual luma-chroma decoupled surface refinement, penumbra cool-lavender half-tones
     LOMBARD_SILVER_CLASSICISM      = auto()  # Moretto da Brescia — cool pearlescent silver light, ivory-cool skin, CIE Lab perceptual colour sculpting depletes yellow-warmth in highlights for silver-neutral tonality
     VENETIAN_POETIC_TONALISM       = auto()  # Giorgione — warm amber focal radiance, mysterious poesia atmosphere, elliptical Gaussian focal warmth sculpting radiates from compositional centre; pioneering Venetian tonalism
+    VENETIAN_GOLDEN_NATURALISM     = auto()  # Palma Vecchio — warm amber-golden bloom on mid-to-high luminance, rich Venetian naturalism, sensuous golden flesh warmth, luminance-zoned blonde luminance sculpting
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()

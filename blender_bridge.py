@@ -571,6 +571,7 @@ def scene_to_painting(
     is_renaissance_soft  = (scene.style.period == Period.RENAISSANCE
                              and sp.get("edge_softness", 0.0) >= 0.80)
     is_bolognese_arcadian = (scene.style.period == Period.BOLOGNESE_ARCADIAN_CLASSICISM)
+    is_venetian_golden_naturalism = (scene.style.period == Period.VENETIAN_GOLDEN_NATURALISM)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3057,6 +3058,71 @@ def scene_to_painting(
         if _feedback is not None:
             print(_feedback.summary())
         p.finish(vignette=0.42, crackle=True)
+
+    elif is_venetian_golden_naturalism:
+        # ── Venetian Golden Naturalism pipeline (Palma Vecchio technique) ─────
+        # Palma Vecchio worked on warm amber-sienna imprimatura — the glowing
+        # ground that gives his flesh its characteristic internal warmth.  His
+        # entire tonal scale runs warm: even the deepest shadows contain amber
+        # reflection, and his highlights are ivory rather than cool white.
+        #
+        # The defining quality — Palma's BLONDE LUMINANCE — is produced by
+        # palma_blonde_luminance_pass(): a Gaussian-gated warm amber bloom
+        # targeting the mid-to-high luminance zone where flesh, hair, and
+        # sun-touched drapery live.  This pass is the session 139 artistic
+        # improvement: luminance-zoned warm sculpting rather than spatial or
+        # shadow-zone targeting.
+        palma_style = _ART_CATALOG.get("palma_vecchio")
+        ground_col  = palma_style.ground_color if palma_style else (0.56, 0.42, 0.24)
+
+        p.tone_ground(ground_col, texture_strength=0.08)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.25), n_strokes=150)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=300)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.55),     n_strokes=720)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.65, 0.50, 0.28), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.03)
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.8),
+                       n_strokes=950, opacity=0.80, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=650, opacity=0.82, wet_blend=sp["wet_blend"] * 0.55)
+
+        # ── Palma blonde luminance pass — session 139 artistic improvement ─────
+        # Gaussian-gated warm amber bloom on the mid-to-high luminance zone.
+        # Models Palma Vecchio's defining BLONDE LUMINANCE quality: the golden
+        # inner warmth that suffuses flesh, hair, and drapery alike.
+        p.palma_blonde_luminance_pass(
+            luminance_centre = 0.60,
+            luminance_sigma  = 0.22,
+            warm_r           = 0.08,
+            warm_g           = 0.04,
+            opacity          = 0.32,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "palma_pass")
+
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=360)
+
+        # Warm amber-golden unifying glaze — lighter and more golden than Titian,
+        # warmer than Giorgione: the Palma Vecchio characteristic honey warmth.
+        p.glaze((0.72, 0.56, 0.28), opacity=0.06)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.27,
+            found_sharpness = 0.42,
+            lost_blur       = 1.4,
+            strength        = 0.26,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.40, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
