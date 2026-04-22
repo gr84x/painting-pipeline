@@ -144,6 +144,8 @@ EXPECTED_ARTISTS = [
     "aelbert_cuyp",
     "lucas_cranach",
     "moretto_da_brescia",
+    "palma_vecchio",
+    "cossa",
 ]
 
 
@@ -16987,3 +16989,68 @@ def test_palma_blonde_luminance_warms_midtone_more_than_shadow():
     assert mid_r > dark_r, (
         f"palma_blonde_luminance_pass should warm midtones more than shadows: "
         f"mid_r={mid_r:.1f}, dark_r={dark_r:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 140 — Francesco del Cossa / FERRARESE_CIVIC_GRANDEUR
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_cossa_in_catalog():
+    """cossa must be present in CATALOG after session 140."""
+    assert "cossa" in CATALOG, "cossa missing from CATALOG — add to art_catalog.py"
+
+
+def test_cossa_artist_name():
+    """cossa catalog entry must identify Francesco del Cossa correctly."""
+    s = get_style("cossa")
+    assert "Cossa" in s.artist, f"cossa artist name unexpected: {s.artist!r}"
+
+
+def test_cossa_movement_ferrarese():
+    """cossa must be associated with the Ferrarese Renaissance movement."""
+    s = get_style("cossa")
+    assert "ferrarese" in s.movement.lower() or "Ferrarese" in s.movement, (
+        f"cossa movement should reference Ferrarese school: {s.movement!r}")
+
+
+def test_cossa_palette_length():
+    """cossa palette must have at least 5 entries (vermilion, azure, gold, emerald, flesh)."""
+    s = get_style("cossa")
+    assert len(s.palette) >= 5, f"cossa palette too short: {len(s.palette)}"
+
+
+def test_cossa_palette_in_range():
+    """All cossa palette RGB values must be in [0, 1]."""
+    s = get_style("cossa")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"cossa palette channel {ch} out of [0, 1]"
+
+
+def test_cossa_ground_color_warm():
+    """cossa ground_color must be warm (R >= B) — warm amber imprimatura."""
+    s = get_style("cossa")
+    r, g, b = s.ground_color
+    assert r >= b, (
+        f"cossa ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")
+
+
+def test_cossa_edge_softness_low():
+    """cossa edge_softness must be < 0.40 — Ferrarese hard contours, no sfumato."""
+    s = get_style("cossa")
+    assert s.edge_softness < 0.40, (
+        f"cossa edge_softness should be low (hard Ferrarese contours): {s.edge_softness:.3f}")
+
+
+def test_cossa_wet_blend_low():
+    """cossa wet_blend must be < 0.60 — dry paint for crisp zone boundaries."""
+    s = get_style("cossa")
+    assert s.wet_blend < 0.60, (
+        f"cossa wet_blend should be low (crisp Ferrarese zones): {s.wet_blend:.3f}")
+
+
+def test_ferrarese_civic_grandeur_period_in_enum():
+    """FERRARESE_CIVIC_GRANDEUR must be present in the Period enum after session 140."""
+    assert hasattr(Period, "FERRARESE_CIVIC_GRANDEUR"), (
+        "FERRARESE_CIVIC_GRANDEUR missing from Period enum — add to scene_schema.py")

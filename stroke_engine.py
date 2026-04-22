@@ -32661,3 +32661,97 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Palma blonde luminance pass complete.")
+
+    def cossa_enamel_structure_pass(
+        self,
+        chroma_boost:       float = 0.18,
+        structure_strength: float = 0.22,
+        blur_sigma:         float = 1.2,
+        gem_low:            float = 0.15,
+        gem_high:           float = 0.88,
+        opacity:            float = 0.36,
+    ) -> None:
+        """
+        Francesco del Cossa enamel structure pass — Session 140 artistic improvement.
+
+        Encodes the defining quality of Cossa and the Ferrarese quattrocento school:
+        GEM-ENAMEL CLARITY — the crisp, jewel-like brilliance of distinctly bounded
+        colour zones with a hard, semi-glazed surface quality.  Where Venetian masters
+        dissolved forms in atmosphere and Florentines built form through sfumato,
+        the Ferrarese school (Cossa, Tura, de'Roberti) created colour-zone paintings
+        that look almost like cloisonné enamel: each hue occupies its own discrete
+        territory, bounded by firm contours, and glows with crystalline purity.
+
+        Algorithm:
+        (1) Gem-zone mask: pixels where 0.15 < L < 0.88 (the painting zone —
+            excludes near-black shadows and pure white highlights where the enamel
+            quality does not apply).
+        (2) Chroma boost in the gem zone — shift RGB away from its own luminance axis:
+            new_ch = L + (ch - L) × (1 + chroma_boost × gem_mask)
+            This amplifies colour zone purity without altering luminance structure,
+            producing the jewel-like saturation of Ferrarese pigments.
+        (3) Unsharp mask for structural clarity (enamel surface crispness):
+            detail  = boosted − Gaussian(boosted, sigma)
+            sharpened = boosted + structure_strength × detail × gem_mask
+            Applied only in the gem zone so deep shadows are not sharpened to noise.
+        (4) Composite at opacity.
+
+        Parameters
+        chroma_boost       : Saturation multiplier in the gem zone (0–0.5 typical).
+        structure_strength : Unsharp mask weight for edge clarity (0–0.5 typical).
+        blur_sigma         : Gaussian radius for the detail extraction.
+        gem_low, gem_high  : Luminance bounds of the enamel gem zone.
+        opacity            : Final composite weight (0–1).
+        """
+        print(f"Cossa enamel structure pass (chroma={chroma_boost:.2f}, "
+              f"structure={structure_strength:.2f}, opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            print("    Cossa enamel structure pass skipped (opacity=0).")
+            return
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo stores BGRA — channels: 0=B, 1=G, 2=R, 3=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Luminance and gem-zone mask ────────────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        gem = _np.where((lum >= gem_low) & (lum <= gem_high),
+                        1.0, 0.0).astype(_np.float32)
+
+        # ── Step 1: Chroma boost — amplify colour zone purity ─────────────
+        scale = 1.0 + chroma_boost * gem
+        r_b = _np.clip(lum + (r0 - lum) * scale, 0.0, 1.0)
+        g_b = _np.clip(lum + (g0 - lum) * scale, 0.0, 1.0)
+        b_b = _np.clip(lum + (b0 - lum) * scale, 0.0, 1.0)
+
+        # ── Step 2: Unsharp mask — reinforce enamel contour clarity ───────
+        r_blur = _gf(r_b, sigma=blur_sigma)
+        g_blur = _gf(g_b, sigma=blur_sigma)
+        b_blur = _gf(b_b, sigma=blur_sigma)
+
+        r_s = _np.clip(r_b + structure_strength * (r_b - r_blur) * gem, 0.0, 1.0)
+        g_s = _np.clip(g_b + structure_strength * (g_b - g_blur) * gem, 0.0, 1.0)
+        b_s = _np.clip(b_b + structure_strength * (b_b - b_blur) * gem, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────
+        r_f = r0 * (1.0 - opacity) + r_s * opacity
+        g_f = g0 * (1.0 - opacity) + g_s * opacity
+        b_f = b0 * (1.0 - opacity) + b_s * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Cossa enamel structure pass complete.")
