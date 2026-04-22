@@ -11430,6 +11430,89 @@ CATALOG: Dict[str, ArtStyle] = {
 
 
     # ── Dosso Dossi ────────────────────────────────────────────────────────────
+    # ── Jacopo Bassano ────────────────────────────────────────────────────────
+    "jacopo_bassano": ArtStyle(
+        artist="Jacopo Bassano",
+        movement="Venetian Pastoral Luminism",
+        nationality="Italian (Venetian)",
+        period="c. 1510–1592",
+        palette=[
+            (0.90, 0.74, 0.52),   # warm candlelit flesh — primary lit face in firelight
+            (0.66, 0.50, 0.30),   # ochre-amber shadow flesh — deep warm earth half-tone
+            (0.22, 0.16, 0.08),   # near-black umber void — Bassano's deep darkness
+            (0.86, 0.64, 0.32),   # copper-gold — warm firelight highlight zone
+            (0.42, 0.48, 0.36),   # muted sage-green — pastoral foliage, earthy distance
+            (0.70, 0.66, 0.56),   # warm grey haze — atmospheric recession in landscape
+            (0.38, 0.28, 0.18),   # dark chocolate umber — warm impasto shadow mass
+        ],
+        ground_color=(0.38, 0.28, 0.16),    # deep warm umber-brown ground — Bassano's dark base
+        stroke_size=9,
+        wet_blend=0.38,                      # moderate — impasto quality in darks, some fusion in lights
+        edge_softness=0.44,                  # medium — firm chiaroscuro edges, soft in mid-transition
+        jitter=0.034,                        # higher — Bassano's rough, expressive impasto texture
+        glazing=(0.80, 0.60, 0.28),          # warm amber-copper glaze — firelight unification
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Jacopo Bassano (Jacopo da Ponte, c.1510–1592) transformed Venetian painting "
+            "by combining the high-color tradition of Titian with a completely original "
+            "focus on rustic pastoral life, dramatic artificial light, and vigorous impasto "
+            "handling.  Born in the small market town of Bassano del Grappa north of Venice, "
+            "he spent nearly his entire career there — an unusual choice that gave him "
+            "freedom to develop an intensely personal vision outside the demands of the "
+            "Serenissima's official culture.  "
+            "His palette builds from a deep warm umber ground: shadows are rich, dark, and "
+            "warm (burnt umber, raw sienna), while lights are applied with loaded brushes "
+            "in thick, creamy impasto — warm ivory, bright ochre, and copper-gold accents "
+            "for the zones caught by torchlight or firelight.  The transition from shadow "
+            "to light is often abrupt, reflecting a pre-Caravaggesque understanding of "
+            "artificial light as it carves form from darkness.  "
+            "His later works (1570s–1580s) develop an extraordinarily loose, almost "
+            "proto-Impressionist surface: forms dissolve into energetic marks that are more "
+            "calligraphic than descriptive, anticipating Tintoretto's lightning impasto and "
+            "prefiguring the bravura of later centuries.  El Greco, who likely passed "
+            "through his workshop, absorbed both the dramatic lighting and the expressive "
+            "brushwork.  "
+            "Characteristic pastoral subjects — farm animals, peasants, shepherds, Nativity "
+            "scenes set in farmyards — are rendered with unflinching naturalism and "
+            "occasional surprising dignity."
+        ),
+        famous_works=[
+            ("Rest on the Flight into Egypt",     "c. 1540"),
+            ("Lazarus and the Rich Man",           "c. 1554"),
+            ("The Adoration of the Magi",          "c. 1542"),
+            ("Portrait of a Bearded Man",          "c. 1550"),
+            ("The Baptism of Christ",              "c. 1590"),
+            ("Animals Entering Noah's Ark",        "c. 1570"),
+            ("St. John the Baptist in the Desert", "c. 1558"),
+        ],
+        inspiration=(
+            "Apply bassano_pastoral_glow_pass() to encode Jacopo's defining quality: "
+            "the luminous warmth of firelight and torchlight emerging from deep warm "
+            "darkness.  This is the eleventh distinct processing mode in the pipeline: "
+            "ANISOTROPIC DIFFUSION (Perona-Malik filter).  "
+            "Prior modes: (1) s123 Rosa — spatial displacement; (2) s124 Stanzione — "
+            "Laplacian pyramid; (3) s125 Albani — vertical gradient; (4) s126 Bartolommeo — "
+            "Sobel edge-map; (5) s127 Cantarini — channel-selective diffusion; "
+            "(6) s128 Carpaccio — local variance adaptation; (7) s129 Piazzetta — "
+            "histogram percentile sculpting; (8) s130 Sebastiano — structure tensor; "
+            "(9) s131 Rosso — hue-selective chromatic tension; (10) s132 Dosso — "
+            "illumination-reflectance decomposition.  "
+            "Session 133 mode: ANISOTROPIC DIFFUSION.  "
+            "Algorithm: Perona-Malik anisotropic diffusion iteratively smooths flat "
+            "tonal areas while PRESERVING edges — the conductance function c(s) = "
+            "exp(-(s/K)²) approaches zero at luminance edges (high gradient) and 1.0 "
+            "in flat tonal zones.  This creates Bassano's 'tonal pools' — smooth, "
+            "luminous, beautifully graduated light zones — bounded by firm chiaroscuro "
+            "edges that the diffusion refuses to cross.  "
+            "After diffusion: a FIRELIGHT WARMTH BOOST applies a warm copper-amber tint "
+            "proportional to pixel luminance — brighter pixels receive more warmth, "
+            "simulating the orange-amber quality of torch and candlelight that saturates "
+            "Bassano's highlights.  "
+            "Use at opacity ≈ 0.28–0.36."
+        ),
+    ),
+
     "dosso_dossi": ArtStyle(
         artist="Dosso Dossi",
         movement="Ferrarese Colorist Poesia",

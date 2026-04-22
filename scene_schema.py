@@ -298,6 +298,7 @@ class Period(Enum):
     VENETIAN_ROMAN_SYNTHESIS   = auto()  # Sebastiano del Piombo — Venetian color richness fused with Michelangelesque monumental gravity; structure-tensor coherence-driven form smoothing; deep warm-umber depth
     FLORENTINE_ACIDIC_MANNERISM = auto()  # Rosso Fiorentino — acid dissonant palette, bleached near-cadaverous flesh, hue-selective chromatic tension mapping, angular electrified Mannerist dissonance
     FERRARESE_COLORIST_POESIA  = auto()  # Dosso Dossi — jewel-like chromatic poetry, warm amber-gold illumination, luminous colour saturation from within; illumination-reflectance decomposition (Retinex) mode
+    VENETIAN_PASTORAL_LUMINISM = auto()  # Jacopo Bassano — deep umber ground, warm firelight impasto, anisotropic diffusion creates smooth tonal pools bounded by firm chiaroscuro edges; proto-Caravaggesque artificial light
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1446,6 +1447,14 @@ class Style:
             # Giorgionesque soft edges — forms emerge from shadow rather than being sharply stated;
             # the sfumato inheritance from North Italian colorism.
             Period.FERRARESE_COLORIST_POESIA: dict(stroke_size_face=6, stroke_size_bg=28, wet_blend=0.82, edge_softness=0.65),
+            # VENETIAN_PASTORAL_LUMINISM (Jacopo Bassano) — deep umber ground, firelight impasto.
+            # stroke_size_face=9: loaded, expressive brushwork — Bassano's marks are assertive,
+            # especially in the lights where thick impasto deposits accent the warmth of fire.
+            # stroke_size_bg=30: pastoral backgrounds are broad and atmospheric, loosely rendered.
+            # wet_blend=0.38: moderate — impasto stays rough in shadows; some merging in lights.
+            # edge_softness=0.44: medium firmness — strong chiaroscuro boundaries, but mid-tones
+            # transition with a Venetian softness that keeps the surface breathable, not harsh.
+            Period.VENETIAN_PASTORAL_LUMINISM: dict(stroke_size_face=9, stroke_size_bg=30, wet_blend=0.38, edge_softness=0.44),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

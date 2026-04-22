@@ -16144,3 +16144,173 @@ def test_dosso_luminance_reflectance_pass_has_sigma_illum_parameter():
     assert "sigma_illum" in sig.parameters, (
         "dosso_luminance_reflectance_pass must have sigma_illum parameter "
         "(session 132 illumination estimation control)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 133: Jacopo Bassano + VENETIAN_PASTORAL_LUMINISM
+#              + bassano_pastoral_glow_pass (anisotropic diffusion mode)
+#              + shadow_temperature_relief_pass (artistic improvement)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_jacopo_bassano_in_catalog():
+    """jacopo_bassano must be present in the CATALOG dict (session 133)."""
+    assert "jacopo_bassano" in CATALOG, (
+        "jacopo_bassano not found in CATALOG -- add to art_catalog.py (session 133)")
+
+
+def test_jacopo_bassano_movement_pastoral():
+    """jacopo_bassano movement must reference Venetian Pastoral style (session 133)."""
+    s = get_style("jacopo_bassano")
+    assert "pastoral" in s.movement.lower() or "venetian" in s.movement.lower(), (
+        f"jacopo_bassano movement should mention 'Pastoral' or 'Venetian'; got {s.movement!r}")
+
+
+def test_jacopo_bassano_palette_valid():
+    """jacopo_bassano palette must contain valid RGB tuples in [0, 1] (session 133)."""
+    s = get_style("jacopo_bassano")
+    assert len(s.palette) >= 5, (
+        f"jacopo_bassano palette should have ≥5 colours; got {len(s.palette)}")
+    for colour in s.palette:
+        assert len(colour) == 3, f"Expected 3-tuple; got {colour!r}"
+        for ch in colour:
+            assert 0.0 <= ch <= 1.0, (
+                f"jacopo_bassano palette value out of range [0,1]: {ch} in {colour!r}")
+
+
+def test_jacopo_bassano_dark_ground():
+    """jacopo_bassano ground_color must be dark (luminance < 0.45) — deep umber ground."""
+    s = get_style("jacopo_bassano")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.45, (
+        f"jacopo_bassano ground_color should be dark (lum < 0.45); got lum={lum:.3f}")
+
+
+def test_jacopo_bassano_glazing_set():
+    """jacopo_bassano glazing must be set — warm firelight unification."""
+    s = get_style("jacopo_bassano")
+    assert s.glazing is not None, (
+        "jacopo_bassano glazing should be set (warm amber firelight unification glaze)")
+
+
+def test_jacopo_bassano_technique_mentions_light():
+    """jacopo_bassano technique must mention firelight or torchlight quality."""
+    s = get_style("jacopo_bassano")
+    text_lower = s.technique.lower()
+    assert ("firelight" in text_lower or "torchlight" in text_lower
+            or "torch" in text_lower or "candle" in text_lower or "light" in text_lower), (
+        "jacopo_bassano technique should describe the firelight/torchlight quality")
+
+
+def test_jacopo_bassano_inspiration_mentions_anisotropic():
+    """jacopo_bassano inspiration must describe the anisotropic diffusion mode."""
+    s = get_style("jacopo_bassano")
+    text_lower = s.inspiration.lower()
+    assert "anisotropic" in text_lower or "perona" in text_lower or "diffusion" in text_lower, (
+        "jacopo_bassano inspiration should describe ANISOTROPIC DIFFUSION processing mode")
+
+
+def test_venetian_pastoral_luminism_period_enum_exists():
+    """VENETIAN_PASTORAL_LUMINISM must exist in the Period enum (session 133)."""
+    assert hasattr(Period, "VENETIAN_PASTORAL_LUMINISM"), (
+        "VENETIAN_PASTORAL_LUMINISM missing from Period enum -- "
+        "add to scene_schema.py (session 133)")
+
+
+def test_bassano_pastoral_glow_pass_exists():
+    """Painter must have bassano_pastoral_glow_pass() method after session 133."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bassano_pastoral_glow_pass"), (
+        "bassano_pastoral_glow_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "bassano_pastoral_glow_pass"))
+
+
+def test_bassano_pastoral_glow_pass_no_error():
+    """bassano_pastoral_glow_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.38, 0.28, 0.16), texture_strength=0.05)
+    p.bassano_pastoral_glow_pass(opacity=0.32)
+
+
+def test_bassano_pastoral_glow_pass_modifies_canvas():
+    """bassano_pastoral_glow_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.38, 0.28, 0.16), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.bassano_pastoral_glow_pass(opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "bassano_pastoral_glow_pass should modify the canvas at opacity=0.60")
+
+
+def test_bassano_pastoral_glow_pass_preserves_shape():
+    """bassano_pastoral_glow_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.38, 0.28, 0.16), texture_strength=0.05)
+    p.bassano_pastoral_glow_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after bassano_pastoral_glow_pass: {img.size}")
+
+
+def test_bassano_pastoral_glow_pass_has_n_iter_parameter():
+    """bassano_pastoral_glow_pass must accept n_iter parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.bassano_pastoral_glow_pass)
+    assert "n_iter" in sig.parameters, (
+        "bassano_pastoral_glow_pass must have n_iter parameter "
+        "(session 133 anisotropic diffusion iteration count)")
+
+
+def test_shadow_temperature_relief_pass_exists():
+    """Painter must have shadow_temperature_relief_pass() method after session 133."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "shadow_temperature_relief_pass"), (
+        "shadow_temperature_relief_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "shadow_temperature_relief_pass"))
+
+
+def test_shadow_temperature_relief_pass_no_error():
+    """shadow_temperature_relief_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.42, 0.34, 0.22), texture_strength=0.05)
+    p.shadow_temperature_relief_pass(opacity=0.40)
+
+
+def test_shadow_temperature_relief_pass_modifies_canvas():
+    """shadow_temperature_relief_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.42, 0.34, 0.22), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.shadow_temperature_relief_pass(opacity=0.80)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "shadow_temperature_relief_pass should modify the canvas at opacity=0.80")
+
+
+def test_shadow_temperature_relief_pass_has_opacity_parameter():
+    """shadow_temperature_relief_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.shadow_temperature_relief_pass)
+    assert "opacity" in sig.parameters, (
+        "shadow_temperature_relief_pass must have opacity parameter "
+        "(session 133 shadow temperature relief artistic improvement)")
