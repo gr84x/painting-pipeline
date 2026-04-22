@@ -12681,7 +12681,7 @@ def test_solario_pellucid_amber_pass_no_error():
 def test_solario_pellucid_amber_pass_modifies_canvas():
     """solario_pellucid_amber_pass() must modify the canvas (non-trivial opacity)."""
     p = _make_small_painter(64, 64)
-    p.tone_ground((0.44, 0.36, 0.24), texture_strength=0.06)
+    p.tone_ground((0.59, 0.47, 0.34), texture_strength=0.06)
 
     before = _canvas_bytes(p)
     p.solario_pellucid_amber_pass(opacity=0.30)
