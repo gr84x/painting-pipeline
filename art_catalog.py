@@ -10843,6 +10843,99 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Fra Bartolommeo ───────────────────────────────────────────────────────
+    "fra_bartolommeo": ArtStyle(
+        artist="Fra Bartolommeo",
+        movement="Florentine Monumental Classicism",
+        nationality="Italian (Florentine)",
+        period="c. 1490–1517",
+        palette=[
+            (0.92, 0.82, 0.66),   # warm ivory flesh — lit face, rich Florentine warmth
+            (0.80, 0.65, 0.50),   # rose-amber midtone — the characteristic warm penumbra
+            (0.56, 0.42, 0.30),   # deep chestnut shadow — voluminous, Leonardesque depth
+            (0.30, 0.22, 0.14),   # near-black shadow trough — deep architectural darkness
+            (0.30, 0.42, 0.64),   # Dominican blue — sapphire drapery, spiritual register
+            (0.62, 0.70, 0.46),   # sage-olive landscape — hills behind devotional figures
+            (0.80, 0.72, 0.52),   # warm amber-gold — gilded highlights and divine light
+            (0.72, 0.60, 0.44),   # warm ground tone — Florentine imprimatura warmth
+        ],
+        ground_color=(0.64, 0.52, 0.34),    # warm chestnut-amber imprimatura
+        stroke_size=5,
+        wet_blend=0.72,                      # high — smooth monumental surfaces
+        edge_softness=0.58,                  # moderate — resolved but not crisp; soft Florentine sfumato
+        jitter=0.016,
+        glazing=(0.70, 0.58, 0.38),          # warm amber-chestnut unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Fra Bartolommeo (1472–1517) — born Baccio della Porta, later Frate Bartolommeo di "
+            "San Marco — is the supreme master of Florentine monumental classicism in the High "
+            "Renaissance.  Trained in Cosimo Rosselli's workshop alongside Piero di Cosimo and "
+            "Albertinelli, he absorbed the Florentine draughtsmanship tradition, then underwent "
+            "a profound spiritual crisis under Savonarola's influence: he burned his secular "
+            "paintings in the Bonfire of the Vanities (1497) and entered the Dominican priory of "
+            "San Marco (Michelangelo's Fra Angelico's house) where he painted nothing for four "
+            "years.  When he returned to painting in 1504, his style had transformed entirely: "
+            "the intimate quattrocento linearity replaced by a monumental, architectural grandeur "
+            "synthesizing Leonardo's sfumato, Raphael's harmonious clarity, and Michelangelo's "
+            "sculptural weight into the definitive Florentine High Renaissance figure idiom.  "
+            "His most distinctive technical practice was the 'velo' ('veil') — a sheer cloth "
+            "draped over posed lay figures or mannequins to study the behavior of light and shadow "
+            "as they travel across complex three-dimensional forms.  The velo produced a specific "
+            "visual quality: where the cloth stretched taut over a protruding form, it caught the "
+            "light and marked the ridge precisely; where it fell into shadow on the receding "
+            "surface, the shadow deepened in a graduated, precisely-bounded gradient.  This "
+            "gave Fra Bartolommeo's painted forms — especially drapery and monumental architectural "
+            "figures — an unusually clear tonal boundary between light and shadow zones: not "
+            "Leonardo's smoky sfumato dissolution, but a more articulated, volumetrically "
+            "decisive statement of where form turns away from the light source.  His palette "
+            "is warm, saturated, and rich: deep chestnut-amber grounds, warm rose-ivory flesh, "
+            "deep architectural shadows that never read as flat but retain volumetric warmth, "
+            "and — when he painted devotional subjects — a luminous Dominican blue that gives "
+            "his Madonnas a spiritual radiance distinct from the cold Flemish blue of Van Eyck "
+            "or the cool Venetian blue of Titian.  He was the master who transmitted the grand "
+            "Florentine synthesis to subsequent generations, influencing Raphael, Andrea del "
+            "Sarto, and the whole Florentine Mannerist tradition."
+        ),
+        famous_works=[
+            ("Mystical Marriage of St. Catherine",        "1511"),
+            ("God the Father with Saints",                "c. 1509"),
+            ("Salvator Mundi",                            "c. 1516"),
+            ("Portrait of Savonarola",                    "c. 1498"),
+            ("Madonna della Misericordia",                "1515"),
+            ("St Mark Enthroned",                         "1514"),
+            ("The Carondelet Diptych",                    "c. 1511–1512"),
+            ("Great Last Judgement fresco (S. Marco)",    "c. 1499–1501"),
+        ],
+        inspiration=(
+            "Apply fra_bartolommeo_velo_shadow_pass() as the defining pass for session 126.  "
+            "The pass encodes Fra Bartolommeo's velo technique in three stages built around "
+            "the session 126 artistic improvement: Sobel-gradient-driven form boundary modulation.  "
+            "(1) Sobel-based form-ridge detection — the session 126 artistic improvement.  "
+            "All previous passes in this pipeline operate in one of three modes: "
+            "colour-space transforms (temperature shifts, luminance lifts), "
+            "frequency-band decomposition (Laplacian pyramid, s124), or "
+            "spatial-gradient fields (aerial perspective, s125).  "
+            "This pass introduces a fourth, fundamentally different mode: "
+            "EDGE-MAP-DRIVEN selective modulation.  A Gaussian-smoothed luminance map is "
+            "processed through the Sobel operator (horizontal: axis=1, vertical: axis=0), "
+            "yielding a gradient magnitude map that precisely locates the tonal boundary "
+            "zones where light-side meets shadow-side on three-dimensional forms — exactly "
+            "what Fra Bartolommeo studied using his velo.  This gradient mask is then used "
+            "to apply selective color-temperature contrast only at detected form ridges.  "
+            "(2) Warm thermal lift on lit side of form transitions — in zones where the "
+            "luminance is above the penumbra midpoint AND the Sobel gradient is significant, "
+            "add a warm R/G lift.  Fra Bartolommeo's lit form-ridges catch warm directional "
+            "light and read as luminous amber-ivory against the shadowed trough.  "
+            "(3) Cool shadow deepening on shadow side — in zones where the luminance is "
+            "below the penumbra midpoint AND the Sobel gradient is significant, add a cool "
+            "blue deepening.  Fra Bartolommeo's shadow troughs — especially in the velo "
+            "drapery studies — have a precise, resolved quality: not Leonardo's smoky "
+            "dissolution but a crisply-bounded volumetric statement.  "
+            "Use at opacity ≈ 0.26–0.34."
+        ),
+    ),
+
     # ── Francesco Albani ──────────────────────────────────────────────────────
     "albani": ArtStyle(
         artist="Francesco Albani",

@@ -15127,3 +15127,111 @@ def test_albani_inspiration_mentions_arcadian():
     assert "aerial" in insp_lower or "arcadian" in insp_lower, (
         "albani inspiration should reference 'aerial' or 'arcadian' — "
         "the defining aesthetic and technical improvement of session 125")
+
+
+# ── Session 126: Fra Bartolommeo ──────────────────────────────────────────────
+
+def test_fra_bartolommeo_in_catalog():
+    """Fra Bartolommeo (session 126) must be in the catalog."""
+    assert "fra_bartolommeo" in CATALOG, (
+        "fra_bartolommeo missing from CATALOG — add to art_catalog.py")
+
+
+def test_fra_bartolommeo_palette_valid():
+    """fra_bartolommeo palette entries must be valid RGB floats in [0, 1]."""
+    s = get_style("fra_bartolommeo")
+    for i, col in enumerate(s.palette):
+        assert len(col) == 3, f"fra_bartolommeo palette[{i}] must have 3 components"
+        for ch in col:
+            assert 0.0 <= ch <= 1.0, (
+                f"fra_bartolommeo palette[{i}] channel out of range [0,1]: {ch}")
+
+
+def test_fra_bartolommeo_wet_blend_high():
+    """fra_bartolommeo wet_blend must be >= 0.60 for smooth monumental surfaces."""
+    s = get_style("fra_bartolommeo")
+    assert s.wet_blend >= 0.60, (
+        f"fra_bartolommeo wet_blend should be >= 0.60 (monumental smooth surfaces); "
+        f"got {s.wet_blend}")
+
+
+def test_fra_bartolommeo_inspiration_mentions_sobel():
+    """fra_bartolommeo inspiration text must mention Sobel or velo."""
+    s = get_style("fra_bartolommeo")
+    insp_lower = s.inspiration.lower()
+    assert "sobel" in insp_lower or "velo" in insp_lower, (
+        "fra_bartolommeo inspiration should reference 'sobel' or 'velo' — "
+        "the defining technical improvement of session 126")
+
+
+def test_fra_bartolommeo_velo_shadow_pass_exists():
+    """Painter must have fra_bartolommeo_velo_shadow_pass() method (session 126)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "fra_bartolommeo_velo_shadow_pass"), (
+        "fra_bartolommeo_velo_shadow_pass not found on Painter — add to stroke_engine.py")
+    assert callable(getattr(Painter, "fra_bartolommeo_velo_shadow_pass"))
+
+
+def test_fra_bartolommeo_velo_shadow_pass_noop_at_zero_opacity():
+    """fra_bartolommeo_velo_shadow_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=128, height=128)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(
+        (128, 128, 4)).copy()
+    data[:, :, :] = [120, 140, 170, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.fra_bartolommeo_velo_shadow_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "fra_bartolommeo_velo_shadow_pass(opacity=0) should be a noop")
+
+
+def test_fra_bartolommeo_velo_shadow_pass_warms_lit_ridges():
+    """fra_bartolommeo_velo_shadow_pass must raise R in mid-tone zone at full opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Gradient canvas: half bright, half dark — creates Sobel-detectable edge in the middle
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(
+        (64, 64, 4)).copy()
+    # Left half bright (lum ≈ 0.60 — lit side of penumbra)
+    data[:, :32, :] = [150, 155, 160, 255]   # BGRA
+    # Right half mid-shadow (lum ≈ 0.35 — shadow side of penumbra)
+    data[:, 32:, :] = [80, 85, 90, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r_lit = data[:, :32, 2].astype(_np.float32).mean()
+    p.fra_bartolommeo_velo_shadow_pass(
+        lit_warmth_r=0.10,
+        lit_warmth_g=0.04,
+        shadow_cool_b=0.0,
+        shadow_cool_r=0.0,
+        saturation_boost=0.0,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(
+        (64, 64, 4))
+    after_r_lit = after[:, :32, 2].astype(_np.float32).mean()
+    assert after_r_lit >= orig_r_lit, (
+        f"fra_bartolommeo_velo_shadow_pass must raise R on lit side; "
+        f"before={orig_r_lit:.1f}, after={after_r_lit:.1f}")
+
+
+def test_fra_bartolommeo_velo_shadow_pass_preserves_canvas_shape():
+    """fra_bartolommeo_velo_shadow_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=64)
+    p.tone_ground((0.64, 0.52, 0.34), texture_strength=0.05)
+    p.fra_bartolommeo_velo_shadow_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after fra_bartolommeo_velo_shadow_pass: {img.size}")
+
+
+def test_florentine_monumental_classicism_period_exists():
+    """FLORENTINE_MONUMENTAL_CLASSICISM must exist in the Period enum (session 126)."""
+    from scene_schema import Period
+    assert hasattr(Period, "FLORENTINE_MONUMENTAL_CLASSICISM"), (
+        "FLORENTINE_MONUMENTAL_CLASSICISM missing from Period enum — "
+        "add to scene_schema.py for session 126 (Fra Bartolommeo)")

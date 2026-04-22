@@ -30181,3 +30181,175 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Francesco Albani arcadian grace pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 126 — Fra Bartolommeo + FLORENTINE_MONUMENTAL_CLASSICISM
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def fra_bartolommeo_velo_shadow_pass(
+        self,
+        *,
+        gradient_sigma:   float = 2.0,    # Gaussian pre-blur sigma before Sobel
+        edge_threshold:   float = 0.03,   # minimum Sobel magnitude to activate modulation
+        lit_warmth_r:     float = 0.018,  # warm R lift on lit side of form ridges
+        lit_warmth_g:     float = 0.007,  # warm G lift on lit side of form ridges
+        shadow_cool_b:    float = 0.020,  # cool B deepening on shadow side of ridges
+        shadow_cool_r:    float = 0.008,  # R damp on shadow side of ridges
+        mid_lo:           float = 0.25,   # lower luminance bound of penumbra zone
+        mid_hi:           float = 0.70,   # upper luminance bound of penumbra zone
+        saturation_boost: float = 0.04,   # mild saturation boost in mid-zone (Bartolommeo's rich colour)
+        blur_radius:      float = 4.0,    # Gaussian sigma for mask edge smoothing
+        opacity:          float = 1.0,
+    ) -> None:
+        """
+        Fra Bartolommeo velo shadow pass — session 126.
+
+        Fra Bartolommeo (1472–1517) pioneered the use of a 'velo' (sheer cloth veil)
+        draped over posed models to systematically study how light and shadow travel
+        across three-dimensional forms.  Where the veil stretched taut over a
+        protruding ridge (brow bone, cheekbone, nose bridge, shoulder), it caught
+        the light at a sharply-defined boundary; where it fell into shadow in the
+        concave recesses, the shadow deepened with a precise, volumetrically
+        committed gradient.
+
+        This pass encodes that velo observation in three computational stages using
+        the SESSION 126 ARTISTIC IMPROVEMENT: Sobel-gradient-driven form boundary
+        modulation.  This is the fourth distinct processing mode in this pipeline:
+
+          s123 Rosa   — spatial displacement (image warping via turbulent flow)
+          s124 Stanzione — frequency-band decomposition (Laplacian pyramid)
+          s125 Albani — vertical spatial gradient (chromatic aerial perspective)
+          s126 Bartolommeo — EDGE-MAP-DRIVEN selective modulation (Sobel gradient)
+
+        Unlike Laplacian pyramid decomposition (s124), which separates globally by
+        spatial frequency across the entire canvas, Sobel-gradient detection finds the
+        precise tonal boundary LOCATIONS where light-to-shadow transitions occur.
+        The resulting edge mask is then used to apply warm/cool thermal contrast
+        selectively at detected form ridges — not uniformly, not frequency-banded,
+        but spatially anchored to where the painting's three-dimensional forms
+        actually turn away from the light.
+
+        Three stages:
+        (1) Sobel edge detection — pre-smooth luminance (gradient_sigma), compute
+            Sobel magnitude sqrt(Gx²+Gy²), normalize to [0,1].  Pixels below
+            edge_threshold receive near-zero edge weight.
+        (2) Lit-side warm lift — where luminance > penumbra midpoint AND edge weight
+            is significant: R += lit_warmth_r, G += lit_warmth_g.  Fra Bartolommeo's
+            lit form-ridges read as warm amber-ivory crests against shadowed troughs.
+        (3) Shadow-side cool deepening — where luminance < penumbra midpoint AND edge
+            weight is significant: B += shadow_cool_b, R -= shadow_cool_r.  The velo's
+            shadow troughs have a precisely-bounded cool quality, giving forms volumetric
+            weight without Leonardo's smoky dissolution.
+        (4) Mild saturation boost across the mid-zone (saturation_boost) — Fra
+            Bartolommeo's palette is rich and warm-saturated throughout; this stage
+            prevents the cumulative passes from greying out the mid-tones.
+
+        Parameters
+        ----------
+        gradient_sigma   : Gaussian pre-blur sigma applied to luminance before Sobel
+        edge_threshold   : minimum normalised Sobel magnitude to participate in modulation
+        lit_warmth_r/g   : warm channel offsets on lit side of detected form ridges
+        shadow_cool_b/r  : blue lift and red damp on shadow side of detected ridges
+        mid_lo / mid_hi  : luminance range of the penumbra zone to modulate
+        saturation_boost : strength of mid-tone saturation recovery
+        blur_radius      : Gaussian sigma to smooth zone boundary transitions
+        opacity          : global compositing weight
+
+        Notes
+        -----
+        Characteristic works encoding the velo technique:
+          *Mystical Marriage of St. Catherine* (Uffizi, 1511) —
+              monumental architectural figures; velo-derived shadow precision on drapery.
+          *God the Father with Saints* (c. 1509) —
+              deep chiaroscuro with warm-lit ridges and cool shadow troughs.
+          *Salvator Mundi* (c. 1516) —
+              luminous warm flesh against deep devotional shadow; the velo boundary visible
+              on the brow, nose, and chin forms.
+        """
+        print(f"Fra Bartolommeo velo shadow pass  "
+              f"(opacity={opacity:.2f}  gradient_sigma={gradient_sigma:.1f}  "
+              f"edge_threshold={edge_threshold:.3f}  lit_warmth_r={lit_warmth_r:.3f}  "
+              f"shadow_cool_b={shadow_cool_b:.3f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+        from scipy.ndimage import sobel as _sobel
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Stage 1: Sobel-gradient form-ridge detection ──────────────────────
+        # Pre-smooth luminance to reduce noise amplification in the gradient.
+        lum_smooth = _gf(lum.astype(_np.float32), sigma=gradient_sigma)
+        # Compute Sobel gradient components (axis=1 = horizontal, axis=0 = vertical).
+        gx = _sobel(lum_smooth, axis=1)
+        gy = _sobel(lum_smooth, axis=0)
+        grad_mag = _np.sqrt(gx * gx + gy * gy)
+        # Normalise gradient magnitude to [0, 1] for threshold application.
+        g_max = grad_mag.max()
+        if g_max > 1e-9:
+            grad_norm = grad_mag / g_max
+        else:
+            grad_norm = grad_mag
+        # Edge weight: zero below threshold, linear above.
+        edge_weight = _np.clip((grad_norm - edge_threshold) / max(0.01, 1.0 - edge_threshold),
+                               0.0, 1.0)
+        edge_weight = _gf(edge_weight.astype(_np.float32), sigma=blur_radius)
+        edge_weight = _np.clip(edge_weight, 0.0, 1.0)
+
+        # ── Penumbra zone mask (mid_lo .. mid_hi) ─────────────────────────────
+        mid_span = max(0.01, mid_hi - mid_lo)
+        pen_raw  = _np.clip(1.0 - _np.abs(lum - 0.5 * (mid_lo + mid_hi))
+                            / (0.5 * mid_span), 0.0, 1.0)
+        pen_mask = _gf(pen_raw.astype(_np.float32), sigma=blur_radius)
+        pen_mask = _np.clip(pen_mask, 0.0, 1.0)
+
+        # Combined gate: only activate where both form ridge AND penumbra overlap.
+        gate = edge_weight * pen_mask
+
+        # ── Stage 2: Lit-side warm lift ────────────────────────────────────────
+        # Pixels with lum > penumbra midpoint are on the lit side of the form ridge.
+        mid_point   = 0.5 * (mid_lo + mid_hi)
+        lit_frac    = _np.clip((lum - mid_point) / max(0.01, mid_hi - mid_point), 0.0, 1.0)
+        lit_mask    = gate * lit_frac
+
+        r_out = r0 + lit_mask * lit_warmth_r
+        g_out = g0 + lit_mask * lit_warmth_g
+        b_out = b0.copy()
+
+        # ── Stage 3: Shadow-side cool deepening ───────────────────────────────
+        # Pixels with lum < penumbra midpoint are on the shadow side of the ridge.
+        shd_frac    = _np.clip((mid_point - lum) / max(0.01, mid_point - mid_lo), 0.0, 1.0)
+        shd_mask    = gate * shd_frac
+
+        b_out = _np.clip(b_out + shd_mask * shadow_cool_b, 0.0, 1.0)
+        r_out = _np.clip(r_out - shd_mask * shadow_cool_r, 0.0, 1.0)
+
+        # ── Stage 4: Mild mid-tone saturation boost ───────────────────────────
+        # Fra Bartolommeo's palette is richly saturated; recover any grey-out from
+        # cumulative passes by pushing mid-zone channels away from their luma value.
+        if saturation_boost > 0.0:
+            lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+            r_out = _np.clip(r_out + pen_mask * (r_out - lum_out) * saturation_boost, 0.0, 1.0)
+            g_out = _np.clip(g_out + pen_mask * (g_out - lum_out) * saturation_boost, 0.0, 1.0)
+            b_out = _np.clip(b_out + pen_mask * (b_out - lum_out) * saturation_boost, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_out * opacity
+        g_final = g0 * (1.0 - opacity) + g_out * opacity
+        b_final = b0 * (1.0 - opacity) + b_out * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Fra Bartolommeo velo shadow pass complete.")

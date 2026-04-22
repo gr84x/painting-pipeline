@@ -6943,6 +6943,37 @@ def test_penumbra_zone_pass_does_not_affect_deep_shadows():
         f"R_before={r_before:.1f} R_after={r_after:.1f}")
 
 
+# ── Session 126 — fra_bartolommeo_velo_shadow_pass() ─────────────────────────
+
+def test_fra_bartolommeo_velo_shadow_pass_exists():
+    """Painter must have fra_bartolommeo_velo_shadow_pass() method (session 126)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "fra_bartolommeo_velo_shadow_pass"), (
+        "fra_bartolommeo_velo_shadow_pass not found on Painter")
+    assert callable(getattr(Painter, "fra_bartolommeo_velo_shadow_pass"))
+
+
+def test_fra_bartolommeo_velo_shadow_pass_no_error():
+    """fra_bartolommeo_velo_shadow_pass() must run without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.64, 0.52, 0.34), texture_strength=0.0)
+    p.fra_bartolommeo_velo_shadow_pass()
+
+
+def test_fra_bartolommeo_velo_shadow_pass_noop_at_opacity_zero():
+    """fra_bartolommeo_velo_shadow_pass(opacity=0) must be a noop."""
+    p = _make_small_painter(64, 64)
+    buf = np.frombuffer(p.canvas.surface.get_data(),
+                        dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, :] = [120, 140, 160, 255]
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.fra_bartolommeo_velo_shadow_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "fra_bartolommeo_velo_shadow_pass(opacity=0) should be a noop")
+
+
 def test_penumbra_zone_pass_does_not_affect_highlights():
     """penumbra_zone_pass() must leave bright highlight pixels (lum >> light_thresh) unchanged."""
     p = _make_small_painter(64, 64)

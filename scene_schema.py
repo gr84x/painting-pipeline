@@ -291,6 +291,7 @@ class Period(Enum):
     ROMAN_BAROQUE_LANDSCAPE = auto()  # Salvator Rosa — gestural turbulent displacement, near-black umber ground, storm-charged atmospheric borders, warm amber focal light from enveloping darkness
     NEAPOLITAN_BAROQUE_CLASSICISM = auto()  # Massimo Stanzione — warm Reni-derived ivory highlights, cool violet shadow penumbra, Laplacian pyramid mid-frequency clarity, golden Bolognese classicist flesh
     BOLOGNESE_ARCADIAN_CLASSICISM = auto()  # Francesco Albani — pearl-ivory ambient glow, rose-peach skin bloom, cool sky-reflected shadow, chromatic aerial perspective
+    FLORENTINE_MONUMENTAL_CLASSICISM = auto()  # Fra Bartolommeo — warm chestnut-amber ground, rich saturated chiaroscuro, Sobel-gradient velo shadow modulation, monumental devotional serenity
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
