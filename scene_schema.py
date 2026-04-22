@@ -294,6 +294,7 @@ class Period(Enum):
     FLORENTINE_MONUMENTAL_CLASSICISM = auto()  # Fra Bartolommeo — warm chestnut-amber ground, rich saturated chiaroscuro, Sobel-gradient velo shadow modulation, monumental devotional serenity
     BOLOGNESE_RENESQUE_SILVER_CLASSICISM = auto()  # Simone Cantarini — ivory-pearl flesh, cool blue-pearl penumbra scatter, rose carnation warmth, spectral channel-selective diffusion, Reni-derived silver classicism
     VENETIAN_NARRATIVE_LUMINISM = auto()  # Vittore Carpaccio — warm amber highlights, cool sky-blue luminous shadows, local-variance-map spatial adaptation, crystalline Venetian narrative clarity
+    VENETIAN_BAROQUE_TENEBRISM = auto()  # Piazzetta — warm velvet near-black shadow compression, amber impasto highlight lift, percentile-adaptive tonal sculpting, candlelight intimacy
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1408,6 +1409,14 @@ class Style:
                         # not harsh; a clean, patient layering quality. edge_softness=0.48: moderately crisp
                         # — less sfumato than Albani or Stanzione; his edges are resolved and present.
                         Period.VENETIAN_NARRATIVE_LUMINISM: dict(stroke_size_face=6, stroke_size_bg=26, wet_blend=0.62, edge_softness=0.48),
+            # VENETIAN_BAROQUE_TENEBRISM (Piazzetta) — warm velvet darkness with amber impasto
+            # highlights. stroke_size_face=5: deliberate, considered mark-making; Piazzetta was
+            # famously slow — each stroke placed with care. stroke_size_bg=22: backgrounds dissolve
+            # into dark shadow — coarser marks absorbed by the tenebrism ground.
+            # wet_blend=0.55: moderate — smooth tonal transitions within the shadow, but impasto
+            # highlights retain body. edge_softness=0.40: moderate — figures emerge from dark
+            # ground rather than sfumato dissolution; edges are present but soft.
+            Period.VENETIAN_BAROQUE_TENEBRISM: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.40),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

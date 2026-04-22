@@ -13815,7 +13815,7 @@ def test_venetian_narrative_luminism_stroke_params_moderate_blend():
 
 
 def test_venetian_narrative_luminism_stroke_params_crisp_edges():
-    """VENETIAN_NARRATIVE_LUMINISM edge_softness must be moderate-to-crisp (≤ 0.65)."""
+    """VENETIAN_NARRATIVE_LUMINISM edge_softness must be moderate-to-crisp (<= 0.65)."""
     from scene_schema import Style, Medium, Period, PaletteHint
     style = Style(medium=Medium.OIL, period=Period.VENETIAN_NARRATIVE_LUMINISM,
                   palette=PaletteHint.WARM_EARTH)
@@ -13823,3 +13823,96 @@ def test_venetian_narrative_luminism_stroke_params_crisp_edges():
     assert p["edge_softness"] <= 0.65, (
         f"VENETIAN_NARRATIVE_LUMINISM edge_softness should be <= 0.65 "
         f"(resolved Venetian narrative edges); got {p['edge_softness']:.2f}")
+
+
+# ── Session 129 -- piazzetta_velvet_shadow_pass() ────────────────────────────
+
+def test_piazzetta_velvet_shadow_pass_exists_routing():
+    """Painter must have piazzetta_velvet_shadow_pass() method (session 129)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "piazzetta_velvet_shadow_pass"), (
+        "piazzetta_velvet_shadow_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "piazzetta_velvet_shadow_pass"))
+
+
+def test_piazzetta_velvet_shadow_pass_no_error_routing():
+    """piazzetta_velvet_shadow_pass() runs on a dark toned canvas without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.05)
+    p.piazzetta_velvet_shadow_pass(opacity=0.32)
+
+
+def test_piazzetta_velvet_shadow_pass_modifies_canvas_routing():
+    """piazzetta_velvet_shadow_pass() must modify the canvas at non-zero opacity."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.05)
+    before = _canvas_bytes(p)
+    p.piazzetta_velvet_shadow_pass(
+        shadow_percentile=0.20,
+        shadow_warm_r=0.050,
+        opacity=0.60,
+    )
+    after = _canvas_bytes(p)
+    assert before != after, "piazzetta_velvet_shadow_pass should modify the canvas"
+
+
+def test_piazzetta_velvet_shadow_pass_zero_opacity_noop_routing():
+    """piazzetta_velvet_shadow_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.piazzetta_velvet_shadow_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "piazzetta_velvet_shadow_pass(opacity=0) should be a noop")
+
+
+def test_piazzetta_velvet_shadow_pass_preserves_canvas_shape():
+    """piazzetta_velvet_shadow_pass() must not change canvas dimensions."""
+    p = _make_small_painter(80, 64)
+    p.tone_ground((0.20, 0.14, 0.08), texture_strength=0.05)
+    p.piazzetta_velvet_shadow_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 64), (
+        f"Canvas shape changed after piazzetta_velvet_shadow_pass: {img.size}")
+
+
+def test_venetian_baroque_tenebrism_period_present():
+    """Period.VENETIAN_BAROQUE_TENEBRISM must be in the Period enum (session 129)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_BAROQUE_TENEBRISM"), (
+        "Period.VENETIAN_BAROQUE_TENEBRISM not found -- add it to scene_schema.py")
+    assert Period.VENETIAN_BAROQUE_TENEBRISM in list(Period)
+
+
+def test_venetian_baroque_tenebrism_stroke_params_moderate_blend():
+    """VENETIAN_BAROQUE_TENEBRISM wet_blend must be in moderate range (0.40 to 0.70)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_BAROQUE_TENEBRISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["wet_blend"] <= 0.70, (
+        f"VENETIAN_BAROQUE_TENEBRISM wet_blend should be 0.40-0.70 "
+        f"(moderate Piazzetta blending -- impasto body); got {p['wet_blend']:.2f}")
+
+
+def test_venetian_baroque_tenebrism_stroke_params_moderate_edge_softness():
+    """VENETIAN_BAROQUE_TENEBRISM edge_softness must be in moderate range (0.25 to 0.60)."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_BAROQUE_TENEBRISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.25 <= p["edge_softness"] <= 0.60, (
+        f"VENETIAN_BAROQUE_TENEBRISM edge_softness should be 0.25-0.60 "
+        f"(Piazzetta forms emerge from dark, moderate softness); got {p['edge_softness']:.2f}")
+
+
+def test_piazzetta_velvet_shadow_pass_accepts_shadow_percentile():
+    """piazzetta_velvet_shadow_pass must accept shadow_percentile parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.piazzetta_velvet_shadow_pass)
+    assert "shadow_percentile" in sig.parameters, (
+        "piazzetta_velvet_shadow_pass must have shadow_percentile parameter "
+        "(session 129 percentile-adaptive tonal sculpting improvement)")

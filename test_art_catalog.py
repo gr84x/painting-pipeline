@@ -15538,3 +15538,200 @@ def test_carpaccio_venetian_clarity_pass_has_variance_sigma_parameter():
     assert "variance_sigma" in sig.parameters, (
         "carpaccio_venetian_clarity_pass must have 'variance_sigma' parameter "
         "(local variance map estimation window — session 128 improvement)")
+
+
+# ─── Piazzetta (session 129) ──────────────────────────────────────────────────
+
+def test_piazzetta_in_catalog():
+    """piazzetta must be present in CATALOG after session 129."""
+    assert "piazzetta" in CATALOG, (
+        "piazzetta not found in CATALOG — add to art_catalog.py for session 129")
+
+
+def test_piazzetta_artist_name():
+    """Piazzetta artist name must be Giovanni Battista Piazzetta."""
+    s = get_style("piazzetta")
+    assert "Piazzetta" in s.artist, (
+        f"Expected 'Piazzetta' in artist name, got: {s.artist!r}")
+
+
+def test_piazzetta_movement_venetian_baroque():
+    """Piazzetta movement must reference Venetian Baroque."""
+    s = get_style("piazzetta")
+    assert "venetian" in s.movement.lower() or "baroque" in s.movement.lower(), (
+        f"Piazzetta movement should reference Venetian Baroque, got: {s.movement!r}")
+
+
+def test_piazzetta_palette_has_dark_entries():
+    """Piazzetta palette must include very dark tones (tenebrism ground)."""
+    s = get_style("piazzetta")
+    dark_found = any(max(c) < 0.30 for c in s.palette)
+    assert dark_found, (
+        "Piazzetta palette must include at least one dark entry (max channel < 0.30) "
+        "for tenebrism velvet shadow ground")
+
+
+def test_piazzetta_palette_has_warm_highlight():
+    """Piazzetta palette must include a warm amber highlight (impasto)."""
+    s = get_style("piazzetta")
+    warm_highlight = any(c[0] > 0.70 and c[0] > c[2] + 0.15 for c in s.palette)
+    assert warm_highlight, (
+        "Piazzetta palette must have a warm amber highlight entry (R>0.70, R>B+0.15) "
+        "for the impasto highlight characteristic")
+
+
+def test_piazzetta_palette_channels_valid():
+    """All Piazzetta palette channels must be in [0, 1]."""
+    s = get_style("piazzetta")
+    for i, c in enumerate(s.palette):
+        for ch in c:
+            assert 0.0 <= ch <= 1.0, (
+                f"Piazzetta palette[{i}] channel out of range [0,1]: {ch}")
+
+
+def test_piazzetta_ground_color_dark():
+    """Piazzetta ground_color must be dark (tenebrism ground — max channel < 0.40)."""
+    s = get_style("piazzetta")
+    assert max(s.ground_color) < 0.40, (
+        f"Piazzetta ground_color should be dark (max channel < 0.40) "
+        f"for tenebrism foundation; got {s.ground_color}")
+
+
+def test_piazzetta_wet_blend_moderate():
+    """Piazzetta wet_blend must be in moderate range (0.40-0.70)."""
+    s = get_style("piazzetta")
+    assert 0.40 <= s.wet_blend <= 0.70, (
+        f"Piazzetta wet_blend={s.wet_blend:.2f} should be 0.40-0.70 "
+        f"(moderate blending -- impasto body with smooth tonal transitions)")
+
+
+def test_piazzetta_technique_mentions_tenebrism():
+    """Piazzetta technique text must mention tenebrism."""
+    s = get_style("piazzetta")
+    assert "tenebrism" in s.technique.lower() or "tenebr" in s.technique.lower(), (
+        "Piazzetta technique should reference tenebrism -- "
+        "his velvet dark tenebrism is his most defining quality")
+
+
+def test_piazzetta_inspiration_mentions_percentile():
+    """Piazzetta inspiration text must mention percentile (session 129 technique)."""
+    s = get_style("piazzetta")
+    assert "percentile" in s.inspiration.lower(), (
+        "Piazzetta inspiration should reference percentile -- "
+        "percentile-adaptive tonal sculpting is the session 129 artistic improvement")
+
+
+def test_venetian_baroque_tenebrism_period_exists():
+    """VENETIAN_BAROQUE_TENEBRISM must exist in the Period enum (session 129)."""
+    from scene_schema import Period
+    assert hasattr(Period, "VENETIAN_BAROQUE_TENEBRISM"), (
+        "VENETIAN_BAROQUE_TENEBRISM missing from Period enum -- "
+        "add to scene_schema.py for session 129 (Piazzetta)")
+
+
+def test_piazzetta_velvet_shadow_pass_exists():
+    """Painter must have piazzetta_velvet_shadow_pass() method after session 129."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "piazzetta_velvet_shadow_pass"), (
+        "piazzetta_velvet_shadow_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "piazzetta_velvet_shadow_pass"))
+
+
+def test_piazzetta_velvet_shadow_pass_no_error():
+    """piazzetta_velvet_shadow_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.22, 0.15, 0.08), texture_strength=0.05)
+    p.piazzetta_velvet_shadow_pass(opacity=0.32)
+
+
+def test_piazzetta_velvet_shadow_pass_modifies_canvas():
+    """piazzetta_velvet_shadow_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.22, 0.15, 0.08), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.piazzetta_velvet_shadow_pass(opacity=0.60)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "piazzetta_velvet_shadow_pass should modify the canvas at opacity=0.60")
+
+
+def test_piazzetta_velvet_shadow_pass_zero_opacity_noop():
+    """piazzetta_velvet_shadow_pass(opacity=0) must leave the canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.22, 0.15, 0.08), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.piazzetta_velvet_shadow_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "piazzetta_velvet_shadow_pass(opacity=0) should be a noop")
+
+
+def test_piazzetta_velvet_shadow_pass_warms_deep_shadows():
+    """piazzetta_velvet_shadow_pass must raise R in the darkest pixels (velvet shadow warming)."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4)).copy()
+    data[:, :, :] = [20, 30, 40, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+    p.piazzetta_velvet_shadow_pass(
+        shadow_percentile=1.0,
+        shadow_warm_r=0.060,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4))
+    after_r = after[:, :, 2].astype(_np.float32).mean()
+    assert after_r > orig_r, (
+        f"piazzetta_velvet_shadow_pass must raise R in shadow zone; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_piazzetta_velvet_shadow_pass_lifts_highlights():
+    """piazzetta_velvet_shadow_pass must raise R in the brightest pixels (amber highlight lift)."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    data = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4)).copy()
+    data[:, :, :] = [200, 200, 200, 255]
+    p.canvas.surface.get_data()[:] = data.tobytes()
+    orig_r = data[:, :, 2].astype(_np.float32).mean()
+    p.piazzetta_velvet_shadow_pass(
+        highlight_percentile=0.0,
+        highlight_warm_r=0.060,
+        highlight_warm_g=0.020,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((H, W, 4))
+    after_r = after[:, :, 2].astype(_np.float32).mean()
+    assert after_r > orig_r, (
+        f"piazzetta_velvet_shadow_pass must raise R in highlight zone; "
+        f"before={orig_r:.1f}, after={after_r:.1f}")
+
+
+def test_piazzetta_velvet_shadow_pass_preserves_shape():
+    """piazzetta_velvet_shadow_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.22, 0.15, 0.08), texture_strength=0.05)
+    p.piazzetta_velvet_shadow_pass(opacity=0.32)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after piazzetta_velvet_shadow_pass: {img.size}")
+
+
+def test_piazzetta_velvet_shadow_pass_has_shadow_percentile_parameter():
+    """piazzetta_velvet_shadow_pass must accept shadow_percentile parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.piazzetta_velvet_shadow_pass)
+    assert "shadow_percentile" in sig.parameters, (
+        "piazzetta_velvet_shadow_pass must have shadow_percentile parameter "
+        "(session 129 percentile-adaptive tonal sculpting)")

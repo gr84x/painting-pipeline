@@ -11190,6 +11190,97 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giovanni Battista Piazzetta ───────────────────────────────────────────
+    "piazzetta": ArtStyle(
+        artist="Giovanni Battista Piazzetta",
+        movement="Venetian Baroque Tenebrism",
+        nationality="Italian",
+        period="1682–1754",
+        palette=[
+            (0.18, 0.12, 0.08),   # warm near-black velvet shadow — Piazzetta's deep tenebrism ground
+            (0.42, 0.28, 0.18),   # warm umber mid-shadow — the transitional warmth zone
+            (0.62, 0.50, 0.34),   # golden mid-flesh — the quiet warm bridge
+            (0.82, 0.68, 0.48),   # amber impasto highlight — glowing thick warm light
+            (0.94, 0.84, 0.64),   # bright highlight crest — the peak warm ivory-amber
+            (0.35, 0.24, 0.14),   # deep chestnut shadow — warm-brown penumbra zone
+        ],
+        ground_color=(0.25, 0.17, 0.10),   # very dark warm umber ground — Piazzetta's tenebrism foundation
+        stroke_size=5,
+        wet_blend=0.55,                     # moderate — smooth transitions with impasto body
+        edge_softness=0.40,                 # moderate — forms emerging from dark, not sfumato-dissolved
+        jitter=0.022,                       # modest variation — painterly impasto texture
+        glazing=(0.40, 0.32, 0.20),        # warm amber-umber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Giovanni Battista Piazzetta (1682–1754) was the great independent master of the "
+            "Venetian Baroque who refused assimilation into the dominant tradition of either "
+            "Tiepolo's airy luminosity or the Bolognese academic classicism that surrounded him.  "
+            "Where Tiepolo — his contemporary, pupil in spirit, and eventual rival — dissolved "
+            "everything into celestial light, Piazzetta worked in the opposite direction: into "
+            "darkness, excavating warmth from a near-black tenebrism ground.  His style owes "
+            "something to Caravaggio's legacy (mediated via Giuseppe Maria Crespi, his teacher) "
+            "and something to the Northern chiaroscuro tradition, but the result is distinctly "
+            "Venetian: a warm velvet darkness rather than the Roman cold-stone void.  "
+            "The defining quality of Piazzetta's surface is the contrast between his deep, soft, "
+            "WARM VELVET DARKS — where the shadow zones are rich umber-brown near-blacks, velvety "
+            "in texture, warm rather than cool, deeply compressed rather than luminously open — "
+            "and his IMPASTO AMBER HIGHLIGHTS — where thick, warm-ivory paint is applied with "
+            "visible relief, catching the light to create a glow that seems to emerge physically "
+            "from the ground.  This is not the pearl-white of Guido Reni nor the cerulean cool of "
+            "Domenichino; it is a candlelight amber warmth specific to Piazzetta's intimate "
+            "Venetian chiaroscuro.  "
+            "His most celebrated works — *The Fortune Teller* (Accademia, Venice, c. 1740), "
+            "*Idyll on the Shore* (Wallraf-Richartz-Museum, c. 1740), *Saint James Led to "
+            "Martyrdom* (San Stae, Venice, 1717), *Rebecca at the Well* (Brera, c. 1735) — all "
+            "share this polar structure: the lower half of the tonal range compressed into warm "
+            "velvet darkness, the upper range lifted into warm impasto glow, with the midtone zone "
+            "serving as a quiet bridge between these two worlds.  "
+            "Unlike Rembrandt (whose tenebrism is cool and metallic in the highlights) or "
+            "Caravaggio (whose darks are cold and abrupt), Piazzetta's whole tonal range is warm — "
+            "even the deepest shadows retain a umber-brown warmth, as if the darkness itself is "
+            "suffused with candlelight.  This gives his paintings a sense of interior intimacy and "
+            "psychological proximity that his more theatrical contemporaries rarely achieved.  "
+            "He was a slow, deliberate painter — Tiepolo was said to complete what Piazzetta spent "
+            "months on in a day — and this deliberateness is visible in the surface: every tonal "
+            "transition is considered, every highlight carefully placed for maximum luminous impact "
+            "against the surrounding velvet dark."
+        ),
+        famous_works=[
+            ("The Fortune Teller",                "c. 1740"),
+            ("Idyll on the Shore",                "c. 1740"),
+            ("Saint James Led to Martyrdom",      "1717"),
+            ("Rebecca at the Well",               "c. 1735"),
+            ("The Soothsayer",                    "c. 1740"),
+            ("Elijah Fed by an Angel",            "c. 1730"),
+            ("The Standard Bearer",               "c. 1740"),
+        ],
+        inspiration=(
+            "Apply piazzetta_velvet_shadow_pass() as the defining pass for session 129.  "
+            "The pass encodes Piazzetta's Venetian Baroque Tenebrism around the session 129 "
+            "artistic improvement: PERCENTILE-ADAPTIVE TONAL SCULPTING.  "
+            "All previous colour-manipulation passes in this pipeline use LOCAL SPATIAL analysis: "
+            "s123 spatial displacement (flow warping), s124 frequency decomposition (Laplacian "
+            "pyramid), s125 vertical gradient (depth perspective), s126 Sobel edge-map modulation, "
+            "s127 local variance field (sliding window), s128 local variance std map.  "
+            "Session 129 introduces a fundamentally different mode: GLOBAL HISTOGRAM PERCENTILE "
+            "ANALYSIS — operating on the rank-order structure of the ENTIRE image's luminance "
+            "distribution rather than any local neighbourhood.  "
+            "(1) Compute the flat luminance array for the full canvas.  "
+            "(2) Sort and rank to produce a percentile map: each pixel maps to its rank in [0,1] "
+            "within the global distribution — this is the novelty, a rank-order spatial weight.  "
+            "(3) Shadow zone (percentile < shadow_percentile): apply warm-umber compression — "
+            "push R slightly up, B slightly down — deepening the darks toward warm near-black with "
+            "Piazzetta's characteristic velvet warmth.  The compression is gentle (not clipping) "
+            "to preserve the velvety gradation within the dark zone.  "
+            "(4) Highlight zone (percentile > highlight_percentile): apply warm amber lift — "
+            "R and G up — simulating the glowing impasto warmth of Piazzetta's painted light.  "
+            "(5) Midtone zone: untouched — the quiet neutral bridge that makes the polar contrast "
+            "of Piazzetta's style feel natural rather than forced.  "
+            "Use at opacity ≈ 0.28–0.36."
+        ),
+    ),
+
 }
 
 
