@@ -11938,6 +11938,80 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giorgione ──────────────────────────────────────────────────────────────
+    "giorgione": ArtStyle(
+        artist="Giorgione (Giorgio da Castelfranco)",
+        movement="Venetian High Renaissance / Poetic Tonalism",
+        nationality="Italian",
+        period="c. 1477–1510",
+        palette=[
+            (0.85, 0.68, 0.44),   # warm amber-ochre — glowing central light
+            (0.72, 0.52, 0.30),   # raw sienna — deep warm mid-tone
+            (0.28, 0.22, 0.14),   # warm umber shadow — rich, not cold
+            (0.54, 0.62, 0.46),   # mysterious olive-green — Giorgione's arcadian backgrounds
+            (0.45, 0.55, 0.64),   # atmospheric blue-grey — distant mountains in sfumato haze
+            (0.62, 0.50, 0.36),   # golden-brown — the warm focal radiance at compositional center
+            (0.82, 0.74, 0.58),   # warm ivory flesh — luminous, lit from within
+            (0.30, 0.38, 0.46),   # deep blue-slate — storm sky, The Tempest atmosphere
+        ],
+        ground_color=(0.60, 0.48, 0.30),    # warm amber-brown imprimatura — Venetian glowing ground
+        stroke_size=6,
+        wet_blend=0.65,                      # high — tonal pools blend freely; pittura di macchia demands liquid flow
+        edge_softness=0.78,                  # high-soft — forms dissolve into warm atmosphere; softer than Flemish, firmer than Leonardo
+        jitter=0.018,
+        glazing=(0.68, 0.54, 0.30),          # warm amber-golden unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Giorgione (Giorgio da Castelfranco, c. 1477-1510) was the founding "
+            "master of Venetian tonal painting and the originator of the 'poesia' — "
+            "a mode of painterly poetry that subordinated narrative to atmospheric "
+            "mood and mysterious psychological interiority.  His surfaces are built "
+            "from warm amber-golden imprimatura over which successive glazes of oil "
+            "create a luminous depth that appears to glow from within.  Unlike "
+            "Leonardo's cooler, more analytical sfumato, Giorgione's tonal "
+            "transitions are warmer and more sensuous — forms emerge from pools of "
+            "golden ambient light rather than from cool grey shadow.  His most "
+            "distinctive quality is the FOCAL WARMTH RADIANCE: the compositional "
+            "center of each painting is bathed in warm amber-golden light that "
+            "gradually cools and desaturates toward the picture margins, creating "
+            "an effect of intimate illumination within a mysterious larger world.  "
+            "The Tempest (c. 1508) shows this quality perfectly: the central figures "
+            "glow with warm internal light while the surrounding storm landscape "
+            "recedes into cool atmospheric haze.  Only about six paintings are "
+            "definitively attributed to Giorgione; his brief life (died of plague "
+            "c. 1510) and enormous influence make each work a concentrated distillation "
+            "of Venetian tonalist aesthetics.  Titian completed several of his "
+            "unfinished canvases, and the boundary between late Giorgione and early "
+            "Titian remains one of art history's most debated questions."
+        ),
+        famous_works=[
+            ("The Tempest",                       "c. 1508"),
+            ("Sleeping Venus",                    "c. 1510 (completed by Titian)"),
+            ("Three Philosophers",                "c. 1508–1509"),
+            ("Judith with the Head of Holofernes","c. 1504"),
+            ("Portrait of a Young Man (Berlin)",  "c. 1506"),
+            ("Laura",                             "1506"),
+        ],
+        inspiration=(
+            "Apply giorgione_tonal_poetry_pass() as the defining pass for session 138.  "
+            "This pass encodes Giorgione's poesia through LUMINANCE-ZONED DUAL-"
+            "TEMPERATURE SCULPTING — the SIXTEENTH distinct processing mode in the "
+            "pipeline.  Three luminance-responsive zones: (1) MIDTONE FOCAL WARMTH "
+            "LIFT in [midtone_low, midtone_high] — warm amber luminous_lift applied "
+            "via smooth sigmoid gate, brightening the glowing core tones; "
+            "(2) SHADOW WARM TRANSITION — warm_shadow_strength amber tint in the "
+            "deep-to-mid shadow zone where umber ground shows through thin glazes; "
+            "(3) SILHOUETTE COOL EDGE ACCENT — cool_edge_strength tint at the figure "
+            "boundary (figure_mask gradient), encoding Giorgione's cool atmospheric "
+            "edge melt.  Together these three zones model his signature quality: "
+            "warm glowing focal interior, cool mysterious silhouette boundary, warm "
+            "amber shadow depth.  Also use giorgione_focal_warmth_pass() for the "
+            "elliptical Gaussian spatial warmth radiance from focal centre.  "
+            "Use luminous_lift=0.08, warm_shadow_strength=0.04, opacity=0.30."
+        ),
+    ),
+
 }
 
 

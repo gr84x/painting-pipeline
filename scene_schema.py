@@ -303,6 +303,7 @@ class Period(Enum):
     GERMAN_REFORMATION_RENAISSANCE = auto()  # Lucas Cranach the Elder — enamel-flat colour zones, Gothic linear clarity, vermilion/jet-black/pearl-flesh palette, chromaticity/luminance decomposition for jewel-like purity
     EMILIAN_ELEGANT_MANNERISM      = auto()  # Parmigianino — ultra-smooth pearl skin, cool-silver highlights, extreme Mannerist elongation, perceptual luma-chroma decoupled surface refinement, penumbra cool-lavender half-tones
     LOMBARD_SILVER_CLASSICISM      = auto()  # Moretto da Brescia — cool pearlescent silver light, ivory-cool skin, CIE Lab perceptual colour sculpting depletes yellow-warmth in highlights for silver-neutral tonality
+    VENETIAN_POETIC_TONALISM       = auto()  # Giorgione — warm amber focal radiance, mysterious poesia atmosphere, elliptical Gaussian focal warmth sculpting radiates from compositional centre; pioneering Venetian tonalism
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1483,6 +1484,10 @@ class Style:
             # edge_softness=0.46: moderate — forms are clear but no hard Gothic contours;
             # the silver light gently dissolves the outline without fully dissolving form.
             Period.LOMBARD_SILVER_CLASSICISM: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.58, edge_softness=0.46),
+            # VENETIAN_POETIC_TONALISM (Giorgione) — warm amber focal radiance, mysterious atmospheric poesia.
+            # Very high wet_blend: surfaces melt into each other with no visible brushmarks.
+            # High edge_softness: forms dissolve into warm atmospheric tonalism.
+            Period.VENETIAN_POETIC_TONALISM: dict(stroke_size_face=6, stroke_size_bg=28, wet_blend=0.88, edge_softness=0.82),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
