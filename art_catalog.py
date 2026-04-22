@@ -12086,6 +12086,96 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Francesco del Cossa ───────────────────────────────────────────────────
+    "cossa": ArtStyle(
+        artist="Francesco del Cossa",
+        movement="Ferrarese Renaissance",
+        nationality="Italian",
+        period="c. 1436–1478",
+        palette=[
+            (0.88, 0.22, 0.12),   # vermilion red — bold Ferrarese drapery signature
+            (0.22, 0.42, 0.78),   # brilliant azure — deep ultramarine sky and costume
+            (0.86, 0.72, 0.20),   # gold ochre — gilded ornamental warmth
+            (0.24, 0.58, 0.32),   # malachite emerald — cool drapery counterpoint
+            (0.90, 0.83, 0.68),   # warm ivory flesh — pale, sculptural Ferrarese skin
+            (0.52, 0.36, 0.16),   # warm umber — directional shadow modeling
+            (0.76, 0.66, 0.50),   # amber mid-flesh — secondary skin tone
+        ],
+        ground_color=(0.72, 0.62, 0.44),    # warm amber-ochre imprimatura
+        stroke_size=6,
+        wet_blend=0.35,                      # relatively dry — crisp zone boundaries
+        edge_softness=0.22,                  # hard Ferrarese contours; no sfumato
+        jitter=0.025,
+        glazing=None,                         # no unifying glaze — clean discrete zones
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Francesco del Cossa was the greatest painter of the Ferrarese school "
+            "and one of the most distinctively individual voices of the entire "
+            "Italian quattrocento.  Born in Ferrara around 1436, he reached maturity "
+            "under the patronage of the Este court and produced his masterwork — the "
+            "frescoes of the Sala dei Mesi (Hall of the Months) in the Palazzo "
+            "Schifanoia (1469–70) — a panoramic allegory of courtly life, zodiac "
+            "symbolism, and seasonal labour that stands as the supreme example of "
+            "the Este courtly style.  "
+            "Cossa's technique is immediately recognisable by what it refuses to do: "
+            "there is no sfumato, no soft atmospheric haze, no blended edge that "
+            "dissolves form into background.  Instead every figure is bounded by a "
+            "firm, confident contour — the line of a trained draughtsman who thought "
+            "in sculptural terms — and every colour zone is laid in with a clean, "
+            "jewel-like application that appears to have been fired rather than "
+            "painted.  This quality is often described as ENAMEL CLARITY: the "
+            "surface of a Cossa painting glows with an almost mineral luminescence, "
+            "as if the pigments were transparent stones — lapis lazuli blue, "
+            "malachite green, vermilion red — set between firm contours of dark umber "
+            "in the manner of a cloisonné enamel or illuminated manuscript.  "
+            "His palette is one of the most distinctive in Renaissance painting: "
+            "brilliant vermilion reds for drapery, saturated azure blues (Ferrarese "
+            "painters had privileged access to high-quality ultramarine through Este "
+            "trade connections), warm gold ochres, and the pale ivory flesh tones "
+            "that give his figures their sculptural, almost stone-carved quality.  "
+            "Shadows are modelled with warm umber in tight, controlled transitions — "
+            "not the deep tenebrism of later Baroque masters but a quattrocento "
+            "structural shading that reads as relief carving rather than atmospheric "
+            "depth.  "
+            "Cossa moved to Bologna in 1470, partly in response to what he felt was "
+            "inadequate payment from Borso d'Este for the Schifanoia frescoes — a "
+            "letter he wrote complaining about this survives as an extraordinary "
+            "document of Renaissance artist self-assertion — and in Bologna produced "
+            "his altarpieces, including the San Vincenzo Ferrer polyptych (1473), "
+            "which show his mature style: more monumental than the frescoes, with "
+            "figures that inhabit a fully three-dimensional pictorial space while "
+            "retaining the hard chromatic clarity that distinguishes him from his "
+            "more atmospheric contemporaries.  "
+            "The enamel quality is achieved technically through a warm amber "
+            "imprimatura, relatively dry paint application (little wet-on-wet blending), "
+            "and careful restraint with edge softening — each colour is allowed to "
+            "declare itself fully before the adjacent zone begins."
+        ),
+        famous_works=[
+            ("Palazzo Schifanoia — Sala dei Mesi (March panel)", "1469–70"),
+            ("Palazzo Schifanoia — Sala dei Mesi (April panel)",  "1469–70"),
+            ("San Vincenzo Ferrer polyptych",                    "1473"),
+            ("Griffin Altarpiece",                               "c. 1472–73"),
+            ("St John the Baptist",                              "c. 1473"),
+            ("Annunciation",                                     "c. 1470–72"),
+        ],
+        inspiration=(
+            "Use cossa_enamel_structure_pass() after build_form() to apply Cossa's "
+            "defining GEM-ENAMEL CLARITY: a chroma boost in the mid-luminance gem zone "
+            "that intensifies colour zone purity, followed by an unsharp mask that "
+            "reinforces structural contour clarity (the 'hard edge' of Ferrarese "
+            "quattrocento painting).  "
+            "edge_softness=0.22 enforces Cossa's crisp zone boundaries — the opposite "
+            "of sfumato.  wet_blend=0.35 keeps colour zones distinct and prevents the "
+            "soft wet-into-wet blending of Venetian contemporaries.  "
+            "ground_color=(0.72, 0.62, 0.44) — warm amber-ochre imprimatura that "
+            "gives the Ferrarese school its characteristic glowing warmth beneath "
+            "the cool enamel surface colours.  "
+            "Use chroma_boost=0.18, structure_strength=0.22, opacity=0.36."
+        ),
+    ),
+
 }
 
 

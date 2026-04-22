@@ -298,6 +298,7 @@ class Period(Enum):
     VENETIAN_ROMAN_SYNTHESIS   = auto()  # Sebastiano del Piombo — Venetian color richness fused with Michelangelesque monumental gravity; structure-tensor coherence-driven form smoothing; deep warm-umber depth
     FLORENTINE_ACIDIC_MANNERISM = auto()  # Rosso Fiorentino — acid dissonant palette, bleached near-cadaverous flesh, hue-selective chromatic tension mapping, angular electrified Mannerist dissonance
     FERRARESE_COLORIST_POESIA  = auto()  # Dosso Dossi — jewel-like chromatic poetry, warm amber-gold illumination, luminous colour saturation from within; illumination-reflectance decomposition (Retinex) mode
+    FERRARESE_CIVIC_GRANDEUR   = auto()  # Francesco del Cossa — enamel-bright gem-clarity, crisp colour-zone contours, crystalline chroma purity, hard sculptural forms on warm amber imprimatura
     VENETIAN_PASTORAL_LUMINISM = auto()  # Jacopo Bassano — deep umber ground, warm firelight impasto, anisotropic diffusion creates smooth tonal pools bounded by firm chiaroscuro edges; proto-Caravaggesque artificial light
     DUTCH_GOLDEN_AGE_LUMINISM  = auto()  # Aelbert Cuyp — radiant amber-gold afternoon light, luminance-adaptive spatial frequency attenuation dissolves fine detail in bright zones into golden atmosphere; the Dutch Claude
     GERMAN_REFORMATION_RENAISSANCE = auto()  # Lucas Cranach the Elder — enamel-flat colour zones, Gothic linear clarity, vermilion/jet-black/pearl-flesh palette, chromaticity/luminance decomposition for jewel-like purity

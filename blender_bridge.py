@@ -572,6 +572,7 @@ def scene_to_painting(
                              and sp.get("edge_softness", 0.0) >= 0.80)
     is_bolognese_arcadian = (scene.style.period == Period.BOLOGNESE_ARCADIAN_CLASSICISM)
     is_venetian_golden_naturalism = (scene.style.period == Period.VENETIAN_GOLDEN_NATURALISM)
+    is_ferrarese_civic_grandeur   = (scene.style.period == Period.FERRARESE_CIVIC_GRANDEUR)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3123,6 +3124,71 @@ def scene_to_painting(
         if _feedback is not None:
             print(_feedback.summary())
         p.finish(vignette=0.40, crackle=True)
+
+    elif is_ferrarese_civic_grandeur:
+        # ── Ferrarese Civic Grandeur pipeline (Francesco del Cossa technique) ─
+        # Cossa painted onto a warm amber-ochre imprimatura that glows beneath
+        # each jewel-toned colour zone.  His hallmark: GEM-ENAMEL CLARITY —
+        # every hue occupies a crisp, distinct territory bounded by firm contours,
+        # with no sfumato dissolution.  The technique is almost the opposite of
+        # Leonardo: where Leonardo blurred edges into smoke, Cossa sharpened them
+        # into the hard, luminous edges of cloisonné enamel or stained glass.
+        #
+        # cossa_enamel_structure_pass() applies a chroma boost in the mid-luminance
+        # gem zone (intensifying colour purity) followed by an unsharp mask that
+        # reinforces contour clarity — the session 140 artistic improvement.
+        cossa_style = _ART_CATALOG.get("cossa")
+        ground_col  = cossa_style.ground_color if cossa_style else (0.72, 0.62, 0.44)
+
+        p.tone_ground(ground_col, texture_strength=0.09)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.20), n_strokes=140)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=280)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.50),     n_strokes=700)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.68, 0.54, 0.28), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.04)
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.6),
+                       n_strokes=880, opacity=0.78, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=600, opacity=0.80, wet_blend=sp["wet_blend"] * 0.45)
+
+        # ── Cossa enamel structure pass — session 140 artistic improvement ───
+        # Chroma boost in the gem zone (0.15 < L < 0.88) amplifies Ferrarese
+        # colour zone purity; unsharp mask reinforces the hard enamel contours
+        # that define Cossa's pictorial language.
+        p.cossa_enamel_structure_pass(
+            chroma_boost       = 0.18,
+            structure_strength = 0.22,
+            blur_sigma         = 1.2,
+            gem_low            = 0.15,
+            gem_high           = 0.88,
+            opacity            = 0.36,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "cossa_pass")
+
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=320)
+
+        # No warm unifying glaze — Cossa's zones are discrete, each hue stands
+        # alone.  A very light amber varnish only to consolidate the surface.
+        p.glaze((0.78, 0.68, 0.46), opacity=0.04)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.22,
+            found_sharpness = 0.55,
+            lost_blur       = 1.0,
+            strength        = 0.20,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.35, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

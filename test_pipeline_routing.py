@@ -200,6 +200,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_roman_grand_tour":           period == Period.ROMAN_GRAND_TOUR_CLASSICISM,
         "is_renaissance_soft":           (period == Period.RENAISSANCE
                                           and sp.get("edge_softness", 0.0) >= 0.80),
+        "is_ferrarese_civic_grandeur":   period == Period.FERRARESE_CIVIC_GRANDEUR,
     }
 
 
@@ -15131,3 +15132,167 @@ def test_palma_vecchio_ground_warm_for_routing():
     r, g, b = style.ground_color
     assert r >= b, (
         f"palma_vecchio ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 140 — cossa_enamel_structure_pass + FERRARESE_CIVIC_GRANDEUR
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_cossa_enamel_structure_pass_exists():
+    """Painter must have cossa_enamel_structure_pass() method after session 140."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "cossa_enamel_structure_pass"), (
+        "cossa_enamel_structure_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "cossa_enamel_structure_pass"))
+
+
+def test_cossa_enamel_structure_pass_no_error():
+    """cossa_enamel_structure_pass() runs on a plain canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.72, 0.62, 0.44), texture_strength=0.09)
+    p.cossa_enamel_structure_pass(opacity=0.36)
+
+
+def test_cossa_enamel_structure_pass_modifies_canvas():
+    """cossa_enamel_structure_pass() must modify a chromatic canvas at non-zero opacity."""
+    import numpy as _np
+    from PIL import Image as _PILImg
+    from stroke_engine import Painter
+
+    p = Painter(width=64, height=64)
+    # Chromatic canvas with a warm/cool stripe — provides colour zones for chroma boost
+    arr = _np.zeros((64, 64, 3), dtype=_np.uint8)
+    arr[:, :32, :] = [200, 80, 60]    # warm vermilion half
+    arr[:, 32:, :] = [60, 80, 200]    # cool azure half
+    ref = _PILImg.fromarray(arr, "RGB")
+    p.tone_ground((0.72, 0.62, 0.44), texture_strength=0.00)
+    p.block_in(ref, stroke_size=12, n_strokes=40)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy()
+    p.cossa_enamel_structure_pass(chroma_boost=0.30, structure_strength=0.30,
+                                  opacity=0.80)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4)
+    assert not _np.array_equal(before, after), (
+        "cossa_enamel_structure_pass should modify a chromatic canvas")
+
+
+def test_cossa_enamel_structure_pass_zero_opacity_no_op():
+    """cossa_enamel_structure_pass with opacity=0.0 should leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.72, 0.62, 0.44), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.cossa_enamel_structure_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after), (
+        "cossa_enamel_structure_pass with opacity=0 should be a no-op")
+
+
+def test_cossa_enamel_structure_pass_pixels_in_range():
+    """cossa_enamel_structure_pass() must not produce out-of-range pixel values."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.72, 0.62, 0.44), texture_strength=0.09)
+    p.cossa_enamel_structure_pass()
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert buf.max() <= 255
+    assert buf.min() >= 0
+
+
+def test_cossa_enamel_structure_pass_has_chroma_boost_parameter():
+    """cossa_enamel_structure_pass must accept chroma_boost parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cossa_enamel_structure_pass)
+    assert "chroma_boost" in sig.parameters, (
+        "cossa_enamel_structure_pass must have chroma_boost parameter "
+        "(session 140 gem-zone saturation lift)")
+
+
+def test_cossa_enamel_structure_pass_has_structure_strength_parameter():
+    """cossa_enamel_structure_pass must accept structure_strength parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.cossa_enamel_structure_pass)
+    assert "structure_strength" in sig.parameters, (
+        "cossa_enamel_structure_pass must have structure_strength parameter "
+        "(session 140 unsharp mask weight)")
+
+
+def test_cossa_enamel_structure_chroma_boosts_saturated_zones():
+    """chroma boost should increase channel divergence from luminance in mid-tones."""
+    import numpy as _np
+    from stroke_engine import Painter
+
+    # Saturated mid-luminance canvas (warm terracotta ~L=0.55)
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.80, 0.45, 0.20), texture_strength=0.00)
+
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(64, 64, 4).copy().astype(_np.float32)
+    # Measure pre-boost max channel deviation from luminance
+    r_b = before[:, :, 2] / 255.0
+    g_b = before[:, :, 1] / 255.0
+    b_b = before[:, :, 0] / 255.0
+    lum_b = 0.299 * r_b + 0.587 * g_b + 0.114 * b_b
+    dev_before = float(_np.abs(r_b - lum_b).mean() + _np.abs(g_b - lum_b).mean())
+
+    p.cossa_enamel_structure_pass(chroma_boost=0.40, structure_strength=0.0, opacity=1.0)
+
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(64, 64, 4).astype(_np.float32)
+    r_a = after[:, :, 2] / 255.0
+    g_a = after[:, :, 1] / 255.0
+    b_a = after[:, :, 0] / 255.0
+    lum_a = 0.299 * r_a + 0.587 * g_a + 0.114 * b_a
+    dev_after = float(_np.abs(r_a - lum_a).mean() + _np.abs(g_a - lum_a).mean())
+
+    assert dev_after >= dev_before, (
+        f"cossa_enamel_structure_pass chroma_boost should increase channel "
+        f"divergence from luminance: before={dev_before:.4f}, after={dev_after:.4f}")
+
+
+def test_ferrarese_civic_grandeur_period_in_period_enum():
+    """FERRARESE_CIVIC_GRANDEUR must be present in the Period enum after session 140."""
+    from scene_schema import Period
+    assert hasattr(Period, "FERRARESE_CIVIC_GRANDEUR"), (
+        "FERRARESE_CIVIC_GRANDEUR missing from Period enum -- "
+        "add to scene_schema.py (session 140)")
+
+
+def test_ferrarese_civic_grandeur_routing_flag_true():
+    """is_ferrarese_civic_grandeur routing flag must be True for FERRARESE_CIVIC_GRANDEUR."""
+    flags = _routing_flags(Period.FERRARESE_CIVIC_GRANDEUR)
+    assert flags["is_ferrarese_civic_grandeur"] is True
+
+
+def test_ferrarese_civic_grandeur_routing_flag_false_for_other_periods():
+    """is_ferrarese_civic_grandeur must be False for all periods except FERRARESE_CIVIC_GRANDEUR."""
+    for period in Period:
+        if period == Period.FERRARESE_CIVIC_GRANDEUR:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_ferrarese_civic_grandeur"], (
+            f"is_ferrarese_civic_grandeur should be False for {period.name}")
+
+
+def test_cossa_in_catalog_accessible_via_get_style():
+    """cossa must be accessible via get_style() for pipeline routing."""
+    from art_catalog import get_style
+    style = get_style("cossa")
+    assert "Cossa" in style.artist, (
+        f"cossa artist name mismatch: {style.artist!r}")
+
+
+def test_cossa_ground_color_warm_for_routing():
+    """cossa ground_color must be warm (R >= B) for correct pipeline warm imprimatura."""
+    from art_catalog import get_style
+    style = get_style("cossa")
+    r, g, b = style.ground_color
+    assert r >= b, (
+        f"cossa ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")
