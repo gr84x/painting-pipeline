@@ -11691,6 +11691,80 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Parmigianino ──────────────────────────────────────────────────────────
+    "parmigianino": ArtStyle(
+        artist="Francesco Mazzola (Parmigianino)",
+        movement="Italian Mannerism / Parma School",
+        nationality="Italian",
+        period="16th century (1503–1540)",
+        palette=[
+            (0.92, 0.87, 0.78),   # pearl ivory — luminous skin base, high-key warm
+            (0.88, 0.88, 0.92),   # cool silver highlight — B > R, defining Parmigianino touch
+            (0.76, 0.76, 0.80),   # cool neutral half-tone — pale lavender-grey mid-flesh
+            (0.38, 0.32, 0.52),   # cool blue-lavender shadow — B > R > G, lum < 0.55 ✓
+            (0.30, 0.18, 0.08),   # deep warm umber — shadow anchor depth
+            (0.68, 0.22, 0.28),   # cold crimson — draped silk, cool saturated red
+            (0.16, 0.20, 0.28),   # deep blue-green — costume / background depth
+        ],
+        ground_color=(0.66, 0.63, 0.60),    # neutral warm-grey — Parma panel (R-B = 0.06 ≤ 0.15)
+        stroke_size=4,
+        wet_blend=0.85,                      # heavy blending — imperceptible transitions
+        edge_softness=0.68,                  # soft but legible — [0.50, 0.75] range
+        jitter=0.008,                        # minimal — controlled, refined mark
+        glazing=(0.84, 0.83, 0.82),          # cool pale ivory glaze — B ≥ R-0.05 ✓
+        crackle=True,                        # aged panel paintings show characteristic crackle
+        chromatic_split=False,
+        technique=(
+            "Francesco Mazzola, known as Parmigianino (1503–1540), embodied Italian "
+            "Mannerism at its most refined and psychologically sophisticated.  His "
+            "painting technique represents an extreme of sfumato-adjacent surface "
+            "perfection: flesh surfaces are rendered with such seamless transitions "
+            "that they read as polished porcelain or cool pearl, with absolutely no "
+            "visible brushwork.  Unlike Leonardo's warm amber sfumato, Parmigianino "
+            "cools his half-tones toward silver-lavender, creating a distinctive "
+            "'mercury-cool' quality in skin modelling.  This technique required "
+            "building the flesh up from a warm umber underpainting through successive "
+            "thin glazes, each slightly cooler and more silvery toward the lights.  "
+            "His palette is restrained: warm umber-amber in deep shadows, transitioning "
+            "through cool blue-lavender in the penumbra, to the brilliant pearl-ivory "
+            "of the highlight zone.  His most famous works demonstrate extreme "
+            "elongation of the figure -- the neck and fingers are stretched far beyond "
+            "natural proportion to achieve ideal Mannerist grace (serpentina figura).  "
+            "This elongation is psychologically unsettling yet formally beautiful, "
+            "creating figures that inhabit a rarefied ideal space outside ordinary "
+            "human physiology."
+        ),
+        famous_works=[
+            ("Madonna with the Long Neck",              "c. 1534–1540"),
+            ("Self-Portrait in a Convex Mirror",        "1524"),
+            ("Antea (Portrait of a Young Woman)",       "c. 1531–1535"),
+            ("Portrait of a Young Man",                 "c. 1527"),
+            ("The Vision of Saint Jerome",              "1527"),
+            ("Moses",                                   "c. 1531"),
+            ("Portrait of Galeazzo Sanvitale",          "1524"),
+        ],
+        inspiration=(
+            "Apply parmigianino_serpentine_elegance_pass() as the core pipeline pass "
+            "for Parmigianino's cool porcelain refinement (session 62).  "
+            "Session 136 adds parmigianino_pearl_refinement_pass() — the FOURTEENTH "
+            "distinct processing mode: LUMINANCE-CHROMINANCE DECOUPLED FILTERING.  "
+            "Algorithm: Luma = 0.299R + 0.587G + 0.114B (perceptual weighting, "
+            "unlike Cranach mode's mean-grey (R+G+B)/3); chroma residuals "
+            "Cr = R-Luma, Cg = G-Luma, Cb = B-Luma; apply Gaussian sigma_chroma "
+            "to each chroma channel (smooth colour zones); apply USM with "
+            "sigma_luma/usm_amount to Luma (sharpen tonal structure); optionally "
+            "shift Cb by +cool_tint (nudge penumbra toward cool lavender-pearl); "
+            "reconstruct R_out = Luma_sharp + Cr_smooth; composite at opacity.  "
+            "Session 136 also adds penumbra_cool_tint_pass() — zone-targeted cool "
+            "tint in the penumbra band (shadow_lo=0.15 to shadow_hi=0.52), encoding "
+            "the warm/cool split: warm highlights + cool ambient-scattered half-tones.  "
+            "Distinct from Mode 13 (Cranach) in: (a) perceptual vs mean-grey axis; "
+            "(b) DUAL mode -- different filters on luma vs chroma; "
+            "(c) optional directional cool-pearl chroma tint.  "
+            "Use pearl_refinement at opacity 0.28--0.38."
+        ),
+    ),
+
     "lucas_cranach": ArtStyle(
         artist="Lucas Cranach the Elder",
         movement="German Renaissance / Protestant Reformation",

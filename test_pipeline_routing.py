@@ -14582,3 +14582,182 @@ def test_highlight_crystalline_dark_canvas_less_affected():
     assert dark_diff < 5.0, (
         f"Dark canvas (lum~0.12) should be almost unaffected by highlight_crystalline_pass "
         f"(lum_thresh=0.72): mean pixel diff={dark_diff:.2f}")
+
+
+# ── Session 136: Parmigianino + EMILIAN_ELEGANT_MANNERISM ────────────────────
+#              + parmigianino_pearl_refinement_pass (14th distinct processing mode)
+#              + penumbra_cool_tint_pass (artistic improvement)
+
+def test_parmigianino_pearl_refinement_pass_exists():
+    """Painter must have parmigianino_pearl_refinement_pass() method after session 136."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "parmigianino_pearl_refinement_pass"), (
+        "parmigianino_pearl_refinement_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "parmigianino_pearl_refinement_pass"))
+
+
+def test_parmigianino_pearl_refinement_pass_no_error():
+    """parmigianino_pearl_refinement_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.05)
+    p.parmigianino_pearl_refinement_pass(opacity=0.34)
+
+
+def test_parmigianino_pearl_refinement_pass_modifies_canvas():
+    """parmigianino_pearl_refinement_pass() must modify the canvas at non-zero opacity."""
+    from stroke_engine import Painter
+    import numpy as np
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.72, 0.24, 0.28), texture_strength=0.05)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.parmigianino_pearl_refinement_pass(sigma_chroma=2.5, usm_amount=0.45, opacity=0.60)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert not np.array_equal(before, after), (
+        "parmigianino_pearl_refinement_pass should modify the canvas at opacity=0.60")
+
+
+def test_parmigianino_pearl_refinement_pass_preserves_shape():
+    """parmigianino_pearl_refinement_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.05)
+    p.parmigianino_pearl_refinement_pass(opacity=0.34)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after parmigianino_pearl_refinement_pass: {img.size}")
+
+
+def test_parmigianino_pearl_refinement_pass_has_sigma_chroma_parameter():
+    """parmigianino_pearl_refinement_pass must accept sigma_chroma parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.parmigianino_pearl_refinement_pass)
+    assert "sigma_chroma" in sig.parameters, (
+        "parmigianino_pearl_refinement_pass must have sigma_chroma parameter "
+        "(controls chroma Gaussian smoothing width)")
+
+
+def test_parmigianino_pearl_refinement_pass_zero_opacity_no_op():
+    """parmigianino_pearl_refinement_pass with opacity=0.0 should leave the canvas unchanged."""
+    from stroke_engine import Painter
+    import numpy as np
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.05)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.parmigianino_pearl_refinement_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    diff = float(np.abs(after.astype(float) - before.astype(float)).mean())
+    assert diff < 1.0, (
+        f"parmigianino_pearl_refinement_pass with opacity=0 should be a no-op "
+        f"(mean diff={diff:.4f})")
+
+
+def test_parmigianino_pearl_refinement_cool_tint_raises_blue():
+    """
+    parmigianino_pearl_refinement_pass with cool_tint > 0 should raise the mean
+    blue channel on a neutral grey canvas compared to cool_tint=0.
+    """
+    from stroke_engine import Painter
+    import numpy as np
+
+    def run_pass(cool_tint_val):
+        p = Painter(width=64, height=64)
+        p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.00)
+        p.parmigianino_pearl_refinement_pass(
+            sigma_chroma=1.0, sigma_luma=0.5, usm_amount=0.0,
+            cool_tint=cool_tint_val, opacity=1.0,
+        )
+        raw = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+        return float(raw[:, :, 0].mean())   # channel 0 = blue in BGRA
+
+    blue_with_tint    = run_pass(cool_tint_val=0.10)
+    blue_without_tint = run_pass(cool_tint_val=0.00)
+    assert blue_with_tint > blue_without_tint, (
+        f"cool_tint>0 should raise mean blue channel: "
+        f"with={blue_with_tint:.2f}, without={blue_without_tint:.2f}")
+
+
+def test_penumbra_cool_tint_pass_exists():
+    """Painter must have penumbra_cool_tint_pass() method after session 136."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "penumbra_cool_tint_pass"), (
+        "penumbra_cool_tint_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "penumbra_cool_tint_pass"))
+
+
+def test_penumbra_cool_tint_pass_no_error():
+    """penumbra_cool_tint_pass() runs on a midtone canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.45, 0.42, 0.38), texture_strength=0.05)
+    p.penumbra_cool_tint_pass(opacity=0.30)
+
+
+def test_penumbra_cool_tint_pass_modifies_canvas():
+    """penumbra_cool_tint_pass() must modify a midtone canvas at non-zero opacity."""
+    from stroke_engine import Painter
+    import numpy as np
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.40, 0.38, 0.35), texture_strength=0.00)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.penumbra_cool_tint_pass(shadow_lo=0.10, shadow_hi=0.70, blue_lift=0.20, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    assert not np.array_equal(before, after), (
+        "penumbra_cool_tint_pass should modify a midtone canvas at opacity=1.0")
+
+
+def test_penumbra_cool_tint_pass_preserves_shape():
+    """penumbra_cool_tint_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.45, 0.42, 0.38), texture_strength=0.05)
+    p.penumbra_cool_tint_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after penumbra_cool_tint_pass: {img.size}")
+
+
+def test_penumbra_cool_tint_pass_zero_opacity_no_op():
+    """penumbra_cool_tint_pass with opacity=0.0 should leave the canvas unchanged."""
+    from stroke_engine import Painter
+    import numpy as np
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.45, 0.42, 0.38), texture_strength=0.05)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.penumbra_cool_tint_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8)
+    diff = float(np.abs(after.astype(float) - before.astype(float)).mean())
+    assert diff < 1.0, (
+        f"penumbra_cool_tint_pass with opacity=0 should be a no-op "
+        f"(mean diff={diff:.4f})")
+
+
+def test_penumbra_cool_tint_ignores_bright_pixels():
+    """
+    A very bright canvas (above shadow_hi) should be minimally affected by
+    penumbra_cool_tint_pass, since the penumbra mask is near zero in bright zones.
+    """
+    from stroke_engine import Painter
+    import numpy as np
+    p_bright = Painter(width=64, height=64)
+    p_bright.tone_ground((0.92, 0.92, 0.92), texture_strength=0.00)
+    before_bright = np.frombuffer(
+        p_bright.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p_bright.penumbra_cool_tint_pass(
+        shadow_lo=0.15, shadow_hi=0.52, transition=0.05, blue_lift=0.20, opacity=1.0
+    )
+    after_bright = np.frombuffer(
+        p_bright.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    bright_diff = float(np.abs(
+        after_bright.astype(float) - before_bright.astype(float)
+    ).mean())
+    assert bright_diff < 5.0, (
+        f"Bright canvas (lum~0.92) should be almost unaffected by penumbra_cool_tint_pass "
+        f"(shadow_hi=0.52): mean pixel diff={bright_diff:.2f}")

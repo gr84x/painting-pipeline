@@ -301,6 +301,7 @@ class Period(Enum):
     VENETIAN_PASTORAL_LUMINISM = auto()  # Jacopo Bassano — deep umber ground, warm firelight impasto, anisotropic diffusion creates smooth tonal pools bounded by firm chiaroscuro edges; proto-Caravaggesque artificial light
     DUTCH_GOLDEN_AGE_LUMINISM  = auto()  # Aelbert Cuyp — radiant amber-gold afternoon light, luminance-adaptive spatial frequency attenuation dissolves fine detail in bright zones into golden atmosphere; the Dutch Claude
     GERMAN_REFORMATION_RENAISSANCE = auto()  # Lucas Cranach the Elder — enamel-flat colour zones, Gothic linear clarity, vermilion/jet-black/pearl-flesh palette, chromaticity/luminance decomposition for jewel-like purity
+    EMILIAN_ELEGANT_MANNERISM      = auto()  # Parmigianino — ultra-smooth pearl skin, cool-silver highlights, extreme Mannerist elongation, perceptual luma-chroma decoupled surface refinement, penumbra cool-lavender half-tones
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
