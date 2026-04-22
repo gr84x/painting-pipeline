@@ -32288,3 +32288,295 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Penumbra cool tint pass complete.")
+
+    # giorgione_tonal_poetry_pass — Session 138 main pass (mode 16)
+    # ─────────────────────────────────────────────────────────────────────────
+    def giorgione_tonal_poetry_pass(
+        self,
+        midtone_low:          float = 0.28,
+        midtone_high:         float = 0.68,
+        luminous_lift:        float = 0.08,
+        warm_shadow_strength: float = 0.04,
+        cool_edge_strength:   float = 0.03,
+        figure_mask:          "np.ndarray | None" = None,
+        opacity:              float = 0.30,
+    ) -> None:
+        """
+        Giorgione tonal poetry pass — Session 138 main pass.
+
+        Sixteenth distinct processing mode: LUMINANCE-ZONED DUAL-TEMPERATURE
+        SCULPTING.
+
+        Models Giorgione's poesia through three luminance-responsive zones:
+        1. MIDTONE FOCAL WARMTH LIFT (midtone_low … midtone_high): warm amber
+           luminous lift with brightness increase — the glowing core tones.
+        2. SHADOW WARM TRANSITION: warm amber tint in deep-to-mid shadow where
+           umber ground shows through thin oil glazes.
+        3. SILHOUETTE COOL EDGE ACCENT: if figure_mask provided, cool tint at
+           the silhouette boundary (gradient of the mask > 0).
+
+        Geometrically distinct from all 15 prior modes: uses THREE luminance
+        zones with dual-temperature responses (warm midtone + shadow, cool
+        edge), mask-gated edge detection, and a combined brightness+hue lift
+        that no previous mode applies in this configuration.
+
+        Parameters
+        midtone_low          : Lower luminance boundary of midtone zone.
+        midtone_high         : Upper luminance boundary of midtone zone.
+        luminous_lift        : Warm-luminance lift applied in midtone zone.
+        warm_shadow_strength : Warm amber tint in shadow transition zone.
+        cool_edge_strength   : Cool-tint at figure silhouette edge.
+        figure_mask          : Optional H×W float32 mask (1=figure, 0=bg).
+        opacity              : Final composite weight (0–1).
+        """
+        print(f"Giorgione tonal poetry pass (luminous_lift={luminous_lift:.2f}, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        eps = 1e-6
+
+        # ── (1) Midtone zone mask (smooth sigmoid product) ─────────────────────
+        trans = 0.06
+        gate_hi = 1.0 / (1.0 + _np.exp((lum - midtone_high) / (trans + eps) * 6.0))
+        gate_lo = 1.0 / (1.0 + _np.exp(-(lum - midtone_low) / (trans + eps) * 6.0))
+        midtone_mask = gate_hi * gate_lo
+
+        # ── (2) Warm midtone luminous lift ─────────────────────────────────────
+        # Amber warmth lift in midtone zone (R more than G, no blue change)
+        r_lift = luminous_lift * 1.00  # red primary warm lift
+        g_lift = luminous_lift * 0.60  # green secondary (amber hue)
+        r_mid = _np.clip(r0 + r_lift * midtone_mask, 0.0, 1.0)
+        g_mid = _np.clip(g0 + g_lift * midtone_mask, 0.0, 1.0)
+        b_mid = b0
+
+        # ── (3) Shadow warm transition ─────────────────────────────────────────
+        # Warm amber in deep shadows (lum < midtone_low) fading toward zero
+        shadow_gate = 1.0 / (1.0 + _np.exp(
+            (lum - midtone_low) / (trans + eps) * 6.0
+        ))
+        r_out = _np.clip(r_mid + warm_shadow_strength * 1.0 * shadow_gate, 0.0, 1.0)
+        g_out = _np.clip(g_mid + warm_shadow_strength * 0.5 * shadow_gate, 0.0, 1.0)
+        b_out = b_mid
+
+        # ── (4) Silhouette cool edge accent ───────────────────────────────────
+        if figure_mask is not None and cool_edge_strength > 0.0:
+            mask_f = figure_mask.astype(_np.float32)
+            mask_blur = _gf(mask_f, sigma=2.0)
+            # Edge = difference between original and blurred mask, renormalised
+            edge = _np.abs(mask_f - mask_blur)
+            edge_norm = edge / (_np.max(edge) + eps)
+            # Cool accent: add blue, drop red at silhouette
+            r_out = _np.clip(r_out - cool_edge_strength * edge_norm, 0.0, 1.0)
+            b_out = _np.clip(b_out + cool_edge_strength * edge_norm, 0.0, 1.0)
+
+        # ── (5) Apply figure_mask: background pixels (mask=0) must be unchanged
+        if figure_mask is not None:
+            mask_f = figure_mask.astype(_np.float32)
+            # Clamp mask to [0,1] for blending
+            mask_f = _np.clip(mask_f, 0.0, 1.0)
+            r_out = r0 * (1.0 - mask_f) + r_out * mask_f
+            g_out = g0 * (1.0 - mask_f) + g_out * mask_f
+            b_out = b0 * (1.0 - mask_f) + b_out * mask_f
+
+        # ── (6) Composite at opacity ──────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + _np.clip(r_out, 0.0, 1.0) * opacity
+        g_final = g0 * (1.0 - opacity) + _np.clip(g_out, 0.0, 1.0) * opacity
+        b_final = b0 * (1.0 - opacity) + _np.clip(b_out, 0.0, 1.0) * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Giorgione tonal poetry pass (luma-zoned dual-temperature) complete.")
+
+    # giorgione_focal_warmth_pass — Session 138 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+    def giorgione_focal_warmth_pass(
+        self,
+        cx:          float = 0.50,
+        cy:          float = 0.44,
+        rx:          float = 0.60,
+        ry:          float = 0.55,
+        warm_peak:   float = 1.0,
+        warm_r:      float = 0.12,
+        warm_g:      float = 0.06,
+        sigma:       float = 0.38,
+        sat_radius:  float = 0.55,
+        sat_fade:    float = 0.18,
+        opacity:     float = 0.30,
+    ) -> None:
+        """
+        Giorgione focal warmth pass — Session 138 main pass.
+
+        Sixteenth distinct processing mode: ELLIPTICAL FOCAL WARMTH SCULPTING.
+
+        Models Giorgione's defining optical quality: warm amber-golden light
+        radiating from the compositional focal centre, cooling and desaturating
+        toward the picture margins. Geometrically driven by normalised elliptical
+        distance from focal point — distinct from all 15 prior modes.
+
+        Algorithm:
+        (1) Compute normalised elliptical distance d for each pixel:
+            d = sqrt(((x - cx*W) / (rx*W))^2 + ((y - cy*H) / (ry*H))^2)
+        (2) Gaussian warmth kernel: W = warm_peak * exp(-d^2 / (2*sigma^2))
+        (3) Apply warm tint in focal zone: R += warm_r*W; G += warm_g*W
+        (4) Peripheral saturation fade: for d > sat_radius, reduce saturation
+            linearly proportional to (d - sat_radius) * sat_fade, capped at 1
+        (5) Clip to [0, 1], composite at opacity
+
+        Parameters
+        cx, cy      : Focal centre as fraction of canvas width/height.
+        rx, ry      : Ellipse semi-axes as fractions of canvas width/height.
+        warm_peak   : Peak amplitude of the Gaussian warmth kernel.
+        warm_r      : Red channel warm lift at peak.
+        warm_g      : Green channel warm lift at peak.
+        sigma       : Gaussian standard deviation in normalised elliptical units.
+        sat_radius  : Normalised elliptical distance at which saturation fade begins.
+        sat_fade    : Saturation reduction rate per unit distance beyond sat_radius.
+        opacity     : Final composite weight (0–1).
+        """
+        print(f"Giorgione focal warmth pass (cx={cx:.2f}, cy={cy:.2f}, "
+              f"sigma={sigma:.2f}, opacity={opacity:.2f})…")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Normalised elliptical distance map ─────────────────────────────
+        x_idx = _np.arange(W, dtype=_np.float32)
+        y_idx = _np.arange(H, dtype=_np.float32)
+        xx, yy = _np.meshgrid(x_idx, y_idx)
+        dx = (xx - cx * W) / (rx * W + 1e-6)
+        dy = (yy - cy * H) / (ry * H + 1e-6)
+        dist = _np.sqrt(dx * dx + dy * dy)
+
+        # ── (2) Gaussian warmth kernel ─────────────────────────────────────────
+        warmth = warm_peak * _np.exp(-dist * dist / (2.0 * sigma * sigma + 1e-9))
+
+        # ── (3) Warm tint in focal zone ────────────────────────────────────────
+        r_warm = _np.clip(r0 + warm_r * warmth, 0.0, 1.0)
+        g_warm = _np.clip(g0 + warm_g * warmth, 0.0, 1.0)
+        b_warm = b0  # blue channel unmodified by warmth
+
+        # ── (4) Peripheral saturation fade ────────────────────────────────────
+        # In regions where dist > sat_radius, reduce saturation proportionally.
+        sat_excess = _np.maximum(dist - sat_radius, 0.0)
+        sat_reduction = _np.minimum(sat_excess * sat_fade, 1.0)  # clamp at 1
+        grey = 0.299 * r_warm + 0.587 * g_warm + 0.114 * b_warm
+        # Blend toward grey by sat_reduction factor (1 = fully desaturated)
+        r_out = r_warm * (1.0 - sat_reduction) + grey * sat_reduction
+        g_out = g_warm * (1.0 - sat_reduction) + grey * sat_reduction
+        b_out = b_warm * (1.0 - sat_reduction) + grey * sat_reduction
+
+        # ── (5) Composite at opacity ──────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + _np.clip(r_out, 0.0, 1.0) * opacity
+        g_final = g0 * (1.0 - opacity) + _np.clip(g_out, 0.0, 1.0) * opacity
+        b_final = b0 * (1.0 - opacity) + _np.clip(b_out, 0.0, 1.0) * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Giorgione focal warmth pass (elliptical Gaussian radiance) complete.")
+
+    # warm_shadow_lift_pass — Session 138 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+    def warm_shadow_lift_pass(
+        self,
+        shadow_thresh: float = 0.18,
+        transition:    float = 0.08,
+        warm_r:        float = 0.040,
+        warm_g:        float = 0.018,
+        opacity:       float = 0.30,
+    ) -> None:
+        """
+        Warm shadow lift — Session 138 artistic improvement.
+
+        Lifts the deepest shadow zones with a subtle warm amber tint, modelling
+        how Renaissance oil painters avoided pure dead black in shadows.  Even
+        the deepest painted shadows contain warm reflected ambient light — a
+        secondary warm glow from umber ground visible through thin shadow glazes.
+
+        This pass targets only the deep shadow zone (luminance < shadow_thresh),
+        using a smooth sigmoid gate to avoid hard transitions. Bright areas and
+        midtones are completely unaffected.
+
+        Complements penumbra_cool_tint_pass (which cools midtone penumbra) by
+        warming the deepest shadows — together they create the full warm/cool
+        three-zone model: warm highlights, cool penumbra, warm-amber deep shadows.
+
+        Algorithm:
+        (1) L = 0.299R + 0.587G + 0.114B
+        (2) Shadow gate: sigmoid falloff above shadow_thresh (1 = deep shadow)
+        (3) In shadow zone: R += warm_r * gate; G += warm_g * gate
+        (4) Clip to [0, 1], composite at opacity.
+
+        Parameters
+        shadow_thresh : Upper luminance boundary of the shadow zone.
+        transition    : Sigmoid half-width (luminance units) for smooth edge.
+        warm_r        : Red channel warm lift at peak (deep shadow centre).
+        warm_g        : Green channel warm lift (amber hue balance).
+        opacity       : Final composite weight (0–1).
+        """
+        print(f"Warm shadow lift pass (shadow_thresh={shadow_thresh:.2f}, "
+              f"opacity={opacity:.2f})…")
+
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        eps = 1e-6
+
+        # ── Shadow zone mask (sigmoid gate: 1 = deep shadow, 0 = bright) ──────
+        shadow_gate = 1.0 / (1.0 + _np.exp(
+            (lum - shadow_thresh) / (transition + eps) * 6.0
+        ))
+
+        # ── Warm amber lift in shadow zone ────────────────────────────────────
+        r_lifted = _np.clip(r0 + warm_r * shadow_gate, 0.0, 1.0)
+        g_lifted = _np.clip(g0 + warm_g * shadow_gate, 0.0, 1.0)
+
+        # ── Composite at opacity ───────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + r_lifted * opacity
+        g_final = g0 * (1.0 - opacity) + g_lifted * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b0      * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Warm shadow lift pass complete.")

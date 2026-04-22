@@ -16620,3 +16620,191 @@ def test_penumbra_cool_tint_pass_modifies_midtone_canvas():
     )
     assert not _np.array_equal(before, after), (
         "penumbra_cool_tint_pass should modify a midtone canvas at opacity=1.0")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 138 — Giorgione + VENETIAN_POETIC_TONALISM + giorgione_focal_warmth_pass
+#              + warm_shadow_lift_pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_giorgione_in_catalog():
+    """giorgione must be in the CATALOG dict (session 138)."""
+    assert "giorgione" in CATALOG, (
+        "giorgione not found in CATALOG -- add entry to art_catalog.py (session 138)")
+
+
+def test_giorgione_movement_mentions_venetian_or_tonal():
+    """giorgione movement must mention Venetian or tonal painting."""
+    s = get_style("giorgione")
+    text_lower = s.movement.lower()
+    assert ("venetian" in text_lower or "tonal" in text_lower
+            or "renaissance" in text_lower), (
+        f"giorgione movement should mention Venetian or Tonal; got {s.movement!r}")
+
+
+def test_giorgione_palette_valid():
+    """giorgione palette must contain valid RGB tuples in [0, 1] (session 138)."""
+    s = get_style("giorgione")
+    assert len(s.palette) >= 5, (
+        f"giorgione palette should have >=5 colours; got {len(s.palette)}")
+    for colour in s.palette:
+        for ch in colour:
+            assert 0.0 <= ch <= 1.0, (
+                f"giorgione palette value out of range [0,1]: {ch} in {colour!r}")
+
+
+def test_giorgione_high_wet_blend():
+    """giorgione wet_blend must be in range 0.55–0.70 -- pittura di macchia demands liquid flow."""
+    s = get_style("giorgione")
+    assert 0.55 <= s.wet_blend <= 0.70, (
+        f"giorgione wet_blend should be 0.55–0.70 (Venetian tonal flow); got {s.wet_blend}")
+
+
+def test_giorgione_high_edge_softness():
+    """giorgione edge_softness must be high (>= 0.70) -- forms dissolve in warm atmosphere."""
+    s = get_style("giorgione")
+    assert s.edge_softness >= 0.70, (
+        f"giorgione edge_softness should be >= 0.70; got {s.edge_softness}")
+
+
+def test_giorgione_glazing_set():
+    """giorgione glazing must be set -- warm amber-golden unifying glaze."""
+    s = get_style("giorgione")
+    assert s.glazing is not None, (
+        "giorgione glazing should be set (warm amber-golden Venetian glaze)")
+
+
+def test_giorgione_technique_mentions_warmth_or_tonalism():
+    """giorgione technique must mention warm, tonal, or poesia quality."""
+    s = get_style("giorgione")
+    text_lower = s.technique.lower()
+    assert ("warm" in text_lower or "tonal" in text_lower
+            or "poesia" in text_lower or "amber" in text_lower), (
+        "giorgione technique should describe warm tonal radiance or poesia quality")
+
+
+def test_giorgione_inspiration_mentions_focal_warmth_mode():
+    """giorgione inspiration must describe the focal warmth sculpting mode (session 138)."""
+    s = get_style("giorgione")
+    text_lower = s.inspiration.lower()
+    assert ("focal" in text_lower or "warmth" in text_lower
+            or "gaussian" in text_lower or "elliptical" in text_lower), (
+        "giorgione inspiration should describe ELLIPTICAL FOCAL WARMTH SCULPTING mode")
+
+
+def test_venetian_poetic_tonalism_period_enum_exists():
+    """VENETIAN_POETIC_TONALISM must exist in the Period enum (session 138)."""
+    assert hasattr(Period, "VENETIAN_POETIC_TONALISM"), (
+        "VENETIAN_POETIC_TONALISM missing from Period enum -- "
+        "add to scene_schema.py (session 138)")
+
+
+def test_giorgione_focal_warmth_pass_exists_catalog():
+    """Painter must have giorgione_focal_warmth_pass() method after session 138."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "giorgione_focal_warmth_pass"), (
+        "giorgione_focal_warmth_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "giorgione_focal_warmth_pass"))
+
+
+def test_giorgione_focal_warmth_pass_no_error_catalog():
+    """giorgione_focal_warmth_pass() runs on a warm canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.60, 0.50, 0.34), texture_strength=0.05)
+    p.giorgione_focal_warmth_pass(opacity=0.30)
+
+
+def test_giorgione_focal_warmth_pass_modifies_canvas_catalog():
+    """giorgione_focal_warmth_pass() must modify the canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.giorgione_focal_warmth_pass(warm_r=0.25, warm_g=0.12, opacity=0.80)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "giorgione_focal_warmth_pass should modify the canvas at opacity=0.80")
+
+
+def test_giorgione_focal_warmth_pass_preserves_shape_catalog():
+    """giorgione_focal_warmth_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.60, 0.50, 0.34), texture_strength=0.05)
+    p.giorgione_focal_warmth_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after giorgione_focal_warmth_pass: {img.size}")
+
+
+def test_warm_shadow_lift_pass_exists_catalog():
+    """Painter must have warm_shadow_lift_pass() method after session 138."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "warm_shadow_lift_pass"), (
+        "warm_shadow_lift_pass not found on Painter -- add to stroke_engine.py")
+    assert callable(getattr(Painter, "warm_shadow_lift_pass"))
+
+
+def test_warm_shadow_lift_pass_no_error_catalog():
+    """warm_shadow_lift_pass() runs on a dark canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.12, 0.10, 0.08), texture_strength=0.00)
+    p.warm_shadow_lift_pass(opacity=0.30)
+
+
+def test_warm_shadow_lift_pass_modifies_dark_canvas():
+    """warm_shadow_lift_pass() must modify a dark canvas at non-zero opacity."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.10, 0.08, 0.06), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.warm_shadow_lift_pass(shadow_thresh=0.30, warm_r=0.15, warm_g=0.07, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    assert not _np.array_equal(before, after), (
+        "warm_shadow_lift_pass should modify a dark canvas at opacity=1.0")
+
+
+def test_warm_shadow_lift_pass_spares_bright_canvas():
+    """warm_shadow_lift_pass() must leave a bright canvas largely unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    # Very bright ground — all pixels well above shadow_thresh
+    p.tone_ground((0.90, 0.88, 0.86), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.warm_shadow_lift_pass(shadow_thresh=0.15, warm_r=0.20, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    )
+    # Bright canvas should be essentially unchanged (all pixels above threshold)
+    max_diff = int(_np.max(_np.abs(after.astype(_np.int32) - before.astype(_np.int32))))
+    assert max_diff <= 2, (
+        f"warm_shadow_lift_pass changed bright canvas too much (max_diff={max_diff})")
+
+
+def test_warm_shadow_lift_pass_preserves_shape_catalog():
+    """warm_shadow_lift_pass() must not change canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.12, 0.10, 0.08), texture_strength=0.00)
+    p.warm_shadow_lift_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60), (
+        f"Canvas shape changed after warm_shadow_lift_pass: {img.size}")
