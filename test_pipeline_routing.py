@@ -14003,3 +14003,65 @@ def test_piazzetta_velvet_shadow_pass_accepts_shadow_percentile():
     assert "shadow_percentile" in sig.parameters, (
         "piazzetta_velvet_shadow_pass must have shadow_percentile parameter "
         "(session 129 percentile-adaptive tonal sculpting improvement)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 131: Rosso Fiorentino + FLORENTINE_ACIDIC_MANNERISM
+#              + rosso_chromatic_dissonance_pass (hue-selective tension mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_florentine_acidic_mannerism_period_present():
+    """Period.FLORENTINE_ACIDIC_MANNERISM must be in the Period enum (session 131)."""
+    from scene_schema import Period
+    assert hasattr(Period, "FLORENTINE_ACIDIC_MANNERISM"), (
+        "Period.FLORENTINE_ACIDIC_MANNERISM not found -- add it to scene_schema.py")
+    assert Period.FLORENTINE_ACIDIC_MANNERISM in list(Period)
+
+
+def test_florentine_acidic_mannerism_stroke_params_low_blend():
+    """FLORENTINE_ACIDIC_MANNERISM wet_blend must be low (<= 0.30) — dissonance stays unresolved."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.FLORENTINE_ACIDIC_MANNERISM,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.30, (
+        f"FLORENTINE_ACIDIC_MANNERISM wet_blend should be <= 0.30 "
+        f"(Rosso refuses tonal harmony blending); got {p['wet_blend']:.2f}")
+
+
+def test_florentine_acidic_mannerism_stroke_params_sharp_edges():
+    """FLORENTINE_ACIDIC_MANNERISM edge_softness must be low (<= 0.30) — angular edges."""
+    from scene_schema import Style, Medium, Period, PaletteHint
+    style = Style(medium=Medium.OIL, period=Period.FLORENTINE_ACIDIC_MANNERISM,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.30, (
+        f"FLORENTINE_ACIDIC_MANNERISM edge_softness should be <= 0.30 "
+        f"(Rosso's sharp angular edges, no sfumato); got {p['edge_softness']:.2f}")
+
+
+def test_rosso_chromatic_dissonance_pass_exists_on_painter():
+    """Painter must have rosso_chromatic_dissonance_pass() after session 131."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "rosso_chromatic_dissonance_pass"), (
+        "rosso_chromatic_dissonance_pass not found on Painter -- "
+        "add to stroke_engine.py for session 131")
+    assert callable(getattr(Painter, "rosso_chromatic_dissonance_pass"))
+
+
+def test_rosso_chromatic_dissonance_pass_no_error_routing():
+    """rosso_chromatic_dissonance_pass() must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.42, 0.42, 0.36), texture_strength=0.05)
+    p.rosso_chromatic_dissonance_pass(opacity=0.26)
+
+
+def test_rosso_chromatic_dissonance_pass_accepts_opacity():
+    """rosso_chromatic_dissonance_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.rosso_chromatic_dissonance_pass)
+    assert "opacity" in sig.parameters, (
+        "rosso_chromatic_dissonance_pass must have opacity parameter "
+        "(session 131 hue-selective chromatic tension mapping)")

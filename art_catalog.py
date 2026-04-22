@@ -11349,6 +11349,85 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Rosso Fiorentino ───────────────────────────────────────────────────────
+    "rosso_fiorentino": ArtStyle(
+        artist="Rosso Fiorentino",
+        movement="Florentine Mannerism",
+        nationality="Italian (Florentine)",
+        period="1495–1540",
+        palette=[
+            (0.92, 0.88, 0.62),   # acid lemon-yellow highlight — jaundiced, not ivory
+            (0.76, 0.72, 0.54),   # pale ash-gold mid-flesh — bleached cadaverous undertone
+            (0.50, 0.56, 0.40),   # poison green-grey — characteristic Rosso shadow dissonance
+            (0.26, 0.22, 0.14),   # deep cold umber — tense dark ground
+            (0.70, 0.38, 0.28),   # hot vermilion accent — shock chromatic punctuation
+            (0.48, 0.52, 0.62),   # cold blue-grey — steel drapery cool
+            (0.62, 0.68, 0.38),   # acid olive-chartreuse — the signature Rosso dissonant green
+        ],
+        ground_color=(0.42, 0.42, 0.36),    # cool grey-olive imprimatura — tension before the first stroke
+        stroke_size=5,
+        wet_blend=0.22,                      # low — dissonant palette stays unresolved, not blended away
+        edge_softness=0.20,                  # sharp, angular edges — electrified Mannerist definition
+        jitter=0.032,                        # high chromatic jitter — every stroke slightly wrong
+        glazing=None,                        # no unifying glaze — Rosso refuses tonal harmony
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Extreme Florentine Mannerism: acidic, dissonant palette of jaundiced "
+            "yellows, cold bleached flesh, and poisonous green-grey shadows — colors "
+            "that read as emotionally disturbing rather than beautiful.  Angular, "
+            "electrified compositions with figures under existential stress.  "
+            "Deliberately un-natural color relationships that encode psychological "
+            "tension; Rosso rejected the harmonious Florentine ideal in favor of "
+            "chromatic dissonance as expressive violence."
+        ),
+        famous_works=[
+            ("Deposition from the Cross (Volterra)",    "1521"),
+            ("Moses Defending the Daughters of Jethro", "1523"),
+            ("Pietà",                                   "c. 1537"),
+            ("Marriage of the Virgin",                  "1523"),
+            ("Dead Christ with Angels",                 "c. 1524–1527"),
+            ("Portrait of a Young Man",                 "c. 1518"),
+            ("Adoration of the Magi",                   "1521"),
+        ],
+        inspiration=(
+            "Apply rosso_chromatic_dissonance_pass() as the defining pass for "
+            "session 131.  The pass encodes Rosso Fiorentino's defining quality: "
+            "HUE-SELECTIVE CHROMATIC TENSION MAPPING — the ninth distinct processing "
+            "mode in this pipeline.  "
+            "Prior modes: (1) s123 Rosa — spatial displacement/flow warping; "
+            "(2) s124 Stanzione — Laplacian pyramid frequency decomposition; "
+            "(3) s125 Albani — vertical spatial gradient; "
+            "(4) s126 Bartolommeo — Sobel edge-map modulation; "
+            "(5) s127 Cantarini — spectral channel-selective diffusion; "
+            "(6) s128 Carpaccio — local variance std map spatial adaptation; "
+            "(7) s129 Piazzetta — global histogram percentile tonal sculpting; "
+            "(8) s130 Sebastiano — image structure tensor coherence-driven smoothing.  "
+            "Session 131 mode: HUE-SELECTIVE CHROMATIC TENSION MAPPING.  "
+            "Algorithm: Convert the RGB canvas to HSV colour space.  "
+            "(1) FLESH HUE TENSION: Identify pixels with warm flesh-hue (H ∈ [10°, 38°]) "
+            "and moderate saturation (S > 0.12).  Rotate these hues by -hue_shift_flesh "
+            "(toward cooler lemon-yellow, away from orange warmth) and reduce saturation "
+            "by flesh_desat_amount — producing Rosso's characteristic bleached, "
+            "near-cadaverous skin tone, wrong in a way that is unforgettable.  "
+            "(2) SHADOW GREEN INJECTION: Identify mid-to-dark regions (V < shadow_v_thresh) "
+            "and rotate their hue by +hue_shift_shadow toward the acidic green zone; "
+            "slightly boost saturation — injecting Rosso's signature poison-green "
+            "shadow dissonance.  "
+            "(3) HIGHLIGHT ACID SHIFT: Identify bright highlights (V > highlight_v_thresh, "
+            "S > 0.08) and rotate hue toward the acid-yellow quadrant (+hue_shift_highlight) "
+            "— making highlights read jaundiced rather than warm-ivory, the key signature "
+            "of Florentine acidic Mannerism.  "
+            "Unlike all prior modes, this pass operates exclusively in HSV hue-space — "
+            "not in spatial coordinates, not in frequency bands, not in luminance rank, "
+            "not in edge gradients, not in spectral channels, not in local variance.  "
+            "It is the first pipeline mode to manipulate HUE ANGLE DIRECTLY as a "
+            "spatially-selective, value-conditional chromatic shift.  "
+            "Use at opacity ≈ 0.22–0.30."
+        ),
+    ),
+
 }
 
 

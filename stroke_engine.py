@@ -30939,3 +30939,184 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         print("    Sebastiano sculptural depth pass complete.")
+
+    def rosso_chromatic_dissonance_pass(
+        self,
+        hue_shift_flesh:      float = 8.0,
+        flesh_desat_amount:   float = 0.08,
+        hue_shift_shadow:     float = 14.0,
+        shadow_v_thresh:      float = 0.46,
+        hue_shift_highlight:  float = 7.0,
+        highlight_v_thresh:   float = 0.72,
+        opacity:              float = 0.26,
+    ) -> None:
+        """
+        Rosso Fiorentino — Florentine Acidic Mannerism (session 131).
+
+        Giovanni Battista di Jacopo, called Rosso Fiorentino (1494–1540), was
+        the most extreme of the Florentine Mannerists.  While Pontormo withdrew
+        into melancholy, Rosso attacked — his palette is aggressive, his colors
+        deliberately wrong: acid lemon-yellows where warm ivory should be,
+        poison green-grey where warm umber shadow should rest, vermilion accents
+        placed with the shock logic of a colorist who wanted the viewer to feel
+        the composition before understanding it.
+
+        The Volterra Deposition (1521) is the defining image: bleached, angular
+        figures under existential stress, a palette of jaundiced skin, cold
+        blue drapery and shadow zones that read green-grey-poisonous.  No
+        sfumato, no tonal comfort, no harmonic resolution.
+
+        This pass encodes Rosso's chromatic violence as the ninth distinct
+        processing mode: HUE-SELECTIVE CHROMATIC TENSION MAPPING.
+
+        All prior pipeline processing modes operate in one of eight domains:
+          s123 Rosa       — spatial displacement (turbulent flow warping)
+          s124 Stanzione  — frequency-band decomposition (Laplacian pyramid)
+          s125 Albani     — vertical spatial gradient
+          s126 Bartolommeo — edge-map modulation (Sobel form ridges)
+          s127 Cantarini  — spectral channel-selective diffusion
+          s128 Carpaccio  — local variance std-map spatial adaptation
+          s129 Piazzetta  — global histogram percentile tonal sculpting
+          s130 Sebastiano — image structure tensor coherence analysis
+
+        Session 131 introduces the ninth distinct mode:
+        HUE-SELECTIVE CHROMATIC TENSION MAPPING.
+
+        This pass operates exclusively in HSV hue-angle space with spatially-
+        selective, luminance-conditional hue rotation.  It is the first pipeline
+        mode to directly manipulate HUE ANGLE as a primary expressive lever.
+
+        Three-zone chromatic intervention:
+
+        (1) FLESH HUE TENSION
+            Pixels where hue ∈ [10°, 38°] (warm orange flesh zone) and
+            saturation > flesh_sat_min receive a hue rotation of -hue_shift_flesh
+            (rotating toward cooler lemon-yellow, away from warm orange-ivory)
+            plus a saturation reduction of flesh_desat_amount.
+            Effect: warm, living flesh tone becomes bleached, jaundiced,
+            near-cadaverous — the unmistakable Rosso skin.
+
+        (2) SHADOW GREEN INJECTION
+            Pixels with value < shadow_v_thresh (dark/shadow regions) receive
+            a hue rotation of +hue_shift_shadow (toward the acidic green-grey
+            zone, away from warm umber) plus a slight saturation boost.
+            Effect: warm umber shadows become the characteristic poison-green
+            dissonance of Rosso's shadow logic.
+
+        (3) HIGHLIGHT ACID SHIFT
+            Pixels with value > highlight_v_thresh and saturation > 0.08
+            receive a hue rotation of +hue_shift_highlight (toward acid-yellow
+            from whatever warm near-white they were).
+            Effect: highlights read jaundiced-acid rather than warm-ivory —
+            the defining quality that separates Rosso from all other Mannerists.
+
+        Parameters
+        ----------
+        hue_shift_flesh      : Degrees to rotate warm flesh hues toward cool lemon
+                               (subtracted from hue — moves orange toward yellow)
+        flesh_desat_amount   : Saturation reduction in the flesh zone (0–1)
+        hue_shift_shadow     : Degrees to rotate shadow hues toward acid green
+                               (added to hue — moves umber toward yellow-green)
+        shadow_v_thresh      : Value (brightness) threshold below which shadow
+                               green injection applies (0–1)
+        hue_shift_highlight  : Degrees to rotate bright highlights toward acid-yellow
+        highlight_v_thresh   : Value threshold above which highlight acid shift applies
+        opacity              : Composite weight blended back onto the original (0–1)
+        """
+        print(f"Rosso Fiorentino chromatic dissonance pass "
+              f"(opacity={opacity:.2f} flesh_shift={hue_shift_flesh:.1f}° "
+              f"shadow_shift={hue_shift_shadow:.1f}°)…")
+
+        import numpy as _np
+        import colorsys as _cs
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo ARGB32 layout: channel 0 = B, 1 = G, 2 = R, 3 = A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Convert RGB → HSV (vectorised) ───────────────────────────────────
+        Cmax  = _np.maximum(_np.maximum(r0, g0), b0)
+        Cmin  = _np.minimum(_np.minimum(r0, g0), b0)
+        delta = Cmax - Cmin
+
+        # Value
+        V = Cmax
+
+        # Saturation
+        S = _np.where(Cmax > 1e-7, delta / (Cmax + 1e-8), 0.0).astype(_np.float32)
+
+        # Hue (degrees, 0–360)
+        eps = 1e-8
+        h_r = _np.where(
+            delta > eps,
+            _np.where(Cmax == r0,
+                      (60.0 * ((g0 - b0) / (delta + eps))) % 360.0,
+                      _np.where(Cmax == g0,
+                                60.0 * ((b0 - r0) / (delta + eps)) + 120.0,
+                                60.0 * ((r0 - g0) / (delta + eps)) + 240.0)),
+            0.0,
+        ).astype(_np.float32)
+        H_arr = h_r % 360.0
+
+        # Work on mutable copies
+        H_out = H_arr.copy()
+        S_out = S.copy()
+        V_out = V.copy()
+
+        # ── Zone 1: FLESH HUE TENSION ─────────────────────────────────────────
+        # Warm flesh hues: H ∈ [10°, 38°], S > 0.12
+        flesh_mask = (H_arr >= 10.0) & (H_arr <= 38.0) & (S > 0.12)
+        H_out  = _np.where(flesh_mask, (H_out - hue_shift_flesh) % 360.0, H_out)
+        S_out  = _np.where(flesh_mask, _np.clip(S_out - flesh_desat_amount, 0.0, 1.0), S_out)
+
+        # ── Zone 2: SHADOW GREEN INJECTION ───────────────────────────────────
+        # Dark shadow regions: V < shadow_v_thresh
+        shadow_mask = (V < shadow_v_thresh)
+        H_out = _np.where(shadow_mask, (H_out + hue_shift_shadow) % 360.0, H_out)
+        S_out = _np.where(shadow_mask, _np.clip(S_out + 0.05, 0.0, 1.0), S_out)
+
+        # ── Zone 3: HIGHLIGHT ACID SHIFT ─────────────────────────────────────
+        # Bright highlights: V > highlight_v_thresh, S > 0.08
+        highlight_mask = (V > highlight_v_thresh) & (S > 0.08)
+        H_out = _np.where(highlight_mask, (H_out + hue_shift_highlight) % 360.0, H_out)
+
+        # ── Convert HSV → RGB (vectorised) ───────────────────────────────────
+        h6    = H_out / 60.0
+        i_arr = _np.floor(h6).astype(_np.int32) % 6
+        f_arr = h6 - _np.floor(h6)
+
+        p_arr = V_out * (1.0 - S_out)
+        q_arr = V_out * (1.0 - f_arr * S_out)
+        t_arr = V_out * (1.0 - (1.0 - f_arr) * S_out)
+
+        r_out = _np.select(
+            [i_arr == 0, i_arr == 1, i_arr == 2, i_arr == 3, i_arr == 4, i_arr == 5],
+            [V_out, q_arr, p_arr, p_arr, t_arr, V_out],
+        ).astype(_np.float32)
+        g_out = _np.select(
+            [i_arr == 0, i_arr == 1, i_arr == 2, i_arr == 3, i_arr == 4, i_arr == 5],
+            [t_arr, V_out, V_out, q_arr, p_arr, p_arr],
+        ).astype(_np.float32)
+        b_out = _np.select(
+            [i_arr == 0, i_arr == 1, i_arr == 2, i_arr == 3, i_arr == 4, i_arr == 5],
+            [p_arr, p_arr, t_arr, V_out, V_out, q_arr],
+        ).astype(_np.float32)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_final = r0 * (1.0 - opacity) + _np.clip(r_out, 0.0, 1.0) * opacity
+        g_final = g0 * (1.0 - opacity) + _np.clip(g_out, 0.0, 1.0) * opacity
+        b_final = b0 * (1.0 - opacity) + _np.clip(b_out, 0.0, 1.0) * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_final * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        print("    Rosso Fiorentino chromatic dissonance pass complete.")

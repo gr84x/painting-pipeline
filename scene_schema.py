@@ -296,6 +296,7 @@ class Period(Enum):
     VENETIAN_NARRATIVE_LUMINISM = auto()  # Vittore Carpaccio — warm amber highlights, cool sky-blue luminous shadows, local-variance-map spatial adaptation, crystalline Venetian narrative clarity
     VENETIAN_BAROQUE_TENEBRISM = auto()  # Piazzetta — warm velvet near-black shadow compression, amber impasto highlight lift, percentile-adaptive tonal sculpting, candlelight intimacy
     VENETIAN_ROMAN_SYNTHESIS   = auto()  # Sebastiano del Piombo — Venetian color richness fused with Michelangelesque monumental gravity; structure-tensor coherence-driven form smoothing; deep warm-umber depth
+    FLORENTINE_ACIDIC_MANNERISM = auto()  # Rosso Fiorentino — acid dissonant palette, bleached near-cadaverous flesh, hue-selective chromatic tension mapping, angular electrified Mannerist dissonance
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1427,6 +1428,14 @@ class Style:
             # edge_softness=0.68: Venetian-school soft emergence from shadow; edges present
             # but not harsh — the Roman clarity is in form, not in contour.
             Period.VENETIAN_ROMAN_SYNTHESIS:   dict(stroke_size_face=6, stroke_size_bg=24, wet_blend=0.78, edge_softness=0.68),
+            # FLORENTINE_ACIDIC_MANNERISM (Rosso Fiorentino) — angular electrified Mannerist tension.
+            # stroke_size_face=5: deliberate, angular mark-making — no smooth academic ease.
+            # stroke_size_bg=22: backgrounds are tense and restless, never settled.
+            # wet_blend=0.22: low blending — Rosso's surfaces are deliberately unresolved,
+            # keeping the dissonant palette tensions visible rather than smoothed away.
+            # edge_softness=0.20: sharp, almost aggressive edge definition — no sfumato
+            # softness here; forms are stated with angular, electric conviction.
+            Period.FLORENTINE_ACIDIC_MANNERISM: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.22, edge_softness=0.20),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
