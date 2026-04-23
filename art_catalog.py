@@ -12618,6 +12618,75 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Paris Bordone ─────────────────────────────────────────────────────────
+    "paris_bordone": ArtStyle(
+        artist="Paris Bordone",
+        movement="Venetian Intimate Colorism",
+        nationality="Italian (Venetian/Trevisan)",
+        period="1500–1571",
+        palette=[
+            (0.92, 0.78, 0.58),   # warm ivory Venetian flesh highlight
+            (0.80, 0.62, 0.42),   # peach-amber mid-tone flesh
+            (0.65, 0.48, 0.30),   # warm sienna mid-shadow
+            (0.40, 0.28, 0.16),   # warm umber deep shadow
+            (0.16, 0.10, 0.06),   # near-black Venetian ground void
+            (0.42, 0.28, 0.55),   # deep violet-blue ultramarine drapery
+            (0.72, 0.20, 0.18),   # Venetian crimson-scarlet drapery accent
+            (0.55, 0.62, 0.42),   # cool Venetian landscape green (middle-distance)
+            (0.72, 0.68, 0.82),   # pearl-silver architectural stone
+        ],
+        ground_color=(0.48, 0.35, 0.20),    # warm umber Venetian imprimatura
+        stroke_size=6,
+        wet_blend=0.72,                      # high Venetian blending — Titian school fluidity
+        edge_softness=0.68,                  # soft Giorgionesque dissolution, not full sfumato
+        jitter=0.025,
+        glazing=(0.62, 0.48, 0.28),          # warm amber Venetian unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Intimate Venetian colorism at its richest — Bordone absorbed Titian's "
+            "warm coloring and Giorgione's atmospheric softness, then pushed both "
+            "toward a more intimate and sensuous chromatic register.  His flesh "
+            "radiates a characteristic amber-gold warmth in the midtones, achieved "
+            "through the Venetian multi-glaze tradition: transparent warm layers "
+            "over a rich umber imprimatura, building luminous depth from within.  "
+            "In shadow zones the umber ground glows through thin paint as a warm "
+            "amber undertone — this is the 'luminous ground' phenomenon distinctive "
+            "to well-preserved Venetian panel paintings.  His drapery exploits the "
+            "full Venetian coloristic vocabulary: deep ultramarine, Venetian crimson, "
+            "and pearl-silver architectural stone read as jewel-clear chromatic zones "
+            "against the warm flesh passages.  Edges dissolve with Giorgionesque "
+            "softness — not Leonardo's smoke, but a warm atmospheric blurring that "
+            "makes forms feel inhabited by air and golden Venetian light."
+        ),
+        famous_works=[
+            ("Fisherman Presenting the Ring to the Doge",  "c. 1534"),
+            ("Venus with a Mirror",                        "c. 1550"),
+            ("Baptism of Christ",                          "c. 1535"),
+            ("Portrait of Gerolamo Kraffter",              "c. 1532"),
+            ("Apollo and Daphne",                          "c. 1540"),
+        ],
+        inspiration=(
+            "Use bordone_venetian_warmth_pass() to apply the TWENTY-SEVENTH DISTINCT "
+            "MODE: PARABOLIC MIDTONE CHROMATIC DEEPENING.  The parabolic luminance "
+            "gate w = 4 * luma * (1 - luma) peaks at luma=0.5 (mid-grey) and zeros "
+            "at both extremes — targeting only the midtone flesh zone.  Two operations "
+            "in the gated zone: (1) CHROMATIC DEEPENING — each channel is pushed "
+            "away from the per-pixel luminance mean by deepen_amount * w, increasing "
+            "local chroma/saturation in midtones without blowing out highlights or "
+            "graying the shadows; (2) WARM TINT — R += warm_r * w, G += warm_g * w, "
+            "adding the characteristic warm amber-gold Venetian flesh flush in the "
+            "midtone zone only.  Composite at opacity.  Parameters: "
+            "deepen_amount=0.12, warm_r=0.025, warm_g=0.012, opacity=0.35.  "
+            "Use luminous_ground_pass() for the artistic improvement: simulate the "
+            "warm umber imprimatura glowing through thin dark paint layers.  Gate "
+            "using cubic falloff (1 - luma/ground_hi)^gamma (gamma=2.0), blend "
+            "toward warm ground color in the dark zone.  Parameters: "
+            "ground_r=0.48, ground_g=0.35, ground_b=0.20, ground_hi=0.40, "
+            "ground_amount=0.18, opacity=0.30."
+        ),
+    ),
+
     # ── Sodoma (Giovanni Antonio Bazzi) ───────────────────────────────────────
     "sodoma": ArtStyle(
         artist="Sodoma (Giovanni Antonio Bazzi)",

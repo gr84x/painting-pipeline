@@ -34101,3 +34101,206 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Specular clarity pass complete.")
+
+    def bordone_venetian_warmth_pass(
+        self,
+        deepen_amount: float = 0.12,   # chromatic deepening strength in midtone zone
+        warm_r:        float = 0.025,  # R boost in midtone zone (warm amber flush)
+        warm_g:        float = 0.012,  # G boost in midtone zone (warm amber flush)
+        opacity:       float = 0.35,
+    ) -> None:
+        """Parabolic midtone chromatic deepening (twenty-seventh distinct mode).
+
+        Paris Bordone's defining quality is an intimate chromatic richness in the
+        midtone flesh zone — a warm amber-gold glow that goes beyond even Titian's
+        coloring in sensuous intensity.  This arises from two phenomena working
+        together in the Venetian multi-glaze tradition: (1) warm umber imprimatura
+        influencing the midtone register; (2) the intrinsic Venetian practice of
+        moving flesh tones away from neutral grey — making warm flesh read warmer
+        and cool shadow read cooler — a chromatic deepening operation.
+
+        This pass encodes both phenomena as the twenty-seventh distinct processing
+        mode: PARABOLIC MIDTONE CHROMATIC DEEPENING.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Parabolic midtone gate:
+            w = 4 × luma × (1 − luma)
+            → w = 0 at luma=0 (black) and luma=1 (white)
+            → w = 1 at luma=0.5 (mid-grey)
+            → peaks exactly at the midtone zone; shadows and highlights unaffected
+        (3) Chromatic deepening in midtone zone:
+            per channel: ch_deep = clip(ch + (ch − luma) × deepen_amount × w, 0, 1)
+            → moves each channel away from the per-pixel luminance mean, proportional
+              to both distance from neutral and gate weight
+            → increases local chroma/saturation in midtones without blowing out
+              highlights or graying shadows
+        (4) Warm tint in midtone zone:
+            R_tinted = clip(R_deep + warm_r × w, 0, 1)
+            G_tinted = clip(G_deep + warm_g × w, 0, 1)
+            → adds characteristic warm amber-gold Venetian flesh flush in midtones
+        (5) Composite at opacity.
+
+        Twenty-seventh distinct mode: parabolic midtone chromatic deepening.
+        Distinct from sodoma_sienese_dreamveil_pass (smooth bump gate targeting
+          warm_lo–warm_hi with LF dreamveil softening): Bordone uses parabolic
+          gate targeting luma=0.5 peak with no LF blur component.
+        Distinct from palma_vecchio (Gaussian-gated warm bloom targeting upper
+          midtones luma>bloom_lo): Bordone's parabolic gate is symmetric around
+          luma=0.5 and adds chromatic deepening alongside the warm tint.
+        Distinct from Giorgione (dual-temperature sculpting from Gaussian spatial
+          focal warmth): Bordone operates uniformly across the image in luminance
+          space, not in spatial focal zones.
+        Distinct from Gossaert (three discrete strata — shadow/midtone/highlight
+          with per-stratum treatment): Bordone uses a continuously varying parabolic
+          weight with no stratum discontinuities.
+
+        Args:
+            deepen_amount : Chromatic deepening strength — how far each channel
+                            is pushed away from luminance in the midtone zone.
+            warm_r        : R channel boost in the midtone zone (amber flush).
+            warm_g        : G channel boost in the midtone zone (amber flush).
+            opacity       : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Parabolic midtone gate ────────────────────────────────────
+        # w = 4 * luma * (1 - luma): peaks at 1.0 when luma=0.5, zero at extremes
+        w = (4.0 * luma * (1.0 - luma)).astype(_np.float32)
+
+        # ── Step 3: Chromatic deepening ───────────────────────────────────────
+        # Push each channel away from luma proportional to gate weight
+        r_deep = _np.clip(r0 + (r0 - luma) * deepen_amount * w, 0.0, 1.0)
+        g_deep = _np.clip(g0 + (g0 - luma) * deepen_amount * w, 0.0, 1.0)
+        b_deep = _np.clip(b0 + (b0 - luma) * deepen_amount * w, 0.0, 1.0)
+
+        # ── Step 4: Warm tint in midtone zone ────────────────────────────────
+        r_warm = _np.clip(r_deep + warm_r * w, 0.0, 1.0)
+        g_warm = _np.clip(g_deep + warm_g * w, 0.0, 1.0)
+        b_warm = b_deep  # blue untouched — warm tint comes from R/G boost only
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_warm * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_warm * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_warm * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Bordone Venetian warmth pass complete.")
+
+    def luminous_ground_pass(
+        self,
+        ground_r:      float = 0.48,   # warm ground color R (umber imprimatura)
+        ground_g:      float = 0.35,   # warm ground color G
+        ground_b:      float = 0.20,   # warm ground color B
+        ground_hi:     float = 0.40,   # luminance ceiling — above this, no ground glow
+        ground_amount: float = 0.18,   # blend strength toward ground color
+        gamma_ground:  float = 2.0,    # cubic falloff power — concentrates glow in darkest zones
+        opacity:       float = 0.30,
+    ) -> None:
+        """Simulate warm imprimatura glowing through dark paint layers (artistic improvement).
+
+        In oil painting on a toned ground, thin dark passages never achieve true
+        neutrality — the warm umber or sienna imprimatura glows through, giving
+        shadows a characteristic warm amber undertone.  This is most visible in
+        Venetian, Flemish, and Roman Baroque painting where the ground is a rich
+        warm brown.  Vermeer, Velázquez, Rembrandt, and the Venetians all exploit
+        this: their darkest passages are never dead grey or cold black, but retain
+        a warm amber-brown presence from the imprimatura layer beneath.
+
+        This pass encodes that luminous-ground phenomenon as a standalone artistic
+        improvement: CUBIC-FALLOFF IMPRIMATURA WARMTH IN DARK ZONES.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Shadow gate with cubic falloff:
+            normalized = clip(1 - luma / ground_hi, 0, 1)
+            gate_ground = normalized ^ gamma_ground
+            → 1 at luma=0 (absolute black), falls as gamma-th power toward 0 at luma=ground_hi
+            → concentrates the ground warmth in the darkest zones (gamma=2 → quadratic)
+        (3) Blend toward warm ground color in gated dark zone:
+            R_out = R + (ground_r − R) × gate_ground × ground_amount
+            G_out = G + (ground_g − G) × gate_ground × ground_amount
+            B_out = B + (ground_b − B) × gate_ground × ground_amount
+        (4) Composite at opacity.
+
+        This is distinct from shadow_transparency_pass (injects cool violet into
+        shadows) — luminous_ground_pass injects warm ground amber.
+        Distinct from cambiaso_geometric_planes_pass (terra tint is one of five
+        operations, uses smooth bump gate, very low amount=0.07) — this is a
+        dedicated high-gain cubic-falloff ground-glow pass.
+        Distinct from sodoma_sienese_dreamveil_pass (smooth bump gate in midtones,
+        adds LF blur) — this targets the dark zone, not midtones, with no blur.
+        Distinct from magnasco_nervous_brilliance_pass (HF scatter in dark zones,
+        warm tint only on scattered peaks) — this blends the FULL tonal range of
+        dark pixels toward the ground color, not just scattered HF peaks.
+
+        Args:
+            ground_r      : Red component of the warm ground color.
+            ground_g      : Green component of the warm ground color.
+            ground_b      : Blue component of the warm ground color.
+            ground_hi     : Luminance ceiling — ground glow drops to zero above this.
+            ground_amount : Blend fraction toward ground color at gate=1 (luma=0).
+            gamma_ground  : Falloff power — higher = more concentrated in darkest pixels.
+            opacity       : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Cubic-falloff shadow gate ─────────────────────────────────
+        normalized = _np.clip(1.0 - luma / max(ground_hi, 1e-6), 0.0, 1.0)
+        gate_ground = (normalized ** gamma_ground).astype(_np.float32)
+
+        # ── Step 3: Blend toward warm ground color ────────────────────────────
+        blend = gate_ground * ground_amount
+        r_out = _np.clip(r0 + (ground_r - r0) * blend, 0.0, 1.0)
+        g_out = _np.clip(g0 + (ground_g - g0) * blend, 0.0, 1.0)
+        b_out = _np.clip(b0 + (ground_b - b0) * blend, 0.0, 1.0)
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_out * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_out * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_out * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Luminous ground pass complete.")
