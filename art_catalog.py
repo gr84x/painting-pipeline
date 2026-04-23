@@ -12750,6 +12750,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Girolamo Romanino ─────────────────────────────────────────────────────
+    "romanino": ArtStyle(
+        artist="Girolamo Romanino",
+        movement="Brescian Venetian Impasto",
+        nationality="Italian (Brescian)",
+        period="c. 1484–1562",
+        palette=[
+            (0.90, 0.74, 0.52),   # warm ivory-gold Venetian flesh highlight
+            (0.78, 0.56, 0.34),   # ochre-amber mid-tone flesh (impasto ridge warmth)
+            (0.60, 0.42, 0.24),   # warm raw sienna mid-shadow
+            (0.38, 0.24, 0.12),   # deep umber shadow
+            (0.14, 0.08, 0.04),   # near-black Brescian ground void
+            (0.22, 0.36, 0.58),   # Venetian ultramarine blue drapery
+            (0.72, 0.18, 0.14),   # Brescian crimson-red drapery
+            (0.48, 0.54, 0.30),   # muted Venetian landscape green
+        ],
+        ground_color=(0.50, 0.36, 0.18),    # warm ochre-sienna Brescian imprimatura
+        stroke_size=7,
+        wet_blend=0.58,                      # moderate Venetian blending — impasto ridges resist full dissolution
+        edge_softness=0.42,                  # firm edges — loaded brush defines form with vigorous clarity
+        jitter=0.038,                        # energetic jitter — Romanino's spontaneous mark-making
+        glazing=(0.70, 0.52, 0.22),          # warm amber-ochre Venetian unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Brescian vigour fused with Venetian colour — Romanino trained in Venice "
+            "under the influence of Giorgione and early Titian before returning to Brescia, "
+            "where he became the most physically expressive painter of the Lombard Renaissance.  "
+            "His defining quality is IMPASTO: loaded brushstrokes that build actual relief on "
+            "the panel surface, visible as raised ridges that catch raking light from the side.  "
+            "Unlike his Brescian contemporary Moretto da Brescia (who sought silvery tonal "
+            "refinement with thin, lean paint), Romanino attacks the surface with heavy pigment, "
+            "creating a three-dimensional physical presence unique in Italian sixteenth-century "
+            "painting.  The Cremona Cathedral frescoes (1519–1520) and the Palazzo della Loggia "
+            "decorations show him at his most assured: massive, energetic figures with faces "
+            "built from bold warm flesh strokes, drapery folds articulated by heavy loaded marks, "
+            "and backgrounds of gestural landscape greens.  His colour is fully Venetian — warm "
+            "ochre flesh, deep ultramarine drapery, Brescian crimson accents — but deployed with "
+            "a physical directness that looks ahead to Titian's late impasto freedom.  The "
+            "oblique light falling across his impasto ridges produces a warm ochre gleam on the "
+            "lit side and a cool recession on the shadowed side, giving his figures their "
+            "characteristic sculptural weight and tactile immediacy."
+        ),
+        famous_works=[
+            ("Cremona Cathedral Frescoes (Passion cycle)",  "1519–1520"),
+            ("Concert",                                     "c. 1515–1517"),
+            ("Adoration of the Magi",                       "c. 1525"),
+            ("Santa Giustina Altarpiece",                   "1524"),
+            ("Portrait of Count Martinengo",                "c. 1540"),
+        ],
+        inspiration=(
+            "Use romanino_brescian_impasto_pass() to apply the TWENTY-NINTH DISTINCT "
+            "MODE: HEIGHT-FIELD OBLIQUE-LIGHT IMPASTO SIMULATION.  Computes a smoothed "
+            "luminance height field (Gaussian sigma=1.0), extracts its spatial gradient "
+            "(np.gradient), then simulates oblique illumination from the upper-left by "
+            "computing the dot product of the surface normal (−gx, −gy, 1) with the "
+            "light direction (1, 1, 0)/√2: light = −(gx + gy) × relief_scale.  Positive "
+            "light (lit ridge facing upper-left) → gate_high adds warm ochre R/G boost; "
+            "negative light (shadowed valley facing away) → gate_shadow adds cool B and "
+            "reduces R.  This creates an asymmetric warm/cool relief on every brushstroke "
+            "ridge that mimics Romanino's raking-lit impasto surface.  Parameters: "
+            "sigma=1.0, relief_scale=20.0, impasto_warm_r=0.06, impasto_warm_g=0.030, "
+            "shadow_b=0.035, shadow_r=0.015, opacity=0.35.  "
+            "Use highlight_velatura_pass() for the artistic improvement: simulate the "
+            "optical depth of a warm amber transparent oil-glaze veil in the upper-midtone "
+            "/ highlight zone [vel_lo=0.58, vel_hi=0.92].  Smooth bump gate blends toward "
+            "warm amber glaze color (glaze_r=0.88, glaze_g=0.68, glaze_b=0.28) at "
+            "vel_amount=0.12, then applies local contrast softening via Gaussian at "
+            "sigma=0.8 within the gate zone (contrast_amount=0.07), simulating the veil's "
+            "smoothing of micro-transitions in the highlight zone.  Parameters: "
+            "vel_lo=0.58, vel_hi=0.92, vel_amount=0.12, contrast_amount=0.07, "
+            "sigma=0.8, opacity=0.25."
+        ),
+    ),
+
 }
 
 

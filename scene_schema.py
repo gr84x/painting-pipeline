@@ -314,6 +314,7 @@ class Period(Enum):
     FLEMISH_ITALIANATE_RENAISSANCE = auto()  # Jan Gossaert (Mabuse) — cool-pearl highlight crystallinity, Flemish oil precision fused with Italian Renaissance classicism; three-stratum luminance striation with differential chromatic treatment
     SIENESE_LEONARDESQUE           = auto()  # Sodoma (Giovanni Antonio Bazzi) — warm Sienese golden midtone gilding fused with Leonardesque sfumato; dreamveil global LF blend dissolves edges into amber luminosity; sky-blue whisper in brightest highlights
     VENETIAN_INTIMATE_COLORISM     = auto()  # Paris Bordone — parabolic midtone chromatic deepening (gate = 4·luma·(1−luma)), warm amber Venetian flesh flush, Giorgionesque atmospheric edge softness, luminous umber ground glow
+    BRESCIAN_VENETIAN_IMPASTO      = auto()  # Girolamo Romanino — bold Venetian-Brescian impasto relief; oblique-light height-field simulation with warm ochre lit ridges and cool shadowed valleys; vigorous expressive brushwork
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1551,6 +1552,14 @@ class Style:
             # wet_blend=0.72: high Venetian blending from Titian-school training.
             # edge_softness=0.68: soft Giorgionesque dissolution — not full sfumato, but warm atmospheric.
             Period.VENETIAN_INTIMATE_COLORISM: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.72, edge_softness=0.68),
+            # BRESCIAN_VENETIAN_IMPASTO (Romanino): bold loaded brushwork, Venetian-influenced colour,
+            # vigorous impasto marks with high blending but firm edge definition from loaded brush.
+            # stroke_size_face=7: larger than Bordone — Romanino's brush is heavier and more assertive.
+            # stroke_size_bg=26: expansive background strokes — Romanino's fresco-scale gestures.
+            # wet_blend=0.58: moderate Venetian blending — less than Bordone; ridged impasto resists
+            #                  full dissolution.
+            # edge_softness=0.42: firm edges — impasto ridges define form rather than dissolving it.
+            Period.BRESCIAN_VENETIAN_IMPASTO: dict(stroke_size_face=7, stroke_size_bg=26, wet_blend=0.58, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

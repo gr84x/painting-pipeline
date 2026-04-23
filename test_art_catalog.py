@@ -154,6 +154,7 @@ EXPECTED_ARTISTS = [
     "gossaert",
     "sodoma",
     "paris_bordone",
+    "romanino",
 ]
 
 
@@ -341,6 +342,7 @@ EXPECTED_PERIODS = [
     "FLEMISH_ITALIANATE_RENAISSANCE",
     "SIENESE_LEONARDESQUE",
     "VENETIAN_INTIMATE_COLORISM",
+    "BRESCIAN_VENETIAN_IMPASTO",
 ]
 
 
@@ -18819,3 +18821,295 @@ def test_luminous_ground_pass_pixels_in_range():
 def test_paris_bordone_in_expected_artists_catalog_final():
     assert "paris_bordone" in CATALOG
     assert "paris_bordone" in EXPECTED_ARTISTS
+
+
+# =============================================================================
+# Session 149 -- Girolamo Romanino / BRESCIAN_VENETIAN_IMPASTO
+#              + romanino_brescian_impasto_pass (29th distinct mode)
+#              + highlight_velatura_pass (artistic improvement)
+# =============================================================================
+
+def test_romanino_in_catalog():
+    assert "romanino" in CATALOG, "romanino missing from CATALOG"
+
+def test_romanino_artist_name():
+    s = get_style("romanino")
+    assert "Romanino" in s.artist or "romanino" in s.artist.lower()
+
+def test_romanino_movement_brescian():
+    s = get_style("romanino")
+    assert "brescian" in s.movement.lower() or "Brescian" in s.movement
+
+def test_romanino_nationality():
+    s = get_style("romanino")
+    assert "Italian" in s.nationality or "Brescian" in s.nationality
+
+def test_romanino_palette_length():
+    s = get_style("romanino")
+    assert len(s.palette) >= 7
+
+def test_romanino_palette_in_range():
+    s = get_style("romanino")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+def test_romanino_ground_color_warm():
+    s = get_style("romanino")
+    r, g, b = s.ground_color
+    assert r > b, f"romanino ground_color expected warm (R>B): {s.ground_color}"
+
+def test_romanino_wet_blend_moderate():
+    s = get_style("romanino")
+    assert 0.40 <= s.wet_blend <= 0.75, f"romanino wet_blend expected moderate: {s.wet_blend}"
+
+def test_romanino_edge_softness_firm():
+    s = get_style("romanino")
+    assert s.edge_softness <= 0.60, f"romanino edge_softness expected firm (<= 0.60): {s.edge_softness}"
+
+def test_romanino_has_glazing():
+    s = get_style("romanino")
+    assert s.glazing is not None, "romanino must have a glazing color"
+
+def test_romanino_glazing_warm():
+    s = get_style("romanino")
+    r, g, b = s.glazing
+    assert r > b, f"romanino glazing expected warm (R>B): {s.glazing}"
+
+def test_romanino_crackle():
+    s = get_style("romanino")
+    assert s.crackle is True
+
+def test_romanino_no_chromatic_split():
+    s = get_style("romanino")
+    assert not s.chromatic_split
+
+def test_romanino_technique_mentions_impasto():
+    t = get_style("romanino").technique.lower()
+    assert "impasto" in t
+
+def test_romanino_technique_mentions_venetian():
+    t = get_style("romanino").technique.lower()
+    assert "venetian" in t
+
+def test_romanino_famous_works():
+    s = get_style("romanino")
+    assert len(s.famous_works) >= 4
+
+def test_romanino_inspiration_references_pass():
+    s = get_style("romanino")
+    assert "romanino_brescian_impasto_pass" in s.inspiration
+
+def test_romanino_inspiration_references_velatura():
+    s = get_style("romanino")
+    assert "highlight_velatura_pass" in s.inspiration
+
+def test_romanino_in_expected_artists_list():
+    assert "romanino" in EXPECTED_ARTISTS
+    assert "romanino" in CATALOG
+
+
+# -- BRESCIAN_VENETIAN_IMPASTO period -----------------------------------------
+
+def test_brescian_venetian_impasto_period_present():
+    period_names = {p.name for p in Period}
+    assert "BRESCIAN_VENETIAN_IMPASTO" in period_names
+
+def test_brescian_venetian_impasto_in_expected_periods():
+    assert "BRESCIAN_VENETIAN_IMPASTO" in EXPECTED_PERIODS
+
+def test_brescian_venetian_impasto_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.BRESCIAN_VENETIAN_IMPASTO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+def test_brescian_venetian_impasto_moderate_wet_blend():
+    style = Style(medium=Medium.OIL, period=Period.BRESCIAN_VENETIAN_IMPASTO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.40 <= p["wet_blend"] <= 0.75
+
+def test_brescian_venetian_impasto_firm_edges():
+    style = Style(medium=Medium.OIL, period=Period.BRESCIAN_VENETIAN_IMPASTO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.60
+
+
+# -- romanino_brescian_impasto_pass -------------------------------------------
+
+def test_romanino_brescian_impasto_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "romanino_brescian_impasto_pass")
+    assert callable(getattr(Painter, "romanino_brescian_impasto_pass"))
+
+def test_romanino_brescian_impasto_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.romanino_brescian_impasto_pass)
+    assert "opacity" in sig.parameters
+
+def test_romanino_brescian_impasto_pass_relief_scale_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.romanino_brescian_impasto_pass)
+    assert "relief_scale" in sig.parameters
+
+def test_romanino_brescian_impasto_pass_warm_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.romanino_brescian_impasto_pass)
+    assert "impasto_warm_r" in sig.parameters
+
+def test_romanino_brescian_impasto_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.36, 0.18), texture_strength=0.30)
+    p.romanino_brescian_impasto_pass(opacity=0.35)
+
+def test_romanino_brescian_impasto_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.36, 0.18), texture_strength=0.30)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.romanino_brescian_impasto_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+def test_romanino_brescian_impasto_pass_no_effect_on_uniform_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Perfectly uniform canvas: all gradients are zero → no impasto relief
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.00)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.romanino_brescian_impasto_pass(opacity=1.0, relief_scale=50.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after, "uniform canvas has zero gradient → impasto relief must be zero"
+
+def test_romanino_brescian_impasto_pass_modifies_textured_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.36, 0.18), texture_strength=0.30)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.romanino_brescian_impasto_pass(opacity=1.0, relief_scale=50.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+def test_romanino_brescian_impasto_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.36, 0.18), texture_strength=0.30)
+    p.romanino_brescian_impasto_pass(
+        impasto_warm_r=0.50, impasto_warm_g=0.50,
+        shadow_b=0.50, shadow_r=0.50, opacity=1.0, relief_scale=100.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+# -- highlight_velatura_pass --------------------------------------------------
+
+def test_highlight_velatura_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "highlight_velatura_pass")
+    assert callable(getattr(Painter, "highlight_velatura_pass"))
+
+def test_highlight_velatura_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.highlight_velatura_pass)
+    assert "opacity" in sig.parameters
+
+def test_highlight_velatura_pass_vel_lo_hi_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.highlight_velatura_pass)
+    assert "vel_lo" in sig.parameters
+    assert "vel_hi" in sig.parameters
+
+def test_highlight_velatura_pass_glaze_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.highlight_velatura_pass)
+    assert "glaze_r" in sig.parameters
+    assert "glaze_g" in sig.parameters
+    assert "glaze_b" in sig.parameters
+
+def test_highlight_velatura_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.72, 0.65), texture_strength=0.05)
+    p.highlight_velatura_pass(opacity=0.25)
+
+def test_highlight_velatura_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.72, 0.65), texture_strength=0.05)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.highlight_velatura_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+def test_highlight_velatura_pass_modifies_highlight_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.75, 0.75), texture_strength=0.00)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.highlight_velatura_pass(vel_lo=0.58, vel_hi=0.92, vel_amount=0.30, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+def test_highlight_velatura_pass_no_effect_below_vel_lo():
+    import numpy as np
+    from stroke_engine import Painter
+    H, W = 64, 64
+    p = Painter(width=W, height=H)
+    # luma ≈ 0.10 — well below vel_lo=0.58 → gate is zero → no change
+    p.tone_ground((0.10, 0.10, 0.10), texture_strength=0.00)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.highlight_velatura_pass(vel_lo=0.58, vel_hi=0.92, vel_amount=1.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after, "dark canvas below vel_lo must be unchanged"
+
+def test_highlight_velatura_pass_warms_highlight_r():
+    import numpy as np
+    from stroke_engine import Painter
+    H, W = 64, 64
+    p = Painter(width=W, height=H)
+    # Neutral mid-highlight: luma ≈ 0.75, inside [vel_lo=0.58, vel_hi=0.92]
+    p.tone_ground((0.75, 0.75, 0.75), texture_strength=0.00)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(H, W, 4).astype(np.float32)
+    r_before = before[:, :, 2].mean()
+    p.highlight_velatura_pass(vel_lo=0.58, vel_hi=0.92, glaze_r=0.95, glaze_g=0.50, glaze_b=0.10,
+                               vel_amount=0.50, contrast_amount=0.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(H, W, 4).astype(np.float32)
+    r_after = after[:, :, 2].mean()
+    assert r_after > r_before, f"highlight_velatura must warm R in highlight zone: before={r_before:.1f}, after={r_after:.1f}"
+
+def test_highlight_velatura_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.75, 0.75), texture_strength=0.00)
+    p.highlight_velatura_pass(
+        vel_lo=0.20, vel_hi=0.95, glaze_r=1.0, glaze_g=1.0, glaze_b=1.0,
+        vel_amount=1.0, contrast_amount=1.0, opacity=1.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+def test_romanino_in_expected_artists_catalog_final():
+    assert "romanino" in CATALOG
+    assert "romanino" in EXPECTED_ARTISTS

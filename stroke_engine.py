@@ -34304,3 +34304,265 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Luminous ground pass complete.")
+
+    def romanino_brescian_impasto_pass(
+        self,
+        sigma:           float = 1.0,   # Gaussian sigma for smoothed luma height field
+        relief_scale:    float = 20.0,  # amplification of gradient → gate [0,1]
+        impasto_warm_r:  float = 0.06,  # R boost on lit impasto ridges (warm ochre light)
+        impasto_warm_g:  float = 0.030, # G boost on lit ridges (amber light)
+        shadow_b:        float = 0.035, # B boost on shadowed valleys (cool recession)
+        shadow_r:        float = 0.015, # R reduction on shadowed valleys
+        opacity:         float = 0.35,
+    ) -> None:
+        """Simulate Romanino's bold Brescian impasto via oblique-light height-field (29th mode).
+
+        Girolamo Romanino (c. 1484–1562) was the most physically expressive
+        painter of the Brescian school.  Where his contemporary Moretto da
+        Brescia sought silvery tonal refinement, Romanino attacked the surface
+        with loaded brushes, building visible ridges of pigment that catch
+        raking light as three-dimensional relief.  His impasto is structural,
+        not decorative: ridges follow the form of drapery folds, the arc of
+        a muscle, the weight of a falling garment.  The effect — best seen in
+        the Cremona Cathedral frescoes (1519–1520) and the Palazzo della Loggia
+        cycles — is a physical vitality unique in Italian Renaissance painting.
+
+        This pass encodes that quality as the TWENTY-NINTH DISTINCT PROCESSING
+        MODE: HEIGHT-FIELD OBLIQUE-LIGHT IMPASTO SIMULATION.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Height field: smooth_luma = Gaussian(luma, sigma)
+            The smoothed luminance serves as a proxy for the local paint
+            elevation: bright regions tend to have more raised paint
+            (the dense, loaded brush deposits more pigment at peaks).
+        (3) Spatial gradient of height field:
+            gy, gx = np.gradient(smooth_luma)
+            gx = ∂h/∂x (positive = surface rises going right)
+            gy = ∂h/∂y (positive = surface rises going down)
+        (4) Oblique-light illumination from upper-left:
+            Surface normal N ≈ (−gx, −gy, 1) [z = out of canvas]
+            Light direction L = (1, 1, 0)/√2 [from upper-left toward canvas]
+            Illumination ∝ N · L = (−gx − gy) / √2
+            Scale by relief_scale then clip to [−1, 1]:
+            light = (−(gx + gy)) × relief_scale
+            gate_high   = clip(light, 0, 1)   — lit ridges (facing upper-left)
+            gate_shadow = clip(−light, 0, 1)  — shadowed valleys (facing away)
+        (5) Apply directional colour tints:
+            R_out = R + gate_high × impasto_warm_r − gate_shadow × shadow_r
+            G_out = G + gate_high × impasto_warm_g
+            B_out = B + gate_shadow × shadow_b
+            All clipped to [0, 1].
+        (6) Composite at opacity.
+
+        Twenty-ninth distinct mode: height-field oblique-light impasto simulation.
+        Distinct from gossaert_pearl_crystalline_pass (luminance striation; no
+          spatial gradient; no directional light): Romanino uses gradient-based
+          3D-relief simulation across the full spatial frequency spectrum, while
+          Gossaert classifies into discrete luminance strata.
+        Distinct from cossa_enamel_structure_pass (gem-zone chroma + USM
+          clarity): Romanino's gradient gives asymmetric warm/cool tint based
+          on local surface slope direction, not a symmetric chroma boost.
+        Distinct from cambiaso_geometric_planes_pass (zone flattening + boundary
+          clarification): Romanino emphasises the three-dimensional relief
+          within each plane, Cambiaso suppresses it.
+        Distinct from magnasco_nervous_brilliance_pass (scattered HF peaks warm-
+          tinted in dark zones): Romanino uses the gradient of the full image
+          as a directional height field; Magnasco rolls scattered HF copies.
+        Distinct from specular_clarity_pass (USM in highlight zone only): Romanino
+          operates on the gradient of smoothed luma across the full luminance
+          range, giving relief to shadows as well as highlights.
+
+        Args:
+            sigma           : Gaussian sigma for smoothed height-field estimation.
+            relief_scale    : Gradient amplification → controls impasto depth
+                              (larger = deeper apparent relief).
+            impasto_warm_r  : R boost on lit impasto ridges (warm ochre light).
+            impasto_warm_g  : G boost on lit ridges (amber component).
+            shadow_b        : B boost on shadowed valleys (cool atmospheric recession).
+            shadow_r        : R reduction on shadowed valleys.
+            opacity         : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Smoothed height field ─────────────────────────────────────
+        height = _gf(luma, sigma=sigma).astype(_np.float32)
+
+        # ── Step 3: Spatial gradient of height field ──────────────────────────
+        gy, gx = _np.gradient(height)
+        gx = gx.astype(_np.float32)
+        gy = gy.astype(_np.float32)
+
+        # ── Step 4: Oblique-light illumination from upper-left ────────────────
+        # N · L ∝ −(gx + gy); scale and clip to [−1, 1] for gate
+        light = (-(gx + gy) * relief_scale).astype(_np.float32)
+        gate_high   = _np.clip(light,  0.0, 1.0)   # lit ridges
+        gate_shadow = _np.clip(-light, 0.0, 1.0)   # shadowed valleys
+
+        # ── Step 5: Directional colour tints ──────────────────────────────────
+        r_out = _np.clip(r0 + gate_high * impasto_warm_r - gate_shadow * shadow_r, 0.0, 1.0)
+        g_out = _np.clip(g0 + gate_high * impasto_warm_g,                          0.0, 1.0)
+        b_out = _np.clip(b0 + gate_shadow * shadow_b,                              0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_out * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_out * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_out * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Romanino Brescian impasto pass complete.")
+
+    def highlight_velatura_pass(
+        self,
+        vel_lo:           float = 0.58,  # lower luminance edge of velatura zone
+        vel_hi:           float = 0.92,  # upper luminance edge of velatura zone
+        glaze_r:          float = 0.88,  # warm amber glaze tint R
+        glaze_g:          float = 0.68,  # warm amber glaze tint G
+        glaze_b:          float = 0.28,  # warm amber glaze tint B
+        vel_amount:       float = 0.12,  # fraction blended toward glaze color
+        contrast_amount:  float = 0.07,  # contrast softening within velatura zone
+        sigma:            float = 0.8,   # Gaussian sigma for contrast softening
+        opacity:          float = 0.25,
+    ) -> None:
+        """Simulate the optical depth of a transparent oil-glaze veil in the highlight zone.
+
+        In the Venetian multi-layer oil-painting tradition — and in the practice
+        of the great Central Italian masters (Raphael, Perugino, Correggio) —
+        "velatura" (Italian: glazing, veiling) refers to the application of a
+        thin, lean, semi-transparent layer of pigment over a fully dried passage.
+        Unlike imprimatura (the initial ground) or scumbling (dragging opaque
+        paint), velatura is transparent: it does not cover the layer beneath but
+        tints it chromatically while allowing its luminosity to show through.
+
+        The visual effect of a warm amber velatura over a pale highlight zone is:
+          •  Colour enrichment: the warm tint combines optically with the
+             underlying cool or neutral highlight, shifting it toward a golden
+             amber that reads as "warm light" rather than "white paint".
+          •  Optical depth: the transparent glaze layer adds perceived depth —
+             the highlight now appears luminous rather than flat or chalky.
+          •  Slight contrast reduction: thin overlapping layers of glazing
+             smooth micro-transitions in the highlight zone, giving the
+             characteristic seamless continuity of velatura passages.
+
+        This pass encodes those effects as an ARTISTIC IMPROVEMENT: TRANSPARENT
+        OIL-GLAZE VEIL IN THE UPPER-MIDTONE / HIGHLIGHT ZONE.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Velatura gate — smooth bump in [vel_lo, vel_hi]:
+            mid_vel = (vel_lo + vel_hi) / 2
+            t_lo = clip((luma − vel_lo) / (mid_vel − vel_lo), 0, 1)
+            t_hi = clip((vel_hi − luma) / (vel_hi − mid_vel), 0, 1)
+            gate_vel = t_lo × t_hi          [peaks at 1 when luma = mid_vel]
+        (3) Blend toward warm amber glaze color in velatura zone:
+            ch_vel = ch + (glaze_ch − ch) × gate_vel × vel_amount
+            → this is a partial blend toward the glaze tint, proportional
+              to how deeply the pixel sits within the velatura gate zone
+        (4) Contrast softening within velatura zone:
+            smooth_ch = Gaussian(ch_vel, sigma)
+            ch_soft = ch_vel − (ch_vel − smooth_ch) × gate_vel × contrast_amount
+            → subtracts a fraction of the HF residual in the gate zone,
+              reducing micro-contrast without globally blurring
+        (5) Composite at opacity.
+
+        Distinct from luminous_ground_pass (targets luma < ground_hi ≈ 0.40 dark
+          zone, injects warm umber ground glow): highlight_velatura_pass targets
+          luma [vel_lo=0.58, vel_hi=0.92] — the upper-midtone / highlight zone.
+        Distinct from velatura_pass (classic Old Master midtone velatura in the
+          [0.28, 0.72] zone with luma-preserved blending): highlight_velatura_pass
+          targets only the upper-midtone / highlight zone with contrast softening.
+        Distinct from bordone_venetian_warmth_pass (parabolic gate peaking at
+          luma=0.5): highlight_velatura_pass's smooth-bump gate peaks at
+          mid_vel ≈ 0.75, acting in the highlight zone Bordone's gate avoids.
+        Distinct from sodoma_sienese_dreamveil_pass (smooth bump in [0.38,0.72] +
+          global LF Gaussian): highlight_velatura_pass targets a higher luminance
+          zone and uses only local per-zone contrast softening, not global LF blur.
+        Distinct from palma_vecchio blonde_luminance_pass (warm Gaussian-gated bloom
+          on upper midtones): palma uses a multiplicative saturation-and-warm boost
+          without the glaze-blend logic or contrast softening of this pass.
+
+        Args:
+            vel_lo/hi      : Luminance range of the velatura gate zone.
+            glaze_r/g/b    : Colour of the warm amber transparent glaze.
+            vel_amount     : Blend fraction toward glaze color at peak gate.
+            contrast_amount: Fraction of HF detail removed by velatura veil.
+            sigma          : Gaussian sigma for the contrast-softening step.
+            opacity        : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Velatura gate — smooth bump in [vel_lo, vel_hi] ──────────
+        mid_vel = (vel_lo + vel_hi) * 0.5
+        denom_lo = max(float(mid_vel - vel_lo), 1e-6)
+        denom_hi = max(float(vel_hi - mid_vel), 1e-6)
+        t_lo = _np.clip((luma - vel_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((vel_hi - luma) / denom_hi, 0.0, 1.0)
+        gate_vel = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 3: Blend toward warm glaze colour ────────────────────────────
+        blend = gate_vel * vel_amount
+        r_vel = _np.clip(r0 + (glaze_r - r0) * blend, 0.0, 1.0)
+        g_vel = _np.clip(g0 + (glaze_g - g0) * blend, 0.0, 1.0)
+        b_vel = _np.clip(b0 + (glaze_b - b0) * blend, 0.0, 1.0)
+
+        # ── Step 4: Contrast softening within velatura zone ───────────────────
+        # Subtract a fraction of the HF residual (ch - smooth_ch) in the gate zone
+        smooth_r = _gf(r_vel, sigma=sigma)
+        smooth_g = _gf(g_vel, sigma=sigma)
+        smooth_b = _gf(b_vel, sigma=sigma)
+        soften = gate_vel * contrast_amount
+        r_soft = _np.clip(r_vel - (r_vel - smooth_r) * soften, 0.0, 1.0)
+        g_soft = _np.clip(g_vel - (g_vel - smooth_g) * soften, 0.0, 1.0)
+        b_soft = _np.clip(b_vel - (b_vel - smooth_b) * soften, 0.0, 1.0)
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_soft * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_soft * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_soft * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Highlight velatura pass complete.")
