@@ -34101,3 +34101,251 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Specular clarity pass complete.")
+
+    def bordone_venetian_warmth_pass(
+        self,
+        sat_lo:    float = 0.32,   # saturation boost zone luminance floor
+        sat_hi:    float = 0.70,   # saturation boost zone luminance ceiling
+        sat_boost: float = 0.08,   # chromatic saturation boost strength
+        bloom_lo:  float = 0.42,   # amber-gold flesh bloom zone floor
+        bloom_hi:  float = 0.72,   # amber-gold flesh bloom zone ceiling
+        warm_r:    float = 0.028,  # R boost in flesh bloom (amber warmth)
+        warm_g:    float = 0.014,  # G boost in flesh bloom (amber warmth)
+        shadow_hi: float = 0.30,   # shadow chromatic depth gate ceiling
+        shadow_r:  float = 0.018,  # R boost in shadow zone (warm umber tint)
+        shadow_g:  float = 0.008,  # G boost in shadow zone (warm umber tint)
+        opacity:   float = 0.30,
+    ) -> None:
+        """Venetian intimate warmth saturation + amber-gold flesh bloom + chromatic shadow depth (twenty-seventh mode).
+
+        Paris Bordone's intimate colourism differs from Leonardo's sfumato primarily
+        on the CHROMATIC RICHNESS axis.  Where Leonardo's portraits tend toward
+        cool, desaturated grey-tan shadows and warm but subdued flesh, Bordone —
+        trained under Titian and working within the rich Venetian colorist tradition
+        — saturates the flesh with amber and rose, keeps shadows warm and chromatic
+        (warm umber rather than neutral grey), and places a characteristic amber-gold
+        bloom in the flesh midtone-to-highlight transition zone.
+
+        This pass encodes those three qualities as the twenty-seventh distinct mode:
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Chromatic saturation boost in warm midtone zone [sat_lo, sat_hi]:
+            gate_sat = smooth bell curve peaking at 1 for luma in zone, 0 outside
+            mean_luma = (R + G + B) / 3  (achromatic component)
+            R_sat = R + gate_sat * sat_boost * (R - mean_luma)
+            G_sat = G + gate_sat * sat_boost * (G - mean_luma)
+            B_sat = B + gate_sat * sat_boost * (B - mean_luma)
+            → moves each channel away from achromatic mean, enriching Venetian
+              chromatic intensity in flesh and mid-value areas
+        (3) Amber-gold flesh bloom in [bloom_lo, bloom_hi]:
+            gate_bloom = smooth bell curve at 1 in zone, 0 outside
+            R_bloom = R_sat + gate_bloom * warm_r
+            G_bloom = G_sat + gate_bloom * warm_g
+            → adds the Bordone amber-gold that distinguishes Venetian intimate
+              colourism from Leonardo's cooler sfumato
+        (4) Shadow chromatic depth at luma < shadow_hi:
+            gate_shadow = smooth ramp from 1 at luma=0 to 0 at luma=shadow_hi
+            R_final = R_bloom + gate_shadow * shadow_r
+            G_final = G_bloom + gate_shadow * shadow_g
+            → keeps shadows chromatically warm and transparent (warm umber) rather
+              than graying toward neutral
+        (5) Composite at opacity.
+
+        Twenty-seventh distinct mode: all three operations address the CHROMATIC
+        RICHNESS axis (saturation, warmth, shadow colour), not edge quality.
+        Distinct from Sodoma (midtone gilding + LF dreamveil + sky-blue whisper):
+          Sodoma adds warm_r/warm_g in mid-range but also does LF softening and
+          sky-blue highlight link; Bordone has NO LF softening and adds chromatic
+          saturation boost + shadow warm tint.
+        Distinct from Giorgione (focal warmth Gaussian from compositional centre):
+          Giorgione spatially gates by distance from focal point; Bordone gates
+          purely by luminance zone.
+        Distinct from Gossaert (three-stratum with cool-pearl highlights):
+          Gossaert COOLS highlights; Bordone WARMS both highlights AND shadows.
+        Distinct from Palma Vecchio (luminance-zoned blonde bloom):
+          Palma targets luma > 0.55 only; Bordone also addresses shadow depth.
+
+        Args:
+            sat_lo    : Luminance floor of saturation boost zone.
+            sat_hi    : Luminance ceiling of saturation boost zone.
+            sat_boost : Chromatic saturation boost strength.
+            bloom_lo  : Luminance floor of amber-gold flesh bloom zone.
+            bloom_hi  : Luminance ceiling of amber-gold flesh bloom zone.
+            warm_r    : R channel boost in flesh bloom zone (amber warmth).
+            warm_g    : G channel boost in flesh bloom zone (amber warmth).
+            shadow_hi : Shadow chromatic depth gate ceiling luminance.
+            shadow_r  : R channel boost in shadow zone (warm umber tint).
+            shadow_g  : G channel boost in shadow zone (warm umber tint).
+            opacity   : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Chromatic saturation boost in [sat_lo, sat_hi] ───────────
+        # Bell curve: peaks at 1 in centre of zone, tapers to 0 at edges
+        mid_sat = (sat_lo + sat_hi) * 0.5
+        half_sat = (sat_hi - sat_lo) * 0.5
+        gate_sat = _np.clip(1.0 - _np.abs(luma - mid_sat) / max(half_sat, 1e-6), 0.0, 1.0).astype(_np.float32)
+
+        mean_rgb = (r0 + g0 + b0) / 3.0
+        r_sat = _np.clip(r0 + gate_sat * sat_boost * (r0 - mean_rgb), 0.0, 1.0)
+        g_sat = _np.clip(g0 + gate_sat * sat_boost * (g0 - mean_rgb), 0.0, 1.0)
+        b_sat = _np.clip(b0 + gate_sat * sat_boost * (b0 - mean_rgb), 0.0, 1.0)
+
+        # ── Step 3: Amber-gold flesh bloom in [bloom_lo, bloom_hi] ───────────
+        mid_bloom = (bloom_lo + bloom_hi) * 0.5
+        half_bloom = (bloom_hi - bloom_lo) * 0.5
+        gate_bloom = _np.clip(1.0 - _np.abs(luma - mid_bloom) / max(half_bloom, 1e-6), 0.0, 1.0).astype(_np.float32)
+
+        r_bloom = _np.clip(r_sat + gate_bloom * warm_r, 0.0, 1.0)
+        g_bloom = _np.clip(g_sat + gate_bloom * warm_g, 0.0, 1.0)
+        b_bloom = b_sat  # blue unchanged in amber bloom
+
+        # ── Step 4: Shadow chromatic depth (luma < shadow_hi) ────────────────
+        gate_shadow = _np.clip(1.0 - luma / max(shadow_hi, 1e-6), 0.0, 1.0).astype(_np.float32)
+
+        r_final = _np.clip(r_bloom + gate_shadow * shadow_r, 0.0, 1.0)
+        g_final = _np.clip(g_bloom + gate_shadow * shadow_g, 0.0, 1.0)
+        b_final = b_bloom  # blue unchanged in shadow warmth
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_final * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_final * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_final * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Bordone Venetian warmth pass complete.")
+
+    def luminous_ground_pass(
+        self,
+        ground_hi:  float = 0.35,   # luminance ceiling for ground recovery zone
+        ground_r:   float = 0.025,  # R boost in shadow zone (warm ground glow)
+        ground_g:   float = 0.012,  # G boost in shadow zone (warm ground glow)
+        ground_b:   float = 0.000,  # B adjustment in shadow zone (typically 0)
+        sat_lift:   float = 0.04,   # subtle saturation lift in recovered zone
+        opacity:    float = 0.28,
+    ) -> None:
+        """Warm ground luminosity recovery + ambient low-value uplift (twenty-eighth mode).
+
+        In Old Master oil technique, the toned ground — typically warm ochre, raw
+        sienna, or umber — was never fully obliterated by subsequent paint layers.
+        Thin paint passages (especially in shadows and background transitions)
+        allowed the ground's warmth to glow through, contributing a characteristic
+        luminous transparency to the darkest areas.  This quality is most evident
+        in Venetian painting: where Leonardo's shadows can feel optically solid,
+        Titian's and Bordone's deep shadows have a warm ambient translucency —
+        the ground breathing through the dark paint.
+
+        This pass recovers that quality as the twenty-eighth distinct mode:
+        WARM GROUND LUMINOSITY RECOVERY + AMBIENT LOW-VALUE UPLIFT.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Shadow gate: smooth ramp from 1 at luma=0 to 0 at luma=ground_hi
+            gate = clip(1 - luma / ground_hi, 0, 1)^2  (quadratic falloff for
+            natural appearance — strongest at absolute darkest, tapering gently)
+        (3) Warm ground uplift:
+            R_new = R + gate * ground_r
+            G_new = G + gate * ground_g
+            B_new = B + gate * ground_b
+            → injects warm amber ground warmth into dark areas, simulating the
+              ground colour glowing through thin paint passages
+        (4) Subtle saturation lift in recovered zone (optional):
+            mean_luma = (R_new + G_new + B_new) / 3
+            R_final = R_new + gate * sat_lift * (R_new - mean_luma)
+            G_final = G_new + gate * sat_lift * (G_new - mean_luma)
+            B_final = B_new + gate * sat_lift * (B_new - mean_luma)
+            → slightly enriches the chromatic content of the recovered shadow zone
+        (5) Composite at opacity.
+
+        Twenty-eighth distinct mode: WARM GROUND LUMINOSITY RECOVERY.
+        Distinct from bordone_venetian_warmth_pass (shadow_r/shadow_g tint):
+          Bordone's shadow tint is a constant additive in the shadow zone; this
+          pass uses a quadratic gate (strongest at near-black, zero at ground_hi)
+          AND adds a saturation lift in the recovered zone — simulating the ground's
+          full chromatic contribution, not just a warm tint offset.
+        Distinct from Sodoma (dreamveil LF softening): Sodoma targets EDGES via
+          LF blending; this pass targets VALUE DEPTH, not spatial frequencies.
+        Distinct from Giorgione focal warmth (Gaussian from centre): spatial
+          gating vs luminance gating.
+        Distinct from glazing_depth_pass (warm glaze over mid-values): that pass
+          uses a mid-value warm glaze; this pass recovers the NEAR-BLACK zone only
+          (luma < ground_hi, typically 0.35), below glazing_depth's working range.
+
+        Args:
+            ground_hi : Luminance ceiling for ground recovery zone.
+            ground_r  : R channel boost in shadow zone (warm ground glow).
+            ground_g  : G channel boost in shadow zone (warm ground glow).
+            ground_b  : B channel adjustment in shadow zone (usually 0).
+            sat_lift  : Saturation lift in the recovered shadow zone.
+            opacity   : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Shadow gate (quadratic falloff) ───────────────────────────
+        gate_linear = _np.clip(1.0 - luma / max(ground_hi, 1e-6), 0.0, 1.0).astype(_np.float32)
+        gate = gate_linear ** 2  # quadratic: strongest at near-black, tapers gently
+
+        # ── Step 3: Warm ground uplift ────────────────────────────────────────
+        r_up = _np.clip(r0 + gate * ground_r, 0.0, 1.0)
+        g_up = _np.clip(g0 + gate * ground_g, 0.0, 1.0)
+        b_up = _np.clip(b0 + gate * ground_b, 0.0, 1.0) if ground_b != 0.0 else b0.copy()
+
+        # ── Step 4: Subtle saturation lift in recovered zone ──────────────────
+        if sat_lift > 0.0:
+            mean_up = (r_up + g_up + b_up) / 3.0
+            r_final = _np.clip(r_up + gate * sat_lift * (r_up - mean_up), 0.0, 1.0)
+            g_final = _np.clip(g_up + gate * sat_lift * (g_up - mean_up), 0.0, 1.0)
+            b_final = _np.clip(b_up + gate * sat_lift * (b_up - mean_up), 0.0, 1.0)
+        else:
+            r_final, g_final, b_final = r_up, g_up, b_up
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_final * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_final * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_final * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Luminous ground pass complete.")

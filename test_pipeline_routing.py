@@ -15488,3 +15488,108 @@ def test_crivelli_ground_color_warm():
     r, g, b = style.ground_color
     assert r >= b, (
         f"crivelli ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")
+
+
+# ── Session 148: Paris Bordone + VENETIAN_INTIMATE_COLORISM ──────────────────
+
+def test_bordone_venetian_warmth_pass_method_exists():
+    """Painter must expose bordone_venetian_warmth_pass (session 148)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bordone_venetian_warmth_pass"), (
+        "Painter.bordone_venetian_warmth_pass missing — add it to stroke_engine.py")
+
+
+def test_luminous_ground_pass_method_exists():
+    """Painter must expose luminous_ground_pass (session 148 artistic improvement)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "luminous_ground_pass"), (
+        "Painter.luminous_ground_pass missing — add it to stroke_engine.py")
+
+
+def test_bordone_venetian_warmth_pass_runs_on_small_canvas():
+    """bordone_venetian_warmth_pass() must execute on a 64x64 canvas without error."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.65, 0.52, 0.38), texture_strength=0.00)
+    p.bordone_venetian_warmth_pass(
+        sat_lo=0.32, sat_hi=0.70, sat_boost=0.08,
+        bloom_lo=0.42, bloom_hi=0.72, warm_r=0.028, warm_g=0.014,
+        shadow_hi=0.30, shadow_r=0.018, shadow_g=0.008,
+        opacity=0.30,
+    )
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after bordone_venetian_warmth_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after bordone_venetian_warmth_pass"
+
+
+def test_luminous_ground_pass_runs_on_small_canvas():
+    """luminous_ground_pass() must execute on a 64x64 canvas without error."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.20, 0.15, 0.10), texture_strength=0.00)
+    p.luminous_ground_pass(
+        ground_hi=0.35, ground_r=0.025, ground_g=0.012,
+        ground_b=0.000, sat_lift=0.04, opacity=0.28,
+    )
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after luminous_ground_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after luminous_ground_pass"
+
+
+def test_bordone_venetian_warmth_pass_opacity_zero_is_noop():
+    """bordone_venetian_warmth_pass(opacity=0.0) must leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.65, 0.52, 0.38), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.bordone_venetian_warmth_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert _np.array_equal(before, after), (
+        "bordone_venetian_warmth_pass(opacity=0.0) must be a no-op")
+
+
+def test_luminous_ground_pass_opacity_zero_is_noop():
+    """luminous_ground_pass(opacity=0.0) must leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.20, 0.15, 0.10), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.luminous_ground_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert _np.array_equal(before, after), (
+        "luminous_ground_pass(opacity=0.0) must be a no-op")
+
+
+def test_paris_bordone_accessible_via_get_style():
+    """paris_bordone must be accessible via get_style() for pipeline routing."""
+    from art_catalog import get_style
+    style = get_style("paris_bordone")
+    assert "Bordone" in style.artist, (
+        f"paris_bordone artist name mismatch: {style.artist!r}")
+
+
+def test_paris_bordone_wet_blend_venetian_range():
+    """paris_bordone wet_blend must be >= 0.65 (rich Venetian blending)."""
+    from art_catalog import get_style
+    style = get_style("paris_bordone")
+    assert style.wet_blend >= 0.65, (
+        f"paris_bordone wet_blend {style.wet_blend} too low for Venetian colourism")
+
+
+def test_venetian_intimate_colorism_stroke_params():
+    """VENETIAN_INTIMATE_COLORISM stroke_params must be present and sensible."""
+    from scene_schema import Style, Period
+    s = Style(period=Period.VENETIAN_INTIMATE_COLORISM)
+    params = s.stroke_params
+    assert "stroke_size_face" in params, "stroke_params missing stroke_size_face"
+    assert "wet_blend" in params, "stroke_params missing wet_blend"
+    assert params["wet_blend"] >= 0.65, (
+        f"VENETIAN_INTIMATE_COLORISM wet_blend {params['wet_blend']} too low")

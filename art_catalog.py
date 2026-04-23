@@ -12618,6 +12618,76 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Paris Bordone ─────────────────────────────────────────────────────────
+    "paris_bordone": ArtStyle(
+        artist="Paris Bordone",
+        movement="Venetian Renaissance",
+        nationality="Italian (Venetian/Trevisan)",
+        period="1500–1571",
+        palette=[
+            (0.94, 0.80, 0.62),   # warm ivory-amber flesh — Venetian intimate warmth
+            (0.84, 0.66, 0.46),   # amber-rose midtone flesh
+            (0.70, 0.52, 0.32),   # warm ochre mid-shadow
+            (0.52, 0.36, 0.18),   # warm umber deep-shadow
+            (0.18, 0.12, 0.06),   # amber-black shadow void
+            (0.62, 0.72, 0.80),   # soft Venetian sky-blue (distance)
+            (0.42, 0.56, 0.44),   # Venetian green-grey middle-distance
+            (0.80, 0.62, 0.30),   # rich amber-gold drapery highlight
+        ],
+        ground_color=(0.65, 0.52, 0.32),    # warm amber-ochre Venetian ground
+        stroke_size=5,
+        wet_blend=0.72,                      # rich Venetian blending, slightly drier than Leonardo
+        edge_softness=0.58,                  # moderate-high; Venetian atmosphere without full sfumato
+        jitter=0.022,
+        glazing=(0.78, 0.56, 0.28),          # warm amber-gold Venetian glaze (Titianesque)
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Intimate Venetian colourism fused with Titianesque warmth — Bordone trained "
+            "briefly under Titian and absorbed the master's rich chromatic approach: deep, "
+            "resonant warm flesh, amber-gold illumination, and a sensuous handling of "
+            "drapery and light.  His portraits have a particular quality of intimate "
+            "warmth — the flesh is saturated with amber and rose rather than Leonardo's "
+            "cool sfumato pallor — and his shadows remain richly colored, warm umber "
+            "deepening chromatically rather than graying toward neutral.  The famous "
+            "'Fisherman Delivering the Ring to the Doge' (1534) shows his command of "
+            "complex figural composition, but his half-length portraits reveal the "
+            "intimate colorism most purely: a warm radiance in the midtones, a sensuous "
+            "amber bloom on the brightest flesh, and deep chromatic shadow that reads "
+            "as colored transparency rather than flat dark.  His grounds were warm ochre "
+            "or sienna, and the ground's warmth glows through thin flesh passages — "
+            "the Venetian technique of letting the ground contribute to the flesh tone "
+            "rather than obliterating it."
+        ),
+        famous_works=[
+            ("Fisherman Delivering the Ring to the Doge", "1534"),
+            ("Sacred Conversation with the Doge",          "1534"),
+            ("Portrait of a Young Woman",                   "c. 1540"),
+            ("Portrait of a Man",                           "c. 1545"),
+            ("The Chess Players",                           "c. 1540"),
+        ],
+        inspiration=(
+            "Use bordone_venetian_warmth_pass() to apply the TWENTY-SEVENTH DISTINCT MODE: "
+            "VENETIAN INTIMATE WARMTH SATURATION + AMBER-GOLD FLESH BLOOM + CHROMATIC SHADOW "
+            "DEPTH.  Three sequential operations: (1) Chromatic saturation boost in warm "
+            "midtone zone [sat_lo=0.32, sat_hi=0.70] — moves RGB channels away from mean luma "
+            "by sat_boost=0.08, enriching the Venetian chromatic intensity in flesh and "
+            "mid-value areas; (2) Amber-gold flesh bloom gate at [bloom_lo=0.42, bloom_hi=0.72] "
+            "— adds warm_r=0.028, warm_g=0.014 in the characteristic Bordone flesh range, "
+            "injecting the amber-gold warmth that distinguishes Venetian intimate colourism "
+            "from Leonardo's cooler sfumato; (3) Shadow chromatic depth at luma < shadow_hi=0.30 "
+            "— adds warm umber tint (shadow_r=0.018, shadow_g=0.008) to keep shadows "
+            "chromatically warm and transparent rather than grey-neutral.  This is the "
+            "twenty-seventh distinct mode: all three operations address the CHROMATIC RICHNESS "
+            "axis (saturation, warmth, shadow colour) rather than edge quality, softness, or "
+            "specular focus.  Use luminous_ground_pass() as the twenty-eighth distinct mode: "
+            "WARM GROUND LUMINOSITY RECOVERY + AMBIENT LOW-VALUE UPLIFT to simulate the warm "
+            "Venetian ground glowing through dark paint passages.  Parameters: sat_lo=0.32, "
+            "sat_hi=0.70, sat_boost=0.08, bloom_lo=0.42, bloom_hi=0.72, warm_r=0.028, "
+            "warm_g=0.014, shadow_hi=0.30, shadow_r=0.018, shadow_g=0.008, opacity=0.30."
+        ),
+    ),
+
     # ── Sodoma (Giovanni Antonio Bazzi) ───────────────────────────────────────
     "sodoma": ArtStyle(
         artist="Sodoma (Giovanni Antonio Bazzi)",

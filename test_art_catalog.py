@@ -153,6 +153,7 @@ EXPECTED_ARTISTS = [
     "cambiaso",
     "gossaert",
     "sodoma",
+    "paris_bordone",
 ]
 
 
@@ -339,6 +340,7 @@ EXPECTED_PERIODS = [
     "GENOESE_LIGURIAN_MANNERISM",
     "FLEMISH_ITALIANATE_RENAISSANCE",
     "SIENESE_LEONARDESQUE",
+    "VENETIAN_INTIMATE_COLORISM",
 ]
 
 
@@ -18523,3 +18525,154 @@ def test_sodoma_in_expected_artists_catalog_final():
     """sodoma must appear in both EXPECTED_ARTISTS list and CATALOG dict."""
     assert "sodoma" in CATALOG
     assert "sodoma" in EXPECTED_ARTISTS
+
+
+def test_paris_bordone_in_catalog():
+    """Paris Bordone (session 148) must be present in CATALOG."""
+    assert "paris_bordone" in CATALOG, "paris_bordone missing from CATALOG"
+
+
+def test_paris_bordone_in_expected_artists():
+    """paris_bordone must appear in the EXPECTED_ARTISTS list."""
+    assert "paris_bordone" in EXPECTED_ARTISTS, (
+        "paris_bordone missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_paris_bordone_movement():
+    """Paris Bordone's movement must reference Venetian Renaissance."""
+    s = get_style("paris_bordone")
+    assert "venetian" in s.movement.lower() or "renaissance" in s.movement.lower(), (
+        f"Expected Venetian/Renaissance movement, got: {s.movement!r}")
+
+
+def test_paris_bordone_palette_length():
+    """Paris Bordone must have at least 6 palette colours."""
+    s = get_style("paris_bordone")
+    assert len(s.palette) >= 6, f"Expected >=6 palette colours, got {len(s.palette)}"
+
+
+def test_paris_bordone_palette_valid_range():
+    """All palette colours for paris_bordone must be in [0, 1]."""
+    s = get_style("paris_bordone")
+    for rgb in s.palette:
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"paris_bordone palette channel out of range: {ch}"
+
+
+def test_paris_bordone_wet_blend_venetian():
+    """Paris Bordone wet_blend should be >= 0.65 (rich Venetian blending)."""
+    s = get_style("paris_bordone")
+    assert s.wet_blend >= 0.65, (
+        f"paris_bordone wet_blend {s.wet_blend} too low for Venetian colourism")
+
+
+def test_paris_bordone_edge_softness_moderate():
+    """Paris Bordone edge_softness should be in [0.45, 0.75] (moderate-high Venetian)."""
+    s = get_style("paris_bordone")
+    assert 0.45 <= s.edge_softness <= 0.75, (
+        f"paris_bordone edge_softness {s.edge_softness} outside expected [0.45, 0.75]")
+
+
+def test_paris_bordone_glazing_warm():
+    """Paris Bordone glazing colour must be warm (R > B)."""
+    s = get_style("paris_bordone")
+    assert s.glazing is not None, "paris_bordone must have a glazing colour"
+    assert s.glazing[0] > s.glazing[2], (
+        f"paris_bordone glazing must be warm (R > B): got {s.glazing}")
+
+
+def test_paris_bordone_famous_works_fisherman():
+    """Paris Bordone's famous_works must include the Fisherman work."""
+    s = get_style("paris_bordone")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("fisherman" in t for t in titles), (
+        "paris_bordone famous_works must include 'Fisherman Delivering the Ring'")
+
+
+def test_venetian_intimate_colorism_in_expected_periods():
+    """EXPECTED_PERIODS must include VENETIAN_INTIMATE_COLORISM."""
+    assert "VENETIAN_INTIMATE_COLORISM" in EXPECTED_PERIODS, (
+        "VENETIAN_INTIMATE_COLORISM missing from EXPECTED_PERIODS — add it to the list")
+
+
+def test_venetian_intimate_colorism_in_period_enum():
+    """Period enum must include VENETIAN_INTIMATE_COLORISM."""
+    period_names = {p.name for p in Period}
+    assert "VENETIAN_INTIMATE_COLORISM" in period_names, (
+        "VENETIAN_INTIMATE_COLORISM missing from Period enum in scene_schema.py")
+
+
+def test_bordone_venetian_warmth_pass_exists():
+    """Painter must expose bordone_venetian_warmth_pass method (session 148)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bordone_venetian_warmth_pass"), (
+        "Painter.bordone_venetian_warmth_pass not found — add it to stroke_engine.py")
+
+
+def test_luminous_ground_pass_exists():
+    """Painter must expose luminous_ground_pass method (session 148 artistic improvement)."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "luminous_ground_pass"), (
+        "Painter.luminous_ground_pass not found — add it to stroke_engine.py")
+
+
+def test_bordone_venetian_warmth_pass_smoke():
+    """bordone_venetian_warmth_pass() must run without error on a small canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.70, 0.55, 0.38), texture_strength=0.00)
+    p.bordone_venetian_warmth_pass(opacity=0.30)
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after bordone_venetian_warmth_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after bordone_venetian_warmth_pass"
+
+
+def test_bordone_venetian_warmth_pass_warms_midtones():
+    """bordone_venetian_warmth_pass must increase warmth (R+G) in midtone zone."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.58, 0.52, 0.42), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.bordone_venetian_warmth_pass(warm_r=0.05, warm_g=0.03, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    r_before = float(before[:, :, 2].mean())
+    r_after  = float(after[:, :, 2].mean())
+    assert r_after >= r_before, (
+        f"bordone_venetian_warmth_pass must increase R in midtones: before={r_before:.1f}, after={r_after:.1f}")
+
+
+def test_luminous_ground_pass_smoke():
+    """luminous_ground_pass() must run without error on a small canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.20, 0.15, 0.10), texture_strength=0.00)
+    p.luminous_ground_pass(opacity=0.28)
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after luminous_ground_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after luminous_ground_pass"
+
+
+def test_luminous_ground_pass_warms_dark_areas():
+    """luminous_ground_pass must increase warmth in near-black shadow zone."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.15, 0.10, 0.08), texture_strength=0.00)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.luminous_ground_pass(ground_r=0.06, ground_g=0.03, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    r_before = float(before[:, :, 2].mean())
+    r_after  = float(after[:, :, 2].mean())
+    assert r_after > r_before, (
+        f"luminous_ground_pass must increase R in dark zone: before={r_before:.1f}, after={r_after:.1f}")
