@@ -34566,3 +34566,256 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Highlight velatura pass complete.")
+
+    def beccafumi_nacreous_glow_pass(
+        self,
+        sigma_bloom:    float = 4.0,   # Gaussian sigma for bloom blur
+        glow_lo:        float = 0.28,  # lower luminance edge of mid-zone gate
+        glow_hi:        float = 0.78,  # upper luminance edge of mid-zone gate
+        glow_warm_r:    float = 0.055, # warm tint R added to positive bloom diff
+        glow_warm_g:    float = 0.032, # warm tint G added to positive bloom diff
+        glow_cool_b:    float = 0.040, # cool tint B added to negative bloom diff
+        glow_cool_r:    float = 0.018, # cool tint R reduced in negative bloom diff
+        glow_strength:  float = 0.60,  # blend fraction for the tinted bloom diff
+        opacity:        float = 0.32,
+    ) -> None:
+        """Signed Gaussian bloom difference with differential warm/cool midtone iridescence.
+
+        Domenico Beccafumi (c. 1484–1551) is the supreme master of Sienese Mannerist
+        Luminism — a style defined by NACREOUS IRIDESCENCE, the mother-of-pearl quality
+        where warm yellows and pinks sit beside cool acid greens and purples in a way
+        that shifts chromatically like opalescent light.  His characteristic internal
+        luminosity of forms arises from his unusual technique of underlaying opaque
+        white or grey before glazing acid colours over it, causing light to scatter
+        upward through translucent pigment layers and produce a soft, glowing bloom
+        around every figure.
+
+        This pass encodes those effects as the THIRTIETH DISTINCT MODE:
+        SIGNED GAUSSIAN BLOOM DIFFERENCE WITH DIFFERENTIAL WARM/COOL TINTING.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Mid-luminance gate — smooth bump in [glow_lo, glow_hi]:
+            mid_g = (glow_lo + glow_hi) / 2
+            t_lo = clip((luma − glow_lo) / (mid_g − glow_lo), 0, 1)
+            t_hi = clip((glow_hi − luma) / (glow_hi − mid_g), 0, 1)
+            gate_glow = t_lo × t_hi     [peaks at 1 when luma = mid_g]
+        (3) Compute bloom: blurred_ch = Gaussian(ch, sigma_bloom) per channel
+        (4) Signed bloom difference:
+            bloom_diff_ch = blurred_ch − ch
+            → positive where forms overflow into surrounding lighter areas (the halo)
+            → negative where dark edges resist the bloom
+        (5) Differential warm/cool tinting of the signed difference:
+            warm bloom (positive diff):
+              r_warm = r + clip(bloom_diff_r, 0, ∞) × glow_warm_r × glow_strength × gate_glow
+              g_warm = g + clip(bloom_diff_g, 0, ∞) × glow_warm_g × glow_strength × gate_glow
+            cool iridescence (negative diff — shadow-edge cool push):
+              b_cool = b − clip(bloom_diff_b, −∞, 0) × glow_cool_b × glow_strength × gate_glow
+              r_cool = r − clip(-bloom_diff_r, 0, ∞) × glow_cool_r × glow_strength × gate_glow
+        (6) Composite at opacity.
+
+        Distinct from palma_vecchio blonde_luminance_pass (multiplicative sat+warmth
+          boost via Gaussian gate, no signed difference, no cool iridescence).
+        Distinct from luminous_ground_pass (targets dark zones luma < ground_hi ≈ 0.40,
+          no signed difference, no warm/cool axis split).
+        Distinct from specular_clarity_pass (USM sharpening — subtracts blur, opposite
+          direction; only brightest zone; no warm/cool signed split).
+        Distinct from sodoma_sienese_dreamveil_pass (global LF Gaussian blend toward
+          smooth version, no signed difference, no differential warm/cool tinting).
+        Distinct from highlight_velatura_pass (targets highlights [0.58, 0.92] only,
+          blends toward glaze color, no signed Gaussian difference or cool-shadow axis).
+
+        Args:
+            sigma_bloom   : Gaussian sigma for bloom blur — controls halo radius.
+            glow_lo/hi    : Luminance range of the midtone iridescence gate.
+            glow_warm_r/g : Warm tint channels added proportionally to positive bloom diff.
+            glow_cool_b/r : Cool tint channels added/reduced proportionally to negative diff.
+            glow_strength : Overall bloom difference blend fraction at peak gate.
+            opacity       : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Mid-luminance gate — smooth bump in [glow_lo, glow_hi] ───
+        mid_g = (glow_lo + glow_hi) * 0.5
+        denom_lo = max(float(mid_g - glow_lo), 1e-6)
+        denom_hi = max(float(glow_hi - mid_g), 1e-6)
+        t_lo = _np.clip((luma - glow_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((glow_hi - luma) / denom_hi, 0.0, 1.0)
+        gate_glow = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 3: Bloom — Gaussian blur per channel ─────────────────────────
+        r_bloom = _gf(r0, sigma=sigma_bloom).astype(_np.float32)
+        g_bloom = _gf(g0, sigma=sigma_bloom).astype(_np.float32)
+        b_bloom = _gf(b0, sigma=sigma_bloom).astype(_np.float32)
+
+        # ── Step 4: Signed bloom difference ───────────────────────────────────
+        diff_r = r_bloom - r0   # positive = bright halo zone, negative = dark edge
+        diff_g = g_bloom - g0
+        diff_b = b_bloom - b0
+
+        # ── Step 5: Differential warm/cool tinting ────────────────────────────
+        gs = gate_glow * glow_strength
+
+        # Warm iridescence: positive bloom diff → warm amber nacreous overflow
+        warm_r = _np.clip(diff_r, 0.0, 1.0) * glow_warm_r * gs
+        warm_g = _np.clip(diff_g, 0.0, 1.0) * glow_warm_g * gs
+
+        # Cool iridescence: negative bloom diff → cool violet shadow shimmer
+        neg_r = _np.clip(-diff_r, 0.0, 1.0) * glow_cool_r * gs
+        neg_b = _np.clip(-diff_b, 0.0, 1.0) * glow_cool_b * gs
+
+        out_r = _np.clip(r0 + warm_r - neg_r, 0.0, 1.0)
+        out_g = _np.clip(g0 + warm_g,         0.0, 1.0)
+        out_b = _np.clip(b0 + neg_b,          0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Beccafumi nacreous glow pass complete.")
+
+    def penumbra_softening_pass(
+        self,
+        pen_lo:        float = 0.18,  # lower luminance edge of penumbra zone
+        pen_hi:        float = 0.52,  # upper luminance edge of penumbra zone
+        pen_sigma:     float = 2.0,   # Gaussian sigma for shadow-edge smoothing
+        soften_amount: float = 0.45,  # blend fraction from smoothed toward original at peak gate
+        opacity:       float = 0.28,
+    ) -> None:
+        """Gradient-magnitude-weighted shadow-edge smoothing in the penumbra zone.
+
+        In Renaissance oil painting the PENUMBRA — the transitional zone between
+        illuminated surface and shadow — is the most carefully worked passage.
+        Masters achieved seamless gradations there through patient accumulation of
+        thin overlapping strokes that dissolved the boundary between light and dark.
+        No hard edge survives: forms round into shadow through a zone that is both
+        tonally and chromatically continuous.
+
+        This pass encodes that quality as an ARTISTIC IMPROVEMENT: GRADIENT-MAGNITUDE-
+        WEIGHTED SHADOW-EDGE SMOOTHING.  Unlike a global or zone-only blur, this pass
+        gates its softening by BOTH the tonal position (shadow zone) AND the local
+        edge strength (luminance gradient magnitude), targeting precisely the hard
+        transitions within the shadow zone while leaving clean light passages and
+        deep shadow voids undisturbed.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Penumbra zone gate — smooth bump in [pen_lo, pen_hi]:
+            mid_p = (pen_lo + pen_hi) / 2
+            t_lo = clip((luma − pen_lo) / (mid_p − pen_lo), 0, 1)
+            t_hi = clip((pen_hi − luma) / (pen_hi − mid_p), 0, 1)
+            gate_pen = t_lo × t_hi
+        (3) Gradient magnitude:
+            gx, gy = np.gradient(luma)
+            grad_mag = sqrt(gx² + gy²)
+            norm_grad = clip(grad_mag / max_grad, 0, 1)  where max_grad = grad_mag.max() + ε
+        (4) Shadow edge gate:
+            shadow_edge = gate_pen × norm_grad
+            → peaks where luma is in the penumbra zone AND the local edge is strong
+        (5) Smoothed channels: smooth_ch = Gaussian(ch, sigma=pen_sigma)
+        (6) Soft-blend toward smoothed in edge zone:
+            ch_soft = ch × (1 − shadow_edge × soften_amount)
+                    + smooth_ch × shadow_edge × soften_amount
+            → hard edges in the penumbra zone are blended toward their smooth version;
+              pixels not in the zone or without strong gradients are unchanged
+        (7) Composite at opacity.
+
+        Distinct from highlight_velatura_pass (targets highlights [0.58, 0.92], no
+          gradient gating, purpose is glaze depth not shadow-edge smoothing).
+        Distinct from romanino_brescian_impasto_pass (gradient → oblique-light relief
+          simulation, adds warm/cool difference; not a softening of transitions).
+        Distinct from sebastiano_del_piombo coherence_smooth_pass (structure tensor
+          coherence — anisotropic diffusion along edge orientation; global application
+          not gated to shadow zone × gradient strength).
+        Distinct from jacopo_bassano anisotropic_diffusion_pass (Perona-Malik PDE,
+          edge-preserving diffusion, global not zone-gated).
+
+        Args:
+            pen_lo/hi     : Luminance range of the penumbra zone gate.
+            pen_sigma     : Gaussian sigma for the shadow-edge smoothing step.
+            soften_amount : Blend fraction toward smoothed at peak shadow_edge gate.
+            opacity       : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Penumbra zone gate — smooth bump in [pen_lo, pen_hi] ──────
+        mid_p = (pen_lo + pen_hi) * 0.5
+        denom_lo = max(float(mid_p - pen_lo), 1e-6)
+        denom_hi = max(float(pen_hi - mid_p), 1e-6)
+        t_lo = _np.clip((luma - pen_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((pen_hi - luma) / denom_hi, 0.0, 1.0)
+        gate_pen = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 3: Gradient magnitude ────────────────────────────────────────
+        gx, gy = _np.gradient(luma)
+        grad_mag = _np.sqrt(gx * gx + gy * gy).astype(_np.float32)
+        max_grad = float(grad_mag.max()) + 1e-6
+        norm_grad = _np.clip(grad_mag / max_grad, 0.0, 1.0)
+
+        # ── Step 4: Shadow edge gate ───────────────────────────────────────────
+        shadow_edge = (gate_pen * norm_grad).astype(_np.float32)
+
+        # ── Step 5: Smoothed channels ─────────────────────────────────────────
+        smooth_r = _gf(r0, sigma=pen_sigma).astype(_np.float32)
+        smooth_g = _gf(g0, sigma=pen_sigma).astype(_np.float32)
+        smooth_b = _gf(b0, sigma=pen_sigma).astype(_np.float32)
+
+        # ── Step 6: Blend toward smoothed in shadow edge zone ─────────────────
+        blend = shadow_edge * soften_amount
+        r_soft = _np.clip(r0 * (1.0 - blend) + smooth_r * blend, 0.0, 1.0)
+        g_soft = _np.clip(g0 * (1.0 - blend) + smooth_g * blend, 0.0, 1.0)
+        b_soft = _np.clip(b0 * (1.0 - blend) + smooth_b * blend, 0.0, 1.0)
+
+        # ── Step 7: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_soft * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_soft * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_soft * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Penumbra softening pass complete.")

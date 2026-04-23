@@ -155,6 +155,7 @@ EXPECTED_ARTISTS = [
     "sodoma",
     "paris_bordone",
     "romanino",
+    "beccafumi",
 ]
 
 
@@ -343,6 +344,7 @@ EXPECTED_PERIODS = [
     "SIENESE_LEONARDESQUE",
     "VENETIAN_INTIMATE_COLORISM",
     "BRESCIAN_VENETIAN_IMPASTO",
+    "SIENESE_MANNERIST_LUMINISM",
 ]
 
 
@@ -19113,3 +19115,262 @@ def test_highlight_velatura_pass_pixels_in_range():
 def test_romanino_in_expected_artists_catalog_final():
     assert "romanino" in CATALOG
     assert "romanino" in EXPECTED_ARTISTS
+
+
+# =============================================================================
+# Session 150 -- Domenico Beccafumi / SIENESE_MANNERIST_LUMINISM
+#              + beccafumi_nacreous_glow_pass (30th distinct mode)
+#              + penumbra_softening_pass (artistic improvement)
+# =============================================================================
+
+# -- beccafumi catalog entry --------------------------------------------------
+
+def test_beccafumi_in_catalog():
+    assert "beccafumi" in CATALOG, "beccafumi missing from CATALOG"
+
+def test_beccafumi_artist_name():
+    s = get_style("beccafumi")
+    assert "Beccafumi" in s.artist
+
+def test_beccafumi_movement():
+    s = get_style("beccafumi")
+    assert "Sienese" in s.movement or "Mannerist" in s.movement
+
+def test_beccafumi_nationality():
+    s = get_style("beccafumi")
+    assert "Italian" in s.nationality or "Sienese" in s.nationality
+
+def test_beccafumi_palette_length():
+    s = get_style("beccafumi")
+    assert len(s.palette) >= 6
+
+def test_beccafumi_palette_values_in_range():
+    s = get_style("beccafumi")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Beccafumi palette value {ch} out of [0,1]"
+
+def test_beccafumi_acid_green_in_palette():
+    """Beccafumi's signature acid yellow-green must be represented in the palette."""
+    s = get_style("beccafumi")
+    # Acid green: G > 0.60 and G dominates R and B
+    has_acid_green = any(g > 0.60 and g > r and g > b for r, g, b in s.palette)
+    assert has_acid_green, "Beccafumi palette must include signature acid yellow-green"
+
+def test_beccafumi_wet_blend_high():
+    """Beccafumi's smooth Mannerist form transitions require wet_blend >= 0.60."""
+    s = get_style("beccafumi")
+    assert s.wet_blend >= 0.60, f"beccafumi wet_blend={s.wet_blend} too low"
+
+def test_beccafumi_edge_softness_moderate():
+    """Beccafumi's nacreous aura requires edge_softness between 0.45 and 0.85."""
+    s = get_style("beccafumi")
+    assert 0.45 <= s.edge_softness <= 0.85, f"beccafumi edge_softness={s.edge_softness} unexpected"
+
+def test_beccafumi_famous_works():
+    s = get_style("beccafumi")
+    assert len(s.famous_works) >= 3
+    titles = [t for t, _ in s.famous_works]
+    assert any("Rebel" in t or "Angels" in t for t in titles), (
+        "Beccafumi famous works must include the Fall of the Rebel Angels")
+
+def test_beccafumi_inspiration_references_nacreous_pass():
+    s = get_style("beccafumi")
+    assert "beccafumi_nacreous_glow_pass" in s.inspiration
+
+def test_beccafumi_inspiration_references_penumbra_pass():
+    s = get_style("beccafumi")
+    assert "penumbra_softening_pass" in s.inspiration
+
+def test_beccafumi_inspiration_mentions_thirtieth_mode():
+    s = get_style("beccafumi")
+    assert "THIRTIETH" in s.inspiration or "30" in s.inspiration
+
+# -- SIENESE_MANNERIST_LUMINISM period ----------------------------------------
+
+def test_sienese_mannerist_luminism_period_exists():
+    period_names = {p.name for p in Period}
+    assert "SIENESE_MANNERIST_LUMINISM" in period_names
+
+def test_beccafumi_in_expected_artists():
+    assert "beccafumi" in EXPECTED_ARTISTS
+
+def test_sienese_mannerist_luminism_in_expected_periods():
+    assert "SIENESE_MANNERIST_LUMINISM" in EXPECTED_PERIODS
+
+# -- beccafumi_nacreous_glow_pass ---------------------------------------------
+
+def test_beccafumi_nacreous_glow_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "beccafumi_nacreous_glow_pass")
+    assert callable(getattr(Painter, "beccafumi_nacreous_glow_pass"))
+
+def test_beccafumi_nacreous_glow_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.beccafumi_nacreous_glow_pass)
+    assert "opacity" in sig.parameters
+
+def test_beccafumi_nacreous_glow_pass_sigma_bloom_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.beccafumi_nacreous_glow_pass)
+    assert "sigma_bloom" in sig.parameters
+
+def test_beccafumi_nacreous_glow_pass_glow_lo_hi_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.beccafumi_nacreous_glow_pass)
+    assert "glow_lo" in sig.parameters
+    assert "glow_hi" in sig.parameters
+
+def test_beccafumi_nacreous_glow_pass_warm_cool_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.beccafumi_nacreous_glow_pass)
+    assert "glow_warm_r" in sig.parameters
+    assert "glow_cool_b" in sig.parameters
+
+def test_beccafumi_nacreous_glow_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.54, 0.42, 0.22), texture_strength=0.20)
+    p.beccafumi_nacreous_glow_pass(opacity=0.32)
+
+def test_beccafumi_nacreous_glow_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.54, 0.42, 0.22), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.beccafumi_nacreous_glow_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+def test_beccafumi_nacreous_glow_pass_modifies_midtone_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Textured midtone canvas: luma ≈ 0.50, inside [glow_lo=0.28, glow_hi=0.78].
+    # Texture_strength > 0 ensures non-uniform luma → bloom_diff ≠ 0 in gate zone.
+    p.tone_ground((0.50, 0.48, 0.44), texture_strength=0.30)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.beccafumi_nacreous_glow_pass(
+        glow_lo=0.28, glow_hi=0.78, glow_warm_r=0.30, glow_warm_g=0.20,
+        glow_cool_b=0.30, glow_cool_r=0.10, glow_strength=1.0, opacity=1.0
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+def test_beccafumi_nacreous_glow_pass_no_effect_on_black():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Pure black: luma=0, below glow_lo=0.28 → gate=0 → no change
+    p.tone_ground((0.0, 0.0, 0.0), texture_strength=0.00)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.beccafumi_nacreous_glow_pass(glow_lo=0.28, glow_hi=0.78, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after, "pure black is below glow_lo — gate must be zero, no change"
+
+def test_beccafumi_nacreous_glow_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.00)
+    p.beccafumi_nacreous_glow_pass(
+        glow_warm_r=1.0, glow_warm_g=1.0, glow_cool_b=1.0, glow_cool_r=1.0,
+        glow_strength=10.0, opacity=1.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+# -- penumbra_softening_pass --------------------------------------------------
+
+def test_penumbra_softening_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "penumbra_softening_pass")
+    assert callable(getattr(Painter, "penumbra_softening_pass"))
+
+def test_penumbra_softening_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.penumbra_softening_pass)
+    assert "opacity" in sig.parameters
+
+def test_penumbra_softening_pass_pen_lo_hi_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.penumbra_softening_pass)
+    assert "pen_lo" in sig.parameters
+    assert "pen_hi" in sig.parameters
+
+def test_penumbra_softening_pass_pen_sigma_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.penumbra_softening_pass)
+    assert "pen_sigma" in sig.parameters
+
+def test_penumbra_softening_pass_soften_amount_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.penumbra_softening_pass)
+    assert "soften_amount" in sig.parameters
+
+def test_penumbra_softening_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.40, 0.35, 0.25), texture_strength=0.25)
+    p.penumbra_softening_pass(opacity=0.28)
+
+def test_penumbra_softening_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.40, 0.35, 0.25), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.penumbra_softening_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+def test_penumbra_softening_pass_no_effect_on_uniform_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Uniform canvas: gradient=0 → shadow_edge_gate=0 → no change regardless of penumbra zone
+    p.tone_ground((0.35, 0.35, 0.35), texture_strength=0.00)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.penumbra_softening_pass(pen_lo=0.18, pen_hi=0.52, soften_amount=1.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after, "uniform canvas has zero gradient — shadow_edge gate must be zero, no change"
+
+def test_penumbra_softening_pass_modifies_textured_penumbra_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Textured canvas at penumbra luma: gradient > 0 → shadow_edge gate > 0 → change
+    p.tone_ground((0.35, 0.30, 0.20), texture_strength=0.35)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.penumbra_softening_pass(
+        pen_lo=0.18, pen_hi=0.52, pen_sigma=2.0, soften_amount=0.80, opacity=1.0
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+def test_penumbra_softening_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.35, 0.30, 0.20), texture_strength=0.35)
+    p.penumbra_softening_pass(
+        pen_lo=0.00, pen_hi=1.00, pen_sigma=1.0, soften_amount=1.0, opacity=1.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+def test_beccafumi_in_expected_artists_catalog_final():
+    assert "beccafumi" in CATALOG
+    assert "beccafumi" in EXPECTED_ARTISTS

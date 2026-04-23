@@ -315,6 +315,7 @@ class Period(Enum):
     SIENESE_LEONARDESQUE           = auto()  # Sodoma (Giovanni Antonio Bazzi) — warm Sienese golden midtone gilding fused with Leonardesque sfumato; dreamveil global LF blend dissolves edges into amber luminosity; sky-blue whisper in brightest highlights
     VENETIAN_INTIMATE_COLORISM     = auto()  # Paris Bordone — parabolic midtone chromatic deepening (gate = 4·luma·(1−luma)), warm amber Venetian flesh flush, Giorgionesque atmospheric edge softness, luminous umber ground glow
     BRESCIAN_VENETIAN_IMPASTO      = auto()  # Girolamo Romanino — bold Venetian-Brescian impasto relief; oblique-light height-field simulation with warm ochre lit ridges and cool shadowed valleys; vigorous expressive brushwork
+    SIENESE_MANNERIST_LUMINISM     = auto()  # Domenico Beccafumi — nacreous iridescent midtone glow; signed Gaussian bloom difference with differential warm/cool tinting; acid yellow-green and violet against warm flesh; internal luminosity of forms
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1560,6 +1561,12 @@ class Style:
             #                  full dissolution.
             # edge_softness=0.42: firm edges — impasto ridges define form rather than dissolving it.
             Period.BRESCIAN_VENETIAN_IMPASTO: dict(stroke_size_face=7, stroke_size_bg=26, wet_blend=0.58, edge_softness=0.42),
+            # SIENESE_MANNERIST_LUMINISM (Beccafumi): Sienese Mannerist luminosity, acid palette, nacreous iridescence.
+            # stroke_size_face=5: refined Sienese marking — smaller than Romanino, precise Mannerist detail.
+            # stroke_size_bg=20: moderate background stroke — Beccafumi's altarpieces have detailed settings.
+            # wet_blend=0.70: considerable blending — Beccafumi's smooth form transitions and glow effects.
+            # edge_softness=0.62: Mannerist softness — forms dissolve slightly at edges, nacreous aura.
+            Period.SIENESE_MANNERIST_LUMINISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.70, edge_softness=0.62),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

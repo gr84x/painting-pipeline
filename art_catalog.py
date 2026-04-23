@@ -12825,6 +12825,98 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Domenico Beccafumi ────────────────────────────────────────────────────
+    "beccafumi": ArtStyle(
+        artist="Domenico Beccafumi",
+        movement="Sienese Mannerist Luminism",
+        nationality="Italian (Sienese)",
+        period="c. 1484–1551",
+        palette=[
+            (0.92, 0.82, 0.58),   # warm ivory-gold Sienese flesh highlight
+            (0.84, 0.68, 0.42),   # amber-ochre mid-tone flesh
+            (0.66, 0.50, 0.28),   # warm raw sienna mid-shadow
+            (0.34, 0.20, 0.08),   # deep umber shadow void
+            (0.52, 0.78, 0.38),   # acid yellow-green — Beccafumi's signature iridescent drapery
+            (0.46, 0.28, 0.62),   # luminous violet-purple Mannerist accent
+            (0.82, 0.34, 0.22),   # burning orange-red (Fall of the Rebel Angels flame)
+            (0.62, 0.72, 0.88),   # cool lavender-blue atmospheric recession
+        ],
+        ground_color=(0.54, 0.42, 0.22),    # warm amber-sienna Sienese imprimatura
+        stroke_size=5,
+        wet_blend=0.70,                      # considerable blending — smooth Mannerist form transitions
+        edge_softness=0.62,                  # forms dissolve slightly — nacreous aura quality
+        jitter=0.022,                        # moderate jitter — Sienese precision with Mannerist unease
+        glazing=(0.72, 0.58, 0.28),          # warm golden amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Beccafumi is the supreme master of SIENESE MANNERIST LUMINISM — a "
+            "style utterly unique in sixteenth-century Italian painting.  Unlike his "
+            "Florentine Mannerist contemporaries (Pontormo, Rosso Fiorentino) who "
+            "pursued emotional distortion, Beccafumi pursued INTERNAL LIGHT: figures "
+            "that glow from within as if their flesh and drapery were self-luminous.  "
+            "His defining quality is NACREOUS IRIDESCENCE — the mother-of-pearl "
+            "quality of his colour surfaces, where warm yellows and pinks sit beside "
+            "cool acid greens and purples in a way that shifts chromatically as the "
+            "eye moves across the surface, like opalescent light.  "
+            "His palette is unlike any other Italian painter: saturated ACID "
+            "YELLOW-GREENS (Veronese-green in intensity but warmer in hue), luminous "
+            "VIOLET-PURPLES, and BURNING ORANGE-REDS appear alongside warm golden "
+            "Sienese flesh, creating a colour discord that reads as supernatural glow "
+            "rather than decorative clash.  "
+            "The Siena Cathedral inlaid marble floors (1519–1547) — his greatest "
+            "public work — required him to design figures that read from great "
+            "distance in a single material, training his eye for bold tonal contrasts "
+            "within simplified forms.  His oil panels (the 'Fall of the Rebel Angels', "
+            "c. 1524, the 'Trinity' altarpiece) push this further: figures surrounded "
+            "by fire and light dissolve into each other through a nacreous bloom that "
+            "makes the boundary between flesh, drapery, and atmosphere uncertain.  "
+            "His preparation technique is also unusual: he often applied an opaque "
+            "white or grey UNDERPAINT over the warm ground, then glazed acid colours "
+            "over it — this is why his greens and violets retain their luminosity even "
+            "in shadow zones.  The underlayer scatters light upward through the "
+            "translucent pigment, producing the characteristic nacre effect.  "
+            "Giorgio Vasari, who disliked Beccafumi personally, nonetheless "
+            "acknowledged his unmatched gift for painting fire and supernatural light."
+        ),
+        famous_works=[
+            ("Fall of the Rebel Angels",                    "c. 1524"),
+            ("Trinity with Saints",                         "c. 1513"),
+            ("Siena Cathedral Floor Designs",               "1519–1547"),
+            ("Saint Catherine Receiving the Stigmata",      "c. 1514–1515"),
+            ("Moses Breaking the Tablets of the Law",       "c. 1537"),
+        ],
+        inspiration=(
+            "Use beccafumi_nacreous_glow_pass() to apply the THIRTIETH DISTINCT "
+            "MODE: SIGNED GAUSSIAN BLOOM DIFFERENCE WITH DIFFERENTIAL WARM/COOL "
+            "MIDTONE IRIDESCENCE.  Compute a strongly blurred version of the image "
+            "(Gaussian sigma_bloom=4.0).  Extract the signed difference: "
+            "bloom_diff = blurred_ch − original_ch.  This is positive where forms "
+            "are surrounded by light that overflows them (the nacreous halo) and "
+            "negative where dark edges resist the bloom.  Apply a mid-luminance gate "
+            "(smooth bump in [glow_lo=0.28, glow_hi=0.78]) to confine the effect to "
+            "form-bearing midtones.  Then differentially tint the positive and negative "
+            "difference: positive bloom_diff adds warm amber (R+glow_warm_r, G+glow_warm_g) "
+            "to create warm nacreous light overflow; negative bloom_diff adds cool violet "
+            "(B+glow_cool_b, R−glow_cool_r) to create the characteristic Beccafumi "
+            "cool-shadow iridescence.  Parameters: sigma_bloom=4.0, glow_lo=0.28, "
+            "glow_hi=0.78, glow_warm_r=0.055, glow_warm_g=0.032, glow_cool_b=0.040, "
+            "glow_cool_r=0.018, glow_strength=0.60, opacity=0.32.  "
+            "Use penumbra_softening_pass() for the artistic improvement: gradient-"
+            "magnitude-weighted shadow-edge smoothing to simulate the careful feathering "
+            "of the penumbra zone that Renaissance painters achieved with cumulative thin "
+            "brushstrokes.  Compute luminance, define penumbra gate (smooth bump in "
+            "[pen_lo=0.18, pen_hi=0.52]), compute gradient magnitude (np.gradient → "
+            "sqrt(gx²+gy²)), normalize to [0,1].  shadow_edge_gate = penumbra_gate × "
+            "norm_gradient — peaks where the image is both in the shadow zone AND has "
+            "strong local edges.  Apply Gaussian-smoothed blend at sigma=pen_sigma=2.0 "
+            "weighted by shadow_edge_gate × soften_amount=0.45.  This selectively "
+            "softens hard shadow transitions without globally blurring the image.  "
+            "Parameters: pen_lo=0.18, pen_hi=0.52, pen_sigma=2.0, soften_amount=0.45, "
+            "opacity=0.28."
+        ),
+    ),
+
 }
 
 
