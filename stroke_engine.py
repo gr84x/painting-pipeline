@@ -33372,3 +33372,156 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Guardi atmospheric shimmer pass complete.")
+
+    def cambiaso_geometric_planes_pass(
+        self,
+        sigma_coarse:   float = 20.0,   # large sigma for broad tonal-zone identification
+        sigma_medium:   float = 4.0,    # medium sigma for local zone mean
+        flatten_amount: float = 0.60,   # fraction of within-zone fine variation to suppress
+        edge_boost:     float = 0.30,   # boundary clarification strength at zone transitions
+        sigma_edge:     float = 1.5,    # tiny sigma for USM signal on coarse image
+        terra_r:        float = 0.68,   # terracotta ground R (warm ochre)
+        terra_g:        float = 0.45,   # terracotta ground G
+        terra_b:        float = 0.18,   # terracotta ground B
+        terra_lo:       float = 0.12,   # luminance floor of terracotta zone
+        terra_hi:       float = 0.42,   # luminance ceiling of terracotta zone
+        terra_amount:   float = 0.07,   # terracotta tint blend strength
+        opacity:        float = 0.35,
+    ) -> None:
+        """Apply Luca Cambiaso's geometric planar schematization technique.
+
+        Luca Cambiaso (1527–1585) was the leading Genoese Mannerist and the
+        first Western artist to systematically resolve the human figure into
+        simplified geometric volumes — cubes, cylinders, cones — as a method
+        for understanding three-dimensional form.  His famous cubic figure
+        drawings (scattered through the Uffizi, British Museum, and Louvre)
+        depict apostles and saints built entirely from rectangular blocks and
+        cylinders, anticipating by more than three centuries the analytical
+        Cubism of Braque and Picasso.
+
+        In Cambiaso's finished paintings, this geometric logic translates into
+        broad flat tonal planes separated by relatively crisp boundaries.  The
+        flesh is resolved not through continuous tonal gradation (Leonardo's
+        method) but through discrete luminance planes: an illuminated top plane,
+        a mid-tone tilted plane, a shadow plane.  His grounds are consistently
+        warm terracotta-ochre, glowing through shadow zones with an internal
+        warmth that prefigures Rembrandt's use of warm imprimatura.
+
+        This pass encodes that quality as the twenty-third distinct processing
+        mode: COARSE-ZONE TONAL FLATTENING WITH BOUNDARY CLARIFICATION.
+
+        Algorithm:
+        (1) Per-channel two-scale Gaussian decomposition:
+            coarse = Gaussian(ch, sigma_coarse)  — broad tonal zone structure
+            medium = Gaussian(ch, sigma_medium)  — local zone mean
+        (2) Within-zone fine variation suppression:
+            residual = ch - medium                (fine detail within zone)
+            flattened = medium + residual * (1 - flatten_amount)
+            → moving each pixel toward its local zone mean; fine texture
+              within each tonal plane is suppressed so planes read as
+              coherent geometric solids.
+        (3) Zone boundary detection from coarse luminance:
+            coarse_luma = 0.299*coarse_R + 0.587*coarse_G + 0.114*coarse_B
+            boundary = normalize(|Sobel_x(coarse_luma)| + |Sobel_y(coarse_luma)|)
+            → identifies transitions between broad tonal planes
+        (4) Boundary clarification via USM on coarse image:
+            usm = coarse_luma - Gaussian(coarse_luma, sigma_edge)
+            enhanced_ch = flattened_ch + edge_boost * usm * boundary
+            → sharpens the transitions between geometric planes
+        (5) Warm terracotta tint in shadow zone [terra_lo, terra_hi]:
+            smooth bump gate (same form as Guardi's atmospheric gate):
+            gate = 4 * clip((luma-terra_lo)/denom) * clip((terra_hi-luma)/denom)
+            blend channels toward (terra_r, terra_g, terra_b) at terra_amount
+            → terracotta ochre imprimatura glowing through shadow transitions,
+              Cambiaso's characteristic internal shadow warmth
+        (6) Composite at opacity.
+
+        Twenty-third distinct mode: coarse-zone tonal flattening.
+        Distinct from Guardi (multi-offset HF trembling): Cambiaso SUPPRESSES
+        fine detail (moves toward zone mean) rather than spatially redistributing it.
+        Distinct from Stanzione (Laplacian pyramid): Cambiaso uses only two Gaussian
+        scales, preserving medium and coarse structure; Stanzione operates across
+        full multi-resolution pyramid.
+        Distinct from Bartolommeo (Sobel edge modulation): Cambiaso uses edges
+        only at COARSE-ZONE boundaries; Bartolommeo modulates all fine-detail edges.
+        Distinct from Bassano (anisotropic diffusion): Cambiaso uses explicit
+        scale-space decomposition, not PDE iterative smoothing.
+        Distinct from Carpaccio (local std-map adaptation): Cambiaso's flattening
+        uses deterministic zone means, not local variance statistics.
+
+        Args:
+            sigma_coarse   : Large-sigma Gaussian for coarse tonal zone identification.
+            sigma_medium   : Medium-sigma Gaussian for local zone mean.
+            flatten_amount : Fraction of within-zone fine variation to suppress [0, 1].
+            edge_boost     : Strength of boundary clarification at zone transitions.
+            sigma_edge     : Fine Gaussian sigma for USM signal on coarse image.
+            terra_r/g/b    : Warm terracotta ground tint target (ochre).
+            terra_lo/hi    : Luminance zone for terracotta tint application.
+            terra_amount   : Tint blend strength within the terracotta zone.
+            opacity        : Global composite blend weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Two-scale Gaussian decomposition ──────────────────────────
+        coarse_r = _gf(r0, sigma=sigma_coarse)
+        coarse_g = _gf(g0, sigma=sigma_coarse)
+        coarse_b = _gf(b0, sigma=sigma_coarse)
+        medium_r = _gf(r0, sigma=sigma_medium)
+        medium_g = _gf(g0, sigma=sigma_medium)
+        medium_b = _gf(b0, sigma=sigma_medium)
+
+        # ── Step 2: Within-zone fine variation suppression ────────────────────
+        flat_r = medium_r + (r0 - medium_r) * (1.0 - flatten_amount)
+        flat_g = medium_g + (g0 - medium_g) * (1.0 - flatten_amount)
+        flat_b = medium_b + (b0 - medium_b) * (1.0 - flatten_amount)
+
+        # ── Step 3: Zone boundary detection from coarse luminance ─────────────
+        coarse_luma = (0.299 * coarse_r + 0.587 * coarse_g + 0.114 * coarse_b).astype(_np.float32)
+        sx = _sobel(coarse_luma, axis=1)
+        sy = _sobel(coarse_luma, axis=0)
+        boundary_raw = _np.abs(sx) + _np.abs(sy)
+        boundary = (boundary_raw / (boundary_raw.max() + 1e-6)).astype(_np.float32)
+
+        # ── Step 4: Boundary clarification via USM on coarse luminance ────────
+        coarse_tiny = _gf(coarse_luma, sigma=sigma_edge)
+        usm = (coarse_luma - coarse_tiny).astype(_np.float32)
+        gate_edge = (boundary * edge_boost).astype(_np.float32)
+        enh_r = _np.clip(flat_r + gate_edge * usm, 0.0, 1.0)
+        enh_g = _np.clip(flat_g + gate_edge * usm, 0.0, 1.0)
+        enh_b = _np.clip(flat_b + gate_edge * usm, 0.0, 1.0)
+
+        # ── Step 5: Warm terracotta tint in shadow zone ───────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+        denom = max(float(terra_hi - terra_lo), 1e-6)
+        t_lo = _np.clip((luma - terra_lo) / denom, 0.0, 1.0)
+        t_hi = _np.clip((terra_hi - luma) / denom, 0.0, 1.0)
+        gate_terra = (4.0 * t_lo * t_hi * terra_amount).astype(_np.float32)
+        tinted_r = enh_r * (1.0 - gate_terra) + terra_r * gate_terra
+        tinted_g = enh_g * (1.0 - gate_terra) + terra_g * gate_terra
+        tinted_b = enh_b * (1.0 - gate_terra) + terra_b * gate_terra
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + tinted_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + tinted_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + tinted_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Cambiaso geometric planes pass complete.")

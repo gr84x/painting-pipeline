@@ -150,6 +150,7 @@ EXPECTED_ARTISTS = [
     "filippino_lippi",
     "magnasco",
     "guardi",
+    "cambiaso",
 ]
 
 
@@ -17800,3 +17801,171 @@ def test_guardi_in_expected_artists_list():
     """guardi must appear in EXPECTED_ARTISTS and CATALOG."""
     assert "guardi" in CATALOG
     assert "guardi" in EXPECTED_ARTISTS
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 145 — Luca Cambiaso + GENOESE_LIGURIAN_MANNERISM +
+#               cambiaso_geometric_planes_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_cambiaso_in_catalog():
+    """cambiaso (Luca Cambiaso, session 145) must be in CATALOG."""
+    assert "cambiaso" in CATALOG
+
+
+def test_cambiaso_movement():
+    """cambiaso movement must reference Genoese Mannerism."""
+    s = get_style("cambiaso")
+    assert "Genoese" in s.movement or "Mannerism" in s.movement, (
+        f"Expected 'Genoese Mannerism' in movement; got {s.movement!r}")
+
+
+def test_cambiaso_nationality():
+    """cambiaso nationality must reference Italian or Genoese."""
+    s = get_style("cambiaso")
+    assert "Italian" in s.nationality or "Genoese" in s.nationality
+
+
+def test_cambiaso_palette_length():
+    """cambiaso palette must have at least 5 colours."""
+    s = get_style("cambiaso")
+    assert len(s.palette) >= 5, (
+        f"cambiaso palette should have >= 5 colours; got {len(s.palette)}")
+
+
+def test_cambiaso_palette_values_in_range():
+    """All cambiaso palette RGB values must be in [0, 1]."""
+    s = get_style("cambiaso")
+    for color in s.palette:
+        for component in color:
+            assert 0.0 <= component <= 1.0, (
+                f"cambiaso palette component out of range: {component}")
+
+
+def test_cambiaso_low_edge_softness():
+    """cambiaso edge_softness must be low (< 0.45) — crisp planar boundaries."""
+    s = get_style("cambiaso")
+    assert s.edge_softness < 0.45, (
+        f"cambiaso edge_softness should be < 0.45 (crisp planes); "
+        f"got {s.edge_softness}")
+
+
+def test_cambiaso_no_crackle():
+    """cambiaso should not use crackle finish (panel painter, not aged canvas)."""
+    s = get_style("cambiaso")
+    assert not s.crackle
+
+
+def test_cambiaso_famous_works_not_empty():
+    """cambiaso must have at least one famous work."""
+    s = get_style("cambiaso")
+    assert len(s.famous_works) >= 1
+
+
+def test_cambiaso_inspiration_references_geometric_planes():
+    """cambiaso inspiration must reference the geometric planes pass."""
+    s = get_style("cambiaso")
+    assert "geometric" in s.inspiration.lower() or "planes" in s.inspiration.lower(), (
+        "cambiaso inspiration should reference the geometric planes pass")
+
+
+def test_genoese_ligurian_mannerism_in_period_enum():
+    """GENOESE_LIGURIAN_MANNERISM must be present in Period enum."""
+    assert hasattr(Period, "GENOESE_LIGURIAN_MANNERISM"), \
+        "GENOESE_LIGURIAN_MANNERISM missing from Period enum"
+
+
+def test_genoese_ligurian_mannerism_stroke_params():
+    """GENOESE_LIGURIAN_MANNERISM stroke_params must return valid values."""
+    style = Style(medium=Medium.OIL, period=Period.GENOESE_LIGURIAN_MANNERISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_genoese_ligurian_mannerism_low_edge_softness():
+    """GENOESE_LIGURIAN_MANNERISM must have low edge_softness (< 0.45)."""
+    style = Style(medium=Medium.OIL, period=Period.GENOESE_LIGURIAN_MANNERISM,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] < 0.45, (
+        f"GENOESE_LIGURIAN_MANNERISM edge_softness should be < 0.45; "
+        f"got {p['edge_softness']}")
+
+
+def test_cambiaso_geometric_planes_pass_modifies_canvas():
+    """cambiaso_geometric_planes_pass must modify the canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.62, 0.46, 0.22), texture_strength=0.25)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.cambiaso_geometric_planes_pass(opacity=0.35)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after)
+
+
+def test_cambiaso_geometric_planes_pass_preserves_shape():
+    """cambiaso_geometric_planes_pass must preserve canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.62, 0.46, 0.22), texture_strength=0.05)
+    p.cambiaso_geometric_planes_pass(opacity=0.35)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60)
+
+
+def test_cambiaso_geometric_planes_pass_zero_opacity_noop():
+    """cambiaso_geometric_planes_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.62, 0.46, 0.22), texture_strength=0.05)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.cambiaso_geometric_planes_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after), \
+        "opacity=0 should leave canvas unchanged"
+
+
+def test_cambiaso_geometric_planes_pass_terracotta_tint_warms_shadows():
+    """cambiaso_geometric_planes_pass terracotta tint should warm dark zones."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    p = Painter(width=W, height=H)
+    # Dark olive shadow: R=0.20, G=0.20, B=0.20 → luminance ~0.20, in terra zone
+    p.tone_ground((0.20, 0.20, 0.20), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(H, W, 4).astype(_np.float32).copy()
+    p.cambiaso_geometric_planes_pass(
+        terra_r=0.68, terra_g=0.45, terra_b=0.18,
+        terra_lo=0.10, terra_hi=0.40,
+        terra_amount=0.30, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(H, W, 4).astype(_np.float32)
+    # R channel should increase (warm tint pushes toward terra_r=0.68)
+    before_r = before[:, :, 2].mean()
+    after_r = after[:, :, 2].mean()
+    assert after_r > before_r, (
+        f"Terracotta tint should raise R channel in dark zone: "
+        f"before={before_r:.2f}, after={after_r:.2f}")
+
+
+def test_genoese_ligurian_mannerism_in_expected_periods():
+    """GENOESE_LIGURIAN_MANNERISM must be present in Period enum."""
+    period_names = {p.name for p in Period}
+    assert "GENOESE_LIGURIAN_MANNERISM" in period_names
+
+
+def test_cambiaso_in_expected_artists_list():
+    """cambiaso must appear in EXPECTED_ARTISTS and CATALOG."""
+    assert "cambiaso" in CATALOG
+    assert "cambiaso" in EXPECTED_ARTISTS

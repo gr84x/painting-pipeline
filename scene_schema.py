@@ -310,6 +310,7 @@ class Period(Enum):
     VENETIAN_POETIC_TONALISM       = auto()  # Giorgione — warm amber focal radiance, mysterious poesia atmosphere, elliptical Gaussian focal warmth sculpting radiates from compositional centre; pioneering Venetian tonalism
     VENETIAN_GOLDEN_NATURALISM     = auto()  # Palma Vecchio — warm amber-golden bloom on mid-to-high luminance, rich Venetian naturalism, sensuous golden flesh warmth, luminance-zoned blonde luminance sculpting
     VENETIAN_ATMOSPHERIC_VEDUTA    = auto()  # Francesco Guardi — trembling broken impasto, forms dissolving into cool silver-grey lagoon atmosphere, coherent multi-offset HF trembling with atmospheric tint, impressionistic vedutismo
+    GENOESE_LIGURIAN_MANNERISM     = auto()  # Luca Cambiaso — geometric cubic figure schematization, warm terracotta-ochre ground, coarse-zone tonal flattening with boundary clarification between simplified volumetric planes
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1523,6 +1524,12 @@ class Style:
             # edge_softness=0.72: very high — Guardi's defining quality; forms dissolve into
             # atmosphere with no hard contours, approaching proto-Impressionist dissolution.
             Period.VENETIAN_ATMOSPHERIC_VEDUTA: dict(stroke_size_face=4, stroke_size_bg=35, wet_blend=0.28, edge_softness=0.72),
+            # GENOESE_LIGURIAN_MANNERISM (Cambiaso): broad geometric planes, crisp boundaries.
+            # stroke_size_face=8: moderate marks suited to resolving planar structure in faces.
+            # stroke_size_bg=25: medium background strokes — Cambiaso's fresco work was bold.
+            # wet_blend=0.45: moderate — planes are distinct but not as dry as Magnasco.
+            # edge_softness=0.28: relatively low — crisp tonal-plane boundaries are central.
+            Period.GENOESE_LIGURIAN_MANNERISM: dict(stroke_size_face=8, stroke_size_bg=25, wet_blend=0.45, edge_softness=0.28),
                         Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

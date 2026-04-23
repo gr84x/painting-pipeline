@@ -12416,6 +12416,101 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
 
+    # ── Luca Cambiaso ─────────────────────────────────────────────────────────
+    "cambiaso": ArtStyle(
+        artist="Luca Cambiaso",
+        movement="Genoese Mannerism",
+        nationality="Italian (Genoese)",
+        period="1527–1585",
+        palette=[
+            (0.70, 0.55, 0.28),   # warm terracotta ochre — imprimatura showing through shadow
+            (0.82, 0.73, 0.58),   # pale illuminated flesh — top plane catching light
+            (0.52, 0.40, 0.22),   # shadow-plane umber — the unlit side of the cubic form
+            (0.64, 0.52, 0.34),   # mid-tone plane — the tilted transitional surface
+            (0.36, 0.28, 0.16),   # deep umber shadow — near-void in strong chiaroscuro
+            (0.78, 0.70, 0.52),   # warm ivory highlight — peak plane facing the light source
+        ],
+        ground_color=(0.62, 0.46, 0.22),    # rich terracotta-ochre imprimatura
+        stroke_size=12,
+        wet_blend=0.52,
+        edge_softness=0.28,       # crisp boundaries between tonal planes
+        jitter=0.07,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Luca Cambiaso (1527–1585) was the dominant painter of Genoa in the "
+            "sixteenth century and one of the most technically original draughtsmen "
+            "of the entire Mannerist era.  His fame in his own lifetime rested on "
+            "large-scale decorative fresco cycles for the Genoese palaces of the "
+            "Grimaldi, Spinola, and Doria families — swift, confident work painted "
+            "with startling fluency.  But his deeper importance to the history of "
+            "Western art lies in his drawings, specifically in the remarkable series "
+            "of schematic figure studies in which human bodies are resolved into "
+            "pure geometric volumes: torsos become rectangular blocks, arms and "
+            "legs become cylinders and cones, heads become ovoid forms.  These "
+            "cubic figure studies, now scattered through the Uffizi, the British "
+            "Museum, and the Louvre, anticipate by more than three centuries the "
+            "analytical Cubism of Braque and Picasso.\n\n"
+            "The fundamental principle of Cambiaso's volumetric method is that "
+            "the human figure can be understood as an assembly of simplified "
+            "geometric solids, each with its own clearly defined illuminated face, "
+            "shadow face, and transitional half-tone plane.  Light strikes one "
+            "face; shadow occupies the opposite face; the turning plane between "
+            "them is a middle tone that can only exist as a discrete zone — never "
+            "as a continuous gradient.  In this view, the figure has no surface "
+            "texture, no pore, no vein, no subtle micro-detail: it has only planar "
+            "structure, and the painter's job is to make those planes visible "
+            "through tonal differentiation.\n\n"
+            "In his finished paintings, this philosophy translates into broad, "
+            "simplified tonal zones separated by relatively crisp boundaries.  The "
+            "flesh is not modelled through continuous tonal gradation (the method "
+            "of Leonardo) but through distinct luminance planes — an illuminated "
+            "top plane, a mid-tone tilted plane, a shadow plane — each held at a "
+            "relatively constant value within itself.  Cambiaso's grounds are "
+            "consistently warm terracotta-ochre, and this warm earth tone glows "
+            "through the shadow zones, giving his nocturnes (which include some "
+            "of the earliest sophisticated nocturne scenes in Italian painting) "
+            "an internal warmth — the terracotta ground functioning as a warm "
+            "ambient light in darkness, analogous to Rembrandt's warm imprimatura "
+            "which would appear a century later.\n\n"
+            "For the painting pipeline, Cambiaso's method translates into a "
+            "specific image-processing operation: the identification of broad "
+            "tonal zones followed by the suppression of within-zone fine variation "
+            "and the subtle sharpening of zone boundaries.  This makes each zone "
+            "read as a coherent geometric plane, as if the image were constructed "
+            "from interlocking flat solids rather than continuous tonal gradients."
+        ),
+        famous_works=[
+            ("Flight into Egypt (Nocturne)",               "c. 1570"),
+            ("Jupiter and Callisto",                        "c. 1550"),
+            ("Madonna and Child with St Anne",              "c. 1555"),
+            ("Cubic figure studies (sketchbooks)",          "c. 1575"),
+            ("Decoration, Palazzo della Prefettura, Genoa", "c. 1565"),
+        ],
+        inspiration=(
+            "Use cambiaso_geometric_planes_pass() to apply Cambiaso's defining "
+            "technical quality: the TWENTY-THIRD distinct processing mode, "
+            "COARSE-ZONE TONAL FLATTENING WITH BOUNDARY CLARIFICATION.  "
+            "The pass operates in five stages: (1) Coarse-zone identification — "
+            "large-sigma Gaussian (sigma_coarse) blurs each channel to reveal "
+            "broad tonal zones; (2) Local mean extraction — medium-sigma Gaussian "
+            "(sigma_medium) captures the local zone mean; (3) Within-zone "
+            "flattening — residual = ch - medium; flattened = medium + residual "
+            "* (1 - flatten_amount): fine variation within each plane is "
+            "suppressed, making each tonal zone read as a coherent solid surface; "
+            "(4) Boundary clarification — Sobel gradient on coarse luminance "
+            "identifies zone transition edges; USM on coarse image provides the "
+            "clarifying sharpening signal, gated by boundary mask and edge_boost; "
+            "(5) Warm terracotta tint in shadow zone [terra_lo, terra_hi]: smooth "
+            "bump gate blends toward warm ochre (terra_r, terra_g, terra_b), "
+            "replicating the ochre imprimatura glowing through Cambiaso's shadows.  "
+            "Parameters: sigma_coarse=20.0, sigma_medium=4.0, flatten_amount=0.60, "
+            "edge_boost=0.30, terra_r=0.68, terra_g=0.45, terra_b=0.18, "
+            "terra_lo=0.12, terra_hi=0.42, terra_amount=0.07, opacity=0.35."
+        ),
+    ),
+
     # ── Alessandro Magnasco (il Lissandrino) ───────────────────────────────────
     "magnasco": ArtStyle(
         artist="Alessandro Magnasco",
