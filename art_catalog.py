@@ -12324,6 +12324,98 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
 
+    # ── Francesco Guardi ──────────────────────────────────────────────────────
+    "guardi": ArtStyle(
+        artist="Francesco Guardi",
+        movement="Venetian Atmospheric Veduta",
+        nationality="Italian (Venetian)",
+        period="1712–1793",
+        palette=[
+            (0.68, 0.72, 0.76),   # cool silver-grey atmospheric haze — Guardi's dominant tone
+            (0.55, 0.61, 0.70),   # blue-grey distant recession — lagoon atmosphere
+            (0.78, 0.74, 0.62),   # warm ochre facade in sunlight — sunlit stone accents
+            (0.45, 0.50, 0.58),   # mid-distance grey-blue — building shadows dissolving to air
+            (0.72, 0.68, 0.54),   # warm honey-stone mid-tone — the palette of Venice
+            (0.62, 0.65, 0.72),   # silver-lilac reflection — water and sky interchange
+            (0.28, 0.33, 0.43),   # deep cool shadow — the deepest architectural shade
+            (0.85, 0.82, 0.72),   # pale warm ivory — sunlit peak highlight on stone
+        ],
+        ground_color=(0.52, 0.48, 0.38),
+        stroke_size=3,
+        wet_blend=0.28,
+        edge_softness=0.72,
+        jitter=0.058,
+        glazing=(0.72, 0.73, 0.70),
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Francesco Guardi (1712–1793) was the last great vedutista of the Venetian "
+            "Republic — and, in retrospect, one of the first proto-Impressionists in the "
+            "European tradition.  Born into a family of painters (his brother Giovanni "
+            "Antonio was the more acclaimed figure painter), Francesco came late to the "
+            "genre of veduta that Canaletto had made fashionable with Grand Tour collectors.  "
+            "But where Canaletto produced crystalline, almost architectural views of Venice "
+            "in which every brick and balustrade is precisely counted, Guardi painted the "
+            "city as a shimmer of light on water — a place less of stone than of atmosphere, "
+            "perpetually in motion, perpetually on the verge of dissolving into its own "
+            "luminous reflections.\n\n"
+            "The decisive technical difference between the two painters is the brush.  "
+            "Canaletto's marks are deliberate and cumulative, building up precise tonal "
+            "zones with careful underpainting and crisp finish.  Guardi's are trembling, "
+            "feathery, and almost calligraphic — tiny flickering touches that individually "
+            "resolve into almost nothing but collectively conjure a building, a boat, a "
+            "figure, a crowd.  His gondoliers are not painted; they are suggested by a few "
+            "strokes of near-black against the silver water.  His palaces do not stand; "
+            "they shimmer.  His skies are not cerulean; they tremble between blue and "
+            "grey and lilac and warm ivory at the horizon, as if the atmosphere itself "
+            "could not make up its mind.\n\n"
+            "Technically, Guardi's surfaces have several interlocking qualities.  First, "
+            "the high-frequency detail — the fine surface texture — is fractured and "
+            "redistributed rather than concentrated at hard edges: his marks carry a "
+            "trembling quality, as if each brushstroke vibrates at a slightly different "
+            "position from where it should logically be.  The result is a surface that "
+            "appears to shimmer when viewed from a distance, as the eye attempts to "
+            "assemble the fractured marks into coherent forms.  Second, his palette is "
+            "dominated by a pervasive cool grey-silver that functions as an atmospheric "
+            "medium: warm ochre stone accents exist, but they are modulated by the cool "
+            "envelope that surrounds everything, unifying warm and cool.  Third, his "
+            "saturation is deliberately damped in mid-tonal zones — the grey-blue of the "
+            "atmosphere is not vivid but luminous, achieved by keeping chromatic intensity "
+            "low while maximising tonal contrast between warm accents and cool voids.\n\n"
+            "Guardi's influence on later painting is difficult to overstate.  Turner, who "
+            "visited Venice in 1819 and again in 1840, absorbed Guardi's atmospheric "
+            "dissolution.  The Impressionists found in him a precedent for their own "
+            "broken-colour surfaces.  And Whistler, making his Venice etchings in 1879–80, "
+            "clearly understood that Guardi had already solved the central problem of "
+            "representing Venice: not the city as it is, but the city as light makes it appear."
+        ),
+        famous_works=[
+            ("The Grand Canal at the Rialto Bridge",        "c. 1765"),
+            ("Venice: Santa Maria della Salute",            "c. 1770"),
+            ("The Doge's Palace and the Piazzetta",         "c. 1775"),
+            ("A Regatta on the Grand Canal",                "c. 1784"),
+            ("The Giudecca Canal with the Zattere",         "c. 1758"),
+            ("The Lagoon from the Fondamenta Nuove",        "c. 1780"),
+        ],
+        inspiration=(
+            "Use guardi_atmospheric_shimmer_pass() to introduce Guardi's defining "
+            "technical qualities: the TWENTY-SECOND distinct processing mode in the "
+            "pipeline, COHERENT MULTI-OFFSET HF TREMBLING with cool atmospheric tint.  "
+            "The pass operates in three stages: (1) HF trembling — per-channel, extract "
+            "the high-frequency component (HF = channel - Gaussian(channel, shimmer_sigma)), "
+            "then build a trembled HF by averaging n_trembles shifted copies of HF at "
+            "controlled ±tremble_px pixel offsets; reconstruct the trembled image as "
+            "Gaussian_smooth + trembled_HF.  (2) Cool atmospheric tint — in mid-luminance "
+            "zones [cool_lo, cool_hi], blend toward the cool grey-silver target at "
+            "cool_amount strength.  (3) Saturation damping — reduce chromatic intensity "
+            "in those zones by lerping toward the luminance grey.  "
+            "Parameters: shimmer_sigma=1.5, n_trembles=6, tremble_px=2, "
+            "cool_r=0.72, cool_g=0.74, cool_b=0.78, cool_lo=0.30, cool_hi=0.75, "
+            "cool_amount=0.06, sat_dampen=0.10, opacity=0.38."
+        ),
+    ),
+
+
     # ── Alessandro Magnasco (il Lissandrino) ───────────────────────────────────
     "magnasco": ArtStyle(
         artist="Alessandro Magnasco",

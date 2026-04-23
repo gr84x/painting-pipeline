@@ -309,6 +309,7 @@ class Period(Enum):
     LOMBARD_SILVER_CLASSICISM      = auto()  # Moretto da Brescia — cool pearlescent silver light, ivory-cool skin, CIE Lab perceptual colour sculpting depletes yellow-warmth in highlights for silver-neutral tonality
     VENETIAN_POETIC_TONALISM       = auto()  # Giorgione — warm amber focal radiance, mysterious poesia atmosphere, elliptical Gaussian focal warmth sculpting radiates from compositional centre; pioneering Venetian tonalism
     VENETIAN_GOLDEN_NATURALISM     = auto()  # Palma Vecchio — warm amber-golden bloom on mid-to-high luminance, rich Venetian naturalism, sensuous golden flesh warmth, luminance-zoned blonde luminance sculpting
+    VENETIAN_ATMOSPHERIC_VEDUTA    = auto()  # Francesco Guardi — trembling broken impasto, forms dissolving into cool silver-grey lagoon atmosphere, coherent multi-offset HF trembling with atmospheric tint, impressionistic vedutismo
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1513,6 +1514,15 @@ class Style:
             # edge_softness=0.18: firm — figures emerge from darkness via tonal contrast, not
             # atmospheric blending; the nervous energy requires legible mark boundaries.
             Period.GENOESE_DARK_BAROQUE: dict(stroke_size_face=4, stroke_size_bg=30, wet_blend=0.12, edge_softness=0.18),
+            # VENETIAN_ATMOSPHERIC_VEDUTA (Guardi): trembling loose marks, forms dissolve into atmosphere.
+            # stroke_size_face=4: small, feathery marks — Guardi never used broad loaded impasto for
+            # figures; his surfaces tremble with many small, barely-resolving touches.
+            # stroke_size_bg=35: large atmospheric washes for sky/lagoon backgrounds.
+            # wet_blend=0.28: moderately wet — marks partially fuse at edges but not fully;
+            # the characteristic Guardi quality is between dry impasto and Venetian glazing.
+            # edge_softness=0.72: very high — Guardi's defining quality; forms dissolve into
+            # atmosphere with no hard contours, approaching proto-Impressionist dissolution.
+            Period.VENETIAN_ATMOSPHERIC_VEDUTA: dict(stroke_size_face=4, stroke_size_bg=35, wet_blend=0.28, edge_softness=0.72),
                         Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
