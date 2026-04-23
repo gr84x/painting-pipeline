@@ -33101,3 +33101,118 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Focal vignette pass complete.")
+
+    def magnasco_nervous_brilliance_pass(
+        self,
+        hf_sigma:      float = 2.5,
+        scatter_px:    int   = 3,
+        bright_thresh: float = 0.04,
+        dark_gate_lo:  float = 0.10,
+        dark_gate_hi:  float = 0.65,
+        warm_tint:     float = 0.05,
+        opacity:       float = 0.35,
+    ) -> None:
+        """Apply Magnasco's nervous scattered highlight technique.
+
+        Alessandro Magnasco (il Lissandrino, 1667-1749) painted from near-black
+        umber grounds, adding rapid impasto highlight touches with fierce nervous
+        energy — figures emerge from darkness via scattered amber-gold flickers
+        of paint rather than continuous tonal modelling.
+
+        This pass encodes that quality as the twenty-first distinct processing
+        mode: SPATIAL-SCATTER HIGH-FREQUENCY LUMINANCE REVIVAL.
+
+        Algorithm:
+        (1) Extract positive HF component per channel:
+            HF = clip(channel - Gaussian(channel, hf_sigma) - bright_thresh, 0, inf)
+        (2) Compute n_copies=4 randomly shifted versions of HF using np.roll
+            at ±scatter_px pixel offsets (deterministic seed)
+        (3) Average the shifted copies to form the scattered highlight layer
+        (4) Compute dark-zone gate:
+            gate = 1 - clip((luma - dark_gate_lo) / (dark_gate_hi - dark_gate_lo), 0, 1)
+        (5) Warm-tint scattered R channel: R_scatter *= (1 + warm_tint)
+        (6) Add scattered HF to original, composite at opacity * dark_gate
+
+        Twenty-first distinct mode: spatial-scatter high-frequency luminance
+        revival.  Distinct from s123 Rosa (turbulent flow warping of the ENTIRE
+        image using a smooth continuous vector field) because this mode extracts
+        only BRIGHT PEAKS from the high-frequency component and scatters these
+        isolated highlight marks by discrete random pixel offsets — the base
+        image structure is not warped, only the surface highlight flickers are
+        scattered.  Distinct from s128 Carpaccio (local variance std-map
+        continuous spatial adaptation of stroke behaviour) because this is a
+        discrete-offset point scatter operation on thresholded luminance peaks,
+        not smooth variance-driven adaptation.
+
+        Args:
+            hf_sigma      : Gaussian sigma for high-frequency extraction.
+            scatter_px    : Maximum pixel offset (±) for each shifted copy.
+            bright_thresh : Minimum HF amplitude to qualify as a bright peak.
+            dark_gate_lo  : Luminance below which dark-zone gate is at maximum.
+            dark_gate_hi  : Luminance above which dark-zone gate drops to zero.
+            warm_tint     : Red-channel warm boost on scattered highlight peaks.
+            opacity       : Final composite weight (0-1).
+        """
+        print(f"Magnasco nervous brilliance pass (hf_sigma={hf_sigma:.1f}, "
+              f"scatter_px={scatter_px}, opacity={opacity:.2f})...")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            print("    Magnasco nervous brilliance pass skipped (opacity=0).")
+            return
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # -- Extract positive high-frequency component (bright surface peaks) --
+        hf_r = _np.clip(r0 - _gf(r0, sigma=hf_sigma) - bright_thresh, 0.0, 1.0)
+        hf_g = _np.clip(g0 - _gf(g0, sigma=hf_sigma) - bright_thresh, 0.0, 1.0)
+        hf_b = _np.clip(b0 - _gf(b0, sigma=hf_sigma) - bright_thresh, 0.0, 1.0)
+
+        # -- Scatter: 4 shifted copies at random ±scatter_px offsets -----------
+        rng = _np.random.RandomState(143)          # deterministic per session
+        n_copies = 4
+        sc_r = _np.zeros_like(hf_r)
+        sc_g = _np.zeros_like(hf_g)
+        sc_b = _np.zeros_like(hf_b)
+        for _ in range(n_copies):
+            dy = int(rng.randint(-scatter_px, scatter_px + 1))
+            dx = int(rng.randint(-scatter_px, scatter_px + 1))
+            sc_r += _np.roll(_np.roll(hf_r, dy, axis=0), dx, axis=1)
+            sc_g += _np.roll(_np.roll(hf_g, dy, axis=0), dx, axis=1)
+            sc_b += _np.roll(_np.roll(hf_b, dy, axis=0), dx, axis=1)
+        sc_r /= n_copies
+        sc_g /= n_copies
+        sc_b /= n_copies
+
+        # -- Dark-zone gate: concentrate effect in dark and mid-dark tones -----
+        luma = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        denom = max(float(dark_gate_hi - dark_gate_lo), 1e-6)
+        dark_gate = (1.0 - _np.clip((luma - dark_gate_lo) / denom, 0.0, 1.0)
+                     ).astype(_np.float32)
+
+        # -- Warm-tint the scattered highlights (amber-gold candlelight) -------
+        sc_r_warm = _np.clip(sc_r * (1.0 + warm_tint), 0.0, 1.0)
+
+        # -- Composite: add scattered peaks gated by darkness and opacity ------
+        blend = (opacity * dark_gate).astype(_np.float32)
+        r_f = _np.clip(r0 + sc_r_warm * blend, 0.0, 1.0)
+        g_f = _np.clip(g0 + sc_g    * blend, 0.0, 1.0)
+        b_f = _np.clip(b0 + sc_b    * blend, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Magnasco nervous brilliance pass complete.")

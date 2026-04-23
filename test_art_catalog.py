@@ -148,6 +148,7 @@ EXPECTED_ARTISTS = [
     "cossa",
     "crivelli",
     "filippino_lippi",
+    "magnasco",
 ]
 
 
@@ -329,6 +330,7 @@ EXPECTED_PERIODS = [
     "VENETIAN_GILT_BYZANTINE_SPLENDOUR",
     "VENETIAN_GOLDEN_NATURALISM",
     "LATE_FLORENTINE_QUATTROCENTO",
+    "GENOESE_DARK_BAROQUE",
 ]
 
 
@@ -17425,3 +17427,162 @@ def test_late_florentine_quattrocento_in_expected_periods():
 
 def test_filippino_lippi_in_expected_artists():
     assert "filippino_lippi" in CATALOG
+
+
+# =============================================================================
+# Session 143 -- Alessandro Magnasco / GENOESE_DARK_BAROQUE
+#              + magnasco_nervous_brilliance_pass
+# =============================================================================
+
+def test_magnasco_in_catalog():
+    assert "magnasco" in CATALOG, "magnasco missing from CATALOG"
+
+def test_magnasco_artist_name():
+    s = get_style("magnasco")
+    assert "Magnasco" in s.artist
+
+def test_magnasco_movement_genoese_or_baroque():
+    s = get_style("magnasco")
+    m = s.movement.lower()
+    assert "genoese" in m or "baroque" in m or "dark" in m
+
+def test_magnasco_palette_length():
+    s = get_style("magnasco")
+    assert len(s.palette) >= 6
+
+def test_magnasco_palette_in_range():
+    s = get_style("magnasco")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+def test_magnasco_ground_color_dark():
+    s = get_style("magnasco")
+    r, g, b = s.ground_color
+    avg = (r + g + b) / 3.0
+    assert avg < 0.25, f"expected dark ground (avg < 0.25), got {avg:.3f}"
+
+def test_magnasco_low_wet_blend():
+    s = get_style("magnasco")
+    assert s.wet_blend < 0.25, f"expected low wet_blend, got {s.wet_blend}"
+
+def test_magnasco_firm_edges():
+    s = get_style("magnasco")
+    assert s.edge_softness < 0.35, f"expected firm edges, got {s.edge_softness}"
+
+def test_magnasco_technique_mentions_dark_or_nervous_or_highlight():
+    t = get_style("magnasco").technique.lower()
+    assert ("dark" in t or "nervous" in t or "highlight" in t
+            or "flicker" in t or "black" in t or "impasto" in t)
+
+def test_magnasco_famous_works_includes_key_work():
+    s = get_style("magnasco")
+    assert len(s.famous_works) >= 3
+
+def test_genoese_dark_baroque_period_in_enum():
+    assert hasattr(Period, "GENOESE_DARK_BAROQUE"), \
+        "GENOESE_DARK_BAROQUE missing from Period enum"
+
+def test_genoese_dark_baroque_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.GENOESE_DARK_BAROQUE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+def test_genoese_dark_baroque_low_wet_blend():
+    style = Style(medium=Medium.OIL, period=Period.GENOESE_DARK_BAROQUE,
+                  palette=PaletteHint.DARK_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] < 0.25
+
+def test_magnasco_nervous_brilliance_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "magnasco_nervous_brilliance_pass")
+    assert callable(getattr(Painter, "magnasco_nervous_brilliance_pass"))
+
+def test_magnasco_nervous_brilliance_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.magnasco_nervous_brilliance_pass)
+    assert "opacity" in sig.parameters
+
+def test_magnasco_nervous_brilliance_pass_hf_sigma_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.magnasco_nervous_brilliance_pass)
+    assert "hf_sigma" in sig.parameters
+
+def test_magnasco_nervous_brilliance_pass_scatter_px_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.magnasco_nervous_brilliance_pass)
+    assert "scatter_px" in sig.parameters
+
+def test_magnasco_nervous_brilliance_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.10, 0.07, 0.04), texture_strength=0.05)
+    p.magnasco_nervous_brilliance_pass(opacity=0.35)
+
+def test_magnasco_nervous_brilliance_pass_zero_opacity_no_op():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.10, 0.07, 0.04), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.magnasco_nervous_brilliance_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after)
+
+def test_magnasco_nervous_brilliance_pass_modifies_canvas():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Use strong texture so HF peaks survive bright_thresh and dark gate is active
+    p.tone_ground((0.45, 0.38, 0.22), texture_strength=0.35)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.magnasco_nervous_brilliance_pass(bright_thresh=0.0, opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after)
+
+def test_magnasco_nervous_brilliance_pass_preserves_shape():
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.10, 0.07, 0.04), texture_strength=0.05)
+    p.magnasco_nervous_brilliance_pass(opacity=0.35)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60)
+
+def test_magnasco_nervous_brilliance_pass_dark_zone_gate():
+    import numpy as _np
+    from stroke_engine import Painter
+    # Dark canvas should receive more effect than bright canvas
+    p_dark = Painter(width=64, height=64)
+    p_dark.tone_ground((0.10, 0.08, 0.05), texture_strength=0.04)
+    p_bright = Painter(width=64, height=64)
+    p_bright.tone_ground((0.85, 0.82, 0.78), texture_strength=0.04)
+    before_dark   = _np.frombuffer(
+        p_dark.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32).copy()
+    before_bright = _np.frombuffer(
+        p_bright.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32).copy()
+    p_dark.magnasco_nervous_brilliance_pass(opacity=1.0)
+    p_bright.magnasco_nervous_brilliance_pass(opacity=1.0)
+    after_dark   = _np.frombuffer(
+        p_dark.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32)
+    after_bright = _np.frombuffer(
+        p_bright.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32)
+    delta_dark   = float(_np.abs(after_dark   - before_dark  ).mean())
+    delta_bright = float(_np.abs(after_bright - before_bright).mean())
+    assert delta_dark >= delta_bright, (
+        f"Dark canvas should change more than bright (dark={delta_dark:.4f}, "
+        f"bright={delta_bright:.4f})")
+
+def test_genoese_dark_baroque_in_expected_periods():
+    period_names = {p.name for p in Period}
+    assert "GENOESE_DARK_BAROQUE" in period_names
+
+def test_magnasco_in_expected_artists():
+    assert "magnasco" in CATALOG

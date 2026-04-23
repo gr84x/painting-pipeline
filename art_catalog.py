@@ -12323,6 +12323,60 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Alessandro Magnasco (il Lissandrino) ───────────────────────────────────
+    "magnasco": ArtStyle(
+        artist="Alessandro Magnasco",
+        movement="Genoese Dark Baroque",
+        nationality="Italian (Genoese)",
+        period="1667–1749",
+        palette=[
+            (0.08, 0.06, 0.04),   # near-black umber void
+            (0.22, 0.15, 0.08),   # dark warm shadow
+            (0.82, 0.68, 0.38),   # amber-golden impasto highlight
+            (0.72, 0.56, 0.32),   # warm mid-tone flicker
+            (0.35, 0.28, 0.18),   # dark ochre mid-shadow
+            (0.58, 0.45, 0.25),   # warm sienna accent
+            (0.88, 0.82, 0.65),   # pale silver-gold peak highlight
+        ],
+        ground_color=(0.10, 0.07, 0.04),    # near-black umber ground
+        stroke_size=4,
+        wet_blend=0.12,                      # dry rapid marks — not blended
+        edge_softness=0.18,                  # firm edges — nervous, graphic
+        jitter=0.07,                         # high per-stroke variation
+        glazing=(0.40, 0.28, 0.10),          # dark amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Nervous flickering highlights on near-black umber grounds — rapid "
+            "impasto marks placed with fierce gestural energy; figures and "
+            "environments emerge from near-total darkness via scattered warm "
+            "amber-gold highlight touches applied with a loaded, quickened brush. "
+            "Magnasco's surfaces feel perpetually in motion: nothing rests, "
+            "every mark vibrates with expressive urgency."
+        ),
+        famous_works=[
+            ("The Last Supper",                          "c. 1720"),
+            ("Refectory of the Monks",                   "c. 1730"),
+            ("Massacre of the Innocents",                "c. 1700"),
+            ("Landscape with Brigands",                  "c. 1725"),
+            ("St John the Baptist Preaching",            "c. 1710"),
+        ],
+        inspiration=(
+            "Use magnasco_nervous_brilliance_pass() after build_form() to apply "
+            "Magnasco's SPATIAL-SCATTER HIGH-FREQUENCY LUMINANCE REVIVAL: "
+            "extract bright high-frequency surface peaks via positive unsharp "
+            "mask, then scatter multiple shifted copies of these highlight marks "
+            "across the dark ground using controlled random roll offsets "
+            "(±scatter_px px), gated by luminance so the effect concentrates in "
+            "dark and mid-dark tonal zones (where Magnasco inserts his nervous "
+            "amber-gold flickers).  Warm-tint the scattered peaks slightly "
+            "(warm_tint ~0.05) for the candlelight quality of his impasto.  "
+            "Parameters: hf_sigma=2.5, scatter_px=3, bright_thresh=0.04, "
+            "dark_gate_lo=0.10, dark_gate_hi=0.65, warm_tint=0.05, opacity=0.30."
+        ),
+    ),
+
 }
 
 
