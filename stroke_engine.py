@@ -33216,3 +33216,159 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Magnasco nervous brilliance pass complete.")
+
+    def guardi_atmospheric_shimmer_pass(
+        self,
+        shimmer_sigma:  float = 1.5,    # Gaussian sigma for HF/LF decomposition
+        n_trembles:     int   = 6,      # number of spatially-offset HF copies to average
+        tremble_px:     int   = 2,      # maximum pixel offset (±) per trembling copy
+        cool_r:         float = 0.72,   # cool grey-silver R component (atmospheric target)
+        cool_g:         float = 0.74,   # cool grey-silver G component
+        cool_b:         float = 0.78,   # cool grey-silver B component
+        cool_lo:        float = 0.30,   # luminance floor for atmospheric tint zone
+        cool_hi:        float = 0.75,   # luminance ceiling for atmospheric tint zone
+        cool_amount:    float = 0.06,   # tint blend strength within atmospheric zone
+        sat_dampen:     float = 0.10,   # saturation reduction in atmospheric zone
+        opacity:        float = 0.38,
+    ) -> None:
+        """Apply Francesco Guardi's trembling atmospheric veduta technique.
+
+        Francesco Guardi (1712–1793) was the last great vedutista of Venice
+        and one of the first proto-Impressionists in Western painting.  Where
+        Canaletto painted Venice with crystalline architectural precision,
+        Guardi painted it as a shimmer of light on water — forms perpetually
+        dissolving into the cool silver-grey lagoon atmosphere.
+
+        This pass encodes that quality as the twenty-second distinct processing
+        mode: COHERENT MULTI-OFFSET HF TREMBLING with cool atmospheric tint.
+
+        Algorithm:
+        (1) Per-channel, decompose into smooth (LF) and detail (HF) components:
+            LF  = Gaussian(channel, shimmer_sigma)
+            HF  = channel - LF
+        (2) Build the trembled HF by averaging n_trembles spatially-offset
+            copies of HF, each rolled by a deterministic ±tremble_px offset:
+            trembled_HF = mean over k of roll(HF, dy_k, dx_k)
+            where dy_k, dx_k ∈ [−tremble_px, +tremble_px]
+            (deterministic seed 144 for reproducibility)
+        (3) Reconstruct the trembled image:
+            trembled = clip(LF + trembled_HF, 0, 1)
+            → low-frequency tonal structure is preserved exactly;
+              only the fine-detail surface acquires the fractured
+              Guardi trembling quality
+        (4) Cool atmospheric tint in mid-luminance zone [cool_lo, cool_hi]:
+            gate = clip((luma - cool_lo) / (cool_hi - cool_lo), 0, 1)
+                   * clip((cool_hi - luma) / (cool_hi - cool_lo), 0, 1) * 4
+            (smooth bump, peak = 1.0 at luminance midpoint)
+            R_tinted = trembled_R * (1 - gate * cool_amount)
+                       + cool_r   *      gate * cool_amount
+            G/B similarly → replicates the pervasive cool grey-silver
+            atmospheric envelope of Guardi's lagoon light
+        (5) Saturation damping within the same zone:
+            Y    = 0.299*R + 0.587*G + 0.114*B  (luminance grey)
+            R_final = lerp(R_tinted, Y, gate * sat_dampen)
+            G/B similarly → low-saturation atmospheric envelope without
+            desaturating warm highlights or deep shadows
+        (6) Composite at opacity:
+            output = orig * (1 - opacity) + R_final * opacity
+
+        Twenty-second distinct mode: coherent multi-offset HF trembling.
+        Distinct from s143 Magnasco (spatial-scatter): Magnasco extracts
+        only BRIGHT PEAKS above a threshold and scatters them at discrete
+        random offsets gated by darkness.  Guardi processes the full
+        bidirectional HF component (both positive and negative excursions)
+        through coherent averaging of offset copies — no thresholding, no
+        dark gate, no single-channel warm tint — the result is a uniform
+        trembling of all surface detail.
+        Distinct from s123 Rosa (turbulent flow): Rosa warps the entire
+        image with a smooth continuous vector field; Guardi preserves the
+        LF structure exactly and only redistributes HF detail.
+        Distinct from s134 Cuyp (CSF luminance-adaptive frequency
+        attenuation): Cuyp suppresses high frequencies in bright zones;
+        Guardi redistributes them uniformly without suppression, then adds
+        an independent cool tint layer.
+
+        Args:
+            shimmer_sigma  : Gaussian sigma for LF/HF decomposition.
+            n_trembles     : Number of shifted HF copies to average.
+            tremble_px     : Max pixel offset (±) for each copy.
+            cool_r/g/b     : Cool grey-silver atmospheric tint target.
+            cool_lo/hi     : Luminance range for atmospheric tint/sat gate.
+            cool_amount    : Tint blend strength in the atmospheric zone.
+            sat_dampen     : Saturation reduction in the atmospheric zone.
+            opacity        : Global composite blend weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: LF/HF decomposition per channel ───────────────────────────
+        lf_r = _gf(r0, sigma=shimmer_sigma)
+        lf_g = _gf(g0, sigma=shimmer_sigma)
+        lf_b = _gf(b0, sigma=shimmer_sigma)
+        hf_r = r0 - lf_r
+        hf_g = g0 - lf_g
+        hf_b = b0 - lf_b
+
+        # ── Step 2: Coherent multi-offset HF trembling ────────────────────────
+        rng = _np.random.RandomState(144)
+        tr_r = _np.zeros_like(hf_r)
+        tr_g = _np.zeros_like(hf_g)
+        tr_b = _np.zeros_like(hf_b)
+        for _ in range(n_trembles):
+            dy = int(rng.randint(-tremble_px, tremble_px + 1))
+            dx = int(rng.randint(-tremble_px, tremble_px + 1))
+            tr_r += _np.roll(_np.roll(hf_r, dy, axis=0), dx, axis=1)
+            tr_g += _np.roll(_np.roll(hf_g, dy, axis=0), dx, axis=1)
+            tr_b += _np.roll(_np.roll(hf_b, dy, axis=0), dx, axis=1)
+        tr_r /= n_trembles
+        tr_g /= n_trembles
+        tr_b /= n_trembles
+
+        # ── Step 3: Reconstruct trembled image ────────────────────────────────
+        tm_r = _np.clip(lf_r + tr_r, 0.0, 1.0)
+        tm_g = _np.clip(lf_g + tr_g, 0.0, 1.0)
+        tm_b = _np.clip(lf_b + tr_b, 0.0, 1.0)
+
+        # ── Step 4: Cool atmospheric tint in mid-luminance zone ───────────────
+        luma = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        denom = max(float(cool_hi - cool_lo), 1e-6)
+        t_lo = _np.clip((luma - cool_lo) / denom, 0.0, 1.0)
+        t_hi = _np.clip((cool_hi - luma) / denom, 0.0, 1.0)
+        gate = (4.0 * t_lo * t_hi).astype(_np.float32)   # smooth bump, peak=1 at midpoint
+
+        blend_cool = (gate * cool_amount).astype(_np.float32)
+        tinted_r = tm_r * (1.0 - blend_cool) + cool_r * blend_cool
+        tinted_g = tm_g * (1.0 - blend_cool) + cool_g * blend_cool
+        tinted_b = tm_b * (1.0 - blend_cool) + cool_b * blend_cool
+
+        # ── Step 5: Saturation damping within atmospheric zone ────────────────
+        Y = 0.299 * tinted_r + 0.587 * tinted_g + 0.114 * tinted_b
+        blend_sat = (gate * sat_dampen).astype(_np.float32)
+        final_r = tinted_r * (1.0 - blend_sat) + Y * blend_sat
+        final_g = tinted_g * (1.0 - blend_sat) + Y * blend_sat
+        final_b = tinted_b * (1.0 - blend_sat) + Y * blend_sat
+
+        # ── Step 6: Composite at opacity ─────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + final_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + final_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + final_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Guardi atmospheric shimmer pass complete.")

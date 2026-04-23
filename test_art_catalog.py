@@ -149,6 +149,7 @@ EXPECTED_ARTISTS = [
     "crivelli",
     "filippino_lippi",
     "magnasco",
+    "guardi",
 ]
 
 
@@ -17586,3 +17587,216 @@ def test_genoese_dark_baroque_in_expected_periods():
 
 def test_magnasco_in_expected_artists():
     assert "magnasco" in CATALOG
+
+
+# ── Session 144 — Francesco Guardi ────────────────────────────────────────────
+
+def test_guardi_in_catalog():
+    """guardi must be present in CATALOG (session 144)."""
+    assert "guardi" in CATALOG, "guardi not found in CATALOG"
+
+
+def test_guardi_in_expected_artists():
+    """EXPECTED_ARTISTS list must include guardi (session 144)."""
+    assert "guardi" in EXPECTED_ARTISTS
+
+
+def test_guardi_palette_values_in_range():
+    """All Guardi palette RGB values must be in [0, 1]."""
+    s = get_style("guardi")
+    for rgb in s.palette:
+        for v in rgb:
+            assert 0.0 <= v <= 1.0, f"Guardi palette value {v} out of range"
+
+
+def test_guardi_ground_color_in_range():
+    """Guardi ground color must be in [0, 1]."""
+    s = get_style("guardi")
+    for v in s.ground_color:
+        assert 0.0 <= v <= 1.0
+
+
+def test_guardi_wet_blend_in_range():
+    """Guardi wet_blend must be in [0, 1]."""
+    s = get_style("guardi")
+    assert 0.0 <= s.wet_blend <= 1.0
+
+
+def test_guardi_edge_softness_high():
+    """Guardi edge_softness must be >= 0.65 — high dissolution is his defining quality."""
+    s = get_style("guardi")
+    assert s.edge_softness >= 0.65, (
+        f"Guardi edge_softness should be >= 0.65; got {s.edge_softness}")
+
+
+def test_guardi_has_glazing():
+    """Guardi must have a glazing color — the unifying cool grey veil."""
+    s = get_style("guardi")
+    assert s.glazing is not None, "Guardi should have a glazing color"
+
+
+def test_guardi_famous_works_count():
+    """Guardi must have at least 5 famous works catalogued."""
+    s = get_style("guardi")
+    assert len(s.famous_works) >= 5, (
+        f"Guardi should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_guardi_inspiration_references_pass():
+    """Guardi inspiration must reference guardi_atmospheric_shimmer_pass()."""
+    s = get_style("guardi")
+    assert "guardi_atmospheric_shimmer_pass" in s.inspiration, (
+        "Guardi inspiration should reference guardi_atmospheric_shimmer_pass()")
+
+
+def test_guardi_technique_mentions_venice():
+    """Guardi technique must mention Venice or lagoon."""
+    s = get_style("guardi")
+    has_ref = "Venice" in s.technique or "Venice" in s.technique or "lagoon" in s.technique.lower()
+    assert has_ref, "Guardi technique should mention Venice / lagoon"
+
+
+def test_guardi_technique_mentions_atmosphere():
+    """Guardi technique must mention atmosphere or atmospheric."""
+    s = get_style("guardi")
+    assert "atmospher" in s.technique.lower(), (
+        "Guardi technique should mention atmosphere")
+
+
+def test_venetian_atmospheric_veduta_period_in_enum():
+    """VENETIAN_ATMOSPHERIC_VEDUTA must be present in Period enum."""
+    assert hasattr(Period, "VENETIAN_ATMOSPHERIC_VEDUTA"), \
+        "VENETIAN_ATMOSPHERIC_VEDUTA missing from Period enum"
+
+
+def test_venetian_atmospheric_veduta_stroke_params_valid():
+    """VENETIAN_ATMOSPHERIC_VEDUTA stroke_params must return valid values."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_ATMOSPHERIC_VEDUTA,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_venetian_atmospheric_veduta_high_edge_softness():
+    """VENETIAN_ATMOSPHERIC_VEDUTA must have high edge_softness (>= 0.65)."""
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_ATMOSPHERIC_VEDUTA,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert p["edge_softness"] >= 0.65, (
+        f"VENETIAN_ATMOSPHERIC_VEDUTA edge_softness should be >= 0.65; got {p['edge_softness']}")
+
+
+def test_guardi_atmospheric_shimmer_pass_exists():
+    """Painter must have guardi_atmospheric_shimmer_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "guardi_atmospheric_shimmer_pass")
+    assert callable(getattr(Painter, "guardi_atmospheric_shimmer_pass"))
+
+
+def test_guardi_atmospheric_shimmer_pass_opacity_parameter():
+    """guardi_atmospheric_shimmer_pass must accept opacity parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.guardi_atmospheric_shimmer_pass)
+    assert "opacity" in sig.parameters
+
+
+def test_guardi_atmospheric_shimmer_pass_shimmer_sigma_parameter():
+    """guardi_atmospheric_shimmer_pass must accept shimmer_sigma parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.guardi_atmospheric_shimmer_pass)
+    assert "shimmer_sigma" in sig.parameters
+
+
+def test_guardi_atmospheric_shimmer_pass_n_trembles_parameter():
+    """guardi_atmospheric_shimmer_pass must accept n_trembles parameter."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.guardi_atmospheric_shimmer_pass)
+    assert "n_trembles" in sig.parameters
+
+
+def test_guardi_atmospheric_shimmer_pass_no_error():
+    """guardi_atmospheric_shimmer_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.52, 0.48, 0.38), texture_strength=0.05)
+    p.guardi_atmospheric_shimmer_pass(opacity=0.38)
+
+
+def test_guardi_atmospheric_shimmer_pass_zero_opacity_no_op():
+    """guardi_atmospheric_shimmer_pass at opacity=0.0 must not modify canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.52, 0.48, 0.38), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.guardi_atmospheric_shimmer_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after)
+
+
+def test_guardi_atmospheric_shimmer_pass_modifies_canvas():
+    """guardi_atmospheric_shimmer_pass at full opacity must modify the canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.52, 0.48, 0.38), texture_strength=0.25)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.guardi_atmospheric_shimmer_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after)
+
+
+def test_guardi_atmospheric_shimmer_pass_preserves_shape():
+    """guardi_atmospheric_shimmer_pass must preserve canvas dimensions."""
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.52, 0.48, 0.38), texture_strength=0.05)
+    p.guardi_atmospheric_shimmer_pass(opacity=0.38)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60)
+
+
+def test_guardi_atmospheric_shimmer_pass_cool_tint_reduces_saturation():
+    """guardi_atmospheric_shimmer_pass must slightly desaturate mid-tones."""
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 64, 64
+    # Use a vivid mid-luminance canvas (saturation > 0) to test desaturation effect
+    p = Painter(width=W, height=H)
+    # Warm-amber mid-tone: R=0.72, G=0.52, B=0.28 → luminance ~0.54, saturation present
+    p.tone_ground((0.72, 0.52, 0.28), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(H, W, 4).astype(_np.float32).copy()
+    p.guardi_atmospheric_shimmer_pass(
+        cool_amount=0.12, sat_dampen=0.20, opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(H, W, 4).astype(_np.float32)
+    # R-B spread should reduce (channels converge toward grey under cool tint + sat dampen)
+    before_r = before[:, :, 2].mean()
+    before_b = before[:, :, 0].mean()
+    after_r = after[:, :, 2].mean()
+    after_b = after[:, :, 0].mean()
+    spread_before = abs(before_r - before_b)
+    spread_after  = abs(after_r  - after_b)
+    assert spread_after <= spread_before, (
+        f"Cool tint should reduce R-B spread: before={spread_before:.2f}, "
+        f"after={spread_after:.2f}")
+
+
+def test_venetian_atmospheric_veduta_in_expected_periods():
+    """VENETIAN_ATMOSPHERIC_VEDUTA must be present in Period enum."""
+    period_names = {p.name for p in Period}
+    assert "VENETIAN_ATMOSPHERIC_VEDUTA" in period_names
+
+
+def test_guardi_in_expected_artists_list():
+    """guardi must appear in EXPECTED_ARTISTS and CATALOG."""
+    assert "guardi" in CATALOG
+    assert "guardi" in EXPECTED_ARTISTS
