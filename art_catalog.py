@@ -12176,6 +12176,153 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 141 ───────────────────────────────────────────────────────────
+    "crivelli": ArtStyle(
+        artist      = "Carlo Crivelli",
+        movement    = "Venetian Late Gothic / International Gothic",
+        nationality = "Italian",
+        period      = "c. 1430–1495",
+        palette     = [
+            (0.82, 0.64, 0.18),   # gold leaf — burnished gilt
+            (0.72, 0.14, 0.18),   # vermilion — sharp crimson
+            (0.18, 0.38, 0.72),   # lapis ultramarine — cool jewel blue
+            (0.22, 0.52, 0.28),   # malachite green — translucent emerald
+            (0.94, 0.88, 0.72),   # ivory — pale flesh, near-white highlights
+            (0.44, 0.22, 0.12),   # warm umber — deep brown ground
+            (0.88, 0.76, 0.44),   # amber gold — secondary gilt mid-tone
+        ],
+        ground_color  = (0.58, 0.48, 0.28),   # warm ochre-gold imprimatura
+        stroke_size   = 5,
+        wet_blend     = 0.20,     # very dry — crisp zone separation
+        edge_softness = 0.10,     # hard Gothic contours — no sfumato whatsoever
+        jitter        = 0.018,
+        glazing       = None,     # clean zone separation, no unifying glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Carlo Crivelli (c. 1430–1495) was a Venetian-trained painter who spent "
+            "almost his entire career in the Marche region of Italy, producing devotional "
+            "altarpieces of extraordinary decorative intensity. His style is among the "
+            "most distinctive in all Italian art: a singular fusion of Byzantine "
+            "gold-ground tradition, International Gothic linear precision, and nascent "
+            "Renaissance spatial awareness.  "
+            "Crivelli's forms are obsessively linear — every contour is a hard, crisp "
+            "edge drawn with almost metallic clarity. There is absolutely no sfumato, no "
+            "atmospheric dissolution, no soft transition between tones. The figures occupy "
+            "architectural niches and landscape settings of nail-sharp precision, every "
+            "stone and leaf in hard focus regardless of distance.  "
+            "His most famous signature is the suspension of real objects — cucumbers, "
+            "apples, pears, gourds, swags of fruit — in the picture space as if they "
+            "could be physically plucked. These are rendered with an almost hallucinatory "
+            "realism that contrasts violently with the gold-leaf backgrounds and hieratic "
+            "figures, producing an effect that is simultaneously devotional and bizarre.  "
+            "The palette is electrifying: vermilion of extraordinary sharpness, "
+            "ultramarine of saturated depth, malachite green of translucent brilliance, "
+            "and above all gold. Not merely golden paint, but actual burnished gold leaf "
+            "applied to halos, brocade vestments, and architectural ornament. This gold "
+            "catches light in a purely specular way — a hard, brilliant flash unlike any "
+            "painted surface. The crivelli_gold_leaf_pass() captures this effect.  "
+            "His flesh tones are cool and porcelain-pale, modelled with fine tempera "
+            "hatching rather than wet blending. Drapery is treated as formal, almost "
+            "abstract pattern — crisp ridges and valleys of cloth read as decorative "
+            "geometry rather than naturalistic fabric. This is pure International Gothic "
+            "stylisation elevated to an extreme of refinement.  "
+            "Technically, Crivelli worked in egg tempera on gold-ground panel — a medium "
+            "that enforces precision and penalises wet blending. edge_softness=0.10 "
+            "encodes the absolute hardness of his Gothic contours. wet_blend=0.20 keeps "
+            "colour zones perfectly discrete. The crivelli_gold_leaf_pass() simulates the "
+            "specular highlight behaviour of burnished gold leaf: a hard power-curve spike "
+            "in the brightest luminance zone only, leaving mid-tones and shadows "
+            "untouched."
+        ),
+        famous_works = [
+            ("The Annunciation with Saint Emidius",         "1486"),
+            ("Pietà",                                        "c. 1470"),
+            ("Virgin and Child Enthroned with Saints",       "c. 1476"),
+            ("The Dead Christ Supported by Two Angels",      "c. 1470"),
+            ("Demidoff Altarpiece",                          "1476"),
+            ("Madonna della Rondine",                        "c. 1490–92"),
+        ],
+        inspiration   = (
+            "Use crivelli_gold_leaf_pass() after build_form() to apply Crivelli's "
+            "defining GILT SPECULAR BRILLIANCE: a power-curve highlight gilding that "
+            "simulates the way burnished gold leaf fires a hard specular spike only in "
+            "the top luminance percentile.  "
+            "edge_softness=0.10 enforces Crivelli's absolute Gothic contour hardness — "
+            "sharper even than Cossa's already-firm enamel edges. wet_blend=0.20 keeps "
+            "colour zones perfectly discrete, honouring tempera panel tradition.  "
+            "ground_color=(0.58, 0.48, 0.28) — warm ochre-gold imprimatura appropriate "
+            "to the gold-ground panel tradition.  "
+            "Use gilt_thresh=0.72, gilt_power=2.2, gold_r=0.22, gold_g=0.12, "
+            "gold_b_damp=0.06, opacity=0.38."
+        ),
+    ),
+
+    # ── Filippino Lippi ────────────────────────────────────────────────────────
+    "filippino_lippi": ArtStyle(
+        artist="Filippino Lippi",
+        movement="Late Florentine Quattrocento",
+        nationality="Italian",
+        period="1457–1504",
+        palette=[
+            (0.82, 0.64, 0.52),   # warm rose flesh
+            (0.82, 0.22, 0.12),   # hot vermilion drapery
+            (0.68, 0.74, 0.28),   # acid yellow-green dissonance
+            (0.32, 0.24, 0.45),   # cobalt-violet shadow
+            (0.78, 0.65, 0.22),   # warm gold ochre
+            (0.52, 0.55, 0.60),   # blue-grey aerial distance
+            (0.88, 0.82, 0.68),   # pale ivory highlight
+        ],
+        ground_color=(0.55, 0.44, 0.32),
+        stroke_size=5,
+        wet_blend=0.40,
+        edge_softness=0.32,
+        jitter=0.028,
+        glazing=None,
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Filippino Lippi (c. 1457–1504) occupies an extraordinary position in "
+            "Florentine painting: son of Fra Filippo Lippi, pupil of Botticelli, and "
+            "the artist who completed Masaccio's Brancacci Chapel frescoes.  In his "
+            "mature work, beginning with the Strozzi Chapel frescoes at Santa Maria "
+            "Novella (c. 1489–1502), he transforms the quattrocento inheritance "
+            "into something unmistakably his own: a turbulent, nervous energy charged "
+            "with anxious vitality.  His drapery does not fall in serene classical arcs "
+            "but torques and billows in complex surfaces of light and shadow.  "
+            "His palette uses COLOR AS TENSION: vivid vermilion against acid "
+            "yellow-green, warm rose flesh against cool violet-blue shadow, gold ochre "
+            "against stone-grey architecture.  Adjacent zones do not harmonise — "
+            "they argue, push against each other with restless chromatic energy.  "
+            "His devotion to antiquity shows in dense archaeological decoration: the "
+            "Strozzi and Carafa Chapel frescoes are dense with antique trophies, "
+            "candelabra, putti, and relief panels.  Technically his oil technique "
+            "shares the warm imprimatura of Florentine practice but his paint "
+            "application is more direct than Leonardo's — colour zones stay "
+            "vivid rather than sfumato-dissolving, trembling with chromatic potential."
+        ),
+        famous_works=[
+            ("Strozzi Chapel frescoes, Santa Maria Novella",       "c. 1489–1502"),
+            ("Carafa Chapel frescoes, Santa Maria sopra Minerva",   "1488–1493"),
+            ("Vision of St Bernard, Badia Fiorentina",             "c. 1485–1487"),
+            ("Adoration of the Magi, Uffizi",                      "1496"),
+            ("Brancacci Chapel — completion of Masaccio cycle", "c. 1481–1482"),
+        ],
+        inspiration=(
+            "Use filippino_tension_pass() after build_form() to apply Filippino's "
+            "SATURATION-GATED HUE ROTATION: in HSV space, the most chromatic pixels "
+            "receive a gentle hue rotation, pushing vivid zones further apart and "
+            "creating the subtle color-tension that makes adjacent zones argue rather "
+            "than harmonise.  Saturation is also slightly boosted in those zones.  "
+            "edge_softness=0.32 preserves Florentine disegno — firm contours — "
+            "without Gothic hardness.  wet_blend=0.40 keeps zones distinct while "
+            "allowing soft mid-tone transitions.  "
+            "ground_color=(0.55, 0.44, 0.32) — warm terracotta imprimatura.  "
+            "Use sat_thresh=0.25, sat_power=1.5, hue_shift=0.04, "
+            "sat_boost=0.18, opacity=0.30."
+        ),
+    ),
+
 }
 
 

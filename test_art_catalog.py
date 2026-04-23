@@ -146,6 +146,8 @@ EXPECTED_ARTISTS = [
     "moretto_da_brescia",
     "palma_vecchio",
     "cossa",
+    "crivelli",
+    "filippino_lippi",
 ]
 
 
@@ -322,6 +324,11 @@ EXPECTED_PERIODS = [
     "ANTWERP_BAROQUE",
     "UMBRIAN_CLASSICAL_HARMONY",
     "BRESCIAN_SILVER_NOCTURNE",
+    "FERRARESE_COLORIST_POESIA",
+    "FERRARESE_CIVIC_GRANDEUR",
+    "VENETIAN_GILT_BYZANTINE_SPLENDOUR",
+    "VENETIAN_GOLDEN_NATURALISM",
+    "LATE_FLORENTINE_QUATTROCENTO",
 ]
 
 
@@ -17054,3 +17061,367 @@ def test_ferrarese_civic_grandeur_period_in_enum():
     """FERRARESE_CIVIC_GRANDEUR must be present in the Period enum after session 140."""
     assert hasattr(Period, "FERRARESE_CIVIC_GRANDEUR"), (
         "FERRARESE_CIVIC_GRANDEUR missing from Period enum — add to scene_schema.py")
+
+# =============================================================================
+# Session 141 -- Carlo Crivelli / VENETIAN_GILT_BYZANTINE_SPLENDOUR
+#              + crivelli_gold_leaf_pass + glazing_depth_pass
+# =============================================================================
+
+def test_crivelli_in_catalog():
+    assert "crivelli" in CATALOG, "crivelli missing from CATALOG"
+
+def test_crivelli_artist_name():
+    s = get_style("crivelli")
+    assert "Crivelli" in s.artist
+
+def test_crivelli_movement_gothic_or_venetian():
+    s = get_style("crivelli")
+    t = s.movement.lower()
+    assert "gothic" in t or "venetian" in t or "byzantine" in t
+
+def test_crivelli_palette_length():
+    s = get_style("crivelli")
+    assert len(s.palette) >= 5
+
+def test_crivelli_palette_in_range():
+    s = get_style("crivelli")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+def test_crivelli_edge_softness_very_low():
+    s = get_style("crivelli")
+    assert s.edge_softness < 0.20, f"expected < 0.20, got {s.edge_softness}"
+
+def test_crivelli_wet_blend_low():
+    s = get_style("crivelli")
+    assert s.wet_blend < 0.40, f"expected < 0.40, got {s.wet_blend}"
+
+def test_crivelli_ground_color_warm():
+    s = get_style("crivelli")
+    r, g, b = s.ground_color
+    assert r >= b
+
+def test_crivelli_technique_mentions_gold_or_gothic():
+    t = get_style("crivelli").technique.lower()
+    assert "gold" in t or "gothic" in t or "gilt" in t or "byzantin" in t
+
+def test_venetian_gilt_byzantine_splendour_period_in_enum():
+    assert hasattr(Period, "VENETIAN_GILT_BYZANTINE_SPLENDOUR"), \
+        "VENETIAN_GILT_BYZANTINE_SPLENDOUR missing from Period enum"
+
+def test_venetian_gilt_byzantine_splendour_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.VENETIAN_GILT_BYZANTINE_SPLENDOUR,
+                  palette=PaletteHint.JEWEL)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+def test_crivelli_gold_leaf_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "crivelli_gold_leaf_pass")
+    assert callable(getattr(Painter, "crivelli_gold_leaf_pass"))
+
+def test_crivelli_gold_leaf_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.crivelli_gold_leaf_pass)
+    assert "opacity" in sig.parameters
+
+def test_crivelli_gold_leaf_pass_gilt_thresh_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.crivelli_gold_leaf_pass)
+    assert "gilt_thresh" in sig.parameters
+
+def test_crivelli_gold_leaf_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.68, 0.52), texture_strength=0.05)
+    p.crivelli_gold_leaf_pass(opacity=0.38)
+
+def test_crivelli_gold_leaf_pass_zero_opacity_no_op():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.68, 0.52), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.crivelli_gold_leaf_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after)
+
+def test_crivelli_gold_leaf_pass_warms_bright_canvas():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.82, 0.78, 0.72), texture_strength=0.00)
+    before_r = float(_np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)[:, :, 2].mean())
+    p.crivelli_gold_leaf_pass(gilt_thresh=0.70, gilt_power=2.0,
+                               gold_r=0.25, gold_g=0.12, opacity=1.0)
+    after_r = float(_np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)[:, :, 2].mean())
+    assert after_r >= before_r
+
+def test_glazing_depth_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "glazing_depth_pass")
+    assert callable(getattr(Painter, "glazing_depth_pass"))
+
+def test_glazing_depth_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.glazing_depth_pass)
+    assert "opacity" in sig.parameters
+
+def test_glazing_depth_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.58, 0.50, 0.38), texture_strength=0.05)
+    p.glazing_depth_pass(opacity=0.22)
+
+def test_glazing_depth_pass_zero_opacity_no_op():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.58, 0.50, 0.38), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.glazing_depth_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after)
+
+def test_glazing_depth_pass_modifies_midtone_canvas():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.glazing_depth_pass(warm_r=0.12, warm_g=0.05, opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after)
+
+
+# =============================================================================
+# Session 142 -- Filippino Lippi / LATE_FLORENTINE_QUATTROCENTO
+#              + filippino_tension_pass + focal_vignette_pass
+# =============================================================================
+
+def test_filippino_lippi_in_catalog():
+    assert "filippino_lippi" in CATALOG, "filippino_lippi missing from CATALOG"
+
+def test_filippino_lippi_artist_name():
+    s = get_style("filippino_lippi")
+    assert "Lippi" in s.artist
+
+def test_filippino_lippi_movement_florentine():
+    s = get_style("filippino_lippi")
+    assert "Florentine" in s.movement or "florentine" in s.movement.lower()
+
+def test_filippino_lippi_palette_length():
+    s = get_style("filippino_lippi")
+    assert len(s.palette) >= 6
+
+def test_filippino_lippi_palette_in_range():
+    s = get_style("filippino_lippi")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+def test_filippino_lippi_ground_color_warm():
+    s = get_style("filippino_lippi")
+    r, g, b = s.ground_color
+    assert r >= b
+
+def test_filippino_lippi_moderate_edge_softness():
+    s = get_style("filippino_lippi")
+    assert s.edge_softness < 0.50, f"expected < 0.50, got {s.edge_softness}"
+
+def test_filippino_lippi_wet_blend_moderate():
+    s = get_style("filippino_lippi")
+    assert 0.20 <= s.wet_blend <= 0.60, f"expected 0.20-0.60, got {s.wet_blend}"
+
+def test_filippino_lippi_technique_mentions_color_or_tension():
+    t = get_style("filippino_lippi").technique.lower()
+    assert ("tension" in t or "vivid" in t or "chromatic" in t
+            or "dissonant" in t or "colour" in t or "color" in t)
+
+def test_filippino_lippi_famous_works_includes_key_work():
+    s = get_style("filippino_lippi")
+    assert len(s.famous_works) >= 3
+    titles = " ".join(w[0] for w in s.famous_works).lower()
+    assert "strozzi" in titles or "bernard" in titles or "carafa" in titles
+
+def test_late_florentine_quattrocento_period_in_enum():
+    assert hasattr(Period, "LATE_FLORENTINE_QUATTROCENTO"), \
+        "LATE_FLORENTINE_QUATTROCENTO missing from Period enum"
+
+def test_late_florentine_quattrocento_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.LATE_FLORENTINE_QUATTROCENTO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+def test_late_florentine_quattrocento_moderate_firmness():
+    style = Style(medium=Medium.OIL, period=Period.LATE_FLORENTINE_QUATTROCENTO,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] < 0.50
+
+def test_filippino_tension_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "filippino_tension_pass")
+    assert callable(getattr(Painter, "filippino_tension_pass"))
+
+def test_filippino_tension_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.filippino_tension_pass)
+    assert "opacity" in sig.parameters
+
+def test_filippino_tension_pass_sat_thresh_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.filippino_tension_pass)
+    assert "sat_thresh" in sig.parameters
+
+def test_filippino_tension_pass_hue_shift_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.filippino_tension_pass)
+    assert "hue_shift" in sig.parameters
+
+def test_filippino_tension_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.44, 0.32), texture_strength=0.05)
+    p.filippino_tension_pass(opacity=0.30)
+
+def test_filippino_tension_pass_zero_opacity_no_op():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.44, 0.32), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.filippino_tension_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after)
+
+def test_filippino_tension_pass_modifies_vivid_canvas():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.82, 0.22, 0.12), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.filippino_tension_pass(sat_thresh=0.20, hue_shift=0.08, sat_boost=0.25, opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert not _np.array_equal(before, after)
+
+def test_filippino_tension_pass_preserves_shape():
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.55, 0.44, 0.32), texture_strength=0.05)
+    p.filippino_tension_pass(opacity=0.30)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60)
+
+def test_filippino_tension_pass_saturated_differs_from_grey():
+    import numpy as _np
+    from stroke_engine import Painter
+    p_vivid = Painter(width=64, height=64)
+    p_vivid.tone_ground((0.20, 0.75, 0.25), texture_strength=0.00)
+    p_grey = Painter(width=64, height=64)
+    p_grey.tone_ground((0.52, 0.50, 0.48), texture_strength=0.00)
+    before_vivid = _np.frombuffer(
+        p_vivid.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32).copy()
+    before_grey = _np.frombuffer(
+        p_grey.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32).copy()
+    p_vivid.filippino_tension_pass(sat_thresh=0.25, hue_shift=0.06, sat_boost=0.20, opacity=1.0)
+    p_grey.filippino_tension_pass(sat_thresh=0.25, hue_shift=0.06, sat_boost=0.20, opacity=1.0)
+    after_vivid = _np.frombuffer(
+        p_vivid.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32)
+    after_grey = _np.frombuffer(
+        p_grey.canvas.surface.get_data(), dtype=_np.uint8).astype(_np.int32)
+    delta_vivid = float(_np.abs(after_vivid - before_vivid).mean())
+    delta_grey  = float(_np.abs(after_grey  - before_grey).mean())
+    assert delta_vivid > delta_grey
+
+def test_focal_vignette_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "focal_vignette_pass")
+    assert callable(getattr(Painter, "focal_vignette_pass"))
+
+def test_focal_vignette_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.focal_vignette_pass)
+    assert "opacity" in sig.parameters
+
+def test_focal_vignette_pass_vignette_strength_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.focal_vignette_pass)
+    assert "vignette_strength" in sig.parameters
+
+def test_focal_vignette_pass_focal_xy_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.focal_vignette_pass)
+    assert "focal_x" in sig.parameters
+    assert "focal_y" in sig.parameters
+
+def test_focal_vignette_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.05)
+    p.focal_vignette_pass(opacity=0.50)
+
+def test_focal_vignette_pass_zero_opacity_no_op():
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.focal_vignette_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert _np.array_equal(before, after)
+
+def test_focal_vignette_pass_darkens_edges():
+    import numpy as _np
+    from stroke_engine import Painter
+    W, H = 128, 128
+    p = Painter(width=W, height=H)
+    p.tone_ground((0.60, 0.58, 0.55), texture_strength=0.00)
+    p.focal_vignette_pass(focal_x=0.5, focal_y=0.5, vignette_strength=0.60,
+                          vignette_power=2.0, cool_shift=0.0, opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(H, W, 4)
+    centre_lum = (float(buf[H//2, W//2, 2]) * 0.299
+                  + float(buf[H//2, W//2, 1]) * 0.587
+                  + float(buf[H//2, W//2, 0]) * 0.114)
+    corner_lum = (float(buf[0, 0, 2]) * 0.299
+                  + float(buf[0, 0, 1]) * 0.587
+                  + float(buf[0, 0, 0]) * 0.114)
+    assert centre_lum > corner_lum
+
+def test_focal_vignette_pass_preserves_shape():
+    from stroke_engine import Painter
+    p = Painter(width=80, height=60)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.05)
+    p.focal_vignette_pass(opacity=0.50)
+    img = p.canvas.to_pil()
+    assert img.size == (80, 60)
+
+def test_late_florentine_quattrocento_in_expected_periods():
+    period_names = {p.name for p in Period}
+    assert "LATE_FLORENTINE_QUATTROCENTO" in period_names
+
+def test_filippino_lippi_in_expected_artists():
+    assert "filippino_lippi" in CATALOG
