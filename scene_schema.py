@@ -311,6 +311,7 @@ class Period(Enum):
     VENETIAN_GOLDEN_NATURALISM     = auto()  # Palma Vecchio — warm amber-golden bloom on mid-to-high luminance, rich Venetian naturalism, sensuous golden flesh warmth, luminance-zoned blonde luminance sculpting
     VENETIAN_ATMOSPHERIC_VEDUTA    = auto()  # Francesco Guardi — trembling broken impasto, forms dissolving into cool silver-grey lagoon atmosphere, coherent multi-offset HF trembling with atmospheric tint, impressionistic vedutismo
     GENOESE_LIGURIAN_MANNERISM     = auto()  # Luca Cambiaso — geometric cubic figure schematization, warm terracotta-ochre ground, coarse-zone tonal flattening with boundary clarification between simplified volumetric planes
+    FLEMISH_ITALIANATE_RENAISSANCE = auto()  # Jan Gossaert (Mabuse) — cool-pearl highlight crystallinity, Flemish oil precision fused with Italian Renaissance classicism; three-stratum luminance striation with differential chromatic treatment
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1530,7 +1531,13 @@ class Style:
             # wet_blend=0.45: moderate — planes are distinct but not as dry as Magnasco.
             # edge_softness=0.28: relatively low — crisp tonal-plane boundaries are central.
             Period.GENOESE_LIGURIAN_MANNERISM: dict(stroke_size_face=8, stroke_size_bg=25, wet_blend=0.45, edge_softness=0.28),
-                        Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
+            # FLEMISH_ITALIANATE_RENAISSANCE (Gossaert): Flemish oil precision fused with Italian classicism.
+            # stroke_size_face=4: Flemish micro-precision; Gossaert inherited van Eyck's hair-fine brushwork.
+            # stroke_size_bg=18: architectural and landscape backgrounds are carefully observed.
+            # wet_blend=0.55: multiple oil glaze layers; more blending than dry Flemish tempera.
+            # edge_softness=0.38: clearly resolved edges — crisper than sfumato, softer than Gothic line.
+            Period.FLEMISH_ITALIANATE_RENAISSANCE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.55, edge_softness=0.38),
+            Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
         }

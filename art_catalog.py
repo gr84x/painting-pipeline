@@ -12564,6 +12564,60 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jan Gossaert (Mabuse) ──────────────────────────────────────────────────
+    "gossaert": ArtStyle(
+        artist="Jan Gossaert (Mabuse)",
+        movement="Flemish Italianate Renaissance",
+        nationality="Flemish",
+        period="1504–1532",
+        palette=[
+            (0.96, 0.94, 0.92),   # cool pearl-white highlight
+            (0.88, 0.80, 0.65),   # ivory flesh mid-tone
+            (0.80, 0.62, 0.45),   # warm peach flesh
+            (0.35, 0.22, 0.12),   # warm umber shadow
+            (0.15, 0.09, 0.05),   # near-black warm void
+            (0.72, 0.28, 0.18),   # Venetian red accent drapery
+            (0.38, 0.52, 0.72),   # cool blue architectural setting
+            (0.62, 0.48, 0.28),   # warm amber mid-ground
+        ],
+        ground_color=(0.62, 0.52, 0.35),    # warm amber Flemish panel imprimatura
+        stroke_size=4,
+        wet_blend=0.55,                      # multiple oil glaze layers — controlled blending
+        edge_softness=0.38,                  # resolved Flemish edge, not sfumato, not Gothic
+        jitter=0.02,
+        glazing=(0.65, 0.55, 0.32),          # warm amber unifying glaze over panel
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Flemish Italianate synthesis: Gossaert grafted Italian Renaissance "
+            "classicism (learned during his 1508 Rome visit) onto Northern oil "
+            "glazing tradition. His flesh has a cool pearl-white crystallinity in "
+            "the highlights (unlike warm Venetian gold), warm umber depth in shadows, "
+            "and vivid local color in midtones. Forms are clearly delineated — "
+            "neither the hard Gothic outline nor Leonardo's sfumato — and rendered "
+            "with Flemish micro-precision across multiple transparent oil glaze layers."
+        ),
+        famous_works=[
+            ("Neptune and Amphitrite",                    "1516"),
+            ("Danaë",                                     "c. 1527"),
+            ("Portrait of a Man",                         "c. 1520–1525"),
+            ("Virgin and Child",                          "c. 1527"),
+            ("St Luke Painting the Virgin",               "c. 1520"),
+        ],
+        inspiration=(
+            "Use gossaert_pearl_crystalline_pass() to apply the TWENTY-FOURTH "
+            "DISTINCT MODE: MULTI-THRESHOLD LUMINANCE STRIATION WITH COOL-PEARL "
+            "HIGHLIGHT ISOLATION.  Three-stratum decomposition: shadow zone gains "
+            "warm umber tint (R boost, B reduction); highlight zone gains cool-pearl "
+            "quality (desaturation + slight blue boost); midtone zone gains saturation "
+            "lift.  Stratum boundaries receive USM sharpening for crystalline edge "
+            "clarity.  Parameters: shadow_hi=0.38, highlight_lo=0.68, "
+            "pearl_cool_b=0.06, pearl_desat=0.18, shadow_warm_r=0.04, "
+            "shadow_warm_b=0.03, mid_sat_boost=0.08, crystal_sigma=0.8, "
+            "crystal_amount=0.12, opacity=0.38."
+        ),
+    ),
+
 }
 
 

@@ -151,6 +151,7 @@ EXPECTED_ARTISTS = [
     "magnasco",
     "guardi",
     "cambiaso",
+    "gossaert",
 ]
 
 
@@ -333,6 +334,9 @@ EXPECTED_PERIODS = [
     "VENETIAN_GOLDEN_NATURALISM",
     "LATE_FLORENTINE_QUATTROCENTO",
     "GENOESE_DARK_BAROQUE",
+    "VENETIAN_ATMOSPHERIC_VEDUTA",
+    "GENOESE_LIGURIAN_MANNERISM",
+    "FLEMISH_ITALIANATE_RENAISSANCE",
 ]
 
 
@@ -17969,3 +17973,293 @@ def test_cambiaso_in_expected_artists_list():
     """cambiaso must appear in EXPECTED_ARTISTS and CATALOG."""
     assert "cambiaso" in CATALOG
     assert "cambiaso" in EXPECTED_ARTISTS
+
+
+# =============================================================================
+# Session 146 — Jan Gossaert (Mabuse) / FLEMISH_ITALIANATE_RENAISSANCE
+#              + gossaert_pearl_crystalline_pass (24th distinct mode)
+#              + shadow_transparency_pass (artistic improvement)
+# =============================================================================
+
+def test_gossaert_in_catalog():
+    """gossaert must be present in CATALOG after session 146."""
+    assert "gossaert" in CATALOG, "gossaert missing from CATALOG"
+
+def test_gossaert_artist_name():
+    s = get_style("gossaert")
+    assert "Gossaert" in s.artist or "Mabuse" in s.artist
+
+def test_gossaert_movement_flemish():
+    s = get_style("gossaert")
+    assert "Flemish" in s.movement or "flemish" in s.movement.lower()
+
+def test_gossaert_palette_length():
+    s = get_style("gossaert")
+    assert len(s.palette) >= 6
+
+def test_gossaert_palette_in_range():
+    s = get_style("gossaert")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+def test_gossaert_ground_color_warm():
+    """gossaert ground_color must be warm (R >= B) for Flemish amber panel."""
+    s = get_style("gossaert")
+    r, g, b = s.ground_color
+    assert r >= b, f"gossaert ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}"
+
+def test_gossaert_edge_softness_moderate():
+    """gossaert edge_softness should be in moderate range (0.25–0.55) — not sfumato, not Gothic."""
+    s = get_style("gossaert")
+    assert 0.25 <= s.edge_softness <= 0.55, (
+        f"gossaert edge_softness should be 0.25–0.55: got {s.edge_softness}")
+
+def test_gossaert_famous_works_includes_key_work():
+    s = get_style("gossaert")
+    assert len(s.famous_works) >= 3
+    titles = " ".join(w[0] for w in s.famous_works).lower()
+    assert "neptune" in titles or "danae" in titles or "luke" in titles
+
+def test_gossaert_technique_mentions_flemish_or_italianate():
+    t = get_style("gossaert").technique.lower()
+    assert "flemish" in t or "italian" in t or "pearl" in t or "crystallin" in t
+
+def test_flemish_italianate_renaissance_period_in_enum():
+    """FLEMISH_ITALIANATE_RENAISSANCE must be present in Period enum after session 146."""
+    assert hasattr(Period, "FLEMISH_ITALIANATE_RENAISSANCE"), \
+        "FLEMISH_ITALIANATE_RENAISSANCE missing from Period enum"
+
+def test_flemish_italianate_renaissance_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.FLEMISH_ITALIANATE_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+def test_flemish_italianate_renaissance_edge_softness_moderate():
+    """FLEMISH_ITALIANATE_RENAISSANCE should have moderate edge_softness (0.25–0.55)."""
+    style = Style(medium=Medium.OIL, period=Period.FLEMISH_ITALIANATE_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert 0.25 <= p["edge_softness"] <= 0.55, (
+        f"FLEMISH_ITALIANATE_RENAISSANCE edge_softness should be 0.25–0.55; "
+        f"got {p['edge_softness']}")
+
+def test_flemish_italianate_renaissance_fine_face_strokes():
+    """FLEMISH_ITALIANATE_RENAISSANCE should have small stroke_size_face (Flemish precision)."""
+    style = Style(medium=Medium.OIL, period=Period.FLEMISH_ITALIANATE_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] <= 6, (
+        f"FLEMISH_ITALIANATE_RENAISSANCE stroke_size_face should be fine (<= 6): "
+        f"got {p['stroke_size_face']}")
+
+def test_gossaert_in_expected_artists_list():
+    """gossaert must appear in EXPECTED_ARTISTS and CATALOG."""
+    assert "gossaert" in CATALOG
+    assert "gossaert" in EXPECTED_ARTISTS
+
+
+# ── gossaert_pearl_crystalline_pass ────────────────────────────────────────────
+
+def test_gossaert_pearl_crystalline_pass_exists():
+    """Painter must have gossaert_pearl_crystalline_pass() after session 146."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "gossaert_pearl_crystalline_pass")
+    assert callable(getattr(Painter, "gossaert_pearl_crystalline_pass"))
+
+def test_gossaert_pearl_crystalline_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.gossaert_pearl_crystalline_pass)
+    assert "opacity" in sig.parameters
+
+def test_gossaert_pearl_crystalline_pass_shadow_hi_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.gossaert_pearl_crystalline_pass)
+    assert "shadow_hi" in sig.parameters
+
+def test_gossaert_pearl_crystalline_pass_highlight_lo_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.gossaert_pearl_crystalline_pass)
+    assert "highlight_lo" in sig.parameters
+
+def test_gossaert_pearl_crystalline_pass_no_error():
+    """gossaert_pearl_crystalline_pass() runs on a plain canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.62, 0.52, 0.35), texture_strength=0.05)
+    p.gossaert_pearl_crystalline_pass(opacity=0.38)
+
+def test_gossaert_pearl_crystalline_pass_zero_opacity_no_op():
+    """gossaert_pearl_crystalline_pass() with opacity=0 must not modify the canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.62, 0.52, 0.35), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.gossaert_pearl_crystalline_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before == after, "gossaert_pearl_crystalline_pass with opacity=0 must not modify canvas"
+
+def test_gossaert_pearl_crystalline_pass_modifies_canvas():
+    """gossaert_pearl_crystalline_pass() with opacity > 0 must modify the canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.62, 0.52, 0.35), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.gossaert_pearl_crystalline_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before != after, "gossaert_pearl_crystalline_pass with opacity=1 must modify canvas"
+
+def test_gossaert_pearl_crystalline_pass_cools_bright_canvas():
+    """gossaert_pearl_crystalline_pass() must increase B channel in a very bright canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    H, W = 64, 64
+    p = Painter(width=W, height=H)
+    # Bright neutral canvas — all pixels in highlight stratum
+    p.tone_ground((0.90, 0.90, 0.90), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    b_before = before[:, :, 0].mean()   # Cairo BGRA: channel 0 = B
+    p.gossaert_pearl_crystalline_pass(
+        shadow_hi=0.38, highlight_lo=0.68,
+        pearl_cool_b=0.06, pearl_desat=0.18,
+        opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    b_after = after[:, :, 0].mean()
+    assert b_after > b_before, (
+        f"gossaert_pearl_crystalline_pass must increase B in bright (highlight) zone: "
+        f"before={b_before:.1f}, after={b_after:.1f}")
+
+def test_gossaert_pearl_crystalline_pass_pixels_in_range():
+    """gossaert_pearl_crystalline_pass() must not produce out-of-range pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.65, 0.50), texture_strength=0.00)
+    p.gossaert_pearl_crystalline_pass(opacity=1.0)
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after gossaert_pearl_crystalline_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after gossaert_pearl_crystalline_pass"
+
+def test_gossaert_pearl_crystalline_pass_warms_dark_canvas():
+    """gossaert_pearl_crystalline_pass() must increase R channel in a dark canvas (shadow zone)."""
+    import numpy as _np
+    from stroke_engine import Painter
+    H, W = 64, 64
+    p = Painter(width=W, height=H)
+    # Very dark canvas — pixels in shadow stratum
+    p.tone_ground((0.12, 0.12, 0.12), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    r_before = before[:, :, 2].mean()   # Cairo BGRA: channel 2 = R
+    p.gossaert_pearl_crystalline_pass(
+        shadow_hi=0.38, shadow_warm_r=0.04, shadow_warm_b=0.03,
+        opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    r_after = after[:, :, 2].mean()
+    assert r_after > r_before, (
+        f"gossaert_pearl_crystalline_pass must warm dark (shadow) zone: "
+        f"R before={r_before:.1f}, after={r_after:.1f}")
+
+
+# ── shadow_transparency_pass ───────────────────────────────────────────────────
+
+def test_shadow_transparency_pass_exists():
+    """Painter must have shadow_transparency_pass() after session 146."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "shadow_transparency_pass")
+    assert callable(getattr(Painter, "shadow_transparency_pass"))
+
+def test_shadow_transparency_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.shadow_transparency_pass)
+    assert "opacity" in sig.parameters
+
+def test_shadow_transparency_pass_shadow_hi_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.shadow_transparency_pass)
+    assert "shadow_hi" in sig.parameters
+
+def test_shadow_transparency_pass_no_error():
+    """shadow_transparency_pass() runs on a plain toned canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.45, 0.35, 0.22), texture_strength=0.05)
+    p.shadow_transparency_pass(opacity=0.30)
+
+def test_shadow_transparency_pass_zero_opacity_no_op():
+    """shadow_transparency_pass() with opacity=0 must not modify the canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.45, 0.35, 0.22), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.shadow_transparency_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before == after, "shadow_transparency_pass with opacity=0 must not modify canvas"
+
+def test_shadow_transparency_pass_modifies_dark_canvas():
+    """shadow_transparency_pass() with opacity > 0 must modify a dark canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.12, 0.10, 0.08), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.shadow_transparency_pass(opacity=1.0, shadow_tint=0.20)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before != after, "shadow_transparency_pass must modify a dark canvas at opacity > 0"
+
+def test_shadow_transparency_pass_injects_violet_in_dark_zone():
+    """shadow_transparency_pass() must increase B channel in a dark canvas (violet injection)."""
+    import numpy as _np
+    from stroke_engine import Painter
+    H, W = 64, 64
+    p = Painter(width=W, height=H)
+    # Very dark neutral canvas — in shadow zone
+    p.tone_ground((0.10, 0.10, 0.10), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                             dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    b_before = before[:, :, 0].mean()
+    p.shadow_transparency_pass(
+        shadow_hi=0.42, violet_r=0.38, violet_g=0.32, violet_b=0.72,
+        shadow_tint=0.25, opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    b_after = after[:, :, 0].mean()
+    assert b_after > b_before, (
+        f"shadow_transparency_pass must inject violet (raise B) in dark zone: "
+        f"before={b_before:.1f}, after={b_after:.1f}")
+
+def test_shadow_transparency_pass_pixels_in_range():
+    """shadow_transparency_pass() must not produce out-of-range pixel values."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.20, 0.15, 0.10), texture_strength=0.00)
+    p.shadow_transparency_pass(shadow_tint=0.30, penumbra_chroma=0.30, opacity=1.0)
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after shadow_transparency_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after shadow_transparency_pass"
+
+def test_flemish_italianate_renaissance_in_expected_periods():
+    """FLEMISH_ITALIANATE_RENAISSANCE must be present in Period enum after session 146."""
+    period_names = {p.name for p in Period}
+    assert "FLEMISH_ITALIANATE_RENAISSANCE" in period_names
+
+def test_gossaert_in_expected_artists_catalog_final():
+    """gossaert must appear in both EXPECTED_ARTISTS list and CATALOG dict."""
+    assert "gossaert" in CATALOG
+    assert "gossaert" in EXPECTED_ARTISTS

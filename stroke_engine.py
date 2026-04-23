@@ -33525,3 +33525,270 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Cambiaso geometric planes pass complete.")
+
+    def gossaert_pearl_crystalline_pass(
+        self,
+        shadow_hi:       float = 0.38,   # luminance ceiling of shadow stratum
+        highlight_lo:    float = 0.68,   # luminance floor of highlight stratum
+        pearl_cool_b:    float = 0.06,   # blue boost in highlight zone (cool pearl)
+        pearl_desat:     float = 0.18,   # desaturation in highlight zone
+        shadow_warm_r:   float = 0.04,   # R boost in shadow zone (warm umber)
+        shadow_warm_b:   float = 0.03,   # B reduction in shadow zone
+        mid_sat_boost:   float = 0.08,   # saturation lift in midtone zone
+        crystal_sigma:   float = 0.8,    # Gaussian sigma for USM at stratum boundaries
+        crystal_amount:  float = 0.12,   # USM strength at crystalline boundaries
+        opacity:         float = 0.38,
+    ) -> None:
+        """Apply Jan Gossaert's crystalline three-stratum tonal treatment.
+
+        Jan Gossaert (c. 1478–1532), known as Mabuse, was the first Flemish
+        painter to visit Rome (1508), absorbing Italian Renaissance classicism
+        and fusing it with the Northern oil glazing tradition inherited from
+        Jan van Eyck.  His flesh has a distinctive crystalline quality entirely
+        unlike either Leonardo's sfumato warmth or Cranach's enamel flatness:
+
+          •  Highlights are cool pearl-white — a silvery, barely-tinted luminosity
+             reminiscent of polished alabaster.  Unlike the warm gold of Venetian
+             painting (Titian, Palma Vecchio), Gossaert's highlights cool the flesh,
+             giving a marble-like sculptural presence.
+
+          •  Midtones carry vivid, present local colour — the rich red of the lip,
+             the warm peach of the cheek — more saturated than the cool highlight
+             or the deep shadow.
+
+          •  Shadows are warm umber, glowing with the amber panel imprimatura
+             visible through transparent shadow glazes.
+
+          •  At the boundaries between strata, the transition is crisper than
+             sfumato but softer than Gothic flat-colour — a crystalline precision
+             that reveals the underlying drawn structure.
+
+        This pass encodes that quality as the twenty-fourth distinct processing
+        mode: MULTI-THRESHOLD LUMINANCE STRIATION WITH COOL-PEARL HIGHLIGHT
+        ISOLATION.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Build three smooth stratum gates from luma:
+            shadow_gate    = clip(1 − luma / shadow_hi, 0, 1)  — peaks at luma=0
+            highlight_gate = clip((luma − highlight_lo) / (1 − highlight_lo), 0, 1)
+            mid_gate       = clip(1 − shadow_gate − highlight_gate, 0, 1)
+        (3) Apply differential colour treatment per stratum:
+            Shadow zone  : warm umber tint — boost R by shadow_warm_r, reduce B by
+                           shadow_warm_b (simulate warm amber ground glowing through
+                           transparent shadow glazes)
+            Highlight zone: cool-pearl — desaturate toward luma by pearl_desat, then
+                           boost B channel by pearl_cool_b (Gossaert's marble highlight)
+            Midtone zone : saturation lift — move RGB away from luma by mid_sat_boost
+        (4) Build stratum-boundary mask:
+            boundary_zone = shadow_gate × mid_gate + mid_gate × highlight_gate
+            → peaks at 0.25 when two adjacent gates are both = 0.5; scale ×4
+        (5) Compute USM signal: usm = luma − Gaussian(luma, crystal_sigma)
+            enhanced = stratum_result + crystal_gate × usm  (crystalline edge sharpness)
+        (6) Composite at opacity.
+
+        Twenty-fourth distinct mode: three-stratum differential colour treatment.
+        Distinct from Crivelli (gilding): Gossaert COOLS highlights; Crivelli warms them.
+        Distinct from Giorgione (dual-temperature): Gossaert has THREE strata, each
+          with independent chromatic treatment; Giorgione uses two smooth temperature
+          gradient zones.
+        Distinct from Moretto (Lab sculpting): Gossaert works in RGB channel space
+          with explicit luminance gating; Moretto operates in CIE L*a*b*.
+        Distinct from Piazzetta (histogram percentile sculpting): Gossaert applies
+          spatially-local per-stratum treatments; Piazzetta adjusts the global histogram.
+        Distinct from Cambiaso (tonal flattening): Gossaert DIFFERENTIATES between
+          strata (separate chromatic treatment per zone); Cambiaso suppresses within-zone
+          fine variation, moving pixels toward zone means.
+
+        Args:
+            shadow_hi      : Luminance ceiling of shadow stratum (pixels below this are 'shadow').
+            highlight_lo   : Luminance floor of highlight stratum (pixels above this are 'highlight').
+            pearl_cool_b   : Blue channel boost in highlight zone for pearl quality.
+            pearl_desat    : Desaturation strength in highlight zone (blend toward luma).
+            shadow_warm_r  : R boost in shadow zone (warm umber ground glow).
+            shadow_warm_b  : B reduction in shadow zone.
+            mid_sat_boost  : Saturation lift in midtone zone (vivid local colour).
+            crystal_sigma  : Gaussian sigma for USM signal at stratum boundaries.
+            crystal_amount : USM multiplier at stratum boundary regions.
+            opacity        : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Three-stratum gates ───────────────────────────────────────
+        shadow_gate    = _np.clip(1.0 - luma / max(float(shadow_hi), 1e-6),
+                                  0.0, 1.0).astype(_np.float32)
+        highlight_gate = _np.clip((luma - highlight_lo) / max(1.0 - float(highlight_lo), 1e-6),
+                                  0.0, 1.0).astype(_np.float32)
+        mid_gate       = _np.clip(1.0 - shadow_gate - highlight_gate,
+                                  0.0, 1.0).astype(_np.float32)
+
+        # ── Step 3: Differential colour treatment per stratum ─────────────────
+        # Shadow zone: warm umber (R boost, B reduction)
+        sh_r = _np.clip(r0 + shadow_warm_r * shadow_gate, 0.0, 1.0)
+        sh_g = g0.copy()
+        sh_b = _np.clip(b0 - shadow_warm_b * shadow_gate, 0.0, 1.0)
+
+        # Highlight zone: cool pearl (desaturate + blue boost)
+        desat = pearl_desat * highlight_gate
+        hl_r = _np.clip(sh_r * (1.0 - desat) + luma * desat, 0.0, 1.0)
+        hl_g = _np.clip(sh_g * (1.0 - desat) + luma * desat, 0.0, 1.0)
+        hl_b = _np.clip(sh_b * (1.0 - desat) + luma * desat + pearl_cool_b * highlight_gate,
+                        0.0, 1.0)
+
+        # Midtone zone: saturation lift (move away from luma)
+        mid_r = _np.clip(hl_r + (hl_r - luma) * mid_sat_boost * mid_gate, 0.0, 1.0)
+        mid_g = _np.clip(hl_g + (hl_g - luma) * mid_sat_boost * mid_gate, 0.0, 1.0)
+        mid_b = _np.clip(hl_b + (hl_b - luma) * mid_sat_boost * mid_gate, 0.0, 1.0)
+
+        # ── Step 4: Stratum boundary USM for crystalline edge clarity ─────────
+        luma_smooth = _gf(luma, sigma=crystal_sigma)
+        usm = (luma - luma_smooth).astype(_np.float32)
+        # Boundary zone peaks where two adjacent gates overlap (both > 0)
+        boundary_zone = _np.clip(
+            (shadow_gate * mid_gate + mid_gate * highlight_gate) * 4.0, 0.0, 1.0
+        ).astype(_np.float32)
+        crystal_gate_map = (boundary_zone * crystal_amount).astype(_np.float32)
+
+        enh_r = _np.clip(mid_r + crystal_gate_map * usm, 0.0, 1.0)
+        enh_g = _np.clip(mid_g + crystal_gate_map * usm, 0.0, 1.0)
+        enh_b = _np.clip(mid_b + crystal_gate_map * usm, 0.0, 1.0)
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + enh_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + enh_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + enh_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Gossaert pearl-crystalline pass complete.")
+
+    def shadow_transparency_pass(
+        self,
+        shadow_hi:       float = 0.42,   # luminance ceiling of shadow influence zone
+        penumbra_lo:     float = 0.30,   # start of penumbra chroma-boost region
+        penumbra_hi:     float = 0.58,   # end of penumbra chroma-boost region
+        violet_r:        float = 0.38,   # cool violet tint R
+        violet_g:        float = 0.32,   # cool violet tint G
+        violet_b:        float = 0.72,   # cool violet tint B
+        shadow_tint:     float = 0.06,   # violet blend strength in deep shadow
+        penumbra_chroma: float = 0.10,   # saturation boost in penumbra zone
+        opacity:         float = 0.30,
+    ) -> None:
+        """Enrich shadows with chromatic transparency inspired by Old Master oil glazing.
+
+        In Old Master oil painting, deep shadows are never neutral grey or flat black.
+        They are built from multiple transparent glaze layers that, by their very
+        translucency, let underlying ground colours and earlier paint layers show
+        through.  This creates shadows that are internally colourful — often with
+        a cool blue-violet underpaint visible beneath the warm surface layers, a
+        quality described by Delacroix as 'coloured shadow'.
+
+        This pass simulates that quality by:
+          1. Injecting a cool violet chromatic accent into deep shadow zones,
+             as if a cool-toned underpaint were visible through the transparent glazes.
+          2. Boosting saturation in the penumbra zone (the shadow-to-light transition),
+             where glazed paint layers catch and refract the most chromatic light.
+
+        This is a general-purpose artistic improvement applicable to any period.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Shadow gate: smooth ramp from 1 (at luma=0) to 0 (at luma=shadow_hi)
+            shadow_gate = clip(1 − luma / shadow_hi, 0, 1)
+        (3) Penumbra gate: smooth bump centred on the shadow-to-light transition
+            — peaks at 1 when luma is centred between penumbra_lo and penumbra_hi,
+            using a 4×t_lo×t_hi bump form (same as Guardi and Cambiaso)
+        (4) Cool violet injection in shadow zone:
+            blended = pixel × (1 − shadow_gate × shadow_tint) + violet × (shadow_gate × shadow_tint)
+        (5) Saturation boost in penumbra zone:
+            saturated = blended + (blended − luma) × penumbra_chroma × penumbra_gate
+        (6) Composite at opacity.
+
+        Distinct from gossaert_pearl_crystalline_pass:
+          - Targets shadow/penumbra zones only, not all three strata
+          - Injects a specific chromatic hue target (cool violet), vs. desaturating
+          - General-purpose; not tied to Gossaert's crystalline three-stratum scheme
+          - No USM boundary-sharpening component
+
+        Args:
+            shadow_hi       : Luminance ceiling of deep shadow zone.
+            penumbra_lo     : Lower luminance bound of penumbra boost zone.
+            penumbra_hi     : Upper luminance bound of penumbra boost zone.
+            violet_r/g/b    : Target cool-violet accent colour for shadow injection.
+            shadow_tint     : Blend strength of violet in deep shadow zone.
+            penumbra_chroma : Saturation lift in penumbra zone.
+            opacity         : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Shadow gate ───────────────────────────────────────────────
+        shadow_gate = _np.clip(1.0 - luma / max(float(shadow_hi), 1e-6),
+                               0.0, 1.0).astype(_np.float32)
+
+        # ── Step 3: Penumbra smooth-bump gate ─────────────────────────────────
+        denom = max(float(penumbra_hi - penumbra_lo), 1e-6)
+        t_lo = _np.clip((luma - penumbra_lo) / denom, 0.0, 1.0)
+        t_hi = _np.clip((penumbra_hi - luma) / denom, 0.0, 1.0)
+        penumbra_gate = (4.0 * t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 4: Cool-violet injection in shadow zone ─────────────────────
+        blend = (shadow_gate * shadow_tint).astype(_np.float32)
+        tinted_r = _np.clip(r0 * (1.0 - blend) + violet_r * blend, 0.0, 1.0)
+        tinted_g = _np.clip(g0 * (1.0 - blend) + violet_g * blend, 0.0, 1.0)
+        tinted_b = _np.clip(b0 * (1.0 - blend) + violet_b * blend, 0.0, 1.0)
+
+        # ── Step 5: Saturation boost in penumbra zone ─────────────────────────
+        chroma_lift = (penumbra_gate * penumbra_chroma).astype(_np.float32)
+        sat_r = _np.clip(tinted_r + (tinted_r - luma) * chroma_lift, 0.0, 1.0)
+        sat_g = _np.clip(tinted_g + (tinted_g - luma) * chroma_lift, 0.0, 1.0)
+        sat_b = _np.clip(tinted_b + (tinted_b - luma) * chroma_lift, 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + sat_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + sat_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + sat_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Shadow transparency pass complete.")
