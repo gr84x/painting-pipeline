@@ -33792,3 +33792,312 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Shadow transparency pass complete.")
+
+    def sodoma_sienese_dreamveil_pass(
+        self,
+        warm_lo:      float = 0.38,   # luminance floor of golden midtone warmth zone
+        warm_hi:      float = 0.72,   # luminance ceiling of golden midtone warmth zone
+        warm_r:       float = 0.030,  # R boost in warm zone (Sienese golden flesh)
+        warm_g:       float = 0.016,  # G boost in warm zone (warm amber undertone)
+        sat_lo:       float = 0.48,   # luminance floor of saturation lift zone
+        sat_hi:       float = 0.78,   # luminance ceiling of saturation lift zone
+        sat_lift:     float = 0.06,   # saturation boost strength in upper midtone zone
+        veil_sigma:   float = 2.2,    # Gaussian sigma for dreamveil LF blend
+        veil_amount:  float = 0.07,   # fraction of dreamveil LF blend (toward smooth version)
+        sky_lo:       float = 0.80,   # luminance floor of sky-blue highlight whisper zone
+        sky_b:        float = 0.020,  # B boost in brightest highlights (Sienese sky blue)
+        opacity:      float = 0.32,
+    ) -> None:
+        """Apply Sodoma's Sienese Leonardesque warm dreamveil technique.
+
+        Sodoma (Giovanni Antonio Bazzi, 1477–1549) occupied a unique position
+        in the Italian Renaissance: trained in Lombardy under Martino Spanzotti
+        (and likely exposed to Leonardo's Milanese circle — Boltraffio, de Predis,
+        Marco d'Oggiono), he settled permanently in Siena by 1501, absorbing
+        the city's deep tradition of warm golden grounds and luminous devotional
+        tenderness.  He worked alongside Raphael at the Vatican Stanza della
+        Segnatura (1508), absorbing further classical clarity, then returned to
+        Siena to develop his most personal style.
+
+        The result is a fusion unlike any other painter of the period:
+
+          •  Warm Sienese midtone gilding: the characteristic amber-golden glow
+             in the flesh midtones, inherited from Siena's tradition of warm ochre
+             grounds and the Byzantine gold-ground sensibility that never entirely
+             left Sienese painting.  Unlike the fully saturated golden warmth of
+             Venetian painting (Titian, Palma Vecchio), Sodoma's warmth is more
+             interior and delicate — the ground glowing softly through thin,
+             transparent flesh paint.
+
+          •  Leonardesque dreamveil dissolution: edges do not sharpen in the
+             Gossaert or Crivelli manner, but dissolve softly — not to Leonardo's
+             full sfumato extremity, but with a gentle luminous haziness that
+             gives Sodoma's figures their characteristic dreamlike quality.  His
+             forms are present but slightly ethereal, as if seen through warm
+             amber air.
+
+          •  Sky-blue highlight whisper: the brightest specular touches in
+             Sodoma's flesh carry a barely-perceptible Sienese sky blue — a link
+             between the warm figures and the cool celestial distances of his
+             backgrounds, which consistently feature pale blue-grey Sienese skies.
+
+        This pass encodes that quality as the twenty-fifth distinct processing
+        mode: WARM SIENESE MIDTONE GILDING + DREAMVEIL GLOBAL LF BLEND +
+        SKY-BLUE HIGHLIGHT WHISPER.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Golden midtone warmth gate (Sienese tradition):
+            smooth bump in [warm_lo, warm_hi]:
+            gate_warm = 4 × clip((luma−warm_lo)/denom) × clip((warm_hi−luma)/denom)
+            R_warm = clip(R + gate_warm × warm_r, 0, 1)
+            G_warm = clip(G + gate_warm × warm_g, 0, 1)
+            (B unchanged: warm tint stays orange-amber, not yellow-green)
+        (3) Saturation lift in upper midtones (Sienese chromatic richness):
+            smooth bump in [sat_lo, sat_hi]: gate_sat = 4 × t_lo × t_hi
+            chroma_shift = (channel − luma) × gate_sat × sat_lift
+            R/G/B_sat = clip(channel + chroma_shift, 0, 1)
+        (4) Dreamveil LF blend (Leonardesque soft edge dissolution):
+            per channel: smooth_ch = Gaussian(ch_sat, veil_sigma)
+            ch_veiled = ch_sat × (1 − veil_amount) + smooth_ch × veil_amount
+            This is NOT sfumato (which operates at stroke level); it is a
+            post-processing global LF bias that gently reduces the amplitude
+            of all high-frequency edge transitions, giving Sodoma's characteristic
+            soft dreamlike surface without full sfumato extremity.
+        (5) Sky-blue highlight whisper:
+            gate_sky = clip((luma − sky_lo) / (1.0 − sky_lo), 0, 1)
+            B_final = clip(B_veiled + gate_sky × sky_b, 0, 1)
+        (6) Composite at opacity.
+
+        Twenty-fifth distinct mode: warm Sienese midtone gilding + dreamveil LF blend
+        + sky-blue highlight whisper.
+        Distinct from Gossaert (three-stratum differential): Sodoma uses smooth bump
+          zones without crisp stratum transitions; adds dreamveil global LF softening
+          (Gossaert has USM boundary sharpening — the opposite); Gossaert COOLS
+          highlights uniformly, Sodoma adds only a whisper of blue at the absolute peak.
+        Distinct from Palma Vecchio (luminance-zoned warm bloom): Palma's warmth gate
+          targets higher luminance [sat_lo≈0.52, sat_hi≈0.88]; Sodoma peaks lower in
+          midtones [0.38–0.72]; Palma has no dreamveil or sky-blue whisper.
+        Distinct from Guardi (HF trembling): Guardi redistributes HF detail via
+          coherent multi-offset rolling; Sodoma blends uniformly toward LF structure
+          — no roll offsets, no spatial shift, no dark-gate.
+        Distinct from Giorgione (focal radiance): Giorgione applies spatially-local
+          warm radiance from the compositional centre; Sodoma applies luminance-gated
+          global warming across the full canvas without spatial weighting.
+        Distinct from Cambiaso (tonal flattening): Cambiaso suppresses within-zone
+          variation toward coarse Gaussian means; Sodoma's dreamveil uses a small
+          per-pixel sigma (2.2) creating localised soft blending, not broad zone
+          flattening.
+        Distinct from shadow_transparency_pass (shadow/penumbra only): that pass
+          targets dark zones exclusively; Sodoma targets bright midtones and peaks.
+
+        Args:
+            warm_lo/hi    : Luminance range of the golden midtone warmth gate.
+            warm_r        : R boost within the warm gate (Sienese golden flesh).
+            warm_g        : G boost within the warm gate (warm amber undertone).
+            sat_lo/hi     : Luminance range of the saturation lift gate.
+            sat_lift      : Saturation boost strength (move away from luma).
+            veil_sigma    : Gaussian sigma for dreamveil LF component.
+            veil_amount   : Fraction of dreamveil blend toward smooth version.
+            sky_lo        : Luminance floor of sky-blue highlight whisper zone.
+            sky_b         : B channel boost within sky-blue whisper zone.
+            opacity       : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Golden midtone warmth gate (Sienese tradition) ───────────
+        denom_warm = max(float(warm_hi - warm_lo), 1e-6)
+        t_warm_lo = _np.clip((luma - warm_lo) / denom_warm, 0.0, 1.0)
+        t_warm_hi = _np.clip((warm_hi - luma) / denom_warm, 0.0, 1.0)
+        gate_warm = (4.0 * t_warm_lo * t_warm_hi).astype(_np.float32)
+
+        r_warm = _np.clip(r0 + gate_warm * warm_r, 0.0, 1.0)
+        g_warm = _np.clip(g0 + gate_warm * warm_g, 0.0, 1.0)
+        b_warm = b0  # blue unchanged — warmth is orange-amber, not yellow-green
+
+        # ── Step 3: Saturation lift in upper midtones ─────────────────────────
+        denom_sat = max(float(sat_hi - sat_lo), 1e-6)
+        t_sat_lo = _np.clip((luma - sat_lo) / denom_sat, 0.0, 1.0)
+        t_sat_hi = _np.clip((sat_hi - luma) / denom_sat, 0.0, 1.0)
+        gate_sat = (4.0 * t_sat_lo * t_sat_hi * sat_lift).astype(_np.float32)
+
+        r_sat = _np.clip(r_warm + (r_warm - luma) * gate_sat, 0.0, 1.0)
+        g_sat = _np.clip(g_warm + (g_warm - luma) * gate_sat, 0.0, 1.0)
+        b_sat = _np.clip(b_warm + (b_warm - luma) * gate_sat, 0.0, 1.0)
+
+        # ── Step 4: Dreamveil LF blend (Leonardesque soft edge dissolution) ───
+        # Blend uniformly toward the low-frequency (smooth) version of each
+        # channel, reducing HF edge amplitude without spatial scatter or
+        # zone-specific targeting — Sodoma's gentle dreamlike surface quality.
+        smooth_r = _gf(r_sat, sigma=veil_sigma)
+        smooth_g = _gf(g_sat, sigma=veil_sigma)
+        smooth_b = _gf(b_sat, sigma=veil_sigma)
+
+        r_veiled = r_sat * (1.0 - veil_amount) + smooth_r * veil_amount
+        g_veiled = g_sat * (1.0 - veil_amount) + smooth_g * veil_amount
+        b_veiled = b_sat * (1.0 - veil_amount) + smooth_b * veil_amount
+
+        # ── Step 5: Sky-blue highlight whisper ────────────────────────────────
+        gate_sky = _np.clip(
+            (luma - sky_lo) / max(1.0 - sky_lo, 1e-6), 0.0, 1.0
+        ).astype(_np.float32)
+        b_final = _np.clip(b_veiled + gate_sky * sky_b, 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_veiled * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_veiled * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_final  * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Sodoma sienese dreamveil pass complete.")
+
+    def specular_clarity_pass(
+        self,
+        clarity_lo:  float = 0.72,   # luminance floor for specular highlight zone
+        sigma:       float = 1.0,    # Gaussian sigma for USM high-frequency extraction
+        usm_amount:  float = 0.20,   # USM sharpening strength in highlight zone
+        cool_lo:     float = 0.82,   # luminance floor for very-brightest cool-pearl zone
+        cool_b:      float = 0.018,  # B boost in very-brightest peak highlights
+        cool_r:      float = 0.012,  # R reduction in very-brightest peak highlights
+        opacity:     float = 0.28,
+    ) -> None:
+        """Refine specular highlights as focused point-source light (twenty-sixth mode).
+
+        In Old Master painting, the specular highlight — the bright catch-light
+        on a forehead, the gleam on a nose ridge, the reflected light on a hand
+        — is not merely the brightest region of the flesh tone.  It is a qualitatively
+        different phenomenon: focused specular reflection from a point light source
+        (typically a single north-facing window or a carefully positioned lamp).
+
+        This distinction is visible in Vermeer, Velázquez, and the best Flemish
+        masters: their specular highlights have a precise, slightly sharper edge
+        than the surrounding broad flesh illumination, and the very brightest
+        peak is often marginally cooler than the warm flesh tone — as if a pure
+        white light source (cooler than the warm ambient) is being reflected
+        from the most convex surface point.
+
+        This pass encodes that quality as the twenty-sixth distinct processing
+        mode: BRIGHT-ZONE USM SHARPENING + VERY-BRIGHTEST COOL-PEARL PEAK.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Specular highlight gate: smooth ramp for pixels above clarity_lo
+            gate_clarity = clip((luma − clarity_lo) / (1 − clarity_lo), 0, 1)
+            → peaks at 1 for the brightest highlights, 0 below threshold
+        (3) USM sharpening in specular zone:
+            per channel: hf_ch = ch − Gaussian(ch, sigma)
+            ch_sharp = clip(ch + gate_clarity × usm_amount × hf_ch, 0, 1)
+            → sharpens the specular highlight edges, making them read as
+              focused point-source reflections rather than broad illumination
+        (4) Very-brightest cool-pearl peak (Vermeer specular quality):
+            gate_cool = clip((luma − cool_lo) / (1 − cool_lo), 0, 1)
+            R_final = clip(R_sharp − gate_cool × cool_r, 0, 1)
+            B_final = clip(B_sharp + gate_cool × cool_b, 0, 1)
+            → the absolute peak highlights receive a barely perceptible
+              cool-pearl cast — the colour of pure white window light
+              reflected from the most convex surface
+        (5) Composite at opacity.
+
+        Twenty-sixth distinct mode: bright-zone USM sharpening + cool-pearl peak.
+        Distinct from Gossaert (three-stratum with cool-pearl): Gossaert applies
+          uniform cool-pearl desaturation + blue boost to all highlights above
+          highlight_lo; specular_clarity adds USM SHARPENING of point sources AND
+          cools only the very brightest peak (cool_lo > highlight_lo), without
+          touching mid-luminance strata.
+        Distinct from Magnasco (dark-zone scattered bright peaks): Magnasco targets
+          dark-zone bright HF peaks via spatial scatter; this pass targets only
+          the bright zone without scatter or dark gating.
+        Distinct from Crivelli (gold-leaf gilding): Crivelli WARMS highlights by
+          adding specular gold; this pass slightly COOLS the very brightest peak
+          and sharpens the specular focus.
+        Distinct from Cambiaso (zone boundary USM): Cambiaso applies USM at coarse
+          TONAL-ZONE BOUNDARIES throughout the full luminance range; this pass
+          applies USM only within bright highlight pixels (above clarity_lo) to
+          sharpen specular focus.
+        Distinct from sodoma_sienese_dreamveil_pass (LF softening): Sodoma blends
+          TOWARD smooth LF structure (softening); this pass sharpens (USM adds HF).
+
+        Args:
+            clarity_lo  : Luminance floor for specular highlight zone.
+            sigma       : Gaussian sigma for USM high-frequency extraction.
+            usm_amount  : USM sharpening strength in the specular highlight zone.
+            cool_lo     : Luminance floor for very-brightest cool-pearl peak zone.
+            cool_b      : B channel boost in very-brightest peak (cool-pearl).
+            cool_r      : R channel reduction in very-brightest peak.
+            opacity     : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Specular highlight gate ───────────────────────────────────
+        gate_clarity = _np.clip(
+            (luma - clarity_lo) / max(1.0 - clarity_lo, 1e-6), 0.0, 1.0
+        ).astype(_np.float32)
+
+        # ── Step 3: USM sharpening in specular zone ───────────────────────────
+        hf_r = r0 - _gf(r0, sigma=sigma)
+        hf_g = g0 - _gf(g0, sigma=sigma)
+        hf_b = b0 - _gf(b0, sigma=sigma)
+
+        r_sharp = _np.clip(r0 + gate_clarity * usm_amount * hf_r, 0.0, 1.0)
+        g_sharp = _np.clip(g0 + gate_clarity * usm_amount * hf_g, 0.0, 1.0)
+        b_sharp = _np.clip(b0 + gate_clarity * usm_amount * hf_b, 0.0, 1.0)
+
+        # ── Step 4: Very-brightest cool-pearl peak ────────────────────────────
+        gate_cool = _np.clip(
+            (luma - cool_lo) / max(1.0 - cool_lo, 1e-6), 0.0, 1.0
+        ).astype(_np.float32)
+        r_final = _np.clip(r_sharp - gate_cool * cool_r, 0.0, 1.0)
+        g_final = g_sharp  # green unchanged
+        b_final = _np.clip(b_sharp + gate_cool * cool_b, 0.0, 1.0)
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + r_final * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + g_final * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + b_final * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Specular clarity pass complete.")

@@ -12618,6 +12618,69 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Sodoma (Giovanni Antonio Bazzi) ───────────────────────────────────────
+    "sodoma": ArtStyle(
+        artist="Sodoma (Giovanni Antonio Bazzi)",
+        movement="Sienese Leonardesque",
+        nationality="Italian (Sienese/Piedmontese)",
+        period="1490–1549",
+        palette=[
+            (0.92, 0.78, 0.58),   # warm golden ivory flesh — Sienese warmth
+            (0.78, 0.62, 0.44),   # peach-amber midtone flesh
+            (0.62, 0.50, 0.34),   # warm ochre mid-shadow
+            (0.42, 0.30, 0.16),   # warm umber deep shadow
+            (0.16, 0.12, 0.07),   # amber-black shadow void
+            (0.58, 0.68, 0.78),   # cool Sienese sky blue (highlights / distance)
+            (0.45, 0.55, 0.62),   # atmospheric blue-grey recession
+            (0.52, 0.45, 0.28),   # warm ochre-sienna landscape
+        ],
+        ground_color=(0.62, 0.50, 0.30),    # warm sienna-ochre Sienese ground
+        stroke_size=5,
+        wet_blend=0.82,                      # heavy blending from Leonardesque training
+        edge_softness=0.78,                  # near-sfumato; Sienese warmth softens but retains form
+        jitter=0.018,
+        glazing=(0.72, 0.58, 0.34),          # warm amber-honey Sienese glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Sienese golden warmth fused with Leonardesque sfumato — Sodoma's training "
+            "in Lombardy exposed him to Leonardo's Milanese circle (Boltraffio, de Predis), "
+            "while his decades in Siena absorbed the city's tradition of warm golden grounds "
+            "and luminous devotional tenderness.  His flesh has a characteristic amber-golden "
+            "interior glow in the midtones — the Sienese tradition's warm ochre ground glowing "
+            "through thin paint layers — combined with soft edge dissolution at the sfumato "
+            "boundary between light and shadow.  His brightest highlights carry a whisper of "
+            "Sienese sky-blue, linking the warm flesh to the cool celestial distances behind "
+            "his figures.  The overall effect is simultaneously warm and ethereal, earthly and "
+            "transcendent — a quality that made Sodoma one of the most spiritually evocative "
+            "painters of the Cinquecento."
+        ),
+        famous_works=[
+            ("Saint Sebastian",                  "c. 1525"),
+            ("The Ecstasy of Saint Catherine",   "c. 1526"),
+            ("Christ at the Column",             "c. 1510–1515"),
+            ("Marriage of Alexander and Roxane", "c. 1516–1517"),
+            ("Saint George and the Dragon",      "c. 1518"),
+        ],
+        inspiration=(
+            "Use sodoma_sienese_dreamveil_pass() to apply the TWENTY-FIFTH DISTINCT MODE: "
+            "WARM SIENESE MIDTONE GILDING + DREAMVEIL GLOBAL LF BLEND + SKY-BLUE HIGHLIGHT "
+            "WHISPER.  Three sequential operations: (1) Warm golden midtone gate — smooth bump "
+            "in [warm_lo=0.38, warm_hi=0.72] boosts R by warm_r=0.030 and G by warm_g=0.016, "
+            "injecting Sienese golden warmth into the flesh midtone zone without affecting "
+            "shadows or bright highlights; (2) Saturation lift in upper midtones — smooth bump "
+            "in [sat_lo=0.48, sat_hi=0.78] moves RGB away from luma by sat_lift=0.06, adding "
+            "Sienese chromatic richness; (3) Dreamveil LF blend — per-channel Gaussian "
+            "(veil_sigma=2.2) blended at veil_amount=0.07 toward the smooth version, creating "
+            "Sodoma's characteristic soft edge dissolution without the full sfumato extremity "
+            "of Leonardo; (4) Sky-blue highlight whisper — gate at luma > sky_lo=0.80 adds "
+            "sky_b=0.020 to the B channel, linking brightest flesh to Sienese celestial blue.  "
+            "Parameters: warm_lo=0.38, warm_hi=0.72, warm_r=0.030, warm_g=0.016, "
+            "sat_lo=0.48, sat_hi=0.78, sat_lift=0.06, veil_sigma=2.2, veil_amount=0.07, "
+            "sky_lo=0.80, sky_b=0.020, opacity=0.32."
+        ),
+    ),
+
 }
 
 
