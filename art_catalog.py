@@ -12258,6 +12258,71 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Filippino Lippi ────────────────────────────────────────────────────────
+    "filippino_lippi": ArtStyle(
+        artist="Filippino Lippi",
+        movement="Late Florentine Quattrocento",
+        nationality="Italian",
+        period="1457–1504",
+        palette=[
+            (0.82, 0.64, 0.52),   # warm rose flesh
+            (0.82, 0.22, 0.12),   # hot vermilion drapery
+            (0.68, 0.74, 0.28),   # acid yellow-green dissonance
+            (0.32, 0.24, 0.45),   # cobalt-violet shadow
+            (0.78, 0.65, 0.22),   # warm gold ochre
+            (0.52, 0.55, 0.60),   # blue-grey aerial distance
+            (0.88, 0.82, 0.68),   # pale ivory highlight
+        ],
+        ground_color=(0.55, 0.44, 0.32),
+        stroke_size=5,
+        wet_blend=0.40,
+        edge_softness=0.32,
+        jitter=0.028,
+        glazing=None,
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Filippino Lippi (c. 1457–1504) occupies an extraordinary position in "
+            "Florentine painting: son of Fra Filippo Lippi, pupil of Botticelli, and "
+            "the artist who completed Masaccio's Brancacci Chapel frescoes.  In his "
+            "mature work, beginning with the Strozzi Chapel frescoes at Santa Maria "
+            "Novella (c. 1489–1502), he transforms the quattrocento inheritance "
+            "into something unmistakably his own: a turbulent, nervous energy charged "
+            "with anxious vitality.  His drapery does not fall in serene classical arcs "
+            "but torques and billows in complex surfaces of light and shadow.  "
+            "His palette uses COLOR AS TENSION: vivid vermilion against acid "
+            "yellow-green, warm rose flesh against cool violet-blue shadow, gold ochre "
+            "against stone-grey architecture.  Adjacent zones do not harmonise — "
+            "they argue, push against each other with restless chromatic energy.  "
+            "His devotion to antiquity shows in dense archaeological decoration: the "
+            "Strozzi and Carafa Chapel frescoes are dense with antique trophies, "
+            "candelabra, putti, and relief panels.  Technically his oil technique "
+            "shares the warm imprimatura of Florentine practice but his paint "
+            "application is more direct than Leonardo's — colour zones stay "
+            "vivid rather than sfumato-dissolving, trembling with chromatic potential."
+        ),
+        famous_works=[
+            ("Strozzi Chapel frescoes, Santa Maria Novella",       "c. 1489–1502"),
+            ("Carafa Chapel frescoes, Santa Maria sopra Minerva",   "1488–1493"),
+            ("Vision of St Bernard, Badia Fiorentina",             "c. 1485–1487"),
+            ("Adoration of the Magi, Uffizi",                      "1496"),
+            ("Brancacci Chapel — completion of Masaccio cycle", "c. 1481–1482"),
+        ],
+        inspiration=(
+            "Use filippino_tension_pass() after build_form() to apply Filippino's "
+            "SATURATION-GATED HUE ROTATION: in HSV space, the most chromatic pixels "
+            "receive a gentle hue rotation, pushing vivid zones further apart and "
+            "creating the subtle color-tension that makes adjacent zones argue rather "
+            "than harmonise.  Saturation is also slightly boosted in those zones.  "
+            "edge_softness=0.32 preserves Florentine disegno — firm contours — "
+            "without Gothic hardness.  wet_blend=0.40 keeps zones distinct while "
+            "allowing soft mid-tone transitions.  "
+            "ground_color=(0.55, 0.44, 0.32) — warm terracotta imprimatura.  "
+            "Use sat_thresh=0.25, sat_power=1.5, hue_shift=0.04, "
+            "sat_boost=0.18, opacity=0.30."
+        ),
+    ),
+
 }
 
 

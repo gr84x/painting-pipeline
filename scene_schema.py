@@ -300,6 +300,7 @@ class Period(Enum):
     FERRARESE_COLORIST_POESIA  = auto()  # Dosso Dossi — jewel-like chromatic poetry, warm amber-gold illumination, luminous colour saturation from within; illumination-reflectance decomposition (Retinex) mode
     FERRARESE_CIVIC_GRANDEUR   = auto()  # Francesco del Cossa — enamel-bright gem-clarity, crisp colour-zone contours, crystalline chroma purity, hard sculptural forms on warm amber imprimatura
     VENETIAN_GILT_BYZANTINE_SPLENDOUR = auto()  # Carlo Crivelli — hard Gothic contours, specular power-curve gold-leaf gilding, electrifying jewel palette, International Gothic decorative intensity on gold-ground panel
+    LATE_FLORENTINE_QUATTROCENTO = auto()  # Filippino Lippi — vivid chromatic tension between adjacent zones, firm Florentine disegno, saturation-gated hue rotation amplifies colour argument; late quattrocento nervous energy
     VENETIAN_PASTORAL_LUMINISM = auto()  # Jacopo Bassano — deep umber ground, warm firelight impasto, anisotropic diffusion creates smooth tonal pools bounded by firm chiaroscuro edges; proto-Caravaggesque artificial light
     DUTCH_GOLDEN_AGE_LUMINISM  = auto()  # Aelbert Cuyp — radiant amber-gold afternoon light, luminance-adaptive spatial frequency attenuation dissolves fine detail in bright zones into golden atmosphere; the Dutch Claude
     GERMAN_REFORMATION_RENAISSANCE = auto()  # Lucas Cranach the Elder — enamel-flat colour zones, Gothic linear clarity, vermilion/jet-black/pearl-flesh palette, chromaticity/luminance decomposition for jewel-like purity
@@ -1491,7 +1492,16 @@ class Style:
             # Very high wet_blend: surfaces melt into each other with no visible brushmarks.
             # High edge_softness: forms dissolve into warm atmospheric tonalism.
             Period.VENETIAN_POETIC_TONALISM: dict(stroke_size_face=6, stroke_size_bg=28, wet_blend=0.88, edge_softness=0.82),
-            Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
+            # LATE_FLORENTINE_QUATTROCENTO (Filippino Lippi) — nervous energy, vivid chromatic tension.
+            # stroke_size_face=5: precise Florentine disegno — careful marks that honour the
+            # draughtsmanship tradition without the micro-precision of Northern miniaturists.
+            # stroke_size_bg=22: moderate for architectural and landscape backgrounds.
+            # wet_blend=0.40: moderate — zones are distinct and vivid, not Venetian-blended,
+            # but not the absolute dryness of enamel painters; some transition in mid-tones.
+            # edge_softness=0.32: firm Florentine contour — the energetic line of a master
+            # draughtsman, more animated than Gothic hardness but far from sfumato.
+            Period.LATE_FLORENTINE_QUATTROCENTO: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.40, edge_softness=0.32),
+                        Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
         }

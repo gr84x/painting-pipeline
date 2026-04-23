@@ -32910,3 +32910,194 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Glazing depth pass complete.")
+
+    def filippino_tension_pass(
+        self,
+        sat_thresh:  float = 0.25,
+        sat_power:   float = 1.5,
+        hue_shift:   float = 0.04,
+        sat_boost:   float = 0.18,
+        opacity:     float = 0.30,
+    ) -> None:
+        """Apply Filippino Lippi's saturation-gated hue rotation for chromatic tension.
+
+        Filippino's palette uses color as argument: adjacent chromatic zones push
+        against each other rather than harmonising.  This pass encodes that quality
+        as the twentieth distinct processing mode: SATURATION-GATED HUE ROTATION.
+
+        In HSV space, pixels above sat_thresh receive a hue rotation proportional
+        to their saturation excess: gate = clip((S - sat_thresh) / (1 - sat_thresh),
+        0, 1) ^ sat_power.  The hue is rotated by hue_shift * gate (in [0, 1]
+        normalised units, i.e. 0.04 = 14.4 degrees), and saturation is boosted by
+        sat_boost * gate.  The result: highly chromatic zones are pushed further
+        apart in hue space while muted zones are left untouched, creating the
+        restless colour-tension characteristic of Filippino's mature work.
+
+        Twentieth distinct mode: saturation-gated hue rotation.  Distinct from s131
+        (Rosso Fiorentino hue-selective tension, which rotates only specific hue
+        ANGLE ranges and targets flesh/shadow/highlight zones by luminance) because
+        this mode applies a UNIVERSAL rotation scaled by saturation level -- the more
+        chromatic a pixel is, the more its hue is pushed.  It does not target hue
+        angle ranges or luminance zones; it targets chromatic intensity itself.
+
+        Args:
+            sat_thresh  : Saturation threshold below which no rotation is applied.
+            sat_power   : Power exponent on the saturation gate.
+            hue_shift   : Maximum hue rotation in [0, 1] units (0.04 ~= 14.4 deg).
+            sat_boost   : Maximum saturation boost at full gate.
+            opacity     : Final composite weight (0-1).
+        """
+        print(f"Filippino tension pass (sat_thresh={sat_thresh:.2f}, "
+              f"hue_shift={hue_shift:.3f}, opacity={opacity:.2f})...")
+
+        import numpy as _np
+
+        if opacity <= 0.0:
+            print("    Filippino tension pass skipped (opacity=0).")
+            return
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # -- RGB -> HSV (vectorised) ------------------------------------------
+        max_c = _np.maximum(_np.maximum(r0, g0), b0)
+        min_c = _np.minimum(_np.minimum(r0, g0), b0)
+        delta = max_c - min_c
+
+        V = max_c
+        S = _np.where(max_c > 1e-6, delta / (max_c + 1e-9), 0.0).astype(_np.float32)
+
+        # Hue in [0, 1]
+        H_arr = _np.zeros_like(r0)
+        eps = 1e-9
+        mask_r = (max_c == r0) & (delta > 1e-6)
+        mask_g = (max_c == g0) & (delta > 1e-6) & ~mask_r
+        mask_b = (max_c == b0) & (delta > 1e-6) & ~mask_r & ~mask_g
+        H_arr = _np.where(mask_r, ((g0 - b0) / (delta + eps)) % 6.0, H_arr)
+        H_arr = _np.where(mask_g, 2.0 + (b0 - r0) / (delta + eps), H_arr)
+        H_arr = _np.where(mask_b, 4.0 + (r0 - g0) / (delta + eps), H_arr)
+        H_arr = (H_arr / 6.0) % 1.0
+
+        # -- Saturation gate --------------------------------------------------
+        denom = max(1.0 - sat_thresh, 1e-6)
+        gate  = _np.clip((S - sat_thresh) / denom, 0.0, 1.0) ** sat_power
+
+        # -- Apply hue rotation and saturation boost --------------------------
+        H_new = (H_arr + hue_shift * gate) % 1.0
+        S_new = _np.clip(S * (1.0 + sat_boost * gate), 0.0, 1.0)
+
+        # -- HSV -> RGB (vectorised) ------------------------------------------
+        H6  = H_new * 6.0
+        hi  = _np.floor(H6).astype(_np.int32) % 6
+        f   = (H6 - _np.floor(H6)).astype(_np.float32)
+        p   = (V * (1.0 - S_new)).astype(_np.float32)
+        q   = (V * (1.0 - f * S_new)).astype(_np.float32)
+        t   = (V * (1.0 - (1.0 - f) * S_new)).astype(_np.float32)
+        V32 = V.astype(_np.float32)
+
+        r_h = _np.select([hi==0, hi==1, hi==2, hi==3, hi==4, hi==5], [V32, q,   p,   p,   t,   V32])
+        g_h = _np.select([hi==0, hi==1, hi==2, hi==3, hi==4, hi==5], [t,   V32, V32, q,   p,   p  ])
+        b_h = _np.select([hi==0, hi==1, hi==2, hi==3, hi==4, hi==5], [p,   p,   t,   V32, V32, q  ])
+
+        # -- Composite at opacity ---------------------------------------------
+        r_f = r0 * (1.0 - opacity) + r_h * opacity
+        g_f = g0 * (1.0 - opacity) + g_h * opacity
+        b_f = b0 * (1.0 - opacity) + b_h * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Filippino tension pass complete.")
+
+    def focal_vignette_pass(
+        self,
+        focal_x:           float = 0.50,
+        focal_y:           float = 0.50,
+        vignette_strength: float = 0.38,
+        vignette_power:    float = 2.0,
+        cool_shift:        float = 0.03,
+        opacity:           float = 0.50,
+    ) -> None:
+        """Apply a radial focal vignette to darken and cool the composition edges.
+
+        Portrait painters from the Renaissance onward used strategic tonal
+        management to guide the eye toward the subject.  This pass applies a
+        radial darkening and subtle cooling from the focal centre outward:
+        edges receive a luminance reduction and a slight blue temperature shift,
+        concentrating the viewer's attention on the central figure.
+
+        Algorithm: compute normalised radial distance from (focal_x, focal_y);
+        build vignette = 1 - (dist_norm ^ vignette_power) * vignette_strength;
+        multiply each RGB channel by vignette (darkening); apply cool_shift *
+        outer_weight to the blue channel for cool atmospheric recession at edges.
+        Composited at opacity.
+
+        Args:
+            focal_x, focal_y   : Normalised focal centre (0-1, default centre).
+            vignette_strength  : Maximum darkening at the furthest corner (0-1).
+            vignette_power     : Falloff exponent; higher = sharper edge ring.
+            cool_shift         : Blue channel lift at the outer edge.
+            opacity            : Composite weight of the vignette effect (0-1).
+        """
+        print(f"Focal vignette pass (focal=({focal_x:.2f},{focal_y:.2f}), "
+              f"strength={vignette_strength:.2f}, opacity={opacity:.2f})...")
+
+        import numpy as _np
+
+        if opacity <= 0.0:
+            print("    Focal vignette pass skipped (opacity=0).")
+            return
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # -- Radial distance from focal point ---------------------------------
+        xs = _np.linspace(0.0, 1.0, W, dtype=_np.float32) - float(focal_x)
+        ys = _np.linspace(0.0, 1.0, H, dtype=_np.float32) - float(focal_y)
+        xx, yy = _np.meshgrid(xs, ys)
+        dist = _np.sqrt(xx * xx + yy * yy)
+
+        max_dist = float(_np.sqrt(
+            max(focal_x, 1.0 - focal_x) ** 2 + max(focal_y, 1.0 - focal_y) ** 2
+        ))
+        dist_norm = _np.clip(dist / max(max_dist, 1e-6), 0.0, 1.0)
+
+        # -- Vignette weight: 1 at centre, reduced at edges -------------------
+        vignette = 1.0 - (dist_norm ** vignette_power) * vignette_strength
+        vignette = _np.clip(vignette, 0.0, 1.0).astype(_np.float32)
+        outer    = (1.0 - vignette).astype(_np.float32)
+
+        # -- Apply darkening and cool shift -----------------------------------
+        r_v = _np.clip(r0 * vignette,                      0.0, 1.0)
+        g_v = _np.clip(g0 * vignette,                      0.0, 1.0)
+        b_v = _np.clip(b0 * vignette + cool_shift * outer, 0.0, 1.0)
+
+        # -- Composite at opacity ---------------------------------------------
+        r_f = r0 * (1.0 - opacity) + r_v * opacity
+        g_f = g0 * (1.0 - opacity) + g_v * opacity
+        b_f = b0 * (1.0 - opacity) + b_v * opacity
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_f * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Focal vignette pass complete.")
