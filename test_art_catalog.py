@@ -152,6 +152,7 @@ EXPECTED_ARTISTS = [
     "guardi",
     "cambiaso",
     "gossaert",
+    "sodoma",
 ]
 
 
@@ -337,6 +338,7 @@ EXPECTED_PERIODS = [
     "VENETIAN_ATMOSPHERIC_VEDUTA",
     "GENOESE_LIGURIAN_MANNERISM",
     "FLEMISH_ITALIANATE_RENAISSANCE",
+    "SIENESE_LEONARDESQUE",
 ]
 
 
@@ -18263,3 +18265,261 @@ def test_gossaert_in_expected_artists_catalog_final():
     """gossaert must appear in both EXPECTED_ARTISTS list and CATALOG dict."""
     assert "gossaert" in CATALOG
     assert "gossaert" in EXPECTED_ARTISTS
+
+
+# =============================================================================
+# Session 147 — Sodoma (Giovanni Antonio Bazzi) / SIENESE_LEONARDESQUE
+#              + sodoma_sienese_dreamveil_pass (25th distinct mode)
+#              + specular_clarity_pass (artistic improvement)
+# =============================================================================
+
+def test_sodoma_in_catalog():
+    """sodoma must be present in CATALOG after session 147."""
+    assert "sodoma" in CATALOG, "sodoma missing from CATALOG"
+
+def test_sodoma_artist_name():
+    s = get_style("sodoma")
+    assert "Sodoma" in s.artist or "Bazzi" in s.artist
+
+def test_sodoma_movement_sienese():
+    s = get_style("sodoma")
+    assert "Sienese" in s.movement or "sienese" in s.movement.lower()
+
+def test_sodoma_palette_length():
+    s = get_style("sodoma")
+    assert len(s.palette) >= 6
+
+def test_sodoma_palette_in_range():
+    s = get_style("sodoma")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+def test_sodoma_ground_color_warm():
+    """sodoma ground_color must be warm (R >= B) for Sienese ochre ground."""
+    s = get_style("sodoma")
+    r, g, b = s.ground_color
+    assert r > b, f"sodoma ground_color expected warm (R>B): {s.ground_color}"
+
+def test_sodoma_wet_blend_high():
+    """sodoma wet_blend must be >= 0.75 — Leonardesque heavy blending."""
+    s = get_style("sodoma")
+    assert s.wet_blend >= 0.75, f"sodoma wet_blend expected >= 0.75: {s.wet_blend}"
+
+def test_sodoma_edge_softness_near_sfumato():
+    """sodoma edge_softness must be >= 0.65 — near-sfumato Leonardesque quality."""
+    s = get_style("sodoma")
+    assert s.edge_softness >= 0.65, f"sodoma edge_softness expected >= 0.65: {s.edge_softness}"
+
+def test_sodoma_no_chromatic_split():
+    s = get_style("sodoma")
+    assert not s.chromatic_split
+
+def test_sodoma_has_glazing():
+    s = get_style("sodoma")
+    assert s.glazing is not None
+
+def test_sodoma_glazing_warm():
+    """sodoma glazing must be warm (R >= B) — amber Sienese glaze."""
+    s = get_style("sodoma")
+    r, g, b = s.glazing
+    assert r > b, f"sodoma glazing expected warm (R>B): {s.glazing}"
+
+def test_sodoma_technique_mentions_sfumato():
+    s = get_style("sodoma")
+    assert any(kw in s.technique.lower() for kw in ("sfumato", "soft", "dissolv", "dream")), \
+        "sodoma technique must mention sfumato or soft edge quality"
+
+def test_sodoma_famous_works():
+    s = get_style("sodoma")
+    assert len(s.famous_works) >= 3
+    titles = [t for t, _ in s.famous_works]
+    assert any("Sebastian" in t or "Catherine" in t or "Christ" in t for t in titles), \
+        f"sodoma famous works should include Sebastian, Catherine, or Christ: {titles}"
+
+def test_sienese_leonardesque_period_present():
+    """SIENESE_LEONARDESQUE must be present in Period enum after session 147."""
+    period_names = {p.name for p in Period}
+    assert "SIENESE_LEONARDESQUE" in period_names
+
+def test_sienese_leonardesque_stroke_params():
+    """SIENESE_LEONARDESQUE must have valid stroke_params — high wet_blend and edge_softness."""
+    from scene_schema import Style, Medium
+    style = Style(medium=Medium.OIL, period=Period.SIENESE_LEONARDESQUE)
+    params = style.stroke_params
+    assert "wet_blend" in params
+    assert "edge_softness" in params
+    assert params["wet_blend"] >= 0.70, \
+        f"SIENESE_LEONARDESQUE wet_blend expected >= 0.70: {params['wet_blend']}"
+    assert params["edge_softness"] >= 0.60, \
+        f"SIENESE_LEONARDESQUE edge_softness expected >= 0.60: {params['edge_softness']}"
+
+def test_sodoma_sienese_dreamveil_pass_exists():
+    import inspect
+    from stroke_engine import Painter
+    assert hasattr(Painter, "sodoma_sienese_dreamveil_pass"), \
+        "Painter must have sodoma_sienese_dreamveil_pass method"
+
+def test_sodoma_sienese_dreamveil_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sodoma_sienese_dreamveil_pass)
+    assert "opacity" in sig.parameters
+
+def test_sodoma_sienese_dreamveil_pass_warm_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.sodoma_sienese_dreamveil_pass)
+    assert "warm_r" in sig.parameters
+    assert "warm_g" in sig.parameters
+    assert "veil_sigma" in sig.parameters
+    assert "sky_b" in sig.parameters
+
+def test_sodoma_sienese_dreamveil_pass_no_error():
+    """sodoma_sienese_dreamveil_pass() runs on a plain toned canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.62, 0.50, 0.30), texture_strength=0.05)
+    p.sodoma_sienese_dreamveil_pass(opacity=0.32)
+
+def test_sodoma_sienese_dreamveil_pass_zero_opacity_no_op():
+    """sodoma_sienese_dreamveil_pass() with opacity=0 must not modify the canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.45, 0.28), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.sodoma_sienese_dreamveil_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before == after, "sodoma_sienese_dreamveil_pass with opacity=0 must not modify canvas"
+
+def test_sodoma_sienese_dreamveil_pass_modifies_midtone_canvas():
+    """sodoma_sienese_dreamveil_pass() with opacity > 0 must modify a midtone canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.sodoma_sienese_dreamveil_pass(opacity=1.0, warm_r=0.10, warm_g=0.06)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before != after, "sodoma_sienese_dreamveil_pass must modify a midtone canvas at opacity > 0"
+
+def test_sodoma_sienese_dreamveil_pass_warms_midtone_r():
+    """sodoma_sienese_dreamveil_pass() must boost R channel in midtone zone."""
+    import numpy as _np
+    from stroke_engine import Painter
+    H, W = 64, 64
+    p = Painter(width=W, height=H)
+    # Midtone neutral canvas in the warm gate zone [0.38, 0.72]
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    r_before = before[:, :, 2].mean()
+    p.sodoma_sienese_dreamveil_pass(
+        warm_lo=0.30, warm_hi=0.80, warm_r=0.10, warm_g=0.05, opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    r_after = after[:, :, 2].mean()
+    assert r_after > r_before, (
+        f"sodoma_sienese_dreamveil_pass must warm R in midtone zone: "
+        f"before={r_before:.1f}, after={r_after:.1f}")
+
+def test_sodoma_sienese_dreamveil_pass_pixels_in_range():
+    """sodoma_sienese_dreamveil_pass() must not produce out-of-range pixel values."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.00)
+    p.sodoma_sienese_dreamveil_pass(warm_r=0.20, warm_g=0.10, sat_lift=0.30, opacity=1.0)
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after sodoma_sienese_dreamveil_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after sodoma_sienese_dreamveil_pass"
+
+def test_specular_clarity_pass_exists():
+    import inspect
+    from stroke_engine import Painter
+    assert hasattr(Painter, "specular_clarity_pass"), \
+        "Painter must have specular_clarity_pass method"
+
+def test_specular_clarity_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.specular_clarity_pass)
+    assert "opacity" in sig.parameters
+
+def test_specular_clarity_pass_clarity_lo_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.specular_clarity_pass)
+    assert "clarity_lo" in sig.parameters
+
+def test_specular_clarity_pass_no_error():
+    """specular_clarity_pass() runs on a plain toned canvas without error."""
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.62, 0.55, 0.40), texture_strength=0.05)
+    p.specular_clarity_pass(opacity=0.28)
+
+def test_specular_clarity_pass_zero_opacity_no_op():
+    """specular_clarity_pass() with opacity=0 must not modify the canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.70, 0.60, 0.45), texture_strength=0.05)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.specular_clarity_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before == after, "specular_clarity_pass with opacity=0 must not modify canvas"
+
+def test_specular_clarity_pass_modifies_bright_canvas():
+    """specular_clarity_pass() with opacity > 0 must modify a bright canvas."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Use cool_lo below the canvas luminance so cool-pearl gate triggers even on
+    # a uniform surface (USM of uniform = 0, but cool-pearl still fires).
+    p.tone_ground((0.92, 0.88, 0.78), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    p.specular_clarity_pass(opacity=1.0, cool_lo=0.60, cool_b=0.05, cool_r=0.04)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).tobytes()
+    assert before != after, "specular_clarity_pass must modify a bright canvas at opacity > 0"
+
+def test_specular_clarity_pass_cools_brightest_highlights():
+    """specular_clarity_pass() must increase B and decrease R in very-bright pixels."""
+    import numpy as _np
+    from stroke_engine import Painter
+    H, W = 64, 64
+    p = Painter(width=W, height=H)
+    # Very bright neutral canvas — above cool_lo threshold
+    p.tone_ground((0.90, 0.90, 0.90), texture_strength=0.00)
+    before = _np.frombuffer(p.canvas.surface.get_data(),
+                            dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    r_before = before[:, :, 2].mean()
+    b_before = before[:, :, 0].mean()
+    p.specular_clarity_pass(
+        clarity_lo=0.60, cool_lo=0.75, cool_b=0.10, cool_r=0.08, opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(),
+                           dtype=_np.uint8).reshape(H, W, 4).astype(_np.float32)
+    r_after = after[:, :, 2].mean()
+    b_after = after[:, :, 0].mean()
+    assert b_after > b_before, (
+        f"specular_clarity_pass must raise B in bright zone: before={b_before:.1f}, after={b_after:.1f}")
+    assert r_after < r_before, (
+        f"specular_clarity_pass must lower R in bright zone: before={r_before:.1f}, after={r_after:.1f}")
+
+def test_specular_clarity_pass_pixels_in_range():
+    """specular_clarity_pass() must not produce out-of-range pixel values."""
+    import numpy as _np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.88, 0.82, 0.70), texture_strength=0.00)
+    p.specular_clarity_pass(usm_amount=1.0, cool_b=0.20, cool_r=0.20, opacity=1.0)
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0,   "Pixels below 0 after specular_clarity_pass"
+    assert buf[:, :, :3].max() <= 255, "Pixels above 255 after specular_clarity_pass"
+
+def test_sodoma_in_expected_artists_catalog_final():
+    """sodoma must appear in both EXPECTED_ARTISTS list and CATALOG dict."""
+    assert "sodoma" in CATALOG
+    assert "sodoma" in EXPECTED_ARTISTS
