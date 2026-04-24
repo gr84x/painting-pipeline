@@ -14941,6 +14941,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 172: Hendrick Avercamp ──────────────────────────────────────
+    "hendrick_avercamp": ArtStyle(
+        artist="Hendrick Avercamp",
+        movement="Dutch Golden Age Winter Landscape",
+        nationality="Dutch",
+        period="1585-1634",
+        palette=[
+            (0.92, 0.94, 0.96),   # ice white — frozen waterway surface
+            (0.78, 0.82, 0.88),   # silver-grey sky — flat overcast Dutch winter
+            (0.64, 0.70, 0.80),   # cool blue-grey — atmospheric mist and distance
+            (0.22, 0.16, 0.10),   # dark brown — bare trees, ice holes, figures
+            (0.72, 0.26, 0.14),   # brick red — signature costume accent colour
+            (0.78, 0.58, 0.18),   # warm ochre — golden costume detail
+            (0.24, 0.36, 0.22),   # forest green — winter garment
+            (0.54, 0.48, 0.38),   # warm grey-beige — middleground figures
+            (0.40, 0.52, 0.62),   # blue-steel — frozen water shadows
+            (0.88, 0.84, 0.78),   # warm cream — snow-covered buildings
+        ],
+        ground_color=(0.87, 0.88, 0.92),  # pale silver-grey overcast sky
+        stroke_size=1.4,
+        wet_blend=0.35,
+        edge_softness=0.30,
+        jitter=0.06,
+        glazing=(0.82, 0.86, 0.90),  # cool silver glaze — winter sky diffusion
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Hendrick Avercamp (1585–1634), nicknamed 'de Stomme van Kampen' "
+            "(the Mute of Kampen) because he was born deaf-mute, is the supreme "
+            "master of the Dutch winter landscape — a genre he virtually invented "
+            "and in which he remains unsurpassed.  His panoramic frozen-waterway "
+            "scenes are among the most charming and technically accomplished works "
+            "of the early Dutch Golden Age, predating Rembrandt's revolution by "
+            "a full generation.\n\n"
+            "His signature compositions are broad, low-horizon panoramas viewed "
+            "from a slightly elevated vantage — the ice stretching away into pale "
+            "distance, crowded with dozens of tiny figures: skaters, sledges, "
+            "hawkers, elegant couples, ragged children, fishermen cutting holes "
+            "in the ice.  This bird's-eye panoramic format derives from Pieter "
+            "Bruegel the Elder, but Avercamp's handling of light and atmosphere "
+            "is entirely his own.\n\n"
+            "The defining visual quality of Avercamp's surfaces is the silver-grey "
+            "overcast luminosity of a flat Dutch winter sky.  There is no dramatic "
+            "directional light source — the illumination is diffused, soft, and "
+            "cool, coming from the entire overcast sky above AND reflected upward "
+            "from the pale ice and snow below.  This flat, wrap-around light "
+            "eliminates strong shadows; form is conveyed through local colour and "
+            "delicate tonal nuance rather than chiaroscuro.\n\n"
+            "Against this cool silver-grey atmospheric ground, Avercamp scatters "
+            "the warm costume colours of his figures like scattered jewels: brick "
+            "red cloaks, ochre-yellow coats, forest-green skirts.  These warm "
+            "chromatic notes appear almost exclusively at the mid-luminance range "
+            "of his figures — the cool pale sky and ice dominate highlights, the "
+            "dark bare trees and ice-holes punctuate shadows.  The midtone zone "
+            "is where human warmth and life concentrates.\n\n"
+            "His technique shows Flemish influence in its meticulous linear "
+            "draftsmanship — individual figures are drawn with crisp, confident "
+            "contours even at small scale, and architectural elements (windmills, "
+            "farmhouses, town towers) are rendered with topographic precision.  "
+            "His palette is restrained: ash-silver, ice-white, blue-grey, with "
+            "brick-red and ochre as the only warm saturated notes.  He never uses "
+            "the rich impasto of Hals or the tonal drama of Rembrandt — his paint "
+            "is thin, controlled, and delicate throughout."
+        ),
+        famous_works=[
+            ("Winter Landscape with Ice Skaters", "c. 1608"),
+            ("Skaters on a Frozen River", "c. 1615"),
+            ("Winter Scene on a Canal", "c. 1620"),
+            ("A Scene on the Ice near a Town", "c. 1610"),
+            ("Fishermen and Skaters on a Frozen Lake", "c. 1625"),
+        ],
+        inspiration=(
+            "Use avercamp_winter_atmosphere_pass(): simulate Avercamp's silver-grey "
+            "overcast winter luminosity by blending the entire canvas toward a pale "
+            "silver-grey-blue target (r_target≈0.73, g_target≈0.76, b_target≈0.82) "
+            "with a controlled global blend strength — this replicates the flat "
+            "wrap-around diffuse light of an overcast Dutch winter sky.  Then restore "
+            "warmth selectively in the midtone zone via a luminance bell-gate "
+            "(lo≈0.30, hi≈0.72): add warm R+G+ to simulate the brick-red and ochre "
+            "costume accents that appear as warm notes against Avercamp's cool "
+            "silver ground.  The key novelty is the two-stage approach: first pulling "
+            "ALL pixels toward grey (desaturation via target-blending), then "
+            "restoring warmth only in midtones."
+        ),
+    ),
+
 }
 
 

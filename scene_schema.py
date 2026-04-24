@@ -336,6 +336,7 @@ class Period(Enum):
     DANUBE_SCHOOL         = auto()  # Albrecht Altdorfer — atmospheric vertical depth layering; pale chalk gesso; forest blue-green mid-distance; amber-umber earth; twilight nocturne palette; Romantic landscape pioneers
     DELFT_SCHOOL          = auto()  # Carel Fabritius — inverted tenebrism; pale warm ground; figure dark-against-light; ambient diffuse luminosity; Rembrandt-to-Vermeer bridge; restrained palette
     UTRECHT_MANNERIST     = auto()  # Abraham Bloemaert — high-frequency chromatic oscillation; warm HF peaks / cool HF troughs; pastoral warmth; late Mannerist iridescence; Utrecht School founder
+    DUTCH_WINTER_LANDSCAPE = auto()  # Hendrick Avercamp — silver-grey overcast desaturation; midtone warmth restoration for figures; icy panoramic palette; pale cool ground; crisp linear detail for small figures
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1698,6 +1699,9 @@ class Style:
             # UTRECHT_MANNERIST (Abraham Bloemaert) — late Mannerist precision bridging to Baroque; moderate blending;
             # moderate edge_softness (crisper than pure sfumato; softer than Dutch Mannerist copper).
             Period.UTRECHT_MANNERIST: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.45, edge_softness=0.40),
+            # DUTCH_WINTER_LANDSCAPE (Hendrick Avercamp) — crisp northern linearity for tiny figures; moderate blending;
+            # low edge_softness (clear form edges needed at small figure scale); pale cool ground.
+            Period.DUTCH_WINTER_LANDSCAPE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.35, edge_softness=0.30),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

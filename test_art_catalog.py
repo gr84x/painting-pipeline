@@ -174,6 +174,7 @@ EXPECTED_ARTISTS = [
     "albrecht_altdorfer",
     "carel_fabritius",
     "abraham_bloemaert",
+    "hendrick_avercamp",
 ]
 
 
@@ -381,6 +382,7 @@ EXPECTED_PERIODS = [
     "DANUBE_SCHOOL",
     "DELFT_SCHOOL",
     "UTRECHT_MANNERIST",
+    "DUTCH_WINTER_LANDSCAPE",
 ]
 
 
@@ -23527,3 +23529,281 @@ def test_chromatic_vignette_pass_cools_periphery():
     assert b_corner >= b_center, (
         f"Chromatic vignette should increase B at corners vs center; "
         f"center_B={b_center:.2f}, corner_B={b_corner:.2f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 172: Hendrick Avercamp + DUTCH_WINTER_LANDSCAPE + passes 65 & 66
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_hendrick_avercamp_s172_in_catalog():
+    """Session 172: hendrick_avercamp must be in CATALOG."""
+    assert "hendrick_avercamp" in CATALOG, "hendrick_avercamp missing from CATALOG"
+
+
+def test_hendrick_avercamp_s172_artist_name():
+    """Session 172: Avercamp artist field must contain 'Avercamp'."""
+    style = CATALOG["hendrick_avercamp"]
+    assert "Avercamp" in style.artist, f"Unexpected artist: {style.artist!r}"
+
+
+def test_hendrick_avercamp_s172_movement():
+    """Session 172: movement must reference Dutch Winter Landscape."""
+    style = CATALOG["hendrick_avercamp"]
+    movement_lower = style.movement.lower()
+    assert "winter" in movement_lower or "dutch" in movement_lower, (
+        f"Expected 'winter' or 'dutch' in movement; got {style.movement!r}")
+
+
+def test_hendrick_avercamp_s172_palette_length():
+    """Session 172: Avercamp palette must have at least 8 colours."""
+    style = CATALOG["hendrick_avercamp"]
+    assert len(style.palette) >= 8, (
+        f"Expected >= 8 palette colours; got {len(style.palette)}")
+
+
+def test_hendrick_avercamp_s172_palette_in_range():
+    """Session 172: all Avercamp palette colour values must be in [0, 1]."""
+    style = CATALOG["hendrick_avercamp"]
+    for i, colour in enumerate(style.palette):
+        for j, v in enumerate(colour):
+            assert 0.0 <= v <= 1.0, (
+                f"Palette colour {i} channel {j} out of range: {v}")
+
+
+def test_hendrick_avercamp_s172_wet_blend():
+    """Session 172: Avercamp wet_blend should reflect crisp northern linearity (< 0.50)."""
+    style = CATALOG["hendrick_avercamp"]
+    assert style.wet_blend is not None and style.wet_blend < 0.50, (
+        f"Expected wet_blend < 0.50 for crisp winter landscape; got {style.wet_blend}")
+
+
+def test_hendrick_avercamp_s172_inspiration_references_winter_pass():
+    """Session 172: inspiration must reference avercamp_winter_atmosphere_pass."""
+    style = CATALOG["hendrick_avercamp"]
+    assert "avercamp_winter_atmosphere_pass" in style.inspiration, (
+        "Expected avercamp_winter_atmosphere_pass reference in inspiration field")
+
+
+def test_dutch_winter_landscape_period_present():
+    """Session 172: DUTCH_WINTER_LANDSCAPE must exist in Period enum."""
+    from scene_schema import Period
+    assert hasattr(Period, "DUTCH_WINTER_LANDSCAPE"), (
+        "Period.DUTCH_WINTER_LANDSCAPE not found")
+    assert Period.DUTCH_WINTER_LANDSCAPE in list(Period)
+
+
+def test_dutch_winter_landscape_stroke_params():
+    """Session 172: DUTCH_WINTER_LANDSCAPE stroke_params must have all required keys."""
+    from scene_schema import Period, Style, Medium, PaletteHint
+    style = Style(
+        medium=Medium.OIL,
+        period=Period.DUTCH_WINTER_LANDSCAPE,
+        palette=PaletteHint.COOL_GREY,
+    )
+    params = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in params, f"Missing key {key!r} in DUTCH_WINTER_LANDSCAPE stroke_params"
+    assert params["wet_blend"] < 0.50, (
+        f"DUTCH_WINTER_LANDSCAPE wet_blend should be < 0.50 for crisp linearity; "
+        f"got {params['wet_blend']}")
+    assert params["edge_softness"] < 0.50, (
+        f"DUTCH_WINTER_LANDSCAPE edge_softness should be < 0.50; "
+        f"got {params['edge_softness']}")
+
+
+def test_avercamp_winter_atmosphere_pass_runs():
+    """Session 172: avercamp_winter_atmosphere_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.80, 0.82, 0.86), texture_strength=0.0)
+    p.avercamp_winter_atmosphere_pass(opacity=0.50)
+
+
+def test_avercamp_winter_atmosphere_pass_noop_at_zero_opacity():
+    """Session 172: avercamp_winter_atmosphere_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.65, 0.50, 0.30), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    p.avercamp_winter_atmosphere_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    assert np.array_equal(before, after), (
+        "avercamp_winter_atmosphere_pass at opacity=0 must not modify canvas")
+
+
+def test_avercamp_winter_atmosphere_pass_pixels_in_range():
+    """Session 172: avercamp_winter_atmosphere_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.70, 0.55, 0.35), texture_strength=0.0)
+    p.avercamp_winter_atmosphere_pass(opacity=0.80)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(32, 32, 4).copy()
+
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_avercamp_winter_atmosphere_pass_cools_highlights():
+    """Session 172: grey_strength should pull bright warm pixels toward the silver-blue target (B increases)."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    # Set a very warm (high R, low B) ground
+    p = Painter(64, 64)
+    p.tone_ground((0.85, 0.55, 0.25), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    b_before = before[:, :, 0].astype(np.float32).mean()
+
+    p.avercamp_winter_atmosphere_pass(
+        silver_r=0.73, silver_g=0.76, silver_b=0.82,
+        grey_strength=0.50, warm_r=0.0, warm_g=0.0,
+        warmth_strength=0.0, opacity=1.0,
+    )
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    b_after = after[:, :, 0].astype(np.float32).mean()
+
+    assert b_after > b_before, (
+        f"Silver-grey blend should increase B (cool shift); "
+        f"B before={b_before:.2f}, B after={b_after:.2f}")
+
+
+def test_avercamp_winter_atmosphere_pass_warms_midtones():
+    """Session 172: warmth gate should increase R in midtone zone."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    # Create a medium-grey canvas (midtone range)
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r_before = before[:, :, 2].astype(np.float32).mean()
+
+    p.avercamp_winter_atmosphere_pass(
+        silver_r=0.50, silver_g=0.50, silver_b=0.50,  # neutral grey — no cool shift
+        grey_strength=0.0,  # disable grey blend to isolate warmth effect
+        warm_r=0.10, warm_g=0.04,
+        warmth_lo=0.30, warmth_hi=0.72,
+        warmth_strength=1.0, opacity=1.0,
+    )
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r_after = after[:, :, 2].astype(np.float32).mean()
+
+    assert r_after > r_before, (
+        f"Warmth restoration should increase R in midtone zone; "
+        f"R before={r_before:.2f}, R after={r_after:.2f}")
+
+
+def test_diagonal_light_gradient_pass_runs():
+    """Session 172: diagonal_light_gradient_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.55, 0.45), texture_strength=0.0)
+    p.diagonal_light_gradient_pass(opacity=0.45)
+
+
+def test_diagonal_light_gradient_pass_noop_at_zero_opacity():
+    """Session 172: diagonal_light_gradient_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    p.diagonal_light_gradient_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    assert np.array_equal(before, after), (
+        "diagonal_light_gradient_pass at opacity=0 must not modify canvas")
+
+
+def test_diagonal_light_gradient_pass_pixels_in_range():
+    """Session 172: diagonal_light_gradient_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.55, 0.45), texture_strength=0.0)
+    p.diagonal_light_gradient_pass(opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(32, 32, 4).copy()
+
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_diagonal_light_gradient_pass_warms_one_corner():
+    """Session 172: at 45°, bottom-right corner should be warmer (higher R) than top-left corner."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.0)
+    p.diagonal_light_gradient_pass(
+        angle_deg=45.0,
+        warm_r=0.12, warm_g=0.05,
+        cool_b=0.08, cool_r_reduce=0.05,
+        luma_lo=0.05, luma_hi=0.95,
+        gamma=1.0, opacity=1.0,
+    )
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+
+    r_br = buf[-8:, -8:, 2].astype(np.float32).mean()   # bottom-right (high diag)
+    r_tl = buf[:8, :8, 2].astype(np.float32).mean()     # top-left (low diag)
+
+    assert r_br > r_tl, (
+        f"At 45°, bottom-right corner should be warmer (higher R) than top-left; "
+        f"R_bottom_right={r_br:.2f}, R_top_left={r_tl:.2f}")
+
+
+def test_diagonal_light_gradient_pass_cools_opposite_corner():
+    """Session 172: at 45°, top-left corner should be cooler (higher B) than bottom-right corner."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.55, 0.55), texture_strength=0.0)
+    p.diagonal_light_gradient_pass(
+        angle_deg=45.0,
+        warm_r=0.04, warm_g=0.02,
+        cool_b=0.15, cool_r_reduce=0.05,
+        luma_lo=0.05, luma_hi=0.95,
+        gamma=1.0, opacity=1.0,
+    )
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+
+    b_tl = buf[:8, :8, 0].astype(np.float32).mean()     # top-left (low diag, cool end)
+    b_br = buf[-8:, -8:, 0].astype(np.float32).mean()   # bottom-right (high diag, warm end)
+
+    assert b_tl > b_br, (
+        f"At 45°, top-left should be cooler (higher B) than bottom-right; "
+        f"B_top_left={b_tl:.2f}, B_bottom_right={b_br:.2f}")
