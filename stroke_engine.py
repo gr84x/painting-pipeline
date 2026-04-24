@@ -40019,3 +40019,279 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Diagonal light gradient pass complete.")
+
+    # Session 173 — new artist: Jan van Huysum (1682–1749)
+    # Dutch Golden Age floral still life — DUTCH_FLORAL_STILL_LIFE
+    # huysum_crystalline_petal_pass — SIXTY-SEVENTH DISTINCT MODE.
+
+    def huysum_crystalline_petal_pass(
+        self,
+        variance_sigma: float = 4.0,
+        chroma_boost: float = 0.55,
+        luma_lo: float = 0.12,
+        luma_hi: float = 0.90,
+        smooth_gamma: float = 1.8,
+        opacity: float = 0.60,
+    ) -> None:
+        """Inverse-variance chroma crystallization — SIXTY-SEVENTH DISTINCT MODE.
+
+        Implements Jan van Huysum's signature technique of maximum chroma purity
+        in smooth, flat petal zones.  Where the Carpaccio pass (session 128)
+        amplifies detail in HIGH-variance zones, this pass is the exact inverse:
+        it gates chroma amplification on LOW-variance (smooth/flat) zones,
+        making colour most saturated and most jewel-like precisely where the
+        surface is smoothest.
+
+        This is the SIXTY-SEVENTH DISTINCT MODE: INVERSE-VARIANCE CHROMA
+        CRYSTALLIZATION.
+
+        Unlike ALL prior variance-based passes:
+        - Session 128 Carpaccio: std_norm → detail_mask = smoothed(std_norm);
+          amplifies LOCAL CONTRAST in HIGH-variance zones (textured areas).
+        - This pass builds smooth_gate = clip(1 − std_norm/threshold, 0, 1)^gamma
+          which is MAXIMUM at ZERO local variance (perfect smooth flat zones)
+          and zero wherever texture/edges/detail appear.  NOVEL: FIRST pass to
+          use INVERSE of local luminance variance as chroma amplification gate.
+
+        Algorithm:
+
+        (1) LOCAL VARIANCE MAP:
+            Compute E[luma²] and E[luma]² via Gaussian expectation at
+            variance_sigma; var = max(E[luma²] − E[luma]², 0);
+            std_norm = sqrt(var) / max(sqrt(var))
+
+        (2) SMOOTH ZONE GATE:
+            smooth_gate = clip(1 − std_norm, 0, 1)^smooth_gamma
+            This is 1.0 at perfectly flat zones and 0.0 at high-texture zones.
+
+        (3) LUMINANCE GATE (protect extremes):
+            luma_gate = bell over [luma_lo, luma_hi]
+
+        (4) CHROMA CRYSTALLIZATION:
+            n = (R + G + B) / 3   (achromatic mean)
+            delta_c = channel − n  (chromatic deviation from neutral)
+            out_channel = channel + delta_c × chroma_boost × smooth_gate × luma_gate
+
+        (5) COMPOSITE at opacity.
+
+        SIXTY-SEVENTH DISTINCT MODE: novel because it is the ONLY pass to gate
+        chroma amplification on the INVERSE of local luminance variance — all
+        prior variance-using passes (Carpaccio s128) amplify effects in
+        HIGH-variance / textured zones.  This pass concentrates colour richness
+        where the surface is smoothest.
+
+        Args:
+            variance_sigma : Gaussian sigma for local variance estimation. Default 4.0.
+            chroma_boost   : Chroma amplification multiplier in smooth zones. Default 0.55.
+            luma_lo        : Lower luminance bound of protection gate. Default 0.12.
+            luma_hi        : Upper luminance bound of protection gate. Default 0.90.
+            smooth_gamma   : Power-curve shaping of smooth_gate. Default 1.8.
+            opacity        : Composite weight (0 = no-op). Default 0.60.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        # ── Step 1: Local variance map (Gaussian expectation method) ──────────
+        sigma = float(variance_sigma)
+        luma_sq = luma * luma
+        e_sq  = _gf(luma_sq, sigma=sigma)
+        e_lum = _gf(luma,    sigma=sigma)
+        var   = _np.maximum(e_sq - e_lum * e_lum, 0.0)
+        std   = _np.sqrt(var)
+        std_max = std.max()
+        std_norm = (std / std_max) if std_max > 1e-9 else _np.zeros_like(std)
+
+        # ── Step 2: Smooth zone gate (INVERSE of variance) ───────────────────
+        smooth_gate = _np.clip(1.0 - std_norm, 0.0, 1.0) ** float(smooth_gamma)
+
+        # ── Step 3: Luminance protection gate (bell over [luma_lo, luma_hi]) ─
+        lo, hi = float(luma_lo), float(luma_hi)
+        rng = hi - lo + 1e-6
+        lo_ramp = _np.clip((luma - lo) / rng, 0.0, 1.0)
+        hi_ramp = _np.clip((hi - luma) / rng, 0.0, 1.0)
+        luma_gate = lo_ramp * hi_ramp
+
+        gate = smooth_gate * luma_gate
+
+        # ── Step 4: Chroma crystallization via neutral-mean decomposition ─────
+        boost = float(chroma_boost)
+        n = (r0 + g0 + b0) / 3.0
+        out_r = _np.clip(r0 + (r0 - n) * boost * gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + (g0 - n) * boost * gate, 0.0, 1.0)
+        out_b = _np.clip(b0 + (b0 - n) * boost * gate, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Huysum crystalline petal pass complete.")
+
+    # Session 173 — random improvement: frequency_domain_acuity_pass
+    # FFT-domain spatial frequency band amplification — SIXTY-EIGHTH DISTINCT MODE.
+
+    def frequency_domain_acuity_pass(
+        self,
+        freq_lo: float = 0.08,
+        freq_hi: float = 0.35,
+        boost: float = 1.40,
+        luma_lo: float = 0.10,
+        luma_hi: float = 0.92,
+        opacity: float = 0.45,
+    ) -> None:
+        """FFT-domain spatial frequency band amplification — SIXTY-EIGHTH DISTINCT MODE.
+
+        Boosts mid-spatial-frequency acuity by operating in the 2D Fourier
+        frequency domain.  Applies a radial band-pass amplification ring in
+        frequency space, boosting spatial frequencies in the range
+        [freq_lo, freq_hi] (as fractions of the Nyquist frequency) by a
+        factor of `boost`, while leaving DC and very high frequencies
+        untouched.  The resulting luminance residual is added back to the
+        original at a controlled opacity.
+
+        This is the SIXTY-EIGHTH DISTINCT MODE: FFT-DOMAIN SPATIAL FREQUENCY
+        BAND AMPLIFICATION.
+
+        Unlike ALL prior detail/frequency passes:
+        - Session 124 Stanzione: Laplacian pyramid (spatial domain multi-scale
+          decomposition — gaussian coarse/fine) — pure spatial domain.
+        - Session 128 Carpaccio: local variance std-map (spatial domain
+          sliding Gaussian expectation) — pure spatial domain.
+        - Session 151 ter Brugghen: horizontal Sobel (spatial domain
+          first-derivative convolution) — pure spatial domain.
+        - Session 163 Schedoni specular: USM (unsharp mask = original minus
+          gaussian blur, re-added) — spatial domain approximation to
+          frequency sharpening.
+        - This pass applies DISCRETE FOURIER TRANSFORM to the luminance
+          channel, selects a radial frequency band in 2D frequency space,
+          amplifies those specific spatial frequency components, and applies
+          INVERSE FFT.  NOVEL: FIRST pass to use the frequency domain
+          (numpy FFT) for explicit spatial frequency band selection — all
+          prior frequency-related passes use spatial domain convolution
+          approximations.
+
+        Algorithm:
+
+        (1) Extract luminance channel; compute 2D FFT (numpy.fft.fft2).
+        (2) Compute radial frequency map: for each frequency bin (u, v),
+            freq_norm = sqrt((u/H)² + (v/W)²) / sqrt(0.5) ∈ [0, 1]
+            where 1.0 = Nyquist (maximum spatial frequency).
+        (3) Build band-pass gain: a smooth sigmoid ring from freq_lo to
+            freq_hi with gain = `boost` inside the band, 1.0 outside.
+        (4) Multiply spectrum by gain map; apply IFFT; take real part.
+        (5) Compute luma residual = acuity_luma − original_luma.
+        (6) Gate residual by luma_gate (bell over [luma_lo, luma_hi]) to
+            protect pure highlights and deep shadows.
+        (7) Apply residual to all channels uniformly; composite at opacity.
+
+        SIXTY-EIGHTH DISTINCT MODE: novel because it is the ONLY pass to use
+        the 2D Fourier transform and frequency-domain filtering.  All prior
+        sharpening/detail passes (USM, Laplacian, Sobel) are equivalent to
+        various spatial-domain approximations of frequency operations; this
+        pass performs the exact frequency-domain computation directly.
+
+        Args:
+            freq_lo  : Lower bound of amplified frequency band (fraction of Nyquist). Default 0.08.
+            freq_hi  : Upper bound of amplified frequency band (fraction of Nyquist). Default 0.35.
+            boost    : Gain factor applied to frequencies within the band. Default 1.40.
+            luma_lo  : Lower luminance bound for residual gate. Default 0.10.
+            luma_hi  : Upper luminance bound for residual gate. Default 0.92.
+            opacity  : Composite weight for the acuity residual (0 = no-op). Default 0.45.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float64)
+
+        # ── Step 1: 2D FFT of luminance ───────────────────────────────────────
+        fft_luma = _np.fft.fft2(luma)
+        fft_shift = _np.fft.fftshift(fft_luma)
+
+        # ── Step 2: Radial frequency map in [0, 1] normalised to Nyquist ──────
+        cy, cx = H // 2, W // 2
+        ys = (_np.arange(H) - cy) / (H / 2.0)
+        xs = (_np.arange(W) - cx) / (W / 2.0)
+        xx, yy = _np.meshgrid(xs, ys)
+        freq_norm = _np.sqrt(xx ** 2 + yy ** 2).astype(_np.float32)
+        # Clamp to [0, 1] — corners of FFT exceed Nyquist in 2D
+        freq_norm = _np.clip(freq_norm, 0.0, 1.0)
+
+        # ── Step 3: Smooth band-pass gain ────────────────────────────────────
+        lo, hi = float(freq_lo), float(freq_hi)
+        band_width = (hi - lo)
+        transition = max(band_width * 0.25, 0.01)
+        # Sigmoid ramps: smoothly enter band at freq_lo, exit at freq_hi
+        ramp_in  = _np.clip((freq_norm - lo + transition) / (2.0 * transition), 0.0, 1.0)
+        ramp_out = _np.clip((hi + transition - freq_norm) / (2.0 * transition), 0.0, 1.0)
+        band_gate = ramp_in * ramp_out  # 1.0 inside band, 0.0 outside
+        gain_map = 1.0 + (float(boost) - 1.0) * band_gate  # boost inside, 1.0 outside
+
+        # ── Step 4: Amplify spectrum and inverse FFT ─────────────────────────
+        fft_boosted = fft_shift * gain_map.astype(_np.float64)
+        fft_unshift = _np.fft.ifftshift(fft_boosted)
+        luma_acuity = _np.real(_np.fft.ifft2(fft_unshift)).astype(_np.float32)
+        luma_acuity = _np.clip(luma_acuity, 0.0, 1.0)
+
+        # ── Step 5 & 6: Residual + luminance gate ────────────────────────────
+        luma_f32 = luma.astype(_np.float32)
+        residual = luma_acuity - luma_f32
+
+        lo_l, hi_l = float(luma_lo), float(luma_hi)
+        rng_l = hi_l - lo_l + 1e-6
+        lo_ramp = _np.clip((luma_f32 - lo_l) / rng_l, 0.0, 1.0)
+        hi_ramp = _np.clip((hi_l - luma_f32) / rng_l, 0.0, 1.0)
+        luma_gate = lo_ramp * hi_ramp
+
+        gated_residual = residual * luma_gate
+
+        # ── Step 7: Apply residual to all channels; composite at opacity ──────
+        out_r = _np.clip(r0 + gated_residual, 0.0, 1.0)
+        out_g = _np.clip(g0 + gated_residual, 0.0, 1.0)
+        out_b = _np.clip(b0 + gated_residual, 0.0, 1.0)
+
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Frequency domain acuity pass complete.")

@@ -175,6 +175,7 @@ EXPECTED_ARTISTS = [
     "carel_fabritius",
     "abraham_bloemaert",
     "hendrick_avercamp",
+    "jan_van_huysum",
 ]
 
 
@@ -383,6 +384,7 @@ EXPECTED_PERIODS = [
     "DELFT_SCHOOL",
     "UTRECHT_MANNERIST",
     "DUTCH_WINTER_LANDSCAPE",
+    "DUTCH_FLORAL_STILL_LIFE",
 ]
 
 
@@ -23807,3 +23809,276 @@ def test_diagonal_light_gradient_pass_cools_opposite_corner():
     assert b_tl > b_br, (
         f"At 45°, top-left should be cooler (higher B) than bottom-right; "
         f"B_top_left={b_tl:.2f}, B_bottom_right={b_br:.2f}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 173 — Jan van Huysum + DUTCH_FLORAL_STILL_LIFE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_jan_van_huysum_in_catalog():
+    """Session 173: jan_van_huysum must appear in CATALOG."""
+    assert "jan_van_huysum" in CATALOG, (
+        "jan_van_huysum not found in CATALOG — add it to art_catalog.py")
+
+
+def test_jan_van_huysum_expected_artists():
+    """Session 173: EXPECTED_ARTISTS list must include jan_van_huysum."""
+    assert "jan_van_huysum" in EXPECTED_ARTISTS, (
+        "jan_van_huysum missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_jan_van_huysum_movement():
+    """Session 173: jan_van_huysum movement must reference floral still life."""
+    s = get_style("jan_van_huysum")
+    assert "floral" in s.movement.lower() or "still" in s.movement.lower(), (
+        f"jan_van_huysum movement should reference floral or still life; got {s.movement!r}")
+
+
+def test_jan_van_huysum_palette_length():
+    """Session 173: jan_van_huysum palette must have at least 5 colours."""
+    s = get_style("jan_van_huysum")
+    assert len(s.palette) >= 5, (
+        f"jan_van_huysum palette should have >= 5 entries; got {len(s.palette)}")
+
+
+def test_jan_van_huysum_palette_values_in_range():
+    """Session 173: all jan_van_huysum palette values must be in [0, 1]."""
+    s = get_style("jan_van_huysum")
+    for i, c in enumerate(s.palette):
+        for j, v in enumerate(c):
+            assert 0.0 <= v <= 1.0, (
+                f"jan_van_huysum palette[{i}][{j}]={v} out of [0,1]")
+
+
+def test_jan_van_huysum_edge_softness_low():
+    """Session 173: jan_van_huysum edge_softness must be < 0.40 (crisp petal edges)."""
+    s = get_style("jan_van_huysum")
+    assert s.edge_softness < 0.40, (
+        f"jan_van_huysum edge_softness should be < 0.40 (crisp Flemish precision); "
+        f"got {s.edge_softness}")
+
+
+def test_jan_van_huysum_wet_blend_high():
+    """Session 173: jan_van_huysum wet_blend must be >= 0.55 (smooth enamel surface)."""
+    s = get_style("jan_van_huysum")
+    assert s.wet_blend >= 0.55, (
+        f"jan_van_huysum wet_blend should be >= 0.55 (smooth glazed surface); "
+        f"got {s.wet_blend}")
+
+
+def test_jan_van_huysum_ground_color_dark():
+    """Session 173: jan_van_huysum ground_color must be dark (near-black panel)."""
+    s = get_style("jan_van_huysum")
+    luma = 0.2126 * s.ground_color[0] + 0.7152 * s.ground_color[1] + 0.0722 * s.ground_color[2]
+    assert luma < 0.15, (
+        f"jan_van_huysum ground_color should be near-black (dark imprimatura); "
+        f"got luma={luma:.3f}")
+
+
+def test_jan_van_huysum_inspiration_references_pass():
+    """Session 173: jan_van_huysum inspiration must reference huysum_crystalline_petal_pass."""
+    s = get_style("jan_van_huysum")
+    assert "huysum_crystalline_petal_pass" in s.inspiration, (
+        "jan_van_huysum inspiration must reference huysum_crystalline_petal_pass()")
+
+
+def test_dutch_floral_still_life_period_present():
+    """Session 173: DUTCH_FLORAL_STILL_LIFE must be a Period enum value."""
+    from scene_schema import Period
+    assert hasattr(Period, "DUTCH_FLORAL_STILL_LIFE"), (
+        "Period.DUTCH_FLORAL_STILL_LIFE is missing — add it to scene_schema.py")
+
+
+def test_dutch_floral_still_life_in_expected_periods():
+    """Session 173: EXPECTED_PERIODS list must include DUTCH_FLORAL_STILL_LIFE."""
+    assert "DUTCH_FLORAL_STILL_LIFE" in EXPECTED_PERIODS, (
+        "DUTCH_FLORAL_STILL_LIFE missing from EXPECTED_PERIODS — add it to the list")
+
+
+def test_dutch_floral_still_life_stroke_params_valid():
+    """Session 173: DUTCH_FLORAL_STILL_LIFE stroke_params must return a valid dict."""
+    from scene_schema import Style, Period
+    style = Style(period=Period.DUTCH_FLORAL_STILL_LIFE)
+    params = style.stroke_params
+    for key in ("stroke_size_face", "stroke_size_bg", "wet_blend", "edge_softness"):
+        assert key in params, f"stroke_params missing key {key!r}"
+        assert params[key] > 0, f"stroke_params[{key!r}] must be positive"
+
+
+def test_dutch_floral_still_life_stroke_params_wet_blend():
+    """Session 173: DUTCH_FLORAL_STILL_LIFE wet_blend should be >= 0.55 (smooth enamel)."""
+    from scene_schema import Style, Period
+    style = Style(period=Period.DUTCH_FLORAL_STILL_LIFE)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.55, (
+        f"DUTCH_FLORAL_STILL_LIFE wet_blend should be >= 0.55; got {params['wet_blend']}")
+
+
+def test_dutch_floral_still_life_stroke_params_edge_softness():
+    """Session 173: DUTCH_FLORAL_STILL_LIFE edge_softness should be < 0.40 (crisp edges)."""
+    from scene_schema import Style, Period
+    style = Style(period=Period.DUTCH_FLORAL_STILL_LIFE)
+    params = style.stroke_params
+    assert params["edge_softness"] < 0.40, (
+        f"DUTCH_FLORAL_STILL_LIFE edge_softness should be < 0.40; got {params['edge_softness']}")
+
+
+def test_huysum_crystalline_petal_pass_runs():
+    """Session 173: huysum_crystalline_petal_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.12, 0.45, 0.22), texture_strength=0.0)
+    p.huysum_crystalline_petal_pass(opacity=0.60)
+
+
+def test_huysum_crystalline_petal_pass_noop_at_zero_opacity():
+    """Session 173: huysum_crystalline_petal_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.35, 0.70), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    p.huysum_crystalline_petal_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    assert np.array_equal(before, after), (
+        "huysum_crystalline_petal_pass at opacity=0 must not modify canvas")
+
+
+def test_huysum_crystalline_petal_pass_pixels_in_range():
+    """Session 173: huysum_crystalline_petal_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.40, 0.65, 0.30), texture_strength=0.0)
+    p.huysum_crystalline_petal_pass(opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(32, 32, 4).copy()
+
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_huysum_crystalline_petal_pass_amplifies_chroma_in_smooth_zone():
+    """Session 173: huysum_crystalline_petal_pass should increase chroma spread in a flat coloured canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.40, 0.25), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    r_before = before[:, :, 2].mean()
+    g_before = before[:, :, 1].mean()
+    b_before = before[:, :, 0].mean()
+    mean_before = (r_before + g_before + b_before) / 3.0
+    dev_before = abs(r_before - mean_before) + abs(g_before - mean_before) + abs(b_before - mean_before)
+
+    p.huysum_crystalline_petal_pass(
+        chroma_boost=1.0, smooth_gamma=1.0, opacity=1.0,
+    )
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    r_after = after[:, :, 2].mean()
+    g_after = after[:, :, 1].mean()
+    b_after = after[:, :, 0].mean()
+    mean_after = (r_after + g_after + b_after) / 3.0
+    dev_after = abs(r_after - mean_after) + abs(g_after - mean_after) + abs(b_after - mean_after)
+
+    assert dev_after > dev_before, (
+        f"huysum_crystalline_petal_pass should amplify chroma deviation in flat zones; "
+        f"dev_before={dev_before:.3f}, dev_after={dev_after:.3f}")
+
+
+def test_huysum_crystalline_petal_pass_modifies_canvas():
+    """Session 173: huysum_crystalline_petal_pass at opacity > 0 must modify canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.30, 0.50), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    p.huysum_crystalline_petal_pass(chroma_boost=0.80, opacity=0.80)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    assert not np.array_equal(before, after), (
+        "huysum_crystalline_petal_pass should modify canvas when opacity > 0 and chroma_boost > 0")
+
+
+def test_frequency_domain_acuity_pass_runs():
+    """Session 173: frequency_domain_acuity_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    p.frequency_domain_acuity_pass(opacity=0.45)
+
+
+def test_frequency_domain_acuity_pass_noop_at_zero_opacity():
+    """Session 173: frequency_domain_acuity_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.35), texture_strength=0.0)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    p.frequency_domain_acuity_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    assert np.array_equal(before, after), (
+        "frequency_domain_acuity_pass at opacity=0 must not modify canvas")
+
+
+def test_frequency_domain_acuity_pass_pixels_in_range():
+    """Session 173: frequency_domain_acuity_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    p.frequency_domain_acuity_pass(opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(32, 32, 4).copy()
+
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_frequency_domain_acuity_pass_modifies_canvas():
+    """Session 173: frequency_domain_acuity_pass must modify canvas when opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.25)
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    p.frequency_domain_acuity_pass(boost=1.80, opacity=0.80)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).copy()
+
+    assert not np.array_equal(before, after), (
+        "frequency_domain_acuity_pass should modify canvas when opacity > 0 and boost > 1")

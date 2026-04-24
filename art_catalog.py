@@ -15027,6 +15027,120 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 173 — new artist: Jan van Huysum ─────────────────────────────
+    # Randomly selected artist for session 173's inspiration.
+    # Jan van Huysum (1682–1749) is the supreme master of the Dutch floral still
+    # life — a genre he effectively reinvented and brought to its absolute zenith.
+    # Born in Amsterdam into a dynasty of painters, he quickly surpassed his
+    # father Justus and became the most sought-after flower painter in Europe,
+    # with collectors from Dresden to London competing for his work.
+    #
+    # His paintings are technical marvels: surfaces of enamel-like smoothness
+    # achieved through dozens of translucent oil glazes built up over years
+    # (he sometimes delayed delivery of a commissioned work by twelve months to
+    # capture summer and autumn blooms separately from life).  Each petal is
+    # rendered with crystalline colour purity — no muddy mixing, each hue at
+    # its maximum saturation in smooth flat zones.
+    #
+    # Characteristic features:
+    # - JEWEL-PURE CHROMA in smooth petal surfaces: flat zones are MORE
+    #   saturated and colour-pure than textured or edged zones; a direct
+    #   inversion of the Dutch tradition of tonal restraint.
+    # - DEW DROPS: hyper-realistic spherical water droplets catching specular
+    #   highlights — transparent globes sitting on petals, casting cool shadows.
+    # - DARK GROUND: near-black background sets off the blazing colour of the
+    #   flowers; no landscape, no window, just concentrated floral opulence.
+    # - MIXED SEASONS: impossibly, a single bouquet contains roses, tulips,
+    #   peonies, hollyhocks, morning glories, and convolvulus — flowers from
+    #   spring, summer, and autumn assembled into a single imagined composition.
+    # - INSECT LIFE: caterpillars, butterflies, beetles, and birds' nests
+    #   nestle in the foliage, adding naturalistic detail and symbolism.
+    #
+    # His palette is warmer and more saturated than any Dutch predecessor:
+    # carmine pinks, coral reds, cadmium yellows, ultramarine blues, pure
+    # emerald greens — all at maximum chroma purity, each preserving its
+    # identity without grey-down or umber contamination.
+    "jan_van_huysum": ArtStyle(
+        artist="Jan van Huysum",
+        movement="Dutch Golden Age / Baroque Floral Still Life",
+        nationality="Dutch",
+        period="1682–1749",
+        palette=[
+            (0.95, 0.30, 0.38),   # carmine / coral red — tulip, rose
+            (0.98, 0.82, 0.18),   # cadmium yellow — sunflower, ranunculus
+            (0.28, 0.52, 0.22),   # emerald green — leaves, stems
+            (0.88, 0.48, 0.62),   # rose pink — peony, poppy
+            (0.22, 0.34, 0.72),   # ultramarine blue — morning glory, convolvulus
+            (0.92, 0.88, 0.78),   # warm cream white — white roses, narcissi
+            (0.08, 0.06, 0.05),   # near-black — dark ground
+            (0.96, 0.72, 0.32),   # amber gold — marigold, warm catch-light
+        ],
+        ground_color=(0.08, 0.07, 0.06),  # near-black panel ground (oak, dark imprimatura)
+        stroke_size=3,
+        wet_blend=0.65,
+        edge_softness=0.22,
+        jitter=0.025,
+        glazing=(0.92, 0.86, 0.72),  # warm amber-honey final glaze — unifies floral warmth
+        crackle=True,                 # 18th-century Amsterdam panel
+        chromatic_split=False,
+        technique=(
+            "Jan van Huysum (1682–1749) represents the absolute apex of the Dutch "
+            "floral still-life tradition — a tradition that ran from Jan Brueghel "
+            "the Elder through Bosschaert, de Heem, and Rachel Ruysch before "
+            "arriving at this extraordinary culmination.  Where his predecessors "
+            "valued technical precision above all else, van Huysum added something "
+            "genuinely new: a blazing, jewel-like chromatic intensity that makes "
+            "his flowers look more saturated and more alive than flowers in any "
+            "other painter's work.\n\n"
+            "His signature technique was the inverse-variance approach to surface "
+            "finish: the smoothest, flattest zones of each petal — the large "
+            "unbroken colour fields — are where he pushed colour purity to its "
+            "maximum.  He avoided all grey-down or umber contamination in these "
+            "smooth zones, reserving the duller, earth-toned transitions for "
+            "edges, cast shadows, and the space between petals.  The result is "
+            "that each bloom appears to be lit from within, its colour so pure "
+            "it seems to generate its own luminosity.\n\n"
+            "The technical foundation is multiple thin oil glazes — sometimes "
+            "ten or twenty layers — built up over months or years.  Each glaze "
+            "is a single pigment in linseed or walnut oil, transparent, allowing "
+            "light to penetrate to the white chalk ground and return through all "
+            "the layers.  This creates a luminous depth impossible to achieve "
+            "with opaque paint, and explains why his reds seem to glow rather "
+            "than merely reflect.  The near-black ground — a deep imprimatura "
+            "of lamp black over chalk-white gesso — sets off the flowers with "
+            "the drama of a darkened room.\n\n"
+            "Dew drops are among his most celebrated technical feats: perfectly "
+            "spherical droplets of water rendered with cool specular highlights "
+            "at the top and warm shadows below, casting small shadows on the "
+            "petals beneath them.  He reportedly observed real dewdrops through "
+            "a lens to achieve their optical accuracy.  A bird's nest, a "
+            "caterpillar, a snail shell — these naturalistic intrusions add "
+            "tactile detail and remind the viewer that this impossible bouquet "
+            "exists in a world of real creatures and time."
+        ),
+        famous_works=[
+            ("Bouquet of Flowers in an Urn", "c. 1724"),
+            ("Flowers in a Terracotta Vase", "c. 1736–1737"),
+            ("Still Life of Flowers with a Bird's Nest", "c. 1708–1720"),
+            ("Summer Bouquet", "c. 1720–1730"),
+            ("Flowers in a Glass Vase", "c. 1727–1730"),
+        ],
+        inspiration=(
+            "Use huysum_crystalline_petal_pass(): amplify chroma purity "
+            "SPECIFICALLY in low-variance (smooth, flat) zones — the large "
+            "unbroken colour fields of petals that van Huysum painted at "
+            "maximum saturation.  Compute local luminance variance per pixel; "
+            "build a smooth_gate = (1 − std_norm)^gamma gated on INVERSE "
+            "variance (strongest at low-variance / smooth zones, zero at "
+            "high-variance / textured zones).  Then amplify chroma via "
+            "neutral-mean decomposition: n = (R+G+B)/3; delta = channel − n; "
+            "out_channel = channel + delta × chroma_boost × smooth_gate × "
+            "luma_gate.  NOVEL: FIRST pass to gate chroma amplification on "
+            "INVERSE of local luminance variance — all prior variance-based "
+            "passes (Carpaccio s128) amplify in HIGH-variance zones."
+        ),
+    ),
+
 }
 
 
