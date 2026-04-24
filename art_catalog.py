@@ -14701,6 +14701,105 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Carel Fabritius ───────────────────────────────────────────────────────
+    #
+    # Carel Pietersz Fabritius (1622–1654) — Dutch Golden Age painter, student
+    # of Rembrandt in Amsterdam c.1641–1643, later settled in Delft where he
+    # died in the catastrophic Delft Thunderclap gunpowder explosion of 1654.
+    # Widely regarded as the crucial link between Rembrandt and Vermeer.
+    #
+    # TECHNIQUE — INVERTED TENEBRISM / PALE GROUND PAINTING:
+    # - Fabritius reversed the standard Dutch golden-age formula.  Where most
+    #   contemporaries used a dark warm brown ground (Rembrandt's deep umber
+    #   imprimatura), Fabritius applied a pale, near-white or light grey ground.
+    #   The figure or object is then set against a bright wall or diffuse sky —
+    #   not against darkness.  This creates an unusual tonal relationship: the
+    #   subject appears dark-against-light rather than light-against-dark.
+    # - The most famous example is 'The Goldfinch' (1654): the bird perches
+    #   against a bleached, pale-warm wall — the wall is brighter than the bird.
+    #   The result is a kind of inverted spotlight — the background glows rather
+    #   than the figure.
+    # - His light is pervasive and ambient, not the dramatic single-candle or
+    #   window spotlight of Rembrandt.  Light comes from everywhere and nowhere
+    #   specific — the pale ground radiates it uniformly.
+    # - Palette is restrained and cool: greys, ivory whites, warm umbers, soft
+    #   olive greens; no saturated primaries.  Where colour appears it is muted
+    #   by the pale ground showing through thin paint.
+    # - Brushwork is visible but controlled: looser than Vermeer, tighter than
+    #   Rembrandt.  His impasto is modest — the pale ground does the luminous
+    #   lifting, not thick lead white peaks.
+    # - His trompe-l'oeil work ('A View in Delft', c.1652) shows mastery of
+    #   aerial perspective and deliberate forced-perspective distortion.
+    #
+    # Pipeline key: fabritius_pale_ground_pass() — INVERTED TENEBRISM:
+    # detect low-luminance zones (shadow/background) and lift them toward a
+    # pale, warm-ivory target color.  This reverses the standard tenebrism
+    # logic: instead of deepening shadows toward near-black void, it raises
+    # them toward a luminous pale ground.  NOVEL: FIRST pass to BRIGHTEN (lift)
+    # dark zones toward a lighter target — all prior shadow-zone passes darken.
+    "carel_fabritius": ArtStyle(
+        artist="Carel Fabritius",
+        movement="Delft School / Dutch Golden Age",
+        nationality="Dutch",
+        period="1641–1654",
+        palette=[
+            (0.86, 0.82, 0.74),   # pale warm ivory — the characteristic bleached wall
+            (0.68, 0.62, 0.50),   # warm grey-buff — mid-tone neutral
+            (0.36, 0.28, 0.18),   # deep warm umber — figure shadow
+            (0.56, 0.46, 0.34),   # ochre brown — figure mid-tone
+            (0.78, 0.72, 0.62),   # pale silver-buff — bright wall highlight
+            (0.22, 0.34, 0.26),   # olive shadow green — background foliage/cloth
+            (0.72, 0.56, 0.30),   # warm amber — accented drapery, bird plumage
+        ],
+        ground_color=(0.84, 0.80, 0.72),    # pale warm chalk-white ground (unusual)
+        stroke_size=6,
+        wet_blend=0.70,                      # moderate-high blending — smooth but not enamel
+        edge_softness=0.52,                  # moderately soft — not sfumato, not Mannerist crisp
+        jitter=0.025,
+        glazing=None,                        # no unifying glaze — pale ground provides the unity
+        crackle=True,                        # aged canvas; visible craquelure in surviving works
+        chromatic_split=False,
+        technique=(
+            "Oil on canvas or panel with a pale, near-white ground — the defining "
+            "technical inversion of the Dutch Golden Age.  Fabritius used contre-jour "
+            "lighting effects, placing subjects against sources of ambient light rather "
+            "than Rembrandt's dark imprimatura.  The pale ground radiates light from "
+            "beneath the paint layers; shadows are warm ivory-grey rather than near-black "
+            "void; the whole tonal range is compressed upward toward luminosity.\n\n"
+            "His most famous surviving work, 'The Goldfinch' (1654 — only months "
+            "before his death), shows the contre-jour technique at its purest: a chained "
+            "goldfinch on a pale, bleached, almost chalky wall.  The wall is brighter "
+            "than the bird; the background glows; the figure reads as a dark shape "
+            "against ambient light — the direct opposite of Rembrandtesque tenebrism.\n\n"
+            "This is Fabritius's great original contribution, and what Vermeer would "
+            "inherit and refine into the luminous interiors of Delft.  Vermeer's soft "
+            "north-window light falling onto pale walls is the direct descendant of "
+            "Fabritius's pale-ground contre-jour approach.\n\n"
+            "Brushwork is visible but controlled: short, confident strokes that "
+            "describe form with economy.  The impasto is modest — pale ground warmth "
+            "does the luminous work.\n\n"
+            "'A View in Delft' (c.1652) shows his mastery of trompe-l'oeil and "
+            "forced perspective: the cityscape is painted on a curved panel meant to "
+            "be viewed from a specific angle, bending real and represented space."
+        ),
+        famous_works=[
+            ("The Goldfinch", "1654"),
+            ("A View in Delft", "c. 1652"),
+            ("Self-Portrait", "c. 1645"),
+            ("The Sentry", "1654"),
+            ("Portrait of a Man in a Fur Cap", "c. 1654"),
+        ],
+        inspiration=(
+            "Use fabritius_contre_jour_pass(): brighten low-luminance background "
+            "zones and apply contre-jour luminosity so that the background glows "
+            "more than the foreground figure.  This inverts standard tenebrism. "
+            "Also use fabritius_pale_ground_pass(): lift dark shadow zones toward "
+            "a pale warm-ivory target, replicating the luminous chalk-white ground "
+            "radiating through thin paint.  Combine with luminance_gradient_warmth_pass() "
+            "for a subtle warm amber glow in transitional penumbral zones."
+        ),
+    ),
+
     "joachim_wtewael": ArtStyle(
         artist="Joachim Wtewael",
         movement="Dutch Mannerism / Utrecht Mannerism",

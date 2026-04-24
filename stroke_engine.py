@@ -39218,3 +39218,248 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Vibrance selective pass complete.")
+
+    def fabritius_pale_ground_pass(
+        self,
+        pale_r: float = 0.86,
+        pale_g: float = 0.82,
+        pale_b: float = 0.78,
+        dark_hi: float = 0.45,
+        dark_power: float = 1.8,
+        lift_strength: float = 0.30,
+        opacity: float = 0.50,
+    ) -> None:
+        """Inverted tenebrism background lift — SIXTY-FIRST DISTINCT MODE.
+
+        Implements Carel Fabritius's characteristic pale-ground painting
+        technique: rather than deepening shadows toward near-black void
+        (as every tenebrism and candlelight pass does), this pass
+        BRIGHTENS low-luminance zones by lifting them toward a pale warm-
+        ivory target colour.  The result is the distinctive Delft School
+        effect — figures sit dark-against-light rather than light-against-
+        dark.
+
+        This is the SIXTY-FIRST DISTINCT MODE: INVERTED TENEBRISM —
+        LUMINANCE-RAISING SHADOW LIFT.
+
+        Unlike ALL prior shadow-zone passes:
+        - schedoni_luminous_emergence_pass COMPRESSES shadows toward near-
+          black void.
+        - schalcken_candlelight_glow_pass DEEPENS non-lit zones via
+          multiplicative darkening.
+        - reynolds_grand_manner_pass, shadow_color_temperature_pass,
+          gentileschi_dramatic_flesh_pass — all apply colour shifts
+          but further DARKEN the shadow zone in luminance terms.
+        - This pass is the ONLY pass to deliberately RAISE the luminance
+          of dark zones toward a lighter target, simulating pale-ground
+          luminosity bleeding through thin shadow paint layers.
+
+        Algorithm:
+
+        (1) DARK ZONE GATE (luminance-inverse power curve):
+            dark_gate = clip((dark_hi − luma) / dark_hi, 0, 1) ^ dark_power
+            Peaks at luma = 0 (pure black); falls to 0 at luma = dark_hi.
+            Power dark_power controls roll-off steepness.
+
+        (2) PALE GROUND LIFT:
+            out_r = r0 + (pale_r − r0) × dark_gate × lift_strength
+            out_g = g0 + (pale_g − g0) × dark_gate × lift_strength
+            out_b = b0 + (pale_b − b0) × dark_gate × lift_strength
+            Interpolates dark pixels toward pale_ground color, simulating
+            the luminous chalk-white ground showing through thin paint.
+
+        Composite at opacity.
+
+        SIXTY-FIRST DISTINCT MODE: novel because it is the ONLY pass to
+        apply a brightening (lift) transform to dark/shadow zones.  All
+        prior passes that modify the shadow zone deepen or compress it
+        toward black; this pass inverts that logic entirely.
+
+        Args:
+            pale_r        : Pale ground target R channel. Default 0.86 (warm ivory).
+            pale_g        : Pale ground target G channel. Default 0.82.
+            pale_b        : Pale ground target B channel. Default 0.78.
+            dark_hi       : Upper luminance bound of the lift zone. Default 0.45.
+            dark_power    : Power-curve steepness for the dark gate. Default 1.8.
+            lift_strength : Maximum lift fraction toward pale ground. Default 0.30.
+            opacity       : Composite weight (0 = no-op). Default 0.50.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Dark zone gate (luminance-inverse power curve) ────────────
+        dark_gate = _np.clip(
+            (float(dark_hi) - luma) / (float(dark_hi) + 1e-6),
+            0.0, 1.0
+        ) ** float(dark_power)
+
+        # ── Step 2: Pale ground lift ──────────────────────────────────────────
+        ls = float(lift_strength)
+        out_r = r0 + (float(pale_r) - r0) * dark_gate * ls
+        out_g = g0 + (float(pale_g) - g0) * dark_gate * ls
+        out_b = b0 + (float(pale_b) - b0) * dark_gate * ls
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Fabritius pale ground pass complete.")
+
+    def luminance_gradient_warmth_pass(
+        self,
+        warm_r: float = 0.055,
+        warm_g: float = 0.022,
+        grad_gamma: float = 1.5,
+        grad_sigma: float = 1.5,
+        luma_lo: float = 0.12,
+        luma_hi: float = 0.82,
+        opacity: float = 0.40,
+    ) -> None:
+        """Penumbral zone warm tinting via luminance gradient magnitude — SIXTY-SECOND DISTINCT MODE.
+
+        Applies a warm amber tint selectively at the transitional (penumbral)
+        zones between light and shadow — the boundary zone where luminance
+        changes fastest spatially.  This replicates the warm-edged penumbra
+        effect seen in Dutch candlelight painting, where the transition from
+        lit to unlit surface carries a brief warm amber fringe before cooling
+        into shadow.
+
+        This is the SIXTY-SECOND DISTINCT MODE: PENUMBRAL ZONE WARM TINTING
+        VIA LUMINANCE GRADIENT MAGNITUDE.
+
+        Unlike ALL prior chromatic passes:
+        - shadow_color_temperature_pass, reynolds_grand_manner_pass,
+          schalcken_candlelight_glow_pass — all gate their colour effects on
+          LUMINANCE LEVEL (luma < threshold or luma > threshold).  A pixel
+          at luma 0.30 gets the same treatment whether it is the centre of a
+          broad shadow or the sharp edge of a cast shadow.
+        - warm_highlight_bloom_pass gates on absolute brightness threshold.
+        - This pass gates its warm-tint injection on the SPATIAL RATE OF
+          CHANGE of luminance (the gradient magnitude): a pixel at luma 0.30
+          at the edge of a shadow receives a large boost; the same pixel in
+          the middle of a flat shadow receives almost none.  The gate is the
+          Sobel gradient magnitude, not the luma level — a fundamentally
+          different gating strategy.
+
+        Algorithm:
+
+        (1) PRE-BLUR LUMA for stable gradient estimation:
+            luma_smooth = gaussian(luma, sigma=grad_sigma)
+
+        (2) SOBEL GRADIENT MAGNITUDE:
+            dx = sobel(luma_smooth, axis=1)   (horizontal gradient)
+            dy = sobel(luma_smooth, axis=0)   (vertical gradient)
+            grad_mag = sqrt(dx² + dy²)
+            Normalise: grad_norm = grad_mag / (max(grad_mag) + ε)
+
+        (3) PENUMBRAL GATE (power curve on normalised gradient):
+            pen_gate = grad_norm ^ grad_gamma
+            High gate at sharp light/shadow boundaries; near-zero in
+            flat zones (uniform highlight or uniform shadow).
+
+        (4) LUMINANCE GATE (protects near-black and specular peaks):
+            luma_gate = ramp_lo × ramp_hi (bell)
+
+        (5) WARM AMBER INJECTION:
+            out_r += warm_r × pen_gate × luma_gate
+            out_g += warm_g × pen_gate × luma_gate
+            Adds warm amber (R+ G+) at penumbral transition zones only.
+
+        Composite at opacity.
+
+        SIXTY-SECOND DISTINCT MODE: novel because it is the ONLY pass to
+        gate its chromatic effect on the SPATIAL GRADIENT MAGNITUDE of
+        luminance (the rate of change) rather than on luminance level.
+        All prior passes gate on absolute luminance value; this pass gates
+        on the spatial derivative — it is blind to flat uniform zones and
+        active only at tonal transitions.
+
+        Args:
+            warm_r      : Warm amber R injection strength at penumbra. Default 0.055.
+            warm_g      : Warm amber G injection strength at penumbra. Default 0.022.
+            grad_gamma  : Power curve on normalised gradient gate (higher = sharper). Default 1.5.
+            grad_sigma  : Pre-blur sigma for smoother gradient estimate. Default 1.5.
+            luma_lo     : Lower luminance bound of luma gate. Default 0.12.
+            luma_hi     : Upper luminance bound of luma gate. Default 0.82.
+            opacity     : Composite weight (0 = no-op). Default 0.40.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gaussian_filter, sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Pre-blur luma for stable gradient ─────────────────────────
+        luma_smooth = _gaussian_filter(luma, sigma=float(grad_sigma))
+
+        # ── Step 2: Sobel gradient magnitude ─────────────────────────────────
+        dx = _sobel(luma_smooth, axis=1)
+        dy = _sobel(luma_smooth, axis=0)
+        grad_mag = _np.sqrt(dx * dx + dy * dy)
+        gmax = float(grad_mag.max()) + 1e-6
+        grad_norm = grad_mag / gmax
+
+        # ── Step 3: Penumbral gate (power curve on gradient) ──────────────────
+        pen_gate = grad_norm ** float(grad_gamma)
+
+        # ── Step 4: Luminance gate ────────────────────────────────────────────
+        lo, hi = float(luma_lo), float(luma_hi)
+        rng = hi - lo + 1e-6
+        luma_gate = (
+            _np.clip((luma - lo) / rng, 0.0, 1.0)
+            * _np.clip((hi - luma) / rng, 0.0, 1.0)
+        )
+
+        # ── Step 5: Warm amber injection in penumbral zone ────────────────────
+        gate = pen_gate * luma_gate
+        out_r = _np.clip(r0 + float(warm_r) * gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + float(warm_g) * gate, 0.0, 1.0)
+        out_b = b0  # blue unchanged — warm (R+ G+ only)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Luminance gradient warmth pass complete.")

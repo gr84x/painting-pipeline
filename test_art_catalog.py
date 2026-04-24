@@ -172,6 +172,7 @@ EXPECTED_ARTISTS = [
     "francois_clouet",
     "joachim_wtewael",
     "albrecht_altdorfer",
+    "carel_fabritius",
 ]
 
 
@@ -377,6 +378,7 @@ EXPECTED_PERIODS = [
     "FRENCH_RENAISSANCE",
     "DUTCH_MANNERIST",
     "DANUBE_SCHOOL",
+    "DELFT_SCHOOL",
 ]
 
 
@@ -23075,3 +23077,228 @@ def test_vibrance_selective_pass_boosts_chroma():
     assert chroma_after >= chroma_before, (
         f"Vibrance pass should boost mean chroma; "
         f"before={chroma_before:.4f}, after={chroma_after:.4f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# carel_fabritius — session 170 additions
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_carel_fabritius_s170_in_expected_artists():
+    """EXPECTED_ARTISTS list must include carel_fabritius (added session 170)."""
+    assert "carel_fabritius" in EXPECTED_ARTISTS, (
+        "carel_fabritius missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_carel_fabritius_s170_pale_ground_luma():
+    """Fabritius ground_color luminance should be >= 0.75."""
+    s = get_style("carel_fabritius")
+    r, g, b = s.ground_color
+    luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    assert luma >= 0.75, (
+        f"Fabritius ground should be pale (luma >= 0.75); got luma={luma:.3f}")
+
+
+def test_carel_fabritius_s170_high_wet_blend():
+    """Fabritius wet_blend should be >= 0.60 (Vermeer-adjacent smooth blending)."""
+    s = get_style("carel_fabritius")
+    assert s.wet_blend >= 0.60, (
+        f"Fabritius wet_blend should be >= 0.60; got {s.wet_blend}")
+
+
+def test_carel_fabritius_s170_inspiration_references_pale_ground():
+    """Inspiration should reference fabritius_pale_ground_pass (session 170)."""
+    s = get_style("carel_fabritius")
+    assert "fabritius_pale_ground_pass" in s.inspiration, (
+        "Fabritius inspiration should reference fabritius_pale_ground_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DELFT_SCHOOL Period — session 170
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_delft_school_period_present():
+    """DELFT_SCHOOL (session 170) must exist in Period enum."""
+    assert hasattr(Period, "DELFT_SCHOOL"), "Period.DELFT_SCHOOL not found"
+    assert Period.DELFT_SCHOOL in list(Period)
+
+
+def test_delft_school_stroke_params():
+    """DELFT_SCHOOL stroke params must be valid and reflect Fabritius's diffuse-light style."""
+    style = Style(medium=Medium.OIL, period=Period.DELFT_SCHOOL, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"] > 0
+    assert 0.0 <= params["wet_blend"] <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+    assert params["wet_blend"] >= 0.55, "Delft School uses moderate-high wet_blend for smooth blending"
+    assert params["edge_softness"] >= 0.40, "Delft School uses moderate edge_softness"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# fabritius_pale_ground_pass — session 170 new rendering mode
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_fabritius_pale_ground_pass_runs():
+    """fabritius_pale_ground_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.20, 0.16, 0.12), texture_strength=0.0)
+    p.fabritius_pale_ground_pass(opacity=0.50)
+
+
+def test_fabritius_pale_ground_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.20, 0.18, 0.14), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.fabritius_pale_ground_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_fabritius_pale_ground_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.18, 0.15, 0.10), texture_strength=0.0)
+    p.fabritius_pale_ground_pass(opacity=1.0, lift_strength=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_fabritius_pale_ground_pass_lifts_dark_zones():
+    """Dark canvas should become lighter (higher mean luma) after the pass."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.12, 0.10, 0.08), texture_strength=0.0)
+
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r0 = buf_before[:, :, 2].astype(np.float32) / 255.0
+    g0 = buf_before[:, :, 1].astype(np.float32) / 255.0
+    b0 = buf_before[:, :, 0].astype(np.float32) / 255.0
+    luma_before = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).mean()
+
+    p.fabritius_pale_ground_pass(
+        pale_r=0.86, pale_g=0.82, pale_b=0.78,
+        dark_hi=0.60, lift_strength=0.50, opacity=1.0
+    )
+
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r1 = buf_after[:, :, 2].astype(np.float32) / 255.0
+    g1 = buf_after[:, :, 1].astype(np.float32) / 255.0
+    b1 = buf_after[:, :, 0].astype(np.float32) / 255.0
+    luma_after = (0.2126 * r1 + 0.7152 * g1 + 0.0722 * b1).mean()
+
+    assert luma_after > luma_before, (
+        f"Pale ground pass should lift dark zones to higher luminance; "
+        f"before={luma_before:.4f}, after={luma_after:.4f}")
+
+
+def test_fabritius_pale_ground_pass_does_not_darken_bright_zones():
+    """Bright zones (luma >> dark_hi) should be nearly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.90, 0.88, 0.82), texture_strength=0.0)  # already bright
+
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    luma_before = (
+        0.2126 * buf_before[:, :, 2].astype(np.float32) / 255.0
+        + 0.7152 * buf_before[:, :, 1].astype(np.float32) / 255.0
+        + 0.0722 * buf_before[:, :, 0].astype(np.float32) / 255.0
+    ).mean()
+
+    p.fabritius_pale_ground_pass(dark_hi=0.45, lift_strength=0.30, opacity=1.0)
+
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    luma_after = (
+        0.2126 * buf_after[:, :, 2].astype(np.float32) / 255.0
+        + 0.7152 * buf_after[:, :, 1].astype(np.float32) / 255.0
+        + 0.0722 * buf_after[:, :, 0].astype(np.float32) / 255.0
+    ).mean()
+
+    assert abs(luma_after - luma_before) < 0.04, (
+        f"Bright zones should be nearly unchanged; "
+        f"before={luma_before:.4f}, after={luma_after:.4f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# luminance_gradient_warmth_pass — session 170 random artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_luminance_gradient_warmth_pass_runs():
+    """luminance_gradient_warmth_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.38), texture_strength=0.0)
+    p.luminance_gradient_warmth_pass(opacity=0.40)
+
+
+def test_luminance_gradient_warmth_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.40, 0.35), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.luminance_gradient_warmth_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_luminance_gradient_warmth_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.42), texture_strength=0.0)
+    p.luminance_gradient_warmth_pass(warm_r=0.20, warm_g=0.10, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_luminance_gradient_warmth_pass_adds_warmth():
+    """Pass should increase mean R channel relative to B channel (warm shift)."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.46, 0.40), texture_strength=0.0)
+
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    rb = buf_before[:, :, 2].astype(np.float32).mean()  # R before
+    bb = buf_before[:, :, 0].astype(np.float32).mean()  # B before
+    rb_diff_before = rb - bb
+
+    p.luminance_gradient_warmth_pass(warm_r=0.10, warm_g=0.04, opacity=1.0)
+
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    ra = buf_after[:, :, 2].astype(np.float32).mean()  # R after
+    ba = buf_after[:, :, 0].astype(np.float32).mean()  # B after
+    rb_diff_after = ra - ba
+
+    assert rb_diff_after >= rb_diff_before, (
+        f"Gradient warmth pass should increase R-B separation; "
+        f"before={rb_diff_before:.2f}, after={rb_diff_after:.2f}")
