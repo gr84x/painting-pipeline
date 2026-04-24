@@ -13749,6 +13749,107 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Hans Baldung Grien ─────────────────────────────────────────────────────
+    "hans_baldung_grien": ArtStyle(
+        artist="Hans Baldung Grien",
+        movement="German Late Gothic / Renaissance",
+        nationality="German",
+        period="1510–1545",
+        palette=[
+            (0.82, 0.79, 0.64),   # ivory spectral flesh — cool-neutral pale, not warm amber
+            (0.62, 0.70, 0.38),   # acid yellow-green — Baldung's signature chromatic bite
+            (0.48, 0.55, 0.28),   # mid-value green — deeper foliage / background
+            (0.72, 0.65, 0.40),   # warm ochre — earth tone, aged drapery
+            (0.88, 0.82, 0.20),   # sulphur yellow — supernatural highlight on hair/fabric
+            (0.12, 0.10, 0.08),   # near-black — void ground, deep shadow
+            (0.55, 0.20, 0.12),   # dark crimson-red — blood, dramatic accent
+        ],
+        ground_color=(0.12, 0.10, 0.07),    # dark walnut ground — Northern dark-ground technique
+        stroke_size=5,
+        wet_blend=0.30,                      # crisp Dürer-school precision; low blending
+        edge_softness=0.28,                  # firm Germanic contour; sharp over soft
+        jitter=0.025,
+        glazing=None,
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Hans Baldung Grien (c. 1484/85–1545) was the most psychologically "
+            "daring German painter of the early sixteenth century — a brilliant "
+            "student and close friend of Albrecht Dürer, but with a far darker "
+            "imagination than his master.  His surname 'Grien' (meaning green in "
+            "archaic German) derived from his habitual choice of the color, a "
+            "constant chromatic signature in his work: an ACID YELLOW-GREEN that "
+            "appears in foliage, in supernatural light, in the eerie flesh of the "
+            "dead and dying.  Trained at the apex of the German print-making "
+            "tradition, Baldung combined Dürer's supreme draftsmanship — the "
+            "precision line, the capacity to render form through carefully built "
+            "hatching, the anatomical authority — with a personal obsession with "
+            "death, witchcraft, and erotic morbidity that was entirely his own.  "
+            "His panels and altarpieces have the technical rigor of the Northern "
+            "tradition: dark walnut or oak grounds, systematic oil-over-tempera "
+            "glazing, crisp controlled edges; but his palette departs radically "
+            "from the warm amber of his Nuremberg contemporaries.  Baldung's flesh "
+            "has a SPECTRAL PALLOR — cool, slightly grey-green beneath the "
+            "surface warmth, as if the skin itself remembers mortality.  His "
+            "backgrounds often feature vivid acid-green landscape passages "
+            "illuminated by an unnatural, non-solar light.  His supernatural "
+            "subjects — the Witches' Sabbath woodcuts, 'Death and the Maiden', "
+            "the 'Three Ages of Woman and Death' — introduced the macabre as a "
+            "serious aesthetic subject to German painting, decades before it became "
+            "fashionable in Northern Europe.  His mature altarpieces, including the "
+            "great Freiburg Minster high altar, show a powerful synthesis: "
+            "Dürer-school draftsmanship at the service of a genuinely unsettling "
+            "spiritual imagination."
+        ),
+        famous_works=[
+            ("Freiburg Minster High Altar",                     "1512–1516"),
+            ("Death and the Maiden (Death with a Young Woman)", "c. 1517"),
+            ("The Three Ages of Woman and Death",               "1510"),
+            ("Witches' Sabbath (woodcut)",                      "1510"),
+            ("Portrait of a Young Man",                         "c. 1504–1505"),
+            ("Nativity",                                        "c. 1520"),
+            ("Eve, the Serpent, and Death",                     "c. 1510–1515"),
+        ],
+        inspiration=(
+            "Use baldung_grien_spectral_pallor_pass() to apply the FORTY-SIXTH "
+            "DISTINCT MODE: SPECTRAL FLESH PALLOR — ACID-GREEN CHROMATIC TENSION.  "
+            "The pass encodes Hans Baldung Grien's signature chromatic insight: "
+            "that flesh, in its most unsettling aspects, carries an ACID-GREEN "
+            "undertone — the color of foliage seen through sickly supernatural "
+            "light, the pallor of a face near death, the green-grey of skin that "
+            "has lost its vital warmth.  "
+            "Algorithm (five steps):  "
+            "(1) FLESH DETECTION — skin_raw = (r > 0.38) AND (r > g × 1.05) AND "
+            "(g > b × 1.02); Gaussian blur (sigma=skin_sigma) → skin_mask ∈ [0, 1].  "
+            "(2) MID-TONE GATE — pallor_gate = 4 × luma × (1 − luma); peaks at "
+            "luma=0.50, zero at luma=0 and luma=1; targets mid-flesh zones, "
+            "sparing shadows and highlights.  "
+            "(3) PALLOR TINTING (skin zone) — weight = skin_mask × pallor_gate × "
+            "pallor_strength; out_r = r − pallor_r_reduce × weight [R−]; "
+            "out_g = g + pallor_g_boost × weight [G+]; "
+            "out_b = b − pallor_b_reduce × weight [B−].  "
+            "Net direction: R−G+B− = acid-yellow-green pallor.  "
+            "(4) BACKGROUND ACID BITE (non-skin zone) — bg_weight = (1 − skin_mask) "
+            "× pallor_gate × acid_bg_strength; out_g = g + bg_green × bg_weight; "
+            "simulates Baldung's vivid acid-green landscape and supernatural greens.  "
+            "(5) Composite at opacity.  "
+            "Distinct from skin_subsurface_scatter_pass (WARM-RED R+ translucency; "
+            "positive R direction; spatial Gaussian spreading of warm color; "
+            "Baldung's pass goes R− — reduces warmth; G+ is chromatic pallor tension, "
+            "not thermal luminosity).  "
+            "Distinct from giampietrino_warm_devotion_pass (LUMINANCE-GATED amber "
+            "hi-gate R+G+; violet shad-gate B+R−; no skin color detection; no "
+            "background acid-green treatment; warms highlights without pallor direction).  "
+            "Distinct from morisot_plein_air_pass (violet shadow cooling B+R−; warm "
+            "R+ in mid-bright; Impressionist luminosity target; no skin mask; no "
+            "background acid-green treatment).  "
+            "Distinct from beccafumi_nacreous_glow_pass (surface convexity detection "
+            "via bloom-difference sign; warm on convex peaks, cool in concavities; "
+            "fires on any bright convex surface including metal and fabric; not "
+            "skin-specific; no acid-green background treatment)."
+        ),
+    ),
+
 }
 
 

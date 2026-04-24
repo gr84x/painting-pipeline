@@ -15696,3 +15696,130 @@ def test_furini_ground_color_warm_for_routing():
     style = get_style("furini")
     r, g, b = style.ground_color
     assert r > b
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Hans Baldung Grien — baldung_grien_spectral_pallor_pass (session 160)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_baldung_grien_spectral_pallor_pass_exists():
+    """Painter must expose baldung_grien_spectral_pallor_pass() after session 160."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "baldung_grien_spectral_pallor_pass"), (
+        "baldung_grien_spectral_pallor_pass not found on Painter")
+    assert callable(getattr(Painter, "baldung_grien_spectral_pallor_pass"))
+
+
+def test_baldung_grien_spectral_pallor_pass_no_error():
+    """Pass runs without error on a warm-canvas 64×64 small painter."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    p.baldung_grien_spectral_pallor_pass()
+
+
+def test_baldung_grien_spectral_pallor_pass_zero_opacity_is_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.baldung_grien_spectral_pallor_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_baldung_grien_spectral_pallor_pass_modifies_warm_canvas():
+    """On a warm flesh canvas the pass must produce a detectable colour shift."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.75, 0.58, 0.40), texture_strength=0.0)
+    buf_before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.baldung_grien_spectral_pallor_pass(opacity=1.0, pallor_strength=0.50)
+    buf_after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert not _np.array_equal(buf_before, buf_after), (
+        "Pass should modify a warm-flesh canvas at opacity=1.0")
+
+
+def test_baldung_grien_spectral_pallor_pass_injects_green_in_warm_flesh():
+    """On a warm-flesh canvas the green channel should increase relative to red."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.75, 0.58, 0.40), texture_strength=0.0)
+    buf_before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy().astype(_np.float32)
+    p.baldung_grien_spectral_pallor_pass(opacity=1.0, pallor_strength=0.8,
+                                          pallor_g_boost=0.30)
+    buf_after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).astype(_np.float32)
+    # Cairo BGRA: channel 1 = G, channel 2 = R
+    mean_g_before = buf_before[:, :, 1].mean()
+    mean_g_after  = buf_after[:, :, 1].mean()
+    assert mean_g_after > mean_g_before, (
+        "Green channel should increase after baldung pallor pass on warm flesh canvas; "
+        f"before={mean_g_before:.2f}, after={mean_g_after:.2f}")
+
+
+def test_baldung_grien_spectral_pallor_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.75, 0.58, 0.40), texture_strength=0.0)
+    p.baldung_grien_spectral_pallor_pass(opacity=1.0, pallor_strength=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_baldung_grien_spectral_pallor_pass_cool_canvas_minimal_change():
+    """On a cool canvas (no flesh pixels detected) the change should be small."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.30, 0.40, 0.60), texture_strength=0.0)
+    buf_before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy().astype(_np.float32)
+    p.baldung_grien_spectral_pallor_pass(opacity=1.0, pallor_strength=0.80)
+    buf_after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).astype(_np.float32)
+    mean_diff = _np.abs(buf_before[:, :, :3] - buf_after[:, :, :3]).mean()
+    assert mean_diff < 10.0, (
+        f"Cool canvas should barely change (only background acid bite); got mean diff {mean_diff:.2f}")
+
+
+def test_german_renaissance_period_in_enum():
+    """Period.GERMAN_RENAISSANCE must be present in the Period enum."""
+    assert hasattr(Period, "GERMAN_RENAISSANCE"), "Period.GERMAN_RENAISSANCE not found"
+    assert Period.GERMAN_RENAISSANCE in list(Period)
+
+
+def test_german_renaissance_stroke_params_valid():
+    """GERMAN_RENAISSANCE stroke_params must satisfy all key constraints."""
+    style = Style(medium=Medium.OIL, period=Period.GERMAN_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "stroke_size_bg"   in p
+    assert "wet_blend"        in p
+    assert "edge_softness"    in p
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"]   > 0
+    assert 0.0 <= p["wet_blend"]    <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_german_renaissance_wet_blend_is_northern_precision():
+    """GERMAN_RENAISSANCE wet_blend should reflect Northern precision (≤ 0.40)."""
+    german = Style(medium=Medium.OIL, period=Period.GERMAN_RENAISSANCE,
+                   palette=PaletteHint.WARM_EARTH).stroke_params
+    assert german["wet_blend"] <= 0.40, (
+        f"GERMAN_RENAISSANCE wet_blend ({german['wet_blend']}) should be ≤ 0.40 "
+        f"for Dürer-school Northern crispness")

@@ -163,6 +163,7 @@ EXPECTED_ARTISTS = [
     "melozzo_da_forli",
     "gentile_da_fabriano",
     "giampietrino",
+    "hans_baldung_grien",
 ]
 
 
@@ -359,6 +360,7 @@ EXPECTED_PERIODS = [
     "UMBRIAN_ROMAN_ILLUSIONISM",
     "INTERNATIONAL_GOTHIC",
     "MILANESE_LEONARDESQUE_DEVOTION",
+    "GERMAN_RENAISSANCE",
 ]
 
 
@@ -21029,3 +21031,172 @@ def test_skin_subsurface_scatter_pass_zero_strength_no_change():
     ).reshape(64, 64, 4)
     assert np.array_equal(buf_before, buf_after)
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Hans Baldung Grien — session 160 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_hans_baldung_grien_in_catalog():
+    """Session 160: Hans Baldung Grien must be present in CATALOG."""
+    assert "hans_baldung_grien" in CATALOG, "hans_baldung_grien not found in CATALOG"
+
+
+def test_hans_baldung_grien_movement():
+    """Baldung Grien's movement must reference German or Gothic or Renaissance."""
+    s = get_style("hans_baldung_grien")
+    movement_lower = s.movement.lower()
+    assert ("german" in movement_lower or "gothic" in movement_lower
+            or "renaissance" in movement_lower), (
+        f"Baldung movement should reference German/Gothic/Renaissance; got: {s.movement!r}")
+
+
+def test_hans_baldung_grien_nationality():
+    """Baldung Grien was German."""
+    s = get_style("hans_baldung_grien")
+    assert "German" in s.nationality, (
+        f"Baldung Grien should be German; got: {s.nationality!r}")
+
+
+def test_hans_baldung_grien_palette_length():
+    s = get_style("hans_baldung_grien")
+    assert len(s.palette) >= 5, "Baldung Grien palette should have at least 5 key colours"
+
+
+def test_hans_baldung_grien_palette_in_range():
+    """All Baldung Grien palette RGB values must be in [0, 1]."""
+    s = get_style("hans_baldung_grien")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in Baldung Grien palette {rgb}")
+
+
+def test_hans_baldung_grien_acid_green_in_palette():
+    """Palette must include an acid-green entry (G channel significantly exceeds B and R)."""
+    s = get_style("hans_baldung_grien")
+    has_acid_green = any(
+        g > 0.55 and g > r * 1.05 and g > b * 1.05
+        for r, g, b in s.palette
+    )
+    assert has_acid_green, (
+        "Baldung Grien palette should include an acid-green entry — his chromatic signature")
+
+
+def test_hans_baldung_grien_wet_blend_low():
+    """Baldung uses crisp Dürer-school precision — wet_blend must be low."""
+    s = get_style("hans_baldung_grien")
+    assert s.wet_blend <= 0.40, (
+        f"Baldung wet_blend should be low (Northern precision), got {s.wet_blend}")
+
+
+def test_hans_baldung_grien_edge_softness_low():
+    """Baldung uses firm Germanic contour — edge_softness must be low."""
+    s = get_style("hans_baldung_grien")
+    assert s.edge_softness <= 0.40, (
+        f"Baldung edge_softness should be low (crisp draftsmanship), got {s.edge_softness}")
+
+
+def test_hans_baldung_grien_technique_references_grien():
+    """Technique text must mention 'Grien' or 'green'."""
+    s = get_style("hans_baldung_grien")
+    assert "Grien" in s.technique or "green" in s.technique.lower(), (
+        "Baldung's technique must mention his 'Grien' name or his use of green")
+
+
+def test_hans_baldung_grien_famous_works_not_empty():
+    s = get_style("hans_baldung_grien")
+    assert len(s.famous_works) >= 4, "Baldung should have at least 4 famous works"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Death" in t or "Maiden" in t or "Ages" in t or "Freiburg" in t
+               for t in titles), (
+        "Baldung's famous works should include Death and the Maiden or Three Ages or Freiburg Altar")
+
+
+def test_german_renaissance_period_present():
+    """Session 160: GERMAN_RENAISSANCE must exist in Period enum."""
+    assert hasattr(Period, "GERMAN_RENAISSANCE"), "Period.GERMAN_RENAISSANCE not found"
+    assert Period.GERMAN_RENAISSANCE in list(Period)
+
+
+def test_german_renaissance_stroke_params_low_wet_blend():
+    """GERMAN_RENAISSANCE should have low wet_blend for Dürer-school crispness."""
+    style = Style(medium=Medium.OIL, period=Period.GERMAN_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["wet_blend"] <= 0.40, (
+        f"GERMAN_RENAISSANCE wet_blend should be low (Northern precision), got {p['wet_blend']}")
+
+
+def test_german_renaissance_stroke_params_low_edge_softness():
+    """GERMAN_RENAISSANCE should have low edge_softness for firm Germanic contour."""
+    style = Style(medium=Medium.OIL, period=Period.GERMAN_RENAISSANCE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["edge_softness"] <= 0.40, (
+        f"GERMAN_RENAISSANCE edge_softness should be low (crisp line), got {p['edge_softness']}")
+
+
+def test_baldung_grien_spectral_pallor_pass_exists():
+    """Painter must have baldung_grien_spectral_pallor_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "baldung_grien_spectral_pallor_pass"), (
+        "baldung_grien_spectral_pallor_pass not found on Painter")
+    assert callable(getattr(Painter, "baldung_grien_spectral_pallor_pass"))
+
+
+def test_baldung_grien_spectral_pallor_pass_no_error():
+    """baldung_grien_spectral_pallor_pass() runs on a small canvas without error."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.55, 0.42), texture_strength=0.0)
+    p.baldung_grien_spectral_pallor_pass()
+
+
+def test_baldung_grien_spectral_pallor_pass_zero_opacity_no_change():
+    """opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.55, 0.42), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.baldung_grien_spectral_pallor_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_baldung_grien_spectral_pallor_pass_modifies_warm_canvas():
+    """The pass must modify a warm-flesh-toned canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.58, 0.40), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.baldung_grien_spectral_pallor_pass(opacity=1.0, pallor_strength=0.5)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "baldung_grien_spectral_pallor_pass should modify warm-flesh canvas at opacity=1.0")
+
+
+def test_baldung_grien_spectral_pallor_pass_pixels_in_range():
+    """All output pixels must remain in [0, 255] range."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.58, 0.40), texture_strength=0.0)
+    p.baldung_grien_spectral_pallor_pass(opacity=1.0, pallor_strength=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

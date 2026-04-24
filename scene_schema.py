@@ -325,6 +325,7 @@ class Period(Enum):
     MILANESE_LEONARDESQUE_DEVOTION = auto()  # Giampietrino — warm honey-amber highlight tinting + cool violet shadow deepening; seamless Leonardesque multi-glaze sfumato; sweet idealized Milanese devotional warmth
     FRENCH_SENTIMENTALIST = auto()  # Greuze — warm rose-carnation sentimental flush in mid-flesh; cool-pearl dewy moisture shimmer at specular peaks; smooth Academic blending; luminous peach-cream skin
     FLEMISH_SPANISH_COURT = auto()  # Antonio Moro — high-polarity tonal amplification; very dark umber ground deepened further; cool-silver crystalline highlights; Flemish precision contour; court portrait gravity
+    GERMAN_RENAISSANCE    = auto()  # Hans Baldung Grien — acid-green chromatic pallor, Dürer-school sharp draftsmanship, macabre spectral flesh, near-black void ground
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1636,6 +1637,12 @@ class Style:
             # edge_softness=0.35: crisper than Italian masters — Flemish contour is deliberate and authoritative;
             #   this firmness of edge is part of the court portrait dignity, giving the sitter solid presence.
             Period.FLEMISH_SPANISH_COURT: dict(stroke_size_face=4, stroke_size_bg=12, wet_blend=0.45, edge_softness=0.35),
+            # GERMAN_RENAISSANCE (Hans Baldung Grien) — Dürer-school precision, Northern crisp contour.
+            # stroke_size_face=5: precise but not miniaturist — Dürer-trained mark-making, deliberate clarity.
+            # stroke_size_bg=18: background at mid-scale — architectural settings or landscape with moderate detail.
+            # wet_blend=0.30: low blending; Northern precision favours hard, crisp line over Italian sfumato.
+            # edge_softness=0.28: firm Germanic contour — even crisper than Moro; Baldung's line is decisively drawn.
+            Period.GERMAN_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.30, edge_softness=0.28),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
