@@ -157,6 +157,7 @@ EXPECTED_ARTISTS = [
     "romanino",
     "beccafumi",
     "gaudenzio_ferrari",
+    "ter_brugghen",
 ]
 
 
@@ -347,6 +348,7 @@ EXPECTED_PERIODS = [
     "BRESCIAN_VENETIAN_IMPASTO",
     "SIENESE_MANNERIST_LUMINISM",
     "PIEDMONTESE_DEVOTIONAL_LUMINISM",
+    "UTRECHT_CARAVAGGISM",
 ]
 
 
@@ -19659,3 +19661,138 @@ def test_atmospheric_depth_gradient_pass_pixels_in_range():
 def test_gaudenzio_ferrari_in_expected_artists_catalog_final():
     assert "gaudenzio_ferrari" in CATALOG
     assert "gaudenzio_ferrari" in EXPECTED_ARTISTS
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_ter_brugghen_in_catalog():
+    """Ter Brugghen (session 151) must be present in CATALOG."""
+    assert "ter_brugghen" in CATALOG
+
+
+def test_ter_brugghen_movement():
+    s = get_style("ter_brugghen")
+    assert "Utrecht" in s.movement or "Caravaggio" in s.movement or "caravaggio" in s.movement.lower()
+
+
+def test_ter_brugghen_palette_length():
+    s = get_style("ter_brugghen")
+    assert len(s.palette) >= 5, "Ter Brugghen palette should have at least 5 key colours"
+
+
+def test_ter_brugghen_palette_values_in_range():
+    """All ter Brugghen palette RGB values must be in [0, 1]."""
+    s = get_style("ter_brugghen")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel} in ter Brugghen palette {rgb}")
+
+
+def test_ter_brugghen_famous_works_not_empty():
+    s = get_style("ter_brugghen")
+    assert len(s.famous_works) >= 3, "Ter Brugghen should have at least 3 famous works"
+
+
+def test_ter_brugghen_ground_color_dark():
+    """Ter Brugghen uses a dark umber ground typical of Caravaggism."""
+    s = get_style("ter_brugghen")
+    luma = 0.299 * s.ground_color[0] + 0.587 * s.ground_color[1] + 0.114 * s.ground_color[2]
+    assert luma < 0.30, "Ter Brugghen ground should be dark (Caravaggist dark ground)"
+
+
+def test_utrecht_caravaggism_period_present():
+    """Session 151: UTRECHT_CARAVAGGISM must exist in Period enum."""
+    assert hasattr(Period, "UTRECHT_CARAVAGGISM"), "Period.UTRECHT_CARAVAGGISM not found"
+    assert Period.UTRECHT_CARAVAGGISM in list(Period)
+
+
+def test_utrecht_caravaggism_stroke_params():
+    """UTRECHT_CARAVAGGISM stroke_params must be valid and reflect Dutch directness."""
+    style = Style(medium=Medium.OIL, period=Period.UTRECHT_CARAVAGGISM, palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert p["stroke_size_face"] > 0
+    assert p["stroke_size_bg"]   > 0
+    assert 0.0 <= p["wet_blend"]     <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_ter_brugghen_raking_amber_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.40, 0.32, 0.18), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.ter_brugghen_raking_amber_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+
+def test_ter_brugghen_raking_amber_pass_modifies_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    # Textured midtone ground so horizontal Sobel finds non-zero gradients
+    p.tone_ground((0.45, 0.36, 0.22), texture_strength=0.30)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.ter_brugghen_raking_amber_pass(opacity=1.0, ridge_strength=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+
+def test_ter_brugghen_raking_amber_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.45, 0.36, 0.22), texture_strength=0.30)
+    p.ter_brugghen_raking_amber_pass(
+        mid_lo=0.00, mid_hi=1.00, warm_r=0.5, warm_g=0.5,
+        cool_b=0.5, cool_r=0.5, ridge_strength=1.0, opacity=1.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_adaptive_local_contrast_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.42, 0.35, 0.22), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.adaptive_local_contrast_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+
+def test_adaptive_local_contrast_pass_modifies_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.42, 0.35, 0.22), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.adaptive_local_contrast_pass(
+        block_size=32, stretch_amount=1.0, opacity=1.0
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+
+def test_adaptive_local_contrast_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.42, 0.35, 0.22), texture_strength=0.30)
+    p.adaptive_local_contrast_pass(
+        block_size=32, p_lo=0.0, p_hi=1.0,
+        contrast_lo=0.0, contrast_hi=1.0,
+        stretch_amount=1.0, opacity=1.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_ter_brugghen_in_expected_artists_catalog_final():
+    assert "ter_brugghen" in CATALOG
+    assert "ter_brugghen" in EXPECTED_ARTISTS
+

@@ -317,6 +317,7 @@ class Period(Enum):
     BRESCIAN_VENETIAN_IMPASTO      = auto()  # Girolamo Romanino — bold Venetian-Brescian impasto relief; oblique-light height-field simulation with warm ochre lit ridges and cool shadowed valleys; vigorous expressive brushwork
     SIENESE_MANNERIST_LUMINISM     = auto()  # Domenico Beccafumi — nacreous iridescent midtone glow; signed Gaussian bloom difference with differential warm/cool tinting; acid yellow-green and violet against warm flesh; internal luminosity of forms
     PIEDMONTESE_DEVOTIONAL_LUMINISM = auto()  # Gaudenzio Ferrari — warm amber devotional luminosity, Lombard-Leonardesque sfumato fused with vivid expressive warmth; shadow-zone inner glow and vertical atmospheric depth gradient
+    UTRECHT_CARAVAGGISM            = auto()  # Hendrick ter Brugghen — directional raking amber sidelight; warm ridge / cool-shadow split via horizontal Sobel; warm golden-ochre flesh with cool blue-grey shadow infill; Dutch Caravaggist intimacy
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1574,6 +1575,12 @@ class Style:
             # wet_blend=0.78: heavy blending — Leonardesque sfumato inheritance, warm luminous transitions.
             # edge_softness=0.72: strong sfumato influence — forms dissolve warmly at the periphery.
             Period.PIEDMONTESE_DEVOTIONAL_LUMINISM: dict(stroke_size_face=6, stroke_size_bg=26, wet_blend=0.78, edge_softness=0.72),
+            # UTRECHT_CARAVAGGISM (ter Brugghen): Dutch Caravaggist warm raking light; moderate blending.
+            # stroke_size_face=8: direct confident Utrecht brushwork — larger than Italian Mannerists.
+            # stroke_size_bg=24: moderate background — dark atmospheric grounds typical of Caravaggism.
+            # wet_blend=0.42: moderate — forms are firm but not as crisp as Flemish enamel.
+            # edge_softness=0.55: moderate softness — Dutch Caravaggist edges are clear but not hard.
+            Period.UTRECHT_CARAVAGGISM:       dict(stroke_size_face=8, stroke_size_bg=24, wet_blend=0.42, edge_softness=0.55),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

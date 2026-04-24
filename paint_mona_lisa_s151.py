@@ -5,59 +5,60 @@ Warm-start from mona_lisa_s150.png (latest accumulated canvas),
 then applies session 151 additions.
 
 Session 151 additions:
-  - gaudenzio_ferrari                   -- NEW (session 151)
-                                           Gaudenzio Ferrari (c. 1477–1546),
-                                           Piedmontese Devotional Luminism.
-                                           Supreme master of warm inner light:
-                                           his figures are lit from within by
-                                           amber-gold devotional warmth that
-                                           floods the shadow zone — where
-                                           Leonardo leaves shadows cool and
-                                           remote, Ferrari makes them glow.
-                                           Lombard-Leonardesque synthesis of
-                                           sfumato depth and vivid emotional
-                                           directness.
+  - ter_brugghen                        -- NEW (session 151)
+                                           Hendrick ter Brugghen (1588–1629),
+                                           Utrecht Caravaggism.
+                                           Dutch master of warm raking sidelight —
+                                           amber light catching every elevated
+                                           surface ridge (nose bridge, cheekbone,
+                                           finger knuckle, collar fold) while
+                                           cool blue-grey infills the receding
+                                           shadow faces of those same forms.
+                                           Studied Caravaggio in Rome 1604–1614;
+                                           brought tenebrism north with a warmer,
+                                           more lyrical Dutch sensibility.
 
-  SESSION 151 MAIN PASS -- gaudenzio_warm_devotion_pass:
+  SESSION 151 MAIN PASS -- ter_brugghen_raking_amber_pass:
 
                                            Thirty-first distinct mode:
-                                           SHADOW-ZONE WARM AMBER LUMINOSITY
-                                           SCUMBLE.
+                                           DIRECTIONAL HORIZONTAL SOBEL
+                                           WARM-LIGHT RIDGE TINTING WITH
+                                           COOL-SHADOW INFILL.
 
-                                           Computes luminance, defines shadow/
-                                           penumbra gate (smooth bump in
-                                           [shad_lo=0.05, shad_hi=0.42])
-                                           targeting the transitional zone
-                                           between shadow and mid-tone.
-                                           Applies warm amber tint (R+, G+)
-                                           with slight blue reduction (B−)
-                                           weighted by gate × warm_strength.
-                                           The effect is a gentle amber scumble
-                                           in the shadows — not a highlight
-                                           bloom, but Ferrari's characteristic
-                                           devotional inner light made visible
-                                           in the darkest passages.
+                                           Computes luminance, applies horizontal
+                                           Sobel (scipy axis=1) to detect the
+                                           left-to-right luminance gradient.
+                                           Positive sobel → lit ridge face →
+                                           warm amber tint (R+warm_r, G+warm_g).
+                                           Negative sobel → shadow side of ridge →
+                                           cool blue-grey tint (B+cool_b, R−cool_r).
+                                           Gated to midtone zone [mid_lo=0.22,
+                                           mid_hi=0.76] to confine the effect to
+                                           form-bearing figure surfaces.
 
-  SESSION 151 ARTISTIC IMPROVEMENT -- atmospheric_depth_gradient_pass:
+  SESSION 151 ARTISTIC IMPROVEMENT -- adaptive_local_contrast_pass:
 
-                                           LUMINANCE-WEIGHTED VERTICAL CHROMATIC
-                                           TEMPERATURE GRADIENT.
+                                           LOCAL-BLOCK PERCENTILE CONTRAST
+                                           STRETCHING.
 
-                                           Applies Leonardo's atmospheric
-                                           perspective across the full canvas
-                                           height: warm ochre push strengthens
-                                           at the lower canvas (foreground /
-                                           figure base), cool blue-grey push
-                                           strengthens at the upper canvas
-                                           (sky / distant landscape horizon).
-                                           Gated by luminance to exclude deep
-                                           shadow voids.  Simulates the warm-
-                                           to-cool depth recession visible in
-                                           the Mona Lisa landscape background.
+                                           Divides the image into overlapping
+                                           local blocks (block_size=64).  For
+                                           each block computes 5th and 95th
+                                           percentile of each RGB channel.
+                                           Interpolates percentile grids to
+                                           full resolution (scipy.ndimage.zoom
+                                           order=1).  Stretches each channel
+                                           so the local [p5, p95] maps to [0, 1],
+                                           gated to the midtone zone
+                                           [contrast_lo=0.20, contrast_hi=0.80].
+                                           Builds local form contrast in the
+                                           manner of Renaissance painters who
+                                           exaggerated modelling within individual
+                                           form regions for distance readability.
 
 Warm-start base: mona_lisa_s150.png
-Applies: s150 accumulated base + s151 (Gaudenzio warm devotion -- NEW)
-                                  + s151 (Atmospheric depth gradient -- NEW)
+Applies: s150 accumulated base + s151 (ter Brugghen raking amber -- NEW)
+                                  + s151 (Adaptive local contrast -- NEW)
 """
 
 import sys
@@ -129,75 +130,79 @@ def load_png_into_painter(p: Painter, path: str) -> None:
 def paint(out_dir: str = ".") -> str:
     print("=" * 68, flush=True)
     print("Session 151 warm-start from accumulated canvas", flush=True)
-    print("Applying: Gaudenzio warm devotion shadow glow (151 -- NEW)", flush=True)
-    print("Applying: Atmospheric depth gradient (151 -- NEW)", flush=True)
+    print("Applying: Ter Brugghen raking amber sidelight (151 -- NEW)", flush=True)
+    print("Applying: Adaptive local contrast stretching (151 -- NEW)", flush=True)
     print("=" * 68, flush=True)
 
     p = Painter(W, H)
     load_png_into_painter(p, base_path)
     p.set_figure_mask(make_figure_mask())
 
-    # -- Session 151 (NEW): Gaudenzio warm devotion pass ----------------------
-    # Thirty-first distinct mode: SHADOW-ZONE WARM AMBER LUMINOSITY SCUMBLE.
+    # -- Session 151 (NEW): Ter Brugghen raking amber pass --------------------
+    # Thirty-first distinct mode: DIRECTIONAL HORIZONTAL SOBEL WARM-LIGHT
+    # RIDGE TINTING WITH COOL-SHADOW INFILL.
     #
-    # Design intent for the accumulated Leonardo/Venetian/Sienese canvas:
+    # Design intent for the accumulated canvas after 31 prior passes:
     #
-    # After 31 prior passes the canvas has extraordinary tonal depth,
-    # nacreous iridescence (Beccafumi), warm Venetian color, and physical
-    # impasto texture.  The shadow zones, while deep and warm from
-    # luminous_ground, can still benefit from Gaudenzio Ferrari's
-    # distinctive treatment: a subtle amber scumble that makes the shadows
-    # feel inhabited by inner devotional warmth rather than external
-    # illumination.  This is distinct from highlight bloom (which targets
-    # lit zones) and distinct from nacreous glow (which targets midtones
-    # with a signed difference).
+    # The canvas has extraordinary sfumato depth, warm Venetian color, nacreous
+    # iridescence (Beccafumi), and penumbra softening.  What it can still gain
+    # from ter Brugghen is DIRECTIONAL FORM ARTICULATION: the raking sidelight
+    # that makes every elevated surface catch amber warmth while every receding
+    # face drops into cool blue-grey.  The horizontal Sobel encodes exactly this
+    # directional preference — it finds the left-to-right luminance gradient and
+    # maps positive gradient → lit amber ridge, negative → cool shadow infill.
+    # This is the Utrecht Caravaggist contribution: making form readable through
+    # directional warm/cool local contrast rather than global tonal hierarchy.
     #
-    # shad_lo=0.05, shad_hi=0.40: shadow/penumbra gate — targets the
-    #   transitional zone between deep shadow and mid-tone flesh.
-    # warm_r=0.032, warm_g=0.018: gentle amber tint — less saturated
-    #   than default since the canvas already has warm richness.
-    # warm_b=0.008: slight blue reduction — reinforces amber warmth.
-    # warm_strength=0.50: moderate gate scale on the rich canvas.
-    # opacity=0.26: subtle, additive to 30 prior passes.
-    print("Gaudenzio warm devotion pass (session 151 -- NEW)...", flush=True)
-    p.gaudenzio_warm_devotion_pass(
-        shad_lo        = 0.05,
-        shad_hi        = 0.40,
-        warm_r         = 0.032,
+    # mid_lo=0.24, mid_hi=0.74: target figure flesh/drapery midtones — avoids
+    #   deep shadow voids and specular highlight peaks.
+    # warm_r=0.038, warm_g=0.018: gentle warm amber on lit ridges — complements
+    #   the existing Venetian warmth without over-yellowing.
+    # cool_b=0.030, cool_r=0.014: gentle cool blue-grey on shadow sides —
+    #   a quiet Utrecht Caravaggist shadow temperature shift.
+    # ridge_strength=0.55: moderate on the rich accumulated canvas.
+    # opacity=0.22: subtle directional pass — it is seventh-layer refinement.
+    print("Ter Brugghen raking amber pass (session 151 -- NEW)...", flush=True)
+    p.ter_brugghen_raking_amber_pass(
+        mid_lo         = 0.24,
+        mid_hi         = 0.74,
+        warm_r         = 0.038,
         warm_g         = 0.018,
-        warm_b         = 0.008,
-        warm_strength  = 0.50,
-        opacity        = 0.26,
+        cool_b         = 0.030,
+        cool_r         = 0.014,
+        ridge_strength = 0.55,
+        opacity        = 0.22,
     )
 
-    # -- Session 151 (NEW): Atmospheric depth gradient pass -------------------
-    # Artistic improvement: LUMINANCE-WEIGHTED VERTICAL CHROMATIC TEMPERATURE
-    # GRADIENT — Leonardo's atmospheric perspective.
+    # -- Session 151 (NEW): Adaptive local contrast pass ----------------------
+    # Artistic improvement: LOCAL-BLOCK PERCENTILE CONTRAST STRETCHING.
     #
     # Design intent:
-    # The Mona Lisa's landscape background (upper canvas: distant terrain,
-    # winding paths, atmospheric haze) should read cooler and more blue-grey
-    # than the foreground figure (lower canvas: hands, dress, warm flesh).
-    # After 30 passes this vertical temperature gradient is already present
-    # implicitly, but this pass reinforces it explicitly: warm amber push
-    # at the lower canvas, cool blue-grey push at the upper canvas.
+    # The accumulated canvas has subtle tonal depth but the fine form modelling
+    # within individual features — the curve of a cheek, the bridge of the nose,
+    # the drape of fabric folds — can benefit from a local contrast lift that
+    # makes these details read more clearly without disturbing the global sfumato
+    # tonal design.  The local-block approach targets each region independently
+    # so that the modelling within each face zone is stretched toward its own
+    # local dynamic range, exactly as Renaissance painters exaggerated local
+    # contrast for distant viewability.
     #
-    # The effect is subtle — strengthening what is already there rather than
-    # imposing a new character.  On the accumulated warm-toned canvas the
-    # atmospheric recession should feel like a natural consequence of depth.
-    #
-    # atm_warm_r=0.020, atm_warm_g=0.012: gentle warm push at figure base.
-    # atm_cool_b=0.022, atm_cool_r=0.010: gentle cool push at sky/horizon.
-    # luma_lo=0.12: exclude deepest shadow voids from the colour push.
-    # opacity=0.24: very subtle — the 31st layer must be a whisper.
-    print("Atmospheric depth gradient pass (session 151 artistic improvement -- NEW)...", flush=True)
-    p.atmospheric_depth_gradient_pass(
-        atm_warm_r   = 0.020,
-        atm_warm_g   = 0.012,
-        atm_cool_b   = 0.022,
-        atm_cool_r   = 0.010,
-        luma_lo      = 0.12,
-        opacity      = 0.24,
+    # block_size=80: block covers roughly one facial feature (nose, eye, cheek)
+    #   at the accumulated canvas resolution — captures local form scale.
+    # p_lo=0.06, p_hi=0.94: 6th and 94th percentile — robust to outliers.
+    # contrast_lo=0.22, contrast_hi=0.78: midtone zone gate — avoids deep
+    #   shadows (already well-modelled) and specular highlights (already clear).
+    # stretch_amount=0.28: gentle stretch — preserves the sfumato quality.
+    # opacity=0.18: subtle finishing pass.
+    print("Adaptive local contrast pass (session 151 artistic improvement -- NEW)...", flush=True)
+    p.adaptive_local_contrast_pass(
+        block_size     = 80,
+        p_lo           = 0.06,
+        p_hi           = 0.94,
+        contrast_lo    = 0.22,
+        contrast_hi    = 0.78,
+        stretch_amount = 0.28,
+        opacity        = 0.18,
     )
 
     # -- Carry-forward passes from session 150 --------------------------------
