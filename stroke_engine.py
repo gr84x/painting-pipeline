@@ -38610,3 +38610,142 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Craquelure texture pass complete.")
+
+    def clouet_enamel_precision_pass(
+        self,
+        cool_r: float = 0.90,
+        cool_g: float = 0.88,
+        cool_b: float = 0.94,
+        tint_strength: float = 0.18,
+        hi_threshold: float = 0.38,
+        hi_gate_power: float = 1.4,
+        opacity: float = 0.50,
+    ) -> None:
+        """Luminance-preserving cool enamel glaze — FIFTY-SEVENTH DISTINCT MODE.
+
+        Encodes François Clouet's defining pictorial quality: the cool, enamel-
+        smooth surface of French Renaissance court portraiture, achieved through
+        multiple thin, semi-transparent glazes applied with extreme precision.
+        Clouet's highlights are distinctively pearl-cool — not the warm golden
+        highlights of the Italian tradition, but a silvery luminosity reflecting
+        the even north-window light of the French court.
+
+        This is the FIFTY-SEVENTH DISTINCT MODE: LUMINANCE-PRESERVING COOL
+        ENAMEL GLAZE.
+
+        Unlike ALL prior passes, this is the ONLY pass to apply a
+        LUMINANCE-NORMALIZING CORRECTION after the colour tint.  Every prior
+        colour-tinting pass (Massys, Reynolds, van der Werff, Schalcken,
+        Gentileschi, warm_highlight_bloom, shadow_color_temperature) alters both
+        chroma and luminance simultaneously through additive or multiplicative
+        operations.  This pass does something no prior pass does:
+
+        (1) Apply a cool ivory chroma shift (lerp toward target colour)
+        (2) Measure the resulting per-pixel luminance change
+        (3) DIVIDE each pixel back to restore its exact original luminance
+
+        The net effect: chroma changes (the image gets cooler, more pearl-ivory)
+        but the tonal structure — every gradient, every shadow, every highlight —
+        remains EXACTLY as painted.  This replicates the physical effect of a
+        thin coloured varnish or glaze that shifts overall hue while leaving the
+        underlying tonal drawing intact.  François Clouet's enamel surfaces were
+        built precisely this way: cool glazes laid over a carefully constructed
+        tonal underpainting without disturbing its luminance structure.
+
+        Algorithm (four steps):
+
+        (1) CHROMA SHIFT — LERP TOWARD COOL TARGET:
+            r' = r + (cool_r − r) × tint_strength × hi_gate
+            g' = g + (cool_g − g) × tint_strength × hi_gate
+            b' = b + (cool_b − b) × tint_strength × hi_gate
+            where hi_gate = clip((luma − hi_threshold) / (1 − hi_threshold), 0, 1)
+                              raised to hi_gate_power.
+            Applies the cool tint progressively in the lighter zones — the
+            pearl-cool quality is most visible in Clouet's mid-highlights and
+            peaks; shadows remain warmer and darker as he left them.
+
+        (2) LUMINANCE MEASUREMENT of tinted output:
+            luma_tinted = 0.2126 × r' + 0.7152 × g' + 0.0722 × b'
+
+        (3) LUMINANCE RESTORATION — per-pixel normalisation:
+            ratio = luma_orig / (luma_tinted + ε)
+            r_out = r' × ratio
+            g_out = g' × ratio
+            b_out = b' × ratio
+            Divides each pixel back to its original luma, preserving all tonal
+            gradients exactly.  The colour has shifted but the 'drawing' under
+            the glaze has not moved — precisely the effect of Clouet's technique.
+
+        (4) COMPOSITE at opacity.
+
+        FIFTY-SEVENTH DISTINCT MODE: novel because it is the ONLY pass to
+        measure the luminance change introduced by a colour operation and then
+        mathematically invert that change via per-pixel division.  Prior passes
+        that shift colour (warm_highlight_bloom: additive bloom; van_der_werff:
+        additive B-channel lift; Schalcken: additive amber in proximity zone;
+        Reynolds: additive amber unification) do NOT restore original luma.
+        This pass does — making the colour shift 'chrominance-only' in the
+        strict colour-science sense.
+
+        Args:
+            cool_r       : Red channel of the cool target colour. Default 0.90.
+            cool_g       : Green channel of the cool target colour. Default 0.88.
+            cool_b       : Blue channel of the cool target colour. Default 0.94.
+            tint_strength: Maximum lerp fraction toward the cool target. Default 0.18.
+            hi_threshold : Luma below which the gate is zero (shadow protection). Default 0.38.
+            hi_gate_power: Power applied to the luma gate (higher = more selective). Default 1.4.
+            opacity      : Composite weight (0 = no-op). Default 0.50.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma_orig = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Luma gate — apply tint progressively in lighter zones ──────
+        hi_thr = float(hi_threshold)
+        hi_gate = _np.clip(
+            (luma_orig - hi_thr) / (1.0 - hi_thr + 1e-6), 0.0, 1.0
+        ) ** float(hi_gate_power)
+
+        tint = float(tint_strength)
+        cr, cg, cb = float(cool_r), float(cool_g), float(cool_b)
+
+        # ── Step 2: Chroma shift — lerp toward cool ivory target ─────────────
+        r_tinted = r0 + (cr - r0) * tint * hi_gate
+        g_tinted = g0 + (cg - g0) * tint * hi_gate
+        b_tinted = b0 + (cb - b0) * tint * hi_gate
+
+        # ── Step 3: Measure tinted luma ───────────────────────────────────────
+        luma_tinted = 0.2126 * r_tinted + 0.7152 * g_tinted + 0.0722 * b_tinted
+
+        # ── Step 4: Luminance restoration — divide back to original luma ──────
+        ratio = luma_orig / (luma_tinted + 1e-6)
+        r_out = _np.clip(r_tinted * ratio, 0.0, 1.0)
+        g_out = _np.clip(g_tinted * ratio, 0.0, 1.0)
+        b_out = _np.clip(b_tinted * ratio, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        r_out = _np.clip(r0 * (1.0 - opacity) + r_out * opacity, 0.0, 1.0)
+        g_out = _np.clip(g0 * (1.0 - opacity) + g_out * opacity, 0.0, 1.0)
+        b_out = _np.clip(b0 * (1.0 - opacity) + b_out * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b_out * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Clouet enamel precision pass complete.")
