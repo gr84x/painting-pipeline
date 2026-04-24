@@ -38901,3 +38901,320 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Wtewael copper jewel pass complete.")
+
+    def altdorfer_forest_atmosphere_pass(
+        self,
+        sky_band_hi: float = 0.30,
+        earth_band_lo: float = 0.70,
+        sky_cool_b: float = 0.055,
+        sky_cool_r: float = 0.020,
+        sky_cool_g: float = 0.008,
+        sky_luma_lo: float = 0.35,
+        forest_cool_b: float = 0.040,
+        forest_warm_g: float = 0.018,
+        forest_cool_r: float = 0.025,
+        forest_luma_lo: float = 0.18,
+        forest_luma_hi: float = 0.72,
+        earth_warm_r: float = 0.045,
+        earth_warm_g: float = 0.018,
+        earth_luma_hi: float = 0.55,
+        opacity: float = 0.50,
+    ) -> None:
+        """Vertical atmospheric depth layering — FIFTY-NINTH DISTINCT MODE.
+
+        Encodes Albrecht Altdorfer's defining pictorial innovation: the
+        instinctive stratification of the canvas into distinct atmospheric
+        depth layers, each carrying its own chromatic identity.
+
+        Altdorfer (c. 1480–1538), founder of the Danube School, was the
+        first European painter to treat landscape as an autonomous subject.
+        He consistently organised his panels into three visual layers:
+          - Sky (upper): pale silver or golden atmospheric haze, dissolving
+            into cool blue-grey at the zenith.
+          - Mid-distance forest: the richest chromatic zone — deep blue-green
+            foliage, sometimes tinged with violet, dense and atmospheric.
+          - Earth / shadow (lower): warm umber and amber, the dark forest
+            floor grounding the composition.
+
+        This is the FIFTY-NINTH DISTINCT MODE: LUMINANCE-STRATIFIED
+        VERTICAL ATMOSPHERIC DEPTH LAYERING.
+
+        Unlike ALL prior spatial passes:
+        - schalcken_candlelight_glow_pass uses RADIAL distance from a point.
+        - gentileschi_dramatic_flesh_pass uses a DIRECTIONAL VECTOR (upper-left).
+        - melozzo_da_forli_zenith_pass uses downward overhead-light gradient.
+        - atmospheric_depth_gradient_pass applies a uniform vertical luma
+          weight across the full canvas height (one temperature, one gradient).
+        - This pass is the ONLY pass to SEGMENT the canvas into THREE
+          INDEPENDENT HORIZONTAL BANDS (sky / forest / earth), each applying
+          a DIFFERENT chromatic temperature shift gated by its OWN luminance
+          range — three fully independent colour operations by Y position.
+
+        Algorithm (three independent band operations):
+
+        (1) SKY BAND (y_norm < sky_band_hi):
+            band_wt = clip((sky_band_hi - y_norm) / sky_band_hi, 0, 1)^2
+            luma_gate = clip((luma - sky_luma_lo) / (1.0 - sky_luma_lo), 0, 1)
+            b += sky_cool_b × band_wt × luma_gate   [cool silver-blue push]
+            r -= sky_cool_r × band_wt × luma_gate
+            g -= sky_cool_g × band_wt × luma_gate
+            Cools highlights toward pale silver-blue — Altdorfer's hazy sky.
+
+        (2) FOREST / MID-DISTANCE BAND (sky_band_hi ≤ y_norm ≤ earth_band_lo):
+            spread = earth_band_lo - sky_band_hi
+            band_wt = clip(1 - |y_norm - mid| / (spread/2), 0, 1)^1.5
+            luma_gate = clip((luma-forest_luma_lo)/rng, 0, 1)×clip((forest_luma_hi-luma)/rng,0,1)
+            b += forest_cool_b × band_wt × luma_gate  [blue-green push]
+            g += forest_warm_g × band_wt × luma_gate
+            r -= forest_cool_r × band_wt × luma_gate
+            Deepens mid-tones toward blue-green — Altdorfer's dense forest.
+
+        (3) EARTH / SHADOW BAND (y_norm > earth_band_lo):
+            band_wt = clip((y_norm - earth_band_lo) / (1 - earth_band_lo), 0, 1)^2
+            luma_gate = clip((earth_luma_hi - luma) / earth_luma_hi, 0, 1)
+            r += earth_warm_r × band_wt × luma_gate   [warm amber-umber push]
+            g += earth_warm_g × band_wt × luma_gate
+            Warms shadows toward amber-umber — Altdorfer's dark forest floor.
+
+        Composite at opacity.
+
+        FIFTY-NINTH DISTINCT MODE: novel because it is the ONLY pass to apply
+        three INDEPENDENT chromatic temperature shifts to three INDEPENDENT
+        horizontal Y-coordinate bands, each with its own luminance gate.
+        All prior spatial passes use a single spatial field (radial, linear,
+        directional); this pass uses three separate Y-segmented zones.
+
+        Args:
+            sky_band_hi     : Normalised Y threshold below which sky band activates (0 = top). Default 0.30.
+            earth_band_lo   : Normalised Y threshold above which earth band activates. Default 0.70.
+            sky_cool_b      : Blue channel addition in sky highlights. Default 0.055.
+            sky_cool_r      : Red channel subtraction in sky highlights. Default 0.020.
+            sky_cool_g      : Green channel subtraction in sky highlights. Default 0.008.
+            sky_luma_lo     : Lower luma bound for sky gate (protects shadows). Default 0.35.
+            forest_cool_b   : Blue channel addition in forest mid-tones. Default 0.040.
+            forest_warm_g   : Green channel addition in forest mid-tones. Default 0.018.
+            forest_cool_r   : Red channel subtraction in forest mid-tones. Default 0.025.
+            forest_luma_lo  : Lower luma bound for forest gate. Default 0.18.
+            forest_luma_hi  : Upper luma bound for forest gate. Default 0.72.
+            earth_warm_r    : Red channel addition in earth shadows. Default 0.045.
+            earth_warm_g    : Green channel addition in earth shadows. Default 0.018.
+            earth_luma_hi   : Upper luma bound for earth gate (protects highlights). Default 0.55.
+            opacity         : Composite weight (0 = no-op). Default 0.50.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # Normalised Y coordinate (0 = top, 1 = bottom)
+        y_norm = _np.linspace(0.0, 1.0, H, dtype=_np.float32)[:, None] * _np.ones(
+            (1, W), dtype=_np.float32
+        )
+
+        out_r = r0.copy()
+        out_g = g0.copy()
+        out_b = b0.copy()
+
+        # ── Band 1: Sky (upper, y_norm < sky_band_hi) ───────────────────────
+        sky_hi = float(sky_band_hi)
+        sky_bwt = _np.clip((sky_hi - y_norm) / (sky_hi + 1e-6), 0.0, 1.0) ** 2
+        sky_lgate = _np.clip(
+            (luma - float(sky_luma_lo)) / (1.0 - float(sky_luma_lo) + 1e-6),
+            0.0, 1.0,
+        )
+        sky_effect = sky_bwt * sky_lgate
+        out_b += float(sky_cool_b) * sky_effect
+        out_r -= float(sky_cool_r) * sky_effect
+        out_g -= float(sky_cool_g) * sky_effect
+
+        # ── Band 2: Forest / mid-distance ───────────────────────────────────
+        mid_y = (float(sky_band_hi) + float(earth_band_lo)) / 2.0
+        spread = (float(earth_band_lo) - float(sky_band_hi)) / 2.0 + 1e-6
+        forest_bwt = _np.clip(1.0 - _np.abs(y_norm - mid_y) / spread, 0.0, 1.0) ** 1.5
+        frng = float(forest_luma_hi) - float(forest_luma_lo) + 1e-6
+        f_lo_gate = _np.clip((luma - float(forest_luma_lo)) / frng, 0.0, 1.0)
+        f_hi_gate = _np.clip((float(forest_luma_hi) - luma) / frng, 0.0, 1.0)
+        forest_lgate = f_lo_gate * f_hi_gate
+        forest_effect = forest_bwt * forest_lgate
+        out_b += float(forest_cool_b) * forest_effect
+        out_g += float(forest_warm_g) * forest_effect
+        out_r -= float(forest_cool_r) * forest_effect
+
+        # ── Band 3: Earth / shadow (lower, y_norm > earth_band_lo) ─────────
+        earth_lo = float(earth_band_lo)
+        earth_bwt = _np.clip(
+            (y_norm - earth_lo) / (1.0 - earth_lo + 1e-6), 0.0, 1.0
+        ) ** 2
+        earth_lgate = _np.clip(
+            (float(earth_luma_hi) - luma) / (float(earth_luma_hi) + 1e-6),
+            0.0, 1.0,
+        )
+        earth_effect = earth_bwt * earth_lgate
+        out_r += float(earth_warm_r) * earth_effect
+        out_g += float(earth_warm_g) * earth_effect
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Altdorfer forest atmosphere pass complete.")
+
+    def vibrance_selective_pass(
+        self,
+        vibrance_strength: float = 0.45,
+        vibrance_gamma: float = 1.4,
+        luma_lo: float = 0.08,
+        luma_hi: float = 0.90,
+        opacity: float = 0.55,
+    ) -> None:
+        """Saturation-inverse selective chroma boost (Vibrance) — SIXTIETH DISTINCT MODE.
+
+        Implements perceptual vibrance: a selective saturation enhancement
+        that preferentially boosts less-saturated (dull, muted) pixels while
+        leaving already-vivid pixels unchanged.  This matches the behaviour
+        of Adobe's 'Vibrance' control and produces a more natural-looking
+        saturation lift than a uniform saturation boost.
+
+        This is the SIXTIETH DISTINCT MODE: SATURATION-INVERSE SELECTIVE
+        CHROMA AMPLIFICATION.
+
+        Unlike ALL prior chroma-boost passes:
+        - wtewael_copper_jewel_pass amplifies chroma via opponent-space
+          distance, gated by LUMINANCE zone (mid-bright).  All pixels in
+          that zone get the same proportional boost regardless of how
+          saturated they already are.
+        - schedoni_luminous_emergence_pass amplifies chroma via
+          (rgb - achromatic_mean) × chroma_boost × hi_gate.  Boost is
+          uniform within the luminance zone.
+        - bartolomeo_veneto_hue_deepening_pass gates by HUE ANGLE.  Boost
+          is uniform within the selected hue ranges.
+        - filippino_lippi_hue_rotation_pass scales HUE ROTATION by existing
+          saturation — not chroma magnitude.
+        - This pass is the ONLY pass to gate chroma amplification by the
+          INVERSE of the pixel's EXISTING SATURATION LEVEL: dull pixels
+          receive a large boost; already-vivid pixels receive little or none.
+          This is a fundamentally different gating strategy — saturation-space
+          rather than luminance-space or hue-space.
+
+        Algorithm:
+
+        (1) PER-PIXEL HSV SATURATION:
+            vmax = max(r, g, b)
+            S = (vmax - min(r, g, b)) / (vmax + ε)
+            Computes the standard HSV saturation for each pixel (0 = grey,
+            1 = fully saturated).
+
+        (2) VIBRANCE GATE (saturation-inverse power curve):
+            vib_gate = (1 - S) ^ vibrance_gamma
+            High gate for near-grey pixels; gate → 0 for already-saturated ones.
+            Power vibrance_gamma controls the roll-off (higher = sharper cutoff
+            between boosted and protected zones).
+
+        (3) LUMINANCE GATE (protects extreme shadows and specular peaks):
+            luma = 0.2126r + 0.7152g + 0.0722b
+            luma_gate = clip((luma - luma_lo) / rng, 0, 1)
+                        × clip((luma_hi - luma) / rng, 0, 1)
+            Prevents noisy saturation boosts in near-black shadows and
+            prevents clipping in bright specular highlights.
+
+        (4) CHROMA AMPLIFICATION via neutral-mean decomposition:
+            n = (r + g + b) / 3
+            delta = rgb − n   (opponent-colour vector)
+            boost = vibrance_strength × vib_gate × luma_gate
+            out = n + delta × (1 + boost)
+            Pushes each pixel's colour further from its own neutral axis,
+            proportional to how dull it currently is.
+
+        Composite at opacity.
+
+        SIXTIETH DISTINCT MODE: novel because it is the ONLY pass to gate
+        chroma amplification on the INVERSE of the pixel's existing HSV
+        saturation level.  All prior chroma-modification passes (wtewael,
+        schedoni, etc.) apply uniform or luminance-gated boosts independent
+        of the pixel's current saturation state; this pass boosts only what
+        is already dull, protecting what is already vivid.
+
+        Args:
+            vibrance_strength : Maximum chroma amplification for fully-desaturated pixels. Default 0.45.
+            vibrance_gamma    : Power for saturation-inverse gate (higher = sharper cutoff). Default 1.4.
+            luma_lo           : Lower luma bound of luminance gate. Default 0.08.
+            luma_hi           : Upper luma bound of luminance gate. Default 0.90.
+            opacity           : Composite weight (0 = no-op). Default 0.55.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Per-pixel HSV saturation ─────────────────────────────────
+        vmax = _np.maximum(_np.maximum(r0, g0), b0)
+        vmin = _np.minimum(_np.minimum(r0, g0), b0)
+        sat = (vmax - vmin) / (vmax + 1e-6)   # HSV saturation, [0, 1]
+
+        # ── Step 2: Vibrance gate (saturation-inverse power curve) ───────────
+        vib_gate = (1.0 - sat) ** float(vibrance_gamma)
+
+        # ── Step 3: Luminance gate ────────────────────────────────────────────
+        lo, hi = float(luma_lo), float(luma_hi)
+        rng = hi - lo + 1e-6
+        luma_gate = (
+            _np.clip((luma - lo) / rng, 0.0, 1.0)
+            * _np.clip((hi - luma) / rng, 0.0, 1.0)
+        )
+
+        # ── Step 4: Chroma amplification via neutral-mean decomposition ───────
+        n = (r0 + g0 + b0) / 3.0
+        delta_r = r0 - n
+        delta_g = g0 - n
+        delta_b = b0 - n
+
+        boost = float(vibrance_strength) * vib_gate * luma_gate
+        out_r = n + delta_r * (1.0 + boost)
+        out_g = n + delta_g * (1.0 + boost)
+        out_b = n + delta_b * (1.0 + boost)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Vibrance selective pass complete.")
