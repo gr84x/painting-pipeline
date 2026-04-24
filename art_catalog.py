@@ -14081,6 +14081,113 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Bartolomeo Schedoni ────────────────────────────────────────────────────
+    "bartolomeo_schedoni": ArtStyle(
+        artist="Bartolomeo Schedoni",
+        movement="Emilian Caravaggesque",
+        nationality="Italian",
+        period="1578–1615",
+        palette=[
+            (0.88, 0.72, 0.52),   # warm ivory-amber flesh — primary lit skin tone
+            (0.96, 0.92, 0.84),   # brilliant lead-white lit drapery
+            (0.72, 0.18, 0.12),   # pure scarlet drapery — vivid Correggesque saturation
+            (0.18, 0.28, 0.16),   # deep forest-green fabric — shadowed drapery
+            (0.54, 0.42, 0.28),   # warm umber mid-shadow flesh
+            (0.10, 0.08, 0.06),   # near-black Caravaggesque void — deep tenebrism ground
+            (0.76, 0.62, 0.36),   # golden amber light — Schedoni's characteristic warm glow
+            (0.38, 0.32, 0.24),   # muted earth mid-tone — unlit fabric and hair
+            (0.64, 0.56, 0.40),   # warm ochre transition — light-to-shadow boundary
+        ],
+        ground_color=(0.12, 0.10, 0.07),    # very dark warm brown ground — Caravaggesque void
+        stroke_size=6,
+        wet_blend=0.65,                      # Correggesque smooth blending on flesh
+        edge_softness=0.52,                  # sfumato-influenced; softer than Northern, crisper than Leonardo
+        jitter=0.022,
+        glazing=(0.72, 0.56, 0.24),          # warm amber-gold unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Bartolomeo Schedoni (1578–1615) was born in Modena and trained in the "
+            "Emilian tradition under Annibale Carracci in Rome before settling in "
+            "Parma, where the shadow of Correggio — who had worked there a generation "
+            "earlier — permeated every studio wall.  Schedoni is the supreme synthesis "
+            "of two apparently opposite impulses in Italian painting: the tender, "
+            "sfumato-influenced Correggesque tradition of Parma and the dramatic "
+            "tenebrism of Caravaggio, which swept through Italian painting after 1600.  "
+            "His most celebrated canvas, the 'Charity' (c. 1611, Capodimonte, Naples), "
+            "exemplifies this fusion perfectly: two young children huddle in near-black "
+            "shadow while a young woman in brilliant scarlet and white leans forward, "
+            "her flesh and drapery emerging from the void in warm, saturated colour.  "
+            "The technical signature of Schedoni is what might be called LUMINOUS "
+            "EMERGENCE FROM SHADOW: a highly compressed tonal range in the dark zones "
+            "(shadows that press very close to absolute black) combined with "
+            "extraordinary chromatic saturation in the illuminated areas.  Where "
+            "Caravaggio's lights are cool and silvery, Schedoni's are warm and golden "
+            "— Correggesque amber-ivory for flesh, pure scarlet or cobalt for drapery.  "
+            "The lit zones do not merely become lighter; they become more intensely "
+            "coloured, as if the act of illumination amplifies the pigment's chromatic "
+            "density.  This produces the characteristic Schedoni effect: a painting "
+            "that reads as almost monochrome in its darks, then suddenly erupts into "
+            "saturated, jewel-like colour in the lights.  His flesh painting was "
+            "extraordinarily delicate — Correggesque in its smoothness, with no visible "
+            "brushwork in the face, the transitions from light to shadow executed in "
+            "the softest possible sfumato.  He painted slowly and finished meticulously, "
+            "which is reflected in the small surviving body of work.  Schedoni died "
+            "young in Parma — possibly by his own hand — and his output is limited to "
+            "approximately forty known paintings, almost all devotional.  His influence "
+            "on Emilian painting of the seventeenth century was considerable, though "
+            "he remained less famous than his Roman Caravaggesque contemporaries."
+        ),
+        famous_works=[
+            ("Charity",                           "c. 1611"),
+            ("The Holy Family",                   "c. 1610"),
+            ("Saint Sebastian",                   "c. 1615"),
+            ("The Nativity",                       "c. 1606"),
+            ("Christ in the Garden of Gethsemane", "c. 1614"),
+        ],
+        inspiration=(
+            "Use schedoni_luminous_emergence_pass() to apply the FORTY-NINTH DISTINCT "
+            "MODE: TENEBRISM-BRIGHTENED CHROMA AMPLIFICATION.  "
+            "The pass encodes Schedoni's defining innovation: the extraordinary "
+            "contrast between compressed near-black shadows and chromatically vivid, "
+            "saturated lit zones.  His lights do not merely brighten — they become "
+            "more intensely coloured.  "
+            "Algorithm (four steps):  "
+            "(1) SHADOW COMPRESSION (luma-gated deep darks): "
+            "shad_gate = clip((shadow_hi − luma) / shadow_hi, 0, 1)^shad_power; "
+            "out_r = r × (1 − compress × shad_gate); "
+            "out_g = g × (1 − compress × shad_gate); "
+            "out_b = b × (1 − compress × shad_gate).  "
+            "Equal-channel compression (no warm/cool bias) — Schedoni's shadows are "
+            "chromatic near-black voids with minimal colour, not warm or cool.  "
+            "Distinct from Reynolds (differential R>G>B warm umber direction after a "
+            "flat amber pre-pass; Reynolds' shadows are warm umber, Schedoni's are "
+            "neutral near-black).  "
+            "Distinct from Moro (single shadow_deepen scalar multiplied equally to "
+            "all channels — architecturally the same equal treatment but Moro also "
+            "has a cool-silver highlight gate; Schedoni has no highlight colour shift, "
+            "only chroma amplification).  "
+            "(2) HIGHLIGHT CHROMA AMPLIFICATION (luma-gated brights): "
+            "hi_gate = clip((luma − highlight_lo) / (1 − highlight_lo), 0, 1)^hi_power; "
+            "mean_luma = (r + g + b) / 3 (approximate achromatic centre); "
+            "r_dev = r − mean_luma; g_dev = g − mean_luma; b_dev = b − mean_luma; "
+            "out_r = r + r_dev × chroma_boost × hi_gate; "
+            "out_g = g + g_dev × chroma_boost × hi_gate; "
+            "out_b = b + b_dev × chroma_boost × hi_gate.  "
+            "CHROMA AMPLIFICATION using per-pixel colour deviation from luma — "
+            "makes vivid colours MORE vivid (scarlet redder, white brighter, green "
+            "greener) without shifting colour temperature.  FORTY-NINTH DISTINCT MODE "
+            "because no prior pass uses (colour − luma) as a chromatic amplification "
+            "signal in highlight zones.  "
+            "(3) WARM GOLDEN GLOW ADDITION (highlight zone): "
+            "out_r += glow_r × hi_gate; "
+            "out_g += glow_g × hi_gate.  "
+            "Small warm golden additive lift on top of chroma amplification — "
+            "Schedoni's characteristic amber-ivory warmth in the illuminated zones.  "
+            "(4) Composite at opacity."
+        ),
+    ),
+
 }
 
 

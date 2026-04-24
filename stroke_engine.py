@@ -37515,3 +37515,270 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Massys Flemish-Italian bridge glazing pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Schedoni luminous emergence — session 163 addition
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def schedoni_luminous_emergence_pass(
+        self,
+        shadow_hi:      float = 0.32,   # luma threshold for shadow compression gate
+        shad_power:     float = 1.6,    # exponent shaping shadow gate ramp
+        compress:       float = 0.30,   # shadow compression strength (all channels equally)
+        highlight_lo:   float = 0.60,   # luma threshold for highlight chroma gate
+        hi_power:       float = 1.4,    # exponent shaping highlight gate ramp
+        chroma_boost:   float = 0.50,   # chroma amplification strength in lit zones
+        glow_r:         float = 0.04,   # warm amber glow R channel additive lift
+        glow_g:         float = 0.025,  # warm amber glow G channel additive lift
+        opacity:        float = 0.35,
+    ) -> None:
+        """Tenebrism-brightened chroma amplification — FORTY-NINTH DISTINCT MODE.
+
+        Bartolomeo Schedoni (1578–1615) fused Correggesque tenderness with
+        Caravaggesque tenebrism.  His defining quality is LUMINOUS EMERGENCE
+        FROM SHADOW: near-black void shadows combined with extraordinarily
+        vivid, chromatically amplified lit zones.  Where Caravaggio's lights
+        are cool and silvery, Schedoni's are warm and golden; where other
+        tenebristi let lit flesh merely brighten, Schedoni's lit zones become
+        MORE intensely coloured — scarlet drapery intensifies, white linen
+        glows, flesh warms to amber-ivory.
+
+        This pass encodes that innovation as the FORTY-NINTH DISTINCT MODE:
+        TENEBRISM-BRIGHTENED CHROMA AMPLIFICATION.
+
+        Algorithm (four steps):
+
+        (1) SHADOW COMPRESSION (luma-gated deep darks):
+            luma = 0.2126r + 0.7152g + 0.0722b
+            shad_gate = clip((shadow_hi − luma) / shadow_hi, 0, 1)^shad_power
+            out_r = r × (1 − compress × shad_gate)
+            out_g = g × (1 − compress × shad_gate)
+            out_b = b × (1 − compress × shad_gate)
+            Equal-channel compression — Schedoni's shadows are chromatic
+            near-black voids with minimal colour bias.
+            Distinct from Reynolds (differential R>G>B warm-umber direction
+              after a flat amber pre-pass absent here; Reynolds' shadows are
+              warm umber; Schedoni's are neutral near-black).
+            Distinct from Moro (also equal-channel multiplicative, but Moro
+              adds a cool-silver B+R− highlight gate; Schedoni's highlight
+              treatment is chroma amplification, not colour temperature shift).
+
+        (2) HIGHLIGHT CHROMA AMPLIFICATION (luma-gated brights):
+            hi_gate = clip((luma − highlight_lo) / (1 − highlight_lo), 0, 1)^hi_power
+            mean_rgb = (r + g + b) / 3     [approximate achromatic centre]
+            r_dev = r − mean_rgb;  g_dev = g − mean_rgb;  b_dev = b − mean_rgb
+            out_r = r + r_dev × chroma_boost × hi_gate
+            out_g = g + g_dev × chroma_boost × hi_gate
+            out_b = b + b_dev × chroma_boost × hi_gate
+            CHROMA AMPLIFICATION via per-pixel colour deviation from the
+            achromatic mean — makes vivid colours MORE vivid (scarlet
+            redder, white brighter, green greener) without shifting hue
+            or colour temperature.  FORTY-NINTH DISTINCT MODE: no prior
+            pass uses (colour − mean_rgb) as a chroma amplification signal
+            in a luminance-gated highlight zone.
+
+        (3) WARM GOLDEN GLOW (highlight zone, additive):
+            out_r += glow_r × hi_gate
+            out_g += glow_g × hi_gate
+            Small warm amber-gold additive lift — Schedoni's warm Correggesque
+            light quality above the chroma amplification layer.
+
+        (4) Composite at opacity.
+
+        Distinct from beccafumi_nacreous_glow_pass (convexity-signal bloom-
+          difference, warm+ convex / cool- concave; fires on geometry; no
+          chroma amplification; no shadow compression).
+        Distinct from iridescent_glaze_pass (orientation-based warm/cool
+          shimmer from gradient angle; no chroma amplification; no shadow).
+        Distinct from specular_clarity_pass (USM sharpening in bright zone +
+          cool-pearl peak B+; no chroma amplification using deviance-from-mean;
+          opposite direction at specular peaks — cool not warm).
+        Distinct from adaptive_local_contrast_pass (local block percentile
+          stretching of luma independently per block; no chroma boost; no
+          shadow compression pass).
+
+        Args:
+            shadow_hi    : Luma threshold for shadow compression gate.
+            shad_power   : Exponent shaping shadow gate ramp steepness.
+            compress     : Compression strength (equal across all channels).
+            highlight_lo : Luma threshold for highlight chroma gate.
+            hi_power     : Exponent shaping highlight gate ramp steepness.
+            chroma_boost : Chroma amplification intensity in lit zones.
+            glow_r       : Warm amber glow R additive per gate unit.
+            glow_g       : Warm amber glow G additive per gate unit.
+            opacity      : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Shadow compression (equal channels — neutral near-black) ─
+        shad_raw  = _np.clip((shadow_hi - luma) / (shadow_hi + 1e-6), 0.0, 1.0)
+        shad_gate = shad_raw ** float(shad_power)
+        factor    = 1.0 - float(compress) * shad_gate
+        out_r = r0 * factor
+        out_g = g0 * factor
+        out_b = b0 * factor
+
+        # ── Step 2: Highlight chroma amplification ────────────────────────────
+        hi_raw  = _np.clip((luma - highlight_lo) / (1.0 - highlight_lo + 1e-6), 0.0, 1.0)
+        hi_gate = hi_raw ** float(hi_power)
+        mean_rgb = (r0 + g0 + b0) / 3.0          # approximate achromatic centre
+        r_dev    = r0 - mean_rgb
+        g_dev    = g0 - mean_rgb
+        b_dev    = b0 - mean_rgb
+        boost    = float(chroma_boost) * hi_gate
+        out_r = out_r + r_dev * boost
+        out_g = out_g + g_dev * boost
+        out_b = out_b + b_dev * boost
+
+        # ── Step 3: Warm golden glow addition ────────────────────────────────
+        out_r = out_r + float(glow_r) * hi_gate
+        out_g = out_g + float(glow_g) * hi_gate
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Schedoni luminous emergence pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Warm highlight bloom — session 163 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def warm_highlight_bloom_pass(
+        self,
+        warm_r_thresh:  float = 0.55,   # minimum R value to qualify as warm pixel
+        warm_r_ratio:   float = 1.05,   # R must exceed G by this factor (warm test)
+        luma_thresh:    float = 0.55,   # minimum luma to qualify as highlight pixel
+        bloom_sigma:    float = 12.0,   # Gaussian blur sigma for bloom spread
+        bloom_strength: float = 0.20,   # bloom intensity (warm glow blend weight)
+        bloom_r:        float = 0.80,   # R tint of the bloom glow
+        bloom_g:        float = 0.60,   # G tint of the bloom glow
+        bloom_b:        float = 0.30,   # B tint of the bloom glow
+        opacity:        float = 0.30,
+    ) -> None:
+        """Warm highlight bloom — FIFTIETH DISTINCT MODE.
+
+        In many Old Master paintings — Correggio, Schedoni, Titian — warm
+        highlights have a soft aureolic quality: the warm light source appears
+        to glow slightly beyond its hard edge, suffusing nearby darker areas
+        with a faint warm luminosity.  This is partly an optical artefact of
+        glowing candles or windows, and partly a painterly technique of
+        scumbling warm pigment outward from the lit zone into the penumbra.
+
+        This pass simulates that WARM HIGHLIGHT BLOOM by detecting warm bright
+        pixels (high R, warm R/G ratio, high luma) and spreading their warmth
+        spatially via Gaussian blur.  The resulting bloom mask is composited
+        onto the canvas as a soft warm glow.
+
+        Algorithm:
+        (1) WARM HIGHLIGHT MASK: detect pixels where
+            r > warm_r_thresh AND r > g × warm_r_ratio AND luma > luma_thresh
+            Binary mask: bloom_src = r0 × mask (weighted by R channel value)
+        (2) SPATIAL BLOOM SPREAD:
+            bloom_spread = gaussian_blur(bloom_src, sigma=bloom_sigma)
+        (3) WARM GLOW COMPOSITE:
+            blend = bloom_spread × bloom_strength
+            out_r = r + (bloom_r − r) × blend
+            out_g = g + (bloom_g − g) × blend
+            out_b = b + (bloom_b − b) × blend
+        (4) Composite at opacity.
+
+        FIFTIETH DISTINCT MODE: distinct from all prior passes because it
+        combines (a) warm-tone spatial DETECTION of highlight sources and
+        (b) Gaussian SPREAD of that warm glow into surrounding dark zones.
+        No prior pass uses a detection mask × spatial blur to create a
+        bloom glow from warm highlights.
+        Distinct from peripheral_defocus_pass (blurs image peripherally
+          for depth-of-field; no warm detection; no glow composite).
+        Distinct from luminous_ground_pass (adds warm tint in DARK zones;
+          no highlight detection; no spatial bloom spread — opposite zone).
+        Distinct from skin_subsurface_scatter_pass (scatters warm tones
+          within the skin region only; no bloom beyond skin boundary;
+          the scatter uses the skin's own channels, not a generated glow).
+        Distinct from atmospheric_depth_gradient_pass (vertical chromatic
+          temperature gradient; no highlight detection; no bloom).
+
+        Args:
+            warm_r_thresh  : Minimum R value for a pixel to count as warm source.
+            warm_r_ratio   : R/G ratio threshold for warmth test (R > G × ratio).
+            luma_thresh    : Minimum luma for a pixel to count as highlight source.
+            bloom_sigma    : Gaussian blur sigma for spatial bloom spread.
+            bloom_strength : Blend weight of the bloom glow composite.
+            bloom_r        : R target colour of the bloom glow.
+            bloom_g        : G target colour of the bloom glow.
+            bloom_b        : B target colour of the bloom glow.
+            opacity        : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Warm highlight source mask ───────────────────────────────
+        warm_mask = (
+            (r0 > float(warm_r_thresh)) &
+            (r0 > g0 * float(warm_r_ratio)) &
+            (luma > float(luma_thresh))
+        ).astype(_np.float32)
+        bloom_src = r0 * warm_mask      # weighted by R strength
+
+        # ── Step 2: Spatial bloom spread ─────────────────────────────────────
+        bloom_spread = _np.clip(
+            _gf(bloom_src, sigma=float(bloom_sigma)), 0.0, 1.0
+        )
+
+        # ── Step 3: Warm glow composite ───────────────────────────────────────
+        blend  = bloom_spread * float(bloom_strength)
+        out_r  = r0 + (float(bloom_r) - r0) * blend
+        out_g  = g0 + (float(bloom_g) - g0) * blend
+        out_b  = b0 + (float(bloom_b) - b0) * blend
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Warm highlight bloom pass complete.")
