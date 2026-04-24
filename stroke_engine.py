@@ -35307,3 +35307,232 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Adaptive local contrast pass complete.")
+
+    def furini_moonlit_sfumato_pass(
+        self,
+        hi_lo:         float = 0.55,  # lower luminance edge of highlight gate
+        hi_hi:         float = 0.92,  # upper luminance edge of highlight gate
+        cool_b:        float = 0.030, # cool blue-silver B channel lift in highlights
+        cool_r:        float = 0.018, # R channel reduction in highlights (de-warm)
+        cool_g:        float = 0.008, # small G lift for silver-grey quality
+        cool_strength: float = 0.60,  # gate × this = blend amount at gate peak
+        opacity:       float = 0.25,
+    ) -> None:
+        """Highlight-zone cool silver veil scumble — Francesco Furini's moonlit sfumato.
+
+        Francesco Furini (c. 1603–1646) is the master of FLORENTINE BAROQUE SFUMATO —
+        a refinement of Leonardo's technique that pushes edge dissolution and surface
+        smoothness to their extreme, combined with a distinctive COOL SILVERY MOONLIT
+        LUMINOSITY in the highlight zone.  Where Gaudenzio Ferrari floods his shadow
+        zone with warm amber inner light, Furini does the opposite: his lit surfaces
+        carry a cool, almost lunar quality — ivory highlights with a slight blue-silver
+        cast — while his shadows retain the warmth of the umber imprimatura beneath.
+
+        This warm-shadow / cool-highlight opposition gives his figures the appearance
+        of being illuminated by moonlight rather than candlelight, and is the single
+        most identifying characteristic of his style.
+
+        The gate itself is smoothed (Gaussian sigma=1.5) to enforce Furini's
+        imperceptible transitions — a painting technique so fine that contemporary
+        critics speculated he used his fingers or soft leather pads to blend the glazes.
+
+        This pass encodes those effects as the THIRTY-THIRD DISTINCT MODE:
+        HIGHLIGHT-ZONE COOL SILVER VEIL SCUMBLE.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Highlight gate — smooth bump in [hi_lo, hi_hi]:
+            mid_h = (hi_lo + hi_hi) / 2
+            t_lo = clip((luma − hi_lo) / (mid_h − hi_lo), 0, 1)
+            t_hi = clip((hi_hi − luma) / (hi_hi − mid_h), 0, 1)
+            gate_hi = t_lo × t_hi   [peaks at 1 when luma = mid_h]
+        (3) Smooth gate with Gaussian (sigma=1.5) — enforces sfumato transitions:
+            gate_hi = gaussian_filter(gate_hi, sigma=1.5)
+        (4) Apply cool silver tint weighted by gate × cool_strength:
+            wt = gate_hi × cool_strength
+            out_r = clip(r − cool_r × wt, 0, 1)   [de-warm: slight R reduction]
+            out_g = clip(g + cool_g × wt, 0, 1)   [silver-grey G lift]
+            out_b = clip(b + cool_b × wt, 0, 1)   [lunar blue-silver B lift]
+        (5) Composite at opacity.
+
+        Distinct from beccafumi_nacreous_glow_pass (midtone gate [0.28, 0.78],
+          signed Gaussian bloom difference, warm AND cool split — iridescence, not
+          moonlit silver; targets midtones not highlights).
+        Distinct from gossaert_pearl_crystalline_pass (separate highlight/shadow zones,
+          crystal USM sharpening, Flemish enamel quality — not Italian sfumato).
+        Distinct from ter_brugghen_raking_amber_pass (directional horizontal Sobel,
+          warm amber ridge tinting — Dutch Caravaggism, not Florentine sfumato).
+        Distinct from gaudenzio_warm_devotion_pass (shadow zone gate [0.05, 0.42],
+          warm amber tint — opposite tonal zone, opposite colour temperature).
+
+        Args:
+            hi_lo/hi       : Luminance range of highlight gate.
+            cool_b/r/g     : Cool tint: B lifted (lunar), R reduced (de-warm), G lifted (silver).
+            cool_strength  : Gate scale factor (gate × cool_strength = blend at peak).
+            opacity        : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Highlight gate — smooth bump in [hi_lo, hi_hi] ────────────
+        mid_h = (hi_lo + hi_hi) * 0.5
+        denom_lo = max(float(mid_h - hi_lo), 1e-6)
+        denom_hi = max(float(hi_hi - mid_h), 1e-6)
+        t_lo = _np.clip((luma - hi_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((hi_hi - luma) / denom_hi, 0.0, 1.0)
+        gate_hi = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 3: Smooth gate with Gaussian — sfumato imperceptible transition
+        gate_hi = _gf(gate_hi, sigma=1.5).astype(_np.float32)
+
+        # ── Step 4: Cool silver tint in highlight zone ────────────────────────
+        wt = gate_hi * cool_strength
+        out_r = _np.clip(r0 - cool_r * wt, 0.0, 1.0)
+        out_g = _np.clip(g0 + cool_g * wt, 0.0, 1.0)
+        out_b = _np.clip(b0 + cool_b * wt, 0.0, 1.0)
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Furini moonlit sfumato pass complete.")
+
+    def translucent_fabric_pass(
+        self,
+        fab_lo:         float = 0.30,   # lower luminance edge of mid-tone drape gate
+        fab_hi:         float = 0.72,   # upper luminance edge of mid-tone drape gate
+        fabric_r:       float = 0.12,   # fabric colour R (default: dark forest-green)
+        fabric_g:       float = 0.18,   # fabric colour G
+        fabric_b:       float = 0.14,   # fabric colour B
+        fabric_opacity: float = 0.18,   # peak blend strength at gate peak
+        edge_factor:    float = 0.40,   # gradient edge strength reduces drape weight
+        opacity:        float = 0.22,
+    ) -> None:
+        """Edge-aware mid-tone fabric transparency simulation — translucent drape.
+
+        Thin semi-transparent fabrics (veils, gauze wraps, translucent drapery) are
+        a recurring element in Renaissance and Baroque portraiture.  Their optical
+        quality is distinctive: the fabric adds colour to the zone beneath while
+        remaining semi-transparent, allowing the underlying flesh or garment to remain
+        partially visible.  The fabric distributes unequally across the surface —
+        pooling over smooth, gently curved areas where the cloth lies flat, and
+        stretching thin over sharp ridges, folds, and garment edges where the fabric
+        tension is highest.
+
+        This pass encodes that quality as an ARTISTIC IMPROVEMENT: EDGE-AWARE
+        MID-TONE FABRIC TRANSPARENCY SIMULATION.  The fabric colour is blended into
+        the mid-luminance zone (where fabric most visibly tints the surface), modulated
+        by an edge-aware drape weight — fabric accumulates over smooth flat zones
+        (low Sobel gradient magnitude) and thins at sharp contours (high gradient).
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Mid-tone drape gate: smooth bump in [fab_lo, fab_hi]:
+            gate_mid peaks at midpoint; falls to 0 at deep shadow and bright highlight.
+            [Fabric most visible in mid-tones; shadows absorb fabric colour;
+             bright highlights transmit through thin fabric without tinting.]
+        (3) Edge-aware modulation: compute Sobel gradient magnitude of luminance:
+            gx = sobel(luma, axis=1); gy = sobel(luma, axis=0)
+            grad_mag = sqrt(gx² + gy²); normalise by 99th percentile → edge_norm [0,1]
+            drape_weight = gate_mid × (1 − edge_norm × edge_factor)
+            [Fabric pools over flat smooth zones; thins at sharp edges/folds]
+        (4) Subtractive fabric blend — linear transparency model:
+            fw = drape_weight × fabric_opacity
+            out_r = r × (1 − fw) + fabric_r × fw
+            out_g = g × (1 − fw) + fabric_g × fw
+            out_b = b × (1 − fw) + fabric_b × fw
+        (5) Soften fabric transitions with Gaussian (sigma=0.8) — smooth drape edges.
+        (6) Composite at opacity.
+
+        Args:
+            fab_lo/hi       : Luminance range of mid-tone drape gate.
+            fabric_r/g/b    : RGB of fabric material (default dark forest-green gauze).
+            fabric_opacity  : Peak blend strength at gate maximum.
+            edge_factor     : How strongly Sobel edges thin the drape weight [0–1].
+            opacity         : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel, gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Mid-tone drape gate ───────────────────────────────────────
+        mid_f = (fab_lo + fab_hi) * 0.5
+        denom_lo = max(float(mid_f - fab_lo), 1e-6)
+        denom_hi = max(float(fab_hi - mid_f), 1e-6)
+        t_lo = _np.clip((luma - fab_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((fab_hi - luma) / denom_hi, 0.0, 1.0)
+        gate_mid = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 3: Edge-aware modulation (Sobel gradient magnitude) ─────────
+        gx = _sobel(luma, axis=1)
+        gy = _sobel(luma, axis=0)
+        grad_mag = _np.sqrt(gx * gx + gy * gy).astype(_np.float32)
+        p99 = float(_np.percentile(grad_mag, 99))
+        if p99 > 1e-6:
+            edge_norm = _np.clip(grad_mag / p99, 0.0, 1.0)
+        else:
+            edge_norm = _np.zeros_like(grad_mag)
+        drape_weight = _np.clip(gate_mid * (1.0 - edge_norm * edge_factor), 0.0, 1.0)
+
+        # ── Step 4: Subtractive fabric blend ─────────────────────────────────
+        fw = drape_weight * fabric_opacity
+        out_r = r0 * (1.0 - fw) + fabric_r * fw
+        out_g = g0 * (1.0 - fw) + fabric_g * fw
+        out_b = b0 * (1.0 - fw) + fabric_b * fw
+
+        # ── Step 5: Soften fabric transitions (only when fabric is present) ──
+        if fabric_opacity > 1e-6:
+            out_r = _np.clip(_gf(out_r.astype(_np.float32), sigma=0.8), 0.0, 1.0)
+            out_g = _np.clip(_gf(out_g.astype(_np.float32), sigma=0.8), 0.0, 1.0)
+            out_b = _np.clip(_gf(out_b.astype(_np.float32), sigma=0.8), 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Translucent fabric pass complete.")

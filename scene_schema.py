@@ -318,6 +318,7 @@ class Period(Enum):
     SIENESE_MANNERIST_LUMINISM     = auto()  # Domenico Beccafumi — nacreous iridescent midtone glow; signed Gaussian bloom difference with differential warm/cool tinting; acid yellow-green and violet against warm flesh; internal luminosity of forms
     PIEDMONTESE_DEVOTIONAL_LUMINISM = auto()  # Gaudenzio Ferrari — warm amber devotional luminosity, Lombard-Leonardesque sfumato fused with vivid expressive warmth; shadow-zone inner glow and vertical atmospheric depth gradient
     UTRECHT_CARAVAGGISM            = auto()  # Hendrick ter Brugghen — directional raking amber sidelight; warm ridge / cool-shadow split via horizontal Sobel; warm golden-ochre flesh with cool blue-grey shadow infill; Dutch Caravaggist intimacy
+    FLORENTINE_BAROQUE_SFUMATO     = auto()  # Francesco Furini — cool silver moonlit highlights; Gaussian-smoothed highlight gate (luma 0.55–0.92); subtle B-channel lift + R-channel reduction in lit zones; extreme sfumato blending (wet_blend=0.90); warm umber shadows paired with cool ivory highlights
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1581,6 +1582,12 @@ class Style:
             # wet_blend=0.42: moderate — forms are firm but not as crisp as Flemish enamel.
             # edge_softness=0.55: moderate softness — Dutch Caravaggist edges are clear but not hard.
             Period.UTRECHT_CARAVAGGISM:       dict(stroke_size_face=8, stroke_size_bg=24, wet_blend=0.42, edge_softness=0.55),
+            # FLORENTINE_BAROQUE_SFUMATO (Furini): extreme sfumato; microscopic precision; cool silvery lit surface.
+            # stroke_size_face=4: the finest brushwork of any Italian Baroque painter — virtually invisible surface.
+            # stroke_size_bg=18: restrained background — Furini's settings are simple, dark, non-distracting.
+            # wet_blend=0.90: extreme blending — his surface transitions are imperceptible, ultimate sfumato.
+            # edge_softness=0.88: maximum edge dissolution — no hard contours anywhere; forms melt into shadow.
+            Period.FLORENTINE_BAROQUE_SFUMATO: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.90, edge_softness=0.88),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

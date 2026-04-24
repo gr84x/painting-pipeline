@@ -157,6 +157,7 @@ EXPECTED_ARTISTS = [
     "romanino",
     "beccafumi",
     "gaudenzio_ferrari",
+    "furini",
     "ter_brugghen",
 ]
 
@@ -348,6 +349,7 @@ EXPECTED_PERIODS = [
     "BRESCIAN_VENETIAN_IMPASTO",
     "SIENESE_MANNERIST_LUMINISM",
     "PIEDMONTESE_DEVOTIONAL_LUMINISM",
+    "FLORENTINE_BAROQUE_SFUMATO",
     "UTRECHT_CARAVAGGISM",
 ]
 
@@ -19795,4 +19797,92 @@ def test_adaptive_local_contrast_pass_pixels_in_range():
 def test_ter_brugghen_in_expected_artists_catalog_final():
     assert "ter_brugghen" in CATALOG
     assert "ter_brugghen" in EXPECTED_ARTISTS
+
+
+# Session 153 -- Francesco Furini / FLORENTINE_BAROQUE_SFUMATO
+
+def test_furini_in_catalog():
+    assert "furini" in CATALOG
+
+
+def test_furini_artist_name():
+    s = get_style("furini")
+    assert s.artist == "Francesco Furini"
+
+
+def test_furini_movement():
+    s = get_style("furini")
+    assert "Florentine Baroque Sfumato" in s.movement
+
+
+def test_furini_palette_length():
+    s = get_style("furini")
+    assert len(s.palette) >= 6
+
+
+def test_furini_palette_in_range():
+    s = get_style("furini")
+    for r, g, b in s.palette:
+        assert 0.0 <= r <= 1.0
+        assert 0.0 <= g <= 1.0
+        assert 0.0 <= b <= 1.0
+
+
+def test_furini_extreme_wet_blend():
+    s = get_style("furini")
+    assert s.wet_blend >= 0.85, "Furini's wet blend must be extreme (>= 0.85)"
+
+
+def test_furini_maximum_edge_softness():
+    s = get_style("furini")
+    assert s.edge_softness >= 0.80, "Furini's edge softness must be very high (>= 0.80)"
+
+
+def test_furini_fine_stroke_size():
+    s = get_style("furini")
+    assert s.stroke_size <= 5, "Furini's stroke size must be very fine (<= 5)"
+
+
+def test_furini_famous_works():
+    s = get_style("furini")
+    assert len(s.famous_works) >= 3
+    titles = [t for t, _ in s.famous_works]
+    assert any("Hypatia" in t for t in titles)
+
+
+def test_furini_inspiration_references_pass():
+    s = get_style("furini")
+    assert "furini_moonlit_sfumato_pass" in s.inspiration
+    assert "translucent_fabric_pass" in s.inspiration
+
+
+def test_furini_inspiration_mentions_thirty_third_mode():
+    s = get_style("furini")
+    assert "THIRTY-THIRD" in s.inspiration
+
+
+def test_furini_cool_ground_color():
+    s = get_style("furini")
+    # Furini's ground is warm umber — R > B
+    r, g, b = s.ground_color
+    assert r > b, "Furini's imprimatura should be warm umber (R > B)"
+
+
+def test_florentine_baroque_sfumato_period_in_enum():
+    period_names = {p.name for p in Period}
+    assert "FLORENTINE_BAROQUE_SFUMATO" in period_names
+
+
+def test_florentine_baroque_sfumato_stroke_params():
+    from scene_schema import Style
+    style = Style(period=Period.FLORENTINE_BAROQUE_SFUMATO)
+    params = style.stroke_params
+    assert params["stroke_size_face"] <= 5
+    assert params["wet_blend"] >= 0.85
+    assert params["edge_softness"] >= 0.80
+
+
+def test_furini_in_expected_artists_and_catalog_final():
+    assert "furini" in CATALOG
+    assert "furini" in EXPECTED_ARTISTS
 
