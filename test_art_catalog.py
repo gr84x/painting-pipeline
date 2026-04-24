@@ -20788,3 +20788,244 @@ def test_edge_sfumato_dissolution_pass_uniform_canvas_unchanged():
         "Uniform canvas has zero gradient; edge sfumato dissolution must leave it unchanged"
     )
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 159 — Antonio Moro + FLEMISH_SPANISH_COURT
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_antonio_moro_in_catalog():
+    """Antonio Moro must be present in CATALOG."""
+    from art_catalog import CATALOG
+    assert "antonio_moro" in CATALOG, "antonio_moro not found in CATALOG"
+
+
+def test_antonio_moro_artist_name():
+    """Catalog key antonio_moro must have correct artist name."""
+    from art_catalog import get_style
+    s = get_style("antonio_moro")
+    assert s.artist == "Antonio Moro"
+
+
+def test_antonio_moro_movement():
+    """Antonio Moro must be recorded in the Flemish-Spanish Court movement."""
+    from art_catalog import get_style
+    s = get_style("antonio_moro")
+    assert "Flemish" in s.movement or "Spanish" in s.movement
+
+
+def test_antonio_moro_palette_valid():
+    """All palette colours for Antonio Moro must be in [0, 1]."""
+    from art_catalog import get_style
+    s = get_style("antonio_moro")
+    assert len(s.palette) >= 4
+    for r, g, b in s.palette:
+        assert 0.0 <= r <= 1.0, f"R out of range: {r}"
+        assert 0.0 <= g <= 1.0, f"G out of range: {g}"
+        assert 0.0 <= b <= 1.0, f"B out of range: {b}"
+
+
+def test_antonio_moro_dark_ground():
+    """Moro ground_color must be very dark (Flemish dark umber imprimatura)."""
+    from art_catalog import get_style
+    s = get_style("antonio_moro")
+    r, g, b = s.ground_color
+    luma = 0.299 * r + 0.587 * g + 0.114 * b
+    assert luma < 0.25, (
+        f"Antonio Moro ground should be dark (luma < 0.25); got {luma:.3f}"
+    )
+
+
+def test_antonio_moro_cool_highlights():
+    """Moro palette must include a cool silver-white for his precise highlight rendering."""
+    from art_catalog import get_style
+    s = get_style("antonio_moro")
+    has_silver = any(
+        (0.299 * r + 0.587 * g + 0.114 * b) > 0.70 and b >= r * 0.95
+        for r, g, b in s.palette
+    )
+    assert has_silver, (
+        "Antonio Moro palette must include a cool silver-white highlight color"
+    )
+
+
+def test_antonio_moro_crackle():
+    """16th-century oil should have crackle=True."""
+    from art_catalog import get_style
+    s = get_style("antonio_moro")
+    assert s.crackle is True
+
+
+def test_antonio_moro_famous_works():
+    """Antonio Moro must list at least one famous work."""
+    from art_catalog import get_style
+    s = get_style("antonio_moro")
+    assert len(s.famous_works) >= 1
+    for title, year in s.famous_works:
+        assert isinstance(title, str) and len(title) > 0
+        assert isinstance(year, str) and len(year) > 0
+
+
+def test_flemish_spanish_court_period_in_scene_schema():
+    """FLEMISH_SPANISH_COURT must be a valid Period enum member."""
+    from scene_schema import Period
+    assert hasattr(Period, "FLEMISH_SPANISH_COURT"), (
+        "Period.FLEMISH_SPANISH_COURT must be defined for Antonio Moro (session 159)"
+    )
+
+
+def test_flemish_spanish_court_stroke_params():
+    """FLEMISH_SPANISH_COURT stroke_params must reflect Flemish precision technique."""
+    from scene_schema import Period, Style, Medium
+    style = Style(medium=Medium.OIL, period=Period.FLEMISH_SPANISH_COURT)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.30, (
+        "FLEMISH_SPANISH_COURT needs meaningful wet blending for form modelling"
+    )
+    assert params["wet_blend"] <= 0.65, (
+        "FLEMISH_SPANISH_COURT must not reach Leonardo or Academic sfumato levels"
+    )
+    assert params["edge_softness"] <= 0.50, (
+        "FLEMISH_SPANISH_COURT must have firm Flemish contour (edge_softness <= 0.50)"
+    )
+
+
+def test_moro_regal_presence_pass_darkens_shadows():
+    """Moro pass must darken a mid-dark canvas (shadow deepening gate)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.35, 0.28, 0.20), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.moro_regal_presence_pass(
+        shadow_hi=0.50,
+        shadow_deepen=0.25,
+        highlight_lo=0.80,
+        opacity=1.0,
+    )
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_luma_before = (
+        0.299 * buf_before[:, :, 2].mean() +
+        0.587 * buf_before[:, :, 1].mean() +
+        0.114 * buf_before[:, :, 0].mean()
+    )
+    mean_luma_after = (
+        0.299 * buf_after[:, :, 2].mean() +
+        0.587 * buf_after[:, :, 1].mean() +
+        0.114 * buf_after[:, :, 0].mean()
+    )
+    assert mean_luma_after < mean_luma_before, (
+        "moro_regal_presence_pass must darken a mid-dark canvas"
+    )
+
+
+def test_moro_regal_presence_pass_no_effect_opacity_zero():
+    """opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.35, 0.25), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.moro_regal_presence_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_moro_regal_presence_pass_silver_lift_on_bright_canvas():
+    """Moro pass must add cool-silver B lift on a bright canvas (highlight gate)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.85, 0.80, 0.75), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.moro_regal_presence_pass(
+        shadow_deepen=0.0, highlight_lo=0.60,
+        silver_b=0.05, silver_r=0.02, opacity=1.0,
+    )
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_b_before = buf_before[:, :, 0].mean()
+    mean_b_after = buf_after[:, :, 0].mean()
+    assert mean_b_after > mean_b_before, (
+        "moro_regal_presence_pass with shadow_deepen=0 should add cool-silver B lift"
+    )
+
+
+def test_skin_subsurface_scatter_pass_modifies_flesh_canvas():
+    """Subsurface scatter pass must visibly alter a warm flesh canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.58, 0.45), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.skin_subsurface_scatter_pass(opacity=1.0, scatter_strength=0.50)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3]), (
+        "skin_subsurface_scatter_pass must alter a warm flesh canvas"
+    )
+
+
+def test_skin_subsurface_scatter_pass_no_effect_opacity_zero():
+    """opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.55, 0.42), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.skin_subsurface_scatter_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_skin_subsurface_scatter_pass_cool_canvas_minimal_change():
+    """A cool (non-flesh) canvas should not be significantly altered."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.30, 0.40, 0.60), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.skin_subsurface_scatter_pass(opacity=1.0, scatter_strength=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_diff = np.abs(buf_before[:, :, :3] - buf_after[:, :, :3]).mean()
+    assert mean_diff < 3.0, (
+        f"Cool canvas should barely change after skin scatter pass; got mean diff {mean_diff:.2f}"
+    )
+
+
+def test_skin_subsurface_scatter_pass_zero_strength_no_change():
+    """scatter_strength=0.0 forces blend_wt=0 — no change regardless of opacity."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.68, 0.52, 0.40), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.skin_subsurface_scatter_pass(opacity=1.0, scatter_strength=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+

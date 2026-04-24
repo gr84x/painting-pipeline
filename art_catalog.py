@@ -13633,6 +13633,122 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Antonio Moro ───────────────────────────────────────────────────────────
+    "antonio_moro": ArtStyle(
+        artist="Antonio Moro",
+        movement="Flemish-Spanish Court Renaissance",
+        nationality="Flemish (worked in Spain, England, Portugal)",
+        period="1545–1575",
+        palette=[
+            (0.85, 0.78, 0.65),   # warm ivory — lit flesh; Northern cool ivory, not Venetian amber
+            (0.72, 0.60, 0.48),   # warm ochre mid-flesh — lit cheek, brow
+            (0.55, 0.42, 0.32),   # warm brown shadow flesh — under chin, eye socket
+            (0.35, 0.25, 0.16),   # deep umber — deep shadow flesh, dark hair mass
+            (0.10, 0.08, 0.06),   # near-black — velvet ground, deepest shadow
+            (0.82, 0.82, 0.84),   # cool silver-white — silver lace, metalwork, precise highlight
+            (0.45, 0.30, 0.15),   # warm saddle-brown — leather, wood, fur trim
+        ],
+        ground_color=(0.15, 0.11, 0.07),    # very dark warm umber imprimatura — Flemish dark ground
+        stroke_size=4,
+        wet_blend=0.45,                      # controlled Flemish blending — precise but not sfumato
+        edge_softness=0.35,                  # firm Flemish contour — more defined than Italian sfumato
+        jitter=0.020,
+        glazing=(0.58, 0.46, 0.28),          # warm amber finishing glaze — Northern resin varnish
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Antonio Moro (Anthonis Mor van Dashorst, c. 1519–c. 1575) was the "
+            "supreme Flemish-Spanish court portrait painter of the sixteenth century — "
+            "the dominant portraitist of the Habsburg courts of Philip II of Spain, "
+            "Mary Tudor of England, and the Dukes of Alba.  Trained under Jan van "
+            "Scorel in Utrecht, Moro absorbed the full Flemish technical arsenal: the "
+            "dark umber imprimatura ground, the systematic multi-glaze oil method, the "
+            "extreme Flemish precision of surface rendering that could distinguish silk "
+            "from satin from velvet in a single canvas.  Brought to Spain under the "
+            "patronage of Cardinal Granvelle, he transformed the conventions of Spanish "
+            "court portraiture: where Titian had given the Spanish Habsburgs warmth and "
+            "poetry, Moro gave them gravity, precision, and an almost forensic dignity.  "
+            "His defining technical signature is HIGH-POLARITY TONAL CONTRAST: very dark "
+            "grounds with very precise bright highlights, creating an image of extreme "
+            "COURT GRAVITY — the sitter appears to emerge from near-total darkness into a "
+            "controlled, focussed pool of Northern light.  His flesh tones are cool "
+            "ivory-warm rather than the amber-honey of Venetian painters: he was "
+            "Northern-trained and his skin has a crisp, precise quality rather than the "
+            "dissolving warmth of Giorgione or Titian.  His greatest technical achievement "
+            "is the rendering of BLACK VELVET: he worked the near-black ground of the "
+            "paint layer into the velvet itself, building up only the faintest ridge-light "
+            "that catches on the pile of the fabric, with the deep black ground showing "
+            "through as the shadow face of each velvet ridge.  His silver and white "
+            "passages — the precision-rendered lace, the metalwork, the pearls — are "
+            "painted with meticulous control, each highlight placed with deliberate "
+            "exactitude, calibrated to the exact value needed and no more.  This restraint "
+            "gives his portraits an aristocratic ECONOMY OF LIGHT: nothing is accidentally "
+            "bright; everything has been deliberately chosen for maximum psychological impact."
+        ),
+        famous_works=[
+            ("Portrait of Mary Tudor",                          "1554"),
+            ("Portrait of Philip II of Spain",                  "c. 1549–1550"),
+            ("Portrait of the Duke of Alba",                    "1549"),
+            ("Portrait of a Lady (possibly Catherine of Austria)", "c. 1551–1554"),
+            ("Portrait of Cardinal Granvelle",                  "c. 1549"),
+            ("Portrait of Sir Thomas Gresham",                  "c. 1560"),
+        ],
+        inspiration=(
+            "Use moro_regal_presence_pass() to apply the FORTY-FOURTH DISTINCT "
+            "MODE: HIGH-POLARITY TONAL AMPLIFICATION — COURT PORTRAIT GRAVITY.  "
+            "Two-gate luminance system:  "
+            "(A) Shadow deepening gate [0, shadow_hi]: "
+            "shadow_gate = clip((shadow_hi − luma) / shadow_hi, 0, 1)^shadow_power; "
+            "multiply each channel: out_c = c × (1 − shadow_deepen × shadow_gate).  "
+            "Direction: darkens shadows toward near-black, amplifying the Flemish "
+            "dark-ground convention (distinct from focal_vignette_pass which DARKENS "
+            "AND COOLS EDGES by radial multiplication — Moro's darkening is luma-gated, "
+            "not position-gated; and from giampietrino which TINTS SHADOWS VIOLET "
+            "not darkens them further).  "
+            "(B) Highlight crystallisation gate [highlight_lo, 1.0]: "
+            "hi_gate = clip((luma − highlight_lo) / (1 − highlight_lo), 0, 1)^highlight_power; "
+            "add cool-silver: out_b = clip(b + silver_b × hi_gate, 0, 1); "
+            "out_r = clip(r − silver_r × hi_gate, 0, 1).  "
+            "Direction: B+ R− at highlights = cool-silver (distinct from furini "
+            "which applies COOL SILVER only in [0.55, 0.92] via bump gate; Moro's "
+            "gate is a one-sided ramp from highlight_lo to 1.0, monotonically "
+            "increasing — no upper cutoff; distinct from greuze DEWY PEARL which has "
+            "B+ R− in [0.82, 1.0] bump gate AND a separate carnation mid-flesh zone).  "
+            "Composite at opacity.  "
+            "Use skin_subsurface_scatter_pass() for the artistic improvement: "
+            "FORTY-FIFTH DISTINCT MODE: SKIN SUBSURFACE LIGHT SCATTERING — "
+            "WARM-RED TRANSLUCENCY GLOW.  "
+            "Detect warm flesh pixels: skin_raw = (r > 0.40) AND (r > g) AND "
+            "(g > b) AND (r − b > 0.10).  Gaussian blur binary mask (sigma=10.0) "
+            "to produce smooth skin region weight skin_mask.  Apply large-sigma "
+            "Gaussian blur to full canvas (sigma=scatter_sigma, default=5.0) — "
+            "this simulates light that has entered the skin, scattered within the "
+            "dermis, and re-emerged at a nearby surface point.  Warm-tint the spread "
+            "image: warm_r = clip(blur_r × warm_boost, 0, 1) [warm_boost=1.04]; "
+            "warm_b = clip(blur_b × cool_damp, 0, 1) [cool_damp=0.97].  "
+            "Blend at each pixel: "
+            "scatter_c = orig_c × (1 − skin_mask × scatter_strength) "
+            "           + warm_spread_c × (skin_mask × scatter_strength).  "
+            "Composite at opacity.  "
+            "Distinct from greuze_sentimental_carnation_pass (LUMINANCE-GATED "
+            "tinting R+G+B−; no spatial skin detection; no Gaussian spreading — "
+            "Greuze's pass tints based on luminance thresholds without regard to "
+            "whether a pixel is skin-colored; subsurface scatter detects skin by "
+            "COLOR RANGE and applies spatially spread WARM-RED TRANSLUCENCY GLOW).  "
+            "Distinct from beccafumi_nacreous_glow_pass (Gaussian BLOOM DIFFERENCE "
+            "sign determines warm/cool zones by SURFACE CONVEXITY; not skin-specific; "
+            "bloom diff can be positive in any bright convex zone including highlights "
+            "on metal or fabric; subsurface scatter is SKIN-SPECIFIC by color detection).  "
+            "Distinct from peripheral_defocus_pass (RADIAL GEOMETRIC softening; "
+            "no skin detection; no warm-red direction; blurs uniformly based on "
+            "distance from centre, not based on tissue type).  "
+            "Distinct from giampietrino_warm_devotion_pass (LUMINANCE-GATED "
+            "amber+violet tinting; no skin color detection; no spatial spreading; "
+            "applies to all mid-tone and shadow pixels regardless of color, "
+            "including landscape background and fabric)."
+        ),
+    ),
+
 }
 
 

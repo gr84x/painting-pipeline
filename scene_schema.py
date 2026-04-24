@@ -324,6 +324,7 @@ class Period(Enum):
     INTERNATIONAL_GOTHIC = auto()  # Gentile da Fabriano — tooled-gold ground; flat jewel-tone pigment zones; crisp Gothic contour; tempera hatching; punched gold halos; sumptuous brocade surface
     MILANESE_LEONARDESQUE_DEVOTION = auto()  # Giampietrino — warm honey-amber highlight tinting + cool violet shadow deepening; seamless Leonardesque multi-glaze sfumato; sweet idealized Milanese devotional warmth
     FRENCH_SENTIMENTALIST = auto()  # Greuze — warm rose-carnation sentimental flush in mid-flesh; cool-pearl dewy moisture shimmer at specular peaks; smooth Academic blending; luminous peach-cream skin
+    FLEMISH_SPANISH_COURT = auto()  # Antonio Moro — high-polarity tonal amplification; very dark umber ground deepened further; cool-silver crystalline highlights; Flemish precision contour; court portrait gravity
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1626,6 +1627,15 @@ class Style:
             # edge_softness=0.65: moderate sfumato — softer than Northern masters, firmer than Leonardo;
             # Greuze's figures have gently dissolved edges but not the radical sfumato of the Leonardeschi.
             Period.FRENCH_SENTIMENTALIST: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.82, edge_softness=0.65),
+            # FLEMISH_SPANISH_COURT (Antonio Moro) — Flemish precision oil on very dark umber ground.
+            # stroke_size_face=4: meticulous Flemish surface — finer than Hals or Rembrandt; detail-oriented
+            #   mark-making trained under Jan van Scorel; every hair, every lace thread precisely placed.
+            # stroke_size_bg=12: plain near-black backgrounds; no landscape elaboration — the sitter alone commands.
+            # wet_blend=0.45: controlled Northern blending — smooth enough to model form convincingly but not
+            #   the radical sfumato of Leonardo or the silky Academic surface of Bouguereau; edges are firm.
+            # edge_softness=0.35: crisper than Italian masters — Flemish contour is deliberate and authoritative;
+            #   this firmness of edge is part of the court portrait dignity, giving the sitter solid presence.
+            Period.FLEMISH_SPANISH_COURT: dict(stroke_size_face=4, stroke_size_bg=12, wet_blend=0.45, edge_softness=0.35),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
