@@ -37258,3 +37258,145 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Baldung Grien spectral pallor pass complete.")
+
+    def reynolds_grand_manner_pass(
+        self,
+        amber_strength:   float = 0.06,   # flat amber glaze intensity (non-gated)
+        amber_r:          float = 0.08,   # R lift for amber glaze
+        amber_g:          float = 0.04,   # G lift for amber glaze (small)
+        amber_b_reduce:   float = 0.06,   # B reduction for amber glaze
+        highlight_lo:     float = 0.70,   # luma threshold for impasto highlight gate
+        highlight_power:  float = 1.5,    # exponent shaping the hi gate ramp
+        hi_boost:         float = 0.05,   # brightness boost at highlights
+        shadow_hi:        float = 0.32,   # luma threshold for shadow deepening gate
+        shadow_power:     float = 1.5,    # exponent shaping the shadow gate ramp
+        shadow_deepen_r:  float = 0.14,   # R channel shadow deepen (most — warm umber direction)
+        shadow_deepen_g:  float = 0.12,   # G channel shadow deepen (mid)
+        shadow_deepen_b:  float = 0.10,   # B channel shadow deepen (least — preserves warmth)
+        opacity:          float = 0.35,
+    ) -> None:
+        """Mezzotint tone — FORTY-SEVENTH DISTINCT MODE.
+
+        Sir Joshua Reynolds (1723–1792) founded the British Royal Academy and
+        invented the MEZZOTINT TONE: a unifying warm amber-brown glaze pulled
+        across the entire composition to harmonise every element — flesh, drapery,
+        landscape, architecture — into a single warm, velvety key.  The name
+        reflects the characteristic tonality of the mezzotint engravings made
+        after his work.
+
+        This pass encodes that innovation as the FORTY-SEVENTH DISTINCT MODE:
+        MEZZOTINT TONE — GRAND MANNER WARM AMBER UNIFICATION.
+
+        Algorithm (four steps):
+
+        (1) FLAT AMBER GLAZE (non-gated, applied uniformly at every luminance):
+            out_r = r + amber_r × amber_strength    [R+]
+            out_g = g + amber_g × amber_strength    [G+ small]
+            out_b = b − amber_b_reduce × amber_strength    [B−]
+            No luminance gate — the warm shift is applied to ALL pixels uniformly.
+            This is the mezzotint tone: a flat, constant amber colour temperature
+            shift that harmonises every hue in the composition.
+
+        (2) IMPASTO HIGHLIGHT BRIGHTENING (luma-gated high):
+            luma = 0.2126r + 0.7152g + 0.0722b
+            hi_gate = clip((luma − highlight_lo) / (1 − highlight_lo), 0, 1)^highlight_power
+            out_r += hi_boost × hi_gate
+            out_g += hi_boost × 0.85 × hi_gate
+            Direction: warm white R+G+ (lead-white impasto mixed with warm pigment).
+            Monotonically increasing ramp from highlight_lo to 1.0, no upper cutoff.
+
+        (3) SHADOW BITUMEN DEEPENING (luma-gated low):
+            shad_gate = clip((shadow_hi − luma) / shadow_hi, 0, 1)^shadow_power
+            out_r *= (1 − shadow_deepen_r × shad_gate)
+            out_g *= (1 − shadow_deepen_g × shad_gate)
+            out_b *= (1 − shadow_deepen_b × shad_gate)
+            shadow_deepen_r > shadow_deepen_g > shadow_deepen_b — R is reduced the
+            most, B the least, pushing deep shadows toward warm umber.
+
+        (4) Composite at opacity.
+
+        Distinct from giampietrino_warm_devotion_pass (TWO SEPARATE luminance gates:
+          a hi-gate applies amber R+G+ and a SEPARATE shad-gate applies violet B+R−;
+          the two gates are independently computed from different luminance thresholds
+          and never merge into a flat baseline; Reynolds' step (1) applies a FLAT,
+          UNGATED amber shift to ALL pixels simultaneously before any gate logic —
+          this is architecturally different: giampietrino never warms the shadows
+          before gating; Reynolds' amber glaze already shifts the darkest shadow warm
+          before the deepening gate fires).
+        Distinct from moro_regal_presence_pass (shadow deepening gate multiplies all
+          channels equally with a single shadow_deepen scalar — no differential
+          channel reduction; Moro's highlight gate is cool-silver B+R−; Reynolds'
+          deepening has shadow_deepen_r > shadow_deepen_b for WARM UMBER direction;
+          Reynolds also adds a flat amber pre-pass entirely absent from Moro).
+        Distinct from furini_moonlit_sfumato_pass (cool silver B+R− at highlights in
+          [0.55, 0.92] bump gate — opposite chromatic direction; Furini is COOL at
+          highlights, Reynolds is WARM; Furini has an upper cutoff at 0.92; Reynolds'
+          hi_gate is a monotonically increasing ramp with no upper cutoff; Furini has
+          no flat amber pre-pass).
+        Distinct from bordone_venetian_warmth_pass (if present: Venetian warmth is
+          spatially modulated by figure geometry; Reynolds' amber is spatially uniform
+          with no figure-position dependency).
+
+        Args:
+            amber_strength   : Intensity of the flat amber glaze (step 1).
+            amber_r          : R channel lift per unit amber_strength.
+            amber_g          : G channel lift per unit amber_strength (small).
+            amber_b_reduce   : B channel reduction per unit amber_strength.
+            highlight_lo     : Luma threshold for the impasto highlight gate.
+            highlight_power  : Exponent shaping the hi gate ramp steepness.
+            hi_boost         : Brightness boost amount at highlights.
+            shadow_hi        : Luma threshold for shadow bitumen deepening gate.
+            shadow_power     : Exponent shaping the shadow gate ramp steepness.
+            shadow_deepen_r  : R channel deepening factor (most — warm umber).
+            shadow_deepen_g  : G channel deepening factor (mid).
+            shadow_deepen_b  : B channel deepening factor (least — preserves warmth).
+            opacity          : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Flat amber glaze (non-gated, uniform mezzotint tone) ─────
+        out_r = r0 + amber_r * amber_strength
+        out_g = g0 + amber_g * amber_strength
+        out_b = b0 - amber_b_reduce * amber_strength
+
+        # ── Step 2: Impasto highlight brightening ─────────────────────────────
+        hi_raw  = _np.clip((luma - highlight_lo) / (1.0 - highlight_lo + 1e-6), 0.0, 1.0)
+        hi_gate = hi_raw ** highlight_power
+        out_r = out_r + hi_boost * hi_gate
+        out_g = out_g + hi_boost * 0.85 * hi_gate
+
+        # ── Step 3: Shadow bitumen deepening (warm umber direction) ───────────
+        shad_raw  = _np.clip((shadow_hi - luma) / (shadow_hi + 1e-6), 0.0, 1.0)
+        shad_gate = shad_raw ** shadow_power
+        out_r = out_r * (1.0 - shadow_deepen_r * shad_gate)
+        out_g = out_g * (1.0 - shadow_deepen_g * shad_gate)
+        out_b = out_b * (1.0 - shadow_deepen_b * shad_gate)
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Reynolds Grand Manner mezzotint tone pass complete.")

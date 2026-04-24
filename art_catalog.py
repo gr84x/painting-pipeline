@@ -13850,6 +13850,111 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Joshua Reynolds ───────────────────────────────────────────────────────
+    "joshua_reynolds": ArtStyle(
+        artist="Joshua Reynolds",
+        movement="British Grand Manner",
+        nationality="British",
+        period="1750–1792",
+        palette=[
+            (0.82, 0.68, 0.45),   # warm ivory flesh — mellow amber-gold skin tone
+            (0.65, 0.48, 0.28),   # raw sienna mid-shadow — warm brown shadow flesh
+            (0.38, 0.26, 0.12),   # warm umber deep shadow — bitumen-like dark
+            (0.72, 0.60, 0.35),   # mezzotint amber — the warm amber glaze veil
+            (0.90, 0.85, 0.72),   # lead-white highlight — impasto warm white
+            (0.52, 0.44, 0.30),   # ochre mid-ground — atmospheric unity tone
+            (0.30, 0.24, 0.15),   # deep warm brown — Venetian-school shadow
+        ],
+        ground_color=(0.55, 0.44, 0.26),    # warm amber-sienna imprimatura
+        stroke_size=7,
+        wet_blend=0.55,                      # moderate blending — Grand Manner smoothness
+        edge_softness=0.60,                  # softened Academic edges, not sfumato
+        jitter=0.020,
+        glazing=(0.68, 0.55, 0.28),          # warm amber unifying mezzotint glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Sir Joshua Reynolds (1723–1792) was the founding President of the Royal "
+            "Academy and the supreme practitioner of the British Grand Manner — a "
+            "painterly philosophy that elevated portraiture to the dignity of history "
+            "painting by fusing Old Master technique with the demands of fashionable "
+            "Georgian society.  Reynolds' most celebrated innovation was the "
+            "MEZZOTINT TONE: a unifying warm amber-brown glaze applied thinly over "
+            "the entire composition after the main layers were dry, pulling every "
+            "colour — flesh, drapery, landscape, architecture — into a single "
+            "harmonious key.  The name refers to the tonal quality of the great "
+            "mezzotint engravings made after his work, which captured this "
+            "characteristic warm, velvety richness.  His flesh painting was bold and "
+            "direct: warm lead-white impasto built up in the lights, thin transparent "
+            "glazes of raw umber, burnt sienna, and occasionally bitumen in the "
+            "shadows.  This use of bitumen — asphaltum — was catastrophic in the long "
+            "run, as the material never fully dries and causes the characteristic "
+            "wrinkled, sunken surface seen in many of his later canvases today.  "
+            "Reynolds' studio practice drew explicitly on the Old Masters: he studied "
+            "Titian, Rembrandt, and Rubens obsessively and sought to incorporate their "
+            "methods into a modern British idiom.  His lecture series at the Royal "
+            "Academy — the Discourses — codified Grand Manner theory: the painter "
+            "should aim for the general, not the particular; for the ideal form, not "
+            "the observed accident.  This philosophy produced his magnificent allegorical "
+            "portraits, where aristocratic sitters were posed as classical goddesses or "
+            "biblical heroines — Mrs Siddons as the Tragic Muse, Lady Hamilton as a "
+            "bacchante, Lady Spencer and her children in a Rubensian pastoral.  "
+            "Reynolds was an extraordinary technician, though his love of experiment "
+            "with unconventional media led to widely varying paint stability.  His best "
+            "works — the self-portraits, the Duchess of Devonshire — have a warm, "
+            "breathing luminosity unmatched in British painting."
+        ),
+        famous_works=[
+            ("Mrs Siddons as the Tragic Muse",           "1784"),
+            ("Self-Portrait in Doctoral Robes",           "1773"),
+            ("Lady Cockburn and Her Three Eldest Sons",   "1773"),
+            ("The Age of Innocence",                      "c. 1788"),
+            ("Colonel Banastre Tarleton",                 "1782"),
+            ("Lady Spencer with her daughter",            "1760–1761"),
+            ("Admiral Augustus Keppel",                   "1753"),
+        ],
+        inspiration=(
+            "Use reynolds_grand_manner_pass() to apply the FORTY-SEVENTH DISTINCT "
+            "MODE: MEZZOTINT TONE — GRAND MANNER WARM AMBER UNIFICATION.  "
+            "The pass encodes Reynolds' defining innovation: the MEZZOTINT TONE — "
+            "a flat, non-gated warm amber glaze applied uniformly across the entire "
+            "canvas to pull every element into a single harmonious key, followed by "
+            "impasto highlight brightening and shadow bitumen deepening at luminance "
+            "extremes.  "
+            "Algorithm (four steps):  "
+            "(1) FLAT AMBER GLAZE (non-gated, uniform — the mezzotint tone): "
+            "out_r = r + amber_r × amber_strength [R+]; "
+            "out_g = g + amber_g × amber_strength [G+ small]; "
+            "out_b = b − amber_b_reduce × amber_strength [B−].  "
+            "Applied uniformly at every luminance level — no gate splitting.  "
+            "Distinct from giampietrino_warm_devotion_pass (TWO SEPARATE luminance "
+            "gates — hi-gate amber+ AND shad-gate violet+; luminance discrimination; "
+            "Reynolds applies the amber shift to ALL pixels identically first, then "
+            "modulates at extremes as separate steps).  "
+            "(2) IMPASTO HIGHLIGHT BRIGHTENING (luma-gated high): "
+            "hi_gate = clip((luma − highlight_lo) / (1 − highlight_lo), 0, 1)^highlight_power; "
+            "out_r += hi_boost × hi_gate; "
+            "out_g += hi_boost × 0.85 × hi_gate.  "
+            "Direction: warm white R+ G+ (lead-white impasto mixture).  "
+            "Distinct from furini_moonlit_sfumato_pass (cool silver B+R− in [0.55, 0.92] "
+            "bump gate — opposite chromatic direction; Reynolds is WARM at highlights, "
+            "Furini is COOL; Furini has an upper cutoff at 0.92, Reynolds' gate is a "
+            "monotonically increasing ramp from highlight_lo to 1.0).  "
+            "(3) SHADOW BITUMEN DEEPENING (luma-gated low): "
+            "shad_gate = clip((shadow_hi − luma) / shadow_hi, 0, 1)^shadow_power; "
+            "out_r *= (1 − shadow_deepen_r × shad_gate); "
+            "out_g *= (1 − shadow_deepen_g × shad_gate); "
+            "out_b *= (1 − shadow_deepen_b × shad_gate).  "
+            "shadow_deepen_r > shadow_deepen_g > shadow_deepen_b — "
+            "R reduced slightly more than B, pushing deep shadows toward warm umber.  "
+            "Distinct from moro_regal_presence_pass (shadow deepening is luma-gated "
+            "but multiplies all channels equally, no warm-umber direction; Moro's "
+            "highlight gate is cool-silver B+R−; Reynolds' shadow deepening has "
+            "DIFFERENTIAL channel reduction for warm umber direction).  "
+            "(4) Composite at opacity."
+        ),
+    ),
+
 }
 
 

@@ -15823,3 +15823,107 @@ def test_german_renaissance_wet_blend_is_northern_precision():
     assert german["wet_blend"] <= 0.40, (
         f"GERMAN_RENAISSANCE wet_blend ({german['wet_blend']}) should be ≤ 0.40 "
         f"for Dürer-school Northern crispness")
+
+
+# Joshua Reynolds — reynolds_grand_manner_pass (session 161)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_reynolds_grand_manner_pass_exists():
+    """Painter must expose reynolds_grand_manner_pass() after session 161."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "reynolds_grand_manner_pass"), (
+        "reynolds_grand_manner_pass not found on Painter")
+    assert callable(getattr(Painter, "reynolds_grand_manner_pass"))
+
+
+def test_reynolds_grand_manner_pass_no_error():
+    """Pass runs without error on a warm-canvas 64×64 painter."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    p.reynolds_grand_manner_pass()
+
+
+def test_reynolds_grand_manner_pass_opacity_zero_is_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.reynolds_grand_manner_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_reynolds_grand_manner_pass_modifies_canvas():
+    """Pass must produce a detectable colour shift at opacity=1.0."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    buf_before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.reynolds_grand_manner_pass(opacity=1.0, amber_strength=0.20)
+    buf_after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert not _np.array_equal(buf_before, buf_after), (
+        "reynolds_grand_manner_pass should modify canvas at opacity=1.0")
+
+
+def test_reynolds_grand_manner_pass_warms_neutral_canvas():
+    """Amber glaze should raise R and lower B on a neutral grey canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)
+    buf_before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy().astype(_np.float32)
+    p.reynolds_grand_manner_pass(opacity=1.0, amber_strength=0.50,
+                                  amber_r=0.15, amber_b_reduce=0.10)
+    buf_after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).astype(_np.float32)
+    # Cairo BGRA: channel 2 = R, channel 0 = B
+    assert buf_after[:, :, 2].mean() > buf_before[:, :, 2].mean(), "R should increase"
+    assert buf_after[:, :, 0].mean() < buf_before[:, :, 0].mean(), "B should decrease"
+
+
+def test_reynolds_grand_manner_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    p.reynolds_grand_manner_pass(opacity=1.0, amber_strength=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_british_grand_manner_period_in_enum():
+    """Period.BRITISH_GRAND_MANNER must be present in the Period enum."""
+    assert hasattr(Period, "BRITISH_GRAND_MANNER"), "Period.BRITISH_GRAND_MANNER not found"
+    assert Period.BRITISH_GRAND_MANNER in list(Period)
+
+
+def test_british_grand_manner_stroke_params_valid():
+    """BRITISH_GRAND_MANNER stroke_params must satisfy all key constraints."""
+    style = Style(medium=Medium.OIL, period=Period.BRITISH_GRAND_MANNER,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "stroke_size_bg"   in p
+    assert "wet_blend"        in p
+    assert "edge_softness"    in p
+    assert 0.0 <= p["wet_blend"]      <= 1.0
+    assert 0.0 <= p["edge_softness"]  <= 1.0
+
+
+def test_british_grand_manner_wet_blend_is_moderate():
+    """BRITISH_GRAND_MANNER wet_blend should be moderate (≥ 0.40) for Grand Manner smoothness."""
+    grand = Style(medium=Medium.OIL, period=Period.BRITISH_GRAND_MANNER,
+                  palette=PaletteHint.WARM_EARTH).stroke_params
+    assert grand["wet_blend"] >= 0.40, (
+        f"BRITISH_GRAND_MANNER wet_blend ({grand['wet_blend']}) should be ≥ 0.40 "
+        f"for Grand Manner Academic smoothness")
