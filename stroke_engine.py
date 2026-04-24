@@ -37782,3 +37782,292 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Warm highlight bloom pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Gentileschi dramatic flesh — session 164 artist pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def gentileschi_dramatic_flesh_pass(
+        self,
+        dir_x:          float = 0.55,   # horizontal weight of spotlight gradient (left-bias)
+        dir_y:          float = 0.45,   # vertical weight of spotlight gradient (top-bias)
+        shadow_hi:      float = 0.38,   # luma threshold for shadow deepening gate
+        shadow_deepen:  float = 0.45,   # shadow compression strength (equal channels)
+        luma_lo:        float = 0.40,   # minimum luma for warm lift / chroma gate
+        amber_r:        float = 0.055,  # warm amber R lift in spotlight zone
+        amber_g:        float = 0.025,  # warm amber G lift in spotlight zone
+        chroma_boost:   float = 0.40,   # chroma amplification in spotlight zone
+        opacity:        float = 0.38,
+    ) -> None:
+        """Gentileschi directional tenebrism with anisotropic chroma-lift — FIFTY-FIRST DISTINCT MODE.
+
+        Artemisia Gentileschi (1593–c.1656) painted with an intense directional
+        spotlight from upper-left — inherited from Caravaggio via her father Orazio —
+        but with a distinctively warm, amber-ivory quality in the illuminated flesh
+        and vivid, fully saturated costume colours in the lit zone.  Her shadows
+        are uncompromising Caravaggesque near-black.
+
+        The defining innovation this pass encodes is ANISOTROPIC TREATMENT: the
+        same pixel luminance value is treated differently depending on WHERE it
+        sits in the canvas relative to the simulated upper-left light source.  A
+        dark pixel in the upper-left (physically illuminated by the spotlight) is
+        treated as a lit surface; the same dark pixel in the lower-right (the
+        geometric shadow zone) is pressed toward near-black.  No prior pass uses
+        a directional spatial gradient as the primary illumination model.
+
+        Algorithm (five steps):
+
+        (1) DIRECTIONAL SPOTLIGHT WEIGHT (spatial gradient):
+            For each pixel at position (x, y) in a canvas of size (W, H):
+            dx = (W − x) / W   [normalized dist from right edge; left = high]
+            dy = (H − y) / H   [normalized dist from bottom; top = high]
+            spot_wt = clip(dx × dir_x + dy × dir_y, 0, 1)
+            Models the geometric falloff of a directional light at upper-left.
+            FIFTY-FIRST DISTINCT MODE: no prior pass constructs a spatial
+            directional gradient as its primary illumination model.
+
+        (2) SHADOW DEEPENING (geometric shadow zone × dark pixels):
+            shadow_gate = (1 − spot_wt) × clip((shadow_hi − luma) / shadow_hi, 0, 1)
+            out_r = r × (1 − shadow_deepen × shadow_gate)
+            out_g = g × (1 − shadow_deepen × shadow_gate)
+            out_b = b × (1 − shadow_deepen × shadow_gate)
+            Equal-channel — Caravaggesque void shadows have no warm or cool bias.
+            Distinct from schedoni_luminous_emergence_pass: uses uniform luma gate
+            only; Artemisia's gate combines spatial + luminance, preventing over-
+            darkening of bright-valued pixels in the geometric shadow zone.
+
+        (3) WARM AMBER ILLUMINATION LIFT (spotlight zone):
+            hi_gate = spot_wt × clip((luma − luma_lo) / (1 − luma_lo), 0, 1)
+            out_r += amber_r × hi_gate
+            out_g += amber_g × hi_gate
+            (B channel not raised — warm amber, not neutral or cool)
+            Artemisia's characteristic golden-amber light quality, warmer than
+            Caravaggio's silvery-cool spots, slightly cooler than Schedoni's.
+
+        (4) DIRECTIONAL CHROMA AMPLIFICATION (spotlight zone):
+            mean_rgb = (r + g + b) / 3
+            out_r += (r − mean_rgb) × chroma_boost × hi_gate
+            out_g += (g − mean_rgb) × chroma_boost × hi_gate
+            out_b += (b − mean_rgb) × chroma_boost × hi_gate
+            Makes saturated costume colours MORE vivid under the spotlight — deep
+            crimson intensifies to scarlet, cobalt deepens.  The hi_gate couples
+            chroma amplification to the directional spatial model: only pixels that
+            are BOTH spatially in the spotlight AND above luma_lo are amplified.
+            Distinct from schedoni: the gate uses spot_wt × luma, not luma alone.
+
+        (5) Composite at opacity.
+
+        Distinct from schedoni_luminous_emergence_pass (luma-only gate, no spatial
+          directional term; shadow compression is luma-gated only; Artemisia's
+          spatial × luminance factored gate is architecturally different).
+        Distinct from moro_courtly_gravitas_pass (equal-channel shadow_deepen only;
+          no directional spatial gradient; no warm lift; no chroma amplification).
+        Distinct from reynolds_grand_manner_pass (differential warm-umber channel
+          treatment R>G>B; no spatial directional gradient).
+        Distinct from warm_highlight_bloom_pass (warm detection via R/G ratio +
+          luma mask, then spatial Gaussian blur; no directional gradient model;
+          bloom = spread of detected source, not directional geometric weight).
+
+        Args:
+            dir_x         : Horizontal component of spotlight direction (left = high).
+            dir_y         : Vertical component of spotlight direction (top = high).
+            shadow_hi     : Luma threshold above which shadow deepening has no effect.
+            shadow_deepen : Equal-channel shadow compression strength.
+            luma_lo       : Minimum luma for warm amber lift and chroma amplification.
+            amber_r       : R-channel additive warm lift in spotlight zone.
+            amber_g       : G-channel additive warm lift in spotlight zone.
+            chroma_boost  : Chroma amplification strength in spotlight zone.
+            opacity       : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Directional spotlight weight (spatial gradient) ───────────
+        xs = _np.linspace(0.0, 1.0, W, dtype=_np.float32)  # 0=left, 1=right
+        ys = _np.linspace(0.0, 1.0, H, dtype=_np.float32)  # 0=top, 1=bottom
+        # dx high on left (W - x)/W  →  1 - xs
+        dx = (1.0 - xs)[_np.newaxis, :]   # shape (1, W)
+        dy = (1.0 - ys)[:, _np.newaxis]   # shape (H, 1)
+        spot_wt = _np.clip(
+            dx * float(dir_x) + dy * float(dir_y), 0.0, 1.0
+        )  # shape (H, W)
+
+        # ── Step 2: Shadow deepening (spatial shadow zone × dark pixels) ──────
+        shadow_raw  = _np.clip(
+            (float(shadow_hi) - luma) / (float(shadow_hi) + 1e-6), 0.0, 1.0
+        )
+        shadow_gate = (1.0 - spot_wt) * shadow_raw
+        factor      = 1.0 - float(shadow_deepen) * shadow_gate
+        out_r = r0 * factor
+        out_g = g0 * factor
+        out_b = b0 * factor
+
+        # ── Step 3: Warm amber lift (spotlight zone × bright pixels) ─────────
+        luma_raw = _np.clip(
+            (luma - float(luma_lo)) / (1.0 - float(luma_lo) + 1e-6), 0.0, 1.0
+        )
+        hi_gate  = spot_wt * luma_raw
+        out_r    = out_r + float(amber_r) * hi_gate
+        out_g    = out_g + float(amber_g) * hi_gate
+
+        # ── Step 4: Directional chroma amplification (spotlight zone) ─────────
+        mean_rgb = (r0 + g0 + b0) / 3.0
+        boost    = float(chroma_boost) * hi_gate
+        out_r    = out_r + (r0 - mean_rgb) * boost
+        out_g    = out_g + (g0 - mean_rgb) * boost
+        out_b    = out_b + (b0 - mean_rgb) * boost
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Gentileschi dramatic flesh pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Shadow/highlight color temperature split — session 164 artistic improvement
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def shadow_color_temperature_pass(
+        self,
+        shadow_thresh:  float = 0.42,   # luma threshold for shadow cooling gate
+        shadow_power:   float = 1.4,    # exponent shaping shadow gate ramp
+        cool_b:         float = 0.045,  # blue lift in shadow zone (cool shadows)
+        cool_r:         float = 0.018,  # red reduction in shadow zone
+        cool_g:         float = 0.008,  # green reduction in shadow zone
+        highlight_thresh: float = 0.60, # luma threshold for highlight warming gate
+        highlight_power: float = 1.3,   # exponent shaping highlight gate ramp
+        warm_r:         float = 0.040,  # red lift in highlight zone (warm lights)
+        warm_g:         float = 0.018,  # green lift in highlight zone
+        opacity:        float = 0.32,
+    ) -> None:
+        """Warm-light / cool-shadow color temperature split — FIFTY-SECOND DISTINCT MODE.
+
+        One of the fundamental observations of academic painting — codified by
+        Rubens, refined by the French Academy, and systematized by painters from
+        Boucher to Sargent — is that lit surfaces are warm and shadows are cool
+        (or vice versa under a cool light source, but warm-light / cool-shadow is
+        the dominant case for interior studio painting under window or candle light).
+        This warm/cool chromatic temperature split gives Old Master paintings their
+        characteristic sense of luminous depth: the warm highlights feel physically
+        lit, the cool shadows feel physically receded, and the transition between
+        them produces the characteristic Rubensian 'pearly' quality in the penumbra.
+
+        This pass encodes that split as the FIFTY-SECOND DISTINCT MODE:
+        LUMINANCE-GATED DUAL COLOR TEMPERATURE SEPARATION.
+
+        Algorithm (three steps):
+
+        (1) SHADOW COOLING (luma-gated dark zone):
+            luma = 0.2126r + 0.7152g + 0.0722b
+            shad_raw  = clip((shadow_thresh − luma) / shadow_thresh, 0, 1)
+            shad_gate = shad_raw ^ shadow_power
+            out_r = r − cool_r × shad_gate   [reduce red → cooler]
+            out_g = g − cool_g × shad_gate   [slight green reduction]
+            out_b = b + cool_b × shad_gate   [add blue → cooler, more violet]
+
+        (2) HIGHLIGHT WARMING (luma-gated bright zone):
+            hi_raw   = clip((luma − highlight_thresh) / (1 − highlight_thresh), 0, 1)
+            hi_gate  = hi_raw ^ highlight_power
+            out_r += warm_r × hi_gate   [add red/amber → warmer highlights]
+            out_g += warm_g × hi_gate   [slight green addition]
+            (B channel not raised — warm, not neutral)
+
+        (3) Composite at opacity.
+
+        FIFTY-SECOND DISTINCT MODE: distinct from all prior passes because it
+        simultaneously applies OPPOSITE color temperature shifts to shadows and
+        highlights using two independent luma gates — cooling in one zone while
+        warming in another in the same pass.
+        Distinct from atmospheric_depth_gradient_pass (vertical spatial gradient,
+          no luminance gating; cools upper image regardless of pixel brightness).
+        Distinct from chromatic_aerial_perspective_pass (top-of-canvas spatial
+          gradient; no highlight warming; applied to background only).
+        Distinct from schedoni_luminous_emergence_pass (shadow compression only —
+          equal-channel deepening, not cool tinting; no highlight warm shift).
+        Distinct from artemisia_directional_spotlight_pass (directional spatial ×
+          luminance gate; warm amber additive only; no cool shadow tint shift).
+        Distinct from warm_highlight_bloom_pass (detects warm sources and spreads
+          them spatially via Gaussian; no shadow cooling; opposite direction).
+
+        Args:
+            shadow_thresh   : Luma threshold for shadow cooling gate.
+            shadow_power    : Exponent shaping shadow gate ramp.
+            cool_b          : Blue additive lift in shadow zone.
+            cool_r          : Red subtractive reduction in shadow zone.
+            cool_g          : Green subtractive reduction in shadow zone.
+            highlight_thresh: Luma threshold for highlight warming gate.
+            highlight_power : Exponent shaping highlight gate ramp.
+            warm_r          : Red additive lift in highlight zone.
+            warm_g          : Green additive lift in highlight zone.
+            opacity         : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Shadow cooling ────────────────────────────────────────────
+        shad_raw  = _np.clip(
+            (float(shadow_thresh) - luma) / (float(shadow_thresh) + 1e-6), 0.0, 1.0
+        )
+        shad_gate = shad_raw ** float(shadow_power)
+        out_r = r0 - float(cool_r) * shad_gate
+        out_g = g0 - float(cool_g) * shad_gate
+        out_b = b0 + float(cool_b) * shad_gate
+
+        # ── Step 2: Highlight warming ─────────────────────────────────────────
+        hi_raw   = _np.clip(
+            (luma - float(highlight_thresh)) / (1.0 - float(highlight_thresh) + 1e-6),
+            0.0, 1.0,
+        )
+        hi_gate  = hi_raw ** float(highlight_power)
+        out_r    = out_r + float(warm_r) * hi_gate
+        out_g    = out_g + float(warm_g) * hi_gate
+
+        # ── Step 3: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Shadow color temperature pass complete.")

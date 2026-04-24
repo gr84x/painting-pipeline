@@ -21717,3 +21717,225 @@ def test_warm_highlight_bloom_pixels_in_range():
     ).reshape(64, 64, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 164 — Artemisia Gentileschi + ARTEMISIAN_TENEBRISM + passes 51 & 52
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_artemisia_gentileschi_palette_has_crimson():
+    """Palette must include a deep red/crimson — Artemisia's signature scarlet."""
+    from art_catalog import CATALOG
+    palette = CATALOG["artemisia_gentileschi"].palette
+    has_crimson = any(r > 0.55 and g < 0.30 and b < 0.25
+                      for r, g, b in palette)
+    assert has_crimson, "Palette should contain deep crimson (r>0.55, g<0.30, b<0.25)"
+
+
+def test_artemisian_tenebrism_period_exists():
+    """ARTEMISIAN_TENEBRISM must be a valid Period enum member after session 164."""
+    from scene_schema import Period
+    assert hasattr(Period, "ARTEMISIAN_TENEBRISM"), (
+        "ARTEMISIAN_TENEBRISM not found in Period enum")
+    assert isinstance(Period.ARTEMISIAN_TENEBRISM, Period)
+
+
+def test_artemisian_tenebrism_has_stroke_params():
+    """ARTEMISIAN_TENEBRISM must map to valid stroke_params with all required keys."""
+    from scene_schema import Style, Period, Medium
+    style = Style(medium=Medium.OIL, period=Period.ARTEMISIAN_TENEBRISM)
+    sp = style.stroke_params
+    assert "stroke_size_face" in sp
+    assert "stroke_size_bg"   in sp
+    assert "wet_blend"        in sp
+    assert "edge_softness"    in sp
+    assert sp["stroke_size_bg"] <= 20, (
+        f"Expected small BG strokes for void background; got {sp['stroke_size_bg']}")
+    assert sp["edge_softness"] < 0.60, (
+        f"Expected firm tenebrism edges; got edge_softness={sp['edge_softness']}")
+
+
+def test_gentileschi_dramatic_flesh_pass_exists():
+    """Painter must expose gentileschi_dramatic_flesh_pass() — FIFTY-FIRST DISTINCT MODE."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "gentileschi_dramatic_flesh_pass"), (
+        "gentileschi_dramatic_flesh_pass not found on Painter")
+    assert callable(getattr(Painter, "gentileschi_dramatic_flesh_pass"))
+
+
+def test_gentileschi_dramatic_flesh_pass_no_error():
+    """Pass runs without error on a 64x64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.10, 0.08, 0.06), texture_strength=0.0)
+    p.gentileschi_dramatic_flesh_pass()
+
+
+def test_gentileschi_dramatic_flesh_zero_opacity_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.10, 0.08, 0.06), texture_strength=0.0)
+    before_bytes = bytes(p.canvas.surface.get_data()[:])
+    p.gentileschi_dramatic_flesh_pass(opacity=0.0)
+    after_bytes = bytes(p.canvas.surface.get_data()[:])
+    assert before_bytes == after_bytes, "opacity=0.0 should be a no-op"
+
+
+def test_gentileschi_dramatic_flesh_modifies_canvas():
+    """Pass must produce detectable change on a mid-tone canvas at opacity=1.0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.42, 0.28), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.gentileschi_dramatic_flesh_pass(
+        shadow_deepen=0.50, chroma_boost=0.60, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "gentileschi_dramatic_flesh_pass should modify the canvas")
+
+
+def test_gentileschi_dramatic_flesh_deepens_lower_right():
+    """Lower-right corner (geometric shadow) should be darker than upper-left after pass."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.40, 0.25), texture_strength=0.0)
+    p.gentileschi_dramatic_flesh_pass(
+        shadow_deepen=0.60, shadow_hi=0.70, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    ul_luma = buf[:32, :32, :3].mean()
+    lr_luma = buf[32:, 32:, :3].mean()
+    assert ul_luma > lr_luma, (
+        f"Upper-left should be brighter (spotlight) than lower-right (shadow); "
+        f"ul={ul_luma:.2f}, lr={lr_luma:.2f}")
+
+
+def test_gentileschi_dramatic_flesh_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.65, 0.52, 0.35), texture_strength=0.0)
+    p.gentileschi_dramatic_flesh_pass(
+        shadow_deepen=1.0, chroma_boost=1.5, amber_r=0.3, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_shadow_color_temperature_pass_exists():
+    """Painter must expose shadow_color_temperature_pass() — FIFTY-SECOND DISTINCT MODE."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "shadow_color_temperature_pass"), (
+        "shadow_color_temperature_pass not found on Painter")
+    assert callable(getattr(Painter, "shadow_color_temperature_pass"))
+
+
+def test_shadow_color_temperature_pass_no_error():
+    """Pass runs without error on a 64x64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p.shadow_color_temperature_pass()
+
+
+def test_shadow_color_temperature_zero_opacity_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    before_bytes = bytes(p.canvas.surface.get_data()[:])
+    p.shadow_color_temperature_pass(opacity=0.0)
+    after_bytes = bytes(p.canvas.surface.get_data()[:])
+    assert before_bytes == after_bytes, "opacity=0.0 should be a no-op"
+
+
+def test_shadow_color_temperature_modifies_canvas():
+    """Pass must produce detectable change on a mid-tone canvas at opacity=1.0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.shadow_color_temperature_pass(
+        shadow_thresh=0.60, cool_b=0.10, warm_r=0.10, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "shadow_color_temperature_pass should modify the canvas")
+
+
+def test_shadow_color_temperature_cools_dark_zone():
+    """On a dark canvas, B channel should increase after shadow cooling."""
+    import numpy as np
+    from stroke_engine import Painter
+    # A very dark canvas — should be in the shadow zone
+    p = Painter(64, 64)
+    p.tone_ground((0.15, 0.12, 0.10), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.shadow_color_temperature_pass(
+        shadow_thresh=0.50, cool_b=0.12, cool_r=0.04, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Cairo BGRA: channel 0 = B, channel 2 = R
+    mean_b_before = buf_before[:, :, 0].mean()
+    mean_b_after  = buf_after[:, :, 0].mean()
+    assert mean_b_after > mean_b_before, (
+        f"Blue channel should increase in shadow zone; "
+        f"before={mean_b_before:.2f}, after={mean_b_after:.2f}")
+
+
+def test_shadow_color_temperature_warms_bright_zone():
+    """On a bright canvas, R channel should increase after highlight warming."""
+    import numpy as np
+    from stroke_engine import Painter
+    # A very bright canvas — should be in the highlight zone
+    p = Painter(64, 64)
+    p.tone_ground((0.88, 0.82, 0.74), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.shadow_color_temperature_pass(
+        highlight_thresh=0.60, warm_r=0.12, warm_g=0.04, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Cairo BGRA: channel 2 = R
+    mean_r_before = buf_before[:, :, 2].mean()
+    mean_r_after  = buf_after[:, :, 2].mean()
+    assert mean_r_after > mean_r_before, (
+        f"Red channel should increase in highlight zone; "
+        f"before={mean_r_before:.2f}, after={mean_r_after:.2f}")
+
+
+def test_shadow_color_temperature_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p.shadow_color_temperature_pass(
+        cool_b=0.50, cool_r=0.50, warm_r=0.50, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

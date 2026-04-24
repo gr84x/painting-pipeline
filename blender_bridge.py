@@ -573,6 +573,7 @@ def scene_to_painting(
     is_bolognese_arcadian = (scene.style.period == Period.BOLOGNESE_ARCADIAN_CLASSICISM)
     is_venetian_golden_naturalism = (scene.style.period == Period.VENETIAN_GOLDEN_NATURALISM)
     is_ferrarese_civic_grandeur   = (scene.style.period == Period.FERRARESE_CIVIC_GRANDEUR)
+    is_artemisian_tenebrism       = (scene.style.period == Period.ARTEMISIAN_TENEBRISM)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3189,6 +3190,95 @@ def scene_to_painting(
         if _feedback is not None:
             print(_feedback.summary())
         p.finish(vignette=0.35, crackle=True)
+
+    elif is_artemisian_tenebrism:
+        # ── Artemisian Tenebrism pipeline (Artemisia Gentileschi technique) ───
+        # Artemisia worked on a near-black warm ground — the void is established
+        # first and the figure emerges from it, not the other way around.  Her
+        # intense upper-left spotlight carves the figure from darkness, leaving
+        # rich near-black in the geometric shadow zone and warm amber-ivory flesh
+        # in the lit zone.  Her costume colours — deep crimson, cobalt blue —
+        # are fully saturated in the lit zone and pressed to near-black in shadow.
+        #
+        # artemisia_directional_spotlight_pass() encodes DIRECTIONAL TENEBRISM:
+        # a spatial gradient (upper-left bias) × luminance gate simultaneously
+        # deepens the geometric shadow zone and warms/amplifies chroma in the
+        # spotlight zone — the FIFTY-FIRST DISTINCT MODE.
+        #
+        # shadow_color_temperature_pass() adds the FIFTY-SECOND DISTINCT MODE:
+        # warm-light / cool-shadow color temperature split that gives the penumbra
+        # its characteristic Old Master 'pearly' quality.
+        artemisia_style = _ART_CATALOG.get("artemisia_gentileschi")
+        ground_col      = artemisia_style.ground_color if artemisia_style else (0.10, 0.08, 0.06)
+
+        # Near-black warm ground — the void is the primary pictorial element
+        p.tone_ground(ground_col, texture_strength=0.06)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.15), n_strokes=100)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=220)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.50),     n_strokes=600)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.62, 0.48, 0.22), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.01, highlight_compress=0.96, midtone_contrast=0.05)
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.6),
+                       n_strokes=800, opacity=0.80, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=600, opacity=0.82, wet_blend=sp["wet_blend"] * 0.50)
+
+        # ── Gentileschi dramatic flesh — FIFTY-FIRST DISTINCT MODE ───────────
+        # Upper-left spatial gradient × luminance gate: deepens the geometric
+        # shadow zone and warms/amplifies chroma in the spotlight zone.
+        p.gentileschi_dramatic_flesh_pass(
+            dir_x         = 0.55,   # horizontal left-bias of spotlight
+            dir_y         = 0.45,   # vertical top-bias of spotlight
+            shadow_hi     = 0.38,
+            shadow_deepen = 0.48,
+            luma_lo       = 0.38,
+            amber_r       = 0.055,
+            amber_g       = 0.025,
+            chroma_boost  = 0.42,
+            opacity       = 0.40,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "artemisia_pass")
+
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=260)
+
+        # ── Shadow color temperature — FIFTY-SECOND DISTINCT MODE ─────────────
+        # Warm-light / cool-shadow split: the penumbra acquires its characteristic
+        # Old Master quality — cool blue-violet shadows, warm amber highlights.
+        p.shadow_color_temperature_pass(
+            shadow_thresh   = 0.40,
+            shadow_power    = 1.5,
+            cool_b          = 0.042,
+            cool_r          = 0.016,
+            cool_g          = 0.007,
+            highlight_thresh= 0.62,
+            highlight_power = 1.3,
+            warm_r          = 0.038,
+            warm_g          = 0.016,
+            opacity         = 0.28,
+        )
+
+        # Warm amber glaze to unify the surface — Artemisia's amber-gold light quality
+        p.glaze((0.70, 0.52, 0.22), opacity=0.08)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.20,
+            found_sharpness = 0.62,
+            lost_blur       = 2.0,
+            strength        = 0.32,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        # Heavy vignette — the Caravaggesque void deepens at the canvas corners
+        p.finish(vignette=0.68, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
