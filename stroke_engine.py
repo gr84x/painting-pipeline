@@ -36836,3 +36836,290 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Edge sfumato dissolution pass complete.")
+
+    # Session 159 — Antonio Moro (c. 1519–c. 1575): moro_regal_presence_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def moro_regal_presence_pass(
+        self,
+        shadow_hi:       float = 0.38,   # luminance below which shadow deepening operates
+        shadow_power:    float = 1.4,    # exponent shaping shadow-gate falloff
+        shadow_deepen:   float = 0.18,   # maximum fractional darkening at luma=0
+        highlight_lo:    float = 0.68,   # luminance above which highlight crystallisation begins
+        highlight_power: float = 1.6,    # exponent shaping highlight-gate ramp
+        silver_b:        float = 0.022,  # cool-silver B lift in the crystalline highlight zone
+        silver_r:        float = 0.010,  # R reduction in highlight zone (ensures silver not warm)
+        opacity:         float = 0.30,
+    ) -> None:
+        """High-polarity tonal amplification — FORTY-FOURTH DISTINCT MODE.
+
+        Antonio Moro (Anthonis Mor van Dashorst, c. 1519–c. 1575) is the supreme
+        Flemish-Spanish court portraitist — the painter who gave the Habsburg courts
+        their definitive visual gravity.  His technical signature is a high-polarity
+        tonal contrast system built from two deliberate choices:
+
+          1. VERY DARK GROUNDS: Moro works over a near-black umber imprimatura that
+             he never completely covers.  His shadows are therefore almost absolute:
+             the dark ground shows through thin paint in the shadow passages, giving
+             a near-total darkness that concentrates attention on the illuminated zones.
+
+          2. PRECISELY CALIBRATED HIGHLIGHTS: Against this near-black ground, his
+             highlights are precise, economical, and cool-silver.  He does not use
+             the warm amber highlights of the Venetian school; his light is Northern —
+             cool, exact, and controlled.  A single fleck of cool-white marks the
+             specular peak of a pearl; a precise band of silver catches the pile of
+             black velvet.
+
+        The combination produces COURT PORTRAIT GRAVITY: the impression of a person
+        of absolute authority emerging from near-total darkness into a controlled pool
+        of Northern light.  Nothing in Moro's portraits is accidentally illuminated;
+        everything has been deliberately calibrated.
+
+        Algorithm — FORTY-FOURTH DISTINCT MODE:
+        HIGH-POLARITY TONAL AMPLIFICATION — COURT PORTRAIT GRAVITY.
+
+        (A) Shadow deepening gate [0, shadow_hi]:
+            shadow_gate = clip((shadow_hi − luma) / shadow_hi, 0, 1)^shadow_power
+            out_c = c × (1 − shadow_deepen × shadow_gate)   [for each channel]
+            Direction: darkens pixels toward near-black as luminance approaches 0.
+            The gate falls to zero at luma=shadow_hi (ensuring bright pixels
+            are completely unaffected) and reaches its maximum at luma=0.
+
+        (B) Highlight crystallisation gate [highlight_lo, 1.0]:
+            hi_gate = clip((luma − highlight_lo) / (1 − highlight_lo), 0, 1)^highlight_power
+            out_b = clip(b + silver_b × hi_gate, 0, 1)
+            out_r = clip(r − silver_r × hi_gate, 0, 1)
+            Direction: adds cool-silver (B+ R−) to the brightest pixels.
+            The gate increases monotonically from highlight_lo to 1.0 — unlike
+            Greuze's BUMP gate (which has an upper cutoff), this is a ONE-SIDED
+            RAMP that concentrates maximum crystallisation at the very brightest pixels.
+
+        (C) Composite at opacity.
+
+        Distinct from focal_vignette_pass (DARKENS AND COOLS EDGES by radial
+          multiplication — position-gated, not luminance-gated; the vignette darkens
+          peripheral pixels regardless of their luminance; Moro's deepening is
+          luminance-gated: even peripheral bright highlights are left undarkened).
+        Distinct from giampietrino_warm_devotion_pass (shadow gate [0.05, 0.42] applies
+          VIOLET TINT: B+, R− in shadows — color tinting, not multiplicative darkening;
+          highlight gate [0.55, 0.88] applies AMBER TINT: R+, G+ — warm direction
+          opposite to Moro's cool-silver; Moro does NOT add any violet to shadows,
+          only darkens them multiplicatively).
+        Distinct from furini_moonlit_sfumato_pass (HIGHLIGHTS ONLY in [0.55, 0.92] bump
+          gate with upper cutoff; applies COOL SILVER B+ R− — same color direction as
+          Moro's highlight, but FURINI'S gate is a BUMP (rises then falls) while Moro's
+          is a ONE-SIDED RAMP (rises monotonically to maximum at luma=1.0); Furini also
+          has no shadow deepening component — no darkening at all; Moro's pass is
+          bipartite: shadow deepening + highlight crystallisation).
+        Distinct from greuze_sentimental_carnation_pass (BUMP gate for both components:
+          carnation [0.38, 0.80] and dewy [0.82, 1.0]; applies ROSE-CARNATION R+G+B−
+          in mid-flesh, not darkening; dewy has B+ R− but in a very narrow bump at
+          peak luma with upper cutoff at 1.0 and lower at 0.82 — Moro's ramp has
+          highlight_lo default 0.68, lower than Greuze's dew_lo=0.82; also Moro has
+          NO rose-carnation mid-flesh component whatsoever).
+
+        Args:
+            shadow_hi       : Luminance threshold below which shadow deepening is active.
+            shadow_power    : Exponent shaping shadow-gate strength vs. luminance.
+            shadow_deepen   : Fraction by which deep shadows are darkened (0 = no-op).
+            highlight_lo    : Luminance threshold above which highlight crystallisation begins.
+            highlight_power : Exponent shaping highlight-gate ramp.
+            silver_b        : B lift in crystalline highlight zone (the cool-silver push).
+            silver_r        : R reduction in highlight zone (prevents warm-white).
+            opacity         : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Shadow deepening gate ─────────────────────────────────────
+        shadow_gate = _np.zeros_like(luma)
+        if shadow_hi > 0.0:
+            raw = _np.clip((shadow_hi - luma) / float(shadow_hi), 0.0, 1.0)
+            shadow_gate = (raw ** shadow_power).astype(_np.float32)
+        darken = (1.0 - shadow_deepen * shadow_gate).astype(_np.float32)
+        out_r = _np.clip(r0 * darken, 0.0, 1.0)
+        out_g = _np.clip(g0 * darken, 0.0, 1.0)
+        out_b = _np.clip(b0 * darken, 0.0, 1.0)
+
+        # ── Step 3: Highlight crystallisation gate ────────────────────────────
+        hi_range = max(1.0 - float(highlight_lo), 1e-6)
+        raw_hi = _np.clip((luma - highlight_lo) / hi_range, 0.0, 1.0)
+        hi_gate = (raw_hi ** highlight_power).astype(_np.float32)
+        out_b = _np.clip(out_b + silver_b * hi_gate, 0.0, 1.0)
+        out_r = _np.clip(out_r - silver_r * hi_gate, 0.0, 1.0)
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Moro regal presence pass complete.")
+
+    # Session 159 — random improvement: skin_subsurface_scatter_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def skin_subsurface_scatter_pass(
+        self,
+        scatter_sigma:  float = 5.0,    # Gaussian sigma for scatter spread (simulates dermis depth)
+        scatter_strength: float = 0.22, # maximum blend toward scattered image in skin zones
+        warm_boost:     float = 1.04,   # multiplicative R warm lift on scattered component
+        cool_damp:      float = 0.97,   # multiplicative B cool damp on scattered component
+        mask_sigma:     float = 10.0,   # Gaussian sigma for skin mask softening
+        opacity:        float = 0.28,
+    ) -> None:
+        """Skin subsurface light scattering — FORTY-FIFTH DISTINCT MODE.
+
+        In every living human face, light does not simply bounce off the surface of
+        the skin and return to the eye.  It penetrates the epidermis, scatters within
+        the dermis (which contains blood vessels, collagen, and lipids), and re-emerges
+        at a point several millimetres from where it entered — slightly reddened
+        because the shorter wavelengths (blue, green) scatter and are partially absorbed
+        by the blood in the dermis, while red wavelengths penetrate deeper and re-emerge.
+
+        Every Renaissance master who achieved great flesh painting understood this
+        intuitively, even without the vocabulary of light physics.  Leonardo's sfumato
+        seeks it.  Rubens's semi-transparent flesh glazes seek it.  Titian's multi-layer
+        glazing over a warm ground seeks it.  The defining quality of OLD MASTER FLESH —
+        that it appears to be illuminated FROM WITHIN rather than simply reflecting
+        surface light — is precisely the subsurface scatter phenomenon rendered in oil.
+
+        This pass encodes that insight computationally as the FORTY-FIFTH DISTINCT MODE:
+        SKIN SUBSURFACE LIGHT SCATTERING — WARM-RED TRANSLUCENCY GLOW.
+
+        The algorithm:
+
+        (1) SKIN DETECTION — identify warm flesh pixels by color range:
+            skin_raw = (r > 0.40) AND (r > g) AND (g > b) AND (r − b > 0.10)
+            This selects pixels that are warm-colored (reddish-to-ochre) without
+            being too dark (pure brown hair/shadow) or too neutral (background).
+            The binary mask is Gaussian-blurred (sigma=mask_sigma) to produce a
+            smooth skin weight map skin_mask ∈ [0, 1].
+
+        (2) SCATTER SPREAD — apply large-sigma Gaussian blur to the full image
+            (sigma=scatter_sigma, default=5.0).  This blurs each color value by
+            averaging it with its neighbors over a ~15–20px radius, simulating
+            how light that enters a point spreads outward beneath the surface and
+            re-emerges as a weighted average of the surrounding surface irradiance.
+
+        (3) WARM-RED TINTING — the scattered component is warm-tinted:
+            warm_r = clip(blur_r × warm_boost, 0, 1)   [warm_boost > 1: R lift]
+            warm_b = clip(blur_b × cool_damp, 0, 1)    [cool_damp < 1: B damp]
+            This mimics the spectral reddening of scattered light within the dermis.
+
+        (4) SKIN-BLENDING — blend scattered with original proportional to skin_mask:
+            blend_wt = skin_mask × scatter_strength
+            scatter_c = orig_c × (1 − blend_wt) + warm_spread_c × blend_wt
+
+        (5) Composite at opacity.
+
+        Distinct from greuze_sentimental_carnation_pass (LUMINANCE-GATED COLOR
+          TINTING: applies R+G+B− in [0.38, 0.80] mid-flesh zone regardless of
+          whether the pixel is actually flesh-colored — if a blue background pixel
+          has luminance in the gate range, it too is rose-tinted; subsurface scatter
+          uses COLOR RANGE detection (r > g > b, r−b > 0.10) ensuring only actual
+          warm flesh pixels receive the treatment; Greuze's pass does NO spatial
+          spreading — it tints each pixel independently; this pass spreads the color
+          information spatially over a Gaussian radius before blending back).
+        Distinct from beccafumi_nacreous_glow_pass (Gaussian BLOOM DIFFERENCE
+          sign determines warm/cool zones based on SURFACE CONVEXITY: the difference
+          between a lightly-blurred and heavily-blurred image has positive sign on
+          convex surface peaks and negative on concave shadow valleys; this is a
+          SURFACE GEOMETRY detector, not a tissue-type detector; beccafumi can fire
+          on convex metalwork, fabric highlights, or any bright convex surface;
+          subsurface scatter fires only on warm-flesh colored pixels).
+        Distinct from peripheral_defocus_pass (RADIAL GEOMETRIC softening: blur
+          weight increases with distance from canvas centre, not with tissue type;
+          cold background pixels at the periphery are blurred; warm flesh pixels at
+          the centre are sharpened by the (1−defocus_wt) factor; no warm-red
+          direction; fundamentally a DEPTH-OF-FIELD simulation, not a skin model).
+        Distinct from giampietrino_warm_devotion_pass (LUMINANCE-GATED amber+violet
+          tinting: hi gate applies AMBER R+G+ to all mid-bright pixels including
+          background ochre tones; shad gate applies VIOLET B+R− to all shadow pixels
+          regardless of color; no spatial spreading; no skin detection by color range).
+
+        Args:
+            scatter_sigma   : Gaussian blur sigma for the scatter spread. Larger values
+                              simulate deeper dermis penetration (more diffuse glow).
+            scatter_strength: Maximum blend fraction toward scattered image in skin zones.
+            warm_boost      : Multiplicative R lift on scattered component (red tinting).
+            cool_damp       : Multiplicative B reduction on scattered component (B damp).
+            mask_sigma      : Gaussian sigma for softening the binary skin detection mask.
+            opacity         : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Skin detection by color range ─────────────────────────────
+        skin_raw = (
+            (r0 > 0.40).astype(_np.float32) *
+            (r0 > g0).astype(_np.float32) *
+            (g0 > b0).astype(_np.float32) *
+            ((r0 - b0) > 0.10).astype(_np.float32)
+        )
+        skin_mask = _np.clip(
+            _gf(skin_raw, sigma=float(mask_sigma)), 0.0, 1.0
+        ).astype(_np.float32)
+
+        # ── Step 2: Scatter spread — large Gaussian over full image ───────────
+        blur_r = _gf(r0, sigma=float(scatter_sigma)).astype(_np.float32)
+        blur_g = _gf(g0, sigma=float(scatter_sigma)).astype(_np.float32)
+        blur_b = _gf(b0, sigma=float(scatter_sigma)).astype(_np.float32)
+
+        # ── Step 3: Warm-red tinting of scattered component ───────────────────
+        warm_r = _np.clip(blur_r * float(warm_boost), 0.0, 1.0)
+        warm_g = blur_g                             # green channel unchanged
+        warm_b = _np.clip(blur_b * float(cool_damp), 0.0, 1.0)
+
+        # ── Step 4: Skin-blending ─────────────────────────────────────────────
+        blend_wt = (skin_mask * float(scatter_strength)).astype(_np.float32)
+        out_r = r0 * (1.0 - blend_wt) + warm_r * blend_wt
+        out_g = g0 * (1.0 - blend_wt) + warm_g * blend_wt
+        out_b = b0 * (1.0 - blend_wt) + warm_b * blend_wt
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Skin subsurface scatter pass complete.")
