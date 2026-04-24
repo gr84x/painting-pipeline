@@ -39463,3 +39463,276 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Luminance gradient warmth pass complete.")
+
+    def bloemaert_pastoral_iridescence_pass(
+        self,
+        hf_sigma: float = 2.0,
+        threshold: float = 0.04,
+        warm_r: float = 0.05,
+        warm_g: float = 0.02,
+        cool_b: float = 0.06,
+        cool_r_reduce: float = 0.03,
+        luma_lo: float = 0.10,
+        luma_hi: float = 0.90,
+        opacity: float = 0.45,
+    ) -> None:
+        """High-frequency chromatic oscillation — SIXTY-THIRD DISTINCT MODE.
+
+        Implements Abraham Bloemaert's characteristic fine chromatic iridescence:
+        at the scale of individual brushstrokes, warm and cool tones vibrate
+        against each other — warm amber in the high-frequency impasto peaks,
+        cool blue-violet in the recessed inter-stroke troughs.
+
+        This is the SIXTY-THIRD DISTINCT MODE: HIGH-FREQUENCY CHROMATIC
+        OSCILLATION VIA SIGNED RESIDUAL POLARITY GATING.
+
+        The key novelty is using the SIGN (polarity) of the high-frequency
+        luminance residual as a warm/cool switch.  Unlike ALL prior passes:
+        - Laplacian pyramid pass (s124 Stanzione) decomposes frequency bands
+          but applies tonal sculpting, not chromatic warm/cool switching.
+        - Chromatic fringe pass (s156) uses Sobel MAGNITUDE (unsigned) to
+          apply prismatic warm/cool fringe symmetrically at edges.
+        - Luminance gradient warmth pass (s170) uses Sobel magnitude (unsigned)
+          for warm tinting only — no cool branch.
+        - This pass uses the SIGNED residual: positive HF → warm; negative HF →
+          cool.  The sign distinguishes impasto peaks from inter-stroke troughs,
+          producing a bidirectional warm/cool oscillation that no prior pass
+          achieves.
+
+        Algorithm:
+
+        (1) LOW-FREQUENCY BASE (Gaussian blur):
+            luma_lo = gaussian(luma, sigma=hf_sigma)
+
+        (2) HIGH-FREQUENCY RESIDUAL:
+            hf_residual = luma − luma_lo
+            Range is roughly [−0.5, +0.5] for a typical image.
+
+        (3) WARM GATE (HF peaks — impasto ridges):
+            warm_gate = clip((hf_residual − threshold) / threshold, 0, 1)
+            Activates where HF residual exceeds +threshold.
+
+        (4) COOL GATE (HF troughs — inter-stroke recesses):
+            cool_gate = clip((−hf_residual − threshold) / threshold, 0, 1)
+            Activates where HF residual falls below −threshold.
+
+        (5) LUMINANCE BELL GATE (protects extremes):
+            luma_gate = ramp_lo × ramp_hi
+
+        (6) CHROMATIC INJECTION:
+            out_r += warm_r × warm_gate × luma_gate
+            out_g += warm_g × warm_gate × luma_gate
+            out_b += cool_b × cool_gate × luma_gate
+            out_r −= cool_r_reduce × cool_gate × luma_gate
+
+        Composite at opacity.
+
+        SIXTY-THIRD DISTINCT MODE: novel because it is the ONLY pass to use
+        the SIGN/POLARITY of the high-frequency residual as a bidirectional
+        warm/cool chromatic switch.  Prior passes using HF data (Stanzione,
+        chromatic fringe, luminance gradient warmth) all work with unsigned
+        magnitude only.
+
+        Args:
+            hf_sigma       : Gaussian sigma for extracting low-frequency base. Default 2.0.
+            threshold      : Residual magnitude threshold to activate warm/cool gate. Default 0.04.
+            warm_r         : Warm R injection at HF peaks. Default 0.05.
+            warm_g         : Warm G injection at HF peaks. Default 0.02.
+            cool_b         : Cool B injection at HF troughs. Default 0.06.
+            cool_r_reduce  : R reduction at HF troughs. Default 0.03.
+            luma_lo        : Lower luminance bound of bell gate. Default 0.10.
+            luma_hi        : Upper luminance bound of bell gate. Default 0.90.
+            opacity        : Composite weight (0 = no-op). Default 0.45.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gaussian_filter
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Low-frequency base via Gaussian blur ──────────────────────
+        luma_base = _gaussian_filter(luma, sigma=float(hf_sigma))
+
+        # ── Step 2: High-frequency residual ──────────────────────────────────
+        hf_residual = luma - luma_base
+
+        # ── Step 3: Warm gate (positive HF peaks) ─────────────────────────────
+        thr = float(threshold) + 1e-6
+        warm_gate = _np.clip((hf_residual - float(threshold)) / thr, 0.0, 1.0)
+
+        # ── Step 4: Cool gate (negative HF troughs) ───────────────────────────
+        cool_gate = _np.clip((-hf_residual - float(threshold)) / thr, 0.0, 1.0)
+
+        # ── Step 5: Luminance bell gate ───────────────────────────────────────
+        lo, hi = float(luma_lo), float(luma_hi)
+        rng = hi - lo + 1e-6
+        luma_gate = (
+            _np.clip((luma - lo) / rng, 0.0, 1.0)
+            * _np.clip((hi - luma) / rng, 0.0, 1.0)
+        )
+
+        # ── Step 6: Chromatic injection ───────────────────────────────────────
+        wg = warm_gate * luma_gate
+        cg = cool_gate * luma_gate
+        out_r = _np.clip(r0 + float(warm_r) * wg - float(cool_r_reduce) * cg, 0.0, 1.0)
+        out_g = _np.clip(g0 + float(warm_g) * wg, 0.0, 1.0)
+        out_b = _np.clip(b0 + float(cool_b) * cg, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Bloemaert pastoral iridescence pass complete.")
+
+    # Session 171 — random improvement: chromatic_vignette_pass
+    # Radial chromatic vignette: darken + cool-shift periphery, simulating
+    # the way Renaissance/Baroque panels often show cool ground at canvas edges.
+
+    def chromatic_vignette_pass(
+        self,
+        radius: float = 0.75,
+        darken_strength: float = 0.30,
+        cool_b: float = 0.04,
+        cool_r_reduce: float = 0.02,
+        vig_gamma: float = 2.0,
+        luma_lo: float = 0.08,
+        opacity: float = 0.50,
+    ) -> None:
+        """Radial chromatic vignette darkening — SIXTY-FOURTH DISTINCT MODE.
+
+        Applies a radial vignette that simultaneously darkens and cool-shifts
+        the canvas periphery — simulating the characteristic edge behaviour of
+        Renaissance and Baroque panel paintings, where thin paint layers at the
+        canvas margin allow the cool ground to show through, and ambient occlusion
+        naturally darkens corners.
+
+        This is the SIXTY-FOURTH DISTINCT MODE: RADIAL CHROMATIC VIGNETTE —
+        COMBINED PERIPHERAL DARKENING WITH COOL TEMPERATURE SHIFT.
+
+        Unlike ALL prior radial/peripheral passes:
+        - peripheral_defocus_pass (s157) uses radial distance to weight a
+          Gaussian BLUR — it softens, it does not darken or colour-shift.
+        - schalcken_candlelight_glow_pass (s165) uses radial distance from a
+          specific light point for BRIGHTENING toward warm amber — inverse effect.
+        - No prior pass combines radial distance-from-center with simultaneous
+          luminance darkening AND chromatic temperature shift.
+
+        Algorithm:
+
+        (1) DISTANCE MAP (normalised to canvas half-diagonal):
+            cx = W / 2, cy = H / 2
+            dx = (x − cx) / (W / 2),  dy = (y − cy) / (H / 2)
+            dist = sqrt(dx² + dy²) / sqrt(2)    [0 at center, 1 at corner]
+
+        (2) VIGNETTE WEIGHT (power-curve ramp beyond radius):
+            vig_raw = clip((dist − radius) / (1.0 − radius + ε), 0, 1)
+            vig_weight = vig_raw ^ vig_gamma
+            Zero inside radius; ramps to 1 at corners.
+
+        (3) LUMA PROTECTION GATE (avoid crushing near-black pixels):
+            luma_gate = clip((luma − luma_lo) / (1.0 − luma_lo + ε), 0, 1)
+
+        (4) DARKENING:
+            darken_factor = 1.0 − darken_strength × vig_weight × luma_gate
+            out_rgb = in_rgb × darken_factor
+
+        (5) COOL SHIFT:
+            out_b += cool_b × vig_weight × luma_gate
+            out_r −= cool_r_reduce × vig_weight × luma_gate
+
+        Composite at opacity.
+
+        SIXTY-FOURTH DISTINCT MODE: novel because it is the ONLY pass to
+        combine radial distance-from-center with BOTH luminance darkening AND
+        chromatic cool-temperature shift simultaneously.  Prior peripheral
+        passes either blur only, or apply a warm brightening spotlight (inverse
+        direction), never this combination.
+
+        Args:
+            radius          : Normalised radius (0–1) at which vignette begins. Default 0.75.
+            darken_strength : Maximum darkening fraction at canvas corners. Default 0.30.
+            cool_b          : Blue channel boost at periphery. Default 0.04.
+            cool_r_reduce   : Red channel reduction at periphery. Default 0.02.
+            vig_gamma       : Power curve on vignette weight (higher = sharper falloff). Default 2.0.
+            luma_lo         : Lower luma bound — near-black pixels spared from darkening. Default 0.08.
+            opacity         : Composite weight (0 = no-op). Default 0.50.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Normalised distance map from canvas centre ────────────────
+        ys = _np.linspace(-1.0, 1.0, H, dtype=_np.float32)
+        xs = _np.linspace(-1.0, 1.0, W, dtype=_np.float32)
+        xg, yg = _np.meshgrid(xs, ys)
+        dist = _np.sqrt(xg * xg + yg * yg) / (_np.sqrt(2.0) + 1e-6)
+        dist = _np.clip(dist, 0.0, 1.0)
+
+        # ── Step 2: Vignette weight ramp beyond radius ────────────────────────
+        rad = float(radius)
+        outer_range = max(1.0 - rad, 1e-6)
+        vig_raw = _np.clip((dist - rad) / outer_range, 0.0, 1.0)
+        vig_weight = vig_raw ** float(vig_gamma)
+
+        # ── Step 3: Luma protection gate ──────────────────────────────────────
+        lo = float(luma_lo)
+        luma_gate = _np.clip((luma - lo) / (1.0 - lo + 1e-6), 0.0, 1.0)
+
+        combined = vig_weight * luma_gate
+
+        # ── Step 4: Darkening ─────────────────────────────────────────────────
+        darken_factor = _np.clip(1.0 - float(darken_strength) * combined, 0.0, 1.0)
+        out_r = _np.clip(r0 * darken_factor, 0.0, 1.0)
+        out_g = _np.clip(g0 * darken_factor, 0.0, 1.0)
+        out_b = _np.clip(b0 * darken_factor, 0.0, 1.0)
+
+        # ── Step 5: Cool shift at periphery ───────────────────────────────────
+        out_r = _np.clip(out_r - float(cool_r_reduce) * combined, 0.0, 1.0)
+        out_b = _np.clip(out_b + float(cool_b) * combined, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Chromatic vignette pass complete.")

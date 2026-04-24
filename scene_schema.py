@@ -335,6 +335,7 @@ class Period(Enum):
     DUTCH_MANNERIST       = auto()  # Joachim Wtewael — oil on copper jewel precision; vivid carmine/cadmium/ultramarine palette; Mannerist elongation; no atmospheric depth; distance-invariant saturation; copper-red shadow warmth
     DANUBE_SCHOOL         = auto()  # Albrecht Altdorfer — atmospheric vertical depth layering; pale chalk gesso; forest blue-green mid-distance; amber-umber earth; twilight nocturne palette; Romantic landscape pioneers
     DELFT_SCHOOL          = auto()  # Carel Fabritius — inverted tenebrism; pale warm ground; figure dark-against-light; ambient diffuse luminosity; Rembrandt-to-Vermeer bridge; restrained palette
+    UTRECHT_MANNERIST     = auto()  # Abraham Bloemaert — high-frequency chromatic oscillation; warm HF peaks / cool HF troughs; pastoral warmth; late Mannerist iridescence; Utrecht School founder
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1694,6 +1695,9 @@ class Style:
             # DELFT_SCHOOL (Carel Fabritius) — pale warm ground; moderate-high blending (Vermeer-adjacent smoothness);
             # moderate edge_softness; controlled brushwork; ambient diffuse light, no dramatic spotlight.
             Period.DELFT_SCHOOL: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.70, edge_softness=0.52),
+            # UTRECHT_MANNERIST (Abraham Bloemaert) — late Mannerist precision bridging to Baroque; moderate blending;
+            # moderate edge_softness (crisper than pure sfumato; softer than Dutch Mannerist copper).
+            Period.UTRECHT_MANNERIST: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.45, edge_softness=0.40),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

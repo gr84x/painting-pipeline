@@ -173,6 +173,7 @@ EXPECTED_ARTISTS = [
     "joachim_wtewael",
     "albrecht_altdorfer",
     "carel_fabritius",
+    "abraham_bloemaert",
 ]
 
 
@@ -379,6 +380,7 @@ EXPECTED_PERIODS = [
     "DUTCH_MANNERIST",
     "DANUBE_SCHOOL",
     "DELFT_SCHOOL",
+    "UTRECHT_MANNERIST",
 ]
 
 
@@ -23302,3 +23304,226 @@ def test_luminance_gradient_warmth_pass_adds_warmth():
     assert rb_diff_after >= rb_diff_before, (
         f"Gradient warmth pass should increase R-B separation; "
         f"before={rb_diff_before:.2f}, after={rb_diff_after:.2f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# abraham_bloemaert — session 171 artist
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_abraham_bloemaert_s171_in_catalog():
+    """Abraham Bloemaert (session 171) must be present in CATALOG."""
+    assert "abraham_bloemaert" in CATALOG, "abraham_bloemaert missing from CATALOG"
+
+
+def test_abraham_bloemaert_s171_artist_name():
+    """Artist name must be Abraham Bloemaert."""
+    s = get_style("abraham_bloemaert")
+    assert "Bloemaert" in s.artist
+
+
+def test_abraham_bloemaert_s171_movement():
+    """Movement must reference Utrecht Mannerism."""
+    s = get_style("abraham_bloemaert")
+    assert "Utrecht" in s.movement or "utrecht" in s.movement.lower(), (
+        f"Bloemaert movement should reference Utrecht; got {s.movement!r}")
+
+
+def test_abraham_bloemaert_s171_palette_length():
+    """Palette must have at least 5 entries."""
+    s = get_style("abraham_bloemaert")
+    assert len(s.palette) >= 5
+
+
+def test_abraham_bloemaert_s171_palette_in_range():
+    """All Bloemaert palette RGB values must be in [0, 1]."""
+    s = get_style("abraham_bloemaert")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range channel {ch} in palette {rgb}"
+
+
+def test_abraham_bloemaert_s171_wet_blend():
+    """wet_blend must be in the moderate range [0.35, 0.60]."""
+    s = get_style("abraham_bloemaert")
+    assert 0.35 <= s.wet_blend <= 0.60, (
+        f"Bloemaert wet_blend should be 0.35–0.60; got {s.wet_blend}")
+
+
+def test_abraham_bloemaert_s171_inspiration_references_iridescence_pass():
+    """Inspiration must reference bloemaert_pastoral_iridescence_pass."""
+    s = get_style("abraham_bloemaert")
+    assert "bloemaert_pastoral_iridescence_pass" in s.inspiration, (
+        "Bloemaert inspiration must reference bloemaert_pastoral_iridescence_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# UTRECHT_MANNERIST Period — session 171
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_utrecht_mannerist_period_present():
+    """UTRECHT_MANNERIST (session 171) must exist in Period enum."""
+    assert hasattr(Period, "UTRECHT_MANNERIST"), "Period.UTRECHT_MANNERIST not found"
+    assert Period.UTRECHT_MANNERIST in list(Period)
+
+
+def test_utrecht_mannerist_stroke_params():
+    """UTRECHT_MANNERIST stroke params must reflect Bloemaert's moderate Mannerist style."""
+    style = Style(medium=Medium.OIL, period=Period.UTRECHT_MANNERIST, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"] > 0
+    assert 0.0 <= params["wet_blend"] <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+    assert params["wet_blend"] >= 0.35, "Utrecht Mannerist uses moderate wet_blend"
+    assert params["edge_softness"] >= 0.30, "Utrecht Mannerist uses moderate edge_softness"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# bloemaert_pastoral_iridescence_pass — session 171 new rendering mode
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bloemaert_pastoral_iridescence_pass_runs():
+    """bloemaert_pastoral_iridescence_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.32), texture_strength=0.0)
+    p.bloemaert_pastoral_iridescence_pass(opacity=0.45)
+
+
+def test_bloemaert_pastoral_iridescence_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.32), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.bloemaert_pastoral_iridescence_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_bloemaert_pastoral_iridescence_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.38), texture_strength=0.0)
+    p.bloemaert_pastoral_iridescence_pass(
+        warm_r=0.20, warm_g=0.10, cool_b=0.20, cool_r_reduce=0.15, opacity=1.0
+    )
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_bloemaert_pastoral_iridescence_pass_modifies_canvas():
+    """Pass with non-zero opacity and threshold=0 must change at least some pixels."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.35), texture_strength=0.35)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    # Use threshold=0.0 so that any HF residual activates the warm/cool gates
+    p.bloemaert_pastoral_iridescence_pass(threshold=0.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), "Pass should modify canvas"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# chromatic_vignette_pass — session 171 random artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_chromatic_vignette_pass_runs():
+    """chromatic_vignette_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    p.chromatic_vignette_pass(opacity=0.50)
+
+
+def test_chromatic_vignette_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chromatic_vignette_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_chromatic_vignette_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.55, 0.45), texture_strength=0.0)
+    p.chromatic_vignette_pass(darken_strength=0.80, cool_b=0.20, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_chromatic_vignette_pass_darkens_corners():
+    """Corners should have lower mean luminance than center after the pass."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.65, 0.55), texture_strength=0.0)
+    p.chromatic_vignette_pass(
+        radius=0.40, darken_strength=0.60, opacity=1.0
+    )
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+
+    r = buf[:, :, 2].astype(np.float32) / 255.0
+    g = buf[:, :, 1].astype(np.float32) / 255.0
+    b = buf[:, :, 0].astype(np.float32) / 255.0
+    luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    center_luma = luma[28:36, 28:36].mean()
+    corner_luma = np.array([
+        luma[:8, :8].mean(),
+        luma[:8, -8:].mean(),
+        luma[-8:, :8].mean(),
+        luma[-8:, -8:].mean(),
+    ]).mean()
+
+    assert corner_luma < center_luma, (
+        f"Vignette pass should darken corners vs center; "
+        f"center={center_luma:.4f}, corners={corner_luma:.4f}")
+
+
+def test_chromatic_vignette_pass_cools_periphery():
+    """Periphery should show increased B-channel relative to center after pass."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.60, 0.45), texture_strength=0.0)
+    p.chromatic_vignette_pass(
+        radius=0.30, cool_b=0.15, darken_strength=0.10, opacity=1.0
+    )
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+
+    b_center = buf[28:36, 28:36, 0].astype(np.float32).mean()
+    b_corner = np.array([
+        buf[:6, :6, 0].astype(np.float32).mean(),
+        buf[:6, -6:, 0].astype(np.float32).mean(),
+        buf[-6:, :6, 0].astype(np.float32).mean(),
+        buf[-6:, -6:, 0].astype(np.float32).mean(),
+    ]).mean()
+
+    assert b_corner >= b_center, (
+        f"Chromatic vignette should increase B at corners vs center; "
+        f"center_B={b_center:.2f}, corner_B={b_corner:.2f}")

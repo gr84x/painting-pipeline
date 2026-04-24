@@ -14866,6 +14866,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "abraham_bloemaert": ArtStyle(
+        artist="Abraham Bloemaert",
+        movement="Utrecht Mannerism / Dutch Late Mannerist",
+        nationality="Dutch",
+        period="1566-1651",
+        palette=[
+            (0.72, 0.54, 0.24),  # warm amber gold — characteristic Bloemaert foreground warmth
+            (0.28, 0.38, 0.52),  # muted slate blue — cool distance recession
+            (0.65, 0.32, 0.18),  # burnt sienna — terracotta pastoral ground
+            (0.85, 0.75, 0.55),  # pale cream ivory — flesh highlight
+            (0.30, 0.45, 0.28),  # sage green — pastoral landscape foliage
+            (0.18, 0.14, 0.10),  # deep warm umber — void shadow
+            (0.78, 0.62, 0.42),  # warm ochre mid — Mannerist drapery gold
+        ],
+        ground_color=(0.62, 0.52, 0.35),
+        stroke_size=1.6,
+        wet_blend=0.45,
+        edge_softness=0.40,
+        jitter=0.10,
+        glazing=(0.78, 0.72, 0.52),
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Abraham Bloemaert (1566–1651) was the founding patriarch of the Utrecht "
+            "School and one of the longest-lived figures of the Dutch Golden Age — his "
+            "career spanning sixty years from late Mannerism through the full flowering "
+            "of Baroque naturalism.  He trained several of the great Utrecht Caravaggists "
+            "(Hendrick ter Brugghen, Gerrit van Honthorst, Dirck van Baburen) yet his "
+            "own style remained stubbornly Mannerist throughout: he never adopted the "
+            "hard tenebrism of his pupils, preferring instead a warm pastoral luminosity "
+            "with elegant elongated figures and richly detailed landscape backgrounds.\n\n"
+            "His technique is characterised by a warm buff imprimatura that unifies the "
+            "entire canvas with amber warmth before any colour is applied.  Over this he "
+            "builds form with transparent glazes — cool blue-grey in receding landscape "
+            "passages, warm amber-sienna in foreground figures — creating a natural "
+            "temperature recession without Caravaggesque drama.  His palette bridges "
+            "the jewel-tone intensity of Northern Mannerism (Wtewael, Goltzius) with a "
+            "new naturalistic warmth: burnt sienna robes, soft sage-green foliage, and "
+            "pale cream flesh are characteristic.\n\n"
+            "The defining optical property of Bloemaert's surfaces is a fine chromatic "
+            "oscillation: at the scale of individual brushstrokes, warm and cool tones "
+            "vibrate against each other — warm amber in the high-frequency impasto peaks, "
+            "cool blue-violet in the recessed troughs between strokes.  This iridescence "
+            "is subtler than the hard simultaneous contrast of Wtewael's jewel-palette "
+            "but more structured than the sfumato dissolve of Leonardo; it gives Bloemaert "
+            "surfaces a flickering, silky quality unlike any other Utrecht painter.\n\n"
+            "His figure drawing shows the elongated grace of Spranger's Mannerism — "
+            "gestures are refined to near-impossible elegance — while his backgrounds "
+            "demonstrate extraordinary naturalistic skill: twisting trees, rocky outcrops, "
+            "figures at middle-distance, and atmospheric haze built up in thin cool glazes.  "
+            "Flesh is warm ivory with a healthy rose-amber flush; drapery is handled in "
+            "broad confident strokes with gestural impasto highlights."
+        ),
+        famous_works=[
+            ("The Wedding at Cana", "c. 1596"),
+            ("Landscape with the Flight into Egypt", "1563"),
+            ("Angelica and Medoro", "c. 1615"),
+            ("The Adoration of the Shepherds", "c. 1612"),
+            ("Moses Striking the Rock", "1596"),
+        ],
+        inspiration=(
+            "Use bloemaert_pastoral_iridescence_pass(): apply a high-frequency "
+            "chromatic oscillation by separating the image into low-frequency base "
+            "(Gaussian blur) and high-frequency residual (original − blur).  Where "
+            "the HF residual exceeds a positive threshold (impasto peak), inject warm "
+            "amber tinting (R+G+); where it falls below a negative threshold (inter-"
+            "stroke trough), inject cool blue tinting (B+R−).  Gate both effects with "
+            "a luminance bell-curve that protects near-black shadows and specular peaks.  "
+            "This replicates Bloemaert's characteristic silky iridescence — the warm/"
+            "cool oscillation visible at stroke-width scale across his pastoral surfaces.  "
+            "Pair with the warm buff imprimatura (ground_color) and pastoral sage-amber "
+            "palette to achieve the Utrecht Mannerist warmth."
+        ),
+    ),
+
 }
 
 
