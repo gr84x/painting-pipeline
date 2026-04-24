@@ -13536,6 +13536,103 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Jean-Baptiste Greuze ───────────────────────────────────────────────────
+    "jean_baptiste_greuze": ArtStyle(
+        artist="Jean-Baptiste Greuze",
+        movement="French Sentimentalism / Academic",
+        nationality="French",
+        period="1755–1805",
+        palette=[
+            (0.92, 0.76, 0.65),   # warm rose-ivory — lit flesh, the Greuze carnation highlight
+            (0.85, 0.65, 0.54),   # warm peach mid-flesh — upper cheek, brow
+            (0.78, 0.52, 0.44),   # warm rose shadow flesh — around eye, under chin
+            (0.62, 0.38, 0.30),   # muted rose-brown — deep flesh shadow, nostril
+            (0.42, 0.25, 0.18),   # warm umber — deep shadow, hair mass
+            (0.30, 0.18, 0.12),   # near-black brown — deepest recesses, eyelid
+            (0.88, 0.82, 0.70),   # warm cream — near-white highlight, specular point
+            (0.68, 0.28, 0.22),   # crimson — lip colour, ribbon accents
+        ],
+        ground_color=(0.82, 0.74, 0.58),    # warm cream-buff — 18th-century French prepared canvas
+        stroke_size=5,
+        wet_blend=0.82,                      # near-seamless Academic blending — the porcelain surface
+        edge_softness=0.65,                  # gentle dissolution — softer than Northern masters, firmer than Leonardo
+        jitter=0.018,
+        glazing=(0.86, 0.68, 0.50),          # warm amber-cream unifying glaze — French 18th-century varnish tone
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Greuze's technique is a highly refined Academic oil method producing a "
+            "porcelain-smooth surface with a distinctive warm rose-carnation quality "
+            "in the flesh mid-tones.  His 'têtes d'expression' — expression heads, "
+            "almost always of young women — deploy a precise tonal arc: a warm cream-"
+            "white at the specular highlight, a rose-carnation peak in the upper mid-"
+            "flesh, a warm peach mid-shadow, and a muted rose-brown in the deep "
+            "shadow recesses.  The transitions between these zones are seamless — "
+            "Greuze blends wet-into-wet with extreme care, producing a surface that "
+            "reads as smooth as fired porcelain when viewed from a distance.  The "
+            "dewy quality of his subjects' eyes is achieved by a specular pinpoint of "
+            "cool-white or pearl at the iris surface, contrasting with the warm amber "
+            "of the iris and the deep brown-black of the pupil.  His grounds are warm "
+            "cream or buff, allowing warm light to glow through his glazes.  He builds "
+            "form through multiple thin, seamlessly blended layers — closer to the "
+            "Flemish oil method than the alla prima gesture of Hals or the impasto of "
+            "Rubens.  The characteristic Greuze flesh is never heavy or dark: even in "
+            "shadow the tone retains warmth and transparency, as if backlit from within."
+        ),
+        famous_works=[
+            ("The Broken Pitcher",             "1771"),
+            ("Girl with Doves",                "c. 1800"),
+            ("A Young Woman Reading",          "c. 1776"),
+            ("Head of a Young Girl",           "c. 1760–1770"),
+            ("Innocence",                      "c. 1790"),
+            ("The Morning Prayer",             "c. 1780"),
+        ],
+        inspiration=(
+            "Use greuze_sentimental_carnation_pass() to apply the FORTY-SECOND "
+            "DISTINCT MODE: SENTIMENTAL CARNATION GLOW — WARM ROSE-FLESH + COOL "
+            "DEWY PEARL SHIMMER.  Two-gate luminance system:  "
+            "(A) Carnation gate [carn_lo, carn_hi]: smooth bump centred on mid-flesh. "
+            "Apply warm rose tint: out_r = clip(r + carn_r × gate, 0, 1); "
+            "out_g = clip(g + carn_g × gate, 0, 1); out_b = clip(b − carn_b × gate, 0, 1).  "
+            "Direction: R+ G+ B− = rose-carnation (distinct from warm amber R+ G+ B0 and "
+            "from cool pearl R− G0 B+).  "
+            "(B) Dewy shimmer gate [dew_lo, dew_hi]: only at specular peak highlights. "
+            "Apply cool-pearl moisture: out_b = clip(b + dew_b × gate, 0, 1); "
+            "out_r = clip(r − dew_r × gate, 0, 1).  Direction: B+ R− = cool-pearl. "
+            "Composite at opacity.  "
+            "Distinct from giampietrino_warm_devotion_pass (hi gate [0.55, 0.88] applies "
+            "AMBER R+G+ with no B manipulation; shad gate [0.05, 0.42] applies VIOLET B+R−; "
+            "no dewy shimmer separate zone; amber ≠ rose-carnation in hue direction — "
+            "amber pushes toward yellow, carnation pushes toward red-rose).  "
+            "Distinct from furini_moonlit_sfumato_pass (highlights only [0.55, 0.92]; "
+            "applies COOL SILVER B+ R− only — pure cool toning with no warm mid-flesh "
+            "carnation component; Greuze's pass is bipartite: warm rose lower + cool "
+            "pearl upper).  "
+            "Distinct from beccafumi_nacreous_glow_pass (Gaussian BLOOM DIFFERENCE "
+            "determines warm/cool zones — sign of bloom-orig varies with surface convexity; "
+            "spatial rather than luminance-threshold gating).  "
+            "Distinct from bartolomeo_veneto_jewel_brocade_pass (HUE-PROXY detection "
+            "via blue_proxy = B−max(R,G) and gold_proxy = R−B; applies to fabric/brocade "
+            "hue zones regardless of luminance; not a flesh-toning pass).  "
+            "Use edge_sfumato_dissolution_pass() for the artistic improvement: FORTY-THIRD "
+            "DISTINCT MODE: GRADIENT-SELECTIVE EDGE DISSOLUTION — SFUMATO AT FORM BOUNDARIES.  "
+            "Compute per-channel Sobel gradient magnitude: for each channel c, "
+            "gx = horizontal Sobel (kernel [-1,0,1;-2,0,2;-1,0,1]); gy = vertical Sobel; "
+            "grad_c = sqrt(gx² + gy²); grad_mag = mean(grad_r, grad_g, grad_b).  "
+            "Normalize: grad_norm = clip(grad_mag / grad_threshold, 0, 1).  "
+            "Build edge weight: edge_wt = grad_norm^edge_power × edge_strength.  "
+            "Apply full-canvas Gaussian blur (sigma=blur_sigma).  "
+            "Per-pixel blend: out_ch = orig_ch × (1 − edge_wt) + blurred_ch × edge_wt.  "
+            "Composite at opacity.  Distinct from penumbra_softening_pass (uses "
+            "LUMA gate × Sobel magnitude — only dissolves edges within a specific luminance "
+            "range [pen_lo, pen_hi]; this pass dissolves ALL high-gradient edges regardless "
+            "of luminance level).  Distinct from peripheral_defocus_pass (RADIAL GEOMETRY — "
+            "blur increases with distance from canvas centre; no gradient detection; "
+            "position-driven not gradient-driven).  Distinct from atmospheric_depth_gradient_pass "
+            "(vertical linear temperature gradient; no spatial blurring; no gradient detection)."
+        ),
+    ),
+
 }
 
 

@@ -36555,3 +36555,284 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Peripheral defocus pass complete.")
+
+    # Session 158 — Greuze (Jean-Baptiste Greuze, 1725–1805): greuze_sentimental_carnation_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def greuze_sentimental_carnation_pass(
+        self,
+        carn_lo:    float = 0.38,   # lower bound of carnation mid-flesh gate
+        carn_hi:    float = 0.80,   # upper bound of carnation mid-flesh gate
+        carn_r:     float = 0.048,  # warm rose-carnation R lift in flesh zone
+        carn_g:     float = 0.012,  # gentle G lift (keeps flesh warm, not purely red)
+        carn_b:     float = 0.022,  # B reduction in flesh zone (completes rose-carnation direction)
+        dew_lo:     float = 0.82,   # lower bound of dewy peak-highlight gate
+        dew_hi:     float = 1.00,   # upper bound of dewy peak-highlight gate
+        dew_b:      float = 0.030,  # cool-pearl B lift at specular peaks (dewy moisture)
+        dew_r:      float = 0.012,  # R reduction at specular peaks (ensures pearl not yellow)
+        opacity:    float = 0.30,
+    ) -> None:
+        """Sentimental carnation glow — FORTY-SECOND DISTINCT MODE.
+
+        Jean-Baptiste Greuze (1725–1805) is the supreme practitioner of the
+        'tête d'expression' — the sentimental expression head, almost always of
+        a young woman rendered with extraordinary emotional immediacy.  His flesh
+        tones deploy a distinctive TWO-REGISTER colour system that no other painter
+        in the French Academic tradition replicates exactly:
+
+          1. WARM ROSE-CARNATION in the mid-flesh zone [0.38–0.80 luminance]:
+             Not the amber-honey of Venetian painters, not the ivory-cool of the
+             Northern masters, but a French rose — a warm reddish-pink flush as if
+             warm blood were visible beneath translucent skin.  Greuze amplifies
+             the R channel and slightly boosts G (to stay in rose rather than pure
+             red) while reducing B slightly (to push toward rose rather than neutral
+             warm).
+
+          2. COOL-PEARL DEWY SHIMMER at the specular peak [0.82–1.0 luminance]:
+             The characteristic 'dewy' quality of Greuze's eyes, lips, and forehead
+             highlights.  At the very brightest point — where a specular highlight
+             catches — he applies a cool-pearl tone (B+, R−) that makes the surface
+             read as moist, luminous, and alive.  This is distinct from golden warm
+             highlights (Venetian) and from silver highlights (Reni, Northern):
+             Greuze's peak is cool-white with a faint pearl-blue cast, as if the
+             surface is slightly wet.
+
+        The combination is Greuze's signature: warm-rose mid-flesh rising to a
+        cool-pearl specular tip — giving his subjects the impression of warm living
+        flesh capped by a cool, glistening surface.  No other painter in the catalog
+        applies BOTH a warm carnation lift to mid-tones AND a cool-pearl shimmer to
+        the specular peak as separate gated operations.
+
+        Algorithm — FORTY-SECOND DISTINCT MODE:
+        SENTIMENTAL CARNATION GLOW — WARM ROSE-FLESH + COOL DEWY PEARL SHIMMER.
+
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Carnation gate — smooth bump in [carn_lo, carn_hi]:
+            carn_f = (carn_lo + carn_hi) / 2
+            t_lo = clip((luma − carn_lo) / (carn_f − carn_lo), 0, 1)
+            t_hi = clip((carn_hi − luma) / (carn_hi − carn_f), 0, 1)
+            carn_gate = t_lo × t_hi
+        (3) Apply warm rose-carnation to mid-flesh:
+            out_r = clip(r + carn_r × carn_gate, 0, 1)
+            out_g = clip(g + carn_g × carn_gate, 0, 1)
+            out_b = clip(b − carn_b × carn_gate, 0, 1)
+        (4) Dewy shimmer gate — smooth bump in [dew_lo, dew_hi]:
+            dew_f = (dew_lo + dew_hi) / 2; analogous construction
+        (5) Apply cool-pearl dewy shimmer to specular peaks:
+            out_b = clip(out_b + dew_b × dew_gate, 0, 1)
+            out_r = clip(out_r − dew_r × dew_gate, 0, 1)
+        (6) Composite at opacity.
+
+        Distinct from giampietrino_warm_devotion_pass (hi gate [0.55, 0.88] applies
+          AMBER tint: R+G+, B untouched; shad gate [0.05, 0.42] applies VIOLET: B+R−;
+          amber differs from rose-carnation: amber pushes toward yellow (R+G+B0),
+          carnation pushes toward red-rose (R+G+small B−); no specular dewy zone in
+          Giampietrino's pass — it stops at hi_hi=0.88, well below specular peaks).
+        Distinct from furini_moonlit_sfumato_pass (HIGHLIGHTS ONLY in [0.55, 0.92];
+          applies COOL SILVER: B+, R− only — purely a cool-toning pass with zero warm
+          component; Greuze's pass has a WARM mid-flesh component which Furini lacks).
+        Distinct from beccafumi_nacreous_glow_pass (Gaussian BLOOM DIFFERENCE determines
+          warm/cool zone boundaries based on surface convexity sign; spatial rather than
+          fixed luminance-threshold gating; no rose-carnation hue direction).
+        Distinct from bartolomeo_veneto_jewel_brocade_pass (HUE-PROXY detection:
+          blue_proxy = clip(B−max(R,G),0,1); gold_proxy = clip(R−B,0,1)×clip(G−B×0.5,0,1);
+          applies to hue-specific fabric/brocade zones regardless of luminance level;
+          not a flesh-toning pass and has no dewy shimmer zone).
+
+        Args:
+            carn_lo/carn_hi : Luminance range of the warm rose-carnation gate.
+            carn_r          : R lift in carnation zone (the primary rose push).
+            carn_g          : G lift in carnation zone (keeps rose warm, not pure red).
+            carn_b          : B reduction in carnation zone (completes rose-carnation direction).
+            dew_lo/dew_hi   : Luminance range of the cool-pearl dewy shimmer gate.
+            dew_b           : B lift at specular peaks (the pearl-moisture effect).
+            dew_r           : R reduction at specular peaks (ensures pearl not warm-white).
+            opacity         : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Carnation gate — smooth bump in [carn_lo, carn_hi] ────────
+        carn_f   = (carn_lo + carn_hi) * 0.5
+        c_dlo    = max(float(carn_f - carn_lo), 1e-6)
+        c_dhi    = max(float(carn_hi - carn_f),  1e-6)
+        c_t_lo   = _np.clip((luma - carn_lo) / c_dlo,  0.0, 1.0)
+        c_t_hi   = _np.clip((carn_hi - luma)  / c_dhi, 0.0, 1.0)
+        carn_gate = (c_t_lo * c_t_hi).astype(_np.float32)
+
+        # ── Step 3: Apply warm rose-carnation to mid-flesh ────────────────────
+        out_r = _np.clip(r0 + carn_r * carn_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + carn_g * carn_gate, 0.0, 1.0)
+        out_b = _np.clip(b0 - carn_b * carn_gate, 0.0, 1.0)
+
+        # ── Step 4: Dewy shimmer gate — smooth bump in [dew_lo, dew_hi] ──────
+        dew_f   = (dew_lo + dew_hi) * 0.5
+        d_dlo   = max(float(dew_f - dew_lo), 1e-6)
+        d_dhi   = max(float(dew_hi - dew_f),  1e-6)
+        d_t_lo  = _np.clip((luma - dew_lo) / d_dlo,  0.0, 1.0)
+        d_t_hi  = _np.clip((dew_hi - luma)  / d_dhi, 0.0, 1.0)
+        dew_gate = (d_t_lo * d_t_hi).astype(_np.float32)
+
+        # ── Step 5: Apply cool-pearl dewy shimmer to specular peaks ───────────
+        out_b = _np.clip(out_b + dew_b * dew_gate, 0.0, 1.0)
+        out_r = _np.clip(out_r - dew_r * dew_gate, 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Greuze sentimental carnation pass complete.")
+
+    # Session 158 — random improvement: edge_sfumato_dissolution_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def edge_sfumato_dissolution_pass(
+        self,
+        grad_threshold: float = 0.10,  # gradient magnitude above which sfumato begins
+        edge_power:     float = 1.5,   # exponent shaping gradient-to-dissolution mapping
+        edge_strength:  float = 0.70,  # maximum dissolution fraction at steepest edges
+        blur_sigma:     float = 2.5,   # Gaussian blur sigma applied to edge zones
+        opacity:        float = 0.35,
+    ) -> None:
+        """Gradient-selective edge dissolution — FORTY-THIRD DISTINCT MODE.
+
+        Sfumato is not a global haze.  In Leonardo's practice — and in the work
+        of his followers in the Lombard and Florentine schools — sfumato is applied
+        SPECIFICALLY at the boundaries where one form meets another: the edge of
+        the cheek where it meets the shadow of the neck, the lid-margin where the
+        eyelid dissolves into the shadowed socket, the hairline where dark hair
+        meets the pale brow.  The interior of the cheek, by contrast, is smooth
+        and well-defined; the sfumato is a BOUNDARY PHENOMENON, not a surface one.
+
+        This pass encodes that insight as the FORTY-THIRD DISTINCT MODE:
+        GRADIENT-SELECTIVE EDGE DISSOLUTION — SFUMATO AT FORM BOUNDARIES.
+
+        The algorithm uses the Sobel gradient magnitude as a proxy for 'edge strength'.
+        Where the gradient is high, the image is locally sharp — a form boundary is
+        present.  The pass selectively blurs those high-gradient zones, dissolving
+        them into the surrounding tones exactly as Leonardo's successive glazes
+        dissolved the contour of the Mona Lisa's lips into the surrounding flesh.
+        Low-gradient zones (smooth interior flesh, open sky) are left unchanged.
+
+        Algorithm:
+        (1) Read canvas as float32 RGB in [0, 1].
+        (2) Compute per-channel Sobel gradient:
+            Gx kernel = [[-1,0,1],[-2,0,2],[-1,0,1]] (horizontal edges)
+            Gy kernel = [[-1,-2,-1],[0,0,0],[1,2,1]]  (vertical edges)
+            For each channel c: grad_c = sqrt(convolve(c, Gx)² + convolve(c, Gy)²)
+            grad_mag = (grad_r + grad_g + grad_b) / 3.0
+        (3) Normalise: grad_norm = clip(grad_mag / grad_threshold, 0, 1)
+        (4) Edge dissolution weight:
+            edge_wt = grad_norm^edge_power × edge_strength
+        (5) Apply full-canvas Gaussian blur (sigma = blur_sigma) per channel.
+        (6) Per-pixel blend at each position:
+            out_ch = orig_ch × (1 − edge_wt) + blurred_ch × edge_wt
+        (7) Composite at opacity.
+
+        Distinct from penumbra_softening_pass (uses LUMA gate × Sobel magnitude:
+          only dissolves edges WITHIN a specific luminance range [pen_lo, pen_hi];
+          high-gradient edges in highlights or deep shadows are NOT softened; this
+          pass dissolves ALL high-gradient edges regardless of luminance zone).
+        Distinct from peripheral_defocus_pass (RADIAL GEOMETRY: blur weight increases
+          with distance from canvas centre regardless of local gradient content;
+          low-gradient peripheral pixels are blurred; high-gradient central pixels
+          are not; this pass is purely gradient-driven, not position-driven).
+        Distinct from atmospheric_depth_gradient_pass (vertical linear temperature
+          gradient applied as a colour shift, no spatial blurring, no gradient
+          detection — purely a tonal warming/cooling operation along the Y axis).
+
+        Args:
+            grad_threshold : Gradient magnitude (0–1 scale) at which dissolution
+                             reaches full strength.  Smaller values dissolve even
+                             subtle edges; larger values only dissolve sharp contours.
+            edge_power     : Exponent applied to grad_norm before scaling by
+                             edge_strength.  Higher values restrict dissolution to
+                             only the sharpest edges.
+            edge_strength  : Maximum blend fraction toward blurred image at the
+                             steepest gradient positions.
+            blur_sigma     : Gaussian sigma for the edge-dissolution kernel.  Larger
+                             values produce a wider, more sfumato-like softening.
+            opacity        : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, convolve as _convolve
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Sobel kernels ─────────────────────────────────────────────
+        Kx = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        Ky = _np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=_np.float32)
+
+        # ── Step 2: Per-channel gradient magnitude ────────────────────────────
+        def _grad_mag(ch: "_np.ndarray") -> "_np.ndarray":
+            gx = _convolve(ch, Kx, mode="reflect").astype(_np.float32)
+            gy = _convolve(ch, Ky, mode="reflect").astype(_np.float32)
+            return _np.sqrt(gx * gx + gy * gy)
+
+        grad_r   = _grad_mag(r0)
+        grad_g   = _grad_mag(g0)
+        grad_b   = _grad_mag(b0)
+        grad_mag = ((grad_r + grad_g + grad_b) / 3.0).astype(_np.float32)
+
+        # ── Step 3: Normalise gradient ────────────────────────────────────────
+        grad_norm = _np.clip(grad_mag / max(float(grad_threshold), 1e-6), 0.0, 1.0)
+
+        # ── Step 4: Edge dissolution weight ───────────────────────────────────
+        edge_wt = (grad_norm ** edge_power * edge_strength).astype(_np.float32)
+
+        # ── Step 5: Full-canvas Gaussian blur ─────────────────────────────────
+        blur_r = _gf(r0, sigma=blur_sigma).astype(_np.float32)
+        blur_g = _gf(g0, sigma=blur_sigma).astype(_np.float32)
+        blur_b = _gf(b0, sigma=blur_sigma).astype(_np.float32)
+
+        # ── Step 6: Per-pixel blend — dissolve edges into surrounding tone ────
+        out_r = r0 * (1.0 - edge_wt) + blur_r * edge_wt
+        out_g = g0 * (1.0 - edge_wt) + blur_g * edge_wt
+        out_b = b0 * (1.0 - edge_wt) + blur_b * edge_wt
+
+        # ── Step 7: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Edge sfumato dissolution pass complete.")

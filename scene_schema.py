@@ -323,6 +323,7 @@ class Period(Enum):
     UMBRIAN_ROMAN_ILLUSIONISM       = auto()  # Melozzo da Forlì — overhead zenith radiance; top-of-form warm lift via vertical position × midtone gate; under-surface cool shadow; architectural illusionistic ceiling light
     INTERNATIONAL_GOTHIC = auto()  # Gentile da Fabriano — tooled-gold ground; flat jewel-tone pigment zones; crisp Gothic contour; tempera hatching; punched gold halos; sumptuous brocade surface
     MILANESE_LEONARDESQUE_DEVOTION = auto()  # Giampietrino — warm honey-amber highlight tinting + cool violet shadow deepening; seamless Leonardesque multi-glaze sfumato; sweet idealized Milanese devotional warmth
+    FRENCH_SENTIMENTALIST = auto()  # Greuze — warm rose-carnation sentimental flush in mid-flesh; cool-pearl dewy moisture shimmer at specular peaks; smooth Academic blending; luminous peach-cream skin
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1616,6 +1617,15 @@ class Style:
             # wet_blend=0.75: high — multi-layer glazing over brown ground; very smooth, nearly invisible marks.
             # edge_softness=0.78: very soft sfumato — figures emerge from warm brown ground without hard line.
             Period.MILANESE_LEONARDESQUE_DEVOTION: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.75, edge_softness=0.78),
+            # FRENCH_SENTIMENTALIST (Greuze) — smooth Academic oil on canvas, 18th-century French enamel finish.
+            # stroke_size_face=5: small but not microscopic — finer than Hals, coarser than Gerrit Dou;
+            # the Academic flesh is blended, not hatched, so individual marks are dissolved into the surface.
+            # stroke_size_bg=20: neutral backgrounds allow the sentimental figure to read unimpeded.
+            # wet_blend=0.82: very high — Greuze's porcelain-smooth surface requires almost seamless blending;
+            # this is close to Academic Bouguereau (0.90) but retains slightly more surface vitality.
+            # edge_softness=0.65: moderate sfumato — softer than Northern masters, firmer than Leonardo;
+            # Greuze's figures have gently dissolved edges but not the radical sfumato of the Leonardeschi.
+            Period.FRENCH_SENTIMENTALIST: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.82, edge_softness=0.65),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
