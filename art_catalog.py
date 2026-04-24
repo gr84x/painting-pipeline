@@ -13004,6 +13004,109 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Francesco Furini ─────────────────────────────────────────────────────
+    "furini": ArtStyle(
+        artist="Francesco Furini",
+        movement="Florentine Baroque Sfumato",
+        nationality="Italian (Florentine)",
+        period="c. 1603\u20131646",
+        palette=[
+            (0.94, 0.88, 0.76),   # cool ivory-silver lit flesh highlight (moonlit luminosity)
+            (0.84, 0.72, 0.55),   # warm ivory mid-flesh (Florentine warm underpainting shows through)
+            (0.62, 0.46, 0.28),   # warm sienna mid-shadow (Florentine warm imprimatura)
+            (0.28, 0.16, 0.08),   # deep warm umber shadow void
+            (0.86, 0.80, 0.68),   # pale cool-ivory flesh at extreme highlight (moonlit silver)
+            (0.40, 0.28, 0.16),   # warm brown earth underpainting tone (imprimatura bleed)
+            (0.66, 0.58, 0.72),   # soft cool violet-grey in reflected shadow (coolest darks)
+            (0.18, 0.12, 0.06),   # deepest shadow umber-black void
+        ],
+        ground_color=(0.30, 0.20, 0.10),    # warm umber-brown Florentine imprimatura
+        stroke_size=4,
+        wet_blend=0.90,                      # extreme blending — surface is virtually invisible
+        edge_softness=0.88,                  # maximum sfumato — forms melt at periphery
+        jitter=0.010,                        # minimal jitter — extreme refinement, no roughness
+        glazing=(0.80, 0.70, 0.52),          # warm amber-ivory unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Francesco Furini (c. 1603\u20131646) is the supreme master of FLORENTINE BAROQUE SFUMATO \u2014 a "
+            "refinement of Leonardo da Vinci's sfumato technique that pushes edge dissolution and "
+            "surface smoothness to their absolute extreme, combined with a signature COOL SILVERY "
+            "MOONLIT LUMINOSITY in the highlight zone that distinguishes Furini from every other "
+            "painter of the Florentine Baroque.  "
+            "Where Leonardo's sfumato dissolves edges gradually, Furini eliminates edges almost "
+            "entirely: his flesh passages are essentially edge-free, the forms emerging from deep "
+            "warm umber shadow through an almost imperceptible transition into cool ivory highlight. "
+            "A Furini painting looks, at first, like a photograph taken by moonlight \u2014 the skin "
+            "luminous, shadowless, seemingly lit from within by a cool silver radiance.  "
+            "His defining WARM-COOL OPPOSITION is the key to his style: the shadow zones are "
+            "painted over a warm umber imprimatura that bleeds through the glazes as warm amber-"
+            "brown, while the lit zones receive cool ivory-silver glazes that give his highlights "
+            "a distinctly lunar, nocturnal quality.  This is the opposite of Gaudenzio Ferrari's "
+            "warm-light system: Furini's highlights are cool, his shadows warm.  "
+            "He was trained in Florence under his father Filippo Furini and later Giovanni Bilivert, "
+            "absorbing the Florentine tradition of fine, invisible brushwork that descends from "
+            "Leonardo through Fra Bartolommeo.  After taking holy orders in 1633 as a priest of "
+            "San Miniato al Monte, he continued painting \u2014 most famously a series of voluptuous "
+            "female nudes (Hypatia, 1638; Lot and his Daughters, c. 1634) characterised by their "
+            "extraordinary surface refinement.  His palette is severely restricted: ivory, warm "
+            "sienna, deep umber, and a characteristic cool violet-grey in the deepest shadows, with "
+            "almost no saturated colour.  "
+            "The INVISIBLE BRUSHSTROKE is Furini's technical hallmark: under magnification his "
+            "flesh surfaces show virtually no visible mark-making, the glazes fused by tiny, "
+            "circular blending strokes until the paint film is optically smooth.  Contemporary "
+            "critics noted that he must have used his fingers or soft leather pads to blend the "
+            "final glazes.  This surface perfection, combined with his moonlit palette, gave his "
+            "work an otherworldly quality that influenced Florentine painters through the "
+            "mid-17th century."
+        ),
+        famous_works=[
+            ("Hypatia",                                          "1638"),
+            ("Lot and his Daughters",                            "c. 1634"),
+            ("Adam and Eve in the Garden of Eden",               "c. 1630"),
+            ("Judith with the Head of Holofernes",               "c. 1630"),
+            ("Suicide of Cleopatra",                             "c. 1640"),
+            ("Rinaldo and Armida",                               "c. 1640"),
+        ],
+        inspiration=(
+            "Use furini_moonlit_sfumato_pass() to apply the THIRTY-THIRD DISTINCT "
+            "MODE: HIGHLIGHT-ZONE COOL SILVER VEIL SCUMBLE.  Francesco Furini's "
+            "defining quality is a COOL SILVERY LUMINOSITY in the lit zones of his "
+            "figures that makes his flesh appear to be illuminated by moonlight rather "
+            "than candlelight.  Compute luminance (luma = 0.299R + 0.587G + 0.114B). "
+            "Apply highlight gate: smooth bump in [hi_lo=0.55, hi_hi=0.92] targeting "
+            "the lit surface zone.  Apply Gaussian smoothing (sigma=1.5) to the gate "
+            "itself to enforce Furini's imperceptible sfumato transitions.  Apply cool "
+            "silver tint weighted by gate \u00d7 cool_strength: R\u2212cool_r (de-warm the "
+            "highlight), G+cool_g (silver lift), B+cool_b (lunar blue-silver).  "
+            "Parameters: hi_lo=0.55, hi_hi=0.92, cool_b=0.030, cool_r=0.018, "
+            "cool_g=0.008, cool_strength=0.60, opacity=0.25.  "
+            "Distinct from beccafumi_nacreous_glow_pass (midtone gate [0.28, 0.78], "
+            "signed Gaussian bloom, warm AND cool split \u2014 iridescence, not moonlit silver). "
+            "Distinct from gossaert_pearl_crystalline_pass (separate highlight/shadow "
+            "zones, crystal USM, Flemish enamel quality \u2014 not Italian sfumato). "
+            "Distinct from ter_brugghen_raking_amber_pass (directional Sobel raking "
+            "light on ridges, warm amber not cool silver \u2014 Dutch Caravaggism not "
+            "Florentine sfumato).  "
+            "Use translucent_fabric_pass() for the artistic improvement: "
+            "EDGE-AWARE MID-TONE FABRIC TRANSPARENCY SIMULATION.  Thin "
+            "semi-transparent fabrics (veils, gauze wraps, translucent drapery) impose "
+            "their colour on the mid-luminance zones of the image while the underlying "
+            "surface remains partially visible through the fabric.  Compute luminance. "
+            "Build mid-tone drape gate: smooth bump in [fab_lo=0.30, fab_hi=0.72] "
+            "\u2014 fabric most visible in mid-tones; shadow absorbs it; bright highlights "
+            "pass through.  Compute Sobel gradient magnitude, normalise by 99th "
+            "percentile: edge_norm in [0,1].  Drape weight = gate_mid \u00d7 (1 \u2212 "
+            "edge_norm \u00d7 edge_factor=0.40) \u2014 fabric pools over flat smooth zones, "
+            "thins at sharp folds where fabric stretches.  Subtractive fabric blend: "
+            "fw = drape_weight \u00d7 fabric_opacity; out_ch = ch \u00d7 (1\u2212fw) + fabric_ch \u00d7 fw. "
+            "Apply Gaussian soft blur (sigma=0.8) to fabric layer.  Composite at "
+            "opacity=0.22.  Default fabric_color=(0.12, 0.18, 0.14) \u2014 dark "
+            "forest-green-black gauze.  Builds the translucent veil and gauze wrap "
+            "quality characteristic of Renaissance and Baroque portraiture."
+        ),
+    ),
+
     # ── Hendrick ter Brugghen ─────────────────────────────────────────────────
     "ter_brugghen": ArtStyle(
         artist="Hendrick ter Brugghen",

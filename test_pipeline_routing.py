@@ -15488,3 +15488,211 @@ def test_crivelli_ground_color_warm():
     r, g, b = style.ground_color
     assert r >= b, (
         f"crivelli ground_color should be warm (R >= B): R={r:.3f}, B={b:.3f}")
+
+
+# -- Session 153: Francesco Furini / FLORENTINE_BAROQUE_SFUMATO ---------------
+
+def test_furini_moonlit_sfumato_pass_exists():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    assert callable(getattr(p, "furini_moonlit_sfumato_pass", None))
+
+
+def test_furini_moonlit_sfumato_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.48, 0.35), texture_strength=0.20)
+    p.furini_moonlit_sfumato_pass()
+
+
+def test_furini_moonlit_sfumato_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.48, 0.35), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.furini_moonlit_sfumato_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+
+def test_furini_moonlit_sfumato_pass_modifies_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.48, 0.35), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.furini_moonlit_sfumato_pass(
+        hi_lo=0.30, hi_hi=0.85, cool_b=0.080, cool_r=0.040,
+        cool_g=0.020, cool_strength=1.0, opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+
+def test_furini_moonlit_sfumato_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.55, 0.48, 0.35), texture_strength=0.25)
+    p.furini_moonlit_sfumato_pass(
+        hi_lo=0.20, hi_hi=0.95, cool_b=0.100, cool_r=0.060,
+        cool_g=0.030, cool_strength=1.0, opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_furini_moonlit_sfumato_pass_cools_bright_highlights():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    arr[:, :, 2] = 220
+    arr[:, :, 1] = 180
+    arr[:, :, 0] = 150
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    p.canvas.surface.mark_dirty()
+    p.furini_moonlit_sfumato_pass(
+        hi_lo=0.60, hi_hi=0.95,
+        cool_b=0.050, cool_r=0.040, cool_g=0.010,
+        cool_strength=1.0, opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert after[:, :, 2].mean() < 220, "R channel should decrease in highlights"
+    assert after[:, :, 0].mean() > 150, "B channel should increase in highlights"
+
+
+def test_furini_moonlit_sfumato_pass_has_cool_strength_parameter():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.75, 0.65, 0.45), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.furini_moonlit_sfumato_pass(cool_strength=0.0, opacity=0.8)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+
+def test_translucent_fabric_pass_exists():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    assert callable(getattr(p, "translucent_fabric_pass", None))
+
+
+def test_translucent_fabric_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.45, 0.30), texture_strength=0.20)
+    p.translucent_fabric_pass()
+
+
+def test_translucent_fabric_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.45, 0.30), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.translucent_fabric_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before == after
+
+
+def test_translucent_fabric_pass_modifies_canvas():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.45, 0.30), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.translucent_fabric_pass(
+        fab_lo=0.10, fab_hi=0.90,
+        fabric_r=0.05, fabric_g=0.35, fabric_b=0.10,
+        fabric_opacity=0.80, edge_factor=0.0, opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    assert before != after
+
+
+def test_translucent_fabric_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.45, 0.30), texture_strength=0.25)
+    p.translucent_fabric_pass(
+        fab_lo=0.05, fab_hi=0.95,
+        fabric_r=0.00, fabric_g=0.80, fabric_b=0.00,
+        fabric_opacity=1.0, edge_factor=0.0, opacity=1.0,
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_translucent_fabric_pass_tints_toward_fabric_color():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    arr = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    arr[:, :, 2] = 160
+    arr[:, :, 1] = 140
+    arr[:, :, 0] = 120
+    arr[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = arr.tobytes()
+    p.canvas.surface.mark_dirty()
+    p.translucent_fabric_pass(
+        fab_lo=0.30, fab_hi=0.80,
+        fabric_r=0.00, fabric_g=0.80, fabric_b=0.00,
+        fabric_opacity=0.80, edge_factor=0.0, opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert after[:, :, 1].mean() > 140, "G channel should increase toward fabric green"
+    assert after[:, :, 2].mean() < 160, "R channel should decrease toward fabric R=0"
+
+
+def test_translucent_fabric_pass_has_fabric_opacity_parameter():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(width=64, height=64)
+    p.tone_ground((0.50, 0.45, 0.30), texture_strength=0.20)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    p.translucent_fabric_pass(
+        fab_lo=0.10, fab_hi=0.90,
+        fabric_r=0.90, fabric_g=0.00, fabric_b=0.90,
+        fabric_opacity=0.0, opacity=1.0,
+    )
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).tobytes()
+    before_arr = np.frombuffer(before, dtype=np.uint8)
+    after_arr  = np.frombuffer(after,  dtype=np.uint8)
+    max_diff = int(np.abs(before_arr.astype(np.int16) - after_arr.astype(np.int16)).max())
+    assert max_diff <= 2, f"Max pixel diff with fabric_opacity=0 should be <= 2, got {max_diff}"
+
+
+def test_florentine_baroque_sfumato_period_routing_flag_true():
+    from scene_schema import Period, Style
+    style = Style(period=Period.FLORENTINE_BAROQUE_SFUMATO)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.85
+    assert params["edge_softness"] >= 0.80
+
+
+def test_florentine_baroque_sfumato_routing_flag_false_for_other_periods():
+    from scene_schema import Period, Style
+    style = Style(period=Period.DUTCH_GOLDEN_AGE)
+    params = style.stroke_params
+    assert params["wet_blend"] < 0.85 or params["edge_softness"] < 0.80
+
+
+def test_furini_in_catalog_accessible_via_get_style():
+    from art_catalog import get_style
+    style = get_style("furini")
+    assert style.artist == "Francesco Furini"
+    assert style.stroke_size <= 5
+
+
+def test_furini_ground_color_warm_for_routing():
+    from art_catalog import get_style
+    style = get_style("furini")
+    r, g, b = style.ground_color
+    assert r > b
