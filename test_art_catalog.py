@@ -21309,3 +21309,128 @@ def test_joshua_reynolds_mezzotint_tone_pixels_in_range():
     ).reshape(64, 64, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ── Quentin Massys (session 162) ──────────────────────────────────────────────
+
+def test_quentin_massys_in_catalog():
+    """Quentin Massys must appear in CATALOG after session 162."""
+    assert "quentin_massys" in CATALOG, "quentin_massys not found in CATALOG"
+
+
+def test_quentin_massys_style_fields():
+    """Massys catalog entry must have correct movement and well-formed fields."""
+    s = get_style("quentin_massys")
+    assert s.movement == "Flemish-Italian Bridge Renaissance"
+    assert s.artist == "Quentin Massys"
+    assert s.nationality == "Flemish"
+    assert len(s.palette) >= 6
+    assert all(
+        0.0 <= c <= 1.0
+        for color in s.palette
+        for c in color
+    ), "All palette colours must be in [0, 1]"
+    assert s.wet_blend > 0.40, "Massys wet_blend should be > 0.40"
+    assert s.edge_softness > 0.40, "Massys edge_softness should be > 0.40"
+    assert s.glazing is not None, "Massys should have an amber unifying glaze"
+    assert s.crackle is True, "Massys panel paintings should have crackle=True"
+
+
+def test_quentin_massys_bridge_glazing_pass_exists():
+    """Painter must expose massys_bridge_glazing_pass() after session 162."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "massys_bridge_glazing_pass"), (
+        "massys_bridge_glazing_pass not found on Painter")
+    assert callable(getattr(Painter, "massys_bridge_glazing_pass"))
+
+
+def test_quentin_massys_bridge_glazing_pass_no_error():
+    """Pass runs without error on a 64×64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+    p.massys_bridge_glazing_pass()
+
+
+def test_quentin_massys_bridge_glazing_zero_opacity_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+    before_bytes = bytes(p.canvas.surface.get_data()[:])
+    p.massys_bridge_glazing_pass(opacity=0.0)
+    after_bytes = bytes(p.canvas.surface.get_data()[:])
+    assert before_bytes == after_bytes, "opacity=0.0 should be a no-op"
+
+
+def test_quentin_massys_bridge_glazing_modifies_canvas():
+    """Pass must produce a detectable colour shift on a warm-flesh canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.60, 0.44), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.massys_bridge_glazing_pass(opacity=1.0, flesh_warm_r=0.20)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "massys_bridge_glazing_pass should modify a warm flesh canvas at opacity=1.0")
+
+
+def test_quentin_massys_bridge_glazing_warms_flesh():
+    """Warm flesh glaze should increase R on a warm-hued canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.60, 0.44), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.massys_bridge_glazing_pass(
+        opacity=1.0, flesh_warm_r=0.25, flesh_warm_b_reduce=0.12)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Cairo BGRA: channel 2 = R, channel 0 = B
+    mean_r_before = buf_before[:, :, 2].mean()
+    mean_r_after  = buf_after[:, :, 2].mean()
+    assert mean_r_after > mean_r_before, (
+        f"R should increase on warm-flesh canvas after bridge glaze; "
+        f"before={mean_r_before:.2f}, after={mean_r_after:.2f}")
+
+
+def test_quentin_massys_bridge_glazing_no_effect_on_neutral_grey():
+    """Pass should have minimal effect on a neutral grey canvas (no skin detected)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.massys_bridge_glazing_pass(opacity=1.0, flesh_warm_r=0.30)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_delta_r = abs(buf_after[:, :, 2].mean() - buf_before[:, :, 2].mean())
+    assert mean_delta_r < 5.0, (
+        f"Neutral grey canvas should be barely affected (skin mask near zero); "
+        f"R delta={mean_delta_r:.2f} is too large")
+
+
+def test_quentin_massys_bridge_glazing_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.60, 0.44), texture_strength=0.0)
+    p.massys_bridge_glazing_pass(opacity=1.0, flesh_warm_r=1.0, shadow_cool_b=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

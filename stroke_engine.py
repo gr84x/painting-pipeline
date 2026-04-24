@@ -37400,3 +37400,118 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Reynolds Grand Manner mezzotint tone pass complete.")
+
+    # ── massys_bridge_glazing_pass ─────────────────────────────────────────────
+    # Quentin Massys (c. 1466–1530) — Flemish-Italian bridge.
+    # Flesh-targeted warm glaze + cool Flemish shadow accent + pearl highlight
+    # lift — FORTY-EIGHTH DISTINCT MODE.
+
+    def massys_bridge_glazing_pass(
+        self,
+        flesh_warm_r:       float = 0.12,
+        flesh_warm_g:       float = 0.04,
+        flesh_warm_b_reduce: float = 0.08,
+        shadow_cool_lo:     float = 0.20,
+        shadow_cool_hi:     float = 0.46,
+        shadow_cool_b:      float = 0.08,
+        shadow_cool_r:      float = 0.05,
+        pearl_lo:           float = 0.58,
+        pearl_hi:           float = 0.82,
+        pearl_r:            float = 0.06,
+        pearl_b:            float = 0.04,
+        skin_sigma:         float = 6.0,
+        opacity:            float = 0.28,
+    ) -> None:
+        """Flemish-Italian bridge glazing — FORTY-EIGHTH DISTINCT MODE.
+
+        Encodes Quentin Massys' unique dual technique: a warm amber-rose glaze
+        applied selectively to detected warm flesh zones (the Italian influence —
+        luminous, enveloping warmth), combined with a cool blue-grey accent pushed
+        back into the shadow region of those same flesh zones (the Flemish
+        grisaille underlayer showing through the warm oil glaze), and a pearl-like
+        luminosity lift at mid-highlights within flesh.
+
+        This is the FORTY-EIGHTH DISTINCT MODE: FLEMISH-ITALIAN BRIDGE GLAZING.
+
+        Parameters
+        ----------
+        flesh_warm_r        : R lift on detected flesh (warm rose direction).
+        flesh_warm_g        : G lift on detected flesh (slight warmth).
+        flesh_warm_b_reduce : B reduction on detected flesh (desaturates blue).
+        shadow_cool_lo      : Lower luma bound of the skin shadow zone.
+        shadow_cool_hi      : Upper luma bound of the skin shadow zone.
+        shadow_cool_b       : B lift in the skin shadow zone (cool grey-blue).
+        shadow_cool_r       : R reduction in the skin shadow zone.
+        pearl_lo            : Lower luma bound of the pearl highlight zone.
+        pearl_hi            : Upper luma bound of the pearl highlight zone.
+        pearl_r             : R lift in the pearl zone (warm ivory).
+        pearl_b             : B lift in the pearl zone (faint pearl luminosity).
+        skin_sigma          : Gaussian blur radius for skin mask softening.
+        opacity             : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Flesh detection + soft mask ───────────────────────────────
+        skin_hard = (
+            (r0 > 0.36)
+            & (r0 > g0 * 1.04)
+            & (g0 > b0 * 1.02)
+        ).astype(_np.float32)
+        skin_mask = _np.clip(_gf(skin_hard, sigma=skin_sigma), 0.0, 1.0)
+
+        out_r = r0.copy()
+        out_g = g0.copy()
+        out_b = b0.copy()
+
+        # ── Step 2: Warm flesh glaze (all luma, skin zone only) ───────────────
+        out_r = out_r + flesh_warm_r * skin_mask
+        out_g = out_g + flesh_warm_g * skin_mask
+        out_b = out_b - flesh_warm_b_reduce * skin_mask
+
+        # ── Step 3: Cool Flemish shadow accent (skin zone, mid-shadow luma) ───
+        span = max(shadow_cool_hi - shadow_cool_lo, 1e-6)
+        shad_ramp_lo = _np.clip((luma - shadow_cool_lo) / span, 0.0, 1.0)
+        shad_ramp_hi = _np.clip((shadow_cool_hi - luma) / span, 0.0, 1.0)
+        shad_bump = shad_ramp_lo * shad_ramp_hi * 4.0   # peaks at midpoint of zone
+        shad_gate = shad_bump * skin_mask
+        out_r = out_r - shadow_cool_r * shad_gate
+        out_b = out_b + shadow_cool_b * shad_gate
+
+        # ── Step 4: Pearl highlight lift (skin zone, mid-highlight luma) ──────
+        pspan = max(pearl_hi - pearl_lo, 1e-6)
+        pearl_ramp_lo = _np.clip((luma - pearl_lo) / pspan, 0.0, 1.0)
+        pearl_ramp_hi = _np.clip((pearl_hi - luma) / pspan, 0.0, 1.0)
+        pearl_bump = pearl_ramp_lo * pearl_ramp_hi * 4.0  # peaks at midpoint
+        pearl_gate = pearl_bump * skin_mask
+        out_r = out_r + pearl_r * pearl_gate
+        out_b = out_b + pearl_b * pearl_gate
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Massys Flemish-Italian bridge glazing pass complete.")

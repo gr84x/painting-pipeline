@@ -13955,6 +13955,132 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Quentin Massys ────────────────────────────────────────────────────────
+    # Pipeline key: massys_bridge_glazing_pass() — FORTY-EIGHTH DISTINCT MODE.
+    # Flesh-targeted warm glaze with a cool Flemish shadow accent inside skin
+    # zones and a pearl-luminosity lift at mid-highlights, encoding Massys'
+    # unique Flemish-Italian bridge technique.
+    "quentin_massys": ArtStyle(
+        artist="Quentin Massys",
+        movement="Flemish-Italian Bridge Renaissance",
+        nationality="Flemish",
+        period="c. 1466–1530",
+        palette=[
+            (0.82, 0.66, 0.48),   # Warm Flemish flesh — primary skin register
+            (0.90, 0.82, 0.68),   # Creamy lit highlight — upper-left light source
+            (0.88, 0.86, 0.82),   # Pearl accent — translucent mid-highlight
+            (0.60, 0.44, 0.30),   # Deep warm shadow flesh
+            (0.42, 0.46, 0.52),   # Cool Flemish shadow accent in skin (blue-grey)
+            (0.26, 0.22, 0.18),   # Dark fabric ground — robe/coat
+            (0.30, 0.38, 0.34),   # Muted sage landscape distance
+            (0.54, 0.48, 0.36),   # Mid-ochre stone / architecture
+            (0.74, 0.55, 0.30),   # Unifying amber glaze base
+        ],
+        ground_color=(0.60, 0.48, 0.30),
+        stroke_size=8,
+        wet_blend=0.62,
+        edge_softness=0.55,
+        jitter=0.022,
+        glazing=(0.74, 0.55, 0.30),
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Quentin Massys (c. 1466–1530) was the founding master of the Antwerp "
+            "school and the crucial bridge between the Flemish painting tradition of "
+            "van Eyck and Memling and the Italian Renaissance values reaching north "
+            "from Leonardo's Lombardy.  Born in Leuven, trained as a metalworker "
+            "before turning to painting, Massys settled in Antwerp — then the "
+            "commercial capital of northern Europe — and became its leading painter by "
+            "the 1490s.  "
+            "His encounter with Leonardo's Lombard work (probably through prints and "
+            "imported panels) transformed his approach to the figure: where his "
+            "Flemish predecessors built form through sharp linear contour and jewel-hard "
+            "local colour, Massys began to wrap his figures in warm, translucent flesh "
+            "glazes and to soften contours with a subtle atmospheric haze that echoes "
+            "sfumato without dissolving into it.  The result is a distinctive duality — "
+            "flesh tones that read unmistakably warm and Flemish in the highlights, yet "
+            "cool and grey-blue in their shadows, a Flemish habit of preserving cool "
+            "shadow tone (the 'grisaille shadow') inside the warmth of skin.  "
+            "His greatest portraits — Erasmus (1517), Cardinal Morton, the Man with a "
+            "Pink — display a psychological directness matched only by Holbein, but with "
+            "a warmer, more atmospheric envelopment.  His religious panels (the Pietà "
+            "of c. 1508, now in Antwerp; the Lamentation triptych) show his command of "
+            "monumental Italian composition fused with Flemish surface precision.  "
+            "The Ugly Duchess (after Massys, now in the National Gallery) demonstrates "
+            "the grotesque vein he explored alongside humanist portraiture, influenced "
+            "by Leonardo's caricature drawings.  "
+            "Technically, Massys built his panels on a chalk-and-glue ground, "
+            "underpainting in grey-brown grisaille before applying warm oil glazes in "
+            "the flesh — a process that creates the characteristic Flemish effect of "
+            "cool underlayer showing through warm surface glaze, giving skin a "
+            "simultaneously warm and cool, pearl-like translucency.  His shadows retain "
+            "the cool, transparent quality of the grisaille below, while his highlights "
+            "are lifted with lead-white impasto mixed into warm flesh tones, creating a "
+            "creamy, almost pearl-like luminosity at mid-highlights rather than "
+            "chalky white."
+        ),
+        famous_works=[
+            ("Portrait of Erasmus of Rotterdam",      "1517"),
+            ("The Money Changer and his Wife",         "1514"),
+            ("Lamentation of Christ (Antwerp Pietà)", "c. 1508–1511"),
+            ("Portrait of Cardinal Morton",            "c. 1510"),
+            ("Saint Anne Altarpiece",                  "1507–1509"),
+            ("The Ugly Duchess (caricature portrait)", "c. 1513"),
+            ("Man with a Pink",                        "c. 1510"),
+        ],
+        inspiration=(
+            "Use massys_bridge_glazing_pass() to apply the FORTY-EIGHTH DISTINCT "
+            "MODE: FLEMISH-ITALIAN BRIDGE GLAZING — FLESH-TARGETED WARM GLAZE WITH "
+            "COOL SHADOW ACCENT AND PEARL HIGHLIGHT LIFT.  "
+            "The pass encodes Massys' unique dual technique: warm amber-rose glaze "
+            "selectively on warm flesh tones (unlike Reynolds' UNIFORM amber across "
+            "everything), combined with a cool blue-grey shadow accent INSIDE the "
+            "flesh zone (Flemish grisaille shadow showing through oil glaze), and a "
+            "pearl-luminosity lift at mid-highlights (luma 0.58–0.82) within flesh.  "
+            "Algorithm (five steps):  "
+            "(1) FLESH DETECTION: skin_mask = (r > 0.36) AND (r > g×1.04) AND "
+            "(g > b×1.02).  Gaussian blur with skin_sigma for soft transitions.  "
+            "Distinct from baldung_grien_spectral_pallor_pass (skin detection "
+            "threshold r>0.38, r>g×1.05, g>b×1.02 — slightly tighter; Massys is "
+            "r>0.36, r>g×1.04 — slightly broader, catching more mid-flesh).  "
+            "(2) WARM FLESH GLAZE (applied to skin_mask, all luma levels): "
+            "out_r = r + flesh_warm_r × skin_mask [R+]; "
+            "out_g = g + flesh_warm_g × skin_mask [G+ small]; "
+            "out_b = b − flesh_warm_b_reduce × skin_mask [B−].  "
+            "Flesh-targeted, not uniform — every flesh pixel gets the warm rose-amber "
+            "push regardless of luminance.  "
+            "Distinct from reynolds_grand_manner_pass (UNIFORM amber on ALL pixels "
+            "identically, no flesh detection; Massys targets only warm-hued skin zones).  "
+            "(3) COOL FLEMISH SHADOW ACCENT (skin zone, luma shadow_cool_lo–shadow_cool_hi): "
+            "shad_bump = clip((luma − shadow_cool_lo) / (shadow_cool_hi − shadow_cool_lo), 0, 1) "
+            "× clip((shadow_cool_hi − luma) / (shadow_cool_hi − shadow_cool_lo), 0, 1) × 4; "
+            "gate = shad_bump × skin_mask; "
+            "out_r −= shadow_cool_r × gate [R−]; "
+            "out_b += shadow_cool_b × gate [B+].  "
+            "Cool blue-grey push WITHIN flesh shadow zone only — the Flemish grisaille "
+            "shadow showing through warm oil glaze.  "
+            "Distinct from giampietrino_warm_devotion_pass (shadow gate applies a "
+            "VIOLET shift B+R+ to ALL shadow pixels, no flesh targeting; Massys "
+            "applies a BLUE-GREY R−B+ only inside detected flesh shadow, opposite "
+            "chromatic direction from giampietrino's purple).  "
+            "(4) PEARL HIGHLIGHT LIFT (skin zone, luma pearl_lo–pearl_hi): "
+            "hi_bump = clip((luma − pearl_lo) / (pearl_hi − pearl_lo), 0, 1) "
+            "× clip((pearl_hi − luma) / (pearl_hi − pearl_lo), 0, 1) × 4; "
+            "gate = hi_bump × skin_mask; "
+            "out_r += pearl_r × gate [R+]; "
+            "out_b += pearl_b × gate [B+ small, pearl luminosity].  "
+            "Mid-highlight pearl lift — warm ivory R+ with faint B+ gives the "
+            "translucent, pearl-like glow of Flemish lead-white in warm flesh.  "
+            "Distinct from moroni_silver_presence_pass (Moroni's highlights are "
+            "cool silver B+R− equally, applied to ALL high-luma pixels regardless "
+            "of skin zone; Massys pearl lift is R+B+ slightly, flesh-restricted, "
+            "in a BAND not a ramp — warmer and more targeted).  "
+            "Distinct from furini_moonlit_sfumato_pass (cool silver B+ in [0.55, 0.92] "
+            "bump, not flesh-restricted, R reduced; Massys is R+ flesh-only pearl).  "
+            "(5) Composite at opacity."
+        ),
+    ),
+
 }
 
 
