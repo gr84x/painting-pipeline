@@ -35536,3 +35536,278 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Translucent fabric pass complete.")
+
+    def bartolomeo_veneto_jewel_brocade_pass(
+        self,
+        blue_lo:       float = 0.05,   # min luminance for blue-violet pole gate
+        blue_hi:       float = 0.55,   # max luminance for blue-violet pole (shadow zone)
+        gold_lo:       float = 0.42,   # min luminance for gold-amber pole gate
+        gold_hi:       float = 0.88,   # max luminance for gold-amber pole
+        blue_deepen:   float = 0.12,   # saturation deepening in blue-violet zone
+        gold_deepen:   float = 0.14,   # saturation deepening in gold-amber zone
+        pole_strength: float = 0.65,   # overall gate scale
+        opacity:       float = 0.28,
+    ) -> None:
+        """Hue-angular dual-pole saturation deepening — Bartolomeo Veneto's jewel brocade.
+
+        Bartolomeo Veneto (active c. 1502–c. 1546) is the LOMBARDY-VENETIAN JEWEL
+        REALIST par excellence — a portraitist whose identity and origins remain almost
+        entirely mysterious, yet whose technical achievement is unmistakable.  His
+        works fuse two distinct chromatic systems: COOL IVORY FLESH PRECISION (Lombard,
+        Leonardesque) and JEWEL-TONE BROCADE RICHNESS (Venetian, with Northern brocade
+        exactitude).  The fabric in his portraits — deep ultramarine-violet brocade in
+        shadow zones, warm hammered gold in highlight zones — is rendered with a precision
+        that rivals the finest Flemish panel painting.
+
+        This pass encodes those effects as the THIRTY-FOURTH DISTINCT MODE: HUE-ANGULAR
+        DUAL-POLE SATURATION DEEPENING.  Two hue poles are defined via direct RGB channel
+        relationships (no HSV conversion):
+
+        BLUE-VIOLET POLE — shadow fabric saturation deepening:
+            blue_proxy = clip(B − max(R, G), 0, 1)   [how much B exceeds the others]
+            gated to shadow/penumbra zone via smooth bump in [blue_lo, blue_hi]
+            In gate: R reduced, G lightly reduced, B boosted → deeper ultramarine depth
+
+        GOLD-AMBER POLE — highlight fabric saturation deepening:
+            gold_proxy = clip(R − B, 0, 1) × clip(G − B×0.5, 0, 1)
+            [R dominant over B AND green elevated over a warm-amber hue]
+            gated to mid-to-highlight zone via smooth bump in [gold_lo, gold_hi]
+            In gate: R boosted, G lightly boosted, B reduced → deeper hammered gold
+
+        These two poles are independent: blue pole acts in shadow; gold pole acts in
+        highlight.  Flesh tones (low blue_proxy AND low gold_proxy) are untouched —
+        the cool ivory precision remains intact.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) BLUE-VIOLET POLE:
+            blue_proxy = clip(B − max(R, G), 0, 1)
+            shadow_gate = smooth bump in [blue_lo, blue_hi] (peaks at midpoint)
+            blue_wt = blue_proxy × shadow_gate × pole_strength
+            out_r -= blue_deepen × blue_wt
+            out_g -= blue_deepen × 0.40 × blue_wt
+            out_b += blue_deepen × 0.60 × blue_wt
+        (3) GOLD-AMBER POLE:
+            gold_proxy = clip(R − B, 0, 1) × clip(G − B × 0.5, 0, 1)
+            highlight_gate = smooth bump in [gold_lo, gold_hi] (peaks at midpoint)
+            gold_wt = gold_proxy × highlight_gate × pole_strength
+            out_r += gold_deepen × gold_wt
+            out_g += gold_deepen × 0.45 × gold_wt
+            out_b -= gold_deepen × 0.55 × gold_wt
+        (4) Composite at opacity.
+
+        Distinct from gossaert_pearl_crystalline_pass (three-stratum luminance zones,
+          no hue-angle proximity gating, Flemish enamel crystallinity vs. brocade depth).
+        Distinct from beccafumi_nacreous_glow_pass (Gaussian bloom signed diff, midtone
+          iridescence, not dual-hue-pole brocade deepening).
+        Distinct from cossa gem-zone pass (single gem luminance threshold, USM clarity,
+          not dual-pole hue angular decomposition).
+
+        Args:
+            blue_lo/hi     : Luminance gate range for blue-violet shadow pole.
+            gold_lo/hi     : Luminance gate range for gold-amber highlight pole.
+            blue_deepen    : Saturation deepening strength in blue-violet zone.
+            gold_deepen    : Saturation deepening strength in gold-amber zone.
+            pole_strength  : Global gate scale factor.
+            opacity        : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Blue-violet pole — shadow-zone ultramarine deepening ──────
+        max_rg = _np.maximum(r0, g0)
+        blue_proxy = _np.clip(b0 - max_rg, 0.0, 1.0)
+
+        mid_blue = (blue_lo + blue_hi) * 0.5
+        denom_blo = max(float(mid_blue - blue_lo), 1e-6)
+        denom_bhi = max(float(blue_hi - mid_blue), 1e-6)
+        t_blo = _np.clip((luma - blue_lo) / denom_blo, 0.0, 1.0)
+        t_bhi = _np.clip((blue_hi - luma) / denom_bhi, 0.0, 1.0)
+        shadow_gate = (t_blo * t_bhi).astype(_np.float32)
+
+        blue_wt = (blue_proxy * shadow_gate * pole_strength).astype(_np.float32)
+
+        out_r = _np.clip(r0 - blue_deepen * blue_wt,              0.0, 1.0)
+        out_g = _np.clip(g0 - blue_deepen * 0.40 * blue_wt,       0.0, 1.0)
+        out_b = _np.clip(b0 + blue_deepen * 0.60 * blue_wt,       0.0, 1.0)
+
+        # ── Step 3: Gold-amber pole — highlight-zone hammered gold deepening ──
+        gold_proxy = (
+            _np.clip(out_r - out_b, 0.0, 1.0) *
+            _np.clip(out_g - out_b * 0.5, 0.0, 1.0)
+        ).astype(_np.float32)
+
+        mid_gold = (gold_lo + gold_hi) * 0.5
+        denom_glo = max(float(mid_gold - gold_lo), 1e-6)
+        denom_ghi = max(float(gold_hi - mid_gold), 1e-6)
+        t_glo = _np.clip((luma - gold_lo) / denom_glo, 0.0, 1.0)
+        t_ghi = _np.clip((gold_hi - luma) / denom_ghi, 0.0, 1.0)
+        highlight_gate = (t_glo * t_ghi).astype(_np.float32)
+
+        gold_wt = (gold_proxy * highlight_gate * pole_strength).astype(_np.float32)
+
+        out_r = _np.clip(out_r + gold_deepen * gold_wt,           0.0, 1.0)
+        out_g = _np.clip(out_g + gold_deepen * 0.45 * gold_wt,    0.0, 1.0)
+        out_b = _np.clip(out_b - gold_deepen * 0.55 * gold_wt,    0.0, 1.0)
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Bartolomeo Veneto jewel brocade pass complete.")
+
+    def iridescent_glaze_pass(
+        self,
+        mid_lo:           float = 0.28,   # lower luminance edge of midtone gate
+        mid_hi:           float = 0.75,   # upper luminance edge of midtone gate
+        warm_r:           float = 0.040,  # warm shimmer R boost in gradient warm direction
+        warm_g:           float = 0.018,  # warm shimmer G boost
+        cool_b:           float = 0.035,  # cool shimmer B boost in gradient cool direction
+        cool_r:           float = 0.018,  # cool shimmer R reduction
+        shimmer_strength: float = 0.55,   # overall gate scale
+        opacity:          float = 0.18,
+    ) -> None:
+        """Full-gradient orientation warm/cool iridescent shimmer in paint transitions.
+
+        Thin oil glazes on a curved painted surface exhibit a subtle IRIDESCENT
+        QUALITY — as the surface curves away from the light source, the glaze
+        thickness changes, and with it the visible colour of the refracted light.
+        In practice, the effect is barely perceptible: at paint-layer boundaries and
+        across curved forms in mid-tone zones, warm colours appear on surfaces facing
+        the light source and cool colours appear on surfaces facing away.  Master
+        glazers — including Flemish and Venetian oil painters — exploited this quality
+        deliberately, alternating warm and cool glaze layers to give surfaces an inner
+        luminosity that defies simple description.
+
+        This pass encodes that effect as the THIRTY-FIFTH DISTINCT MODE: FULL-GRADIENT
+        ORIENTATION WARM/COOL IRIDESCENT SHIMMER IN PAINT TRANSITIONS.
+
+        The key innovation over prior directional passes is the use of the FULL 2D
+        GRADIENT ORIENTATION via arctan2(gy, gx) rather than a single horizontal Sobel
+        component.  This captures paint transitions in ALL directions — vertical form
+        boundaries, diagonal contours, and oblique brush marks — not just left-to-right.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Compute Sobel components:
+            gx = sobel(luma, axis=1)    [horizontal gradient]
+            gy = sobel(luma, axis=0)    [vertical gradient]
+        (3) Gradient magnitude: mag = sqrt(gx² + gy²)
+            Normalise by 95th percentile → mag_norm = clip(mag / p95, 0, 1)
+        (4) Gradient orientation: theta = arctan2(gy, gx) in [−π, π]
+        (5) Directional gates (smooth cosine decomposition):
+            warm_dir = clip(cos(theta), 0, 1)    [gradient pointing in +x direction]
+            cool_dir = clip(−cos(theta), 0, 1)   [gradient pointing in −x direction]
+        (6) Midtone luminance gate: smooth bump in [mid_lo, mid_hi]
+        (7) Combined shimmer weights:
+            warm_w = warm_dir × midgate × mag_norm × shimmer_strength
+            cool_w = cool_dir × midgate × mag_norm × shimmer_strength
+        (8) Apply iridescent tint:
+            out_r = clip(r + warm_r × warm_w − cool_r × cool_w, 0, 1)
+            out_g = clip(g + warm_g × warm_w, 0, 1)
+            out_b = clip(b + cool_b × cool_w, 0, 1)
+        (9) Composite at opacity.
+
+        Distinct from ter_brugghen_raking_amber_pass (horizontal-only Sobel axis=1,
+          no atan2 orientation, directional sidelight rather than iridescent glaze shimmer).
+        Distinct from romanino_brescian_impasto_pass (oblique-light height-field from
+          combined -(gx+gy), not full-angle orientation, warm/cool ridge vs. shimmer).
+        Distinct from shadow_transparency_pass (luminance-threshold only, no gradient
+          direction, violet shadow tint rather than orientation-driven shimmer).
+
+        Args:
+            mid_lo/hi         : Midtone luminance gate range (shimmer most visible here).
+            warm_r/g          : Warm-direction shimmer tint (R/G boost).
+            cool_b/r          : Cool-direction shimmer tint (B boost / R reduction).
+            shimmer_strength  : Overall gate scale factor.
+            opacity           : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Sobel gradient components ────────────────────────────────
+        gx = _sobel(luma, axis=1).astype(_np.float32)
+        gy = _sobel(luma, axis=0).astype(_np.float32)
+
+        # ── Step 3: Gradient magnitude, normalised ────────────────────────────
+        mag = _np.sqrt(gx * gx + gy * gy).astype(_np.float32)
+        p95 = float(_np.percentile(mag, 95))
+        if p95 > 1e-6:
+            mag_norm = _np.clip(mag / p95, 0.0, 1.0)
+        else:
+            mag_norm = _np.zeros_like(mag)
+
+        # ── Step 4: Full-gradient orientation via arctan2 ─────────────────────
+        theta = _np.arctan2(gy, gx).astype(_np.float32)
+
+        # ── Step 5: Directional cosine gates ──────────────────────────────────
+        warm_dir = _np.clip(_np.cos(theta), 0.0, 1.0).astype(_np.float32)
+        cool_dir = _np.clip(-_np.cos(theta), 0.0, 1.0).astype(_np.float32)
+
+        # ── Step 6: Midtone luminance gate — smooth bump in [mid_lo, mid_hi] ──
+        mid_f = (mid_lo + mid_hi) * 0.5
+        denom_lo = max(float(mid_f - mid_lo), 1e-6)
+        denom_hi = max(float(mid_hi - mid_f), 1e-6)
+        t_lo = _np.clip((luma - mid_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((mid_hi - luma) / denom_hi, 0.0, 1.0)
+        midgate = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 7: Combined shimmer weights ──────────────────────────────────
+        warm_w = (warm_dir * midgate * mag_norm * shimmer_strength).astype(_np.float32)
+        cool_w = (cool_dir * midgate * mag_norm * shimmer_strength).astype(_np.float32)
+
+        # ── Step 8: Apply iridescent tint ─────────────────────────────────────
+        out_r = _np.clip(r0 + warm_r * warm_w - cool_r * cool_w, 0.0, 1.0)
+        out_g = _np.clip(g0 + warm_g * warm_w,                    0.0, 1.0)
+        out_b = _np.clip(b0 + cool_b * cool_w,                    0.0, 1.0)
+
+        # ── Step 9: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Iridescent glaze pass complete.")
