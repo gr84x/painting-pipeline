@@ -34819,3 +34819,215 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Penumbra softening pass complete.")
+
+    def gaudenzio_warm_devotion_pass(
+        self,
+        shad_lo:       float = 0.05,  # lower luminance edge of shadow/penumbra gate
+        shad_hi:       float = 0.42,  # upper luminance edge of shadow/penumbra gate
+        warm_r:        float = 0.038, # warm amber R tint added in shadow zone
+        warm_g:        float = 0.022, # warm amber G tint added in shadow zone
+        warm_b:        float = 0.010, # slight blue reduction (warm shadows, not cool)
+        warm_strength: float = 0.55,  # gate × this = blend amount at peak
+        opacity:       float = 0.30,
+    ) -> None:
+        """Shadow-zone warm amber luminosity scumble — Gaudenzio Ferrari's devotional inner light.
+
+        Gaudenzio Ferrari (c. 1477–1546), the supreme master of Piedmontese Devotional
+        Luminism, is distinguished from all other Italian Renaissance painters by a
+        single quality: his SHADOW ZONES ARE WARM.  Where Leonardo's sfumato leaves
+        shadows cool and remote, where Raphael's clarità keeps shadows neutral and
+        luminous, Ferrari floods his penumbra and shadow regions with warm amber glow —
+        the inner fire of the saints he painted made physically visible in the paint.
+
+        This effect is not a highlight bloom (which targets bright zones) and not a
+        sfumato edge dissolve (which targets contours): it is a gentle AMBER SCUMBLE
+        that lays warm luminosity across the shadow zone while leaving the lit surface
+        and the deepest voids unchanged, simulating how Ferrari's warm amber underpaint
+        bleeds upward through the glazes in dark passages.
+
+        This pass encodes those effects as the THIRTY-FIRST DISTINCT MODE:
+        SHADOW-ZONE WARM AMBER LUMINOSITY SCUMBLE.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Shadow/penumbra gate — smooth bump in [shad_lo, shad_hi]:
+            mid_s = (shad_lo + shad_hi) / 2
+            t_lo = clip((luma − shad_lo) / (mid_s − shad_lo), 0, 1)
+            t_hi = clip((shad_hi − luma) / (shad_hi − mid_s), 0, 1)
+            gate_shad = t_lo × t_hi   [peaks at 1 when luma = mid_s]
+        (3) Apply warm amber tint weighted by gate × warm_strength:
+            wt = gate_shad × warm_strength
+            out_r = clip(r + warm_r × wt, 0, 1)
+            out_g = clip(g + warm_g × wt, 0, 1)
+            out_b = clip(b − warm_b × wt, 0, 1)   [slight blue reduction = warmer shadow]
+        (4) Composite at opacity.
+
+        Distinct from beccafumi_nacreous_glow_pass (targets midtones [0.28, 0.78],
+          signed Gaussian bloom difference, warm AND cool split — iridescence not warmth).
+        Distinct from luminous_ground_pass (targets dark zone luma < ground_hi ≈ 0.40,
+          but adds warm ground glow uniformly; no smooth bump gate, no R/G/B warm tint).
+        Distinct from highlight_velatura_pass (targets highlights [0.58, 0.92], blends
+          toward a glaze colour — opposite tonal zone).
+        Distinct from glazing_depth_pass (adds overall warm glaze to ALL tones by
+          multiplicative tinting, not shadow-zone gated).
+
+        Args:
+            shad_lo/hi    : Luminance range of the shadow/penumbra gate.
+            warm_r/g/b    : Warm tint channels added (R,G) or reduced (B) in shadow zone.
+            warm_strength : Gate scale factor (gate × warm_strength = blend amount at peak).
+            opacity       : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Shadow/penumbra gate — smooth bump in [shad_lo, shad_hi] ──
+        mid_s = (shad_lo + shad_hi) * 0.5
+        denom_lo = max(float(mid_s - shad_lo), 1e-6)
+        denom_hi = max(float(shad_hi - mid_s), 1e-6)
+        t_lo = _np.clip((luma - shad_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((shad_hi - luma) / denom_hi, 0.0, 1.0)
+        gate_shad = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 3: Warm amber tint in shadow zone ────────────────────────────
+        wt = gate_shad * warm_strength
+        out_r = _np.clip(r0 + warm_r * wt, 0.0, 1.0)
+        out_g = _np.clip(g0 + warm_g * wt, 0.0, 1.0)
+        out_b = _np.clip(b0 - warm_b * wt, 0.0, 1.0)
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Gaudenzio warm devotion pass complete.")
+
+    def atmospheric_depth_gradient_pass(
+        self,
+        atm_warm_r:  float = 0.025, # warm amber R added to lower-canvas foreground
+        atm_warm_g:  float = 0.014, # warm amber G added to lower-canvas foreground
+        atm_cool_b:  float = 0.028, # cool blue-grey B added to upper-canvas background
+        atm_cool_r:  float = 0.012, # cool R reduction in upper-canvas background
+        luma_lo:     float = 0.12,  # luminance threshold: pixels darker than this are excluded
+        opacity:     float = 0.28,
+    ) -> None:
+        """Vertical chromatic temperature gradient for atmospheric depth recession.
+
+        Leonardo da Vinci's sfumato encompasses not only the dissolution of edges but
+        also ATMOSPHERIC PERSPECTIVE: the systematic warming of foreground colours and
+        cooling of background colours as aerial haze increases with depth.  In the
+        Mona Lisa this is most visible in the landscape behind the figure — the warm
+        ochre rocks and earth colours in the foreground give way to increasingly cool
+        blue-grey atmospheric haze as the terrain recedes toward the horizon.
+
+        This pass encodes that quality as an ARTISTIC IMPROVEMENT: LUMINANCE-WEIGHTED
+        VERTICAL CHROMATIC TEMPERATURE GRADIENT.  A vertical position weight
+        (v_warm = 1 − y_frac, strongest at bottom; v_cool = y_frac, strongest at top)
+        drives opposing warm and cool chromatic pushes, simulating the depth gradient
+        across the full canvas height while excluding pixels too dark to carry colour.
+
+        Algorithm:
+        (1) Build vertical fraction array: y_frac = row_index / (H − 1), shape (H, W)
+            v_warm = y_frac       [0.0 at top row, 1.0 at bottom — canvas y=0 is top]
+            v_cool = 1 − y_frac   [1.0 at top, 0.0 at bottom]
+            Note: canvas row 0 = image top; bottom of canvas is foreground in portraits.
+            v_warm peaks at BOTTOM (foreground / figure base) — warm ochre earth tones.
+            v_cool peaks at TOP (sky / background horizon) — cool atmospheric haze.
+        (2) Compute luminance gate: luma_gate = clip((luma − luma_lo) / 0.15, 0, 1)
+            Excludes near-black pixels (deep shadow voids) from the colour push.
+        (3) Warm foreground push (lower canvas = figure base, near earth):
+            wt_warm = v_warm × luma_gate    [strongest at bottom, excluded in deep shadow]
+            out_r = clip(r + atm_warm_r × wt_warm, 0, 1)
+            out_g = clip(g + atm_warm_g × wt_warm, 0, 1)
+        (4) Cool background push (upper canvas = sky, distant landscape):
+            wt_cool = v_cool × luma_gate    [strongest at top, excluded in deep shadow]
+            out_b = clip(b + atm_cool_b × wt_cool, 0, 1)
+            out_r = clip(out_r − atm_cool_r × wt_cool, 0, 1)   [desaturate/cool red at top]
+        (5) Composite at opacity.
+
+        Distinct from gaudenzio_warm_devotion_pass (shadow-zone gate, no vertical
+          position axis, amber scumble not atmospheric perspective).
+        Distinct from luminous_ground_pass (dark-zone gate, no vertical gradient,
+          warm glow only — no cool background axis).
+        Distinct from beccafumi_nacreous_glow_pass (midtone gate, signed Gaussian
+          bloom difference, no spatial vertical gradient).
+        Distinct from sodoma_sienese_dreamveil_pass (global LF Gaussian blend, no
+          vertical gradient, no warm/cool spatial axis).
+
+        Args:
+            atm_warm_r/g : Warm tint channels added to lower (foreground) canvas zone.
+            atm_cool_b   : Cool blue-grey tint added to upper (background/sky) canvas zone.
+            atm_cool_r   : Red reduction in upper canvas zone (desaturates toward grey-blue).
+            luma_lo      : Luminance threshold below which pixels are excluded.
+            opacity      : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Vertical position weights ────────────────────────────────
+        rows = _np.linspace(0.0, 1.0, self.h, dtype=_np.float32)   # 0=top, 1=bottom
+        y_frac = rows[:, _np.newaxis] * _np.ones((1, self.w), dtype=_np.float32)
+        v_warm = y_frac          # warm push peaks at BOTTOM (foreground/figure base)
+        v_cool = 1.0 - y_frac   # cool push peaks at TOP (sky/background horizon)
+
+        # ── Step 3: Luminance gate (exclude near-black pixels) ────────────────
+        luma_gate = _np.clip((luma - luma_lo) / 0.15, 0.0, 1.0).astype(_np.float32)
+
+        # ── Step 4: Warm foreground push ──────────────────────────────────────
+        wt_warm = (v_warm * luma_gate).astype(_np.float32)
+        out_r = _np.clip(r0 + atm_warm_r * wt_warm, 0.0, 1.0)
+        out_g = _np.clip(g0 + atm_warm_g * wt_warm, 0.0, 1.0)
+        out_b = b0.copy()
+
+        # ── Step 5: Cool background push ──────────────────────────────────────
+        wt_cool = (v_cool * luma_gate).astype(_np.float32)
+        out_b = _np.clip(out_b + atm_cool_b * wt_cool, 0.0, 1.0)
+        out_r = _np.clip(out_r - atm_cool_r * wt_cool, 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Atmospheric depth gradient pass complete.")

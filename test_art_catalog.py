@@ -156,6 +156,7 @@ EXPECTED_ARTISTS = [
     "paris_bordone",
     "romanino",
     "beccafumi",
+    "gaudenzio_ferrari",
 ]
 
 
@@ -345,6 +346,7 @@ EXPECTED_PERIODS = [
     "VENETIAN_INTIMATE_COLORISM",
     "BRESCIAN_VENETIAN_IMPASTO",
     "SIENESE_MANNERIST_LUMINISM",
+    "PIEDMONTESE_DEVOTIONAL_LUMINISM",
 ]
 
 
@@ -19374,3 +19376,286 @@ def test_penumbra_softening_pass_pixels_in_range():
 def test_beccafumi_in_expected_artists_catalog_final():
     assert "beccafumi" in CATALOG
     assert "beccafumi" in EXPECTED_ARTISTS
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 151 -- Gaudenzio Ferrari / PIEDMONTESE_DEVOTIONAL_LUMINISM
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_gaudenzio_ferrari_in_catalog():
+    assert "gaudenzio_ferrari" in CATALOG
+
+
+def test_gaudenzio_ferrari_artist_name():
+    s = get_style("gaudenzio_ferrari")
+    assert "Gaudenzio" in s.artist and "Ferrari" in s.artist
+
+
+def test_gaudenzio_ferrari_movement():
+    s = get_style("gaudenzio_ferrari")
+    assert "Lombard" in s.movement or "Piedmontese" in s.movement or "Devotional" in s.movement
+
+
+def test_gaudenzio_ferrari_palette_length():
+    s = get_style("gaudenzio_ferrari")
+    assert len(s.palette) >= 6
+
+
+def test_gaudenzio_ferrari_palette_in_range():
+    s = get_style("gaudenzio_ferrari")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Channel {ch} out of [0, 1]"
+
+
+def test_gaudenzio_ferrari_warm_ground():
+    s = get_style("gaudenzio_ferrari")
+    r, g, b = s.ground_color
+    assert r > b, "Gaudenzio Ferrari ground should be warmer than cool (R > B)"
+
+
+def test_gaudenzio_ferrari_high_wet_blend():
+    s = get_style("gaudenzio_ferrari")
+    assert s.wet_blend >= 0.70, "Gaudenzio Ferrari should have high wet_blend (Leonardesque sfumato)"
+
+
+def test_gaudenzio_ferrari_famous_works():
+    s = get_style("gaudenzio_ferrari")
+    assert len(s.famous_works) >= 3
+
+
+def test_gaudenzio_ferrari_in_expected_artists():
+    assert "gaudenzio_ferrari" in EXPECTED_ARTISTS
+
+
+# -- PIEDMONTESE_DEVOTIONAL_LUMINISM period ----------------------------------------
+
+def test_piedmontese_devotional_luminism_period_exists():
+    period_names = {p.name for p in Period}
+    assert "PIEDMONTESE_DEVOTIONAL_LUMINISM" in period_names
+
+
+def test_piedmontese_devotional_luminism_in_expected_periods():
+    assert "PIEDMONTESE_DEVOTIONAL_LUMINISM" in EXPECTED_PERIODS
+
+
+def test_piedmontese_devotional_luminism_stroke_params_valid():
+    style = Style(medium=Medium.OIL, period=Period.PIEDMONTESE_DEVOTIONAL_LUMINISM,
+                  palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    assert params["stroke_size_face"] > 0
+    assert 0.0 <= params["wet_blend"] <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+
+
+def test_piedmontese_devotional_luminism_high_wet_blend():
+    style = Style(medium=Medium.OIL, period=Period.PIEDMONTESE_DEVOTIONAL_LUMINISM,
+                  palette=PaletteHint.WARM_EARTH)
+    assert style.stroke_params["wet_blend"] >= 0.70
+
+
+def test_piedmontese_devotional_luminism_high_edge_softness():
+    style = Style(medium=Medium.OIL, period=Period.PIEDMONTESE_DEVOTIONAL_LUMINISM,
+                  palette=PaletteHint.WARM_EARTH)
+    assert style.stroke_params["edge_softness"] >= 0.60
+
+
+# -- gaudenzio_warm_devotion_pass tests ----------------------------------------
+
+def test_gaudenzio_warm_devotion_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "gaudenzio_warm_devotion_pass")
+
+
+def test_gaudenzio_warm_devotion_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.gaudenzio_warm_devotion_pass)
+    assert "opacity" in sig.parameters
+
+
+def test_gaudenzio_warm_devotion_pass_shad_lo_hi_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.gaudenzio_warm_devotion_pass)
+    assert "shad_lo" in sig.parameters
+    assert "shad_hi" in sig.parameters
+
+
+def test_gaudenzio_warm_devotion_pass_warm_rgb_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.gaudenzio_warm_devotion_pass)
+    assert "warm_r" in sig.parameters
+    assert "warm_g" in sig.parameters
+    assert "warm_b" in sig.parameters
+
+
+def test_gaudenzio_warm_devotion_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.52, 0.42, 0.26))
+    p.gaudenzio_warm_devotion_pass(opacity=0.30)
+
+
+def test_gaudenzio_warm_devotion_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.52, 0.42, 0.26))
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.gaudenzio_warm_devotion_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(before, after)
+
+
+def test_gaudenzio_warm_devotion_pass_warms_shadow_zone():
+    """Pixels in the shadow gate range should become warmer (R or G increase)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Fill with a mid-shadow luminance value (luma ≈ 0.24, within [0.05, 0.42])
+    shadow_val = int(0.24 * 255)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = shadow_val   # R
+    buf[:, :, 1] = shadow_val   # G
+    buf[:, :, 0] = shadow_val   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before_r = buf[:, :, 2].astype(float).mean()
+    p.gaudenzio_warm_devotion_pass(opacity=1.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    after_r = after[:, :, 2].astype(float).mean()
+    assert after_r >= before_r, "Shadow zone R should increase (warm amber push)"
+
+
+def test_gaudenzio_warm_devotion_pass_no_effect_on_highlights():
+    """Pixels above shad_hi should be nearly unaffected."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    highlight_val = int(0.85 * 255)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = highlight_val
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = buf.copy()
+    p.gaudenzio_warm_devotion_pass(opacity=1.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    # Highlights outside gate should be essentially unchanged
+    assert np.abs(after[:, :, :3].astype(int) - before[:, :, :3].astype(int)).max() <= 2
+
+
+def test_gaudenzio_warm_devotion_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.52, 0.42, 0.26))
+    p.gaudenzio_warm_devotion_pass(
+        shad_lo=0.05, shad_hi=0.42, warm_r=0.038, warm_g=0.022,
+        warm_b=0.010, warm_strength=0.55, opacity=1.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+# -- atmospheric_depth_gradient_pass tests ----------------------------------------
+
+def test_atmospheric_depth_gradient_pass_exists():
+    from stroke_engine import Painter
+    assert hasattr(Painter, "atmospheric_depth_gradient_pass")
+
+
+def test_atmospheric_depth_gradient_pass_opacity_parameter():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.atmospheric_depth_gradient_pass)
+    assert "opacity" in sig.parameters
+
+
+def test_atmospheric_depth_gradient_pass_warm_cool_parameters():
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.atmospheric_depth_gradient_pass)
+    assert "atm_warm_r" in sig.parameters
+    assert "atm_cool_b" in sig.parameters
+
+
+def test_atmospheric_depth_gradient_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.52, 0.42, 0.26))
+    p.atmospheric_depth_gradient_pass(opacity=0.28)
+
+
+def test_atmospheric_depth_gradient_pass_zero_opacity_no_op():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.52, 0.42, 0.26))
+    before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.atmospheric_depth_gradient_pass(opacity=0.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(before, after)
+
+
+def test_atmospheric_depth_gradient_pass_cools_top_warms_bottom():
+    """Bottom rows should be warmer (R higher) and top rows cooler (B higher) after full-opacity pass."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    mid_val = int(0.50 * 255)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    buf[:, :, :3] = mid_val
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    p.atmospheric_depth_gradient_pass(opacity=1.0)
+    after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    bottom_r = after[56:64, :, 2].astype(float).mean()  # bottom rows, R channel
+    top_b = after[0:8, :, 0].astype(float).mean()       # top rows, B channel (Cairo BGRA)
+    assert bottom_r >= mid_val, "Bottom rows should be warmer (R >= original) after atmospheric pass"
+    assert top_b >= mid_val, "Top rows should be cooler (B >= original) after atmospheric pass"
+
+
+def test_atmospheric_depth_gradient_pass_pixels_in_range():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.52, 0.42, 0.26))
+    p.atmospheric_depth_gradient_pass(
+        atm_warm_r=0.025, atm_warm_g=0.014, atm_cool_b=0.028,
+        atm_cool_r=0.012, luma_lo=0.12, opacity=1.0
+    )
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_gaudenzio_ferrari_in_expected_artists_catalog_final():
+    assert "gaudenzio_ferrari" in CATALOG
+    assert "gaudenzio_ferrari" in EXPECTED_ARTISTS

@@ -316,6 +316,7 @@ class Period(Enum):
     VENETIAN_INTIMATE_COLORISM     = auto()  # Paris Bordone — parabolic midtone chromatic deepening (gate = 4·luma·(1−luma)), warm amber Venetian flesh flush, Giorgionesque atmospheric edge softness, luminous umber ground glow
     BRESCIAN_VENETIAN_IMPASTO      = auto()  # Girolamo Romanino — bold Venetian-Brescian impasto relief; oblique-light height-field simulation with warm ochre lit ridges and cool shadowed valleys; vigorous expressive brushwork
     SIENESE_MANNERIST_LUMINISM     = auto()  # Domenico Beccafumi — nacreous iridescent midtone glow; signed Gaussian bloom difference with differential warm/cool tinting; acid yellow-green and violet against warm flesh; internal luminosity of forms
+    PIEDMONTESE_DEVOTIONAL_LUMINISM = auto()  # Gaudenzio Ferrari — warm amber devotional luminosity, Lombard-Leonardesque sfumato fused with vivid expressive warmth; shadow-zone inner glow and vertical atmospheric depth gradient
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1567,6 +1568,12 @@ class Style:
             # wet_blend=0.70: considerable blending — Beccafumi's smooth form transitions and glow effects.
             # edge_softness=0.62: Mannerist softness — forms dissolve slightly at edges, nacreous aura.
             Period.SIENESE_MANNERIST_LUMINISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.70, edge_softness=0.62),
+            # PIEDMONTESE_DEVOTIONAL_LUMINISM (Gaudenzio Ferrari): warm devotional luminosity, Lombard expressiveness.
+            # stroke_size_face=6: refined yet expressive Lombard mark — between Leonardesque precision and fresco boldness.
+            # stroke_size_bg=26: broader background — his fresco training gives confidence in atmospheric settings.
+            # wet_blend=0.78: heavy blending — Leonardesque sfumato inheritance, warm luminous transitions.
+            # edge_softness=0.72: strong sfumato influence — forms dissolve warmly at the periphery.
+            Period.PIEDMONTESE_DEVOTIONAL_LUMINISM: dict(stroke_size_face=6, stroke_size_bg=26, wet_blend=0.78, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
