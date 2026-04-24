@@ -36057,3 +36057,266 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Warm ambient occlusion pass complete.")
+
+    # Session 156 — artist: Gentile da Fabriano (International Gothic)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def gentile_da_fabriano_gold_tooling_pass(
+        self,
+        hi_lo:          float = 0.60,  # lower luminance boundary of highlight gate
+        hi_hi:          float = 0.95,  # upper luminance boundary of highlight gate
+        gold_r:         float = 0.070, # R boost on lit-ridge surfaces (warm gold shimmer)
+        gold_g:         float = 0.045, # G boost on lit-ridge surfaces
+        gold_b:         float = 0.020, # B reduction on lit-ridge surfaces (deepens gold chroma)
+        ridge_strength: float = 0.70,  # overall gate scale factor
+        opacity:        float = 0.28,
+    ) -> None:
+        """Gold-tooling shimmer — Gentile da Fabriano's punched gold-leaf radiance.
+
+        Gentile da Fabriano (c. 1370–1427) is the supreme master of the
+        INTERNATIONAL GOTHIC style.  His altarpieces — foremost the Adoration of
+        the Magi (1423, Uffizi) — deploy physically punched and tooled gold-leaf
+        backgrounds and halos, a technique called PASTIGLIA combined with SGRAFFITO:
+        embossed decorative patterns pressed into the gold ground so that raised
+        surfaces catch directional light as intense warm sparkles while recessed
+        areas remain matte.  The effect is fundamentally different from painted gold:
+        the surface physically modulates light by relief rather than pigment.
+
+        This pass encodes those effects as the THIRTY-EIGHTH DISTINCT MODE:
+        LUMINANCE-RIDGE WARM GOLD SHIMMER TINTING.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Isotropic Sobel gradient magnitude:
+            gx = sobel(luma, axis=1); gy = sobel(luma, axis=0)
+            grad_mag = sqrt(gx² + gy²)
+            grad_norm = clip(grad_mag / max(grad_mag), 0, 1)
+        (3) High-luminance gate — smooth bump in [hi_lo, hi_hi]:
+            hi_f = (hi_lo + hi_hi) / 2
+            t_lo = clip((luma − hi_lo) / (hi_f − hi_lo), 0, 1)
+            t_hi = clip((hi_hi − luma) / (hi_hi − hi_f), 0, 1)
+            hi_gate = t_lo × t_hi
+        (4) Ridge gate = grad_norm × hi_gate × ridge_strength
+        (5) Apply gold shimmer tint:
+            out_r = clip(r + gold_r × ridge_gate, 0, 1)
+            out_g = clip(g + gold_g × ridge_gate, 0, 1)
+            out_b = clip(b − gold_b × ridge_gate, 0, 1)   ← blue reduction deepens gold chroma
+        (6) Composite at opacity.
+
+        Distinct from warm_ambient_occlusion_pass (OPPOSITE target zone: that pass
+          applies warm tint to DARK concave recesses below local mean — the shadow
+          infill; this pass applies warm gold tint to BRIGHT ridge highlights above
+          luminance threshold — the specular lift; different spatial trigger).
+        Distinct from romanino_brescian_impasto_pass (oblique-light from smoothed
+          luma height field: -(gx+gy)/√2; no luminance gate; applies warm lift AND
+          cool shadow; simulates impasto ridge/valley not gold sparkle).
+        Distinct from melozzo_zenith_radiance_pass (vertical position axis; no Sobel
+          gradient; applies to all midtone surfaces above/below, not ridge-specific).
+
+        Args:
+            hi_lo/hi        : Luminance range for highlight gate (gold shimmer visible
+                              only on already-lit surfaces, not in shadow or clip).
+            gold_r/g        : Warm amber-gold tint applied to lit ridge pixels.
+            gold_b          : Blue reduction on lit ridges (deepens gold chroma away
+                              from white-light specular into warm gold territory).
+            ridge_strength  : Overall gate scale factor.
+            opacity         : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Isotropic Sobel gradient magnitude ────────────────────────
+        gx = _sobel(luma, axis=1).astype(_np.float32)
+        gy = _sobel(luma, axis=0).astype(_np.float32)
+        grad_mag  = _np.sqrt(gx * gx + gy * gy).astype(_np.float32)
+        max_mag   = float(grad_mag.max()) or 1e-6
+        grad_norm = _np.clip(grad_mag / max_mag, 0.0, 1.0)
+
+        # ── Step 3: High-luminance gate — smooth bump in [hi_lo, hi_hi] ──────
+        hi_f     = (hi_lo + hi_hi) * 0.5
+        denom_lo = max(float(hi_f - hi_lo), 1e-6)
+        denom_hi = max(float(hi_hi - hi_f), 1e-6)
+        t_lo     = _np.clip((luma - hi_lo) / denom_lo, 0.0, 1.0)
+        t_hi     = _np.clip((hi_hi - luma) / denom_hi, 0.0, 1.0)
+        hi_gate  = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 4: Ridge gate ────────────────────────────────────────────────
+        ridge_gate = (grad_norm * hi_gate * ridge_strength).astype(_np.float32)
+
+        # ── Step 5: Gold shimmer tint ─────────────────────────────────────────
+        out_r = _np.clip(r0 + gold_r * ridge_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + gold_g * ridge_gate, 0.0, 1.0)
+        out_b = _np.clip(b0 - gold_b * ridge_gate, 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Gentile da Fabriano gold tooling pass complete.")
+
+    # Session 156 — random improvement: chromatic_fringe_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def chromatic_fringe_pass(
+        self,
+        edge_lo:          float = 0.08,  # lower norm-magnitude edge gate threshold
+        edge_hi:          float = 0.80,  # upper norm-magnitude edge gate threshold
+        fringe_warm_r:    float = 0.045, # R boost on bright side of edge (warm fringe)
+        fringe_warm_g:    float = 0.018, # G boost on bright side of edge
+        fringe_cool_b:    float = 0.040, # B boost on dark side of edge (cool fringe)
+        fringe_cool_r:    float = 0.016, # R reduction on dark side of edge
+        opacity:          float = 0.18,
+    ) -> None:
+        """Prismatic edge chromatic fringe — the THIRTY-NINTH DISTINCT MODE.
+
+        PRISMATIC EDGE CHROMATIC FRINGE: WARM-SIDE / COOL-SIDE DISPERSION TINTING.
+
+        Old Master oil panel paintings, when examined under raking light, display
+        subtle PRISMATIC IRIDESCENCE at transitions between lit and shadowed form
+        surfaces.  This effect arises from the spectral dispersion of light refracted
+        through stacked oil glaze layers of differing refractive indices — each
+        glazing stratum acts as a partial reflector, and at high-contrast edges the
+        constructive/destructive interference pattern produces a warm fringe on the
+        lit side and a cool fringe on the shadow side, visible as a thin halo of
+        reddish-amber warmth against the bright form face and a blue-violet whisper
+        against the shadow face.  The effect is subtle — never as obvious as a lens
+        chromatic aberration — but it gives glazed Renaissance panel paintings their
+        characteristic jewel-like depth and visual complexity at edge transitions.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Sobel gradients:
+            gx = sobel(luma, axis=1)   [positive = bright to the RIGHT]
+            gy = sobel(luma, axis=0)   [positive = bright BELOW]
+        (3) Gradient magnitude: mag = sqrt(gx²+gy²)
+            norm_mag = clip(mag / max(mag), 0, 1)
+        (4) Edge magnitude gate — smooth bump in [edge_lo, edge_hi]:
+            edge_f = (edge_lo + edge_hi) / 2
+            t_lo = clip((norm_mag − edge_lo) / (edge_f − edge_lo), 0, 1)
+            t_hi = clip((edge_hi − norm_mag) / (edge_hi − edge_f), 0, 1)
+            edge_gate = t_lo × t_hi
+        (5) Directional bright-side gate (pixels where gradient points away → bright side):
+            bright_gate = clip(gx, 0, 1) × edge_gate / max(norm_mag)  — horizontal only
+            [the bright side of a vertical edge is where gx > 0, i.e. the right side
+            is brighter; for simplicity we use the horizontal Sobel component as a
+            signed brightness indicator for the dominant edge direction]
+        (6) Dark-side gate:
+            dark_gate = clip(−gx, 0, 1) × edge_gate / max(norm_mag)
+        (7) Warm fringe on bright side:
+            out_r = clip(r + fringe_warm_r × bright_gate, 0, 1)
+            out_g = clip(g + fringe_warm_g × bright_gate, 0, 1)
+        (8) Cool fringe on dark side:
+            out_b = clip(b + fringe_cool_b × dark_gate, 0, 1)
+            out_r = clip(out_r − fringe_cool_r × dark_gate, 0, 1)
+        (9) Composite at opacity.
+
+        Distinct from ter_brugghen_raking_amber_pass (horizontal Sobel only as a
+          TONAL surface-normal model for warm ridges and cool shadows across ALL
+          midtone surfaces; no edge-gate; applies globally to the form surface,
+          not specifically to high-contrast edge transition zones).
+        Distinct from warm_cool_boundary_pass (global luma-threshold split into
+          warm and cool temperature zones without Sobel edge detection or directionality;
+          no gradient-magnitude gating; applies to all pixels in a luma zone regardless
+          of whether they lie on a form edge).
+        Distinct from gentile_da_fabriano_gold_tooling_pass (isotropic gradient
+          magnitude × high-luma gate; no directional warm/cool split; applies a
+          uniform warm-gold tint to lit ridges rather than a bidirectional
+          warm/cool prismatic fringe on both sides of the edge simultaneously).
+
+        Args:
+            edge_lo/hi        : Normalised gradient magnitude range for edge gate.
+                                Below edge_lo: noise (suppressed). Above edge_hi:
+                                fully clipped specular zone (suppressed). Active on
+                                real structural form edges.
+            fringe_warm_r/g   : Warm amber-red tint applied to the bright side of edges.
+            fringe_cool_b     : Cool blue-violet tint on the shadow side of edges.
+            fringe_cool_r     : R reduction on the shadow side (pushes toward violet).
+            opacity           : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2-3: Sobel gradients and normalised magnitude ─────────────────
+        gx      = _sobel(luma, axis=1).astype(_np.float32)
+        gy      = _sobel(luma, axis=0).astype(_np.float32)
+        mag     = _np.sqrt(gx * gx + gy * gy).astype(_np.float32)
+        max_mag = float(mag.max()) or 1e-6
+        norm_mag = _np.clip(mag / max_mag, 0.0, 1.0)
+
+        # ── Step 4: Edge magnitude gate — active only on real structural edges ─
+        edge_f    = (edge_lo + edge_hi) * 0.5
+        denom_lo  = max(float(edge_f - edge_lo), 1e-6)
+        denom_hi  = max(float(edge_hi - edge_f), 1e-6)
+        t_lo      = _np.clip((norm_mag - edge_lo) / denom_lo, 0.0, 1.0)
+        t_hi      = _np.clip((edge_hi - norm_mag) / denom_hi, 0.0, 1.0)
+        edge_gate = (t_lo * t_hi).astype(_np.float32)
+
+        # Normalised signed gradient components for directional gating
+        gx_norm = (gx / max_mag).astype(_np.float32)
+
+        # ── Step 5: Bright-side gate (gx > 0 → right side is brighter) ────────
+        bright_gate = (_np.clip(gx_norm, 0.0, 1.0) * edge_gate).astype(_np.float32)
+
+        # ── Step 6: Dark-side gate (gx < 0 → left side is brighter, right is dark) ─
+        dark_gate   = (_np.clip(-gx_norm, 0.0, 1.0) * edge_gate).astype(_np.float32)
+
+        # ── Step 7: Warm fringe on bright side ────────────────────────────────
+        out_r = _np.clip(r0 + fringe_warm_r * bright_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + fringe_warm_g * bright_gate, 0.0, 1.0)
+        out_b = b0.copy()
+
+        # ── Step 8: Cool fringe on dark side ──────────────────────────────────
+        out_b = _np.clip(out_b + fringe_cool_b * dark_gate, 0.0, 1.0)
+        out_r = _np.clip(out_r - fringe_cool_r * dark_gate, 0.0, 1.0)
+
+        # ── Step 9: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Chromatic fringe pass complete.")
