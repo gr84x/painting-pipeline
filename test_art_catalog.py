@@ -168,6 +168,7 @@ EXPECTED_ARTISTS = [
     "quentin_massys",
     "bartolomeo_schedoni",
     "godfried_schalcken",
+    "adriaen_van_der_werff",
 ]
 
 
@@ -367,6 +368,9 @@ EXPECTED_PERIODS = [
     "GERMAN_RENAISSANCE",
     "BRITISH_GRAND_MANNER",
     "EMILIAN_CARAVAGGESQUE",
+    "ARTEMISIAN_TENEBRISM",
+    "DUTCH_CANDLELIGHT_BAROQUE",
+    "DUTCH_CLASSICAL_LATE_BAROQUE",
 ]
 
 
@@ -22250,3 +22254,272 @@ def test_film_grain_overlay_pass_hue_preserving():
     ratio_change = abs(hue_r_ratio_after - hue_r_ratio_before) / (hue_r_ratio_before + 1e-6)
     assert ratio_change < 0.10, (
         f"Grain should not significantly shift hue ratio; change={ratio_change:.3f}")
+
+
+# ── Session 166 — Adriaen van der Werff ───────────────────────────────────────
+
+
+def test_adriaen_van_der_werff_in_catalog():
+    """Adriaen van der Werff (session 166) must be present in CATALOG."""
+    assert "adriaen_van_der_werff" in CATALOG
+
+
+def test_adriaen_van_der_werff_movement():
+    s = get_style("adriaen_van_der_werff")
+    assert "Baroque" in s.movement or "Fijnschilder" in s.movement
+
+
+def test_adriaen_van_der_werff_nationality():
+    s = get_style("adriaen_van_der_werff")
+    assert s.nationality == "Dutch"
+
+
+def test_adriaen_van_der_werff_palette_length():
+    s = get_style("adriaen_van_der_werff")
+    assert len(s.palette) >= 5
+
+
+def test_adriaen_van_der_werff_palette_in_range():
+    """All Van der Werff palette RGB values must be in [0, 1]."""
+    s = get_style("adriaen_van_der_werff")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Palette value out of range: {ch}"
+
+
+def test_adriaen_van_der_werff_cool_ground():
+    """Van der Werff uses a cool dark ground — ground_color should be dark."""
+    s = get_style("adriaen_van_der_werff")
+    luminance = (0.2126 * s.ground_color[0]
+                 + 0.7152 * s.ground_color[1]
+                 + 0.0722 * s.ground_color[2])
+    assert luminance < 0.25, f"Ground should be dark; luma={luminance:.3f}"
+
+
+def test_adriaen_van_der_werff_wet_blend_high():
+    """Van der Werff wet_blend should be >= 0.75 for fijnschilder smoothness."""
+    s = get_style("adriaen_van_der_werff")
+    assert s.wet_blend >= 0.75, (
+        f"wet_blend ({s.wet_blend}) should be >= 0.75 for fijnschilder smoothness")
+
+
+def test_adriaen_van_der_werff_has_famous_works():
+    s = get_style("adriaen_van_der_werff")
+    assert len(s.famous_works) >= 3
+
+
+def test_adriaen_van_der_werff_inspiration_references_pass():
+    s = get_style("adriaen_van_der_werff")
+    assert "van_der_werff_ivory_alabaster_pass" in s.inspiration
+
+
+def test_dutch_classical_late_baroque_period_in_enum():
+    """Period.DUTCH_CLASSICAL_LATE_BAROQUE must be present after session 166."""
+    assert hasattr(Period, "DUTCH_CLASSICAL_LATE_BAROQUE"), (
+        "DUTCH_CLASSICAL_LATE_BAROQUE not found in Period enum")
+    assert isinstance(Period.DUTCH_CLASSICAL_LATE_BAROQUE, Period)
+
+
+def test_dutch_classical_late_baroque_stroke_params_valid():
+    """DUTCH_CLASSICAL_LATE_BAROQUE stroke_params must have all required keys."""
+    from scene_schema import Style, Medium
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_CLASSICAL_LATE_BAROQUE)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "stroke_size_bg"   in p
+    assert "wet_blend"        in p
+    assert "edge_softness"    in p
+    assert 0.0 <= p["wet_blend"]     <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_dutch_classical_late_baroque_wet_blend_high():
+    """DUTCH_CLASSICAL_LATE_BAROQUE wet_blend should be >= 0.70 for porcelain smoothness."""
+    from scene_schema import Style, Medium
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_CLASSICAL_LATE_BAROQUE)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.70, (
+        f"DUTCH_CLASSICAL_LATE_BAROQUE wet_blend ({p['wet_blend']}) should be >= 0.70")
+
+
+# ── Session 166 — van_der_werff_ivory_alabaster_pass (Pass 55) ────────────────
+
+
+def test_van_der_werff_ivory_alabaster_pass_exists():
+    """Pass 55: van_der_werff_ivory_alabaster_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "van_der_werff_ivory_alabaster_pass"))
+
+
+def test_van_der_werff_ivory_alabaster_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.55, 0.35), texture_strength=0.0)
+    p.van_der_werff_ivory_alabaster_pass()
+
+
+def test_van_der_werff_ivory_alabaster_pass_zero_opacity_noop():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.55, 0.35), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.van_der_werff_ivory_alabaster_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 should be a no-op"
+
+
+def test_van_der_werff_ivory_alabaster_pass_modifies_canvas():
+    """Pass should change at least one pixel on a skin-toned canvas at opacity=1."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.55, 0.35), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.van_der_werff_ivory_alabaster_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), (
+        "Pass should modify canvas on a skin-toned ground")
+
+
+def test_van_der_werff_ivory_alabaster_pass_cools_skin_highlights():
+    """Blue channel should increase on a bright skin-toned ground (cool pearl lift)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.82, 0.62, 0.40), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.van_der_werff_ivory_alabaster_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Cairo BGRA: channel 0 = B
+    b_before = buf_before[:, :, 0].mean()
+    b_after  = buf_after[:, :, 0].mean()
+    assert b_after > b_before, (
+        f"Blue channel should increase (cool pearl lift); "
+        f"before={b_before:.2f}, after={b_after:.2f}")
+
+
+def test_van_der_werff_ivory_alabaster_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.55, 0.35), texture_strength=0.0)
+    p.van_der_werff_ivory_alabaster_pass(opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ── Session 166 — craquelure_texture_pass (Pass 56, artistic improvement) ─────
+
+
+def test_craquelure_texture_pass_exists():
+    """Pass 56: craquelure_texture_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "craquelure_texture_pass"))
+
+
+def test_craquelure_texture_pass_no_error():
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    p.craquelure_texture_pass()
+
+
+def test_craquelure_texture_pass_zero_opacity_noop():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.craquelure_texture_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 should be a no-op"
+
+
+def test_craquelure_texture_pass_modifies_canvas():
+    """Crack pass should modify at least some pixels."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.45, 0.30), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.craquelure_texture_pass(crack_depth=0.30, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), "craquelure_texture_pass should modify canvas"
+
+
+def test_craquelure_texture_pass_darkens_canvas():
+    """Crack lines are dark — mean brightness should not increase."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.65, 0.50, 0.35), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.craquelure_texture_pass(crack_depth=0.30, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_before = buf_before[:, :, :3].mean()
+    mean_after  = buf_after[:, :, :3].mean()
+    assert mean_after <= mean_before + 1.0, (
+        f"Crack pass should not brighten; before={mean_before:.1f}, after={mean_after:.1f}")
+
+
+def test_craquelure_texture_pass_reproducible():
+    """Same seed should produce identical output."""
+    import numpy as np
+    from stroke_engine import Painter
+    p1 = Painter(64, 64)
+    p1.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    p1.craquelure_texture_pass(seed=42, opacity=1.0)
+    buf1 = np.frombuffer(p1.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    p2 = Painter(64, 64)
+    p2.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    p2.craquelure_texture_pass(seed=42, opacity=1.0)
+    buf2 = np.frombuffer(p2.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    assert np.array_equal(buf1, buf2), "Same seed must produce identical output"
+
+
+def test_craquelure_texture_pass_different_seeds_differ():
+    """Different seeds should produce different crack patterns."""
+    import numpy as np
+    from stroke_engine import Painter
+    p1 = Painter(64, 64)
+    p1.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    p1.craquelure_texture_pass(seed=1, opacity=1.0)
+    buf1 = np.frombuffer(p1.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    p2 = Painter(64, 64)
+    p2.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    p2.craquelure_texture_pass(seed=999, opacity=1.0)
+    buf2 = np.frombuffer(p2.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    assert not np.array_equal(buf1, buf2), (
+        "Different seeds should produce different crack patterns")
+
+
+def test_craquelure_texture_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    p.craquelure_texture_pass(crack_depth=0.80, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

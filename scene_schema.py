@@ -330,6 +330,7 @@ class Period(Enum):
     EMILIAN_CARAVAGGESQUE = auto()  # Bartolomeo Schedoni — Correggesque tenderness fused with Caravaggesque tenebrism; vivid chroma amplification in lit drapery; deep velvety shadow compression; warm golden emergence
     ARTEMISIAN_TENEBRISM  = auto()  # Artemisia Gentileschi — intense upper-left directional spotlight; near-black void shadows; warm amber-ivory flesh in lit zones; saturated costume chroma in spotlight; psychological directness
     DUTCH_CANDLELIGHT_BAROQUE = auto()  # Godfried Schalcken — single-flame radial spotlight from below; warm amber-yellow glow in lit zone; near-black void outside; intimate nocturnal drama; deep velvety shadows; warm saffron skin
+    DUTCH_CLASSICAL_LATE_BAROQUE = auto()  # Adriaen van der Werff — alabaster-cool ivory skin; pearl-blue highlights; deep cool-violet shadows; enamel-smooth fijnschilder surface; no warm candlelight — diffuse north-window coolness
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1675,6 +1676,8 @@ class Style:
             # wet_blend=0.70: Schalcken's skin is smoothly blended, warmed by the single flame.
             # edge_softness=0.50: found edges where the flame catches form, lost edges dissolving into shadow.
             Period.DUTCH_CANDLELIGHT_BAROQUE: dict(stroke_size_face=5, stroke_size_bg=10, wet_blend=0.70, edge_softness=0.50),
+            # DUTCH_CLASSICAL_LATE_BAROQUE (Adriaen van der Werff) — alabaster-smooth, cool diffuse light; tight face strokes; very high wet_blend for enamel seamlessness.
+            Period.DUTCH_CLASSICAL_LATE_BAROQUE: dict(stroke_size_face=4, stroke_size_bg=14, wet_blend=0.82, edge_softness=0.72),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -38327,3 +38327,286 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Film grain overlay pass complete.")
+
+    def van_der_werff_ivory_alabaster_pass(
+        self,
+        skin_r_lo: float = 0.42,
+        skin_r_hi: float = 1.00,
+        skin_g_lo: float = 0.22,
+        skin_g_hi: float = 0.82,
+        skin_b_lo: float = 0.10,
+        skin_b_hi: float = 0.62,
+        skin_rg_margin: float = 0.05,
+        hi_lo: float = 0.52,
+        ivory_b_lift: float = 0.10,
+        ivory_r_reduce: float = 0.06,
+        shadow_hi: float = 0.48,
+        shadow_b_lift: float = 0.08,
+        shadow_r_reduce: float = 0.07,
+        opacity: float = 0.75,
+    ) -> None:
+        """Cool ivory alabaster skin tinting — FIFTY-FIFTH DISTINCT MODE.
+
+        Encodes Adriaen van der Werff's defining pictorial quality: the cool,
+        porcelain-like alabaster flesh that is the polar opposite of Schalcken's
+        warm candlelight.  Van der Werff worked as a fijnschilder (fine-painter)
+        in the tradition of Gerrit Dou and Eglon van der Neer, but pushed the
+        Academic finish to an extreme: his skin has no warmth, no amber glow —
+        it reads as cool ivory, pearl-blue in the highlights, cool violet-grey
+        in the shadows.
+
+        This is the FIFTY-FIFTH DISTINCT MODE: COOL IVORY ALABASTER SKIN
+        TINTING WITH PEARL-BLUE HIGHLIGHT LIFT.
+
+        Unlike ALL prior passes:
+        - Every prior skin-detection pass applies WARM tints (Massys: warm flesh
+          glaze; Schalcken: warm saffron via radial field; Reynolds: warm amber
+          unification; Gentileschi: warm amber in lit zone).  This is the FIRST
+          pass to apply a COOL tint to the detected skin zone: blue-white pearl
+          lift in highlights, cool violet drain in shadows.
+        - Distinct from shadow_color_temperature_pass (FIFTY-SECOND MODE), which
+          applies globally to ALL pixels with no skin detection.  This pass is
+          SKIN-TARGETED: only pixels matching the skin RGB range are modified.
+        - Distinct from gentileschi (spatial directional gradient — no skin
+          detection; warms the lit zone) and Schalcken (radial distance field —
+          no skin detection; warms the proximity zone).
+
+        Algorithm (three steps):
+
+        (1) SKIN ZONE DETECTION:
+            skin_mask = ((r ∈ [r_lo, r_hi]) &
+                         (g ∈ [g_lo, g_hi]) &
+                         (b ∈ [b_lo, b_hi]) &
+                         (r > g + rg_margin) &
+                         (g >= b))
+            Detects warm-flesh pixels (r > g > b) within specified ranges.
+            Identical structural form to Massys skin detection; novel in its
+            subsequent application of COOL rather than WARM tint.
+
+        (2) COOL IVORY LIFT in skin mid-highlights:
+            luma = 0.2126r + 0.7152g + 0.0722b
+            hi_gate = clip((luma − hi_lo) / (1 − hi_lo), 0, 1)
+            ivory_gate = skin_mask × hi_gate
+            out_b += ivory_b_lift × ivory_gate   (pearl-blue lift at highlight)
+            out_r −= ivory_r_reduce × ivory_gate (drain red warmth from peak)
+            Produces the cool alabaster/ivory quality of Van der Werff's lit skin.
+
+        (3) COOL SHADOW DEPTH in skin shadow zone:
+            shad_gate = clip((shadow_hi − luma) / shadow_hi, 0, 1)
+            shadow_zone = skin_mask × shad_gate
+            out_b += shadow_b_lift × shadow_zone  (blue-violet depth in shadow)
+            out_r −= shadow_r_reduce × shadow_zone (drain amber from skin shadows)
+            Produces Van der Werff's cool violet-grey flesh shadows — no warm
+            umber, no golden shadow, only cool darkness.
+
+        Composite at opacity.
+
+        FIFTY-FIFTH DISTINCT MODE: novel because it is the ONLY pass that
+        simultaneously (a) detects a skin zone AND (b) applies a COOL tint.
+        The combination of skin_mask × hi_gate for cool highlight lift and
+        skin_mask × shad_gate for cool shadow deepening encodes a complete
+        cool-skin tonal model that no prior pass provides.
+
+        Args:
+            skin_r_lo      : Lower bound of skin R channel. Default 0.42.
+            skin_r_hi      : Upper bound of skin R channel. Default 1.00.
+            skin_g_lo      : Lower bound of skin G channel. Default 0.22.
+            skin_g_hi      : Upper bound of skin G channel. Default 0.82.
+            skin_b_lo      : Lower bound of skin B channel. Default 0.10.
+            skin_b_hi      : Upper bound of skin B channel. Default 0.62.
+            skin_rg_margin : Minimum R−G gap to confirm warm-flesh. Default 0.05.
+            hi_lo          : Luma threshold above which highlight lift activates. Default 0.52.
+            ivory_b_lift   : Blue additive in skin highlights (pearl coolness). Default 0.10.
+            ivory_r_reduce : Red subtractive in skin highlights (warmth drain). Default 0.06.
+            shadow_hi      : Luma threshold below which shadow deepening activates. Default 0.48.
+            shadow_b_lift  : Blue additive in skin shadows (violet depth). Default 0.08.
+            shadow_r_reduce: Red subtractive in skin shadows (amber drain). Default 0.07.
+            opacity        : Composite weight (0 = no-op). Default 0.75.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Skin zone detection ───────────────────────────────────────
+        skin_mask = (
+            (r0 >= float(skin_r_lo)) & (r0 <= float(skin_r_hi)) &
+            (g0 >= float(skin_g_lo)) & (g0 <= float(skin_g_hi)) &
+            (b0 >= float(skin_b_lo)) & (b0 <= float(skin_b_hi)) &
+            (r0 > g0 + float(skin_rg_margin)) &
+            (g0 >= b0)
+        ).astype(_np.float32)
+
+        out_r = r0.copy()
+        out_g = g0.copy()
+        out_b = b0.copy()
+
+        # ── Step 2: Cool ivory lift in skin highlights ────────────────────────
+        hi_lo_f = float(hi_lo)
+        hi_gate = _np.clip((luma - hi_lo_f) / (1.0 - hi_lo_f + 1e-6), 0.0, 1.0)
+        ivory_gate = skin_mask * hi_gate
+        out_b += float(ivory_b_lift) * ivory_gate
+        out_r -= float(ivory_r_reduce) * ivory_gate
+
+        # ── Step 3: Cool shadow depth in skin zone ────────────────────────────
+        shadow_hi_f = float(shadow_hi)
+        shad_gate = _np.clip((shadow_hi_f - luma) / (shadow_hi_f + 1e-6), 0.0, 1.0)
+        shadow_zone = skin_mask * shad_gate
+        out_b += float(shadow_b_lift) * shadow_zone
+        out_r -= float(shadow_r_reduce) * shadow_zone
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Van der Werff ivory alabaster pass complete.")
+
+    def craquelure_texture_pass(
+        self,
+        sigma_fine: float = 1.5,
+        sigma_coarse: float = 6.0,
+        crack_threshold: float = 0.55,
+        crack_depth: float = 0.18,
+        opacity: float = 0.60,
+        seed: int = 0,
+    ) -> None:
+        """Synthetic craquelure crack network overlay — FIFTY-SIXTH DISTINCT MODE.
+
+        Simulates the fine network of age cracks (craquelure) characteristic of
+        old oil paintings on wood or canvas.  Over centuries, the paint film
+        contracts and separates along stress lines, creating a distinctive web
+        of dark hairline cracks.  This pass generates a synthetic crack network
+        by applying Difference of Gaussians (DoG) to a random noise map,
+        producing ridge-like structures that mimic the organic branching geometry
+        of real craquelure.
+
+        This is the FIFTY-SIXTH DISTINCT MODE: DIFFERENCE-OF-GAUSSIANS SYNTHETIC
+        CRAQUELURE CRACK NETWORK.
+
+        Unlike ALL prior passes:
+        - The ONLY pass to apply Difference of Gaussians (DoG) — a standard
+          edge-detection operator — to a RANDOM NOISE source rather than to the
+          image itself.  Prior edge-detection passes (edge_sfumato_dissolution,
+          chromatic_fringe) apply Sobel or Gaussian operators to the image canvas.
+          Here the DoG is applied to an rng.random() noise field, producing
+          ridge-valley crack-like structures that are entirely independent of
+          image content.
+        - Distinct from film_grain_overlay_pass (FIFTY-FOURTH MODE): that pass
+          uses standard_normal() noise added uniformly to simulate canvas weave.
+          This pass uses uniform noise → DoG → threshold to generate a SPARSE
+          BINARY CRACK MASK with connected ridge-like geometry — an entirely
+          different structural form.
+        - Distinct from chromatic_fringe_pass (THIRTY-NINTH MODE): that pass
+          detects image edges and adds colour fringing.  This pass generates
+          synthetic structure from noise with no reference to image edges.
+
+        Algorithm (four steps):
+
+        (1) NOISE GENERATION:
+            rng = np.random.default_rng(seed)
+            noise = rng.random((H, W), dtype=float32)   [0, 1] uniform noise
+
+        (2) DIFFERENCE OF GAUSSIANS (crack network synthesis):
+            blur_fine   = gaussian_filter(noise, sigma=sigma_fine)
+            blur_coarse = gaussian_filter(noise, sigma=sigma_coarse)
+            dog = blur_fine − blur_coarse
+            Normalise dog to [0, 1].
+            The DoG produces a zero-crossing ridge-valley map in the noise;
+            the ridges — where the fine Gaussian peaks above the coarse — form
+            a connected web of elongated structures that visually resemble
+            craquelure crack lines.
+
+        (3) CRACK MASK THRESHOLDING:
+            crack_mask = (dog > crack_threshold).astype(float32)
+            Thresholds the normalised DoG to isolate sparse ridge lines.
+            crack_threshold controls crack density: higher → fewer, finer cracks;
+            lower → denser, broader crack network.
+
+        (4) CRACK DARKENING:
+            out_r = r × (1 − crack_depth × crack_mask)
+            out_g = g × (1 − crack_depth × crack_mask)
+            out_b = b × (1 − crack_depth × crack_mask)
+            Darkens pixels along crack lines multiplicatively.  Equal-channel
+            application preserves the underlying hue — cracks read as dark
+            rather than coloured.  Composite at opacity.
+
+        FIFTY-SIXTH DISTINCT MODE: novel because DoG is applied to a noise
+        source (not the image), producing synthetic topographic ridge structure
+        that is then thresholded into a crack mask.  No prior pass constructs
+        a binary mask from a noise-derived spatial structure.
+
+        Args:
+            sigma_fine     : Gaussian sigma for the fine-scale blur in DoG. Default 1.5.
+            sigma_coarse   : Gaussian sigma for the coarse-scale blur in DoG. Default 6.0.
+            crack_threshold: Normalised DoG threshold for crack line extraction. Default 0.55.
+            crack_depth    : Multiplicative darkening strength at crack lines. Default 0.18.
+            opacity        : Composite weight (0 = no-op). Default 0.60.
+            seed           : RNG seed for reproducibility. Default 0.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndimage
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── Step 1: Generate uniform noise ────────────────────────────────────
+        rng = _np.random.default_rng(int(seed))
+        noise = rng.random((H, W)).astype(_np.float32)
+
+        # ── Step 2: Difference of Gaussians crack network synthesis ──────────
+        blur_fine   = _ndimage.gaussian_filter(noise, sigma=float(sigma_fine))
+        blur_coarse = _ndimage.gaussian_filter(noise, sigma=float(sigma_coarse))
+        dog = blur_fine - blur_coarse
+        dog_min, dog_max = dog.min(), dog.max()
+        dog_norm = (dog - dog_min) / (dog_max - dog_min + 1e-6)
+
+        # ── Step 3: Threshold to crack mask ───────────────────────────────────
+        crack_mask = (dog_norm > float(crack_threshold)).astype(_np.float32)
+
+        # ── Step 4: Crack darkening (multiplicative, hue-preserving) ──────────
+        factor = 1.0 - float(crack_depth) * crack_mask
+        out_r = r0 * factor
+        out_g = g0 * factor
+        out_b = b0 * factor
+
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Craquelure texture pass complete.")
