@@ -169,6 +169,7 @@ EXPECTED_ARTISTS = [
     "bartolomeo_schedoni",
     "godfried_schalcken",
     "adriaen_van_der_werff",
+    "francois_clouet",
 ]
 
 
@@ -371,6 +372,7 @@ EXPECTED_PERIODS = [
     "ARTEMISIAN_TENEBRISM",
     "DUTCH_CANDLELIGHT_BAROQUE",
     "DUTCH_CLASSICAL_LATE_BAROQUE",
+    "FRENCH_RENAISSANCE",
 ]
 
 
@@ -22523,3 +22525,135 @@ def test_craquelure_texture_pass_pixels_in_range():
     ).reshape(64, 64, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# François Clouet — session 167 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_francois_clouet_in_catalog():
+    """François Clouet (session 167) must be present in CATALOG."""
+    assert "francois_clouet" in CATALOG
+
+
+def test_francois_clouet_movement():
+    s = get_style("francois_clouet")
+    assert "French" in s.movement or "french" in s.movement.lower()
+
+
+def test_francois_clouet_palette_length():
+    s = get_style("francois_clouet")
+    assert len(s.palette) >= 5, "Clouet palette should have at least 5 key colours"
+
+
+def test_francois_clouet_palette_values_in_range():
+    """All Clouet palette RGB values must be in [0, 1]."""
+    s = get_style("francois_clouet")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"Out-of-range channel {channel!r} in Clouet palette {rgb}")
+
+
+def test_francois_clouet_famous_works_not_empty():
+    s = get_style("francois_clouet")
+    assert len(s.famous_works) >= 3, "Clouet should have at least 3 famous works"
+    titles = [w[0] for w in s.famous_works]
+    assert any("Bath" in t or "Quthe" in t or "Charles" in t for t in titles), (
+        "Clouet works should include Lady in Her Bath or Pierre Quthe or Charles IX")
+
+
+def test_francois_clouet_wet_blend_high():
+    """Clouet's enamel-smooth surface demands high wet_blend."""
+    s = get_style("francois_clouet")
+    assert s.wet_blend >= 0.70, (
+        f"Clouet wet_blend should be high (enamel surface), got {s.wet_blend}")
+
+
+def test_francois_clouet_edge_softness_moderate():
+    """Clouet uses crisp outlines — edge_softness must be moderate (not sfumato)."""
+    s = get_style("francois_clouet")
+    assert s.edge_softness <= 0.60, (
+        f"Clouet edge_softness should be moderate (not sfumato), got {s.edge_softness}")
+
+
+def test_french_renaissance_period_present():
+    """FRENCH_RENAISSANCE (session 167) must exist in Period enum."""
+    assert hasattr(Period, "FRENCH_RENAISSANCE"), "Period.FRENCH_RENAISSANCE not found"
+    assert Period.FRENCH_RENAISSANCE in list(Period)
+
+
+def test_french_renaissance_stroke_params():
+    """FRENCH_RENAISSANCE stroke params must be valid and reflect Clouet's precision."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_RENAISSANCE, palette=PaletteHint.COOL_GREY)
+    params = style.stroke_params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"] > 0
+    assert 0.0 <= params["wet_blend"] <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+    assert params["wet_blend"] >= 0.65, "French Renaissance demands high wet_blend for enamel surface"
+    assert params["edge_softness"] <= 0.60, "French Renaissance requires crisp outlines (not sfumato)"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# clouet_enamel_precision_pass — session 167 new rendering mode
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_clouet_enamel_precision_pass_runs():
+    """clouet_enamel_precision_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.70, 0.64), texture_strength=0.0)
+    p.clouet_enamel_precision_pass(opacity=0.50)
+
+
+def test_clouet_enamel_precision_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.55, 0.50), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.clouet_enamel_precision_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_clouet_enamel_precision_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.68, 0.60), texture_strength=0.0)
+    p.clouet_enamel_precision_pass(tint_strength=0.50, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_clouet_enamel_precision_pass_preserves_luminance_structure():
+    """Luminance-preserving: mean luma before and after should stay close."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.50), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    r0 = buf_before[:, :, 2].astype(np.float32) / 255.0
+    g0 = buf_before[:, :, 1].astype(np.float32) / 255.0
+    b0 = buf_before[:, :, 0].astype(np.float32) / 255.0
+    luma_before = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).mean()
+
+    p.clouet_enamel_precision_pass(tint_strength=0.30, opacity=1.0)
+
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    r1 = buf_after[:, :, 2].astype(np.float32) / 255.0
+    g1 = buf_after[:, :, 1].astype(np.float32) / 255.0
+    b1 = buf_after[:, :, 0].astype(np.float32) / 255.0
+    luma_after = (0.2126 * r1 + 0.7152 * g1 + 0.0722 * b1).mean()
+
+    assert abs(luma_before - luma_after) < 0.05, (
+        f"Luminance-preserving pass should keep mean luma close; "
+        f"before={luma_before:.4f}, after={luma_after:.4f}")

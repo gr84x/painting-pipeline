@@ -14481,6 +14481,79 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── François Clouet ───────────────────────────────────────────────────────
+    "francois_clouet": ArtStyle(
+        artist="François Clouet",
+        movement="French Renaissance Court Portraiture",
+        nationality="French (of Flemish origin)",
+        period="c. 1510–1572",
+        palette=[
+            (0.90, 0.82, 0.76),   # pale ivory-rose flesh — cool, fair, courtly
+            (0.68, 0.10, 0.14),   # deep crimson court dress — French royal red
+            (0.88, 0.72, 0.22),   # burnished gold — jewels and embroidery
+            (0.94, 0.92, 0.90),   # pearl-white cool highlight — crystalline light
+            (0.24, 0.22, 0.28),   # deep slate-blue background — muted court setting
+            (0.78, 0.66, 0.54),   # warm cream mid-flesh — sub-surface warmth
+            (0.42, 0.38, 0.44),   # cool grey-mauve shadow — northern ambient
+        ],
+        ground_color=(0.76, 0.72, 0.66),
+        stroke_size=4,
+        wet_blend=0.80,
+        edge_softness=0.45,
+        jitter=0.014,
+        glazing=(0.90, 0.88, 0.86),
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "François Clouet (c. 1510–1572) inherited the French court portraiture "
+            "tradition from his father Jean Clouet and elevated it into a supreme "
+            "expression of Renaissance court elegance.  He served as valet de chambre "
+            "and painter to four French monarchs — Francis I, Henry II, Francis II, "
+            "and Charles IX — producing some of the most precisely observed and "
+            "technically refined portraits of the sixteenth century.\n\n"
+            "His technique synthesised the Flemish tradition of precise, enamel-smooth "
+            "paint surfaces — inherited through the northern European workshop tradition "
+            "his father brought from Tours — with the Italian Renaissance concern for "
+            "idealised form and psychological presence.  Unlike Leonardo's sfumato or "
+            "Rembrandt's impasto, Clouet achieved his surfaces through extreme control "
+            "of thin, semi-transparent layers applied with very small, soft brushes.  "
+            "The paint film is thin and even, with no visible brushwork in the flesh "
+            "zones — each mark dissolved into the layer below before the next was "
+            "applied, building depth of colour that reads as luminous rather than "
+            "opaque.\n\n"
+            "His highlights are distinctively cool and pearl-like — not the warm golden "
+            "highlights of the Italian tradition, but a cooler, more silvery quality "
+            "reflecting the diffuse north-window light of the French court.  Flesh tones "
+            "are characterised by an unusual fairness: pale, slightly rose-tinted, with "
+            "very subtle modelling that avoids the deep chiaroscuro of the Caravaggesque "
+            "tradition.  The light in his portraits is even and diffused — calm, cool, "
+            "the illumination of large northern windows.  His celebrated 'Pierre Quthe' "
+            "(1562, Louvre) and 'Lady in Her Bath' (c. 1571, National Gallery of Art) "
+            "demonstrate this enamel precision at its finest: contours crisp but never "
+            "harsh, surface polished but still painterly, dignity made visible through "
+            "technical restraint."
+        ),
+        famous_works=[
+            ("Pierre Quthe", "1562"),
+            ("Lady in Her Bath", "c. 1571"),
+            ("Charles IX of France", "1566"),
+            ("Mary Queen of Scots", "c. 1558"),
+            ("Francis I on Horseback", "c. 1540"),
+        ],
+        inspiration=(
+            "Apply cool ambient north-window light with no dramatic chiaroscuro.  "
+            "Flesh should read pale ivory-rose — cool, fair, courtly.  "
+            "Use luminance-preserving glaze to achieve the enamel-smooth surface: "
+            "apply cool-ivory tints to the highlight zone while mathematically "
+            "restoring the original luma structure so tonal drawing stays intact.  "
+            "Contours crisp (edge_softness 0.42–0.48) — French Renaissance precision "
+            "is NOT sfumato; edges are findable.  Dress and jewels saturated and "
+            "precise — deep crimson, burnished gold — against pale, controlled flesh.  "
+            "Overall tonality: cool, balanced, serene — cold dignity of the French "
+            "court made visible through luminance-preserving enamel glazing."
+        ),
+    ),
+
 }
 
 
