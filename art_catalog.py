@@ -14554,6 +14554,119 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Joachim Wtewael ────────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Joachim Antonisz Wtewael (1566–1638) was the last great Dutch Mannerist — a
+    # Utrecht painter who worked simultaneously as a prosperous flax-merchant and
+    # as a painter of extraordinary technical sophistication.  That he never
+    # depended on painting for his livelihood may explain why his work is among
+    # the most uncompromisingly difficult in Dutch art: tiny cabinet panels and
+    # plaques on copper, crammed with writhing figures in preposterous attitudes,
+    # painted with the precision of a goldsmith and the palette of a jewel-setter.
+    #
+    # His principal innovation — and the one most important to this pipeline —
+    # is his use of copper as a support.  Unlike canvas or panel, copper is:
+    #   1. Non-porous: paint sits on the surface rather than being absorbed,
+    #      allowing extraordinarily thin, transparent layers with no sinking
+    #   2. Self-luminous: the metal ground reflects light through the paint
+    #      film, giving colours an inner glow impossible on canvas
+    #   3. Geometrically stable: no expansion/contraction, no weave texture
+    #      bleeding through — the surface is perfectly smooth
+    #   4. Distance-invariant saturation: because paint lies on rather than in
+    #      the support, pigment concentration is maximal in every zone — colours
+    #      do NOT desaturate with distance as in Leonardo's sfumato or Friedrich's
+    #      aerial perspective
+    #
+    # These properties produce Wtewael's defining pictorial effect: a painting
+    # that reads like a medieval illuminated manuscript or a stained-glass window
+    # translated into oil paint.  A red drapery in the background is as vivid as
+    # one in the foreground.  The whole canvas is a field of equally intense colour.
+    #
+    # His figure style is extreme Mannerist elegance: elongated limbs, impossible
+    # contrapposto, figures arranged in spiral stacks influenced by Bartholomäus
+    # Spranger and the Habsburg court.  His anatomy is deliberately artificial —
+    # the figures are admired as virtuoso invention, the way a gem-cutter's facets
+    # are admired not for their resemblance to natural stone but for the jewel
+    # they produce.
+    #
+    # Key works:
+    #   Perseus and Andromeda (1611, Louvre) — tight, jewel-like, lurid anatomy
+    #   The Kitchen Piece (c. 1605, Getty Museum) — genre with mythological background
+    #   Lot and His Daughters (c. 1613, Rijksmuseum) — nocturnal copper luxury
+    #   Mars and Venus Surprised by Vulcan (1601, Mauritshuis)
+    #   The Wedding of Peleus and Thetis (c. 1612, Museum of Fine Arts Houston)
+    #
+    # Pipeline key: wtewael_copper_jewel_pass() — per-pixel chroma saturation
+    # amplification via opponent-space distance scaling in mid-bright zones, plus
+    # copper-red warm shadow bleed in deep shadows where the metal support shows
+    # through.  Produces the jewel-bright, distance-invariant colour field that
+    # distinguishes oil on copper from all other supports.
+    "joachim_wtewael": ArtStyle(
+        artist="Joachim Wtewael",
+        movement="Dutch Mannerism / Utrecht Mannerism",
+        nationality="Dutch",
+        period="1590–1630",
+        palette=[
+            (0.76, 0.08, 0.12),   # carmine-vermilion — vivid figure drapery
+            (0.90, 0.44, 0.06),   # cadmium orange — warm flesh and flame
+            (0.10, 0.18, 0.62),   # deep ultramarine — receding drapery, sky zone
+            (0.06, 0.50, 0.22),   # saturated emerald — foliage, background
+            (0.92, 0.84, 0.68),   # pale ivory flesh — lit skin on copper ground
+            (0.20, 0.14, 0.08),   # deep umber shadow — Mannerist void depths
+            (0.92, 0.88, 0.18),   # lemon yellow — metallic ornament, highlight
+        ],
+        ground_color=(0.65, 0.32, 0.14),    # warm copper-red — the metal support
+        stroke_size=4,
+        wet_blend=0.22,                      # crisp Mannerist forms; no sfumato blending
+        edge_softness=0.20,                  # contours vivid and clear; Mannerist linearity
+        jitter=0.028,
+        glazing=None,                        # pure saturated pigment; no unifying glaze
+        crackle=False,                       # copper does not crack; no canvas tension
+        chromatic_split=False,
+        technique=(
+            "Oil on copper — the defining support of Dutch Mannerism.  The copper "
+            "ground is non-porous and self-luminous: paint sits on the metal surface, "
+            "not absorbed into it, giving every colour its maximum pigment "
+            "concentration and an inner glow from the reflective substrate.  "
+            "The result is distance-invariant saturation: far-receding elements "
+            "remain as vivid as foreground ones — there is no atmospheric haze, "
+            "no aerial perspective, no grey-blue muting of the background.  "
+            "The entire canvas reads as a field of equally intense colour, like a "
+            "medieval illuminated manuscript or a stained-glass window in oil paint.\n\n"
+            "Wtewael's figure style is extreme Mannerist elegance: elongated limbs, "
+            "impossible contrapposto, figures arranged in spiral stacks.  His anatomy "
+            "is deliberately artificial — the figures are not meant to be believed but "
+            "admired as virtuoso invention, the way a gem-cutter's facets are admired "
+            "not for their resemblance to natural stone but for the jewel they make.\n\n"
+            "Brushwork is invisible: the copper's smooth surface allows each mark to "
+            "be dissolved into the layer below, building depth of colour without texture.  "
+            "His palette is extraordinary: carmine, cadmium orange, ultramarine, emerald, "
+            "lemon yellow — colours at maximum saturation, placed adjacent for vibrating "
+            "simultaneous contrast.  The ground is a warm copper-red; in the deepest "
+            "shadow zones, where paint layers are thinnest, this copper warmth bleeds "
+            "through — giving his shadows an unusual warm-reddish quality rather than "
+            "the cool-neutral darkness of canvas painters."
+        ),
+        famous_works=[
+            ("Perseus and Andromeda", "1611"),
+            ("The Kitchen Piece", "c. 1605"),
+            ("Lot and His Daughters", "c. 1613"),
+            ("Mars and Venus Surprised by Vulcan", "1601"),
+            ("The Wedding of Peleus and Thetis", "c. 1612"),
+        ],
+        inspiration=(
+            "Use wtewael_copper_jewel_pass(): amplify per-pixel chroma saturation "
+            "in mid-bright zones by boosting the distance of each pixel from its "
+            "neutral grey mean — pushing reds redder, blues bluer, oranges more "
+            "orange, without blowing out highlights or crushing shadows.  In the "
+            "deepest shadow zone (luma below shadow_threshold), inject a faint "
+            "warm copper-red warmth — the metal substrate showing through thin paint "
+            "layers, as in Wtewael's nocturnal figures on copper.  Disable sfumato "
+            "and atmospheric depth; this painting does not haze or soften with "
+            "distance — the jewel is equally bright throughout."
+        ),
+    ),
+
 }
 
 
