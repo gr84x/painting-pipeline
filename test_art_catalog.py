@@ -164,6 +164,9 @@ EXPECTED_ARTISTS = [
     "gentile_da_fabriano",
     "giampietrino",
     "hans_baldung_grien",
+    "joshua_reynolds",
+    "quentin_massys",
+    "bartolomeo_schedoni",
 ]
 
 
@@ -361,6 +364,8 @@ EXPECTED_PERIODS = [
     "INTERNATIONAL_GOTHIC",
     "MILANESE_LEONARDESQUE_DEVOTION",
     "GERMAN_RENAISSANCE",
+    "BRITISH_GRAND_MANNER",
+    "EMILIAN_CARAVAGGESQUE",
 ]
 
 
@@ -21304,6 +21309,409 @@ def test_joshua_reynolds_mezzotint_tone_pixels_in_range():
     p = Painter(64, 64)
     p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
     p.reynolds_grand_manner_pass(opacity=1.0, amber_strength=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ── Quentin Massys (session 162) ──────────────────────────────────────────────
+
+def test_quentin_massys_in_catalog():
+    """Quentin Massys must appear in CATALOG after session 162."""
+    assert "quentin_massys" in CATALOG, "quentin_massys not found in CATALOG"
+
+
+def test_quentin_massys_style_fields():
+    """Massys catalog entry must have correct movement and well-formed fields."""
+    s = get_style("quentin_massys")
+    assert s.movement == "Flemish-Italian Bridge Renaissance"
+    assert s.artist == "Quentin Massys"
+    assert s.nationality == "Flemish"
+    assert len(s.palette) >= 6
+    assert all(
+        0.0 <= c <= 1.0
+        for color in s.palette
+        for c in color
+    ), "All palette colours must be in [0, 1]"
+    assert s.wet_blend > 0.40, "Massys wet_blend should be > 0.40"
+    assert s.edge_softness > 0.40, "Massys edge_softness should be > 0.40"
+    assert s.glazing is not None, "Massys should have an amber unifying glaze"
+    assert s.crackle is True, "Massys panel paintings should have crackle=True"
+
+
+def test_quentin_massys_bridge_glazing_pass_exists():
+    """Painter must expose massys_bridge_glazing_pass() after session 162."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "massys_bridge_glazing_pass"), (
+        "massys_bridge_glazing_pass not found on Painter")
+    assert callable(getattr(Painter, "massys_bridge_glazing_pass"))
+
+
+def test_quentin_massys_bridge_glazing_pass_no_error():
+    """Pass runs without error on a 64×64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+    p.massys_bridge_glazing_pass()
+
+
+def test_quentin_massys_bridge_glazing_zero_opacity_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.48, 0.30), texture_strength=0.0)
+    before_bytes = bytes(p.canvas.surface.get_data()[:])
+    p.massys_bridge_glazing_pass(opacity=0.0)
+    after_bytes = bytes(p.canvas.surface.get_data()[:])
+    assert before_bytes == after_bytes, "opacity=0.0 should be a no-op"
+
+
+def test_quentin_massys_bridge_glazing_modifies_canvas():
+    """Pass must produce a detectable colour shift on a warm-flesh canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.60, 0.44), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.massys_bridge_glazing_pass(opacity=1.0, flesh_warm_r=0.20)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "massys_bridge_glazing_pass should modify a warm flesh canvas at opacity=1.0")
+
+
+def test_quentin_massys_bridge_glazing_warms_flesh():
+    """Warm flesh glaze should increase R on a warm-hued canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.60, 0.44), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.massys_bridge_glazing_pass(
+        opacity=1.0, flesh_warm_r=0.25, flesh_warm_b_reduce=0.12)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Cairo BGRA: channel 2 = R, channel 0 = B
+    mean_r_before = buf_before[:, :, 2].mean()
+    mean_r_after  = buf_after[:, :, 2].mean()
+    assert mean_r_after > mean_r_before, (
+        f"R should increase on warm-flesh canvas after bridge glaze; "
+        f"before={mean_r_before:.2f}, after={mean_r_after:.2f}")
+
+
+def test_quentin_massys_bridge_glazing_no_effect_on_neutral_grey():
+    """Pass should have minimal effect on a neutral grey canvas (no skin detected)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.massys_bridge_glazing_pass(opacity=1.0, flesh_warm_r=0.30)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_delta_r = abs(buf_after[:, :, 2].mean() - buf_before[:, :, 2].mean())
+    assert mean_delta_r < 5.0, (
+        f"Neutral grey canvas should be barely affected (skin mask near zero); "
+        f"R delta={mean_delta_r:.2f} is too large")
+
+
+def test_quentin_massys_bridge_glazing_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.60, 0.44), texture_strength=0.0)
+    p.massys_bridge_glazing_pass(opacity=1.0, flesh_warm_r=1.0, shadow_cool_b=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ── Session 163: Bartolomeo Schedoni + EMILIAN_CARAVAGGESQUE ──────────────────
+
+def test_bartolomeo_schedoni_in_catalog():
+    """bartolomeo_schedoni must be present in CATALOG (session 163 addition)."""
+    assert "bartolomeo_schedoni" in CATALOG, (
+        "bartolomeo_schedoni not found in CATALOG — add it in art_catalog.py")
+
+
+def test_bartolomeo_schedoni_artist_name():
+    """Catalog key bartolomeo_schedoni must have correct artist name."""
+    s = get_style("bartolomeo_schedoni")
+    assert "Schedoni" in s.artist, (
+        f"Expected 'Schedoni' in artist name, got: {s.artist!r}")
+
+
+def test_bartolomeo_schedoni_movement():
+    """Schedoni movement must reference Emilian or Caravaggesque style."""
+    s = get_style("bartolomeo_schedoni")
+    assert ("Emilian" in s.movement or "Caravaggesque" in s.movement), (
+        f"Expected Emilian/Caravaggesque in movement, got: {s.movement!r}")
+
+
+def test_bartolomeo_schedoni_nationality():
+    """Schedoni nationality must be Italian."""
+    s = get_style("bartolomeo_schedoni")
+    assert s.nationality == "Italian", (
+        f"Expected 'Italian', got: {s.nationality!r}")
+
+
+def test_bartolomeo_schedoni_palette_valid():
+    """Schedoni palette must have at least 6 entries, all in [0, 1]."""
+    s = get_style("bartolomeo_schedoni")
+    assert len(s.palette) >= 6, (
+        f"Expected at least 6 palette entries, got {len(s.palette)}")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Channel {ch} out of range in palette {rgb}"
+
+
+def test_bartolomeo_schedoni_dark_ground():
+    """Schedoni ground_color must be very dark (Caravaggesque void ground, luma < 0.15)."""
+    s = get_style("bartolomeo_schedoni")
+    r, g, b = s.ground_color
+    luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    assert luma < 0.15, (
+        f"Schedoni ground_color should be very dark (Caravaggesque); luma={luma:.3f}")
+
+
+def test_bartolomeo_schedoni_wet_blend_moderate_high():
+    """Schedoni wet_blend must be >= 0.55 (Correggesque smooth blending)."""
+    s = get_style("bartolomeo_schedoni")
+    assert s.wet_blend >= 0.55, (
+        f"Schedoni wet_blend should be >= 0.55 for Correggesque smoothness; "
+        f"got {s.wet_blend}")
+
+
+def test_bartolomeo_schedoni_has_famous_works():
+    """Schedoni must have at least 3 famous works listed."""
+    s = get_style("bartolomeo_schedoni")
+    assert len(s.famous_works) >= 3, (
+        f"Expected at least 3 famous works, got {len(s.famous_works)}")
+
+
+def test_emilian_caravaggesque_period_exists():
+    """EMILIAN_CARAVAGGESQUE must be a valid Period enum member (session 163)."""
+    assert hasattr(Period, "EMILIAN_CARAVAGGESQUE"), (
+        "Period.EMILIAN_CARAVAGGESQUE must be defined for Schedoni (session 163)")
+    assert Period.EMILIAN_CARAVAGGESQUE in list(Period)
+
+
+def test_emilian_caravaggesque_stroke_params():
+    """EMILIAN_CARAVAGGESQUE stroke_params must reflect Correggesque-Caravaggesque technique."""
+    style = Style(medium=Medium.OIL, period=Period.EMILIAN_CARAVAGGESQUE)
+    p = style.stroke_params
+    assert p["wet_blend"] >= 0.55, (
+        f"EMILIAN_CARAVAGGESQUE demands high wet_blend for Correggesque smoothness; "
+        f"got {p['wet_blend']}")
+    assert 0.40 <= p["edge_softness"] <= 0.70, (
+        f"EMILIAN_CARAVAGGESQUE edge_softness should be moderate (0.40-0.70); "
+        f"got {p['edge_softness']}")
+
+
+def test_schedoni_luminous_emergence_pass_exists():
+    """Painter must expose schedoni_luminous_emergence_pass() after session 163."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "schedoni_luminous_emergence_pass"), (
+        "schedoni_luminous_emergence_pass not found on Painter")
+    assert callable(getattr(Painter, "schedoni_luminous_emergence_pass"))
+
+
+def test_schedoni_luminous_emergence_pass_no_error():
+    """Pass runs without error on a 64x64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.35), texture_strength=0.0)
+    p.schedoni_luminous_emergence_pass()
+
+
+def test_schedoni_luminous_emergence_zero_opacity_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.62, 0.50, 0.35), texture_strength=0.0)
+    before_bytes = bytes(p.canvas.surface.get_data()[:])
+    p.schedoni_luminous_emergence_pass(opacity=0.0)
+    after_bytes = bytes(p.canvas.surface.get_data()[:])
+    assert before_bytes == after_bytes, "opacity=0.0 should be a no-op"
+
+
+def test_schedoni_luminous_emergence_modifies_canvas():
+    """Pass must produce a detectable change on a vivid warm canvas at opacity=1.0.
+
+    Uses (0.82, 0.58, 0.30) — luma approx 0.61, above highlight_lo=0.60, so the
+    chroma amplification gate fires and modifies the canvas.
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.82, 0.58, 0.30), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.schedoni_luminous_emergence_pass(opacity=1.0, compress=0.0, chroma_boost=0.80)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "schedoni_luminous_emergence_pass should modify a vivid bright canvas "
+        "(luma approx 0.61, above highlight_lo=0.60)")
+
+
+def test_schedoni_luminous_emergence_compresses_shadows():
+    """Shadow compression must reduce mean luma on a dark canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.22, 0.18, 0.12), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    mean_luma_before = (0.2126 * buf_before[:, :, 2] +
+                        0.7152 * buf_before[:, :, 1] +
+                        0.0722 * buf_before[:, :, 0]).mean()
+    p.schedoni_luminous_emergence_pass(opacity=1.0, compress=0.40)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_luma_after = (0.2126 * buf_after[:, :, 2] +
+                       0.7152 * buf_after[:, :, 1] +
+                       0.0722 * buf_after[:, :, 0]).mean()
+    assert mean_luma_after < mean_luma_before, (
+        f"Shadow compression must darken a dark canvas; "
+        f"before={mean_luma_before:.2f}, after={mean_luma_after:.2f}")
+
+
+def test_schedoni_luminous_emergence_amplifies_chroma():
+    """Chroma amplification must increase saturation of a vivid bright canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.82, 0.58, 0.30), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32) / 255.0
+    chroma_before = (buf_before[:, :, [0, 1, 2]].max(axis=2)
+                     - buf_before[:, :, [0, 1, 2]].min(axis=2)).mean()
+    p.schedoni_luminous_emergence_pass(
+        opacity=1.0, chroma_boost=1.0, compress=0.0, glow_r=0.0, glow_g=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32) / 255.0
+    chroma_after = (buf_after[:, :, [0, 1, 2]].max(axis=2)
+                    - buf_after[:, :, [0, 1, 2]].min(axis=2)).mean()
+    assert chroma_after > chroma_before, (
+        f"Chroma amplification must increase saturation on vivid bright canvas; "
+        f"before={chroma_before:.4f}, after={chroma_after:.4f}")
+
+
+def test_schedoni_luminous_emergence_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.82, 0.58, 0.30), texture_strength=0.0)
+    p.schedoni_luminous_emergence_pass(
+        opacity=1.0, compress=1.0, chroma_boost=2.0, glow_r=0.5, glow_g=0.5)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ── Session 163: warm_highlight_bloom_pass (artistic improvement) ─────────────
+
+def test_warm_highlight_bloom_pass_exists():
+    """Painter must expose warm_highlight_bloom_pass() after session 163."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "warm_highlight_bloom_pass"), (
+        "warm_highlight_bloom_pass not found on Painter")
+    assert callable(getattr(Painter, "warm_highlight_bloom_pass"))
+
+
+def test_warm_highlight_bloom_pass_no_error():
+    """Pass runs without error on a 64x64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.58, 0.38), texture_strength=0.0)
+    p.warm_highlight_bloom_pass()
+
+
+def test_warm_highlight_bloom_zero_opacity_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.58, 0.38), texture_strength=0.0)
+    before_bytes = bytes(p.canvas.surface.get_data()[:])
+    p.warm_highlight_bloom_pass(opacity=0.0)
+    after_bytes = bytes(p.canvas.surface.get_data()[:])
+    assert before_bytes == after_bytes, "opacity=0.0 should be a no-op"
+
+
+def test_warm_highlight_bloom_modifies_canvas():
+    """Pass must produce detectable change on a warm bright canvas at opacity=1.0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.80, 0.62, 0.35), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.warm_highlight_bloom_pass(
+        warm_r_thresh=0.50, luma_thresh=0.50, bloom_strength=0.60, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "warm_highlight_bloom_pass should modify a warm bright canvas")
+
+
+def test_warm_highlight_bloom_no_effect_on_cool_dark_canvas():
+    """Pass should have minimal effect when no warm highlights are detected."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.28, 0.35, 0.55), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.warm_highlight_bloom_pass(
+        warm_r_thresh=0.55, warm_r_ratio=1.05, luma_thresh=0.55,
+        bloom_strength=0.80, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    mean_delta = abs(buf_after - buf_before).mean()
+    assert mean_delta < 8.0, (
+        f"Cool dark canvas should show minimal bloom effect; mean_delta={mean_delta:.2f}")
+
+
+def test_warm_highlight_bloom_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.80, 0.62, 0.35), texture_strength=0.0)
+    p.warm_highlight_bloom_pass(
+        bloom_strength=2.0, bloom_sigma=4.0, opacity=1.0)
     buf = np.frombuffer(
         p.canvas.surface.get_data(), dtype=np.uint8
     ).reshape(64, 64, 4)

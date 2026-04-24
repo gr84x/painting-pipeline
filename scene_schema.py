@@ -327,6 +327,7 @@ class Period(Enum):
     FLEMISH_SPANISH_COURT = auto()  # Antonio Moro — high-polarity tonal amplification; very dark umber ground deepened further; cool-silver crystalline highlights; Flemish precision contour; court portrait gravity
     GERMAN_RENAISSANCE    = auto()  # Hans Baldung Grien — acid-green chromatic pallor, Dürer-school sharp draftsmanship, macabre spectral flesh, near-black void ground
     BRITISH_GRAND_MANNER  = auto()  # Joshua Reynolds — mezzotint amber glaze unification; impasto warm-white highlights; bitumen shadow deepening; Grand Manner Academic warmth
+    EMILIAN_CARAVAGGESQUE = auto()  # Bartolomeo Schedoni — Correggesque tenderness fused with Caravaggesque tenebrism; vivid chroma amplification in lit drapery; deep velvety shadow compression; warm golden emergence
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1650,6 +1651,12 @@ class Style:
             # wet_blend=0.55: moderate blending — Grand Manner smoothness without Italian sfumato extremes.
             # edge_softness=0.60: softened Academic edges — forms are clear but not crisply outlined.
             Period.BRITISH_GRAND_MANNER: dict(stroke_size_face=7, stroke_size_bg=28, wet_blend=0.55, edge_softness=0.60),
+            # EMILIAN_CARAVAGGESQUE (Bartolomeo Schedoni) — Correggesque softness with Caravaggesque tenebrism.
+            # stroke_size_face=6: refined Emilian Academic finish — smoother than raw Caravaggesque but not miniaturist.
+            # stroke_size_bg=22: darkened backgrounds handled loosely — tenebrism demands limited BG detail.
+            # wet_blend=0.65: Correggesque smooth blending on flesh and drapery.
+            # edge_softness=0.52: sfumato-influenced transitions; sharper than Leonardo but softer than Northern school.
+            Period.EMILIAN_CARAVAGGESQUE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.65, edge_softness=0.52),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
