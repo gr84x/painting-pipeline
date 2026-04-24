@@ -14601,6 +14601,106 @@ CATALOG: Dict[str, ArtStyle] = {
     # copper-red warm shadow bleed in deep shadows where the metal support shows
     # through.  Produces the jewel-bright, distance-invariant colour field that
     # distinguishes oil on copper from all other supports.
+    # ── Albrecht Altdorfer ────────────────────────────────────────────────────
+    #
+    # Albrecht Altdorfer (c. 1480–1538) — German painter and printmaker,
+    # the defining master of the Danube School (Donauschule).  He was the first
+    # European artist to paint pure landscapes — images with no figures at all —
+    # treating the natural world as a subject worthy of independent contemplation.
+    # His panel paintings subordinate the human figure to an enveloping forest,
+    # twilight sky, or mountain wilderness; figures shrink to near-illegibility
+    # inside an overwhelming natural world.
+    #
+    # Technical hallmarks:
+    #   - Vertical atmospheric layering: the canvas divides naturally into sky
+    #     (pale silver-blue), mid-distance forest (deep cold green), and dark
+    #     earth/shadow (warm umber).  Each layer has its own chromatic identity.
+    #   - Dense, writhing foliage rendered in agitated short strokes — almost
+    #     feather-like — that blur the boundary between individual leaves.
+    #   - Twilight and nocturnal effects: Altdorfer was among the first to paint
+    #     true night scenes ('Nativity at Night', c. 1520).  His palettes often
+    #     combine deep blue-black with warm amber and rose gold.
+    #   - Emotional atmosphere: his landscapes carry unmistakable mood — awe,
+    #     dread, wonder — before Romanticism codified those responses.
+    #   - Famous panel support: lime wood or linden; ground is usually white
+    #     chalk gesso, sometimes tinted.
+    #
+    # Pipeline key: altdorfer_forest_atmosphere_pass() — vertical atmospheric
+    # depth layering: three horizontal bands (sky, mid-forest, earth) each
+    # receive independent chromatic temperature shifts gated by both their
+    # spatial Y-position and luminance zone.  The sky band cools toward pale
+    # blue-silver; the mid-distance band shifts toward deep blue-green; the
+    # earth band warms to amber-umber.  NOVEL: FIRST pass to apply spatially
+    # stratified colour temperature shifts using Y-coordinate band segmentation.
+    "albrecht_altdorfer": ArtStyle(
+        artist="Albrecht Altdorfer",
+        movement="Danube School",
+        nationality="German",
+        period="1507–1538",
+        palette=[
+            (0.08, 0.22, 0.14),   # deep forest shadow green
+            (0.18, 0.42, 0.28),   # mid-distance foliage green
+            (0.56, 0.66, 0.62),   # pale atmospheric silver-blue (sky)
+            (0.72, 0.52, 0.28),   # warm amber figure flesh
+            (0.82, 0.44, 0.10),   # twilight orange-rose (sunset sky)
+            (0.16, 0.14, 0.28),   # deep midnight blue (night shadow)
+            (0.90, 0.86, 0.76),   # chalk-white highlight (chalk gesso ground)
+        ],
+        ground_color=(0.88, 0.84, 0.74),    # pale warm chalk gesso
+        stroke_size=5,
+        wet_blend=0.48,                      # moderate — atmospheric blending, foliage blur
+        edge_softness=0.55,                  # atmospheric softening; forest forms dissolve
+        jitter=0.040,
+        glazing=(0.56, 0.66, 0.72),          # cool silver-blue atmospheric haze glaze
+        crackle=True,                        # linden wood panel — natural crazing
+        chromatic_split=False,
+        technique=(
+            "Panel painting on linden or lime wood with white chalk gesso ground.  "
+            "Altdorfer works from the ground up with careful preliminary drawing, "
+            "then builds translucent oil layers.  His most distinctive contribution "
+            "is the treatment of landscape as a multi-layered atmospheric depth field: "
+            "the lower zone is always warm and dark (deep umber forest floor), the "
+            "middle zone carries the richest chromatic intensity (deep blue-green "
+            "foliage, sometimes tinged with violet in shadow), and the upper zone "
+            "dissolves to pale silver or golden atmospheric haze — or, in his "
+            "famous nocturne scenes, to deep midnight blue spiked with golden stars.\n\n"
+            "Foliage is rendered not as individual leaves but as undulating masses of "
+            "agitated short strokes — feathery, flecked, pulsing — that give his "
+            "forests a nervous, living energy.  He uses a very fine brush for tree "
+            "silhouettes and applies a criss-cross of warm and cool tones within each "
+            "foliage mass to suggest depth without anatomy.\n\n"
+            "His figures, where present, are clothed in vivid local colour — carmine "
+            "red, ultramarine blue, golden yellow — set against the deep forest so "
+            "that they glow like jewels in shadow.  He understood simultaneous "
+            "contrast intuitively: warm flesh against cool blue-green forest, warm "
+            "gold armour against violet shadow.\n\n"
+            "His most famous work — 'The Battle of Alexander at Issus' (1529) — is a "
+            "vast panoramic panel in which hundreds of soldiers are overwhelmed by a "
+            "vast roiling sky, the real subject being the sublime scale of natural "
+            "and historical forces beyond individual human comprehension."
+        ),
+        famous_works=[
+            ("The Battle of Alexander at Issus", "1529"),
+            ("Saint George and the Dragon", "1510"),
+            ("Danube Landscape", "c. 1520–25"),
+            ("Susanna in the Bath", "1526"),
+            ("Nativity at Night", "c. 1520"),
+        ],
+        inspiration=(
+            "Use altdorfer_forest_atmosphere_pass(): stratify the canvas into three "
+            "vertical atmospheric depth layers — sky (upper, cool silver-blue), "
+            "mid-distance (cool deep-green), earth/shadow (lower, warm amber-umber). "
+            "Each band applies an independent chromatic temperature shift gated "
+            "by both its Y-coordinate position and a luminance range, so that the "
+            "sky cools highlights toward pale silver-blue, the forest zone deepens "
+            "mid-tones toward blue-green, and the earth zone warms shadows toward "
+            "amber-umber.  This replicates Altdorfer's instinctive stratification "
+            "of visual space into distinct atmospheric layers, each with its own "
+            "colour identity — the foundation of the Danube School's atmospheric "
+            "landscape painting."
+        ),
+    ),
+
     "joachim_wtewael": ArtStyle(
         artist="Joachim Wtewael",
         movement="Dutch Mannerism / Utrecht Mannerism",

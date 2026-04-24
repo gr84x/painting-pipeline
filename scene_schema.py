@@ -333,6 +333,7 @@ class Period(Enum):
     DUTCH_CLASSICAL_LATE_BAROQUE = auto()  # Adriaen van der Werff — alabaster-cool ivory skin; pearl-blue highlights; deep cool-violet shadows; enamel-smooth fijnschilder surface; no warm candlelight — diffuse north-window coolness
     FRENCH_RENAISSANCE    = auto()  # François Clouet — luminance-preserving cool enamel glaze; pale ivory-rose court flesh; pearl-cool highlights; precise crisp outlines; even north-window diffuse light; no sfumato
     DUTCH_MANNERIST       = auto()  # Joachim Wtewael — oil on copper jewel precision; vivid carmine/cadmium/ultramarine palette; Mannerist elongation; no atmospheric depth; distance-invariant saturation; copper-red shadow warmth
+    DANUBE_SCHOOL         = auto()  # Albrecht Altdorfer — atmospheric vertical depth layering; pale chalk gesso; forest blue-green mid-distance; amber-umber earth; twilight nocturne palette; Romantic landscape pioneers
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1686,6 +1687,9 @@ class Style:
             # DUTCH_MANNERIST (Joachim Wtewael) — oil on copper; jewel-bright; tiny precise marks; low wet_blend
             # (crisp Mannerist forms; no sfumato); low edge_softness (contours vivid and clear throughout).
             Period.DUTCH_MANNERIST: dict(stroke_size_face=3, stroke_size_bg=14, wet_blend=0.22, edge_softness=0.20),
+            # DANUBE_SCHOOL (Albrecht Altdorfer) — atmospheric vertical layering; pale gesso ground; moderate blending
+            # for foliage texture; moderate edge_softness (atmospheric, not sfumato).
+            Period.DANUBE_SCHOOL: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.48, edge_softness=0.55),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

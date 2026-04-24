@@ -171,6 +171,7 @@ EXPECTED_ARTISTS = [
     "adriaen_van_der_werff",
     "francois_clouet",
     "joachim_wtewael",
+    "albrecht_altdorfer",
 ]
 
 
@@ -375,6 +376,7 @@ EXPECTED_PERIODS = [
     "DUTCH_CLASSICAL_LATE_BAROQUE",
     "FRENCH_RENAISSANCE",
     "DUTCH_MANNERIST",
+    "DANUBE_SCHOOL",
 ]
 
 
@@ -22828,4 +22830,248 @@ def test_wtewael_copper_jewel_pass_boosts_saturation():
 
     assert chroma_after >= chroma_before, (
         f"Copper jewel pass should boost mean chroma; "
+        f"before={chroma_before:.4f}, after={chroma_after:.4f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Albrecht Altdorfer — session 169
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_albrecht_altdorfer_in_catalog():
+    """Albrecht Altdorfer (session 169) must be present in CATALOG."""
+    assert "albrecht_altdorfer" in CATALOG
+
+
+def test_albrecht_altdorfer_movement():
+    s = get_style("albrecht_altdorfer")
+    assert "danube" in s.movement.lower() or "Danube" in s.movement, (
+        f"Expected Danube School movement, got {s.movement!r}")
+
+
+def test_albrecht_altdorfer_nationality():
+    s = get_style("albrecht_altdorfer")
+    assert s.nationality.lower() == "german", (
+        f"Expected nationality 'German', got {s.nationality!r}")
+
+
+def test_albrecht_altdorfer_palette_length():
+    s = get_style("albrecht_altdorfer")
+    assert len(s.palette) >= 5
+
+
+def test_albrecht_altdorfer_palette_in_range():
+    """All Altdorfer palette RGB values must be in [0, 1]."""
+    s = get_style("albrecht_altdorfer")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Palette value out of range: {ch}"
+
+
+def test_albrecht_altdorfer_has_forest_green():
+    """Palette must include a deep forest green (G dominant, dark)."""
+    s = get_style("albrecht_altdorfer")
+    has_forest = any(
+        g > r and g > b and (r + g + b) / 3 < 0.45
+        for r, g, b in s.palette
+    )
+    assert has_forest, "Altdorfer palette should include a deep forest green"
+
+
+def test_albrecht_altdorfer_ground_is_light():
+    """Chalk gesso ground must be pale — mean > 0.70."""
+    s = get_style("albrecht_altdorfer")
+    mean_g = sum(s.ground_color) / 3
+    assert mean_g > 0.70, (
+        f"Altdorfer ground should be chalk-pale (mean > 0.70), got {mean_g:.3f}")
+
+
+def test_albrecht_altdorfer_has_cool_glazing():
+    """Altdorfer's atmospheric haze glaze should be blue-dominant."""
+    s = get_style("albrecht_altdorfer")
+    assert s.glazing is not None, "albrecht_altdorfer should have a glazing colour"
+    r, g, b = s.glazing
+    assert b >= r, (
+        f"Altdorfer glaze should be cool (B >= R), got ({r:.2f},{g:.2f},{b:.2f})")
+
+
+def test_albrecht_altdorfer_crackle_true():
+    """Linden wood panel — crackle must be True."""
+    s = get_style("albrecht_altdorfer")
+    assert s.crackle is True, "Altdorfer painted on wood panel; crackle should be True"
+
+
+def test_albrecht_altdorfer_has_famous_works():
+    s = get_style("albrecht_altdorfer")
+    assert len(s.famous_works) >= 3, "Altdorfer should have at least 3 famous works"
+
+
+def test_albrecht_altdorfer_has_battle_in_works():
+    s = get_style("albrecht_altdorfer")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Battle" in t or "Alexander" in t or "George" in t for t in titles), (
+        "Altdorfer works should include Battle of Alexander or Saint George")
+
+
+def test_albrecht_altdorfer_inspiration_references_pass():
+    """Inspiration should reference the altdorfer_forest_atmosphere_pass."""
+    s = get_style("albrecht_altdorfer")
+    assert "altdorfer_forest_atmosphere_pass" in s.inspiration, (
+        "Altdorfer inspiration should reference altdorfer_forest_atmosphere_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DANUBE_SCHOOL Period — session 169
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_danube_school_period_present():
+    """DANUBE_SCHOOL (session 169) must exist in Period enum."""
+    assert hasattr(Period, "DANUBE_SCHOOL"), "Period.DANUBE_SCHOOL not found"
+    assert Period.DANUBE_SCHOOL in list(Period)
+
+
+def test_danube_school_stroke_params():
+    """DANUBE_SCHOOL stroke params must be valid and reflect Altdorfer's atmospheric style."""
+    style = Style(medium=Medium.OIL, period=Period.DANUBE_SCHOOL, palette=PaletteHint.COOL_GREY)
+    params = style.stroke_params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"] > 0
+    assert 0.0 <= params["wet_blend"] <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+    assert params["wet_blend"] >= 0.35, "Danube School uses moderate wet_blend for atmospheric blending"
+    assert params["edge_softness"] >= 0.40, "Danube School uses moderate edge_softness for atmospheric softening"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# altdorfer_forest_atmosphere_pass — session 169 new rendering mode
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_altdorfer_forest_atmosphere_pass_runs():
+    """altdorfer_forest_atmosphere_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.88, 0.84, 0.74), texture_strength=0.0)
+    p.altdorfer_forest_atmosphere_pass(opacity=0.50)
+
+
+def test_altdorfer_forest_atmosphere_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.70, 0.65), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.altdorfer_forest_atmosphere_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_altdorfer_forest_atmosphere_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.60, 0.50), texture_strength=0.0)
+    p.altdorfer_forest_atmosphere_pass(opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_altdorfer_forest_atmosphere_pass_sky_cools_upper_rows():
+    """Upper rows should gain blue channel relative to lower rows after pass."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.55, 0.45), texture_strength=0.0)
+    p.altdorfer_forest_atmosphere_pass(
+        sky_band_hi=0.40,
+        sky_cool_b=0.08,
+        sky_cool_r=0.04,
+        opacity=1.0,
+    )
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    # Upper quarter (sky band) should have higher B channel than lower quarter
+    upper_b = buf[:16, :, 0].astype(np.float32).mean()   # Cairo B = channel 0
+    lower_b = buf[48:, :, 0].astype(np.float32).mean()
+    assert upper_b >= lower_b, (
+        f"Sky band should add blue to upper rows; upper_b={upper_b:.1f}, lower_b={lower_b:.1f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# vibrance_selective_pass — session 169 random artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_vibrance_selective_pass_runs():
+    """vibrance_selective_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.48), texture_strength=0.0)
+    p.vibrance_selective_pass(opacity=0.55)
+
+
+def test_vibrance_selective_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.40), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.vibrance_selective_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_vibrance_selective_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.65, 0.32, 0.14), texture_strength=0.0)
+    p.vibrance_selective_pass(vibrance_strength=0.80, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_vibrance_selective_pass_boosts_chroma():
+    """Vibrance pass should increase mean chroma distance from neutral grey."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.35), texture_strength=0.0)
+
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r0 = buf_before[:, :, 2].astype(np.float32) / 255.0
+    g0 = buf_before[:, :, 1].astype(np.float32) / 255.0
+    b0 = buf_before[:, :, 0].astype(np.float32) / 255.0
+    n0 = (r0 + g0 + b0) / 3.0
+    chroma_before = np.sqrt(
+        (r0 - n0)**2 + (g0 - n0)**2 + (b0 - n0)**2
+    ).mean()
+
+    p.vibrance_selective_pass(vibrance_strength=0.60, opacity=1.0)
+
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r1 = buf_after[:, :, 2].astype(np.float32) / 255.0
+    g1 = buf_after[:, :, 1].astype(np.float32) / 255.0
+    b1 = buf_after[:, :, 0].astype(np.float32) / 255.0
+    n1 = (r1 + g1 + b1) / 3.0
+    chroma_after = np.sqrt(
+        (r1 - n1)**2 + (g1 - n1)**2 + (b1 - n1)**2
+    ).mean()
+
+    assert chroma_after >= chroma_before, (
+        f"Vibrance pass should boost mean chroma; "
         f"before={chroma_before:.4f}, after={chroma_after:.4f}")
