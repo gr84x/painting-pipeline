@@ -12917,6 +12917,93 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "gaudenzio_ferrari": ArtStyle(
+        artist="Gaudenzio Ferrari",
+        movement="Piedmontese Devotional Luminism",
+        nationality="Italian (Piedmontese/Valsesian)",
+        period="c. 1477–1546",
+        palette=[
+            (0.92, 0.80, 0.55),   # warm ivory-gold devotional flesh highlight
+            (0.82, 0.66, 0.40),   # amber-ochre warm mid-flesh (Lombard sunlit warmth)
+            (0.68, 0.52, 0.30),   # warm sienna-umber mid-shadow
+            (0.30, 0.18, 0.08),   # deep warm umber shadow void
+            (0.68, 0.48, 0.60),   # warm rose-crimson drapery (devotional ardour)
+            (0.40, 0.62, 0.74),   # cool cerulean-blue sky ground
+            (0.78, 0.70, 0.40),   # golden-wheat drapery highlight (Lombard radiance)
+            (0.55, 0.40, 0.22),   # warm amber-brown earth shadow
+        ],
+        ground_color=(0.52, 0.42, 0.26),    # warm amber-ochre Lombard imprimatura
+        stroke_size=6,
+        wet_blend=0.78,                      # heavy blending — Leonardesque sfumato inheritance
+        edge_softness=0.72,                  # strong sfumato — forms dissolve warmly at periphery
+        jitter=0.018,                        # subtle jitter — Lombard precision with expressive warmth
+        glazing=(0.75, 0.60, 0.30),          # warm amber-gold devotional glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Gaudenzio Ferrari (c. 1477–1546) is the supreme master of PIEDMONTESE "
+            "DEVOTIONAL LUMINISM — a synthesis of Leonardo da Vinci's sfumato, Piero "
+            "della Francesca's architectural clarity, and a fierce Lombard emotional "
+            "directness found nowhere else in Italian Renaissance painting.  "
+            "His defining quality is WARM DEVOTIONAL INNER LIGHT: his figures — saints, "
+            "angels, the Virgin, the dying Christ — appear to be lit from within by a "
+            "warm amber-gold luminosity that permeates the shadow zone and gives their "
+            "flesh a quality of spiritual ardour made visible.  Unlike Leonardo's cool, "
+            "intellectual sfumato, Ferrari's shadows retain warmth; unlike Raphael's "
+            "radiant clarity, Ferrari's forms carry the weight of intense emotional "
+            "experience.  He is Lombard where Leonardo is Florentine.  "
+            "His technique combines fresco confidence (he was the greatest North Italian "
+            "fresco painter of his generation — the Sacro Monte di Varallo dome, "
+            "c. 1513, is the supreme example, its figures foreshortened with proto-"
+            "Baroque illusionism) with the oil-glazing depth he absorbed from the "
+            "Milanese Leonardesque tradition.  His palette is characteristically warm: "
+            "ivory-gold flesh highlights, warm amber mid-tones, deep sienna shadows — "
+            "with sharp vermilion-crimson drapery accents that give his devotional "
+            "scenes an urgency belied by their tenderness.  "
+            "The SHADOW ZONE is Ferrari's most personal passage: where Leonardo leaves "
+            "the shadow cool and remote, Ferrari floods the penumbra with warm amber "
+            "glow, as if the saints' inner fire illuminates even the darkest recesses "
+            "of their form.  This warm shadow luminosity — distinct from the lit-surface "
+            "highlights — is what marks a Ferrari as immediately recognisable.  "
+            "He trained under Gian Giacomo Della Torre and may have briefly encountered "
+            "Leonardo's workshop in Milan c. 1500–1505, absorbing sfumato while "
+            "retaining the vivid Lombard colour sense of his native Valsesia.  "
+            "Vasari praised him as second only to Raphael among Lombard painters."
+        ),
+        famous_works=[
+            ("Sacro Monte di Varallo Dome Fresco",          "c. 1513"),
+            ("Annunciation (Vercelli Cathedral)",            "1529–1530"),
+            ("Madonna and Child with Saints (Varallo)",      "c. 1508"),
+            ("Saronno Cathedral Assumption Fresco",          "1534–1536"),
+            ("Crucifixion (Santa Maria delle Grazie, Varallo)", "c. 1513"),
+        ],
+        inspiration=(
+            "Use gaudenzio_warm_devotion_pass() to apply the THIRTY-FIRST DISTINCT "
+            "MODE: SHADOW-ZONE WARM AMBER LUMINOSITY SCUMBLE.  This pass simulates "
+            "Ferrari's characteristic warm inner light flooding the shadow zone with "
+            "devotional amber warmth.  Compute luminance, define shadow gate (smooth "
+            "bump in [shad_lo=0.05, shad_hi=0.42]) targeting the penumbra and shadow "
+            "transition zones.  Apply warm amber tint (R+warm_r, G+warm_g, B−warm_b) "
+            "weighted by gate × warm_strength.  The warmth must be subtle — a gentle "
+            "amber scumble in the shadows, not a highlight bloom.  "
+            "Parameters: shad_lo=0.05, shad_hi=0.42, warm_r=0.038, warm_g=0.022, "
+            "warm_b=0.010, warm_strength=0.55, opacity=0.30.  "
+            "Use atmospheric_depth_gradient_pass() for the artistic improvement: a "
+            "luminance-weighted vertical chromatic temperature gradient that adds "
+            "atmospheric recession depth — warm ochre tones strengthen in the lower "
+            "canvas zone (foreground), while cool blue-grey tones increase toward the "
+            "upper zone (sky/background horizon), simulating Leonardo's sfumato "
+            "atmospheric perspective applied across the full canvas height.  "
+            "Compute a vertical gradient weight: v_weight = y_frac (0 at top, 1 at "
+            "bottom) for warm bottom and (1 − v_frac) for cool top.  Apply warm amber "
+            "push to lower canvas (R+atm_warm_r × v_lo, G+atm_warm_g × v_lo) and "
+            "cool blue-grey push to upper canvas (B+atm_cool_b × v_hi, R−atm_cool_r "
+            "× v_hi) gated by mid-luminance (luma > luma_lo).  "
+            "Parameters: atm_warm_r=0.025, atm_warm_g=0.014, atm_cool_b=0.028, "
+            "atm_cool_r=0.012, luma_lo=0.12, opacity=0.28."
+        ),
+    ),
+
 }
 
 
