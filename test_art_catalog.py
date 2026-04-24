@@ -21200,3 +21200,112 @@ def test_baldung_grien_spectral_pallor_pass_pixels_in_range():
     ).reshape(64, 64, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ── Joshua Reynolds — session 161 ─────────────────────────────────────────────
+
+def test_joshua_reynolds_in_catalog():
+    """Joshua Reynolds must be present in CATALOG."""
+    from art_catalog import CATALOG
+    assert "joshua_reynolds" in CATALOG, "joshua_reynolds not found in CATALOG"
+
+
+def test_joshua_reynolds_style_fields():
+    """Joshua Reynolds ArtStyle must have expected field values."""
+    from art_catalog import get_style
+    s = get_style("joshua_reynolds")
+    assert s.artist == "Joshua Reynolds"
+    assert "Grand Manner" in s.movement
+    assert s.nationality == "British"
+    assert len(s.palette) >= 6
+    assert s.wet_blend > 0.40, "Reynolds wet_blend should be > 0.40 (moderate Grand Manner blending)"
+    assert s.edge_softness > 0.50, "Reynolds edge_softness should be > 0.50 (Academic softened edges)"
+    assert s.glazing is not None, "Reynolds should have a warm amber unifying glaze"
+    assert s.crackle is True, "Reynolds used bitumen — crackle should be True"
+
+
+def test_joshua_reynolds_mezzotint_tone_pass_exists():
+    """Painter must expose reynolds_grand_manner_pass() after session 161."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "reynolds_grand_manner_pass"), (
+        "reynolds_grand_manner_pass not found on Painter")
+    assert callable(getattr(Painter, "reynolds_grand_manner_pass"))
+
+
+def test_joshua_reynolds_mezzotint_tone_pass_no_error():
+    """Pass runs without error on a 64×64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    p.reynolds_grand_manner_pass()
+
+
+def test_joshua_reynolds_mezzotint_tone_zero_opacity_noop():
+    """opacity=0.0 must leave the canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    before = p.canvas.surface.get_data()[:]
+    before_bytes = bytes(before)
+    p.reynolds_grand_manner_pass(opacity=0.0)
+    after = bytes(p.canvas.surface.get_data()[:])
+    assert before_bytes == after, "opacity=0.0 should be a no-op"
+
+
+def test_joshua_reynolds_mezzotint_tone_modifies_canvas():
+    """Pass must produce a detectable colour shift at opacity=1.0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.reynolds_grand_manner_pass(opacity=1.0, amber_strength=0.20)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), (
+        "reynolds_grand_manner_pass should modify canvas at opacity=1.0")
+
+
+def test_joshua_reynolds_mezzotint_tone_warms_canvas():
+    """Amber glaze should shift the canvas warmer (R up, B down) at high amber_strength."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)   # neutral grey
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.reynolds_grand_manner_pass(opacity=1.0, amber_strength=0.50,
+                                  amber_r=0.15, amber_b_reduce=0.10)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Cairo BGRA: channel 2 = R, channel 0 = B
+    mean_r_before = buf_before[:, :, 2].mean()
+    mean_r_after  = buf_after[:, :, 2].mean()
+    mean_b_before = buf_before[:, :, 0].mean()
+    mean_b_after  = buf_after[:, :, 0].mean()
+    assert mean_r_after > mean_r_before, (
+        f"R should increase on neutral canvas after amber glaze; "
+        f"before={mean_r_before:.2f}, after={mean_r_after:.2f}")
+    assert mean_b_after < mean_b_before, (
+        f"B should decrease on neutral canvas after amber glaze; "
+        f"before={mean_b_before:.2f}, after={mean_b_after:.2f}")
+
+
+def test_joshua_reynolds_mezzotint_tone_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.55, 0.40), texture_strength=0.0)
+    p.reynolds_grand_manner_pass(opacity=1.0, amber_strength=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
