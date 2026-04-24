@@ -322,6 +322,7 @@ class Period(Enum):
     LOMBARDY_VENETIAN_JEWEL_REALISM = auto()  # Bartolomeo Veneto — hue-angular dual-pole saturation deepening; blue-violet shadow brocade + gold-amber highlight brocade poles; cool ivory flesh precision; Lombard-Venetian jewel-like surface
     UMBRIAN_ROMAN_ILLUSIONISM       = auto()  # Melozzo da Forlì — overhead zenith radiance; top-of-form warm lift via vertical position × midtone gate; under-surface cool shadow; architectural illusionistic ceiling light
     INTERNATIONAL_GOTHIC = auto()  # Gentile da Fabriano — tooled-gold ground; flat jewel-tone pigment zones; crisp Gothic contour; tempera hatching; punched gold halos; sumptuous brocade surface
+    MILANESE_LEONARDESQUE_DEVOTION = auto()  # Giampietrino — warm honey-amber highlight tinting + cool violet shadow deepening; seamless Leonardesque multi-glaze sfumato; sweet idealized Milanese devotional warmth
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1609,6 +1610,12 @@ class Style:
             # edge_softness=0.10: Gothic linear contour is the firmest in the catalog — no atmospheric
             # dissolution whatsoever; figures are bounded by sharp, decorative line.
             Period.INTERNATIONAL_GOTHIC: dict(stroke_size_face=3, stroke_size_bg=12, wet_blend=0.12, edge_softness=0.10),
+            # MILANESE_LEONARDESQUE_DEVOTION (Giampietrino) — Leonardesque multi-layer oil glazing.
+            # stroke_size_face=4: fine polished Milanese surface; small marks seamlessly dissolved into each other.
+            # stroke_size_bg=18: atmospheric landscape backgrounds softly blurred and minimal.
+            # wet_blend=0.75: high — multi-layer glazing over brown ground; very smooth, nearly invisible marks.
+            # edge_softness=0.78: very soft sfumato — figures emerge from warm brown ground without hard line.
+            Period.MILANESE_LEONARDESQUE_DEVOTION: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.75, edge_softness=0.78),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

@@ -36320,3 +36320,238 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Chromatic fringe pass complete.")
+
+    # Session 157 — Giampietrino: dual-zone warm-highlight / cool-shadow tinting
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def giampietrino_warm_devotion_pass(
+        self,
+        hi_lo:    float = 0.55,   # lower luminance boundary of highlight gate
+        hi_hi:    float = 0.88,   # upper luminance boundary of highlight gate
+        warm_r:   float = 0.055,  # R boost in highlight zone (warm amber push)
+        warm_g:   float = 0.030,  # G boost in highlight zone
+        shad_lo:  float = 0.05,   # lower luminance boundary of shadow gate
+        shad_hi:  float = 0.42,   # upper luminance boundary of shadow gate
+        cool_b:   float = 0.055,  # B boost in shadow zone (cool violet deepening)
+        cool_r:   float = 0.022,  # R reduction in shadow zone (push toward violet)
+        opacity:  float = 0.30,
+    ) -> None:
+        """Warm highlight amber + cool shadow violet — FORTIETH DISTINCT MODE.
+
+        Giampietrino (Giovanni Pietro Rizzoli, c. 1495–1540) was Leonardo's most
+        technically faithful Milanese pupil.  His devotional Madonnas and recumbent
+        Magdalenes extend Leonardo's oil-glazing method with a distinctive DUAL-
+        TEMPERATURE FLESH MODEL: warm honey-amber pushes the illuminated flesh crest
+        while cool violet-plum deepens the recessed shadow face.  This luminance-
+        gated tinting captures that chromatic two-temperature quality without
+        depending on Sobel gradients or hue-proxy detection.
+
+        This pass encodes those effects as the FORTIETH DISTINCT MODE:
+        DUAL-ZONE LUMINANCE TINTING — WARM HIGHLIGHT AMBER + COOL SHADOW VIOLET.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Highlight gate — smooth bump in [hi_lo, hi_hi]:
+            hi_f = (hi_lo + hi_hi) / 2
+            t_lo = clip((luma − hi_lo) / (hi_f − hi_lo), 0, 1)
+            t_hi = clip((hi_hi − luma) / (hi_hi − hi_f), 0, 1)
+            hi_gate = t_lo × t_hi
+        (3) Shadow gate — smooth bump in [shad_lo, shad_hi]:
+            shad_f = (shad_lo + shad_hi) / 2; analogous construction
+        (4) Apply warm amber to highlights:
+            out_r = clip(r + warm_r × hi_gate, 0, 1)
+            out_g = clip(g + warm_g × hi_gate, 0, 1)
+        (5) Apply cool violet to shadows:
+            out_b = clip(b + cool_b × shad_gate, 0, 1)
+            out_r = clip(out_r − cool_r × shad_gate, 0, 1)
+        (6) Composite at opacity.
+
+        Distinct from beccafumi_nacreous_glow_pass (signed Gaussian BLOOM DIFFERENCE
+          determines warm/cool zones — the sign of bloom-orig varies spatially based
+          on convex/concave surface curvature, not fixed luminance thresholds).
+        Distinct from bartolomeo_veneto_jewel_brocade_pass (HUE-PROXY detection:
+          blue_proxy = clip(B−max(R,G), 0, 1); gold_proxy = clip(R−B, 0, 1)×clip(G−B×0.5,
+          0, 1) — applies to hue-specific colour zones regardless of luminance level).
+        Distinct from furini_moonlit_sfumato_pass (HIGHLIGHTS ONLY in [0.55, 0.92];
+          applies cool silver: B+, R− in lit zones; no shadow tinting component).
+        Distinct from melozzo_zenith_radiance_pass (VERTICAL POSITION axis: warm at
+          top, cool at bottom — position-based not luminance-based gating).
+
+        Args:
+            hi_lo/hi_hi   : Luminance range for the highlight zone gate.
+            warm_r/warm_g : Warm amber-honey tint added to highlight zone pixels.
+            shad_lo/shad_hi: Luminance range for the shadow zone gate.
+            cool_b        : Cool violet-blue tint added to shadow zone pixels.
+            cool_r        : R reduction in shadow zone (pushes toward violet, not blue).
+            opacity       : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Highlight gate — smooth bump in [hi_lo, hi_hi] ───────────
+        hi_f    = (hi_lo + hi_hi) * 0.5
+        hi_dlo  = max(float(hi_f - hi_lo), 1e-6)
+        hi_dhi  = max(float(hi_hi - hi_f), 1e-6)
+        hi_t_lo = _np.clip((luma - hi_lo) / hi_dlo, 0.0, 1.0)
+        hi_t_hi = _np.clip((hi_hi - luma)  / hi_dhi, 0.0, 1.0)
+        hi_gate = (hi_t_lo * hi_t_hi).astype(_np.float32)
+
+        # ── Step 3: Shadow gate — smooth bump in [shad_lo, shad_hi] ──────────
+        shad_f    = (shad_lo + shad_hi) * 0.5
+        shad_dlo  = max(float(shad_f - shad_lo), 1e-6)
+        shad_dhi  = max(float(shad_hi - shad_f), 1e-6)
+        shad_t_lo = _np.clip((luma - shad_lo) / shad_dlo, 0.0, 1.0)
+        shad_t_hi = _np.clip((shad_hi - luma)  / shad_dhi, 0.0, 1.0)
+        shad_gate = (shad_t_lo * shad_t_hi).astype(_np.float32)
+
+        # ── Step 4: Warm amber tint in highlights ─────────────────────────────
+        out_r = _np.clip(r0 + warm_r * hi_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + warm_g * hi_gate, 0.0, 1.0)
+        out_b = b0.copy()
+
+        # ── Step 5: Cool violet tint in shadows ───────────────────────────────
+        out_b = _np.clip(out_b + cool_b * shad_gate, 0.0, 1.0)
+        out_r = _np.clip(out_r - cool_r * shad_gate, 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Giampietrino warm devotion pass complete.")
+
+    # Session 157 — random improvement: peripheral_defocus_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def peripheral_defocus_pass(
+        self,
+        inner_radius:  float = 0.38,  # normalised radial fraction where blur begins (0=centre, 1=corner)
+        blur_sigma:    float = 4.0,   # Gaussian blur sigma for maximum peripheral blur
+        power:         float = 1.8,   # falloff exponent (higher = sharper centre-to-edge transition)
+        blur_strength: float = 0.55,  # maximum blend fraction toward blurred image at far edge
+        opacity:       float = 0.40,
+    ) -> None:
+        """Radial peripheral softening — FORTY-FIRST DISTINCT MODE.
+
+        Old Master portrait painters deliberately softened the peripheral regions
+        of their compositions to concentrate the viewer's attention on the face
+        and hands.  Rembrandt, Velázquez, and the Leonardesque painters all employ
+        this strategy: a central zone of relative sharpness surrounded by a zone
+        of increasing tonal dissolution toward the canvas edges.  This is NOT the
+        same as a vignette (which darkens edges) — peripheral softening preserves
+        luminance while introducing spatial blur, simulating the natural fall-off
+        of focal acuity in peripheral vision and the deliberate compositional
+        softening in Old Master practice.
+
+        This pass encodes that effect as the FORTY-FIRST DISTINCT MODE:
+        RADIAL PERIPHERAL SOFTENING — SIMULATED DEPTH OF FIELD.
+
+        Algorithm:
+        (1) Compute normalised radial distance from canvas centre for each pixel:
+            xs = linspace(0, 1, W) − 0.5; ys = linspace(0, 1, H) − 0.5
+            dist = sqrt(xs² + ys²)  [meshgrid]
+            max_dist = sqrt(0.5² + 0.5²) = 0.7071  [corner distance]
+            dist_norm = clip(dist / max_dist, 0, 1)
+        (2) Defocus weight map — 0 in centre, increases toward edges:
+            raw_wt = clip((dist_norm − inner_radius) / (1 − inner_radius), 0, 1)
+            defocus_wt = raw_wt^power × blur_strength
+        (3) Full-canvas Gaussian blur per channel (sigma = blur_sigma)
+        (4) Per-pixel blend: out_ch = ch × (1 − defocus_wt) + blurred_ch × defocus_wt
+        (5) Composite at opacity.
+
+        Distinct from focal_vignette_pass (DARKENS and COOLS edges by multiplying
+          each channel by a vignette weight < 1 plus a cool blue shift; purely
+          tonal manipulation — no spatial blurring; centre luminance is unchanged
+          but edge luminance is reduced; this pass does NOT darken edges).
+        Distinct from atmospheric_depth_gradient_pass (vertical linear temperature
+          gradient: y_frac warms bottom pixels and cools top pixels regardless of
+          horizontal position; no spatial blurring; no radial geometry).
+        Distinct from penumbra_softening_pass (gradient-magnitude-weighted shadow-
+          edge smoothing: applies Gaussian blur only to pixels on shadow-edge zones
+          detected by combined luma gate × Sobel magnitude; not radial geometry).
+
+        Args:
+            inner_radius  : Normalised radial fraction (0–1) inside which no blur
+                            is applied.  At 0.38 the sharp zone covers ~38% of the
+                            corner-distance radius, keeping the figure centre sharp.
+            blur_sigma    : Gaussian sigma for the peripheral blur kernel.
+            power         : Exponent shaping the radial weight falloff.  1.8 gives
+                            a gentle ramp; higher values sharpen the transition zone.
+            blur_strength : Maximum blend fraction toward blurred image at the
+                            canvas corners.  0.55 softens perimeter without fully
+                            dissolving edge detail.
+            opacity       : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gaussian_filter
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Radial distance from canvas centre ─────────────────────────
+        xs       = (_np.linspace(0.0, 1.0, W, dtype=_np.float32) - 0.5)
+        ys       = (_np.linspace(0.0, 1.0, H, dtype=_np.float32) - 0.5)
+        xx, yy   = _np.meshgrid(xs, ys)
+        dist     = _np.sqrt(xx * xx + yy * yy).astype(_np.float32)
+        max_dist = float(_np.sqrt(0.5 * 0.5 + 0.5 * 0.5))   # = 0.7071 (corner)
+        dist_norm = _np.clip(dist / max_dist, 0.0, 1.0)
+
+        # ── Step 2: Defocus weight — 0 at centre, increases toward edges ──────
+        denom     = max(1.0 - inner_radius, 1e-6)
+        raw_wt    = _np.clip((dist_norm - inner_radius) / denom, 0.0, 1.0)
+        defocus_wt = (raw_wt ** power * blur_strength).astype(_np.float32)
+
+        # ── Step 3: Full-canvas Gaussian blur ─────────────────────────────────
+        blur_r = _gaussian_filter(r0, sigma=blur_sigma).astype(_np.float32)
+        blur_g = _gaussian_filter(g0, sigma=blur_sigma).astype(_np.float32)
+        blur_b = _gaussian_filter(b0, sigma=blur_sigma).astype(_np.float32)
+
+        # ── Step 4: Per-pixel blend of original and blurred ───────────────────
+        out_r = r0 * (1.0 - defocus_wt) + blur_r * defocus_wt
+        out_g = g0 * (1.0 - defocus_wt) + blur_g * defocus_wt
+        out_b = b0 * (1.0 - defocus_wt) + blur_b * defocus_wt
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Peripheral defocus pass complete.")
