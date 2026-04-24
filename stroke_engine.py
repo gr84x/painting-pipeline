@@ -38749,3 +38749,155 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Clouet enamel precision pass complete.")
+
+    def wtewael_copper_jewel_pass(
+        self,
+        saturation_boost: float = 0.40,
+        mid_lo: float = 0.25,
+        mid_hi: float = 0.78,
+        mid_power: float = 1.4,
+        shadow_threshold: float = 0.22,
+        shadow_power: float = 2.0,
+        copper_r: float = 0.055,
+        copper_g: float = 0.018,
+        opacity: float = 0.55,
+    ) -> None:
+        """Copper-ground jewel saturation amplification — FIFTY-EIGHTH DISTINCT MODE.
+
+        Encodes Joachim Wtewael's defining pictorial quality: the extraordinary,
+        distance-invariant colour saturation of oil paint on a copper support.
+        Wtewael (1566–1638) worked on copper panels that are non-porous and
+        self-luminous, allowing paint to achieve maximum pigment concentration
+        and an inner glow from the metal surface reflecting through thin layers.
+
+        This is the FIFTY-EIGHTH DISTINCT MODE: PER-PIXEL CHROMA AMPLIFICATION
+        VIA OPPONENT-SPACE DISTANCE SCALING.
+
+        Unlike ALL prior colour-modification passes:
+        - Every prior pass operates on individual channels in additive/multiplicative
+          terms: warm_highlight_bloom adds a warm colour in bright zones; van_der_werff
+          adds blue/subtracts red in skin zones; Schalcken adds amber via a radial
+          field; shadow_color_temperature adds blue to shadows, warm to highlights;
+          Clouet lerps toward a target colour.
+        - This pass does something NO prior pass does: it computes the PER-PIXEL
+          NEUTRAL GREY MEAN (n = (r+g+b)/3), then amplifies the CHROMA DISTANCE
+          of each pixel from that neutral mean.  Every pixel's colour is treated
+          as a position in opponent-colour space; the pass moves it further away
+          from the neutral axis.
+        - This is mathematically equivalent to increasing colour saturation in
+          a perceptually consistent way — pushing reds redder, blues bluer,
+          oranges more orange — without a hue shift, confined to the mid-bright
+          zone where Wtewael's full-saturation technique is most visible.
+
+        Algorithm (three steps):
+
+        (1) PER-PIXEL NEUTRAL MEAN AND CHROMA DECOMPOSITION:
+            n = (r + g + b) / 3
+            delta_r = r − n
+            delta_g = g − n
+            delta_b = b − n
+            Computes opponent-space displacement for each pixel from its own
+            neutral point (not a global grey — each pixel has its own n).
+
+        (2) MID-BRIGHT GATE (bell curve):
+            luma = 0.2126r + 0.7152g + 0.0722b
+            range = mid_hi − mid_lo
+            gate_lo = clip((luma − mid_lo) / range, 0, 1)
+            gate_hi = clip((mid_hi − luma) / range, 0, 1)
+            mid_gate = (gate_lo × gate_hi) ** mid_power
+            Peaks in the mid-bright zone; tapers to zero at pure black and pure
+            white.  Confines amplification to the zone where Wtewael's copper
+            saturation is most visible; highlights and deep shadows are protected.
+            CHROMA AMPLIFICATION:
+            boost = saturation_boost × mid_gate
+            out_r = n + delta_r × (1 + boost)
+            out_g = n + delta_g × (1 + boost)
+            out_b = n + delta_b × (1 + boost)
+            Pushes each pixel's colour further from its own neutral axis.
+
+        (3) COPPER GROUND SHADOW WARMTH:
+            shad_gate = clip((shadow_threshold − luma) / shadow_threshold, 0, 1)
+                        ** shadow_power
+            out_r += copper_r × shad_gate
+            out_g += copper_g × shad_gate
+            Injects warm copper-red warmth in the deepest shadows — the metal
+            support showing through thin paint layers, as in Wtewael's nocturnal
+            figures where impasto thins to near-transparency.
+
+        Composite at opacity.
+
+        FIFTY-EIGHTH DISTINCT MODE: novel because it is the ONLY pass to use
+        PER-PIXEL NEUTRAL MEAN DECOMPOSITION (n = (r+g+b)/3) followed by
+        CHROMA DISTANCE SCALING (amplify delta_r, delta_g, delta_b independently
+        by a gate-weighted factor).  All prior colour-modification passes work on
+        absolute channel values or lerp toward a fixed target colour; this pass
+        works on deviation from the pixel's own neutral point — a fundamentally
+        different formulation that achieves true saturation amplification in
+        opponent-colour space without introducing a hue shift.
+
+        Args:
+            saturation_boost : Maximum chroma amplification factor. Default 0.40.
+            mid_lo           : Lower luma bound of mid-bright gate. Default 0.25.
+            mid_hi           : Upper luma bound of mid-bright gate. Default 0.78.
+            mid_power        : Power applied to bell-curve gate (higher = sharper peak). Default 1.4.
+            shadow_threshold : Luma below which copper warmth activates. Default 0.22.
+            shadow_power     : Power applied to shadow gate (higher = more selective). Default 2.0.
+            copper_r         : Red additive in copper shadow zone. Default 0.055.
+            copper_g         : Green additive in copper shadow zone. Default 0.018.
+            opacity          : Composite weight (0 = no-op). Default 0.55.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Per-pixel neutral mean and chroma decomposition ──────────
+        n = (r0 + g0 + b0) / 3.0
+        delta_r = r0 - n
+        delta_g = g0 - n
+        delta_b = b0 - n
+
+        # ── Step 2: Mid-bright bell-curve gate and chroma amplification ──────
+        range_f = float(mid_hi) - float(mid_lo) + 1e-6
+        gate_lo = _np.clip((luma - float(mid_lo)) / range_f, 0.0, 1.0)
+        gate_hi = _np.clip((float(mid_hi) - luma) / range_f, 0.0, 1.0)
+        mid_gate = (gate_lo * gate_hi) ** float(mid_power)
+
+        boost = float(saturation_boost) * mid_gate
+        out_r = n + delta_r * (1.0 + boost)
+        out_g = n + delta_g * (1.0 + boost)
+        out_b = n + delta_b * (1.0 + boost)
+
+        # ── Step 3: Copper ground shadow warmth ───────────────────────────────
+        shad_thr = float(shadow_threshold)
+        shad_gate = _np.clip(
+            (shad_thr - luma) / (shad_thr + 1e-6), 0.0, 1.0
+        ) ** float(shadow_power)
+        out_r += float(copper_r) * shad_gate
+        out_g += float(copper_g) * shad_gate
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Wtewael copper jewel pass complete.")

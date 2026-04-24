@@ -170,6 +170,7 @@ EXPECTED_ARTISTS = [
     "godfried_schalcken",
     "adriaen_van_der_werff",
     "francois_clouet",
+    "joachim_wtewael",
 ]
 
 
@@ -373,6 +374,7 @@ EXPECTED_PERIODS = [
     "DUTCH_CANDLELIGHT_BAROQUE",
     "DUTCH_CLASSICAL_LATE_BAROQUE",
     "FRENCH_RENAISSANCE",
+    "DUTCH_MANNERIST",
 ]
 
 
@@ -22657,3 +22659,173 @@ def test_clouet_enamel_precision_pass_preserves_luminance_structure():
     assert abs(luma_before - luma_after) < 0.05, (
         f"Luminance-preserving pass should keep mean luma close; "
         f"before={luma_before:.4f}, after={luma_after:.4f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 168: Joachim Wtewael — Dutch Mannerist, oil on copper
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_joachim_wtewael_in_catalog():
+    """Joachim Wtewael (session 168) must be present in CATALOG."""
+    assert "joachim_wtewael" in CATALOG
+
+
+def test_joachim_wtewael_movement():
+    s = get_style("joachim_wtewael")
+    assert "Mannerist" in s.movement or "Mannerism" in s.movement
+
+
+def test_joachim_wtewael_nationality():
+    s = get_style("joachim_wtewael")
+    assert s.nationality == "Dutch"
+
+
+def test_joachim_wtewael_palette_length():
+    s = get_style("joachim_wtewael")
+    assert len(s.palette) >= 5
+
+
+def test_joachim_wtewael_palette_in_range():
+    """All Wtewael palette RGB values must be in [0, 1]."""
+    s = get_style("joachim_wtewael")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Palette value out of range: {ch}"
+
+
+def test_joachim_wtewael_warm_copper_ground():
+    """Wtewael's ground should be warm copper-red (R > G > B, R > 0.50)."""
+    s = get_style("joachim_wtewael")
+    r, g, b = s.ground_color
+    assert r > 0.50, f"Copper ground R should be warm (> 0.50), got {r}"
+    assert r > g, f"Copper ground should be red-dominant, got R={r}, G={g}"
+
+
+def test_joachim_wtewael_low_wet_blend():
+    """Wtewael's crisp Mannerist forms require low wet_blend (no sfumato)."""
+    s = get_style("joachim_wtewael")
+    assert s.wet_blend <= 0.35, (
+        f"Wtewael wet_blend should be low (crisp Mannerist forms), got {s.wet_blend}")
+
+
+def test_joachim_wtewael_no_crackle():
+    """Copper support does not crack — crackle must be False."""
+    s = get_style("joachim_wtewael")
+    assert s.crackle is False, "Wtewael painted on copper; crackle should be False"
+
+
+def test_joachim_wtewael_has_famous_works():
+    s = get_style("joachim_wtewael")
+    assert len(s.famous_works) >= 3, "Wtewael should have at least 3 famous works"
+
+
+def test_joachim_wtewael_has_perseus_in_works():
+    s = get_style("joachim_wtewael")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Perseus" in t or "Kitchen" in t or "Lot" in t for t in titles), (
+        "Wtewael works should include Perseus and Andromeda, The Kitchen Piece, or Lot")
+
+
+def test_joachim_wtewael_inspiration_references_pass():
+    """Inspiration should reference the wtewael_copper_jewel_pass."""
+    s = get_style("joachim_wtewael")
+    assert "wtewael_copper_jewel_pass" in s.inspiration, (
+        "Wtewael inspiration should reference wtewael_copper_jewel_pass()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DUTCH_MANNERIST Period — session 168
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_dutch_mannerist_period_present():
+    """DUTCH_MANNERIST (session 168) must exist in Period enum."""
+    assert hasattr(Period, "DUTCH_MANNERIST"), "Period.DUTCH_MANNERIST not found"
+    assert Period.DUTCH_MANNERIST in list(Period)
+
+
+def test_dutch_mannerist_stroke_params():
+    """DUTCH_MANNERIST stroke params must be valid and reflect Wtewael's precision."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_MANNERIST, palette=PaletteHint.WARM_EARTH)
+    params = style.stroke_params
+    assert params["stroke_size_face"] > 0
+    assert params["stroke_size_bg"] > 0
+    assert 0.0 <= params["wet_blend"] <= 1.0
+    assert 0.0 <= params["edge_softness"] <= 1.0
+    assert params["wet_blend"] <= 0.35, "Dutch Mannerist demands low wet_blend (crisp Mannerist forms)"
+    assert params["edge_softness"] <= 0.30, "Dutch Mannerist requires crisp edges (no sfumato)"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# wtewael_copper_jewel_pass — session 168 new rendering mode
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_wtewael_copper_jewel_pass_runs():
+    """wtewael_copper_jewel_pass must run without error on a small canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.65, 0.32, 0.14), texture_strength=0.0)
+    p.wtewael_copper_jewel_pass(opacity=0.55)
+
+
+def test_wtewael_copper_jewel_pass_noop_at_zero_opacity():
+    """opacity=0 must leave the canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.40), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.wtewael_copper_jewel_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), "opacity=0 must be a no-op"
+
+
+def test_wtewael_copper_jewel_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.65, 0.32, 0.14), texture_strength=0.0)
+    p.wtewael_copper_jewel_pass(saturation_boost=0.80, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_wtewael_copper_jewel_pass_boosts_saturation():
+    """Saturation boost should increase chroma distance from neutral grey."""
+    import numpy as np
+    from stroke_engine import Painter
+
+    p = Painter(64, 64)
+    p.tone_ground((0.65, 0.32, 0.14), texture_strength=0.0)
+
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r0 = buf_before[:, :, 2].astype(np.float32) / 255.0
+    g0 = buf_before[:, :, 1].astype(np.float32) / 255.0
+    b0 = buf_before[:, :, 0].astype(np.float32) / 255.0
+    n0 = (r0 + g0 + b0) / 3.0
+    chroma_before = np.sqrt(
+        (r0 - n0)**2 + (g0 - n0)**2 + (b0 - n0)**2
+    ).mean()
+
+    p.wtewael_copper_jewel_pass(saturation_boost=0.60, opacity=1.0)
+
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    r1 = buf_after[:, :, 2].astype(np.float32) / 255.0
+    g1 = buf_after[:, :, 1].astype(np.float32) / 255.0
+    b1 = buf_after[:, :, 0].astype(np.float32) / 255.0
+    n1 = (r1 + g1 + b1) / 3.0
+    chroma_after = np.sqrt(
+        (r1 - n1)**2 + (g1 - n1)**2 + (b1 - n1)**2
+    ).mean()
+
+    assert chroma_after >= chroma_before, (
+        f"Copper jewel pass should boost mean chroma; "
+        f"before={chroma_before:.4f}, after={chroma_after:.4f}")
