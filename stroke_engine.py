@@ -39736,3 +39736,286 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Chromatic vignette pass complete.")
+
+    # Session 172 — artist pass: avercamp_winter_atmosphere_pass
+    # Hendrick Avercamp's overcast winter luminosity: global silver-grey target
+    # blending + midtone warmth restoration — SIXTY-FIFTH DISTINCT MODE.
+
+    def avercamp_winter_atmosphere_pass(
+        self,
+        silver_r: float = 0.73,
+        silver_g: float = 0.76,
+        silver_b: float = 0.82,
+        grey_strength: float = 0.32,
+        warm_r: float = 0.055,
+        warm_g: float = 0.022,
+        warmth_lo: float = 0.30,
+        warmth_hi: float = 0.72,
+        warmth_strength: float = 0.60,
+        opacity: float = 0.55,
+    ) -> None:
+        """Silver-grey overcast desaturation + midtone warmth restoration — SIXTY-FIFTH DISTINCT MODE.
+
+        Implements Hendrick Avercamp's characteristic flat-overcast winter
+        luminosity: a global silver-grey-blue atmospheric haze from the
+        Dutch winter sky, against which warm figure-costume colours (brick
+        red, ochre) appear as scattered warm midtone notes.
+
+        This is the SIXTY-FIFTH DISTINCT MODE: GLOBAL SILVER-GREY TARGET
+        BLENDING WITH SELECTIVE MIDTONE WARMTH RESTORATION.
+
+        Unlike ALL prior tinting passes:
+        - Session 161 Reynolds: flat amber glaze applied unconditionally
+          to every pixel (R+ G+ B-) — but does NOT blend toward a target
+          grey; it shifts existing colours additively.
+        - Session 145 Luca Cambiaso: tonal flattening via block-averaging —
+          spatial coarsening, not chromatic target-blending.
+        - Session 166 Van der Werff: skin-detection pass; cool tint applied
+          to detected skin pixels only — narrow zone, not global.
+        - This pass performs a GLOBAL BLEND of every pixel toward a pale
+          silver-grey-blue target (simulating overcast sky diffusion across
+          the entire scene), then RESTORES WARM CHROMATICITY only in the
+          midtone luminance zone.  No prior pass begins from a globally
+          shifted desaturated target.  Prior passes start from original
+          pixel values and add or subtract effects on top; this pass first
+          MOVES all pixels toward grey, then partially reverts midtone
+          pixels to their warm potential.
+
+        Algorithm:
+
+        (1) SILVER-GREY BLEND (global overcast):
+            For every channel c ∈ {R, G, B}:
+            c_grey = c0 + (silver_c − c0) × grey_strength
+            This pulls every pixel toward the silver target regardless
+            of its original hue, simulating flat diffuse overcast illumination
+            that desaturates all local colours toward atmospheric grey.
+
+        (2) MIDTONE WARMTH GATE (figure costume zone):
+            luma = 0.2126·R + 0.7152·G + 0.0722·B
+            lo_ramp = clip((luma − warmth_lo) / (warmth_hi − warmth_lo), 0, 1)
+            hi_ramp = clip((warmth_hi − luma) / (warmth_hi − warmth_lo), 0, 1)
+            mid_gate = lo_ramp × hi_ramp   [bell peaking at midtone centre]
+
+        (3) WARMTH RESTORATION (costume colour recovery):
+            out_r = c_grey_r + warm_r × mid_gate × warmth_strength
+            out_g = c_grey_g + warm_g × mid_gate × warmth_strength
+            out_b = c_grey_b   (cool silver base preserved in blue channel)
+
+        (4) COMPOSITE at opacity.
+
+        SIXTY-FIFTH DISTINCT MODE: novel because it is the ONLY pass to
+        begin by blending ALL pixels toward a grey target (global desaturation
+        via target interpolation) and then selectively restore chromaticity
+        in midtones.  All prior passes preserve the original colour as the
+        base and apply additive/multiplicative effects.
+
+        Args:
+            silver_r       : Red component of silver-grey target. Default 0.73.
+            silver_g       : Green component of silver-grey target. Default 0.76.
+            silver_b       : Blue component of silver-grey target. Default 0.82.
+            grey_strength  : Blend weight toward silver target (0=no-op, 1=full grey). Default 0.32.
+            warm_r         : Warm R restoration in midtone zone. Default 0.055.
+            warm_g         : Warm G restoration in midtone zone. Default 0.022.
+            warmth_lo      : Lower luminance bound of midtone warmth gate. Default 0.30.
+            warmth_hi      : Upper luminance bound of midtone warmth gate. Default 0.72.
+            warmth_strength: Scale factor for warmth restoration. Default 0.60.
+            opacity        : Composite weight (0 = no-op). Default 0.55.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Global silver-grey target blend (overcast desaturation) ───
+        gs = float(grey_strength)
+        sr, sg, sb = float(silver_r), float(silver_g), float(silver_b)
+        c_grey_r = r0 + (sr - r0) * gs
+        c_grey_g = g0 + (sg - g0) * gs
+        c_grey_b = b0 + (sb - b0) * gs
+
+        # ── Step 2: Midtone warmth gate (bell over [warmth_lo, warmth_hi]) ────
+        lo = float(warmth_lo)
+        hi = float(warmth_hi)
+        rng = hi - lo + 1e-6
+        lo_ramp = _np.clip((luma - lo) / rng, 0.0, 1.0)
+        hi_ramp = _np.clip((hi - luma) / rng, 0.0, 1.0)
+        mid_gate = lo_ramp * hi_ramp
+
+        # ── Step 3: Warmth restoration in midtone zone ────────────────────────
+        ws = float(warmth_strength)
+        out_r = _np.clip(c_grey_r + float(warm_r) * mid_gate * ws, 0.0, 1.0)
+        out_g = _np.clip(c_grey_g + float(warm_g) * mid_gate * ws, 0.0, 1.0)
+        out_b = _np.clip(c_grey_b, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Avercamp winter atmosphere pass complete.")
+
+    # Session 172 — random improvement: diagonal_light_gradient_pass
+    # Diagonal linear coordinate warm/cool dual-ramp — SIXTY-SIXTH DISTINCT MODE.
+
+    def diagonal_light_gradient_pass(
+        self,
+        angle_deg: float = 45.0,
+        warm_r: float = 0.045,
+        warm_g: float = 0.018,
+        cool_b: float = 0.040,
+        cool_r_reduce: float = 0.018,
+        luma_lo: float = 0.08,
+        luma_hi: float = 0.92,
+        gamma: float = 1.4,
+        opacity: float = 0.45,
+    ) -> None:
+        """Diagonal linear coordinate warm/cool dual-ramp — SIXTY-SIXTH DISTINCT MODE.
+
+        Applies a warm-to-cool chromatic gradient along an oblique diagonal
+        axis across the canvas.  Pixels at the 'low-diagonal' end (toward the
+        direction pointed to by angle_deg) receive a warm tint (R+G+); pixels
+        at the 'high-diagonal' end receive a cool tint (B+R-).
+
+        This is the SIXTY-SIXTH DISTINCT MODE: DIAGONAL LINEAR COORDINATE
+        GATE — OBLIQUE RAKING-LIGHT WARM/COOL DUAL-RAMP.
+
+        Unlike ALL prior directional gradient passes:
+        - atmospheric_depth_gradient_pass (s152): vertical Y-axis only.
+        - altdorfer_forest_atmosphere_pass (s169): three horizontal Y-bands.
+        - melozzo_zenith_light_pass (s155): vertical overhead Z direction.
+        - schalcken_candlelight_glow_pass (s165): radial from a single point.
+        - chromatic_vignette_pass (s171): radial from canvas centre.
+        None of these uses an oblique, freely-rotatable DIAGONAL LINEAR
+        coordinate.  This pass is the FIRST to project canvas coordinates
+        onto an arbitrary-angle axis and use the resulting scalar as a
+        warm/cool dual-ramp gate — correctly simulating oblique raking light
+        or warm/cool atmospheric gradients at any angle.
+
+        Algorithm:
+
+        (1) DIAGONAL COORDINATE PROJECTION:
+            θ = angle_deg × π / 180
+            For each pixel at (x_norm, y_norm) ∈ [0,1]²:
+            diag = x_norm × cos(θ) + y_norm × sin(θ)
+            Normalised to [0, 1]:
+            diag_norm = (diag − diag_min) / (diag_max − diag_min + ε)
+
+        (2) WARM RAMP (toward high-diag direction):
+            warm_gate = diag_norm ^ gamma
+
+        (3) COOL RAMP (toward low-diag direction):
+            cool_gate = (1 − diag_norm) ^ gamma
+
+        (4) LUMINANCE BELL GATE (protects extremes):
+            luma_gate = ramp_lo × ramp_hi
+
+        (5) CHROMATIC INJECTION:
+            out_r += warm_r × warm_gate × luma_gate
+            out_g += warm_g × warm_gate × luma_gate
+            out_b += cool_b × cool_gate × luma_gate
+            out_r -= cool_r_reduce × cool_gate × luma_gate
+
+        Composite at opacity.
+
+        SIXTY-SIXTH DISTINCT MODE: novel because it is the ONLY pass to
+        use an oblique, freely-rotatable linear diagonal coordinate as the
+        primary spatial gate.  All prior gradient passes use vertical Y-axis,
+        horizontal X-axis, or radial distance.
+
+        Args:
+            angle_deg    : Diagonal axis angle in degrees (0=horizontal, 90=vertical,
+                           45=top-left→bottom-right). Default 45.0.
+            warm_r       : Warm R injection at high-diagonal end. Default 0.045.
+            warm_g       : Warm G injection at high-diagonal end. Default 0.018.
+            cool_b       : Cool B injection at low-diagonal end. Default 0.040.
+            cool_r_reduce: R reduction at low-diagonal end. Default 0.018.
+            luma_lo      : Lower luminance bound of bell gate. Default 0.08.
+            luma_hi      : Upper luminance bound of bell gate. Default 0.92.
+            gamma        : Power curve for ramp shaping. Default 1.4.
+            opacity      : Composite weight (0 = no-op). Default 0.45.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Diagonal coordinate projection ────────────────────────────
+        theta = float(angle_deg) * _np.pi / 180.0
+        cos_t = _np.cos(theta)
+        sin_t = _np.sin(theta)
+
+        xs = _np.linspace(0.0, 1.0, W, dtype=_np.float32)
+        ys = _np.linspace(0.0, 1.0, H, dtype=_np.float32)
+        xg, yg = _np.meshgrid(xs, ys)
+        diag = xg * cos_t + yg * sin_t
+
+        d_min = diag.min()
+        d_max = diag.max()
+        diag_norm = (diag - d_min) / (d_max - d_min + 1e-6)
+
+        # ── Step 2: Warm ramp (high-diag end) ────────────────────────────────
+        gam = float(gamma)
+        warm_gate = diag_norm ** gam
+
+        # ── Step 3: Cool ramp (low-diag end) ─────────────────────────────────
+        cool_gate = (1.0 - diag_norm) ** gam
+
+        # ── Step 4: Luminance bell gate ───────────────────────────────────────
+        lo, hi = float(luma_lo), float(luma_hi)
+        rng = hi - lo + 1e-6
+        luma_gate = (
+            _np.clip((luma - lo) / rng, 0.0, 1.0)
+            * _np.clip((hi - luma) / rng, 0.0, 1.0)
+        )
+
+        # ── Step 5: Chromatic injection ───────────────────────────────────────
+        wg = warm_gate * luma_gate
+        cg = cool_gate * luma_gate
+        out_r = _np.clip(r0 + float(warm_r) * wg - float(cool_r_reduce) * cg, 0.0, 1.0)
+        out_g = _np.clip(g0 + float(warm_g) * wg, 0.0, 1.0)
+        out_b = _np.clip(b0 + float(cool_b) * cg, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Diagonal light gradient pass complete.")
