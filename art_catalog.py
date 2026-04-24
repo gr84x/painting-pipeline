@@ -13180,6 +13180,96 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Melozzo da Forlì ─────────────────────────────────────────────────────
+    "melozzo_da_forli": ArtStyle(
+        artist="Melozzo da Forlì",
+        movement="Umbrian-Roman Renaissance",
+        nationality="Italian",
+        period="1438–1494",
+        palette=[
+            (0.94, 0.82, 0.68),   # luminous rose-carnation flesh — lit angel skin
+            (0.80, 0.62, 0.42),   # warm ochre mid-flesh — sun-kissed warmth
+            (0.50, 0.36, 0.22),   # umber shadow flesh — warm recession
+            (0.58, 0.72, 0.88),   # heavenly azure sky — celestial blue
+            (0.86, 0.76, 0.52),   # warm gold ochre — architectural gilding
+            (0.74, 0.70, 0.65),   # pale grey-stone — architectural surface
+            (0.96, 0.92, 0.82),   # ivory highlight — zenith-lit peak
+            (0.28, 0.20, 0.14),   # deep warm umber dark — background void
+        ],
+        ground_color=(0.60, 0.48, 0.32),    # warm ochre imprimatura
+        stroke_size=5,
+        wet_blend=0.45,
+        edge_softness=0.50,
+        jitter=0.020,
+        glazing=(0.76, 0.60, 0.32),          # warm amber-ochre unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Melozzo da Forlì (1438–1494) stands apart from every other Italian "
+            "Renaissance master through his absolute command of DI SOTTO IN SÙ — "
+            "the radical illusionistic perspective of figures seen from directly "
+            "below, foreshortened against a painted architectural ceiling that "
+            "appears to open into the sky.  His fragmentary Angels with Musical "
+            "Instruments (now in the Vatican Pinacoteca and the Quirinal), the sole "
+            "surviving remnant of the lost fresco for the Santi Apostoli apse in "
+            "Rome, reveal a painter whose understanding of overhead lighting was "
+            "unparalleled.  Each angel is modelled with light falling from DIRECTLY "
+            "ABOVE: the forehead, the upturned nose, the tops of folded wings, and "
+            "the backs of hands catch the zenith light in luminous ivory, while "
+            "underside surfaces — the chin, the inner fold of the wing, the shadow "
+            "under each musical instrument — recede into warm umber shadow.  This "
+            "is not the oblique sidelight of Caravaggio or the raking window-light "
+            "of Vermeer but an overhead ZENITH RADIANCE, as if the figure is viewed "
+            "from below through a hole in the ceiling toward the sky.  His flesh — "
+            "rose-carnation warm with ivory zenith highlights — has a luminous, "
+            "almost incandescent quality that anticipates Correggio's soft overhead "
+            "light by a generation.  The architectural settings in his frescoes "
+            "(best documented by his collaboration with Piero della Francesca at "
+            "Rimini and Urbino) deploy SYSTEMATIC FORESHORTENING GRIDS that create "
+            "the illusion of vaulted arches and coffered ceilings extending above "
+            "the viewer's head.  His papal commission at the Vatican — the fresco "
+            "of Sixtus IV with his Nephews and Platina (c. 1477) — remains the "
+            "finest portrait group of the fifteenth century."
+        ),
+        famous_works=[
+            ("Sixtus IV with his Nephews and Platina",  "c. 1477"),
+            ("Angel Musician (lute)",                   "c. 1480"),
+            ("Angel Musician (tambourine)",              "c. 1480"),
+            ("Christ in Glory",                         "c. 1480"),
+            ("Forlì Cathedral dome fresco",             "1484"),
+            ("Resurrection of Christ",                  "c. 1480"),
+        ],
+        inspiration=(
+            "Use melozzo_zenith_radiance_pass() to apply the THIRTY-SIXTH DISTINCT "
+            "MODE: VERTICAL OVERHEAD ZENITH LIGHT — TOP-OF-FORM WARM LIFT WITH "
+            "UNDER-SURFACE COOL SHADOW DEEPENING.  Build a vertical position map: "
+            "y_frac = row / (H−1); zenith_wt = (1 − y_frac) [peaks at TOP of canvas "
+            "= zenith/overhead]; under_wt = y_frac [peaks at BOTTOM = under-surface].  "
+            "Midtone luminance gate: smooth bump in [mid_lo=0.28, mid_hi=0.75].  "
+            "Zenith-lit surfaces (top-facing): warm lift proportional to zenith_wt × "
+            "midgate: R+warm_r=0.032, G+warm_g=0.016.  Under-surfaces (bottom-facing): "
+            "cool shadow proportional to under_wt × midgate: B+cool_b=0.028, "
+            "R−cool_r=0.014.  Scale by zenith_strength=0.60 and composite at "
+            "opacity=0.26.  Distinct from atmospheric_depth_gradient_pass "
+            "(which applies WARM on bottom/foreground and COOL on top/background — "
+            "the opposite polarity — simulating aerial perspective in landscape "
+            "recession rather than overhead light on figures).  "
+            "Use warm_ambient_occlusion_pass() for the artistic improvement: "
+            "LOCAL LUMINANCE CONCAVITY WARM-AMBER INFILL.  Compute luminance. "
+            "Wide Gaussian blur (sigma=occ_radius=10.0) of luminance → local_mean.  "
+            "Occlusion = clip(local_mean − luma, 0, occ_max=0.25) — pixels darker "
+            "than local surroundings are in concave recession.  Normalize: "
+            "occ_norm = occlusion / occ_max.  Shadow gate: smooth bump in "
+            "[shad_lo=0.10, shad_hi=0.42].  Combined: weight = occ_norm × shad_gate.  "
+            "Apply warm indirect ambient: R+warm_r=0.040, G+warm_g=0.020.  "
+            "Composite at opacity=0.22.  Simulates warm reflected light bouncing "
+            "into shadowed recesses (eye sockets, nostril wings, ear canal) from "
+            "surrounding warm architectural or costume surfaces — the ambient inter-"
+            "reflection quality that makes Old Master portrait recesses glow warmly "
+            "rather than falling into dead black."
+        ),
+    ),
+
     # ── Hendrick ter Brugghen ─────────────────────────────────────────────────
     "ter_brugghen": ArtStyle(
         artist="Hendrick ter Brugghen",

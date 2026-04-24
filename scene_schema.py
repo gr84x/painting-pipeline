@@ -320,6 +320,7 @@ class Period(Enum):
     UTRECHT_CARAVAGGISM            = auto()  # Hendrick ter Brugghen — directional raking amber sidelight; warm ridge / cool-shadow split via horizontal Sobel; warm golden-ochre flesh with cool blue-grey shadow infill; Dutch Caravaggist intimacy
     FLORENTINE_BAROQUE_SFUMATO     = auto()  # Francesco Furini — cool silver moonlit highlights; Gaussian-smoothed highlight gate (luma 0.55–0.92); subtle B-channel lift + R-channel reduction in lit zones; extreme sfumato blending (wet_blend=0.90); warm umber shadows paired with cool ivory highlights
     LOMBARDY_VENETIAN_JEWEL_REALISM = auto()  # Bartolomeo Veneto — hue-angular dual-pole saturation deepening; blue-violet shadow brocade + gold-amber highlight brocade poles; cool ivory flesh precision; Lombard-Venetian jewel-like surface
+    UMBRIAN_ROMAN_ILLUSIONISM       = auto()  # Melozzo da Forlì — overhead zenith radiance; top-of-form warm lift via vertical position × midtone gate; under-surface cool shadow; architectural illusionistic ceiling light
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1595,6 +1596,7 @@ class Style:
             # wet_blend=0.55: moderate blending — firmer than Venetian warmth; cool Lombard precision at surface.
             # edge_softness=0.48: moderate — not as sfumato as Leonardo's followers; contours are clean but not harsh.
             Period.LOMBARDY_VENETIAN_JEWEL_REALISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.55, edge_softness=0.48),
+            Period.UMBRIAN_ROMAN_ILLUSIONISM:       dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.45, edge_softness=0.50),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

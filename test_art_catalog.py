@@ -160,6 +160,7 @@ EXPECTED_ARTISTS = [
     "furini",
     "ter_brugghen",
     "bartolomeo_veneto",
+    "melozzo_da_forli",
 ]
 
 
@@ -20045,4 +20046,118 @@ def test_iridescent_glaze_pass_uniform_canvas_no_gradient():
 def test_bartolomeo_veneto_in_expected_artists_and_catalog_final():
     assert "bartolomeo_veneto" in CATALOG
     assert "bartolomeo_veneto" in EXPECTED_ARTISTS
+
+
+# ── Session 155: Melozzo da Forlì + UMBRIAN_ROMAN_ILLUSIONISM ────────────────
+
+def test_umbrian_roman_illusionism_period_exists():
+    assert hasattr(Period, "UMBRIAN_ROMAN_ILLUSIONISM")
+
+
+def test_umbrian_roman_illusionism_stroke_params():
+    from scene_schema import Style
+    style = Style(period=Period.UMBRIAN_ROMAN_ILLUSIONISM)
+    params = style.stroke_params
+    assert params["stroke_size_face"] <= 6
+    assert 0.35 <= params["wet_blend"] <= 0.60
+    assert 0.40 <= params["edge_softness"] <= 0.65
+
+
+def test_melozzo_da_forli_in_catalog():
+    assert "melozzo_da_forli" in CATALOG
+
+
+def test_melozzo_da_forli_movement():
+    s = get_style("melozzo_da_forli")
+    assert "Umbrian" in s.movement or "Roman" in s.movement
+
+
+def test_melozzo_da_forli_palette_length():
+    s = get_style("melozzo_da_forli")
+    assert len(s.palette) >= 6
+
+
+def test_melozzo_da_forli_palette_values_in_range():
+    s = get_style("melozzo_da_forli")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range channel {ch} in Melozzo palette {rgb}"
+
+
+def test_melozzo_da_forli_famous_works():
+    s = get_style("melozzo_da_forli")
+    assert len(s.famous_works) >= 4
+
+
+def test_melozzo_zenith_radiance_pass_modifies_canvas():
+    """Midtone canvas → zenith_wt and midgate both active → pass produces change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Midtone warm canvas; luma ≈ 0.299×0.60+0.587×0.50+0.114×0.38 ≈ 0.477 → in gate
+    p.tone_ground((0.60, 0.50, 0.38), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.melozzo_zenith_radiance_pass(opacity=1.0, zenith_strength=1.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_melozzo_zenith_radiance_pass_no_effect_opacity_zero():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.38), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.melozzo_zenith_radiance_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_warm_ambient_occlusion_pass_modifies_concave_canvas():
+    """Canvas with concave dark patch → local_mean > luma → pass produces change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Mostly mid-bright canvas so local mean will be above a dark centre
+    p.tone_ground((0.55, 0.48, 0.36), texture_strength=0.0)
+    # Place a dark patch in the centre so those pixels will be below local mean
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[28:36, 28:36, :3] = 40  # dark patch (luma ≈ 0.16 < local_mean ≈ 0.43)
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    buf_before = buf.copy()
+    p.warm_ambient_occlusion_pass(opacity=1.0, warm_r=0.20, warm_g=0.10)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    # The dark patch should have received a warm lift
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_warm_ambient_occlusion_pass_no_effect_opacity_zero():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.36), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.warm_ambient_occlusion_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_warm_ambient_occlusion_pass_uniform_canvas_no_change():
+    """Perfectly uniform canvas → no concavity (local_mean == luma) → no change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.30, 0.25, 0.18), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.warm_ambient_occlusion_pass(opacity=1.0, warm_r=0.50, warm_g=0.30)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    # Uniform canvas: local_mean == luma → occlusion == 0 → weight == 0 → no change
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_melozzo_da_forli_in_expected_artists_and_catalog_final():
+    assert "melozzo_da_forli" in CATALOG
+    assert "melozzo_da_forli" in EXPECTED_ARTISTS
 
