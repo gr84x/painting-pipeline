@@ -162,6 +162,7 @@ EXPECTED_ARTISTS = [
     "bartolomeo_veneto",
     "melozzo_da_forli",
     "gentile_da_fabriano",
+    "giampietrino",
 ]
 
 
@@ -355,6 +356,9 @@ EXPECTED_PERIODS = [
     "FLORENTINE_BAROQUE_SFUMATO",
     "UTRECHT_CARAVAGGISM",
     "LOMBARDY_VENETIAN_JEWEL_REALISM",
+    "UMBRIAN_ROMAN_ILLUSIONISM",
+    "INTERNATIONAL_GOTHIC",
+    "MILANESE_LEONARDESQUE_DEVOTION",
 ]
 
 
@@ -20337,4 +20341,172 @@ def test_international_gothic_stroke_params():
     assert params["stroke_size_face"] <= 4, "Tempera demands very fine stroke size"
     assert params["wet_blend"] < 0.20, "Tempera is a dry medium — minimal wet blend"
     assert params["edge_softness"] < 0.20, "Gothic contour is the firmest in the catalog"
+
+
+# ── Session 157: Giampietrino + MILANESE_LEONARDESQUE_DEVOTION ───────────────
+
+def test_giampietrino_in_catalog():
+    """Giampietrino must be present in CATALOG with correct movement."""
+    assert "giampietrino" in CATALOG
+    s = CATALOG["giampietrino"]
+    assert s.artist == "Giampietrino"
+    assert s.movement == "Milanese Leonardesque"
+    assert s.nationality == "Italian"
+
+
+def test_giampietrino_in_expected_artists_and_catalog_final():
+    assert "giampietrino" in CATALOG
+    assert "giampietrino" in EXPECTED_ARTISTS
+
+
+def test_giampietrino_oil_glaze_characteristics():
+    """Milanese Leonardesque: high wet blend, very soft edges, oil glaze, fine stroke."""
+    s = CATALOG["giampietrino"]
+    assert s.wet_blend >= 0.60, "Multi-layer oil glazing demands high wet blend"
+    assert s.edge_softness >= 0.65, "Leonardesque sfumato dissolution — very soft edges"
+    assert s.stroke_size <= 6, "Fine polished Milanese surface — small stroke size"
+    assert s.glazing is not None, "Giampietrino used oil glazing layers"
+    assert s.crackle is True, "Old oil-on-panel should have crackle"
+
+
+def test_giampietrino_palette_contains_warm_ivory_and_violet_shadow():
+    """Palette must include warm ivory highlight and deep violet-plum shadow."""
+    s = CATALOG["giampietrino"]
+    assert len(s.palette) >= 6
+    has_warm_ivory = any(r > 0.85 and g > 0.75 and b > 0.55 for r, g, b in s.palette)
+    has_violet_shadow = any(b > r and b > 0.20 and r < 0.30 and g < 0.25
+                            for r, g, b in s.palette)
+    assert has_warm_ivory, "Palette must include a warm ivory highlight (Leonardesque flesh crest)"
+    assert has_violet_shadow, "Palette must include a cool violet-plum shadow (deep shadow resonance)"
+
+
+def test_giampietrino_famous_works_include_madonna():
+    """Famous works must include at least one Madonna composition."""
+    s = CATALOG["giampietrino"]
+    titles = [title for title, _ in s.famous_works]
+    assert any("Madonna" in t or "Leda" in t or "Salome" in t or "Magdalene" in t
+               for t in titles), (
+        "Famous works must include a recognisable Giampietrino composition"
+    )
+
+
+def test_giampietrino_warm_devotion_pass_modifies_canvas():
+    """Warm devotion pass must shift highlight pixels on a bright flesh-tone canvas.
+
+    Ground luma must fall inside hi_gate [0.55, 0.88] so warm_r/warm_g can produce
+    a detectable uint8 shift.  (0.78, 0.62, 0.48) → luma ≈ 0.652 ∈ [0.55, 0.88].
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Bright flesh tone: luma ≈ 0.652, well inside hi_gate [0.55, 0.88]
+    p.tone_ground((0.78, 0.62, 0.48), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.giampietrino_warm_devotion_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_giampietrino_warm_devotion_pass_no_effect_opacity_zero():
+    """opacity=0.0 must leave the canvas entirely unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.65, 0.52, 0.38), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.giampietrino_warm_devotion_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_giampietrino_warm_devotion_pass_pure_black_no_highlight_change():
+    """Pure black canvas has luma=0 which is below hi_lo — highlight gate is zero."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.0, 0.0, 0.0), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    # opacity=1.0, but hi_gate=0 for pure black; shad_gate is also near-zero at luma=0
+    p.giampietrino_warm_devotion_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_peripheral_defocus_pass_modifies_canvas_edges():
+    """Peripheral defocus pass must blur outer pixels while preserving centre."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.36), texture_strength=0.04)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.peripheral_defocus_pass(opacity=1.0, blur_strength=0.90, inner_radius=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_peripheral_defocus_pass_no_effect_opacity_zero():
+    """opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.36), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.peripheral_defocus_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_peripheral_defocus_pass_zero_blur_strength_no_change():
+    """blur_strength=0.0 forces defocus_wt=0 everywhere → no change regardless of opacity."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.35), texture_strength=0.04)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.peripheral_defocus_pass(opacity=1.0, blur_strength=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    # defocus_wt = raw_wt^power × 0.0 = 0 → out_ch == ch → no change
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_milanese_leonardesque_devotion_period_in_scene_schema():
+    """MILANESE_LEONARDESQUE_DEVOTION must be a valid Period enum member."""
+    from scene_schema import Period
+    assert hasattr(Period, "MILANESE_LEONARDESQUE_DEVOTION"), (
+        "Period.MILANESE_LEONARDESQUE_DEVOTION must be defined for Giampietrino"
+    )
+
+
+def test_milanese_leonardesque_devotion_stroke_params():
+    """MILANESE_LEONARDESQUE_DEVOTION stroke_params must reflect Leonardesque sfumato."""
+    from scene_schema import Period, Style, Medium
+    style = Style(medium=Medium.OIL, period=Period.MILANESE_LEONARDESQUE_DEVOTION)
+    params = style.stroke_params
+    assert params["stroke_size_face"] <= 5, "Leonardesque demands fine stroke size"
+    assert params["wet_blend"] >= 0.60, "Multi-layer oil glazing demands high wet blend"
+    assert params["edge_softness"] >= 0.65, "Sfumato demands very soft edges"
 

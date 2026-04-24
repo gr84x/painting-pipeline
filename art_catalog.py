@@ -13439,6 +13439,103 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giampietrino ──────────────────────────────────────────────────────────
+    "giampietrino": ArtStyle(
+        artist="Giampietrino",
+        movement="Milanese Leonardesque",
+        nationality="Italian",
+        period="c. 1495–1540",
+        palette=[
+            (0.94, 0.88, 0.74),   # warm ivory highlight — sunlit flesh crest
+            (0.82, 0.68, 0.50),   # honey-amber mid-flesh
+            (0.58, 0.38, 0.24),   # warm sienna shadow flesh
+            (0.18, 0.14, 0.28),   # deep violet-plum near-black shadow
+            (0.22, 0.36, 0.58),   # cool blue-grey atmospheric distance
+            (0.48, 0.22, 0.16),   # burnt sienna deep shadow accent
+            (0.88, 0.80, 0.62),   # warm cream costume highlight
+        ],
+        ground_color=(0.24, 0.18, 0.10),    # dark warm walnut-brown ground
+        stroke_size=4,
+        wet_blend=0.75,
+        edge_softness=0.78,
+        jitter=0.032,
+        glazing=(0.68, 0.52, 0.28),          # warm amber unifying oil glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Giampietrino (Giovanni Pietro Rizzoli, c. 1495–1540) was among the "
+            "most faithful and technically accomplished direct pupils of Leonardo "
+            "da Vinci in Milan.  His devotional works — principally half-length "
+            "Madonnas, sacre conversazioni, and the sensuous recumbent Magdalenes — "
+            "represent the closest studio transmission of Leonardo's oil-glazing "
+            "method: the dark warm walnut-brown imprimatura ground, the sfumato "
+            "dissolution of all form edges, the sweet idealised melancholy of "
+            "expression, and the warm amber unifying glaze that imparts to flesh "
+            "the translucent luminosity of alabaster lit from behind.  His "
+            "characteristic contribution to the Leonardo workshop vocabulary is a "
+            "HEIGHTENED CHROMATIC SWEETNESS: his flesh tones push more decisively "
+            "toward warm honey-amber in the highlights than the master's own, while "
+            "his shadow passages achieve a cool violet-plum resonance that "
+            "distinguishes them from the cooler, bluer shadows of Boltraffio and "
+            "the more amber-warm shadows of Bernardino Luini.  This DUAL-TEMPERATURE "
+            "FLESH MODEL — warm amber lifting the illuminated flesh crest, cool "
+            "violet deepening the recessed shadow face — creates a palpable sense "
+            "of inner radiance within the form, as if the flesh itself is softly "
+            "luminous.  His technique is strict multi-layer oil glazing over the "
+            "dark warm imprimatura, each successive glaze applied only after the "
+            "previous has fully hardened, building transparent coloured strata that "
+            "allow the brown ground to glow through the lightest layers and give "
+            "deep shadow its characteristic warm-dark resonance.  Several of his "
+            "finest works — including the Leda and the Swan compositions and the "
+            "large Last Supper replica for Pavia — were for many decades attributed "
+            "to Leonardo himself, confirming the seamlessness with which he absorbed "
+            "and transmitted the master's visual language."
+        ),
+        famous_works=[
+            ("Madonna and Child with the Infant St. John", "c. 1510–1520"),
+            ("Mary Magdalene",                             "c. 1520–1525"),
+            ("Leda and the Swan (after Leonardo)",         "c. 1510–1515"),
+            ("Salome with the Head of St. John the Baptist", "c. 1510–1520"),
+            ("The Last Supper (after Leonardo, Pavia)",    "c. 1520"),
+        ],
+        inspiration=(
+            "Use giampietrino_warm_devotion_pass() to apply the FORTIETH DISTINCT "
+            "MODE: DUAL-ZONE LUMINANCE TINTING — WARM HIGHLIGHT AMBER + COOL "
+            "SHADOW VIOLET.  Compute luminance: luma = 0.299R + 0.587G + 0.114B.  "
+            "Build smooth bump highlight gate in [hi_lo=0.55, hi_hi=0.88]: "
+            "hi_f = (hi_lo+hi_hi)/2 = 0.715; "
+            "t_lo = clip((luma−hi_lo)/(hi_f−hi_lo), 0, 1); "
+            "t_hi = clip((hi_hi−luma)/(hi_hi−hi_f), 0, 1); hi_gate = t_lo × t_hi.  "
+            "Build smooth bump shadow gate in [shad_lo=0.05, shad_hi=0.42]: "
+            "shad_f = 0.235; analogous t_lo/t_hi construction; shad_gate = t_lo × t_hi.  "
+            "Apply warm amber to highlights: out_r = clip(r + warm_r=0.055 × hi_gate, 0, 1); "
+            "out_g = clip(g + warm_g=0.030 × hi_gate, 0, 1).  "
+            "Apply cool violet to shadows: out_b = clip(b + cool_b=0.055 × shad_gate, 0, 1); "
+            "out_r = clip(out_r − cool_r=0.022 × shad_gate, 0, 1).  Composite at opacity=0.30.  "
+            "Simulates Giampietrino's characteristic warm honey-amber flesh highlights paired "
+            "with deep violet shadow resonance — his distinctive extension of Leonardo's model.  "
+            "Distinct from beccafumi_nacreous_glow_pass (signed Gaussian bloom difference "
+            "determines warm/cool zones — not direct luminance gating; sign of bloom diff "
+            "varies spatially in ways that luminance thresholds do not); distinct from "
+            "bartolomeo_veneto_jewel_brocade_pass (hue-proxy detection: blue_proxy=B−max(R,G), "
+            "gold_proxy=R−B — applies to hue-specific zones regardless of luminance); "
+            "distinct from furini_moonlit_sfumato_pass (highlights only — no shadow tinting; "
+            "applies cool silver B+ rather than warm amber R+).  "
+            "Use peripheral_defocus_pass() for the artistic improvement: FORTY-FIRST "
+            "DISTINCT MODE: RADIAL PERIPHERAL SOFTENING — SIMULATED DEPTH OF FIELD.  "
+            "Compute normalised radial distance from canvas centre: for each pixel "
+            "dist_norm = sqrt((x/W−0.5)² + (y/H−0.5)²) / 0.7071 (max corner distance).  "
+            "Build defocus weight: raw_wt = clip((dist_norm−inner_radius)/(1−inner_radius), 0, 1); "
+            "defocus_wt = raw_wt^power × blur_strength (inner_radius=0.38, power=1.8, "
+            "blur_strength=0.55).  Apply full-canvas Gaussian blur (sigma=blur_sigma=4.0) "
+            "per channel.  Blend: out_ch = ch × (1−defocus_wt) + blurred_ch × defocus_wt.  "
+            "Composite at opacity=0.40.  Distinct from focal_vignette_pass (DARKENS and "
+            "COOLS edges by multiplication — no spatial blurring); distinct from "
+            "atmospheric_depth_gradient_pass (vertical linear temperature gradient, not "
+            "radial spatial blurring)."
+        ),
+    ),
+
 }
 
 
