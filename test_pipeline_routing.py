@@ -5719,46 +5719,44 @@ def test_gentileschi_dramatic_flesh_pass_opacity_zero_is_noop():
         "no pixels should change when the pass is fully blended off")
 
 
-def test_gentileschi_dramatic_flesh_pass_warms_shadows():
+def test_gentileschi_dramatic_flesh_pass_warms_spotlight_zone():
     """
-    R channel should increase in dark shadow pixels after gentileschi_dramatic_flesh_pass —
-    the warm umber shadow push (Gentileschi's shadows are warm brown, not cold near-black).
-    Fill with a near-black pixel (lum ~0.08, well below shadow_thresh=0.30), then confirm
-    that R rises relative to B after the pass — warm umber, not cold grey.
+    R channel should increase in the spotlight zone (upper-left, mid-high luma) after
+    gentileschi_dramatic_flesh_pass — the warm amber-ivory lit-zone lift.
+    Fill with a mid-tone canvas, apply with amber_r=0.20, confirm R rises in upper-left.
     """
     p = _make_small_painter(32, 32)
-    # Near-black, slightly warm: R=22, G=16, B=12 → lum ≈ 0.065
+    # Mid-tone warm canvas: lum ≈ 0.52 (above luma_lo default 0.40)
     buf = np.frombuffer(p.canvas.surface.get_data(),
                         dtype=np.uint8).reshape(32, 32, 4).copy()
-    buf[:, :, 2] = 22    # R
-    buf[:, :, 1] = 16    # G
-    buf[:, :, 0] = 12    # B
+    buf[:, :, 2] = 160   # R
+    buf[:, :, 1] = 138   # G
+    buf[:, :, 0] = 110   # B
     buf[:, :, 3] = 255
     p.canvas.surface.get_data()[:] = buf.tobytes()
 
     r_before = int(buf[:, :, 2].mean())
 
     p.gentileschi_dramatic_flesh_pass(
-        shadow_deepen   = 0.0,     # disable deepening to isolate warmth effect
-        shadow_warmth   = 0.15,
-        penumbra_warmth = 0.0,
-        highlight_gold  = 0.0,
-        shadow_thresh   = 0.30,
-        opacity         = 1.0,
+        shadow_deepen = 0.0,   # disable shadow darkening to isolate amber lift
+        amber_r       = 0.20,
+        amber_g       = 0.08,
+        luma_lo       = 0.40,
+        opacity       = 1.0,
     )
     buf_after = np.frombuffer(p.canvas.surface.get_data(),
                               dtype=np.uint8).reshape(32, 32, 4)
     r_after = int(buf_after[:, :, 2].mean())
     assert r_after >= r_before, (
-        f"gentileschi_dramatic_flesh_pass should warm R in shadow zone; "
+        f"gentileschi_dramatic_flesh_pass should warm R in spotlight zone; "
         f"R before={r_before}  after={r_after}")
 
 
 def test_gentileschi_dramatic_flesh_pass_warms_highlights():
     """
     R channel should increase in bright highlight pixels after gentileschi_dramatic_flesh_pass —
-    the candlelit amber-gold highlight lift (warm candle, not cool silver).
-    Fill with near-white (lum ~0.86, above highlight_thresh=0.68), confirm R rises.
+    the candlelit amber-ivory lift (amber_r) applied to pixels above luma_lo.
+    Fill with near-white (lum ~0.86), confirm R rises via amber_r boost.
     """
     p = _make_small_painter(32, 32)
     # Near-white: R=225, G=218, B=210 → lum ≈ 0.857
@@ -5773,12 +5771,11 @@ def test_gentileschi_dramatic_flesh_pass_warms_highlights():
     r_before = int(buf[:, :, 2].mean())
 
     p.gentileschi_dramatic_flesh_pass(
-        shadow_deepen   = 0.0,
-        shadow_warmth   = 0.0,
-        penumbra_warmth = 0.0,
-        highlight_gold  = 0.12,
-        highlight_thresh= 0.68,
-        opacity         = 1.0,
+        shadow_deepen = 0.0,    # disable shadow path to isolate amber lift
+        amber_r       = 0.12,
+        amber_g       = 0.0,
+        luma_lo       = 0.40,
+        opacity       = 1.0,
     )
     buf_after = np.frombuffer(p.canvas.surface.get_data(),
                               dtype=np.uint8).reshape(32, 32, 4)
@@ -5795,7 +5792,7 @@ def test_gentileschi_dramatic_flesh_pass_changes_canvas():
     buf_before = np.frombuffer(p.canvas.surface.get_data(),
                                dtype=np.uint8).reshape(64, 64, 4).copy()
     p.gentileschi_dramatic_flesh_pass(
-        shadow_warmth=0.12, penumbra_warmth=0.09, highlight_gold=0.10, opacity=1.0)
+        amber_r=0.10, amber_g=0.04, shadow_deepen=0.35, opacity=1.0)
     buf_after = np.frombuffer(p.canvas.surface.get_data(),
                               dtype=np.uint8).reshape(64, 64, 4)
     assert not np.array_equal(buf_before, buf_after), (
@@ -5807,13 +5804,15 @@ def test_gentileschi_dramatic_flesh_pass_custom_params():
     p = _make_small_painter()
     p.tone_ground((0.45, 0.32, 0.22), texture_strength=0.0)
     p.gentileschi_dramatic_flesh_pass(
-        shadow_deepen    = 0.18,
-        shadow_warmth    = 0.10,
-        penumbra_warmth  = 0.08,
-        highlight_gold   = 0.08,
-        shadow_thresh    = 0.28,
-        highlight_thresh = 0.72,
-        opacity          = 0.65,
+        dir_x         = 0.60,
+        dir_y         = 0.40,
+        shadow_hi     = 0.35,
+        shadow_deepen = 0.18,
+        luma_lo       = 0.38,
+        amber_r       = 0.06,
+        amber_g       = 0.03,
+        chroma_boost  = 0.35,
+        opacity       = 0.65,
     )
 
 
@@ -5821,7 +5820,7 @@ def test_gentileschi_dramatic_flesh_pass_large_canvas():
     """gentileschi_dramatic_flesh_pass() must complete without error on a larger canvas."""
     p = _make_small_painter(256, 256)
     p.tone_ground((0.45, 0.32, 0.22), texture_strength=0.0)
-    p.gentileschi_dramatic_flesh_pass(shadow_warmth=0.12, highlight_gold=0.08, opacity=0.75)
+    p.gentileschi_dramatic_flesh_pass(amber_r=0.06, shadow_deepen=0.40, opacity=0.75)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

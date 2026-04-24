@@ -329,6 +329,7 @@ class Period(Enum):
     BRITISH_GRAND_MANNER  = auto()  # Joshua Reynolds — mezzotint amber glaze unification; impasto warm-white highlights; bitumen shadow deepening; Grand Manner Academic warmth
     EMILIAN_CARAVAGGESQUE = auto()  # Bartolomeo Schedoni — Correggesque tenderness fused with Caravaggesque tenebrism; vivid chroma amplification in lit drapery; deep velvety shadow compression; warm golden emergence
     ARTEMISIAN_TENEBRISM  = auto()  # Artemisia Gentileschi — intense upper-left directional spotlight; near-black void shadows; warm amber-ivory flesh in lit zones; saturated costume chroma in spotlight; psychological directness
+    DUTCH_CANDLELIGHT_BAROQUE = auto()  # Godfried Schalcken — single-flame radial spotlight from below; warm amber-yellow glow in lit zone; near-black void outside; intimate nocturnal drama; deep velvety shadows; warm saffron skin
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1668,6 +1669,12 @@ class Style:
             # edge_softness=0.42: firm tenebrism edges at the light-dark boundary (found edges at the spotlight
             #   perimeter) but lost edges dissolving into the deep void — split between crisp found and soft lost.
             Period.ARTEMISIAN_TENEBRISM: dict(stroke_size_face=6, stroke_size_bg=14, wet_blend=0.62, edge_softness=0.42),
+            # DUTCH_CANDLELIGHT_BAROQUE (Godfried Schalcken) — intimate radial candlelight from below-centre.
+            # stroke_size_face=5: meticulous smooth Flemish surface; candlelight reveals every subtlety of skin.
+            # stroke_size_bg=10: very tight background — the void is almost textureless near-black.
+            # wet_blend=0.70: Schalcken's skin is smoothly blended, warmed by the single flame.
+            # edge_softness=0.50: found edges where the flame catches form, lost edges dissolving into shadow.
+            Period.DUTCH_CANDLELIGHT_BAROQUE: dict(stroke_size_face=5, stroke_size_bg=10, wet_blend=0.70, edge_softness=0.50),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
