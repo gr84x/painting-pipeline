@@ -12917,6 +12917,81 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Hendrick ter Brugghen ─────────────────────────────────────────────────
+    "ter_brugghen": ArtStyle(
+        artist="Hendrick ter Brugghen",
+        movement="Utrecht Caravaggism",
+        nationality="Dutch",
+        period="1588–1629",
+        palette=[
+            (0.85, 0.68, 0.42),   # warm amber highlight flesh
+            (0.72, 0.54, 0.32),   # golden ochre mid-flesh
+            (0.52, 0.38, 0.22),   # warm shadow flesh
+            (0.18, 0.14, 0.08),   # deep umber near-black shadow
+            (0.42, 0.48, 0.60),   # cool blue-grey shadow penumbra
+            (0.88, 0.80, 0.58),   # warm cream costume highlight
+        ],
+        ground_color=(0.22, 0.16, 0.09),    # dark warm umber ground
+        stroke_size=9,
+        wet_blend=0.45,
+        edge_softness=0.55,
+        jitter=0.038,
+        glazing=(0.70, 0.55, 0.30),          # warm amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Utrecht Caravaggism — warm raking sidelight from a single amber source. "
+            "Ter Brugghen studied in Rome 1604–1614 and brought Caravaggio's tenebrism "
+            "north, but his version is warmer, more lyrical, and psychologically more "
+            "direct than Caravaggio's own.  His characteristic effect is the DIRECTIONAL "
+            "RIDGE LIGHT: warm amber catching elevated form surfaces (nose bridge, "
+            "cheekbone, finger knuckle, collar fold) from a steep raking angle, while "
+            "the receding faces of those same forms drop into cool blue-grey shadow.  "
+            "This is not Rembrandt's global dark/light split but a local surface-normal "
+            "response to directionalised light.  His subjects — musicians, drinkers, "
+            "candlelit readers — are placed at close distance, making the raking light "
+            "legible across every tactile surface.  The warm/cool split within a single "
+            "form is his signature: an eye socket is simultaneously warm amber on the "
+            "outer rim and cool blue-grey in the recess, creating a palpable sense of "
+            "curved surface even without sfumato blending.  Unlike Honthorst's theatrical "
+            "single-candle melodrama, ter Brugghen's light is quieter, more diffuse, and "
+            "psychologically warmer — his Caravaggism is Utrecht's own."
+        ),
+        famous_works=[
+            ("The Calling of St. Matthew",     "1621"),
+            ("Flute Player",                   "1621"),
+            ("The Lute Player",                "1624"),
+            ("Jacob, Laban, and Leah",         "1628"),
+            ("St. Sebastian Tended by Irene",  "1625"),
+        ],
+        inspiration=(
+            "Use ter_brugghen_raking_amber_pass() to apply the THIRTY-FIRST DISTINCT "
+            "MODE: DIRECTIONAL HORIZONTAL SOBEL WARM-LIGHT RIDGE TINTING WITH "
+            "COOL-SHADOW INFILL.  Compute luminance (luma = 0.299R + 0.587G + 0.114B). "
+            "Apply horizontal Sobel (scipy.ndimage.sobel axis=1) to detect the "
+            "left-to-right luminance gradient — positive values mark ridges lit from "
+            "the left, negative values mark shadow sides of those same ridges.  "
+            "Normalise sobel map to [−1, 1] via |max_abs|.  Apply midtone gate: smooth "
+            "bump in [mid_lo=0.22, mid_hi=0.76] — peaks at 1 at midtone centre, falls "
+            "to 0 at deep shadow and full highlight.  Warm lit ridges: "
+            "lit_gate = clip(sobel_norm, 0, 1) × gate_mid → R+warm_r=0.060, "
+            "G+warm_g=0.028.  Cool shadow ridges: shadow_gate = clip(−sobel_norm, 0, 1) "
+            "× gate_mid → B+cool_b=0.048, R−cool_r=0.022.  Scale by ridge_strength=0.65 "
+            "and composite at opacity=0.28.  "
+            "Use adaptive_local_contrast_pass() for the artistic improvement: "
+            "LOCAL-BLOCK PERCENTILE CONTRAST STRETCHING.  Divide the image into "
+            "overlapping local blocks (block_size=64).  In each block compute the 5th "
+            "and 95th percentile of each RGB channel.  Interpolate those percentile "
+            "maps to full resolution (scipy.ndimage.zoom order=1).  Stretch each channel "
+            "so that the local [p5, p95] maps to [0, 1], gated to the midtone zone "
+            "[contrast_lo=0.20, contrast_hi=0.80] to avoid shadow crushing and highlight "
+            "blowout.  Blend at stretch_amount=0.35 and composite at opacity=0.20.  "
+            "Builds Renaissance-style local form contrast: the way skilled painters "
+            "exaggerated modelling contrast within individual form regions to ensure "
+            "readability at distance without altering the global tonal design."
+        ),
+    ),
+
 }
 
 

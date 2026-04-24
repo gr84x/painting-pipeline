@@ -34819,3 +34819,280 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Penumbra softening pass complete.")
+
+    def ter_brugghen_raking_amber_pass(
+        self,
+        mid_lo:         float = 0.22,  # lower luminance edge of midtone gate
+        mid_hi:         float = 0.76,  # upper luminance edge of midtone gate
+        warm_r:         float = 0.060, # warm tint R added to lit ridges
+        warm_g:         float = 0.028, # warm tint G added to lit ridges
+        cool_b:         float = 0.048, # cool tint B added to shadow ridges
+        cool_r:         float = 0.022, # R reduction applied to shadow ridges
+        ridge_strength: float = 0.65,  # overall ridge tint blend fraction at peak gate
+        opacity:        float = 0.28,
+    ) -> None:
+        """Directional horizontal Sobel warm-light ridge tinting with cool-shadow infill.
+
+        Hendrick ter Brugghen (1588–1629) studied Caravaggio's tenebrism in Rome
+        (1604–1614) and returned to Utrecht to create a warmer, more lyrical version.
+        His defining technique is DIRECTIONAL RIDGE LIGHT: a raking amber sidelight
+        that catches every elevated form surface — nose bridge, cheekbone, finger knuckle,
+        collar fold — with warm ochre-amber, while the receding faces of those same forms
+        drop into cool blue-grey.  This is not a global dark/light split but a LOCAL
+        SURFACE-NORMAL RESPONSE: the warm/cool axis follows the direction of the light
+        across every curve, making the tactile 3D structure of forms visually explicit.
+
+        This pass encodes ter Brugghen's defining quality as the THIRTY-FIRST DISTINCT
+        MODE: DIRECTIONAL HORIZONTAL SOBEL WARM-LIGHT RIDGE TINTING WITH COOL-SHADOW
+        INFILL.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Horizontal Sobel (scipy.ndimage.sobel, axis=1):
+            sobel_x detects the horizontal luminance gradient.
+            Positive sobel_x → luma increasing left-to-right → left-lit ridge face.
+            Negative sobel_x → luma decreasing left-to-right → right-facing shadow side.
+            Normalise: sobel_norm = clip(sobel_x / max(|sobel_x|), −1, 1)
+        (3) Midtone gate — smooth bump in [mid_lo, mid_hi]:
+            mid_c = (mid_lo + mid_hi) / 2
+            t_lo = clip((luma − mid_lo) / (mid_c − mid_lo), 0, 1)
+            t_hi = clip((mid_hi − luma) / (mid_hi − mid_c), 0, 1)
+            gate_mid = t_lo × t_hi     [peaks at 1 when luma = mid_c]
+        (4) Lit ridge gate: lit_gate = clip(sobel_norm, 0, 1) × gate_mid
+            Shadow ridge gate: shadow_gate = clip(−sobel_norm, 0, 1) × gate_mid
+        (5) Apply warm/cool tinting:
+            R_out = R + lit_gate × warm_r × rs − shadow_gate × cool_r × rs
+            G_out = G + lit_gate × warm_g × rs
+            B_out = B + shadow_gate × cool_b × rs
+            where rs = ridge_strength
+        (6) Composite at opacity.
+
+        Distinct from romanino_brescian_impasto_pass (gradient magnitude in all
+          directions, adds warm/cool simultaneously via luminance gradient — not a
+          unidirectional Sobel with separate lit/shadow gates).
+        Distinct from shadow_temperature_relief_pass (targets luma < shadow_hi with
+          violet penumbra tint — not a Sobel-based ridge detector with warm/cool split).
+        Distinct from beccafumi_nacreous_glow_pass (signed Gaussian blur difference —
+          omnidirectional bloom, not directional Sobel raking).
+        Distinct from penumbra_softening_pass (smooths shadow-edge transitions by
+          blending — does not add warm/cool chromatic tint to ridges).
+        Distinct from gossaert_pearl_crystalline_pass (luminance stratum decomposition
+          into three fixed zones — not directional Sobel ridge detection).
+
+        Args:
+            mid_lo/hi     : Luminance range of the midtone gate (protects deep shadow and highlights).
+            warm_r/g      : Warm tint channels added proportionally to lit ridge gate.
+            cool_b/r      : Cool tint B added / R reduced proportionally to shadow ridge gate.
+            ridge_strength: Overall scale factor on both warm and cool tinting at peak gate.
+            opacity       : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Horizontal Sobel — detects left-to-right gradient ─────────
+        sobel_x = _sobel(luma, axis=1).astype(_np.float32)
+        max_abs = float(_np.abs(sobel_x).max()) + 1e-6
+        sobel_norm = _np.clip(sobel_x / max_abs, -1.0, 1.0)
+
+        # ── Step 3: Midtone gate — smooth bump in [mid_lo, mid_hi] ───────────
+        mid_c = (mid_lo + mid_hi) * 0.5
+        denom_lo = max(float(mid_c - mid_lo), 1e-6)
+        denom_hi = max(float(mid_hi - mid_c), 1e-6)
+        t_lo = _np.clip((luma - mid_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((mid_hi - luma) / denom_hi, 0.0, 1.0)
+        gate_mid = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 4: Lit and shadow ridge gates ────────────────────────────────
+        lit_gate    = _np.clip( sobel_norm, 0.0, 1.0) * gate_mid
+        shadow_gate = _np.clip(-sobel_norm, 0.0, 1.0) * gate_mid
+
+        rs = ridge_strength
+
+        # ── Step 5: Warm/cool tinting ─────────────────────────────────────────
+        out_r = _np.clip(r0 + lit_gate * warm_r * rs - shadow_gate * cool_r * rs, 0.0, 1.0)
+        out_g = _np.clip(g0 + lit_gate * warm_g * rs,                             0.0, 1.0)
+        out_b = _np.clip(b0 + shadow_gate * cool_b * rs,                          0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Ter Brugghen raking amber pass complete.")
+
+    def adaptive_local_contrast_pass(
+        self,
+        block_size:     int   = 64,   # local block dimension for percentile computation
+        p_lo:           float = 0.05, # lower percentile of local channel range
+        p_hi:           float = 0.95, # upper percentile of local channel range
+        contrast_lo:    float = 0.20, # lower luminance zone gate (protect deep shadows)
+        contrast_hi:    float = 0.80, # upper luminance zone gate (protect highlights)
+        stretch_amount: float = 0.35, # blend fraction toward locally stretched at peak gate
+        opacity:        float = 0.20,
+    ) -> None:
+        """Local-block percentile contrast stretching for enhanced form modelling.
+
+        Renaissance painters studied forms under controlled sidelight and deliberately
+        EXAGGERATED LOCAL CONTRAST within individual form regions — cheekbone, nose,
+        brow ridge, hand — so that the modelling would read clearly at the distances
+        at which their altarpieces and portraits were viewed.  Unlike global contrast
+        adjustment (which flattens extremes uniformly) or unsharp masking (which adds
+        edge halos via convolution), this pass operates on LOCAL STATISTICS: each
+        region of the image is stretched independently so that its own dynamic range
+        fills more of the available tonal space, making subtle form modelling visible
+        without altering the global tonal design.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Midtone gate — smooth bump in [contrast_lo, contrast_hi]:
+            gate = clip((luma − contrast_lo)/…, 0, 1) × clip((contrast_hi − luma)/…, 0, 1)
+            → 0 in deep shadow and full highlight; 1 at midtone centre
+        (3) Sample overlapping local blocks (step = block_size, centred at each grid point).
+            For each block compute the p_lo and p_hi channel percentiles (per RGB channel).
+        (4) Interpolate the percentile grids to full resolution via scipy.ndimage.zoom
+            (bilinear, order=1) — creates smooth spatially-varying lo/hi maps.
+        (5) Stretch each channel:
+            ch_stretched = clip((ch − lo_map) / max(hi_map − lo_map, ε), 0, 1)
+        (6) Blend toward stretched via:
+            ch_blend = ch × (1 − gate × stretch_amount) + ch_stretched × gate × stretch_amount
+        (7) Composite at opacity.
+
+        Distinct from specular_clarity_pass (USM sharpening — high-frequency convolution
+          boost via subtract-blur; sharpens edges, does not stretch local channel range).
+        Distinct from beccafumi_nacreous_glow_pass (signed Gaussian bloom — warm/cool
+          midtone iridescence; not a percentile-based histogram stretch).
+        Distinct from cambiaso_geometric_planes_pass (coarse Gaussian zone flattening —
+          reduces local contrast within large spatial zones; the opposite of this pass).
+        Distinct from gossaert_pearl_crystalline_pass (three luminance strata — fixed
+          global luminance bands, not local per-block statistics).
+        Distinct from romanino_brescian_impasto_pass (gradient-height relief adding
+          warm/cool tint to ridges — not a local histogram operation).
+
+        Args:
+            block_size     : Pixel dimension of each local sampling block (square).
+            p_lo / p_hi    : Lower and upper percentile of local channel range to stretch to [0, 1].
+            contrast_lo/hi : Luminance zone gate — restricts stretch to midtone region.
+            stretch_amount : Blend fraction toward locally-stretched at peak gate.
+            opacity        : Global composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import zoom as _zoom
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1-2: Luminance + midtone gate ───────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+        mid_c = (contrast_lo + contrast_hi) * 0.5
+        denom_lo = max(float(mid_c - contrast_lo), 1e-6)
+        denom_hi = max(float(contrast_hi - mid_c), 1e-6)
+        t_lo = _np.clip((luma - contrast_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((contrast_hi - luma)  / denom_hi, 0.0, 1.0)
+        gate = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 3: Sample local block percentiles on a grid ─────────────────
+        H, W = self.h, self.w
+        half = block_size // 2
+        ys = list(range(half, H, block_size))
+        xs = list(range(half, W, block_size))
+        if not ys:
+            ys = [H // 2]
+        if not xs:
+            xs = [W // 2]
+        nY, nX = len(ys), len(xs)
+
+        plo_r = _np.zeros((nY, nX), dtype=_np.float32)
+        phi_r = _np.ones( (nY, nX), dtype=_np.float32)
+        plo_g = _np.zeros((nY, nX), dtype=_np.float32)
+        phi_g = _np.ones( (nY, nX), dtype=_np.float32)
+        plo_b = _np.zeros((nY, nX), dtype=_np.float32)
+        phi_b = _np.ones( (nY, nX), dtype=_np.float32)
+
+        pct_lo = p_lo * 100.0
+        pct_hi = p_hi * 100.0
+
+        for iy, cy in enumerate(ys):
+            for ix, cx in enumerate(xs):
+                y0, y1 = max(0, cy - half), min(H, cy + half)
+                x0, x1 = max(0, cx - half), min(W, cx + half)
+                rp = r0[y0:y1, x0:x1].ravel()
+                gp = g0[y0:y1, x0:x1].ravel()
+                bp = b0[y0:y1, x0:x1].ravel()
+                plo_r[iy, ix] = float(_np.percentile(rp, pct_lo))
+                phi_r[iy, ix] = float(_np.percentile(rp, pct_hi))
+                plo_g[iy, ix] = float(_np.percentile(gp, pct_lo))
+                phi_g[iy, ix] = float(_np.percentile(gp, pct_hi))
+                plo_b[iy, ix] = float(_np.percentile(bp, pct_lo))
+                phi_b[iy, ix] = float(_np.percentile(bp, pct_hi))
+
+        # ── Step 4: Interpolate percentile grids to full resolution ───────────
+        def _interp(grid):
+            if grid.shape == (1, 1):
+                return _np.full((H, W), float(grid[0, 0]), dtype=_np.float32)
+            zy = H / grid.shape[0]
+            zx = W / grid.shape[1]
+            return _np.clip(_zoom(grid, (zy, zx), order=1).astype(_np.float32), 0.0, 1.0)
+
+        map_lo_r = _interp(plo_r);  map_hi_r = _interp(phi_r)
+        map_lo_g = _interp(plo_g);  map_hi_g = _interp(phi_g)
+        map_lo_b = _interp(plo_b);  map_hi_b = _interp(phi_b)
+
+        # ── Step 5: Stretch each channel via local range ──────────────────────
+        def _stretch(ch, lo_map, hi_map):
+            denom = _np.maximum(hi_map - lo_map, 1e-4)
+            return _np.clip((ch - lo_map) / denom, 0.0, 1.0)
+
+        r_s = _stretch(r0, map_lo_r, map_hi_r)
+        g_s = _stretch(g0, map_lo_g, map_hi_g)
+        b_s = _stretch(b0, map_lo_b, map_hi_b)
+
+        # ── Step 6: Blend toward stretched via midtone gate ───────────────────
+        blend = gate * stretch_amount
+        out_r = _np.clip(r0 * (1.0 - blend) + r_s * blend, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - blend) + g_s * blend, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - blend) + b_s * blend, 0.0, 1.0)
+
+        # ── Step 7: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Adaptive local contrast pass complete.")
