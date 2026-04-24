@@ -14314,6 +14314,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Godfried Schalcken ─────────────────────────────────────────────────────
+    "godfried_schalcken": ArtStyle(
+        artist="Godfried Schalcken",
+        movement="Dutch Golden Age / Candlelight Baroque",
+        nationality="Dutch",
+        period="1660–1706",
+        palette=[
+            (0.92, 0.70, 0.28),   # warm saffron-amber — candle flame core
+            (0.80, 0.55, 0.30),   # lit flesh in candlelight — warm orange-ivory
+            (0.60, 0.40, 0.18),   # mid-tone shadow flesh — deep sienna
+            (0.10, 0.07, 0.04),   # near-black void — outer shadow darkness
+            (0.35, 0.25, 0.10),   # penumbra brown — transition to void
+            (0.72, 0.60, 0.35),   # warm highlighted drapery — cloth in light
+        ],
+        ground_color=(0.08, 0.05, 0.02),    # near-black ground — nocturnal void
+        stroke_size=5,
+        wet_blend=0.70,                      # smooth Flemish blending — candlelit skin is seamless
+        edge_softness=0.50,                  # found edges at light-dark boundary; lost into void
+        jitter=0.020,                        # subtle — controlled, intimate observation
+        glazing=(0.70, 0.44, 0.12),         # warm amber-saffron unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Candlelight Baroque — single isolated flame as the sole light source.  "
+            "Schalcken built his compositions around a single candle or torch, creating "
+            "an intimate nocturnal drama unmatched in Dutch Golden Age painting.  The "
+            "primary characteristic is the radial falloff from a warm amber-yellow flame "
+            "core outward to near-absolute darkness: flesh nearest the candle glows with "
+            "a warm saffron-orange that is entirely unlike daylight skin tone, while the "
+            "surrounding shadow presses to near-black with almost no detail surviving.  "
+            "The transition zone — the penumbra — is a deep, warm brown that retains just "
+            "enough information to read as form before dissolving into the void.  "
+            "Technically, Schalcken was a pupil of Gerrit Dou and adopted the Leiden "
+            "fijnschilder (fine-painter) tradition: extremely smooth, glazed surfaces with "
+            "no visible brushwork, built up from a very dark near-black ground through "
+            "successive transparent glazes.  His palette in the lit zone was almost "
+            "exclusively warm — saffron, amber, sienna — with the cool blue-grey of "
+            "daylight entirely absent.  This warm/void polarity, combined with the "
+            "intimacy of single figures observed in private nocturnal moments, gives his "
+            "work its characteristic quality: luminous, tender, slightly theatrical."
+        ),
+        famous_works=[
+            ("A Young Woman Holding a Candle",        "c. 1690–1700"),
+            ("Girl with a Candle",                    "c. 1670–1675"),
+            ("Portrait of William III of Orange",     "c. 1699–1702"),
+            ("Lot and His Daughters",                 "c. 1685"),
+            ("Self-Portrait by Candlelight",          "c. 1695"),
+        ],
+        inspiration=(
+            "Use schalcken_candlelight_glow_pass() to encode Schalcken's defining "
+            "pictorial language: the FIFTY-THIRD DISTINCT MODE: "
+            "RADIAL CANDLELIGHT SPOTLIGHT WITH PROXIMITY FALLOFF AND VOID DEEPENING.  "
+            "The pass models the single-flame light source as a radial proximity field "
+            "centered at a user-specified candle position (default: center-bottom, at "
+            "candle_x=0.50, candle_y=0.88 in normalised canvas coordinates), with a "
+            "smooth power-curve falloff encoding the inverse-square intensity decay of "
+            "real candlelight.  Unlike directional spotlight passes (gentileschi, which "
+            "uses a linear gradient vector) or tonal envelope (which adds warmth but no "
+            "shadow deepening), this pass SIMULTANEOUSLY warms the lit zone AND deepens "
+            "the unlit zone toward absolute black, encoding Schalcken's near-void "
+            "darkness outside the flame circle.  "
+            "Algorithm (four steps):  "
+            "(1) RADIAL PROXIMITY WEIGHT (distance from candle_x, candle_y):  "
+            "dx = (x/W − candle_x) / candle_radius;  "
+            "dy = (y/H − candle_y) / candle_radius;  "
+            "dist = sqrt(dx² + dy²);  "
+            "spot_wt = clip(1 − dist, 0, 1)^candle_falloff.  "
+            "Models inverse-square light decay from the candle position.  "
+            "Distinct from gentileschi (directional linear gradient, not radial).  "
+            "Distinct from tonal_envelope (brightens centre, no shadow deepening).  "
+            "(2) WARM AMBER LIFT (in lit zone — where spot_wt is high):  "
+            "hi_gate = spot_wt × clip((luma − luma_lo) / (1 − luma_lo), 0, 1);  "
+            "out_r += amber_r × hi_gate;  "
+            "out_g += amber_g × hi_gate.  "
+            "Adds warm saffron-amber tint to flesh and objects near the candle.  "
+            "(3) VOID DEEPENING (outside the lit zone — where spot_wt is low):  "
+            "void_gate = (1 − spot_wt)^void_power;  "
+            "out_r *= (1 − void_deepen × void_gate);  "
+            "out_g *= (1 − void_deepen × void_gate);  "
+            "out_b *= (1 − void_deepen × void_gate).  "
+            "Pushes pixels toward absolute black outside the candle circle.  "
+            "Distinct from schedoni (luma-only shadow compression, no spatial term).  "
+            "(4) Composite at opacity."
+        ),
+    ),
+
 }
 
 

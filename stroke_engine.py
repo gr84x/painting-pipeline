@@ -38071,3 +38071,259 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Shadow color temperature pass complete.")
+
+    def schalcken_candlelight_glow_pass(
+        self,
+        candle_x: float = 0.50,
+        candle_y: float = 0.88,
+        candle_radius: float = 0.55,
+        candle_falloff: float = 1.8,
+        luma_lo: float = 0.12,
+        amber_r: float = 0.18,
+        amber_g: float = 0.08,
+        void_power: float = 2.0,
+        void_deepen: float = 0.55,
+        opacity: float = 0.80,
+    ) -> None:
+        """Radial candlelight spotlight — FIFTY-THIRD DISTINCT MODE.
+
+        Models a single isolated flame as the sole light source, encoding Godfried
+        Schalcken's defining pictorial language: warm amber-saffron glow radiating
+        outward from a candle position, with the unlit zone pressed toward near-absolute
+        black void.
+
+        This is the FIFTY-THIRD DISTINCT MODE: RADIAL CANDLELIGHT SPOTLIGHT WITH
+        PROXIMITY FALLOFF AND VOID DEEPENING.
+
+        Unlike all prior passes:
+        - Builds a RADIAL proximity weight from a specified (x, y) flame position,
+          using Euclidean distance normalised by candle_radius — not a directional
+          vector (gentileschi), not a vertical spatial gradient (atmospheric passes),
+          not a top-of-canvas gradient (chromatic aerial perspective).
+        - SIMULTANEOUSLY adds warm amber to the lit zone AND deepens unlit pixels
+          toward absolute black, encoding the extreme dual polarity of candlelight.
+          No other pass applies both warmth lift and near-void deepening in the same
+          operation driven by the same spatial weight field.
+
+        Algorithm (four steps):
+
+        (1) RADIAL PROXIMITY WEIGHT (distance from candle_x, candle_y):
+            dx = (col/W − candle_x) / candle_radius
+            dy = (row/H − candle_y) / candle_radius
+            dist = sqrt(dx² + dy²)
+            spot_wt = clip(1 − dist, 0, 1) ^ candle_falloff
+            Models inverse-square-style light decay; candle_falloff > 1 sharpens
+            the falloff to produce the dramatic cutoff of real candlelight.
+
+        (2) WARM AMBER LIFT (in lit zone, luma-gated to avoid over-brightening shadows):
+            luma = 0.2126r + 0.7152g + 0.0722b
+            hi_gate = spot_wt × clip((luma − luma_lo) / (1 − luma_lo), 0, 1)
+            out_r += amber_r × hi_gate
+            out_g += amber_g × hi_gate
+            (B channel not raised: the candle is warm — no blue component.)
+            Adds Schalcken's characteristic saffron-amber tint to lit flesh and objects.
+
+        (3) VOID DEEPENING (where spot_wt is low — outside the candle circle):
+            void_gate = (1 − spot_wt) ^ void_power
+            out_r *= (1 − void_deepen × void_gate)
+            out_g *= (1 − void_deepen × void_gate)
+            out_b *= (1 − void_deepen × void_gate)
+            Presses unlit pixels toward absolute black, encoding the near-void darkness
+            that surrounds every Schalcken composition.
+
+        (4) Composite at opacity.
+
+        FIFTY-THIRD DISTINCT MODE: distinct from all prior passes because it combines
+        RADIAL PROXIMITY-TO-POINT weighting (distance from a candle position) with
+        DUAL-ZONE TREATMENT (warm lift in lit zone + void deepening outside), all
+        driven by a single Euclidean distance field. No prior pass constructs a
+        radial distance field from an arbitrary canvas point and uses it to drive
+        both additive warmth and multiplicative void deepening simultaneously.
+        Distinct from gentileschi_directional_spotlight_pass (uses directional linear
+          gradient dx×dir_x + dy×dir_y, not Euclidean distance from a point).
+        Distinct from tonal_envelope_pass (brightness lift only; no shadow deepening;
+          no spatial void toward black outside the radius).
+        Distinct from shadow_color_temperature_pass (pure luma-gating, no spatial
+          term; cools shadows rather than deepening to void; warms highlights rather
+          than adding saffron from a point source).
+
+        Args:
+            candle_x      : Normalised horizontal candle position [0, 1]. Default 0.50.
+            candle_y      : Normalised vertical candle position [0, 1]. Default 0.88
+                            (lower-centre — typical Schalcken held-candle position).
+            candle_radius : Normalised radius of the lit zone. Default 0.55.
+            candle_falloff: Power-curve exponent for the spot weight falloff. Default 1.8.
+            luma_lo       : Low-luma gate threshold for the warm lift. Default 0.12.
+            amber_r       : Red additive in lit zone. Default 0.18.
+            amber_g       : Green additive in lit zone. Default 0.08.
+            void_power    : Exponent shaping the void deepening gate. Default 2.0.
+            void_deepen   : Maximum multiplicative deepening in void zone. Default 0.55.
+            opacity       : Composite weight (0 = no-op). Default 0.80.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Radial proximity weight from candle position ──────────────
+        cols = _np.linspace(0.0, 1.0, W, dtype=_np.float32)[None, :]  # (1, W)
+        rows = _np.linspace(0.0, 1.0, H, dtype=_np.float32)[:, None]  # (H, 1)
+        dx = (cols - float(candle_x)) / (float(candle_radius) + 1e-6)
+        dy = (rows - float(candle_y)) / (float(candle_radius) + 1e-6)
+        dist = _np.sqrt(dx ** 2 + dy ** 2)   # (H, W)
+        spot_wt = _np.clip(1.0 - dist, 0.0, 1.0) ** float(candle_falloff)
+
+        # ── Step 2: Warm amber lift in lit zone (luma-gated) ──────────────────
+        hi_gate = spot_wt * _np.clip(
+            (luma - float(luma_lo)) / (1.0 - float(luma_lo) + 1e-6), 0.0, 1.0
+        )
+        out_r = r0 + float(amber_r) * hi_gate
+        out_g = g0 + float(amber_g) * hi_gate
+        out_b = b0  # warm candle — no blue component
+
+        # ── Step 3: Void deepening outside the lit zone ───────────────────────
+        void_gate = (1.0 - spot_wt) ** float(void_power)
+        factor = 1.0 - float(void_deepen) * void_gate
+        out_r = out_r * factor
+        out_g = out_g * factor
+        out_b = out_b * factor
+
+        # ── Step 4: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Schalcken candlelight glow pass complete.")
+
+    def film_grain_overlay_pass(
+        self,
+        grain_sigma: float = 0.030,
+        grain_gamma: float = 0.70,
+        grain_strength: float = 1.0,
+        opacity: float = 0.65,
+        seed: int = 0,
+    ) -> None:
+        """Luminance-gated Gaussian film grain — FIFTY-FOURTH DISTINCT MODE.
+
+        Simulates the organic texture of linen canvas weave showing through
+        thin paint layers: grain is strongest in midtones (where paint is thin
+        and the canvas tooth is exposed) and invisible in near-black shadows
+        (where thick paint completely covers the weave).
+
+        This is the FIFTY-FOURTH DISTINCT MODE: LUMINANCE-GATED GAUSSIAN
+        FILM GRAIN.
+
+        Distinct from all prior passes because it is the ONLY pass that
+        introduces new randomly-generated information into the image — all 53
+        prior passes operate exclusively on existing pixel data (shifts,
+        blurs, gates, composites).  The grain source is stochastic (Gaussian
+        noise), not derived from the current canvas state.
+
+        Algorithm (three steps):
+
+        (1) GAUSSIAN NOISE GENERATION:
+            rng = np.random.default_rng(seed)
+            noise = rng.standard_normal((H, W)).astype(float32) × grain_sigma
+            Generates zero-mean, sigma-scaled luminance perturbations.  The
+            noise field is independent of the image content.
+
+        (2) LUMINANCE-GATED STRENGTH:
+            luma = 0.2126r + 0.7152g + 0.0722b
+            grain_gate = luma ^ grain_gamma
+            Scales noise amplitude by a power of the local luminance.
+            grain_gamma < 1.0 (default 0.70): gate rises steeply in shadows,
+            flattens in highlights — grain peaks in midtones, vanishes in
+            near-black.  This matches the physical model: deep shadows = thick
+            opaque paint = no canvas weave visible; midtones = thinner paint
+            layers = weave texture exposed.
+
+        (3) EQUAL CHANNEL APPLICATION (hue-preserving):
+            out_r = r + noise × grain_gate × grain_strength
+            out_g = g + noise × grain_gate × grain_strength
+            out_b = b + noise × grain_gate × grain_strength
+            The SAME noise value is added to all three channels equally,
+            preserving hue: only luminance varies, not chroma.  This avoids
+            the unwanted colour fringing of separate per-channel noise.
+
+        Composite at opacity, clip to [0, 1].
+
+        FIFTY-FOURTH DISTINCT MODE: distinct from all prior passes because:
+        - Introduces STOCHASTIC information (random noise field) not present
+          in the original image — no prior pass generates new random data.
+        - Operates on NOISE GENERATION as its primary computational step.
+        - grain_gamma gate is a direct power of luma, not a threshold gate
+          (schedoni, gentileschi) or a sigmoid or linear ramp — a pure
+          power-curve producing infinite smoothness at the shadow boundary.
+        Distinct from peripheral_defocus_pass (blurs existing data spatially;
+          no new random information; radius-based geometry).
+        Distinct from chromatic_fringe_pass (creates colour-channel offset
+          using existing image data; no stochastic source; edge-detection
+          based).
+
+        Args:
+            grain_sigma    : Standard deviation of the Gaussian noise. Default 0.030.
+            grain_gamma    : Power-curve exponent for the luma gate. Default 0.70.
+            grain_strength : Overall scale multiplier on grain amplitude. Default 1.0.
+            opacity        : Composite weight (0 = no-op). Default 0.65.
+            seed           : RNG seed for reproducibility. Default 0.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Step 1: Generate Gaussian noise ───────────────────────────────────
+        rng = _np.random.default_rng(int(seed))
+        noise = rng.standard_normal((H, W)).astype(_np.float32) * float(grain_sigma)
+
+        # ── Step 2: Luminance gate (power curve) ──────────────────────────────
+        grain_gate = _np.clip(luma, 0.0, 1.0) ** float(grain_gamma)
+
+        # ── Step 3: Equal channel application (hue-preserving) ───────────────
+        scaled = noise * grain_gate * float(grain_strength)
+        out_r = r0 + scaled
+        out_g = g0 + scaled
+        out_b = b0 + scaled
+
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Film grain overlay pass complete.")

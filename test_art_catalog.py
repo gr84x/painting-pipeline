@@ -167,6 +167,7 @@ EXPECTED_ARTISTS = [
     "joshua_reynolds",
     "quentin_massys",
     "bartolomeo_schedoni",
+    "godfried_schalcken",
 ]
 
 
@@ -21939,3 +21940,313 @@ def test_shadow_color_temperature_pixels_in_range():
     ).reshape(64, 64, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ── Session 165 — Godfried Schalcken ─────────────────────────────────────────
+
+
+def test_godfried_schalcken_in_catalog():
+    """Godfried Schalcken (session 165) must be present in CATALOG."""
+    assert "godfried_schalcken" in CATALOG
+
+
+def test_godfried_schalcken_movement():
+    s = get_style("godfried_schalcken")
+    assert "Candlelight" in s.movement or "Golden Age" in s.movement
+
+
+def test_godfried_schalcken_nationality():
+    s = get_style("godfried_schalcken")
+    assert s.nationality == "Dutch"
+
+
+def test_godfried_schalcken_palette_length():
+    s = get_style("godfried_schalcken")
+    assert len(s.palette) >= 5
+
+
+def test_godfried_schalcken_palette_in_range():
+    """All Schalcken palette RGB values must be in [0, 1]."""
+    s = get_style("godfried_schalcken")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Palette value out of range: {ch}"
+
+
+def test_godfried_schalcken_dark_ground():
+    """Schalcken uses a near-black ground — ground_color should be very dark."""
+    s = get_style("godfried_schalcken")
+    luminance = 0.2126 * s.ground_color[0] + 0.7152 * s.ground_color[1] + 0.0722 * s.ground_color[2]
+    assert luminance < 0.12, f"Ground should be near-black; luma={luminance:.3f}"
+
+
+def test_godfried_schalcken_wet_blend():
+    s = get_style("godfried_schalcken")
+    assert 0.0 <= s.wet_blend <= 1.0
+
+
+def test_godfried_schalcken_has_famous_works():
+    s = get_style("godfried_schalcken")
+    assert len(s.famous_works) >= 3
+
+
+def test_godfried_schalcken_has_candle_in_works():
+    """At least one famous work title should reference candle/light."""
+    s = get_style("godfried_schalcken")
+    titles = [t.lower() for t, _ in s.famous_works]
+    assert any("candle" in t or "light" in t or "portrait" in t for t in titles)
+
+
+# ── Session 165 — schalcken_candlelight_glow_pass (Pass 53) ──────────────────
+
+
+def test_schalcken_candlelight_glow_pass_exists():
+    """Pass 53: schalcken_candlelight_glow_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "schalcken_candlelight_glow_pass"))
+
+
+def test_schalcken_candlelight_glow_pass_no_error():
+    """Pass runs without error on a 64×64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.35, 0.20), texture_strength=0.0)
+    p.schalcken_candlelight_glow_pass()
+
+
+def test_schalcken_candlelight_glow_pass_zero_opacity_noop():
+    """opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.35, 0.20), texture_strength=0.0)
+    before = bytes(p.canvas.surface.get_data()[:])
+    p.schalcken_candlelight_glow_pass(opacity=0.0)
+    after = bytes(p.canvas.surface.get_data()[:])
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_schalcken_candlelight_glow_pass_modifies_canvas():
+    """Pass must produce detectable change at opacity=1.0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.35, 0.20), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.schalcken_candlelight_glow_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), "Pass should modify the canvas"
+
+
+def test_schalcken_candlelight_glow_pass_warms_centre():
+    """Near the candle position, the R channel should increase."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.35, 0.20), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    # Place candle at top-centre — upper half of canvas is the lit zone
+    p.schalcken_candlelight_glow_pass(
+        candle_x=0.50, candle_y=0.0, candle_radius=0.60,
+        amber_r=0.30, amber_g=0.12, void_deepen=0.0, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Top-centre pixels should be warmer (R channel higher)
+    # Cairo BGRA: channel 2 = R
+    mean_r_before = buf_before[:16, 24:40, 2].mean()
+    mean_r_after  = buf_after[:16, 24:40, 2].mean()
+    assert mean_r_after >= mean_r_before, (
+        f"Centre near candle should warm up; R before={mean_r_before:.1f}, after={mean_r_after:.1f}")
+
+
+def test_schalcken_candlelight_glow_pass_darkens_far_corners():
+    """Pixels far from candle should get darker (void deepening)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Use a mid-tone canvas so there is room to darken
+    p.tone_ground((0.55, 0.45, 0.30), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    # Candle at top-left; far corner = bottom-right
+    p.schalcken_candlelight_glow_pass(
+        candle_x=0.0, candle_y=0.0, candle_radius=0.30,
+        amber_r=0.0, amber_g=0.0, void_deepen=0.80, void_power=1.5, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Bottom-right corner (far from candle) should be darker overall
+    mean_before = buf_before[48:, 48:, :3].mean()
+    mean_after  = buf_after[48:, 48:, :3].mean()
+    assert mean_after < mean_before, (
+        f"Far corner should darken; before={mean_before:.1f}, after={mean_after:.1f}")
+
+
+def test_schalcken_candlelight_glow_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.35, 0.20), texture_strength=0.0)
+    p.schalcken_candlelight_glow_pass(
+        amber_r=0.50, amber_g=0.30, void_deepen=0.90, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+# ── Session 165 — film_grain_overlay_pass (Pass 54, random improvement) ──────
+
+
+def test_film_grain_overlay_pass_exists():
+    """Pass 54: film_grain_overlay_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "film_grain_overlay_pass"))
+
+
+def test_film_grain_overlay_pass_no_error():
+    """Pass runs without error on a 64×64 canvas."""
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p.film_grain_overlay_pass()
+
+
+def test_film_grain_overlay_pass_zero_opacity_noop():
+    """opacity=0.0 must leave canvas exactly unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    before = bytes(p.canvas.surface.get_data()[:])
+    p.film_grain_overlay_pass(opacity=0.0)
+    after = bytes(p.canvas.surface.get_data()[:])
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_film_grain_overlay_pass_modifies_canvas():
+    """Pass must produce detectable change at opacity=1.0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.film_grain_overlay_pass(grain_sigma=0.10, opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before, buf_after), "Pass should modify the canvas"
+
+
+def test_film_grain_overlay_pass_dark_canvas_minimal_grain():
+    """Near-black canvas should receive very little grain (gate near zero)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p_dark = Painter(64, 64)
+    p_dark.tone_ground((0.04, 0.03, 0.02), texture_strength=0.0)
+    p_mid = Painter(64, 64)
+    p_mid.tone_ground((0.50, 0.45, 0.38), texture_strength=0.0)
+
+    # Apply same grain to both
+    p_dark.film_grain_overlay_pass(grain_sigma=0.12, opacity=1.0, seed=42)
+    p_mid.film_grain_overlay_pass(grain_sigma=0.12, opacity=1.0, seed=42)
+
+    def rms_diff(p, ground):
+        buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).astype(np.float32)
+        gnd_val = np.array([ground[2], ground[1], ground[0]], dtype=np.float32) * 255
+        return np.sqrt(np.mean((buf[:, :, :3] - gnd_val[None, None, :]) ** 2))
+
+    rms_dark = rms_diff(p_dark, (0.04, 0.03, 0.02))
+    rms_mid  = rms_diff(p_mid,  (0.50, 0.45, 0.38))
+    assert rms_dark < rms_mid, (
+        f"Dark canvas should get less grain than midtone; dark={rms_dark:.2f}, mid={rms_mid:.2f}")
+
+
+def test_film_grain_overlay_pass_reproducible():
+    """Same seed must produce identical result on identical canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p1 = Painter(64, 64)
+    p1.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p1.film_grain_overlay_pass(seed=7, opacity=1.0)
+
+    p2 = Painter(64, 64)
+    p2.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p2.film_grain_overlay_pass(seed=7, opacity=1.0)
+
+    buf1 = bytes(p1.canvas.surface.get_data()[:])
+    buf2 = bytes(p2.canvas.surface.get_data()[:])
+    assert buf1 == buf2, "Same seed should produce identical grain"
+
+
+def test_film_grain_overlay_pass_different_seeds_differ():
+    """Different seeds must produce different results."""
+    import numpy as np
+    from stroke_engine import Painter
+    p1 = Painter(64, 64)
+    p1.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p1.film_grain_overlay_pass(seed=1, opacity=1.0)
+
+    p2 = Painter(64, 64)
+    p2.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p2.film_grain_overlay_pass(seed=999, opacity=1.0)
+
+    buf1 = bytes(p1.canvas.surface.get_data()[:])
+    buf2 = bytes(p2.canvas.surface.get_data()[:])
+    assert buf1 != buf2, "Different seeds should produce different grain"
+
+
+def test_film_grain_overlay_pass_pixels_in_range():
+    """All output pixel values must remain in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.38), texture_strength=0.0)
+    p.film_grain_overlay_pass(grain_sigma=0.50, grain_strength=2.0, opacity=1.0)
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_film_grain_overlay_pass_hue_preserving():
+    """Equal-channel noise application should not shift average hue significantly."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.45, 0.25), texture_strength=0.0)  # warm orange-ish
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    # Cairo BGRA: 0=B, 1=G, 2=R
+    r_before = buf_before[:, :, 2].mean()
+    g_before = buf_before[:, :, 1].mean()
+    b_before = buf_before[:, :, 0].mean()
+    hue_r_ratio_before = r_before / (b_before + 1e-6)
+
+    p.film_grain_overlay_pass(grain_sigma=0.03, opacity=1.0, seed=123)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    r_after = buf_after[:, :, 2].mean()
+    b_after = buf_after[:, :, 0].mean()
+    hue_r_ratio_after = r_after / (b_after + 1e-6)
+
+    # Ratio should change by less than 10% — grain is not a hue shift
+    ratio_change = abs(hue_r_ratio_after - hue_r_ratio_before) / (hue_r_ratio_before + 1e-6)
+    assert ratio_change < 0.10, (
+        f"Grain should not significantly shift hue ratio; change={ratio_change:.3f}")
