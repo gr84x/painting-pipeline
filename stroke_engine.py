@@ -35811,3 +35811,249 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Iridescent glaze pass complete.")
+
+    # Session 155 — artist pass: melozzo_zenith_radiance_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def melozzo_zenith_radiance_pass(
+        self,
+        mid_lo:          float = 0.28,  # lower luminance boundary of midtone gate
+        mid_hi:          float = 0.75,  # upper luminance boundary of midtone gate
+        warm_r:          float = 0.032, # R boost on zenith-lit top-of-form surfaces
+        warm_g:          float = 0.016, # G boost on zenith-lit surfaces (amber warmth)
+        cool_b:          float = 0.028, # B boost on under-surface shadow zones
+        cool_r:          float = 0.014, # R reduction on under-surface shadow zones
+        zenith_strength: float = 0.60,  # overall gate scale factor
+        opacity:         float = 0.26,
+    ) -> None:
+        """Vertical overhead zenith light — Melozzo da Forlì's di sotto in sù radiance.
+
+        Melozzo da Forlì (1438–1494) is the supreme master of DI SOTTO IN SÙ —
+        ceiling frescoes depicting figures seen from directly below, lit by an
+        overhead ZENITH LIGHT that strikes the tops of upturned faces, the backs
+        of hands, and the upper surfaces of folded wings with luminous warmth,
+        while under-surfaces fall into warm-umber shadow.  His fragmentary Angel
+        Musicians in the Vatican Pinacoteca are the definitive example: each angel
+        is modelled as if observed from below through a hole in the ceiling, with
+        light descending from a sky directly overhead.
+
+        This pass encodes those effects as the THIRTY-SIXTH DISTINCT MODE:
+        VERTICAL OVERHEAD ZENITH LIGHT WITH TOP-OF-FORM WARM LIFT AND
+        UNDER-SURFACE COOL SHADOW DEEPENING.
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Vertical position map — canvas row 0 = image top:
+            y_frac  = row_index / (H − 1)        [0.0 at top, 1.0 at bottom]
+            zenith_wt = 1.0 − y_frac             [peaks at TOP = overhead zenith]
+            under_wt  = y_frac                   [peaks at BOTTOM = under-surface]
+        (3) Midtone luminance gate: smooth bump in [mid_lo, mid_hi]:
+            mid_f = (mid_lo + mid_hi) / 2
+            t_lo = clip((luma − mid_lo) / (mid_f − mid_lo), 0, 1)
+            t_hi = clip((mid_hi − luma) / (mid_hi − mid_f), 0, 1)
+            midgate = t_lo × t_hi
+        (4) Zenith-lit surfaces (top-facing forms):
+            zenith_gate = zenith_wt × midgate × zenith_strength
+            out_r = clip(r + warm_r × zenith_gate, 0, 1)
+            out_g = clip(g + warm_g × zenith_gate, 0, 1)
+        (5) Under-surface shadow zones (bottom-facing forms):
+            under_gate = under_wt × midgate × zenith_strength
+            out_b = clip(b + cool_b × under_gate, 0, 1)
+            out_r = clip(out_r − cool_r × under_gate, 0, 1)
+        (6) Composite at opacity.
+
+        Distinct from atmospheric_depth_gradient_pass (OPPOSITE vertical polarity:
+          that pass applies WARM on BOTTOM/foreground and COOL on TOP/background,
+          simulating aerial perspective in landscape recession — warm earth tones
+          below, cool sky haze above.  This pass applies WARM on TOP/zenith and
+          COOL on BOTTOM/under-surface, simulating overhead ambient light on
+          three-dimensional figures).
+        Distinct from romanino_brescian_impasto_pass (oblique upper-left light
+          from gradient of smoothed luma height field: -(gx+gy)/√2; no vertical
+          position axis; impasto ridge simulation not zenith sky gradient).
+        Distinct from gaudenzio_warm_devotion_pass (shadow-zone luminance gate
+          only, no vertical position axis, warm amber scumble not overhead light).
+
+        Args:
+            mid_lo/hi       : Luminance range of the midtone gate (zenith light most
+                              visible in lit-but-not-specular midtone zone).
+            warm_r/g        : Warm amber tint applied to zenith-lit top-of-form areas.
+            cool_b          : Cool tint applied to under-surface shadow areas.
+            cool_r          : R reduction in under-surface shadow areas.
+            zenith_strength : Overall gate scale factor.
+            opacity         : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Vertical position weights ────────────────────────────────
+        rows = _np.linspace(0.0, 1.0, self.h, dtype=_np.float32)  # 0=top, 1=bottom
+        y_frac = rows[:, _np.newaxis] * _np.ones((1, self.w), dtype=_np.float32)
+        zenith_wt = (1.0 - y_frac).astype(_np.float32)   # strong at TOP (overhead)
+        under_wt  = y_frac.astype(_np.float32)            # strong at BOTTOM (under-surface)
+
+        # ── Step 3: Midtone luminance gate ────────────────────────────────────
+        mid_f = (mid_lo + mid_hi) * 0.5
+        denom_lo = max(float(mid_f - mid_lo), 1e-6)
+        denom_hi = max(float(mid_hi - mid_f), 1e-6)
+        t_lo = _np.clip((luma - mid_lo) / denom_lo, 0.0, 1.0)
+        t_hi = _np.clip((mid_hi - luma) / denom_hi, 0.0, 1.0)
+        midgate = (t_lo * t_hi).astype(_np.float32)
+
+        # ── Step 4: Zenith-lit surfaces (warm lift at top of canvas) ──────────
+        zenith_gate = (zenith_wt * midgate * zenith_strength).astype(_np.float32)
+        out_r = _np.clip(r0 + warm_r * zenith_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + warm_g * zenith_gate, 0.0, 1.0)
+        out_b = b0.copy()
+
+        # ── Step 5: Under-surface shadow zones (cool push at bottom of canvas) ─
+        under_gate = (under_wt * midgate * zenith_strength).astype(_np.float32)
+        out_b = _np.clip(out_b + cool_b * under_gate, 0.0, 1.0)
+        out_r = _np.clip(out_r - cool_r * under_gate, 0.0, 1.0)
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Melozzo zenith radiance pass complete.")
+
+    # Session 155 — random improvement: warm_ambient_occlusion_pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def warm_ambient_occlusion_pass(
+        self,
+        occ_radius:  float = 10.0,  # Gaussian sigma for local mean (wide neighbourhood)
+        occ_max:     float = 0.25,  # maximum concavity depth clamp
+        shad_lo:     float = 0.10,  # lower luminance of shadow gate
+        shad_hi:     float = 0.42,  # upper luminance of shadow gate
+        warm_r:      float = 0.040, # warm indirect ambient R boost in recessed zones
+        warm_g:      float = 0.020, # warm indirect ambient G boost in recessed zones
+        opacity:     float = 0.22,
+    ) -> None:
+        """Local luminance concavity warm-amber infill — ambient inter-reflection.
+
+        In old master oil portraiture, shadowed recesses are not dead black voids
+        but glow faintly with warm indirect ambient light reflected back from the
+        surrounding warm surfaces — costume, architectural setting, or warm ground.
+        The EYE SOCKET CORNERS, NOSTRIL WINGS, EAR CANAL, and ARMPIT FOLDS all
+        receive a warm reflected light that distinguishes a living painted face from
+        a flat shadow.  This quality — visible in every great old master portrait
+        from Bellini to Rembrandt — arises from the physical reality of ambient
+        inter-reflection: light bounces between warm surfaces before entering the
+        concave recess, acquiring a warm spectral cast along the way.
+
+        This pass encodes those effects as the THIRTY-SEVENTH DISTINCT MODE:
+        LOCAL LUMINANCE CONCAVITY WARM-AMBER INFILL (AMBIENT INTER-REFLECTION).
+
+        Algorithm:
+        (1) Compute luminance: luma = 0.299R + 0.587G + 0.114B
+        (2) Wide Gaussian blur of luminance: local_mean = Gaussian(luma, sigma=occ_radius)
+            The wide blur captures the average luminance of the neighbourhood.
+        (3) Concavity map: occlusion = clip(local_mean − luma, 0, occ_max)
+            Pixels darker than their neighbourhood are in concave recession.
+        (4) Normalise: occ_norm = occlusion / occ_max → [0, 1]
+        (5) Shadow luminance gate: smooth bump in [shad_lo, shad_hi]:
+            shad_f = (shad_lo + shad_hi) / 2
+            t_lo = clip((luma − shad_lo) / (shad_f − shad_lo), 0, 1)
+            t_hi = clip((shad_hi − luma) / (shad_hi − shad_f), 0, 1)
+            shad_gate = t_lo × t_hi
+        (6) Combined weight: weight = occ_norm × shad_gate
+        (7) Apply warm indirect ambient: R+warm_r×weight; G+warm_g×weight
+        (8) Composite at opacity.
+
+        Distinct from penumbra_zone_pass (uses global luminance tent-gate between
+          shadow_thresh and light_thresh with NO spatial context — all midtone pixels
+          receive the warm blush equally; this pass uses LOCAL CONCAVITY, so only
+          pixels specifically darker than their spatial neighbourhood are treated).
+        Distinct from subsurface_scatter_pass (targets lit-midtone zone scatter_low–
+          scatter_high and applies Gaussian-blurred bloom; this targets CONCAVE SHADOW
+          PIXELS darker than local average, which are precisely the opposite zone).
+        Distinct from luminous_ground_pass (targets globally dark pixels below
+          ground_hi; applies a fixed warm ground colour blend; no spatial concavity
+          detection — globally dark pixels are treated whether or not they are
+          darker than their neighbourhood).
+        Distinct from gaudenzio_warm_devotion_pass (shadow-zone luminance gate only,
+          warm amber scumble uniformly across all deep shadows, no spatial concavity).
+
+        Args:
+            occ_radius : Gaussian sigma for the wide neighbourhood blur (pixels).
+            occ_max    : Maximum concavity depth; values larger than this are clamped.
+            shad_lo/hi : Shadow luminance gate — the warm infill is active in this zone.
+            warm_r/g   : Warm ambient tint applied to concave-shadow pixels.
+            opacity    : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(self.h, self.w, 4).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Luminance ─────────────────────────────────────────────────
+        luma = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # ── Step 2: Wide Gaussian blur → local neighbourhood mean ─────────────
+        local_mean = _gf(luma, sigma=occ_radius).astype(_np.float32)
+
+        # ── Step 3-4: Concavity map, normalised ──────────────────────────────
+        occlusion = _np.clip(local_mean - luma, 0.0, float(occ_max))
+        occ_max_f = max(float(occ_max), 1e-6)
+        occ_norm  = (occlusion / occ_max_f).astype(_np.float32)
+
+        # ── Step 5: Shadow luminance gate — smooth bump in [shad_lo, shad_hi] ─
+        shad_f    = (shad_lo + shad_hi) * 0.5
+        denom_slo = max(float(shad_f - shad_lo), 1e-6)
+        denom_shi = max(float(shad_hi - shad_f), 1e-6)
+        t_slo     = _np.clip((luma - shad_lo) / denom_slo, 0.0, 1.0)
+        t_shi     = _np.clip((shad_hi - luma) / denom_shi, 0.0, 1.0)
+        shad_gate = (t_slo * t_shi).astype(_np.float32)
+
+        # ── Step 6-7: Combined weight → warm indirect ambient infill ──────────
+        weight = (occ_norm * shad_gate).astype(_np.float32)
+        out_r  = _np.clip(r0 + warm_r * weight, 0.0, 1.0)
+        out_g  = _np.clip(g0 + warm_g * weight, 0.0, 1.0)
+        out_b  = b0  # blue channel unchanged
+
+        # ── Step 8: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Warm ambient occlusion pass complete.")
