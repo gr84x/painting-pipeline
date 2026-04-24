@@ -14314,6 +14314,87 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Adriaen van der Werff ─────────────────────────────────────────────────
+    "adriaen_van_der_werff": ArtStyle(
+        artist="Adriaen van der Werff",
+        nationality="Dutch",
+        period="1659–1722",
+        movement="Dutch Classical Late Baroque / Fijnschilder",
+        palette=[
+            (0.96, 0.92, 0.88),   # alabaster ivory — cool smooth skin in full light
+            (0.85, 0.82, 0.84),   # pearl-grey — cool mid-flesh in diffuse shadow
+            (0.58, 0.48, 0.60),   # cool mauve-violet — shadow depth in flesh
+            (0.22, 0.18, 0.30),   # deep blue-black ground — dark void behind figure
+            (0.75, 0.55, 0.30),   # warm amber-brown — drapery in half-light
+            (0.40, 0.30, 0.50),   # cool deep violet — costume shadow brocade
+            (0.88, 0.70, 0.48),   # pale gold — highlight drapery
+            (0.30, 0.22, 0.18),   # dark umber — deep background distance
+        ],
+        ground_color=(0.18, 0.14, 0.22),    # cool dark violet-grey ground
+        stroke_size=4,
+        wet_blend=0.85,                      # extreme smoothness — most polished of all fijnschilders
+        edge_softness=0.72,                  # lost edges between cool flesh and cool shadow
+        jitter=0.008,                        # nearly zero — crystalline Academic precision
+        glazing=(0.88, 0.86, 0.92),         # cool pearl-white unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Dutch Classical Late Baroque — the most finished surface in all of Dutch painting.  "
+            "Adriaen van der Werff was a pupil of Eglon van der Neer and the supreme example of "
+            "the Dutch fijnschilder (fine-painter) tradition in its final Academic flowering.  "
+            "His defining characteristic — entirely unlike Schalcken's warm candlelight — is the "
+            "use of cool, diffuse north-window daylight: flesh is rendered in an extraordinarily "
+            "smooth, alabaster-cool ivory tone, with highlights that read as pearl-blue or "
+            "cold silver rather than warm amber.  The surface has no visible brushwork whatsoever: "
+            "successive glazes of lead white, vermilion, smalt, and bone black are built up in "
+            "transparent layers until the skin has a translucent, almost ceramic quality.  "
+            "Shadows in the flesh are cool — blue-violet and grey — not the warm umber of "
+            "Rembrandt or the golden shadow of Schalcken.  Contours are crisp and precise in the "
+            "lit zones but dissolve seamlessly into the cool dark ground in shadow, creating the "
+            "characteristic effect of a figure emerging from a cool nocturnal background rather "
+            "than from the warm void of a candle interior.  "
+            "Werff's palette is dominated by cool tones: cool ivory, pearl grey, mauve shadow, "
+            "and deep blue-black ground — with only occasional warm notes in costume or drapery "
+            "to set off the coolness of the flesh."
+        ),
+        famous_works=[
+            ("Sarah Presenting Hagar to Abraham",           "1699"),
+            ("Children Playing Before a Herma of Hercules", "1700"),
+            ("Portrait of Admiral Cornelis Tromp",          "1692"),
+            ("The Rest on the Flight into Egypt",           "1706"),
+            ("The Adoration of the Magi",                   "1703"),
+        ],
+        inspiration=(
+            "Use van_der_werff_ivory_alabaster_pass() to encode Van der Werff's defining "
+            "pictorial language: the FIFTY-FIFTH DISTINCT MODE: "
+            "COOL IVORY ALABASTER SKIN TINTING WITH PEARL-BLUE HIGHLIGHT LIFT.  "
+            "Van der Werff's flesh passages are the polar opposite of Schalcken's warm candlelight: "
+            "the skin highlights are cool — ivory-blue, pearl, near-white — while the shadows are "
+            "cool violet-grey rather than warm umber.  This pass encodes that cool skin quality "
+            "through three steps:  "
+            "(1) SKIN ZONE DETECTION: identifies warm-flesh pixels by RGB range detection "
+            "(r ∈ [r_lo, r_hi], g ∈ [g_lo, g_hi], b ∈ [b_lo, b_hi]) with r > g + rg_margin and g ≥ b, "
+            "producing a skin_mask that targets face, neck, and hand pixels.  "
+            "Distinct from prior passes: gentileschi uses NO skin detection (spatial gradient only); "
+            "Schalcken uses NO skin detection (radial distance only); Schedoni uses NO skin detection "
+            "(global luma gates only).  Massys is the only prior skin-detection pass, but it applies WARM tint.  "
+            "(2) COOL IVORY LIFT in skin mid-highlights (luma gate hi_lo to 1.0): "
+            "out_b += ivory_b_lift × ivory_gate   (blue-white pearl lift); "
+            "out_r -= ivory_r_reduce × ivory_gate  (slight red reduction to cool the highlight).  "
+            "NOVEL: all prior skin passes apply WARM tints — Massys=warm flesh glaze, "
+            "Schalcken=warm saffron, Gentileschi=warm amber, Reynolds=amber unification.  "
+            "This is the FIRST pass to apply a COOL ivory-pearl tint to the detected skin zone.  "
+            "(3) COOL SHADOW DEPTH in skin zone (luma gate 0 to shadow_hi): "
+            "out_b += shadow_b_lift × shadow_gate  (blue depth in skin shadows); "
+            "out_r -= shadow_r_reduce × shadow_gate  (drain warmth from skin shadows).  "
+            "Distinct from shadow_color_temperature_pass (applies to ALL pixels regardless of skin; "
+            "van_der_werff is SKIN-TARGETED: only skin-mask pixels are modified in both steps).  "
+            "Combined: skin highlights gain cool pearl quality; skin shadows gain cool violet depth — "
+            "encoding Van der Werff's distinctive alabaster flesh that reads as actively cool, "
+            "polished, and porcelain-like."
+        ),
+    ),
+
     # ── Godfried Schalcken ─────────────────────────────────────────────────────
     "godfried_schalcken": ArtStyle(
         artist="Godfried Schalcken",

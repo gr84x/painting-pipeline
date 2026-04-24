@@ -15926,3 +15926,65 @@ def test_british_grand_manner_wet_blend_is_moderate():
     assert grand["wet_blend"] >= 0.40, (
         f"BRITISH_GRAND_MANNER wet_blend ({grand['wet_blend']}) should be ≥ 0.40 "
         f"for Grand Manner Academic smoothness")
+
+
+# ── Session 166 — Adriaen van der Werff + DUTCH_CLASSICAL_LATE_BAROQUE ────────
+
+
+def test_dutch_classical_late_baroque_period_in_enum():
+    """Period.DUTCH_CLASSICAL_LATE_BAROQUE must be present after session 166."""
+    assert hasattr(Period, "DUTCH_CLASSICAL_LATE_BAROQUE"), (
+        "Period.DUTCH_CLASSICAL_LATE_BAROQUE not found")
+    assert Period.DUTCH_CLASSICAL_LATE_BAROQUE in list(Period)
+
+
+def test_dutch_classical_late_baroque_stroke_params_valid():
+    """DUTCH_CLASSICAL_LATE_BAROQUE stroke_params must satisfy all key constraints."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_CLASSICAL_LATE_BAROQUE,
+                  palette=PaletteHint.COOL_GREY)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "stroke_size_bg"   in p
+    assert "wet_blend"        in p
+    assert "edge_softness"    in p
+    assert 0.0 <= p["wet_blend"]     <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_dutch_classical_late_baroque_wet_blend_high():
+    """DUTCH_CLASSICAL_LATE_BAROQUE wet_blend should be >= 0.70 for porcelain smoothness."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_CLASSICAL_LATE_BAROQUE,
+                  palette=PaletteHint.COOL_GREY).stroke_params
+    assert style["wet_blend"] >= 0.70, (
+        f"DUTCH_CLASSICAL_LATE_BAROQUE wet_blend ({style['wet_blend']}) should be >= 0.70 "
+        f"for Van der Werff porcelain smoothness")
+
+
+def test_van_der_werff_ivory_alabaster_pass_exists_routing():
+    """van_der_werff_ivory_alabaster_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "van_der_werff_ivory_alabaster_pass", None)), (
+        "van_der_werff_ivory_alabaster_pass not found on Painter")
+
+
+def test_van_der_werff_ivory_alabaster_pass_modifies_canvas():
+    """Pass 55 should modify canvas on a skin-toned ground."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.75, 0.55, 0.35), texture_strength=0.25)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    p.van_der_werff_ivory_alabaster_pass(opacity=1.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).copy()
+    assert not _np.array_equal(before, after), (
+        "van_der_werff_ivory_alabaster_pass should modify canvas at opacity=1.0")
+
+
+def test_craquelure_texture_pass_exists_routing():
+    """craquelure_texture_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "craquelure_texture_pass", None)), (
+        "craquelure_texture_pass not found on Painter")
