@@ -13107,6 +13107,79 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Bartolomeo Veneto ─────────────────────────────────────────────────────
+    "bartolomeo_veneto": ArtStyle(
+        artist="Bartolomeo Veneto",
+        movement="Lombardy-Venetian Jewel Realism",
+        nationality="Italian",
+        period="c. 1502–c. 1546",
+        palette=[
+            (0.90, 0.76, 0.56),   # warm ivory flesh highlight
+            (0.75, 0.58, 0.38),   # mid-flesh golden ochre
+            (0.52, 0.38, 0.22),   # shadow flesh warm umber
+            (0.80, 0.54, 0.12),   # gold brocade highlight
+            (0.20, 0.26, 0.58),   # deep blue-violet fabric shadow
+            (0.58, 0.14, 0.16),   # crimson brocade accent
+        ],
+        ground_color=(0.54, 0.44, 0.28),    # warm mid-ochre imprimatura
+        stroke_size=4,
+        wet_blend=0.55,
+        edge_softness=0.48,
+        jitter=0.018,
+        glazing=(0.74, 0.58, 0.28),          # warm amber-gold unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Lombardy-Venetian Jewel Realism — jewel-like surface precision fusing "
+            "Lombard Leonardesque sfumato with Venetian chromatic richness and Northern "
+            "fabric exactitude.  Bartolomeo Veneto's portraits are characterised by an "
+            "extraordinary attention to the CHROMATIC RICHNESS OF COSTUME: brocade fabrics "
+            "in deep ultramarine-violet, gold, and crimson rendered with a meticulous "
+            "detail that rivals the Flemish panel tradition.  Against this sumptuously "
+            "coloured costume his flesh tones are COOL AND PRECISE — an ivory pallor "
+            "with restrained sfumato blending, unlike the warm amber warmth of Venetian "
+            "contemporaries.  His technique suggests dual training: the northern Italian "
+            "precision of the Lombard school (possibly close to Leonardo's followers "
+            "Boltraffio and Luini) combined with Venetian colorist ambition.  The defining "
+            "chromatic quality is a HUE-ANGULAR DUAL RICHNESS: deep blue-violet in shadow "
+            "zones of brocade fabric (ultramarine depth) and warm gold-amber in "
+            "highlight brocade zones, while flesh remains cool ivory between these poles."
+        ),
+        famous_works=[
+            ("Portrait of a Courtesan",           "c. 1520s"),
+            ("Flora",                              "c. 1520s"),
+            ("Portrait of Ludovico Martinengo",   "1530"),
+            ("Salome with the Head of John the Baptist", "1520"),
+            ("Bartolomeo Colleoni",                "c. 1510"),
+        ],
+        inspiration=(
+            "Use bartolomeo_veneto_jewel_brocade_pass() to apply the THIRTY-FOURTH "
+            "DISTINCT MODE: HUE-ANGULAR DUAL-POLE SATURATION DEEPENING.  Compute "
+            "luminance (luma = 0.299R + 0.587G + 0.114B).  Define two hue-pole proximity "
+            "gates from RGB channel relationships — no HSV conversion required: "
+            "BLUE-VIOLET POLE: blue_proxy = clip(B - max(R,G), 0, 1); gate by shadow "
+            "luminance smooth bump [blue_lo=0.05, blue_hi=0.55] — ultramarine fabric "
+            "depth in shadow zones.  GOLD-AMBER POLE: gold_proxy = clip(R - B, 0, 1) × "
+            "clip(G - B×0.5, 0, 1); gate by highlight luminance smooth bump "
+            "[gold_lo=0.42, gold_hi=0.88] — brocade gold in mid-to-highlight.  Apply "
+            "saturation deepening at each pole: blue zone → R reduced, G slightly reduced, "
+            "B boosted; gold zone → R boosted, G lightly boosted, B reduced.  Scale by "
+            "pole_strength=0.65 and composite at opacity=0.28.  "
+            "Use iridescent_glaze_pass() for the artistic improvement: FULL-GRADIENT "
+            "ORIENTATION WARM/COOL IRIDESCENT SHIMMER IN PAINT TRANSITIONS.  Compute "
+            "Sobel gx (axis=1) and gy (axis=0) of luminance.  Gradient magnitude: "
+            "mag = sqrt(gx²+gy²); normalise by 95th pct → mag_norm.  Orientation: "
+            "theta = arctan2(gy, gx).  Warm direction gate: w_warm = clip(cos(theta), 0, 1); "
+            "cool direction gate: w_cool = clip(-cos(theta), 0, 1).  Midtone gate: "
+            "smooth bump [mid_lo=0.28, mid_hi=0.75].  Gradient gate: clip(mag_norm, 0, 1). "
+            "Combined weight = direction × midgate × mag_gate × shimmer_strength.  "
+            "Apply warm tint (R+, G+) in warm_dir zones; cool tint (B+, R-) in cool_dir "
+            "zones at paint-layer transitions.  Composite at opacity=0.18.  "
+            "Simulates the iridescent hue play of thin oil glazes on curved painted "
+            "surfaces — the surface normal direction determines warm or cool spectral shift."
+        ),
+    ),
+
     # ── Hendrick ter Brugghen ─────────────────────────────────────────────────
     "ter_brugghen": ArtStyle(
         artist="Hendrick ter Brugghen",

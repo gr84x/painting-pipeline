@@ -159,6 +159,7 @@ EXPECTED_ARTISTS = [
     "gaudenzio_ferrari",
     "furini",
     "ter_brugghen",
+    "bartolomeo_veneto",
 ]
 
 
@@ -351,6 +352,7 @@ EXPECTED_PERIODS = [
     "PIEDMONTESE_DEVOTIONAL_LUMINISM",
     "FLORENTINE_BAROQUE_SFUMATO",
     "UTRECHT_CARAVAGGISM",
+    "LOMBARDY_VENETIAN_JEWEL_REALISM",
 ]
 
 
@@ -19885,4 +19887,162 @@ def test_florentine_baroque_sfumato_stroke_params():
 def test_furini_in_expected_artists_and_catalog_final():
     assert "furini" in CATALOG
     assert "furini" in EXPECTED_ARTISTS
+
+
+# Session 154 -- Bartolomeo Veneto / LOMBARDY_VENETIAN_JEWEL_REALISM
+
+def test_bartolomeo_veneto_in_catalog():
+    assert "bartolomeo_veneto" in CATALOG
+
+
+def test_bartolomeo_veneto_artist_name():
+    s = get_style("bartolomeo_veneto")
+    assert s.artist == "Bartolomeo Veneto"
+
+
+def test_bartolomeo_veneto_movement():
+    s = get_style("bartolomeo_veneto")
+    assert "Jewel" in s.movement or "jewel" in s.movement.lower()
+
+
+def test_bartolomeo_veneto_palette_length():
+    s = get_style("bartolomeo_veneto")
+    assert len(s.palette) >= 6
+
+
+def test_bartolomeo_veneto_palette_in_range():
+    s = get_style("bartolomeo_veneto")
+    for r, g, b in s.palette:
+        assert 0.0 <= r <= 1.0
+        assert 0.0 <= g <= 1.0
+        assert 0.0 <= b <= 1.0
+
+
+def test_bartolomeo_veneto_fine_stroke_size():
+    s = get_style("bartolomeo_veneto")
+    assert s.stroke_size <= 6, "Bartolomeo Veneto stroke size must be fine (<= 6)"
+
+
+def test_bartolomeo_veneto_moderate_wet_blend():
+    s = get_style("bartolomeo_veneto")
+    assert 0.40 <= s.wet_blend <= 0.70, "Bartolomeo Veneto wet blend must be moderate"
+
+
+def test_bartolomeo_veneto_famous_works():
+    s = get_style("bartolomeo_veneto")
+    assert len(s.famous_works) >= 3
+    titles = [t for t, _ in s.famous_works]
+    assert any("Courtesan" in t or "Flora" in t or "Martinengo" in t for t in titles)
+
+
+def test_bartolomeo_veneto_inspiration_references_passes():
+    s = get_style("bartolomeo_veneto")
+    assert "bartolomeo_veneto_jewel_brocade_pass" in s.inspiration
+    assert "iridescent_glaze_pass" in s.inspiration
+
+
+def test_bartolomeo_veneto_inspiration_mentions_thirty_fourth_mode():
+    s = get_style("bartolomeo_veneto")
+    assert "THIRTY-FOURTH" in s.inspiration
+
+
+def test_bartolomeo_veneto_warm_ground_color():
+    s = get_style("bartolomeo_veneto")
+    # Warm ochre imprimatura: R > B
+    r, g, b = s.ground_color
+    assert r > b, "Bartolomeo Veneto's ground should be warm (R > B)"
+
+
+def test_lombardy_venetian_jewel_realism_period_in_enum():
+    period_names = {p.name for p in Period}
+    assert "LOMBARDY_VENETIAN_JEWEL_REALISM" in period_names
+
+
+def test_lombardy_venetian_jewel_realism_stroke_params():
+    from scene_schema import Style
+    style = Style(period=Period.LOMBARDY_VENETIAN_JEWEL_REALISM)
+    params = style.stroke_params
+    assert params["stroke_size_face"] <= 6
+    assert 0.40 <= params["wet_blend"] <= 0.70
+    assert params["edge_softness"] <= 0.60
+
+
+def test_bartolomeo_veneto_jewel_brocade_pass_modifies_canvas():
+    """Blue-proxy present on a blue-dominated canvas → pass produces change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Blue-dominant mid-tone canvas — blue_proxy = clip(0.6 - max(0.1,0.1), 0,1) = 0.5
+    # luma ≈ 0.299×0.1 + 0.587×0.1 + 0.114×0.6 ≈ 0.157; gate blue_lo=0.05→0.55 → active
+    p.tone_ground((0.1, 0.1, 0.6), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.bartolomeo_veneto_jewel_brocade_pass(opacity=1.0, blue_deepen=0.20, pole_strength=0.8)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_bartolomeo_veneto_jewel_brocade_pass_no_effect_opacity_zero():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.1, 0.1, 0.6), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.bartolomeo_veneto_jewel_brocade_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_bartolomeo_veneto_jewel_brocade_pass_gold_pole_modifies_canvas():
+    """Gold-proxy present on a warm-gold canvas → pass produces change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Warm gold canvas: R=0.80, G=0.55, B=0.10; luma≈0.57 → in gold gate [0.42,0.88]
+    # gold_proxy = clip(0.80-0.10,0,1)*clip(0.55-0.10*0.5,0,1) = 0.70*0.50 = 0.35
+    p.tone_ground((0.80, 0.55, 0.10), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.bartolomeo_veneto_jewel_brocade_pass(opacity=1.0, gold_deepen=0.20, pole_strength=0.8)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_iridescent_glaze_pass_modifies_midtone_canvas():
+    """Textured midtone canvas → gradient exists → iridescent pass modifies output."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.40)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.iridescent_glaze_pass(opacity=1.0, shimmer_strength=1.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_iridescent_glaze_pass_no_effect_opacity_zero():
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.40)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.iridescent_glaze_pass(opacity=0.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_iridescent_glaze_pass_uniform_canvas_no_gradient():
+    """Uniform flat canvas → zero gradient → no magnitude → no change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.50, 0.45), texture_strength=0.0)
+    buf_before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    p.iridescent_glaze_pass(opacity=1.0, shimmer_strength=1.0)
+    buf_after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4)
+    # Uniform canvas → Sobel=0 → mag=0 → mag_norm=0 → no shimmer applied
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_bartolomeo_veneto_in_expected_artists_and_catalog_final():
+    assert "bartolomeo_veneto" in CATALOG
+    assert "bartolomeo_veneto" in EXPECTED_ARTISTS
 
