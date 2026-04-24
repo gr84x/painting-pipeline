@@ -20510,3 +20510,281 @@ def test_milanese_leonardesque_devotion_stroke_params():
     assert params["wet_blend"] >= 0.60, "Multi-layer oil glazing demands high wet blend"
     assert params["edge_softness"] >= 0.65, "Sfumato demands very soft edges"
 
+
+# ── Session 158: Jean-Baptiste Greuze + FRENCH_SENTIMENTALIST ────────────────
+
+
+def test_jean_baptiste_greuze_in_catalog():
+    """jean_baptiste_greuze must be present in CATALOG."""
+    from art_catalog import CATALOG
+    assert "jean_baptiste_greuze" in CATALOG, (
+        "jean_baptiste_greuze must be in CATALOG (session 158 addition)"
+    )
+
+
+def test_jean_baptiste_greuze_artist_name():
+    """Greuze catalog entry must have correct artist name."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert s.artist == "Jean-Baptiste Greuze"
+
+
+def test_jean_baptiste_greuze_movement():
+    """Greuze catalog entry must reference French Sentimentalism."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert "Sentimentali" in s.movement or "French" in s.movement, (
+        f"Movement should reference French Sentimentalism, got: {s.movement!r}"
+    )
+
+
+def test_jean_baptiste_greuze_nationality():
+    """Greuze must be recorded as French."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert s.nationality == "French"
+
+
+def test_jean_baptiste_greuze_palette_valid():
+    """All Greuze palette colours must be valid (R,G,B) tuples in [0,1]."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert len(s.palette) >= 4, "Greuze palette must have at least 4 colours"
+    for i, c in enumerate(s.palette):
+        assert len(c) == 3, f"Colour {i} must be an RGB triple"
+        for ch in c:
+            assert 0.0 <= ch <= 1.0, f"Colour {i} channel {ch} out of [0,1]"
+
+
+def test_jean_baptiste_greuze_ground_color_warm():
+    """Greuze ground colour must be warm (R >= B) — 18th-century cream-buff canvas."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    r, g, b = s.ground_color
+    assert r >= b, "Greuze ground should be warm (R >= B)"
+    assert r > 0.60, "Ground should be light — Greuze painted on pale cream grounds"
+
+
+def test_jean_baptiste_greuze_high_wet_blend():
+    """Greuze must have high wet_blend reflecting his porcelain-smooth Academic technique."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert s.wet_blend >= 0.70, (
+        f"Greuze wet_blend should be ≥ 0.70 for Academic smoothness, got {s.wet_blend}"
+    )
+
+
+def test_jean_baptiste_greuze_edge_softness_moderate():
+    """Greuze edge_softness must be moderate — softer than Northern masters but not extreme sfumato."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert 0.50 <= s.edge_softness <= 0.80, (
+        f"Greuze edge_softness should be moderate [0.50, 0.80], got {s.edge_softness}"
+    )
+
+
+def test_jean_baptiste_greuze_has_glazing():
+    """Greuze must have a glazing colour — 18th-century Academic oil uses unifying glaze."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert s.glazing is not None, "Greuze must have a glazing colour"
+    r, g, b = s.glazing
+    assert r >= b, "Greuze glazing should be warm (R >= B)"
+
+
+def test_jean_baptiste_greuze_crackle():
+    """18th-century oil should have crackle=True."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert s.crackle is True
+
+
+def test_jean_baptiste_greuze_famous_works():
+    """Greuze must list at least one famous work."""
+    from art_catalog import get_style
+    s = get_style("jean_baptiste_greuze")
+    assert len(s.famous_works) >= 1
+    for title, year in s.famous_works:
+        assert isinstance(title, str) and len(title) > 0
+        assert isinstance(year, str) and len(year) > 0
+
+
+def test_french_sentimentalist_period_in_scene_schema():
+    """FRENCH_SENTIMENTALIST must be a valid Period enum member."""
+    from scene_schema import Period
+    assert hasattr(Period, "FRENCH_SENTIMENTALIST"), (
+        "Period.FRENCH_SENTIMENTALIST must be defined for Greuze (session 158)"
+    )
+
+
+def test_french_sentimentalist_stroke_params():
+    """FRENCH_SENTIMENTALIST stroke_params must reflect smooth Academic oil technique."""
+    from scene_schema import Period, Style, Medium
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_SENTIMENTALIST)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.70, (
+        "FRENCH_SENTIMENTALIST demands high wet_blend for Academic porcelain surface"
+    )
+    assert params["edge_softness"] >= 0.50, (
+        "FRENCH_SENTIMENTALIST demands moderate edge softness"
+    )
+    assert params["edge_softness"] <= 0.82, (
+        "FRENCH_SENTIMENTALIST edge_softness must not exceed Leonardo-school sfumato"
+    )
+
+
+def test_greuze_sentimental_carnation_pass_modifies_mid_tone_canvas():
+    """Sentimental carnation pass must visibly alter a mid-tone canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.58, 0.50), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.greuze_sentimental_carnation_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3]), (
+        "greuze_sentimental_carnation_pass must alter a mid-tone canvas"
+    )
+
+
+def test_greuze_sentimental_carnation_pass_no_effect_opacity_zero():
+    """opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.70, 0.55, 0.48), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.greuze_sentimental_carnation_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_greuze_sentimental_carnation_pass_pure_black_unchanged():
+    """Pure black canvas has luma=0; both gates evaluate to zero — no change at opacity=1."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.0, 0.0, 0.0), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.greuze_sentimental_carnation_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_greuze_sentimental_carnation_pass_warm_shift_in_mid_tones():
+    """In the mid-tone flesh zone, R channel should increase (rose-carnation push)."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Fill with a mid-tone warm flesh that falls within the carnation gate [0.38, 0.80]
+    p.tone_ground((0.65, 0.52, 0.45), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy().astype(np.float32)
+    p.greuze_sentimental_carnation_pass(
+        carn_lo=0.38, carn_hi=0.80, carn_r=0.05, carn_g=0.01, carn_b=0.02,
+        dew_lo=0.95, dew_hi=1.0,  # dewy gate above canvas luma — inactive
+        opacity=1.0,
+    )
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).astype(np.float32)
+    # Cairo BGRA: channel 2 = R
+    mean_r_before = buf_before[:, :, 2].mean()
+    mean_r_after  = buf_after[:, :, 2].mean()
+    assert mean_r_after > mean_r_before, (
+        "R channel should increase after carnation pass (rose push)"
+    )
+
+
+def test_edge_sfumato_dissolution_pass_modifies_high_contrast_canvas():
+    """Edge sfumato pass must dissolve sharp edges in a high-contrast canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Create sharp horizontal edge: top half light, bottom half dark
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    buf[:32, :, :3] = 220   # light top
+    buf[32:, :, :3] = 40    # dark bottom
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    buf_before = buf.copy()
+    p.edge_sfumato_dissolution_pass(opacity=1.0, edge_strength=0.90)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3]), (
+        "edge_sfumato_dissolution_pass must alter a high-contrast canvas"
+    )
+
+
+def test_edge_sfumato_dissolution_pass_no_effect_opacity_zero():
+    """opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.60, 0.50, 0.42), texture_strength=0.04)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.edge_sfumato_dissolution_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_edge_sfumato_dissolution_pass_zero_strength_no_change():
+    """edge_strength=0.0 forces edge_wt=0 everywhere — no change regardless of opacity."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.55, 0.48, 0.40), texture_strength=0.04)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.edge_sfumato_dissolution_pass(opacity=1.0, edge_strength=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_edge_sfumato_dissolution_pass_uniform_canvas_unchanged():
+    """A perfectly uniform canvas has zero gradient everywhere — no change at any opacity."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Uniform fill: all pixels exactly the same value
+    buf = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    buf[:] = 128
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    buf_before = buf.copy()
+    p.edge_sfumato_dissolution_pass(opacity=1.0, edge_strength=0.90)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    # Uniform canvas → zero gradient → edge_wt=0 → out==orig → composite → no change
+    assert np.array_equal(buf_before, buf_after), (
+        "Uniform canvas has zero gradient; edge sfumato dissolution must leave it unchanged"
+    )
+
