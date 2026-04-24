@@ -37123,3 +37123,138 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Skin subsurface scatter pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Baldung Grien spectral pallor — session 160 addition
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def baldung_grien_spectral_pallor_pass(
+        self,
+        pallor_strength:  float = 0.18,   # max skin pallor blend weight
+        pallor_r_reduce:  float = 0.08,   # R reduction in pallor zone (desaturate warm red)
+        pallor_g_boost:   float = 0.12,   # G boost in pallor zone (acid-green direction)
+        pallor_b_reduce:  float = 0.04,   # B reduction (yellow-green not blue-green)
+        acid_bg_strength: float = 0.10,   # acid-green boost in non-skin mid-tone zones
+        bg_green:         float = 0.10,   # G boost amount for background acid bite
+        skin_sigma:       float = 8.0,    # Gaussian sigma for skin mask softening
+        opacity:          float = 0.25,
+    ) -> None:
+        """Spectral flesh pallor — FORTY-SIXTH DISTINCT MODE.
+
+        Hans Baldung Grien (c. 1484/85–1545) is the most psychologically
+        unsettling German painter of the Renaissance.  His flesh has a
+        SPECTRAL PALLOR — an acid-green, grey-cool undertone beneath the
+        surface warmth, as if skin retains the memory of death.  His name
+        'Grien' derives from his habitual use of acid yellow-green, a
+        constant chromatic signature appearing in foliage, supernatural light,
+        and the eerie pallor of flesh at the boundary of life and death.
+
+        This pass encodes that chromatic insight as the FORTY-SIXTH DISTINCT
+        MODE: SPECTRAL FLESH PALLOR — ACID-GREEN CHROMATIC TENSION.
+
+        The algorithm:
+
+        (1) FLESH DETECTION — identify warm flesh pixels by color range:
+            skin_raw = (r > 0.38) AND (r > g * 1.05) AND (g > b * 1.02)
+            Gaussian blur of the binary mask (sigma=skin_sigma) → skin_mask ∈ [0, 1].
+
+        (2) MID-TONE GATE — pallor_gate = 4 * luma * (1 - luma)
+            Quadratic gate peaking at luma=0.50, zero at luma=0 and luma=1.
+            Targets mid-flesh zones; spares pure shadows and pure highlights.
+
+        (3) PALLOR TINTING (skin zone):
+            weight = skin_mask × pallor_gate × pallor_strength
+            out_r = r - pallor_r_reduce × weight     [R-: reduce warm red]
+            out_g = g + pallor_g_boost   × weight    [G+: acid-green pallor]
+            out_b = b - pallor_b_reduce  × weight    [B-: yellow not blue-green]
+            Net direction: R-G+B- = acid-yellow-green spectral pallor.
+
+        (4) BACKGROUND ACID BITE (non-skin zone):
+            bg_weight = (1 - skin_mask) × pallor_gate × acid_bg_strength
+            out_g = g + bg_green × bg_weight
+            Simulates Baldung's vivid acid-green landscape and supernatural greens.
+
+        (5) Composite at opacity.
+
+        Distinct from skin_subsurface_scatter_pass (WARM-RED R+ translucency:
+          warm_boost > 1, cool_damp < 1; positive R direction; spatial Gaussian
+          spreading of warm color across dermis; Baldung's pass goes R- —
+          specifically reduces warmth rather than enhancing it; Baldung's G+
+          is chromatic pallor tension, not thermal luminosity from below).
+        Distinct from giampietrino_warm_devotion_pass (LUMINANCE-GATED amber
+          hi-gate R+G+; violet shad-gate B+R-; no skin color detection by
+          color range; no background acid-green treatment; applies to all
+          mid-bright pixels regardless of color — background ochres receive
+          the same amber tint as flesh; Baldung's pass is skin-specific and
+          has a separate background treatment with opposing G+ direction).
+        Distinct from morisot_plein_air_pass (violet shadow cooling B+R-; warm
+          R+ in mid-bright zones; designed for Impressionist luminosity, not
+          Germanic pallor; no skin mask; no acid-green background treatment;
+          the B+ direction in shadows is opposite to Baldung's B- direction).
+        Distinct from beccafumi_nacreous_glow_pass (surface convexity detection
+          via bloom-difference sign: warm+ on convex peaks, cool- in concavities;
+          fires on any bright convex surface including metalwork and fabric;
+          not skin-specific by color range; no acid-green background treatment;
+          the convexity detector is a GEOMETRY signal, Baldung's is a COLOR signal).
+
+        Args:
+            pallor_strength  : Maximum blend weight for the skin pallor effect.
+            pallor_r_reduce  : R channel reduction in the pallor zone (desaturate red).
+            pallor_g_boost   : G channel boost in the pallor zone (acid-green direction).
+            pallor_b_reduce  : B channel reduction (yellow-green, not blue-green).
+            acid_bg_strength : Acid-green intensity in non-skin mid-tone areas.
+            bg_green         : G boost amount for background acid bite.
+            skin_sigma       : Gaussian blur sigma for skin mask softening.
+            opacity          : Composite weight (0 = no-op).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA channel order
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── Step 1: Flesh detection ───────────────────────────────────────────
+        skin_raw = (
+            (r0 > 0.38) &
+            (r0 > g0 * 1.05) &
+            (g0 > b0 * 1.02)
+        ).astype(_np.float32)
+        skin_mask = _np.clip(_gf(skin_raw, sigma=skin_sigma), 0.0, 1.0)
+
+        # ── Step 2: Mid-tone gate ─────────────────────────────────────────────
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        pallor_gate = 4.0 * luma * (1.0 - luma)   # quadratic peak at luma=0.5
+
+        # ── Step 3: Pallor tinting (skin zone) ───────────────────────────────
+        weight = skin_mask * pallor_gate * pallor_strength
+        out_r = r0 - pallor_r_reduce * weight
+        out_g = g0 + pallor_g_boost  * weight
+        out_b = b0 - pallor_b_reduce * weight
+
+        # ── Step 4: Background acid bite (non-skin zone) ──────────────────────
+        bg_weight = (1.0 - skin_mask) * pallor_gate * acid_bg_strength
+        out_g = out_g + bg_green * bg_weight
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Baldung Grien spectral pallor pass complete.")
