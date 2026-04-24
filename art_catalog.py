@@ -13270,6 +13270,100 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Gentile da Fabriano ───────────────────────────────────────────────────
+    "gentile_da_fabriano": ArtStyle(
+        artist="Gentile da Fabriano",
+        movement="International Gothic",
+        nationality="Italian",
+        period="c. 1370–1427",
+        palette=[
+            (0.92, 0.88, 0.72),   # tooled gold — warm burnished highlight
+            (0.18, 0.32, 0.65),   # lapis lazuli ultramarine
+            (0.78, 0.18, 0.12),   # vermilion — deep red
+            (0.88, 0.82, 0.52),   # gold-leaf ground mid-tone
+            (0.16, 0.42, 0.22),   # verdigris green
+            (0.94, 0.90, 0.82),   # chalk-white gesso highlight
+            (0.30, 0.22, 0.12),   # burnt sienna shadow flesh
+        ],
+        ground_color=(0.85, 0.78, 0.48),    # warm gold-leaf imprimatura ground
+        stroke_size=3,
+        wet_blend=0.12,                      # tempera is dry — no wet-on-wet blending
+        edge_softness=0.10,                  # firm Gothic contour; no atmospheric dissolution
+        jitter=0.030,
+        glazing=None,                        # tempera technique — no oil glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Gentile da Fabriano (c. 1370–1427) is the supreme master of the "
+            "INTERNATIONAL GOTHIC style in Italian painting.  His Adoration of "
+            "the Magi (1423, Uffizi) is the culminating monument of courtly "
+            "Gothic opulence: a panoramic triptych altarpiece in which every "
+            "surface — drapery, bridle, halo, background sky — is an exercise "
+            "in precious material rendered with astonishing craft.  The technique "
+            "is EGG TEMPERA on panel over chalk-white gesso ground, worked in fine "
+            "parallel hatching strokes to model form through mark density rather "
+            "than tonal blending.  Each halo is punched and tooled into the gold "
+            "ground with embossed decorative patterns — a process called PASTIGLIA "
+            "combined with SGRAFFITO — so that the gold shimmers under raking "
+            "light with a three-dimensional tactility no painted gold can replicate.  "
+            "The FLAT JEWEL-TONE zones of colour — lapis lazuli ultramarine, "
+            "vermilion, pure verdigris — are bounded by firm Gothic contour lines "
+            "rather than dissolved in atmospheric blending.  Despite this flatness, "
+            "Gentile introduces remarkable naturalistic detail at the edges of his "
+            "scenes: dogs, horses, monkeys, leopards, peacocks, and an extraordinary "
+            "variety of wild-flower species rendered with botanical precision in the "
+            "predella and spandrels.  His flesh tones are built on a GREENISH "
+            "VERDACCIO UNDERPAINT — the medieval practice of modelling in terre "
+            "verte before layering warm carnation over it, giving faces a cool, "
+            "slightly translucent quality distinct from the warm amber glazing of "
+            "later oil painters.  His gold ground backgrounds are not merely "
+            "decorative: they are THEOLOGICAL LIGHT — the uncreated divine radiance "
+            "of the Byzantine sacred tradition transformed into the most expensive "
+            "material substance available in early fifteenth-century Florence."
+        ),
+        famous_works=[
+            ("Adoration of the Magi (Strozzi Altarpiece)", "1423"),
+            ("Quaratesi Altarpiece",                         "1425"),
+            ("Valle Romita Polyptych",                       "c. 1400–1410"),
+            ("Madonna and Child with Saints",                "c. 1420"),
+            ("Lateran Basilica frescoes (lost)",             "1427"),
+        ],
+        inspiration=(
+            "Use gentile_da_fabriano_gold_tooling_pass() to apply the THIRTY-EIGHTH "
+            "DISTINCT MODE: LUMINANCE-RIDGE WARM GOLD SHIMMER TINTING.  Compute "
+            "luminance: luma = 0.299R + 0.587G + 0.114B.  Apply isotropic Sobel "
+            "gradient: gx = sobel(luma, axis=1); gy = sobel(luma, axis=0); "
+            "grad_mag = sqrt(gx² + gy²); normalise to [0, 1].  Build a "
+            "high-luminance gate: smooth bump centred on [hi_lo=0.60, hi_hi=0.95] "
+            "— active on lit surfaces, suppressed in deep shadow and specular "
+            "clip.  Ridge gate = grad_mag_norm × hi_gate × ridge_strength=0.70.  "
+            "Apply gold shimmer: R+gold_r=0.070, G+gold_g=0.045, B−gold_b=0.020 "
+            "(the warm subtraction of blue deepens the gold chroma).  Composite at "
+            "opacity=0.28.  This simulates the catchlight sparkle of physically "
+            "punched/tooled gold-ground halos and brocade surfaces under raking "
+            "light — surfaces that physically protrude from the panel catch the "
+            "directional light source while recessed areas remain matte.  "
+            "Use chromatic_fringe_pass() for the artistic improvement: THIRTY-NINTH "
+            "DISTINCT MODE: PRISMATIC EDGE CHROMATIC FRINGE.  Compute luminance. "
+            "Sobel x: gx = sobel(luma, axis=1); Sobel y: gy = sobel(luma, axis=0). "
+            "Gradient magnitude: mag = sqrt(gx²+gy²); norm_mag to [0, 1] via max. "
+            "Bright-side gate (gradient points from dark→bright): "
+            "bright_gate = clip(gx × sign_x + gy × sign_y, 0, 1) × norm_mag — "
+            "simplified: bright_r = clip(gx, 0, 1) (rightward = lit side of "
+            "vertical edge); dark_r = clip(−gx, 0, 1) (leftward = shadow side).  "
+            "Apply warm fringe on bright side: R+fringe_warm_r=0.045, "
+            "G+fringe_warm_g=0.018, gate by norm_mag × edge_gate.  "
+            "Apply cool fringe on dark side: B+fringe_cool_b=0.040, "
+            "R−fringe_cool_r=0.016, gate by norm_mag × edge_gate.  "
+            "Edge gate: smooth bump in [edge_lo=0.08, edge_hi=0.80] of norm_mag — "
+            "ignores very weak gradients (noise) and fully clipped specular regions.  "
+            "Composite at opacity=0.18.  Simulates the prismatic dispersion of "
+            "light refracted through stacked oil glaze layers at the transition "
+            "between lit and shadowed form surfaces — the iridescent micro-halo "
+            "visible in aged Renaissance panel paintings under raking light."
+        ),
+    ),
+
     # ── Hendrick ter Brugghen ─────────────────────────────────────────────────
     "ter_brugghen": ArtStyle(
         artist="Hendrick ter Brugghen",

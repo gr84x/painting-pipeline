@@ -161,6 +161,7 @@ EXPECTED_ARTISTS = [
     "ter_brugghen",
     "bartolomeo_veneto",
     "melozzo_da_forli",
+    "gentile_da_fabriano",
 ]
 
 
@@ -20160,4 +20161,180 @@ def test_warm_ambient_occlusion_pass_uniform_canvas_no_change():
 def test_melozzo_da_forli_in_expected_artists_and_catalog_final():
     assert "melozzo_da_forli" in CATALOG
     assert "melozzo_da_forli" in EXPECTED_ARTISTS
+
+
+# ── Session 156: Gentile da Fabriano + INTERNATIONAL_GOTHIC ──────────────────
+
+def test_gentile_da_fabriano_in_catalog():
+    """Gentile da Fabriano must be present in CATALOG with correct movement."""
+    assert "gentile_da_fabriano" in CATALOG
+    s = CATALOG["gentile_da_fabriano"]
+    assert s.artist == "Gentile da Fabriano"
+    assert s.movement == "International Gothic"
+    assert s.nationality == "Italian"
+
+
+def test_gentile_da_fabriano_in_expected_artists_and_catalog_final():
+    assert "gentile_da_fabriano" in CATALOG
+    assert "gentile_da_fabriano" in EXPECTED_ARTISTS
+
+
+def test_gentile_da_fabriano_tempera_characteristics():
+    """International Gothic tempera: dry technique, firm Gothic line, no oil glaze."""
+    s = CATALOG["gentile_da_fabriano"]
+    # Tempera is a dry medium — wet_blend and edge_softness must be very low
+    assert s.wet_blend < 0.20, "Tempera has minimal wet blending"
+    assert s.edge_softness < 0.20, "Gothic contour is very firm"
+    # Small stroke size — tempera hatching demands fine marks
+    assert s.stroke_size <= 4, "Tempera hatching requires fine stroke size"
+    # No oil glaze in tempera technique
+    assert s.glazing is None, "Gentile da Fabriano used tempera, not oil glazing"
+    assert s.crackle is True, "Old panel painting should have crackle"
+
+
+def test_gentile_da_fabriano_palette_contains_gold_and_lapis():
+    """Palette must contain the defining International Gothic pigments."""
+    s = CATALOG["gentile_da_fabriano"]
+    # Must have at least 5 palette entries
+    assert len(s.palette) >= 5
+    # Gold (R high, G high, B lower) and lapis ultramarine (B highest channel) must both appear
+    has_gold  = any(r > 0.80 and g > 0.75 and b < 0.80 for r, g, b in s.palette)
+    has_lapis = any(b > r and b > g and b > 0.50 for r, g, b in s.palette)
+    assert has_gold,  "Palette must contain a warm gold tone"
+    assert has_lapis, "Palette must contain lapis lazuli ultramarine"
+
+
+def test_gentile_da_fabriano_famous_works_include_adoration():
+    """Adoration of the Magi must be listed as the defining famous work."""
+    s = CATALOG["gentile_da_fabriano"]
+    titles = [title for title, _ in s.famous_works]
+    assert any("Adoration" in t for t in titles), (
+        "Famous works must include the Strozzi Adoration of the Magi"
+    )
+
+
+def test_gentile_da_fabriano_gold_tooling_pass_modifies_canvas():
+    """Gold tooling pass must brighten high-luminance ridge pixels."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Lay a mid-bright ground so ridges exist and high-luma gate is active
+    p.tone_ground((0.72, 0.65, 0.48), texture_strength=0.02)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.gentile_da_fabriano_gold_tooling_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_gentile_da_fabriano_gold_tooling_pass_no_effect_opacity_zero():
+    """Gold tooling pass at opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.65, 0.48), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.gentile_da_fabriano_gold_tooling_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_gentile_da_fabriano_gold_tooling_pass_uniform_canvas_no_change():
+    """Perfectly uniform canvas has no gradient ridges → gold gate is zero → no change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Uniform bright canvas: high luma but zero gradient magnitude
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.gentile_da_fabriano_gold_tooling_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    # Uniform canvas → zero Sobel gradient → ridge_gate == 0 → no change
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_chromatic_fringe_pass_modifies_canvas_with_edges():
+    """Chromatic fringe pass must shift colours at structural texture edges.
+
+    A perfect hard step edge normalises to norm_mag=1.0 at the boundary —
+    above the edge_hi=0.80 gate which suppresses specular clips.  Use natural
+    texture instead: the Painter tone_ground creates a range of gradient
+    magnitudes so that real structural edges fall inside [edge_lo, edge_hi].
+    """
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Moderate texture strength creates a spread of gradient magnitudes;
+    # structural edges fall within the [0.08, 0.80] gate range.
+    p.tone_ground((0.55, 0.50, 0.38), texture_strength=0.06)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.chromatic_fringe_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert not np.array_equal(buf_before[:, :, :3], buf_after[:, :, :3])
+
+
+def test_chromatic_fringe_pass_no_effect_opacity_zero():
+    """Chromatic fringe pass at opacity=0.0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.45, 0.40, 0.32), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.chromatic_fringe_pass(opacity=0.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_chromatic_fringe_pass_uniform_canvas_no_change():
+    """Perfectly uniform canvas has zero Sobel gradient → no edge gate → no change."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.35), texture_strength=0.0)
+    buf_before = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.chromatic_fringe_pass(opacity=1.0)
+    buf_after = np.frombuffer(
+        p.canvas.surface.get_data(), dtype=np.uint8
+    ).reshape(64, 64, 4)
+    # Uniform → zero gradient → edge_gate == 0 → no change
+    assert np.array_equal(buf_before, buf_after)
+
+
+def test_international_gothic_period_in_scene_schema():
+    """INTERNATIONAL_GOTHIC must be a valid Period enum member."""
+    from scene_schema import Period
+    assert hasattr(Period, "INTERNATIONAL_GOTHIC"), (
+        "Period.INTERNATIONAL_GOTHIC must be defined for Gentile da Fabriano"
+    )
+
+
+def test_international_gothic_stroke_params():
+    """INTERNATIONAL_GOTHIC stroke_params must reflect tempera characteristics."""
+    from scene_schema import Period, Style, Medium
+    style = Style(medium=Medium.OIL, period=Period.INTERNATIONAL_GOTHIC)
+    params = style.stroke_params
+    assert params["stroke_size_face"] <= 4, "Tempera demands very fine stroke size"
+    assert params["wet_blend"] < 0.20, "Tempera is a dry medium — minimal wet blend"
+    assert params["edge_softness"] < 0.20, "Gothic contour is the firmest in the catalog"
 

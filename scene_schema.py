@@ -321,6 +321,7 @@ class Period(Enum):
     FLORENTINE_BAROQUE_SFUMATO     = auto()  # Francesco Furini — cool silver moonlit highlights; Gaussian-smoothed highlight gate (luma 0.55–0.92); subtle B-channel lift + R-channel reduction in lit zones; extreme sfumato blending (wet_blend=0.90); warm umber shadows paired with cool ivory highlights
     LOMBARDY_VENETIAN_JEWEL_REALISM = auto()  # Bartolomeo Veneto — hue-angular dual-pole saturation deepening; blue-violet shadow brocade + gold-amber highlight brocade poles; cool ivory flesh precision; Lombard-Venetian jewel-like surface
     UMBRIAN_ROMAN_ILLUSIONISM       = auto()  # Melozzo da Forlì — overhead zenith radiance; top-of-form warm lift via vertical position × midtone gate; under-surface cool shadow; architectural illusionistic ceiling light
+    INTERNATIONAL_GOTHIC = auto()  # Gentile da Fabriano — tooled-gold ground; flat jewel-tone pigment zones; crisp Gothic contour; tempera hatching; punched gold halos; sumptuous brocade surface
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1597,6 +1598,17 @@ class Style:
             # edge_softness=0.48: moderate — not as sfumato as Leonardo's followers; contours are clean but not harsh.
             Period.LOMBARDY_VENETIAN_JEWEL_REALISM: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.55, edge_softness=0.48),
             Period.UMBRIAN_ROMAN_ILLUSIONISM:       dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.45, edge_softness=0.50),
+            # INTERNATIONAL_GOTHIC (Gentile da Fabriano) — tempera on panel, gold-ground, flat Gothic linearity.
+            # stroke_size_face=3: tempera alla testa demands very small strokes — fine parallel hatching
+            # in the flesh zones builds up form through cross-hatching rather than tonal blending;
+            # the marks are individually visible if magnified, like ink lines over pale ground.
+            # stroke_size_bg=12: backgrounds are near-flat gold — small, precise strokes in the
+            # decorative brocade and foliage zones; Gothic painting is never loosely gestural.
+            # wet_blend=0.12: tempera is inherently dry — no wet-on-wet blending possible; each stroke
+            # dries before the next is placed; tonal modulation comes from hatching density, not blending.
+            # edge_softness=0.10: Gothic linear contour is the firmest in the catalog — no atmospheric
+            # dissolution whatsoever; figures are bounded by sharp, decorative line.
+            Period.INTERNATIONAL_GOTHIC: dict(stroke_size_face=3, stroke_size_bg=12, wet_blend=0.12, edge_softness=0.10),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
