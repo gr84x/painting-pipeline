@@ -14188,6 +14188,132 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Artemisia Gentileschi ──────────────────────────────────────────────────
+    # Pipeline key: artemisia_directional_spotlight_pass() — FIFTY-FIRST DISTINCT MODE.
+    # Encodes Artemisia's defining technique: intense upper-left directional
+    # spotlight carving warm amber-ivory flesh from near-black void backgrounds,
+    # with directional chroma amplification in the spotlight zone.
+    "artemisia_gentileschi": ArtStyle(
+        artist="Artemisia Gentileschi",
+        movement="Roman/Neapolitan Baroque — Caravaggesque",
+        nationality="Italian",
+        period="1593–c.1656",
+        palette=[
+            (0.86, 0.70, 0.50),   # warm amber-ivory flesh — primary lit skin tone
+            (0.94, 0.88, 0.78),   # near-white illuminated linen/drapery
+            (0.74, 0.14, 0.10),   # deep crimson drapery — Artemisia's signature scarlet
+            (0.20, 0.30, 0.54),   # rich cobalt-blue drapery — contrasts with scarlet
+            (0.50, 0.38, 0.24),   # warm mid-shadow flesh — light-to-dark transition
+            (0.08, 0.06, 0.05),   # near-black Caravaggesque void — the dominant shadow
+            (0.62, 0.50, 0.30),   # warm ochre light — inner glow at the penumbra rim
+            (0.30, 0.24, 0.16),   # muted umber — hair and shadowed figure masses
+            (0.80, 0.62, 0.36),   # golden amber — characteristic warm illumination
+        ],
+        ground_color=(0.10, 0.08, 0.06),    # near-black warm ground — Caravaggesque void
+        stroke_size=6,
+        wet_blend=0.32,                      # firm, direct — Caravaggesque blending is controlled, not sfumato-smooth
+        edge_softness=0.48,                  # firm found edges at light perimeter; lost edges in deep void
+        jitter=0.018,
+        glazing=(0.68, 0.50, 0.20),          # warm amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Artemisia Gentileschi (1593–c.1656) was born in Rome, the daughter of "
+            "the Pisan court painter Orazio Gentileschi, who was himself a refined "
+            "exponent of Caravaggesque naturalism tempered by aristocratic elegance.  "
+            "From her father she inherited an extraordinary technical foundation and "
+            "direct access to the Roman Caravaggesque circle.  Her early rape by the "
+            "painter Agostino Tassi — and the subsequent trial, which she described "
+            "in harrowing detail — became the traumatic centre of a biographical "
+            "reading of her work that long overshadowed its purely pictorial achievement.  "
+            "That achievement is immense.  Artemisia is the supreme painter of powerful "
+            "female protagonists in Western art before the modern era: her 'Judith "
+            "Slaying Holofernes' (two versions: c. 1614–1620, Uffizi; and c. 1620, "
+            "Capodimonte) depict the act of decapitation with a physical directness "
+            "and psychological conviction unmatched in the subject's long iconographic "
+            "history.  Unlike Caravaggio's version (Galleria Nazionale d'Arte Antica), "
+            "Artemisia's Judith is not squeamish — she leans into the work with muscular "
+            "determination, her expression focused and businesslike.  "
+            "Technically, Artemisia worked in the full Caravaggesque tradition: dark "
+            "near-black grounds, intense directional spotlight from upper-left, very "
+            "limited ambient light.  Her mastery lay in what happens WITHIN the lit "
+            "zone: warm amber-ivory flesh modeled with the same sfumato-adjacent "
+            "smoothness as her father's court portraits, combined with vivid, fully "
+            "saturated costume colors — deep crimson, cobalt blue — that intensify "
+            "under the spotlight rather than merely brightening.  Her shadows are true "
+            "tenebrism: not atmospheric dissolution (Correggio, Schedoni) but a hard, "
+            "deliberate pressing-down of tone to near-absolute-black, with found edges "
+            "at the spotlight boundary and lost edges dissolving into the void.  "
+            "After Rome she lived in Florence (patronized by the Medici), Venice, "
+            "Naples, London (summoned by her father to assist on Greenwich ceiling "
+            "paintings for Charles I), and finally settled in Naples, where she spent "
+            "her last decades and produced some of her most ambitious canvases.  Her "
+            "late work shows an expanded palette and a warmer, more atmospheric quality "
+            "inherited partly from the Neapolitan environment and partly from Artemisia's "
+            "own maturation as a colourist.  She corresponds with Galileo, is mentioned "
+            "by contemporaries as one of the foremost painters in Italy, and is the "
+            "first woman admitted to the Accademia delle Arti del Disegno in Florence.  "
+            "Her reputation collapsed after her death and was only fully restored in the "
+            "twentieth century, partly through feminist art history's rediscovery of her "
+            "work in the 1970s and 1980s."
+        ),
+        famous_works=[
+            ("Judith Slaying Holofernes (Uffizi)",          "c. 1614–1620"),
+            ("Judith Slaying Holofernes (Capodimonte)",      "c. 1620"),
+            ("Susanna and the Elders",                       "1610"),
+            ("Judith and Her Maidservant",                   "c. 1618–1619"),
+            ("Self-Portrait as the Allegory of Painting",    "c. 1638–1639"),
+            ("Cleopatra",                                    "c. 1621–1622"),
+            ("Mary Magdalene as Melancholy",                 "c. 1622–1625"),
+        ],
+        inspiration=(
+            "Use gentileschi_dramatic_flesh_pass() to apply the FIFTY-FIRST "
+            "DISTINCT MODE: DIRECTIONAL TENEBRISM WITH ANISOTROPIC CHROMA-LIFT.  "
+            "The pass encodes Artemisia's defining pictorial language: an upper-left "
+            "directional spotlight (modeled as a spatial linear gradient) combined "
+            "with luminance gating to produce anisotropic treatment — the same pixel "
+            "value is treated differently depending on WHERE it falls in the canvas "
+            "relative to the simulated light source.  This spatial × luminance "
+            "factoring distinguishes it from all prior passes, which apply purely "
+            "luminance-gated treatments without directional spatial awareness.  "
+            "Algorithm (five steps):  "
+            "(1) DIRECTIONAL SPOTLIGHT WEIGHT (spatial gradient):  "
+            "dx = (W − x) / W  (normalized distance from right edge; left = 1.0);  "
+            "dy = (H − y) / H  (normalized distance from bottom; top = 1.0);  "
+            "spot_wt = clip(dx × dir_x + dy × dir_y, 0, 1)  "
+            "(dir_x=0.55, dir_y=0.45: upper-left bias).  "
+            "Models the geometric falloff of a directional light source at upper-left.  "
+            "Distinct from all prior passes: no other pass constructs a spatial "
+            "directional gradient as its primary illumination model.  "
+            "(2) SHADOW DEEPENING (where spot_wt is low AND luma is low):  "
+            "shadow_gate = (1 − spot_wt) × clip((shadow_hi − luma) / shadow_hi, 0, 1);  "
+            "out_r = r × (1 − shadow_deepen × shadow_gate);  "
+            "out_g = g × (1 − shadow_deepen × shadow_gate);  "
+            "out_b = b × (1 − shadow_deepen × shadow_gate).  "
+            "Tenebrism: the product (1−spot_wt)×luma_gate presses pixels toward "
+            "near-black only when they are BOTH spatially in shadow AND dark in "
+            "value — the directional gradient prevents over-darkening of physically "
+            "bright pixels that happen to lie in the geometric shadow zone.  "
+            "Distinct from schedoni (luma-only gate, no spatial term).  "
+            "(3) WARM AMBER ILLUMINATION LIFT (in spotlight zone):  "
+            "hi_gate = spot_wt × clip((luma − luma_lo) / (1 − luma_lo), 0, 1);  "
+            "out_r += amber_r × hi_gate;  "
+            "out_g += amber_g × hi_gate.  "
+            "Adds Artemisia's characteristic warm amber-ivory tint to illuminated flesh "
+            "and drapery in the spotlight zone.  B channel not raised — warm, not neutral.  "
+            "(4) DIRECTIONAL CHROMA AMPLIFICATION (in spotlight zone):  "
+            "mean_rgb = (r + g + b) / 3;  "
+            "out_r += (r − mean_rgb) × chroma_boost × hi_gate;  "
+            "out_g += (g − mean_rgb) × chroma_boost × hi_gate;  "
+            "out_b += (b − mean_rgb) × chroma_boost × hi_gate.  "
+            "Makes already-saturated costume colors MORE saturated within the spotlight "
+            "zone — deep crimson intensifies to scarlet, cobalt deepens to ultramarine.  "
+            "This captures Artemisia's vivid lit-zone chroma (more saturated than "
+            "Orazio, less diffuse than Schedoni).  "
+            "(5) Composite at opacity."
+        ),
+    ),
+
 }
 
 

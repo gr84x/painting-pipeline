@@ -328,6 +328,7 @@ class Period(Enum):
     GERMAN_RENAISSANCE    = auto()  # Hans Baldung Grien — acid-green chromatic pallor, Dürer-school sharp draftsmanship, macabre spectral flesh, near-black void ground
     BRITISH_GRAND_MANNER  = auto()  # Joshua Reynolds — mezzotint amber glaze unification; impasto warm-white highlights; bitumen shadow deepening; Grand Manner Academic warmth
     EMILIAN_CARAVAGGESQUE = auto()  # Bartolomeo Schedoni — Correggesque tenderness fused with Caravaggesque tenebrism; vivid chroma amplification in lit drapery; deep velvety shadow compression; warm golden emergence
+    ARTEMISIAN_TENEBRISM  = auto()  # Artemisia Gentileschi — intense upper-left directional spotlight; near-black void shadows; warm amber-ivory flesh in lit zones; saturated costume chroma in spotlight; psychological directness
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1657,6 +1658,16 @@ class Style:
             # wet_blend=0.65: Correggesque smooth blending on flesh and drapery.
             # edge_softness=0.52: sfumato-influenced transitions; sharper than Leonardo but softer than Northern school.
             Period.EMILIAN_CARAVAGGESQUE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.65, edge_softness=0.52),
+            # ARTEMISIAN_TENEBRISM (Artemisia Gentileschi) — intense upper-left directional spotlight from near-black void.
+            # stroke_size_face=6: confident, direct mark-making — Artemisia painted with psychological certainty,
+            #   neither the miniaturist precision of Moro nor the loose bravura of Hals; medium marks resolve form.
+            # stroke_size_bg=14: very limited background detail — near-black void demands almost no background texture;
+            #   the background is the absence of light, not a painted setting.
+            # wet_blend=0.62: moderate-to-high blending for flesh (Caravaggesque smooth skin modeling inherited from
+            #   Orazio's court training) but less than Schedoni — Artemisia's paint is more decisive.
+            # edge_softness=0.42: firm tenebrism edges at the light-dark boundary (found edges at the spotlight
+            #   perimeter) but lost edges dissolving into the deep void — split between crisp found and soft lost.
+            Period.ARTEMISIAN_TENEBRISM: dict(stroke_size_face=6, stroke_size_bg=14, wet_blend=0.62, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
