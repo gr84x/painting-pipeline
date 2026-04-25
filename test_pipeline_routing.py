@@ -16186,3 +16186,80 @@ def test_skin_subsurface_scatter_pass_pixels_in_range_routing():
     ).reshape(32, 32, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ── Session 176: Marco d'Oggiono passes ───────────────────────────────────────
+
+
+def test_doggiono_leonardesque_warmth_pass_exists_routing():
+    """doggiono_leonardesque_warmth_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "doggiono_leonardesque_warmth_pass", None)), (
+        "doggiono_leonardesque_warmth_pass not found on Painter")
+
+
+def test_doggiono_leonardesque_warmth_pass_runs_routing():
+    """doggiono_leonardesque_warmth_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.doggiono_leonardesque_warmth_pass(opacity=0.35)
+
+
+def test_doggiono_leonardesque_warmth_pass_opacity_zero_routing():
+    """doggiono_leonardesque_warmth_pass at opacity=0 must leave canvas unchanged."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.doggiono_leonardesque_warmth_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_doggiono_leonardesque_warmth_pass_pixels_in_range_routing():
+    """doggiono_leonardesque_warmth_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.doggiono_leonardesque_warmth_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_multilayer_atmospheric_veil_pass_exists_routing():
+    """multilayer_atmospheric_veil_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "multilayer_atmospheric_veil_pass", None)), (
+        "multilayer_atmospheric_veil_pass not found on Painter")
+
+
+def test_multilayer_atmospheric_veil_pass_runs_routing():
+    """multilayer_atmospheric_veil_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.multilayer_atmospheric_veil_pass(opacity=0.45)
+
+
+def test_multilayer_atmospheric_veil_pass_opacity_zero_routing():
+    """multilayer_atmospheric_veil_pass at opacity=0 must leave canvas unchanged."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.multilayer_atmospheric_veil_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_multilayer_atmospheric_veil_pass_pixels_in_range_routing():
+    """multilayer_atmospheric_veil_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.multilayer_atmospheric_veil_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

@@ -40775,3 +40775,232 @@ class Painter:
         self.canvas.surface.mark_dirty()
         print("    Skin subsurface scatter pass complete.")
         print("    Figure contour atmosphere pass complete.")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 176 — Marco d'Oggiono / Milanese Leonardesque Circle
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def doggiono_leonardesque_warmth_pass(
+        self,
+        highlight_lo:      float = 0.60,
+        ivory_r:           float = 0.022,
+        ivory_g:           float = 0.014,
+        ivory_b:           float = 0.003,
+        shadow_hi:         float = 0.38,
+        shadow_r:          float = 0.010,
+        shadow_g:          float = 0.002,
+        shadow_b:          float = 0.020,
+        edge_thresh:       float = 0.06,
+        edge_rng:          float = 0.10,
+        sfumato_sigma:     float = 2.5,
+        sfumato_strength:  float = 0.30,
+        opacity:           float = 0.35,
+    ) -> None:
+        """Marco d'Oggiono's Leonardesque warmth: THREE-GATE tinting.
+
+        SEVENTY-THIRD DISTINCT MODE.
+
+        Gate 1 — WARM IVORY HIGHLIGHTS (luma > highlight_lo):
+            Inject warm amber-ivory lift (R+ivory_r, G+ivory_g, B-ivory_b).
+            Marco's peaks glow warm, not cool-pearl like Boltraffio.
+
+        Gate 2 — COOL VIOLET SHADOW DEPTH (luma < shadow_hi):
+            Inject Leonardesque cool-violet atmosphere (R-shadow_r, G-shadow_g,
+            B+shadow_b).  Lighter than Boltraffio's blue-grey; Marco's shadows
+            keep more amber warmth until the deep void.
+
+        Gate 3 — SFUMATO EDGE DISSOLUTION (Sobel gradient > edge_thresh):
+            Gaussian blur canvas; blend edge pixels toward blurred version by
+            edge_gate × sfumato_strength; soft contour dissolution in Leonardo's
+            tradition without full atmospheric depth of sfumato_veil_pass().
+
+        NOVEL: FIRST pass to combine THREE SIMULTANEOUS ZONE GATES — highlight
+        warm-tinting, shadow cool-tinting, AND gradient-detected edge sfumato —
+        in a single unified Leonardesque pass.  Prior three-gate passes (Giampietrino
+        s157, Greuze s158) use only luminance gates without the edge-sfumato gate.
+
+        Args:
+            highlight_lo      : Luminance threshold above which warm ivory is injected.
+            ivory_r/g/b       : Warm ivory injection amounts (B is subtracted).
+            shadow_hi         : Luminance threshold below which cool violet is injected.
+            shadow_r/g/b      : Cool violet injection (R and G subtracted, B added).
+            edge_thresh       : Sobel gradient normalised threshold for sfumato gate.
+            edge_rng          : Gradient range over which sfumato gate ramps up.
+            sfumato_sigma     : Gaussian blur radius (px) for edge sfumato.
+            sfumato_strength  : Maximum blend fraction toward blurred at detected edges.
+            opacity           : Final composite weight. Default 0.35.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0)
+
+        # ── Gate 1: warm ivory highlight tinting ─────────────────────────────
+        hi_gate = _np.clip((luma - float(highlight_lo)) / 0.15, 0.0, 1.0).astype(_np.float32)
+        warm_r = r0 + float(ivory_r) * hi_gate
+        warm_g = g0 + float(ivory_g) * hi_gate
+        warm_b = b0 - float(ivory_b) * hi_gate
+
+        # ── Gate 2: cool violet shadow depth ─────────────────────────────────
+        sh_gate = _np.clip((float(shadow_hi) - luma) / 0.15, 0.0, 1.0).astype(_np.float32)
+        out_r = warm_r - float(shadow_r) * sh_gate
+        out_g = warm_g - float(shadow_g) * sh_gate
+        out_b = warm_b + float(shadow_b) * sh_gate
+
+        # ── Gate 3: sfumato edge dissolution ─────────────────────────────────
+        # Compute Sobel gradient on original luminance
+        luma_u8 = (luma * 255.0).astype(_np.float32)
+        sx = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        sy = sx.T.copy()
+        from scipy.ndimage import convolve as _conv
+        gx = _conv(luma_u8, sx, mode='reflect')
+        gy = _conv(luma_u8, sy, mode='reflect')
+        grad_mag = _np.sqrt(gx * gx + gy * gy)
+        grad_norm = grad_mag / (grad_mag.max() + 1e-6)
+        edge_gate = _np.clip(
+            (grad_norm - float(edge_thresh)) / float(edge_rng), 0.0, 1.0
+        ).astype(_np.float32)
+
+        sigma = float(sfumato_sigma)
+        blur_r = _gf(out_r.astype(_np.float64), sigma=sigma).astype(_np.float32)
+        blur_g = _gf(out_g.astype(_np.float64), sigma=sigma).astype(_np.float32)
+        blur_b = _gf(out_b.astype(_np.float64), sigma=sigma).astype(_np.float32)
+
+        blend = edge_gate * float(sfumato_strength)
+        out_r = out_r * (1.0 - blend) + blur_r * blend
+        out_g = out_g * (1.0 - blend) + blur_g * blend
+        out_b = out_b * (1.0 - blend) + blur_b * blend
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Marco d'Oggiono Leonardesque warmth pass complete.")
+
+    def multilayer_atmospheric_veil_pass(
+        self,
+        sigma_fine:    float = 1.5,
+        sigma_medium:  float = 4.5,
+        sigma_coarse:  float = 12.0,
+        weight_fine:   float = 0.40,
+        weight_medium: float = 0.35,
+        weight_coarse: float = 0.25,
+        edge_thresh:   float = 0.04,
+        edge_rng:      float = 0.12,
+        opacity:       float = 0.45,
+    ) -> None:
+        """Three-scale sfumato veil: multi-frequency atmospheric dissolution.
+
+        SEVENTY-FOURTH DISTINCT MODE.
+
+        Applies Leonardesque sfumato simultaneously at three spatial frequencies:
+        - Fine scale   (sigma_fine):   dissolves micro-detail crisp edges
+        - Medium scale (sigma_medium): dissolves feature boundaries (eyelid, lip)
+        - Coarse scale (sigma_coarse): creates broad atmospheric tone pooling
+
+        All three scales are gated by Sobel gradient magnitude so that flat zones
+        (smooth flesh passages, open sky) are protected and only edges experience
+        dissolution.  The weighted mix of three blur depths produces a richer,
+        more naturalistic atmospheric dissolution than any single-scale sfumato.
+
+        NOVEL: FIRST pass to apply THREE SIMULTANEOUSLY WEIGHTED GAUSSIAN SCALES
+        in a single sfumato operation.  All prior sfumato passes (sfumato_veil_pass,
+        figure_contour_atmosphere_pass, edge_sfumato_dissolution_pass) use only
+        ONE spatial scale.  The multi-scale approach mimics the physical layering of
+        Leonardo's glazes: each thin transparent layer dissolved edges at a different
+        depth, creating atmospheric transitions at multiple frequency bands
+        simultaneously.
+
+        Args:
+            sigma_fine    : Gaussian radius for fine-scale dissolution. Default 1.5.
+            sigma_medium  : Gaussian radius for medium-scale dissolution. Default 4.5.
+            sigma_coarse  : Gaussian radius for coarse-scale dissolution. Default 12.0.
+            weight_fine   : Contribution weight of fine scale (summed with medium+coarse).
+            weight_medium : Contribution weight of medium scale.
+            weight_coarse : Contribution weight of coarse scale.
+            edge_thresh   : Normalised Sobel magnitude below which no dissolution occurs.
+            edge_rng      : Ramp range for edge gate transition.
+            opacity       : Final composite weight (0 = no-op). Default 0.45.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+        from scipy.ndimage import convolve as _conv
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0)
+
+        # ── Compute Sobel edge gate ───────────────────────────────────────────
+        luma_u8 = (luma * 255.0).astype(_np.float32)
+        sx = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        gx = _conv(luma_u8, sx,   mode='reflect')
+        gy = _conv(luma_u8, sx.T, mode='reflect')
+        grad_mag = _np.sqrt(gx * gx + gy * gy)
+        grad_norm = grad_mag / (grad_mag.max() + 1e-6)
+        edge_gate = _np.clip(
+            (grad_norm - float(edge_thresh)) / float(edge_rng), 0.0, 1.0
+        ).astype(_np.float32)
+
+        # ── Three-scale Gaussian blurs ────────────────────────────────────────
+        def _blur(ch: _np.ndarray, sig: float) -> _np.ndarray:
+            return _gf(ch.astype(_np.float64), sigma=sig).astype(_np.float32)
+
+        fine_r   = _blur(r0, sigma_fine);   fine_g   = _blur(g0, sigma_fine);   fine_b   = _blur(b0, sigma_fine)
+        medium_r = _blur(r0, sigma_medium); medium_g = _blur(g0, sigma_medium); medium_b = _blur(b0, sigma_medium)
+        coarse_r = _blur(r0, sigma_coarse); coarse_g = _blur(g0, sigma_coarse); coarse_b = _blur(b0, sigma_coarse)
+
+        # ── Weighted multi-scale blend ────────────────────────────────────────
+        total_w = float(weight_fine) + float(weight_medium) + float(weight_coarse)
+        wf = float(weight_fine)   / total_w
+        wm = float(weight_medium) / total_w
+        wc = float(weight_coarse) / total_w
+
+        multi_r = wf * fine_r + wm * medium_r + wc * coarse_r
+        multi_g = wf * fine_g + wm * medium_g + wc * coarse_g
+        multi_b = wf * fine_b + wm * medium_b + wc * coarse_b
+
+        # ── Apply dissolution gated on edge magnitude ─────────────────────────
+        blend = edge_gate * float(opacity)
+        out_r = _np.clip(r0 * (1.0 - blend) + multi_r * blend, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - blend) + multi_g * blend, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - blend) + multi_b * blend, 0.0, 1.0)
+
+        # ── Final composite ───────────────────────────────────────────────────
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Multi-layer atmospheric veil pass complete.")

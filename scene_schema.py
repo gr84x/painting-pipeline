@@ -340,6 +340,7 @@ class Period(Enum):
     DUTCH_FLORAL_STILL_LIFE = auto()  # Jan van Huysum — jewel-pure floral palette; crystalline inverse-variance chroma amplification in smooth zones; dew-drop specular accents; extreme surface finish; dark ground
     TONAL_STILL_LIFE = auto()  # Pieter Claesz — warm silver-gray monochrome tonal palette; saturation pulled toward neutral warm gray; subtle luminance-locked tonal differentiation; Dutch ontbijt banketje style
     UMBRIAN_HIGH_RENAISSANCE = auto()  # Luca Signorelli — hard sculptural contours; cool metallic silver-gray shadow flesh; warm amber-gold highlights; vivid saturated drapery; firm disegno; proto-Mannerist anatomical dynamism
+    MILANESE_LEONARDESQUE_CIRCLE = auto()  # Marco d'Oggiono — inherited Leonardesque sfumato, warm ivory flesh, slightly more linear than master, sweet devotional Milanese warmth
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()

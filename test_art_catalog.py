@@ -177,6 +177,7 @@ EXPECTED_ARTISTS = [
     "hendrick_avercamp",
     "jan_van_huysum",
     "pieter_claesz",
+    "marco_doggiono",
 ]
 
 
@@ -387,6 +388,8 @@ EXPECTED_PERIODS = [
     "DUTCH_WINTER_LANDSCAPE",
     "DUTCH_FLORAL_STILL_LIFE",
     "TONAL_STILL_LIFE",
+    "UMBRIAN_HIGH_RENAISSANCE",
+    "MILANESE_LEONARDESQUE_CIRCLE",
 ]
 
 
@@ -24431,5 +24434,128 @@ def test_skin_subsurface_scatter_pass_modifies_warm_canvas():
     p.tone_ground((0.85, 0.68, 0.48), texture_strength=0.0)
     before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
     p.skin_subsurface_scatter_pass(scatter_sigma=4.0, scatter_strength=0.40, opacity=0.80)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+# ── Session 176: Marco d'Oggiono / Milanese Leonardesque Circle ───────────────
+
+
+def test_marco_doggiono_in_catalog():
+    """Session 176: marco_doggiono must be present in CATALOG."""
+    assert "marco_doggiono" in CATALOG, "marco_doggiono missing from CATALOG"
+
+
+def test_marco_doggiono_palette_valid():
+    """Session 176: marco_doggiono palette entries must be in [0, 1]."""
+    s = get_style("marco_doggiono")
+    for color in s.palette:
+        for channel in color:
+            assert 0.0 <= channel <= 1.0, (
+                f"marco_doggiono palette channel {channel} out of [0,1] range")
+
+
+def test_marco_doggiono_fields():
+    """Session 176: marco_doggiono ArtStyle must have required field values."""
+    s = get_style("marco_doggiono")
+    assert s.artist == "Marco d'Oggiono"
+    assert "Milanese" in s.movement
+    assert s.crackle is True
+    assert s.chromatic_split is False
+    assert 0.0 < s.wet_blend <= 1.0
+    assert 0.0 < s.edge_softness <= 1.0
+
+
+def test_marco_doggiono_famous_works():
+    """Session 176: marco_doggiono must have at least 3 famous works."""
+    s = get_style("marco_doggiono")
+    assert len(s.famous_works) >= 3, (
+        f"Expected >= 3 famous works for marco_doggiono, got {len(s.famous_works)}")
+
+
+def test_doggiono_leonardesque_warmth_pass_runs():
+    """Session 176: doggiono_leonardesque_warmth_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.doggiono_leonardesque_warmth_pass(opacity=0.35)
+
+
+def test_doggiono_leonardesque_warmth_pass_noop_at_zero_opacity():
+    """Session 176: doggiono_leonardesque_warmth_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.doggiono_leonardesque_warmth_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_doggiono_leonardesque_warmth_pass_pixels_in_range():
+    """Session 176: doggiono_leonardesque_warmth_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.doggiono_leonardesque_warmth_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_doggiono_leonardesque_warmth_pass_modifies_canvas():
+    """Session 176: doggiono_leonardesque_warmth_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.doggiono_leonardesque_warmth_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_multilayer_atmospheric_veil_pass_runs():
+    """Session 176: multilayer_atmospheric_veil_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.multilayer_atmospheric_veil_pass(opacity=0.45)
+
+
+def test_multilayer_atmospheric_veil_pass_noop_at_zero_opacity():
+    """Session 176: multilayer_atmospheric_veil_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.multilayer_atmospheric_veil_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_multilayer_atmospheric_veil_pass_pixels_in_range():
+    """Session 176: multilayer_atmospheric_veil_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.0)
+    p.multilayer_atmospheric_veil_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_multilayer_atmospheric_veil_pass_modifies_canvas():
+    """Session 176: multilayer_atmospheric_veil_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.60, 0.44), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.multilayer_atmospheric_veil_pass(opacity=1.0)
     after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
     assert not np.array_equal(before, after)
