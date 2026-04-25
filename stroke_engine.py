@@ -41200,3 +41200,229 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Boucher pastel radiance pass complete.")
+
+    # ── Session 178: Domenico Ghirlandaio ────────────────────────────────────
+    def ghirlandaio_civic_clarity_pass(
+            self,
+            sat_hi:          float = 0.20,
+            sat_lo:          float = 0.08,
+            vivid_boost:     float = 0.28,
+            neutral_pull:    float = 0.18,
+            luma_lo:         float = 0.12,
+            luma_hi:         float = 0.92,
+            opacity:         float = 0.38):
+        """
+        Ghirlandaio civic clarity pass — Domenico Ghirlandaio (c.1448–1494).
+
+        Encodes the defining palette quality of Ghirlandaio's Florentine civic
+        painting: a clean, bimodal colour world where vivid pigments remain
+        vivid and neutral passages remain cleanly neutral, with no muddy
+        intermediate zone where colours lose their identity.
+
+        BIMODAL SATURATION SORTING:
+
+        The pass first computes an HSV saturation approximation for every pixel:
+            S ≈ (max(R,G,B) − min(R,G,B)) / (max(R,G,B) + ε)
+
+        HIGH-SATURATION zone (S > sat_hi):
+            Vivid pixels — ultramarine drapery, vermilion robes, verdaccio greens —
+            are pushed further toward their pure hue identity via neutral-mean
+            chromatic expansion:
+                hi_gate = clip((S − sat_hi) / sat_hi, 0, 1)
+                out_c = neutral + (c − neutral) × (1 + vivid_boost × hi_gate × luma_gate)
+            Creates the lapislazuli-bright blues and vermilion-clean reds of
+            Ghirlandaio's civic commissions.
+
+        LOW-SATURATION zone (S < sat_lo):
+            Near-gray and muddied passages are pulled gently toward clean neutral,
+            preventing the accumulation of grey contamination in mixed zones:
+                lo_gate = clip((sat_lo − S) / sat_lo, 0, 1)
+                out_c = c × (1 − neutral_pull × lo_gate × luma_gate)
+                      + neutral × (neutral_pull × lo_gate × luma_gate)
+            Restores the Flemish-influenced clarity of Ghirlandaio's panel surfaces.
+
+        Both zones are gated by a Gaussian luminance bell [luma_lo, luma_hi]
+        to protect deep shadows and peak highlights from the treatment.
+
+        NOVEL: SEVENTY-FIFTH DISTINCT MODE.  FIRST pass to apply OPPOSITE and
+        simultaneous treatments to high- and low-saturation zones: amplifying
+        vivid colours AND compressing near-neutrals in a single operation.  All
+        prior saturation passes apply monotonic treatment — either boost (s142,
+        s168, s177 zone 3) or reduce (s174) — never a bidirectional split keyed
+        on saturation level itself.
+
+        Args:
+            sat_hi       : Saturation threshold above which vivid boost is applied.
+            sat_lo       : Saturation threshold below which neutral pull is applied.
+            vivid_boost  : Saturation amplification factor for high-S zone.
+            neutral_pull : Pull strength toward neutral for low-S zone.
+            luma_lo      : Lower luminance boundary for bell gate (protect darks).
+            luma_hi      : Upper luminance boundary for bell gate (protect lights).
+            opacity      : Final composite weight (0 = no-op). Default 0.38.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── Luminance bell gate ───────────────────────────────────────────────
+        luma_mid   = (float(luma_lo) + float(luma_hi)) * 0.5
+        luma_width = (float(luma_hi) - float(luma_lo)) * 0.5 + 1e-6
+        luma_gate  = _np.exp(
+            -0.5 * ((luma - luma_mid) / luma_width) ** 2
+        ).astype(_np.float32)
+
+        # ── HSV saturation approximation ─────────────────────────────────────
+        max_c = _np.maximum(_np.maximum(r0, g0), b0)
+        min_c = _np.minimum(_np.minimum(r0, g0), b0)
+        sat   = (max_c - min_c) / (max_c + 1e-6)
+
+        neutral = (r0 + g0 + b0) / 3.0
+
+        out_r = r0.copy()
+        out_g = g0.copy()
+        out_b = b0.copy()
+
+        # ── High-saturation zone: vivid boost ─────────────────────────────────
+        hi_raw  = _np.clip((sat - float(sat_hi)) / (float(sat_hi) + 1e-6), 0.0, 1.0)
+        hi_gate = (hi_raw * luma_gate).astype(_np.float32)
+        boost   = float(vivid_boost) * hi_gate
+        out_r   = _np.clip(neutral + (out_r - neutral) * (1.0 + boost), 0.0, 1.0)
+        out_g   = _np.clip(neutral + (out_g - neutral) * (1.0 + boost), 0.0, 1.0)
+        out_b   = _np.clip(neutral + (out_b - neutral) * (1.0 + boost), 0.0, 1.0)
+
+        # ── Low-saturation zone: neutral pull ─────────────────────────────────
+        lo_raw  = _np.clip((float(sat_lo) - sat) / (float(sat_lo) + 1e-6), 0.0, 1.0)
+        lo_gate = (lo_raw * luma_gate).astype(_np.float32)
+        pull    = float(neutral_pull) * lo_gate
+        out_r   = _np.clip(out_r * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+        out_g   = _np.clip(out_g * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+        out_b   = _np.clip(out_b * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Ghirlandaio civic clarity pass complete.")
+
+    # ── Session 178: random improvement — luminance_preserving_chroma_boost_pass
+    def luminance_preserving_chroma_boost_pass(
+            self,
+            boost:        float = 0.22,
+            luma_lo:      float = 0.20,
+            luma_hi:      float = 0.85,
+            opacity:      float = 0.35):
+        """
+        Luminance-preserving chromatic boost pass — session 178 random improvement.
+
+        Amplifies the chromatic vector of each pixel (its deviation from neutral)
+        while EXACTLY restoring the original luminance via per-pixel rescaling.
+        This creates a more vivid, saturated image without any warming, cooling,
+        or lightening artefacts — the colours become purer but the tonal structure
+        is held perfectly intact.
+
+        ALGORITHM:
+            1. Compute per-pixel neutral:  n = (R + G + B) / 3
+            2. Compute luma bell gate on [luma_lo, luma_hi] to protect darks/lights.
+            3. Apply chromatic boost:
+                   R' = n + (R − n) × (1 + boost × gate)
+                   G' = n + (G − n) × (1 + boost × gate)
+                   B' = n + (B − n) × (1 + boost × gate)
+            4. Compute luma_after = 0.2126 R' + 0.7152 G' + 0.0722 B'
+            5. Rescale all channels to restore original luminance exactly:
+                   scale = luma_orig / (luma_after + ε)
+                   R'' = clip(R' × scale, 0, 1)
+               Applied only where gate > 0 and luma_orig > ε; elsewhere original
+               channels are preserved.
+
+        NOVEL: SEVENTY-SIXTH DISTINCT MODE.  FIRST pass to combine chromatic
+        amplification with EXACT luminance restoration via per-pixel channel
+        rescaling.  All prior chroma boost passes (s142 hue rotation, s168 bell
+        expansion, s177 sat lift, s75 bimodal sort) allow luminance to shift as
+        a side-effect of the saturation change.  This pass actively compensates,
+        holding the tonal drawing completely fixed while purely intensifying colour.
+        Distinct from frequency_domain_acuity_pass (s173 FFT spatial frequency
+        sharpening — luminance-domain only, no saturation), moretto_silver_luminance
+        (s136 CIE L*a*b* coolness shift), and huysum_crystalline_petal_pass (s173
+        inverse-variance chroma gating).
+
+        Args:
+            boost   : Chroma amplification factor (0 = no-op, 0.22 = gentle, 0.60 = strong).
+            luma_lo : Lower luminance edge of bell gate (protect deep shadows).
+            luma_hi : Upper luminance edge of bell gate (protect blown highlights).
+            opacity : Final composite blend weight (0 = no-op). Default 0.35.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma0 = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0)
+
+        # ── Luminance bell gate ───────────────────────────────────────────────
+        luma_mid   = (float(luma_lo) + float(luma_hi)) * 0.5
+        luma_width = (float(luma_hi) - float(luma_lo)) * 0.5 + 1e-6
+        gate = _np.exp(
+            -0.5 * ((luma0 - luma_mid) / luma_width) ** 2
+        ).astype(_np.float32)
+
+        # ── Chromatic boost ───────────────────────────────────────────────────
+        neutral = (r0 + g0 + b0) / 3.0
+        amp     = 1.0 + float(boost) * gate
+
+        boost_r = _np.clip(neutral + (r0 - neutral) * amp, 0.0, 1.0)
+        boost_g = _np.clip(neutral + (g0 - neutral) * amp, 0.0, 1.0)
+        boost_b = _np.clip(neutral + (b0 - neutral) * amp, 0.0, 1.0)
+
+        # ── Exact luminance restoration via per-pixel rescaling ───────────────
+        luma1 = 0.2126 * boost_r + 0.7152 * boost_g + 0.0722 * boost_b
+        scale = luma0 / (luma1 + 1e-7)
+        # Only apply rescale where luminance is meaningful and gate is active
+        active = (luma0 > 0.02) & (gate > 0.01)
+        out_r = _np.where(active, _np.clip(boost_r * scale, 0.0, 1.0), boost_r)
+        out_g = _np.where(active, _np.clip(boost_g * scale, 0.0, 1.0), boost_g)
+        out_b = _np.where(active, _np.clip(boost_b * scale, 0.0, 1.0), boost_b)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Luminance-preserving chroma boost pass complete.")
