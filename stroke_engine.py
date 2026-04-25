@@ -42481,3 +42481,208 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Adaptive tonal pivot pass complete.")
+
+    # ── Session 184: Giacomo Ceruti artist pass — ceruti_dignity_shadow_pass ─
+    def ceruti_dignity_shadow_pass(
+            self,
+            shadow_lo:     float = 0.08,
+            shadow_hi:     float = 0.42,
+            warm_r_delta:  float = 0.018,
+            warm_g_delta:  float = 0.010,
+            opacity:       float = 0.32):
+        """
+        Ceruti dignity shadow pass — session 184 artist pass.
+
+        Enriches the INHABITED SHADOW ZONE (luma between shadow_lo and shadow_hi)
+        with a gentle warm sienna-amber infusion, replicating Giacomo Ceruti's
+        characteristic treatment of darkness as warm and dignified rather than cold
+        and theatrical.  In Ceruti's paintings the shadow behind a beggar's shoulder
+        is the same earthy sienna as their skin — lighter by degree, not different
+        in kind.  This warm shadow continuity creates the sense that figure and
+        setting share the same material reality.
+
+        Algorithm:
+        1. Compute luma = 0.2126R + 0.7152G + 0.0722B.
+        2. Compute zone_mid = (shadow_lo + shadow_hi) / 2.
+        3. Compute half_width = (shadow_hi - shadow_lo) / 2.
+        4. gate = exp(-0.5 * ((luma - zone_mid) / half_width)^2) — Gaussian bell curve
+           centred on the inhabited shadow midpoint; naturally fades to ~0 at both
+           zone boundaries and to 0 outside the zone.
+        5. Zero the gate outside [shadow_lo, shadow_hi] for numerical clarity.
+        6. In gated zone: R += warm_r_delta * gate, G += warm_g_delta * gate.
+        7. Blend with original at opacity.
+
+        NOVEL: EIGHTY-EIGHTH DISTINCT MODE. FIRST pass to target the MIDRANGE SHADOW
+        ZONE (shadow_lo – shadow_hi) using a GAUSSIAN BELL-CURVE GATE centred on the
+        zone midpoint.  Prior modes that gate on shadows use absolute thresholds (e.g.
+        "luma < 0.35") with step or linear falloff.  This pass uses a symmetric
+        Gaussian bell: maximum effect at the heart of the inhabited shadow, smoothly
+        fading to zero at both the void boundary (shadow_lo) and the midtone boundary
+        (shadow_hi).  Different from: tenebrism void compression (step gate, near-
+        black only), Bolognese arcadian shadow (cool-sky infusion, not warm earthy),
+        and all prior luma-threshold passes which gate on one side of the threshold.
+        This is the FIRST genuinely DOUBLE-BOUNDARY SYMMETRIC SHADOW GATE.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        lo    = float(shadow_lo)
+        hi    = float(shadow_hi)
+        mid   = (lo + hi) * 0.5
+        hw    = (hi - lo) * 0.5 + 1e-6  # half-width
+
+        # Gaussian bell-curve gate centred on zone midpoint
+        gate = _np.exp(-0.5 * ((luma - mid) / hw) ** 2).astype(_np.float32)
+        # Enforce strict zone boundaries
+        gate = _np.where((luma >= lo) & (luma <= hi), gate, 0.0).astype(_np.float32)
+
+        # Warm sienna-amber infusion in the inhabited shadow zone
+        out_r = _np.clip(r0 + float(warm_r_delta) * gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + float(warm_g_delta) * gate, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Ceruti dignity shadow pass complete.")
+
+    # ── Session 184: random improvement — hue_coherence_field_pass ───────────
+    def hue_coherence_field_pass(
+            self,
+            field_sigma:         float = 22.0,
+            coherence_boost:     float = 0.15,
+            dissonance_suppress: float = 0.10,
+            opacity:             float = 0.28):
+        """
+        Hue coherence field pass — session 184 random improvement.
+
+        Computes the LOCAL DOMINANT HUE of the neighbourhood around each pixel
+        via large-sigma Gaussian blur of the chroma unit-vector field, then
+        amplifies saturation of pixels whose hue aligns with the local dominant
+        hue and gently suppresses saturation of discordant hue outliers.
+
+        This creates LOCAL HUE COHERENCE — the way Old Masters reinforced a
+        dominant color in each area: warm zones become more cohesively warm,
+        cool zones more cohesively cool, and chromatic outliers are subtly unified
+        into the surrounding chromatic field.
+
+        Algorithm (works entirely in RGB space without HSV conversion):
+        1. Compute luma L = 0.2126R + 0.7152G + 0.0722B.
+        2. Compute chroma deviation: C_r = R - L, C_g = G - L, C_b = B - L.
+        3. Compute chroma magnitude C = sqrt(C_r² + C_g² + C_b²) + ε.
+        4. Compute pixel hue unit vector: u_r = C_r/C, u_g = C_g/C, u_b = C_b/C.
+        5. Apply large-sigma Gaussian blur to u_r, u_g, u_b → field vectors.
+        6. Dot product: coherence = u · field_u (ranges ~ [-1, +1]).
+           +1 = pixel hue perfectly aligned with local dominant hue.
+           -1 = pixel hue perfectly opposed (complementary) to dominant hue.
+        7. saturation scale:
+             coherence > 0: s_scale = 1 + coherence_boost × coherence
+             coherence < 0: s_scale = 1 - dissonance_suppress × (−coherence)
+        8. Scale chroma deviation by s_scale, reconstruct RGB from L + scaled chroma.
+        9. Blend with original at opacity.
+
+        NOVEL: EIGHTY-NINTH DISTINCT MODE. FIRST pass to use LOCAL DOMINANT HUE
+        COHERENCE via CHROMA UNIT-VECTOR GAUSSIAN FIELD as the primary mechanism.
+        The hue unit vector (C_r/C, C_g/C, C_b/C) encodes direction in colour space
+        without magnitude; blurring this with a large sigma yields the neighbourhood's
+        dominant colour direction; the dot product of pixel and field hue vectors
+        gives a coherence measure that gates saturation adjustment.  Different from:
+        chromatic_split (divisionist complementary dots), chroma_zone_pass (luminance-
+        gated saturation), fauvist_mosaic_pass (flat zones), Delacroix coloured
+        shadows (complement injection into shadow gate), hue-rotation in Pontormo pass
+        (hue shift not coherence gate).  The key novelty is using the DOT PRODUCT of
+        normalised chroma vectors as a HUE ALIGNMENT GATE — alignment amplifies
+        saturation, misalignment suppresses it.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Step 1: luma
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # Step 2: chroma deviation
+        cr = r0 - luma
+        cg = g0 - luma
+        cb = b0 - luma
+
+        # Step 3: chroma magnitude
+        c_mag = _np.sqrt(cr ** 2 + cg ** 2 + cb ** 2) + 1e-6
+
+        # Step 4: hue unit vector
+        ur = cr / c_mag
+        ug = cg / c_mag
+        ub = cb / c_mag
+
+        # Step 5: Gaussian blur to get local dominant hue field
+        sig  = float(field_sigma)
+        f_ur = _gf(ur, sigma=sig).astype(_np.float32)
+        f_ug = _gf(ug, sigma=sig).astype(_np.float32)
+        f_ub = _gf(ub, sigma=sig).astype(_np.float32)
+
+        # Normalise the field vector (blur can shrink magnitude)
+        f_mag = _np.sqrt(f_ur ** 2 + f_ug ** 2 + f_ub ** 2) + 1e-6
+        f_ur /= f_mag
+        f_ug /= f_mag
+        f_ub /= f_mag
+
+        # Step 6: dot product (coherence measure)
+        coherence = (ur * f_ur + ug * f_ug + ub * f_ub).astype(_np.float32)
+
+        # Step 7: saturation scale factor
+        cb_v  = float(coherence_boost)
+        ds_v  = float(dissonance_suppress)
+        s_scale = _np.where(
+            coherence >= 0.0,
+            1.0 + cb_v * coherence,
+            1.0 - ds_v * (-coherence),
+        ).astype(_np.float32)
+
+        # Step 8: scale chroma, reconstruct RGB
+        out_r = _np.clip(luma + cr * s_scale, 0.0, 1.0)
+        out_g = _np.clip(luma + cg * s_scale, 0.0, 1.0)
+        out_b = _np.clip(luma + cb * s_scale, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Hue coherence field pass complete.")

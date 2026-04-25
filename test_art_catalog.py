@@ -186,6 +186,7 @@ EXPECTED_ARTISTS = [
     "pinturicchio",
     "benozzo_gozzoli",
     "sirani",
+    "ceruti",
 ]
 
 

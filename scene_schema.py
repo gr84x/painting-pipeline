@@ -349,6 +349,7 @@ class Period(Enum):
     UMBRIAN_DECORATIVE_RENAISSANCE = auto()  # Pinturicchio — jewel-bright lapis azure and gold-leaf warmth; decorative richness; Piccolomini Library blues; dual-channel dominance jewel enrichment
     FLORENTINE_PAGEANT_QUATTROCENTO = auto()  # Benozzo Gozzoli — jewel-bright zone-pure palette, lapis/vermilion/malachite/gold discipline, palette-snap chromatic density, Magi Chapel pageantry
     BOLOGNESE_FEMININE_BAROQUE = auto()  # Sirani — golden Reniesque warmth; rosy-luminous flesh; contextual warm-field amplification; soft Bolognese sfumato; strong female protagonists
+    LOMBARD_HUMBLE_GENRE = auto()  # Ceruti (il Pitocchetto) — warm earthy shadow dignity; muted Brescian ochre; inhabited shadow enrichment; quiet observational warmth without theatricality
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1776,6 +1777,15 @@ class Style:
             # wet_blend=0.68: high — smooth Bolognese blending in the Reni tradition; soft transitions without Leonardo extremes.
             # edge_softness=0.60: moderate-high — Bolognese sfumato; edges present but never harsh; figure dissolves gently.
             Period.BOLOGNESE_FEMININE_BAROQUE: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.68, edge_softness=0.60),
+            # LOMBARD_HUMBLE_GENRE (Giacomo Ceruti, il Pitocchetto) — warm muted Brescian observational realism.
+            # stroke_size_face=6: careful, slightly larger than Flemish fijnschilder — Ceruti models in soft
+            # tonal gradations, not hyper-fine enamel detail; his figures are built with patient warmth.
+            # stroke_size_bg=22: modest background strokes — plain warm walls, dark doorways, simple settings.
+            # wet_blend=0.55: moderate — forms are softly blended without sfumato; warm earthen continuity
+            # without the dissolved edges of Leonardo or the cool precision of Flemish masters.
+            # edge_softness=0.42: moderate — forms read clearly (no sfumato dissolution) but no harsh
+            # academic outlines; the quiet, undramatic clarity of honest Lombard observation.
+            Period.LOMBARD_HUMBLE_GENRE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.42),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
