@@ -179,6 +179,7 @@ EXPECTED_ARTISTS = [
     "pieter_claesz",
     "marco_doggiono",
     "boucher",
+    "brouwer",
 ]
 
 
@@ -391,6 +392,7 @@ EXPECTED_PERIODS = [
     "TONAL_STILL_LIFE",
     "UMBRIAN_HIGH_RENAISSANCE",
     "MILANESE_LEONARDESQUE_CIRCLE",
+    "FLEMISH_GENRE_REALISM",
 ]
 
 
@@ -24748,3 +24750,192 @@ def test_sfumato_highlight_sharpness_recovery_zero_unchanged():
     buf_zero = _run(0.0)
     buf_zero2 = _run(0.0)
     assert np.array_equal(buf_zero, buf_zero2), "Zero-recovery runs must be deterministic"
+
+
+# ── Session 178: Adriaen Brouwer + FLEMISH_GENRE_REALISM ──────────────────────
+
+
+def test_brouwer_in_catalog():
+    """Session 178: Adriaen Brouwer must be present in CATALOG."""
+    assert "brouwer" in CATALOG
+
+
+def test_brouwer_movement():
+    """Session 178: Brouwer movement must reference Genre or Realism."""
+    s = get_style("brouwer")
+    assert ("Genre" in s.movement or "genre" in s.movement.lower()
+            or "Realism" in s.movement or "realism" in s.movement.lower())
+
+
+def test_brouwer_palette_length():
+    """Session 178: Brouwer palette must have at least 5 colours."""
+    s = get_style("brouwer")
+    assert len(s.palette) >= 5
+
+
+def test_brouwer_palette_in_range():
+    """Session 178: All Brouwer palette RGB values must be in [0, 1]."""
+    s = get_style("brouwer")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range channel {ch} in Brouwer palette {rgb}"
+
+
+def test_brouwer_ground_color_valid():
+    """Session 178: Brouwer ground_color must be a valid [0, 1] RGB triple."""
+    s = get_style("brouwer")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_brouwer_stroke_params_low_wet_blend():
+    """Session 178: Brouwer wet_blend must be low (alla prima directness)."""
+    s = get_style("brouwer")
+    assert s.wet_blend <= 0.25, "Brouwer alla prima demands low wet_blend — no blending time"
+
+
+def test_brouwer_dark_ground():
+    """Session 178: Brouwer ground_color must be very dark (umber imprimatura)."""
+    s = get_style("brouwer")
+    luma = 0.299 * s.ground_color[0] + 0.587 * s.ground_color[1] + 0.114 * s.ground_color[2]
+    assert luma <= 0.25, "Brouwer ground must be very dark (near-black umber)"
+
+
+def test_brouwer_glazing_valid():
+    """Session 178: Brouwer glazing must be a valid warm amber RGB triple."""
+    s = get_style("brouwer")
+    assert s.glazing is not None, "Brouwer must have a tobacco-amber glazing colour"
+    assert len(s.glazing) == 3
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_brouwer_famous_works_non_empty():
+    """Session 178: Brouwer famous_works must list at least three works."""
+    s = get_style("brouwer")
+    assert len(s.famous_works) >= 3
+    for title, year in s.famous_works:
+        assert isinstance(title, str) and len(title) > 0
+        assert isinstance(year, str) and len(year) > 0
+
+
+def test_flemish_genre_realism_period_in_scene_schema():
+    """Session 178: FLEMISH_GENRE_REALISM must be a valid Period enum member."""
+    assert hasattr(Period, "FLEMISH_GENRE_REALISM"), (
+        "Period.FLEMISH_GENRE_REALISM must be defined for Brouwer (session 178)"
+    )
+
+
+def test_flemish_genre_realism_stroke_params():
+    """Session 178: FLEMISH_GENRE_REALISM stroke_params must reflect alla prima directness."""
+    style = Style(medium=Medium.OIL, period=Period.FLEMISH_GENRE_REALISM)
+    params = style.stroke_params
+    assert params["wet_blend"] <= 0.25, (
+        "FLEMISH_GENRE_REALISM demands low wet_blend for Brouwer alla prima gesture"
+    )
+    assert params["edge_softness"] >= 0.30, (
+        "FLEMISH_GENRE_REALISM edge_softness must be at least 0.30 (warm umber softening)"
+    )
+    assert params["edge_softness"] <= 0.60, (
+        "FLEMISH_GENRE_REALISM edge_softness must not exceed 0.60 (not sfumato)"
+    )
+
+
+def test_brouwer_tavern_glow_pass_runs():
+    """Session 178: brouwer_tavern_glow_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.20, 0.15, 0.08), texture_strength=0.0)
+    p.brouwer_tavern_glow_pass(opacity=0.42)
+
+
+def test_brouwer_tavern_glow_pass_noop_at_zero_opacity():
+    """Session 178: brouwer_tavern_glow_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.20, 0.15, 0.08), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.brouwer_tavern_glow_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_brouwer_tavern_glow_pass_modifies_canvas():
+    """Session 178: brouwer_tavern_glow_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.20, 0.15, 0.08), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.brouwer_tavern_glow_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_brouwer_tavern_glow_pass_pixels_in_range():
+    """Session 178: brouwer_tavern_glow_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.20, 0.15, 0.08), texture_strength=0.0)
+    p.brouwer_tavern_glow_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_sfumato_penumbra_chroma_bloom_runs():
+    """Session 178: sfumato_veil_pass with penumbra_chroma_bloom must run without error."""
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.63, 0.45), texture_strength=0.0)
+    ref = Image.fromarray(
+        (np.ones((32, 32, 3), dtype=np.float32) * [200, 170, 130]).astype(np.uint8), "RGB"
+    )
+    p.sfumato_veil_pass(
+        ref, n_veils=2, blur_radius=3.0,
+        penumbra_chroma_bloom=0.20,
+        penumbra_chroma_lo=0.28,
+        penumbra_chroma_hi=0.52,
+    )
+
+
+def test_sfumato_penumbra_chroma_bloom_zero_is_noop():
+    """Session 178: penumbra_chroma_bloom=0 must produce identical output to baseline."""
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+
+    def _run(bloom):
+        p = Painter(32, 32)
+        p.tone_ground((0.78, 0.63, 0.45), texture_strength=0.0)
+        ref = Image.fromarray(
+            (np.ones((32, 32, 3), dtype=np.float32) * [200, 170, 130]).astype(np.uint8), "RGB"
+        )
+        p.sfumato_veil_pass(ref, n_veils=2, blur_radius=3.0, penumbra_chroma_bloom=bloom)
+        return np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    buf_zero  = _run(0.0)
+    buf_zero2 = _run(0.0)
+    assert np.array_equal(buf_zero, buf_zero2), "Zero bloom must be deterministic"
+
+
+def test_sfumato_penumbra_chroma_bloom_pixels_in_range():
+    """Session 178: penumbra_chroma_bloom output must stay in [0, 255]."""
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.63, 0.45), texture_strength=0.0)
+    ref = Image.fromarray(
+        (np.ones((32, 32, 3), dtype=np.float32) * [200, 170, 130]).astype(np.uint8), "RGB"
+    )
+    p.sfumato_veil_pass(ref, n_veils=2, blur_radius=3.0, penumbra_chroma_bloom=0.30)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255

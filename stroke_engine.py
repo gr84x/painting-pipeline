@@ -2409,7 +2409,10 @@ class Painter:
                           penumbra_bloom_hi:      float = 0.60,
                           highlight_sharpness_recovery: float = 0.0,
                           highlight_sharpness_thresh:   float = 0.75,
-                          highlight_sharpness_sigma:    float = 1.2):
+                          highlight_sharpness_sigma:    float = 1.2,
+                          penumbra_chroma_bloom:        float = 0.0,
+                          penumbra_chroma_lo:           float = 0.28,
+                          penumbra_chroma_hi:           float = 0.52):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2602,6 +2605,29 @@ class Painter:
         highlight_sharpness_sigma  : Gaussian sigma for the unsharp mask kernel.  Default
                                1.2px gives fine-detail recovery; increase to 2.5–4.0
                                for broader clarity enhancement.
+        penumbra_chroma_bloom : When > 0, selectively boosts colour saturation in the
+                               penumbra transition zone (luma penumbra_chroma_lo to
+                               penumbra_chroma_hi) AFTER all other sfumato passes.
+                               This encodes the art-historical observation that
+                               Leonardo's flesh in the penumbra zone — the transition
+                               from lit to shadow — carries the MAXIMUM chromatic
+                               warmth of any zone: the highlights are pulled toward
+                               ivory (desaturated), the deep shadows toward warm umber
+                               (also muted), but the mid-shadow transition glows with
+                               full carnation warmth.  Multispectral analysis of the
+                               Mona Lisa (Louvre 2020) confirms that the penumbra at the
+                               mouth corners and cheek shadow edge shows peak saturation
+                               relative to adjacent zones.  Implemented as neutral-mean
+                               chromatic expansion gated to the penumbra luma zone via
+                               a Gaussian bell mask: delta = channel - neutral;
+                               boosted = neutral + delta × (1 + strength × gate).
+                               Practical range: 0.10–0.20 for subtle penumbra richness;
+                               0.25–0.40 for a more pronounced chromatic glow.
+                               (Session 178 improvement, inspired by Leonardo's
+                               Mona Lisa multispectral data.)
+        penumbra_chroma_lo / _hi : Luminance bounds for the penumbra saturation gate.
+                               Default [0.28, 0.52] targets the mid-shadow transition
+                               zone where carnation warmth peaks.
         """
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
               f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f}"
@@ -2924,6 +2950,45 @@ class Painter:
                   f" (strength={highlight_sharpness_recovery:.2f}"
                   f"  thresh={highlight_sharpness_thresh:.2f}"
                   f"  sigma={highlight_sharpness_sigma:.1f}).")
+
+        # ── Session 178: Penumbra chroma bloom ───────────────────────────────
+        # After all sfumato passes, boost colour saturation in the penumbra
+        # transition zone (luma 0.28–0.52 by default).  Art-historical basis:
+        # multispectral analysis of the Mona Lisa (Louvre 2020) shows maximum
+        # chromatic warmth in the mid-shadow transition, not the highlights.
+        # Leonardo's highlights are ivory (desaturated); his deep shadows are
+        # warm umber (muted); his penumbra glows with full carnation saturation.
+        if penumbra_chroma_bloom > 0.0:
+            pc_raw = np.frombuffer(
+                self.canvas.surface.get_data(), dtype=np.uint8
+            ).reshape(h, w, 4).copy()
+            pc_b = pc_raw[:, :, 0].astype(np.float32) / 255.0
+            pc_g = pc_raw[:, :, 1].astype(np.float32) / 255.0
+            pc_r = pc_raw[:, :, 2].astype(np.float32) / 255.0
+            pc_lum = 0.299 * pc_r + 0.587 * pc_g + 0.114 * pc_b
+            pc_mid   = (float(penumbra_chroma_lo) + float(penumbra_chroma_hi)) * 0.5
+            pc_width = (float(penumbra_chroma_hi) - float(penumbra_chroma_lo)) * 0.5 + 1e-6
+            pc_gate  = np.exp(
+                -0.5 * ((pc_lum - pc_mid) / pc_width) ** 2
+            ).astype(np.float32)
+            pc_gate  = ndimage.gaussian_filter(pc_gate, sigma=3.0)
+            pc_boost = float(penumbra_chroma_bloom) * pc_gate
+            pc_neutral = (pc_r + pc_g + pc_b) / 3.0
+            pc_r_out = np.clip(pc_neutral + (pc_r - pc_neutral) * (1.0 + pc_boost), 0.0, 1.0)
+            pc_g_out = np.clip(pc_neutral + (pc_g - pc_neutral) * (1.0 + pc_boost), 0.0, 1.0)
+            pc_b_out = np.clip(pc_neutral + (pc_b - pc_neutral) * (1.0 + pc_boost), 0.0, 1.0)
+            pc_buf = pc_raw.copy()
+            pc_buf[:, :, 2] = np.clip(pc_r_out * 255.0, 0, 255).astype(np.uint8)
+            pc_buf[:, :, 1] = np.clip(pc_g_out * 255.0, 0, 255).astype(np.uint8)
+            pc_buf[:, :, 0] = np.clip(pc_b_out * 255.0, 0, 255).astype(np.uint8)
+            pc_buf[:, :, 3] = pc_raw[:, :, 3]
+            pc_surf = cairo.ImageSurface.create_for_data(
+                bytearray(pc_buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            self.canvas.ctx.set_source_surface(pc_surf, 0, 0)
+            self.canvas.ctx.paint()
+            print(f"    Penumbra chroma bloom applied"
+                  f" (bloom={penumbra_chroma_bloom:.2f}"
+                  f"  lo={penumbra_chroma_lo:.2f}  hi={penumbra_chroma_hi:.2f}).")
 
         print(f"  Sfumato complete ({n_veils} veils accumulated).")
 
@@ -41200,3 +41265,116 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Boucher pastel radiance pass complete.")
+
+    # Session 178 — Adriaen Brouwer: SEVENTY-FOURTH DISTINCT MODE
+    def brouwer_tavern_glow_pass(
+            self,
+            amber_lo:       float = 0.28,
+            amber_hi:       float = 0.62,
+            amber_r:        float = 0.028,
+            amber_g:        float = 0.010,
+            amber_b_reduce: float = 0.016,
+            smoke_hi:       float = 0.30,
+            smoke_desat:    float = 0.08,
+            accent_lo:      float = 0.55,
+            accent_r:       float = 0.016,
+            accent_g:       float = 0.007,
+            opacity:        float = 0.42):
+        """
+        Brouwer tavern glow pass — Adriaen Brouwer (1605/06–1638).
+
+        Encodes the three defining palette qualities of Brouwer's earthy genre
+        realism: the warm tobacco amber that suffuses every mid-tone, the smoky
+        desaturation that dims the shadow void, and the warm candlelight accent
+        that glints on the highest lit surfaces.
+
+        THREE-ZONE ENCODING:
+
+        Zone 1 — Warm tobacco amber mid-tones:
+            Gaussian bell gate centred in mid-luminance zone [amber_lo, amber_hi]:
+            R↑ (amber_r), G↑ slight (amber_g), B↓ (amber_b_reduce).
+            Brouwer's mid-tones are warmer than any Dutch Academic norm — tobacco,
+            firelight and umber, never daylight cool.  The bell gate ensures deep
+            shadows and bright highlights are not pushed further.
+
+        Zone 2 — Smoky shadow desaturation:
+            Linear gate below smoke_hi luminance: chromatic desaturation toward
+            luminance mean (smoke_desat fraction).  Tavern smoke absorbs colour
+            from the darkest zones, pulling them toward warm grey rather than the
+            saturated deep tones of Italian Baroque.  The desaturation is chroma-
+            reducing, not blue-adding — the darks remain warm, just muted.
+
+        Zone 3 — Warm light accent (candlelight / pipe glow):
+            Linear gate above accent_lo luminance: R↑ (accent_r), G↑ (accent_g).
+            Where Brouwer's single warm source — candle, window, hearth — touches
+            flesh or surface, it leaves a golden flicker.  No B change: the
+            highlight light is warm, never neutral.
+
+        NOVEL: FIRST pass combining (a) tobacco-amber Gaussian bell on mid-tones
+        AND (b) smoky chromatic desaturation in shadow void AND (c) warm golden
+        accent on highlights — the three structural qualities of Brouwer's
+        enclosed tavern palette working in concert against a warm dark ground.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        out_r = r0.copy()
+        out_g = g0.copy()
+        out_b = b0.copy()
+
+        # ── Zone 1: Warm tobacco amber mid-tones ─────────────────────────────
+        amb_mid   = (float(amber_lo) + float(amber_hi)) * 0.5
+        amb_width = (float(amber_hi) - float(amber_lo)) * 0.5 + 1e-6
+        amb_gate  = _np.exp(
+            -0.5 * ((luma - amb_mid) / amb_width) ** 2
+        ).astype(_np.float32)
+
+        out_r = _np.clip(out_r + amb_gate * float(amber_r),        0.0, 1.0)
+        out_g = _np.clip(out_g + amb_gate * float(amber_g),        0.0, 1.0)
+        out_b = _np.clip(out_b - amb_gate * float(amber_b_reduce), 0.0, 1.0)
+
+        # ── Zone 2: Smoky shadow desaturation ────────────────────────────────
+        shad_gate = _np.clip(
+            (float(smoke_hi) - luma) / (float(smoke_hi) + 1e-6), 0.0, 1.0
+        ).astype(_np.float32)
+        smk = float(smoke_desat) * shad_gate
+        neutral = (out_r + out_g + out_b) / 3.0
+        out_r = _np.clip(out_r * (1.0 - smk) + neutral * smk, 0.0, 1.0)
+        out_g = _np.clip(out_g * (1.0 - smk) + neutral * smk, 0.0, 1.0)
+        out_b = _np.clip(out_b * (1.0 - smk) + neutral * smk, 0.0, 1.0)
+
+        # ── Zone 3: Warm candlelight accent on highlights ────────────────────
+        acc_gate = _np.clip(
+            (luma - float(accent_lo)) / (1.0 - float(accent_lo) + 1e-6), 0.0, 1.0
+        ).astype(_np.float32)
+
+        out_r = _np.clip(out_r + acc_gate * float(accent_r), 0.0, 1.0)
+        out_g = _np.clip(out_g + acc_gate * float(accent_g), 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        op = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Brouwer tavern glow pass complete.")

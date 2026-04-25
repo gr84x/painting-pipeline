@@ -15557,6 +15557,84 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 178: Adriaen Brouwer ──────────────────────────────────────────
+    "brouwer": ArtStyle(
+        artist          = "Adriaen Brouwer",
+        movement        = "Flemish-Dutch Genre Realism / Southern Baroque",
+        nationality     = "Flemish",
+        period          = "1625–1638",
+        palette         = [
+            (0.74, 0.58, 0.30),   # warm amber tobacco — the dominant mid-tone; Brouwer's earth is
+                                   # never harsh brown but always warm, as if firelight-soaked
+            (0.52, 0.40, 0.20),   # raw umber shadow flesh — deeper than Flemish Academic norm
+            (0.14, 0.10, 0.06),   # near-black tavern void — the ground that breathes through everywhere
+            (0.82, 0.68, 0.40),   # warm golden highlight — where candle or window light catches a face
+            (0.48, 0.38, 0.22),   # earth brown — worn wooden table, clay pipe, dirty linen
+            (0.66, 0.52, 0.34),   # smoky amber mid-ground — the atmospheric haze of enclosed spaces
+        ],
+        ground_color    = (0.20, 0.15, 0.08),   # very dark umber brown — the ground breathes warm
+                                                  # through thin alla prima paint everywhere
+        stroke_size     = 7,
+        wet_blend       = 0.18,                   # very low: alla prima, no blending — gesture is truth
+        edge_softness   = 0.38,                   # moderate: firm but not harsh, earthy not refined
+        jitter          = 0.062,                  # high: paint varies, surfaces are rough and alive
+        glazing         = (0.58, 0.38, 0.16),     # tobacco-amber final glaze — unifies everything in warm haze
+        crackle         = True,
+        chromatic_split = False,
+        technique       = (
+            "Adriaen Brouwer (1605/06–1638) was the supreme master of the Flemish tavern genre, "
+            "painting rough peasants, card-sharps, smokers, tooth-pullers and brawlers with a "
+            "directness and economy that astonished his contemporaries and moved Rubens and Rembrandt "
+            "to collect his work obsessively.  Rubens owned seventeen Brouwers; Rembrandt owned "
+            "eight.  No other genre painter of the period attracted such distinguished collectors — "
+            "men who valued disegno above all else, yet recognized in Brouwer's raw immediacy a "
+            "quality that transcended conventional finish.\n\n"
+            "Brouwer worked in an extreme alla prima technique: thin paint applied rapidly and "
+            "directly to a very dark brown ground, with no underpainting and no blending time.  "
+            "The dark imprimatura shows through everywhere, unifying the surface in warm golden-umber "
+            "shadow.  His palette is radically limited: raw umber, yellow ochre, tobacco amber, "
+            "a touch of vermilion for flushed skin, lead white for highlights, and near-black ground.  "
+            "He used almost no blue, no cool green, nothing that would introduce daylight into his "
+            "interior world of smoky warmth.\n\n"
+            "The defining quality of Brouwer's technique is gestural speed: marks are quick, "
+            "confident, and expressive rather than blended or finished.  The brushstroke is visible "
+            "everywhere except in the key highlight passages where a smaller, drier stroke deposits "
+            "lead white with theatrical precision.  The result is a paradox: crude-looking at close "
+            "range, yet unexpectedly vivid and spatially convincing at the distance for which it was "
+            "painted.  Van Gogh studied Brouwer carefully, recognizing him as a pioneer of "
+            "expressive impasto more than two centuries before Expressionism.\n\n"
+            "His signature lighting is a single warm source — a candle, a tavern window, a hearth "
+            "— casting amber light onto rough flesh and earthy surfaces while shadow swallows "
+            "everything else in warm umber void.  The transition from light to shadow is fast, "
+            "not sfumato-smooth: light and dark are in dialogue, not dissolution.  In this sense "
+            "Brouwer is the inverse of Leonardo: where Leonardo dissolves boundaries in atmospheric "
+            "warmth, Brouwer asserts them with gestural confidence.  His darkness is warm, never cool."
+        ),
+        famous_works    = [
+            ("The Smokers",                          "c. 1636"),
+            ("The Bitter Potion",                    "c. 1636–1638"),
+            ("Peasants Fighting",                    "c. 1625–1626"),
+            ("The Sense of Taste",                   "c. 1635"),
+            ("A Boor Asleep",                        "c. 1632–1635"),
+            ("Tavern Scene with Card Players",       "c. 1630–1633"),
+        ],
+        inspiration     = (
+            "Apply brouwer_tavern_glow_pass() as the primary Brouwer effect: "
+            "THREE-ZONE WARM REALISM ENCODING.  "
+            "(1) AMBER MID-TONE WARMTH — Gaussian bell gate centred in mid-luminance "
+            "(luma lo=0.28, hi=0.62): inject warm tobacco amber (R + amber_r=0.028, "
+            "G + amber_g=0.010, B − amber_b_reduce=0.016).  Brouwer's mid-tones are "
+            "warmer than any Dutch Academic norm — tobacco and firelight, not daylight.  "
+            "(2) SMOKY SHADOW DESATURATION — deep shadow gate (luma < smoke_hi=0.30): "
+            "pull toward warm neutral grey (smoke_desat=0.08 chromatic desaturation "
+            "toward luminance mean) — the tavern smoke absorbs chroma from the darks.  "
+            "(3) WARM LIGHT ACCENT — bright zone gate (luma > accent_lo=0.55): "
+            "inject warm golden flicker (R + accent_r=0.016, G + accent_g=0.007) "
+            "simulating candlelight / pipe glow touching lit surfaces.  "
+            "Use opacity=0.42 for balanced Brouwer quality."
+        ),
+    ),
+
 }
 
 

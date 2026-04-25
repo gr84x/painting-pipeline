@@ -342,6 +342,7 @@ class Period(Enum):
     UMBRIAN_HIGH_RENAISSANCE = auto()  # Luca Signorelli — hard sculptural contours; cool metallic silver-gray shadow flesh; warm amber-gold highlights; vivid saturated drapery; firm disegno; proto-Mannerist anatomical dynamism
     MILANESE_LEONARDESQUE_CIRCLE = auto()  # Marco d'Oggiono — inherited Leonardesque sfumato, warm ivory flesh, slightly more linear than master, sweet devotional Milanese warmth
     FRENCH_ROCOCO_PASTORAL = auto()  # Boucher — peach-cream pastel flesh, powder-blue sky light, warm ornamental radiance, Academic enamel surface
+    FLEMISH_GENRE_REALISM  = auto()  # Brouwer — warm tobacco amber mid-tones, smoky shadow void, dark umber ground, rapid alla prima gesture
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1730,6 +1731,12 @@ class Style:
             # wet_blend=0.82: very high — Boucher's porcelain-smooth skin requires near-seamless blending.
             # edge_softness=0.58: moderate — Rococo figures have soft edges but not Leonardesque sfumato.
             Period.FRENCH_ROCOCO_PASTORAL: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.82, edge_softness=0.58),
+            # FLEMISH_GENRE_REALISM (Adriaen Brouwer) — alla prima speed; no blending time; raw gestural edge.
+            # stroke_size_face=7: confident direct mark for rough peasant flesh.
+            # stroke_size_bg=20: moderate background gesture for enclosed tavern interiors.
+            # wet_blend=0.18: very low — Brouwer never lingered; the stroke is truth.
+            # edge_softness=0.38: moderate; boundaries are firm but not harsh — warm umber softens.
+            Period.FLEMISH_GENRE_REALISM: dict(stroke_size_face=7, stroke_size_bg=20, wet_blend=0.18, edge_softness=0.38),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
