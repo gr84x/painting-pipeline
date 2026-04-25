@@ -15971,6 +15971,97 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+
+    "benozzo_gozzoli": ArtStyle(
+        artist      = "Benozzo Gozzoli",
+        movement    = "Florentine Pageant Quattrocento",
+        nationality = "Italian",
+        period      = "1420–1497",
+        palette     = [
+            (0.18, 0.28, 0.72),   # lapis lazuli blue
+            (0.72, 0.14, 0.10),   # vermilion red
+            (0.12, 0.48, 0.24),   # malachite green
+            (0.72, 0.58, 0.18),   # gold ochre
+            (0.86, 0.82, 0.72),   # gesso warm white
+            (0.10, 0.08, 0.06),   # near-black outline
+            (0.78, 0.52, 0.36),   # warm flesh ivory
+            (0.48, 0.36, 0.60),   # purple-violet robe shadow
+            (0.52, 0.62, 0.30),   # Florentine spring green
+        ],
+        ground_color  = (0.78, 0.74, 0.60),  # warm gesso white ground
+        stroke_size   = 5,
+        wet_blend     = 0.48,
+        edge_softness = 0.30,
+        jitter        = 0.022,
+        glazing       = (0.64, 0.52, 0.22),  # warm gold-amber unifying glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Benozzo Gozzoli (1420–1497) was the supreme Florentine master of jewel-bright "
+            "narrative pageantry — a painter who combined the pure devotional palette of his "
+            "teacher Fra Angelico with the emerging naturalism of early Renaissance Florence "
+            "to create frescoes of unparalleled chromatic richness and ornamental splendour.\n\n"
+            "His masterpiece is the PROCESSION OF THE MAGI chapel in the Medici Palace "
+            "(1459–1461), commissioned by Cosimo de' Medici.  The three walls of the chapel "
+            "are covered with an elaborate procession of kings, courtiers, and horses winding "
+            "through a Tuscan hill landscape — all depicted in a palette of extraordinary "
+            "jewel-brightness: LAPIS LAZULI BLUE of the deepest grade, VERMILION RED "
+            "unmodified from the pigment tube, MALACHITE GREEN of Venetian intensity, and "
+            "beaten GOLD LEAF for halos and ornamental details.  The figures include portraits "
+            "of Medici family members, Gozzoli himself (identifiable by his signature red "
+            "cap and name inscription), and celebrated contemporaries.\n\n"
+            "PALETTE DISCIPLINE: Unlike Leonardo (who modulated every color through sfumato) "
+            "or Titian (who unified through glazing warmth), Benozzo maintained ZONE PURITY — "
+            "each area of drapery or sky is painted in a single high-chromatic color and left "
+            "largely unmixed with its neighbors.  The color zones are separated by firm dark "
+            "outlines inherited from Fra Angelico's tempera tradition.  This creates an "
+            "almost mosaic quality — a field of jewel chips rather than a continuously "
+            "modulated tonal landscape.\n\n"
+            "GOLD LEAF ACCENTS: Halos, architectural ornaments, saddle trappings, and "
+            "brocade patterns are executed in actual gold leaf tooled over gesso relief — "
+            "a late Gothic tradition carried forward into the early Renaissance.  These gold "
+            "passages catch oblique light differently from the painted surfaces, creating "
+            "zones of literal metallic reflectance amid the matte fresco.\n\n"
+            "LANDSCAPE: Benozzo's Tuscan hills in the Magi Chapel are the most realistic "
+            "landscape in mid-Quattrocento Florentine painting — individual cypress trees, "
+            "recognisable hill profiles, and atmospheric distance rendered with more "
+            "naturalism than any Florentine predecessor.  This coexists paradoxically with "
+            "the hieratic, jewel-bright figure painting.\n\n"
+            "THE PISA CAMPOSANTO FRESCOES (1468–1484): A second great cycle covering the "
+            "entire north wall of the Campo Santo in Pisa, with fifty-nine scenes from the "
+            "Old Testament.  The sheer quantity of narrative — hundreds of figures, animals, "
+            "buildings — required an efficient system of clear color-zoning to maintain "
+            "legibility at scale.  These frescoes establish Benozzo as the supreme Florentine "
+            "practitioner of large-scale narrative painting in the generation before "
+            "Ghirlandaio and Filippino Lippi."
+        ),
+        famous_works  = [
+            ("Procession of the Magi chapel, Medici Palace",   "1459–1461"),
+            ("Camposanto frescoes, Pisa",                       "1468–1484"),
+            ("Tabernacle of the Visitation, Castelfiorentino",  "1484–1490"),
+            ("Journey of the Magi, fresco detail (self-portrait)", "1459"),
+        ],
+        inspiration   = (
+            "Apply benozzo_gozzoli_pageant_pass() as the primary Benozzo Gozzoli effect: "
+            "FLORENTINE PAGEANT PALETTE SNAPPING. "
+            "For each pixel (gated by luma [luma_lo, luma_hi]), finds the nearest color "
+            "in Benozzo's canonical jewel palette (lapis lazuli blue, vermilion, malachite "
+            "green, gold ochre, warm gesso, near-black, flesh ivory) using Euclidean "
+            "distance in RGB space, then attracts the pixel toward that palette color by "
+            "snap_strength: out_rgb = rgb + (nearest_palette_color − rgb) × snap_strength × gate. "
+            "NOVEL: EIGHTY-FOURTH DISTINCT MODE. FIRST pass to use NEAREST-PALETTE SOFT-SNAP "
+            "as the per-pixel correction guide — chromatic adjustment driven by palette "
+            "proximity rather than channel thresholds, gradient magnitude, or frequency bands. "
+            "Pixels already on-palette change little; off-palette pixels are attracted toward "
+            "the nearest jewel color, replicating Benozzo's zone-pure chromatic discipline. "
+            "Follow with tonal_bounded_warmth_pass() as EIGHTY-FIFTH DISTINCT MODE: "
+            "tent-gated mid-dark warmth band recovers warm ground glow. "
+            "Use benozzo_gozzoli_pageant_pass(snap_strength=0.12, opacity=0.30) then "
+            "tonal_bounded_warmth_pass(opacity=0.26)."
+        ),
+    ),
+
 }
 
 

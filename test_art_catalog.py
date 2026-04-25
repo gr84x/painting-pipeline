@@ -184,6 +184,7 @@ EXPECTED_ARTISTS = [
     "gerard_ter_borch",
     "cesare_da_sesto",
     "pinturicchio",
+    "benozzo_gozzoli",
 ]
 
 
@@ -25707,4 +25708,144 @@ def test_chromatic_edge_halation_pass_pixels_in_range():
     p.chromatic_edge_halation_pass(opacity=1.0)
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 182 — Benozzo Gozzoli + FLORENTINE_PAGEANT_QUATTROCENTO
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_benozzo_gozzoli_in_catalog():
+    """Session 182: benozzo_gozzoli must be in CATALOG."""
+    assert "benozzo_gozzoli" in CATALOG
+
+
+def test_benozzo_gozzoli_movement():
+    """Session 182: benozzo_gozzoli movement must reference Florentine Pageant Quattrocento."""
+    s = get_style("benozzo_gozzoli")
+    assert "Florentine" in s.movement or "Quattrocento" in s.movement
+
+
+def test_benozzo_gozzoli_palette_in_range():
+    """Session 182: all benozzo_gozzoli palette channels must be in [0, 1]."""
+    s = get_style("benozzo_gozzoli")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"benozzo_gozzoli palette channel {ch} out of range"
+
+
+def test_benozzo_gozzoli_ground_color_valid():
+    """Session 182: benozzo_gozzoli ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("benozzo_gozzoli")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_florentine_pageant_quattrocento_in_period():
+    """Session 182: Period enum must contain FLORENTINE_PAGEANT_QUATTROCENTO."""
+    assert hasattr(Period, "FLORENTINE_PAGEANT_QUATTROCENTO")
+
+
+def test_benozzo_gozzoli_pageant_pass_runs():
+    """Session 182: benozzo_gozzoli_pageant_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    p.benozzo_gozzoli_pageant_pass(opacity=0.32)
+
+
+def test_benozzo_gozzoli_pageant_pass_noop_at_zero_opacity():
+    """Session 182: benozzo_gozzoli_pageant_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.benozzo_gozzoli_pageant_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_benozzo_gozzoli_pageant_pass_modifies_canvas():
+    """Session 182: benozzo_gozzoli_pageant_pass must modify canvas with chromatic content."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Use a canvas with jewel-blue zone to trigger palette snap
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    # Mid-luma chromatic blue (luma ~0.45 — in tent gate zone)
+    buf[:, :, 0] = 170  # B
+    buf[:, :, 1] = 110  # G
+    buf[:, :, 2] = 60   # R
+    buf[:, :, 3] = 255  # A
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.benozzo_gozzoli_pageant_pass(snap_strength=1.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_benozzo_gozzoli_pageant_pass_pixels_in_range():
+    """Session 182: benozzo_gozzoli_pageant_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    p.benozzo_gozzoli_pageant_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_tonal_bounded_warmth_pass_runs():
+    """Session 182: tonal_bounded_warmth_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.44, 0.34, 0.22), texture_strength=0.0)
+    p.tonal_bounded_warmth_pass(opacity=0.28)
+
+
+def test_tonal_bounded_warmth_pass_noop_at_zero_opacity():
+    """Session 182: tonal_bounded_warmth_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.44, 0.34, 0.22), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.tonal_bounded_warmth_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_tonal_bounded_warmth_pass_modifies_canvas():
+    """Session 182: tonal_bounded_warmth_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    # Mid-dark warm tone (luma ~0.30 — inside [0.18, 0.44] tent gate)
+    buf[:, :, 0] = 60   # B
+    buf[:, :, 1] = 80   # G
+    buf[:, :, 2] = 100  # R
+    buf[:, :, 3] = 255  # A
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.tonal_bounded_warmth_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_tonal_bounded_warmth_pass_pixels_in_range():
+    """Session 182: tonal_bounded_warmth_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.44, 0.34, 0.22), texture_strength=0.0)
+    p.tonal_bounded_warmth_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
     assert buf[:, :, :3].max() <= 255

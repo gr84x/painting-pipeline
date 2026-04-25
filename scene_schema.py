@@ -347,6 +347,7 @@ class Period(Enum):
     DUTCH_INTIMATE_GENRE  = auto()  # Ter Borch — cool silver-grey satin sheen; warm ivory flesh; smooth fijnschilder surface; intimate domestic interior
     MILANESE_ROMAN_BRIDGE = auto()  # Cesare da Sesto — Leonardo's sfumato warmth fused with Raphael's cool classical form clarity; gradient-zoned bimodal warm/cool bridge
     UMBRIAN_DECORATIVE_RENAISSANCE = auto()  # Pinturicchio — jewel-bright lapis azure and gold-leaf warmth; decorative richness; Piccolomini Library blues; dual-channel dominance jewel enrichment
+    FLORENTINE_PAGEANT_QUATTROCENTO = auto()  # Benozzo Gozzoli — jewel-bright zone-pure palette, lapis/vermilion/malachite/gold discipline, palette-snap chromatic density, Magi Chapel pageantry
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()

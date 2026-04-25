@@ -40658,6 +40658,200 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Pass 84 — Benozzo Gozzoli pageant palette snap pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def benozzo_gozzoli_pageant_pass(
+            self,
+            snap_strength: float = 0.12,
+            luma_lo:       float = 0.18,
+            luma_hi:       float = 0.88,
+            opacity:       float = 0.32):
+        """
+        Benozzo Gozzoli pageant palette snap pass — session 182.
+
+        FLORENTINE PAGEANT PALETTE SNAPPING:
+
+        Benozzo Gozzoli's Magi Chapel frescoes (1459–1461) are defined by a
+        zone-pure jewel palette: lapis lazuli blue, vermilion red, malachite
+        green, gold ochre, warm gesso, and pure near-black outline.  Unlike
+        painters who modulated freely, Benozzo maintained CHROMATIC ZONE PURITY —
+        each drapery area keyed to a single vivid pigment.
+
+        For each pixel (gated by luma range [luma_lo, luma_hi] via symmetric
+        tent gate), this pass finds the nearest color in Benozzo's canonical
+        jewel palette (Euclidean distance in RGB space), then softly attracts
+        the pixel toward that palette color by snap_strength:
+
+          out_rgb = rgb + (nearest_palette_color − rgb) × snap_strength × gate
+
+        The tent gate reaches maximum weight at luma midpoint, falling to zero at
+        luma_lo and luma_hi, so extreme darks and specular highlights are unaffected.
+
+        NOVEL: EIGHTY-FOURTH DISTINCT MODE.  FIRST pass to use NEAREST-PALETTE
+        SOFT-SNAP as the per-pixel correction mechanism — chromatic adjustment
+        driven entirely by palette proximity rather than channel thresholds,
+        gradient magnitude, frequency bands, or dominance gates.  Pixels already
+        near a palette color are barely moved; off-palette pixels are gently drawn
+        toward the nearest jewel color in a distance-proportional manner.  No
+        prior pass uses palette distance as the driving metric for per-pixel
+        chromatic correction.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        # Benozzo's canonical Magi Chapel jewel palette (R, G, B in [0, 1])
+        palette = _np.array([
+            [0.18, 0.28, 0.72],   # lapis lazuli blue
+            [0.72, 0.14, 0.10],   # vermilion red
+            [0.12, 0.48, 0.24],   # malachite green
+            [0.72, 0.58, 0.18],   # gold ochre
+            [0.86, 0.82, 0.72],   # gesso warm white
+            [0.10, 0.08, 0.06],   # near-black outline
+            [0.78, 0.52, 0.36],   # warm flesh ivory
+            [0.48, 0.36, 0.60],   # purple-violet robe shadow
+        ], dtype=_np.float32)
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        # Symmetric tent gate peaking at midpoint of [luma_lo, luma_hi]
+        lo, hi = float(luma_lo), float(luma_hi)
+        rise = _np.clip((luma - lo) / (hi - lo + 1e-6), 0.0, 1.0)
+        fall = _np.clip((hi - luma) / (hi - lo + 1e-6), 0.0, 1.0)
+        gate = _np.clip(rise * fall * 4.0, 0.0, 1.0)
+
+        # Flatten pixels for vectorised nearest-palette lookup
+        rgb_flat = _np.stack([r0.ravel(), g0.ravel(), b0.ravel()], axis=1)  # (H*W, 3)
+        diffs    = rgb_flat[:, None, :] - palette[None, :, :]                # (H*W, N, 3)
+        dists    = _np.sum(diffs * diffs, axis=2)                            # (H*W, N)
+        nearest_rgb = palette[_np.argmin(dists, axis=1)]                     # (H*W, 3)
+
+        nearest_r = nearest_rgb[:, 0].reshape(H, W)
+        nearest_g = nearest_rgb[:, 1].reshape(H, W)
+        nearest_b = nearest_rgb[:, 2].reshape(H, W)
+
+        snap = float(snap_strength) * gate
+
+        out_r = _np.clip(r0 + (nearest_r - r0) * snap, 0.0, 1.0)
+        out_g = _np.clip(g0 + (nearest_g - g0) * snap, 0.0, 1.0)
+        out_b = _np.clip(b0 + (nearest_b - b0) * snap, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Benozzo Gozzoli pageant palette snap pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Pass 85 — Tonal bounded warmth pass
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def tonal_bounded_warmth_pass(
+            self,
+            mid_dark_lo:  float = 0.18,
+            mid_dark_hi:  float = 0.44,
+            warm_r:       float = 0.030,
+            warm_g:       float = 0.012,
+            warm_b:       float = -0.006,
+            void_hi:      float = 0.15,
+            void_cool_b:  float = 0.010,
+            void_cool_r:  float = -0.008,
+            opacity:      float = 0.28):
+        """
+        Tonal bounded warmth pass — session 182.
+
+        IMPRIMATURA GROUND RECOVERY — TONAL-BOUNDED WARM BAND:
+
+        Fra Bartolommeo built on a warm chestnut-amber imprimatura visible
+        through thin paint layers in mid-dark transitions.  Two zones:
+
+          MID-DARK ZONE [mid_dark_lo, mid_dark_hi]: inject warm ground recovery
+          (R+warm_r, G+warm_g, B+warm_b) weighted by a symmetric tent gate that
+          peaks at the zone centre (max weight 1.0, zero at boundaries).
+          Replicates the warm imprimatura glow visible between the deep void and
+          the opaque lit passages — the three-zone luminance signature of Fra
+          Bartolommeo's toned-ground chiaroscuro.
+
+          NEAR-VOID ZONE (luma < void_hi): slight cool push (B+void_cool_b,
+          R+void_cool_r) deepens the darkest shadows toward cool umber-violet,
+          increasing tonal separation from the warm mid-dark band above.
+
+        NOVEL: EIGHTY-FIFTH DISTINCT MODE.  FIRST pass to use a TONAL BAND
+        (isolated by a symmetric tent gate spanning mid_dark_lo–mid_dark_hi) for
+        SELECTIVE IMPRIMATURA RECOVERY with OPPOSITE treatment at the near-void
+        floor.  Unlike shadow_color_temperature_pass (which applies uniformly
+        below a single threshold), this creates a warm BAND visible only in the
+        mid-shadow zone, replicating the three-stratum luminance structure of
+        Renaissance toned-ground panel painting: cool void → warm mid-dark →
+        warm lit.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        lo = float(mid_dark_lo)
+        hi = float(mid_dark_hi)
+
+        # Symmetric tent gate: rises from 0 at lo, peaks at (lo+hi)/2, falls to 0 at hi
+        rise = _np.clip((luma - lo) / (hi - lo + 1e-6), 0.0, 1.0)
+        fall = _np.clip((hi - luma) / (hi - lo + 1e-6), 0.0, 1.0)
+        mid_gate = _np.clip(rise * fall * 4.0, 0.0, 1.0)
+
+        out_r = _np.clip(r0 + mid_gate * float(warm_r), 0.0, 1.0)
+        out_g = _np.clip(g0 + mid_gate * float(warm_g), 0.0, 1.0)
+        out_b = _np.clip(b0 + mid_gate * float(warm_b), 0.0, 1.0)
+
+        # Near-void cool push for tonal separation
+        void_gate = _np.clip((float(void_hi) - luma) / (float(void_hi) + 1e-6), 0.0, 1.0)
+        out_r = _np.clip(out_r + void_gate * float(void_cool_r), 0.0, 1.0)
+        out_b = _np.clip(out_b + void_gate * float(void_cool_b), 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Tonal bounded warmth pass complete.")
+
     def signorelli_sculptural_contour_pass(
         self,
         cool_strength: float = 0.28,
