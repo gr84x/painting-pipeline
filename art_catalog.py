@@ -15249,6 +15249,119 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 175 — new artist: Luca Signorelli ────────────────────────────
+    # Randomly selected artist for session 175's inspiration.
+    # Luca Signorelli (c. 1445–1523) was an Umbrian painter from Cortona who trained
+    # under Piero della Francesca and became one of the most anatomically formidable
+    # painters of the Italian Renaissance.  His supreme achievement is the fresco
+    # cycle in the Chapel of San Brizio at Orvieto Cathedral (1499–1504), where he
+    # painted the Last Judgment and Resurrection of the Dead with a muscular, almost
+    # terrifying command of the human figure in every conceivable foreshortened pose.
+    # Michelangelo studied these frescoes extensively before painting the Sistine
+    # Chapel ceiling — the debt is visible in the heroic, twisting nude figures.
+    #
+    # His defining technique: the antithesis of Leonardo's sfumato.  Where Leonardo
+    # dissolved edges into smoke, Signorelli drew with iron-hard certainty.  Every
+    # figure contour is crisp, decisive, and sculptural — the outlines of a bronze
+    # casting rather than a veil of atmosphere.  This quality of hard, clear disegno
+    # (drawing/design) inherited from Florentine tradition is Signorelli's most
+    # distinctive mark.
+    #
+    # Flesh palette: extraordinarily cool in shadow zones — his shadow flesh has a
+    # metallic gray-silver quality, as if the flesh were pewter or pale marble rather
+    # than warm skin.  Highlights, by contrast, are warm amber-gold, almost burnished.
+    # This warm-highlight / cool-shadow polarity gives his figures a sculptural, almost
+    # three-dimensional presence that reads as though carved from stone under raking light.
+    #
+    # Drapery: vivid, saturated, bold.  Vermilion crimson, lapis blue, verdigris green —
+    # Signorelli did not suppress colour in drapery; he used it at near-maximum saturation
+    # as a foil to the restrained cool flesh palette.  The contrast between vivid fabric
+    # and cool metallic flesh is his characteristic chromatic tension.
+    #
+    # Ground: often a warm buff parchment tone (on panel) or a pale lime-white (fresco).
+    # He built form with firm, decisive tempera-like strokes rather than Venetian glazing.
+    # No deep Venetian layering — form is established directly with confident, plastic marks.
+    "luca_signorelli": ArtStyle(
+        artist="Luca Signorelli",
+        movement="Umbrian / Central Italian High Renaissance",
+        nationality="Italian",
+        period="c. 1445–1523",
+        palette=[
+            (0.62, 0.60, 0.60),   # cool gray-silver — shadow flesh (metallic, almost pewter)
+            (0.84, 0.72, 0.52),   # warm amber-gold — flesh highlight (burnished, raking light)
+            (0.72, 0.22, 0.18),   # bold vermilion-crimson — drapery accent
+            (0.22, 0.35, 0.68),   # lapis ultramarine blue — drapery ground
+            (0.26, 0.55, 0.35),   # verdigris-malachite green — drapery secondary
+            (0.82, 0.77, 0.64),   # pale buff-parchment — warm ground / lit areas
+            (0.22, 0.16, 0.10),   # deep umber-black — darkest contour darks
+        ],
+        ground_color=(0.72, 0.67, 0.52),   # warm buff imprimatura — parchment panel ground
+        stroke_size=6,
+        wet_blend=0.28,
+        edge_softness=0.10,
+        jitter=0.025,
+        glazing=None,
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Luca Signorelli (c. 1445–1523) is the supreme Italian Renaissance master "
+            "of hard sculptural contour — the polar opposite of Leonardo's sfumato.  "
+            "Where Leonardo dissolved the outlines of things into atmospheric smoke, "
+            "Signorelli drew with the certainty of a bronze-caster: every figure edge "
+            "is crisp, decisive, and architecturally firm.  This quality of disegno — "
+            "drawing as the primary structural principle of painting — he inherited from "
+            "his master Piero della Francesca and transmitted, with volcanic intensity, "
+            "to Michelangelo.\n\n"
+            "His flesh palette is one of the most distinctive in all Renaissance painting: "
+            "the shadow zones of flesh go cool and metallic — a silver-gray pewter quality, "
+            "as though the skin were pale marble or polished bronze in shade.  Against this "
+            "cool shadow, his highlights are warm amber-gold, burnished and raking, as if lit "
+            "by a low sun striking across a sculptural surface.  The warm-light / cool-shadow "
+            "polarity creates an almost three-dimensional, tactile illusion that seems to be "
+            "about form as much as colour.\n\n"
+            "Drapery is where Signorelli released his colour: bold vermilion, deep lapis, "
+            "vivid verdigris — saturated, unmodulated, and used at near-maximum chroma.  "
+            "The contrast between vivid fabric and cool metallic flesh is his characteristic "
+            "chromatic argument: the body is sober, sculptural, and universal; the garment "
+            "is vivid, particular, and human.\n\n"
+            "Technically he worked with direct, confident marks — no Venetian layering or "
+            "deep glazing.  Form was established by the certainty of each stroke, not built "
+            "up through transparent veils.  His brushwork is firm and plastic, each mark "
+            "contributing to the sculptural clarity of the whole.  His greatest works — the "
+            "Orvieto Chapel of San Brizio, the Cortona altarpieces, the Loreto sacristy "
+            "frescoes — demonstrate a command of the foreshortened human figure that was "
+            "unprecedented in the fifteenth century and not surpassed until Michelangelo."
+        ),
+        famous_works=[
+            ("Resurrection of the Dead (Chapel of San Brizio, Orvieto)", "1499–1502"),
+            ("The Damned Cast into Hell (Chapel of San Brizio)", "1499–1504"),
+            ("The Education of Pan", "c. 1490"),
+            ("Holy Family (Uffizi Tondo)", "c. 1490"),
+            ("Circumcision of Christ (National Gallery, London)", "1491"),
+        ],
+        inspiration=(
+            "Use signorelli_sculptural_contour_pass(): simultaneously (a) cool the "
+            "shadow zones of flesh toward metallic gray-silver AND (b) sharpen and "
+            "reinforce contour edges to hard crispness — the two defining marks of "
+            "Signorelli's style.  Algorithm: (1) Compute luminance; (2) Compute Sobel "
+            "gradient magnitude (edge map), normalise to [0,1]; (3) Build edge_gate = "
+            "clip((grad_norm − edge_threshold) / rng, 0,1) — active at contour zones; "
+            "(4) Build shadow_gate = clip((shadow_thresh − luma) / rng_s, 0,1) — active "
+            "in shadow zones; (5) Cool metallic shadow shift: in shadow zones (shadow_gate "
+            "high, edge_gate low), reduce R relative to neutral mean and lift B slightly — "
+            "cool_delta = cool_strength × shadow_gate × (1 − edge_gate); inject: "
+            "out_R = R − cool_delta × (R − n), out_B = B + cool_delta × 0.18; "
+            "(6) Contour contrast lift: at contour pixels (edge_gate high), amplify "
+            "local contrast: compute local_mean_luma in a 5×5 neighbourhood; push luma "
+            "AWAY from mean by contour_lift × edge_gate — darken dark side, lighten light "
+            "side; (7) Composite at opacity.  NOVEL: FIRST pass to combine (a) luminance-"
+            "gated cool metallic SHADOW shift AND (b) LOCAL-CONTRAST contour SHARPENING "
+            "in a single unified sculptural pass.  Prior cool-shift passes apply globally; "
+            "prior contour passes (figure_contour_atmosphere_pass) DISSOLVE edges "
+            "(sfumato); this pass REINFORCES and SHARPENS edges while cooling shadows."
+        ),
+    ),
+
 }
 
 

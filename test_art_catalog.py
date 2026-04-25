@@ -24294,3 +24294,142 @@ def test_figure_contour_atmosphere_pass_modifies_canvas():
                                       edge_threshold=0.04, opacity=0.80)
     after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
     assert not np.array_equal(before, after)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Session 175 — Luca Signorelli + signorelli_sculptural_contour_pass
+#              + skin_subsurface_scatter_pass
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_luca_signorelli_in_catalog():
+    """Session 175: luca_signorelli must be present in CATALOG."""
+    from art_catalog import CATALOG
+    assert "luca_signorelli" in CATALOG, "luca_signorelli missing from CATALOG"
+
+
+def test_luca_signorelli_palette_valid():
+    """Session 175: luca_signorelli palette must contain colours in [0, 1]."""
+    from art_catalog import CATALOG
+    s = CATALOG["luca_signorelli"]
+    for c in s.palette:
+        for ch in c:
+            assert 0.0 <= ch <= 1.0, f"luca_signorelli palette value out of range: {ch}"
+
+
+def test_luca_signorelli_ground_color_valid():
+    """Session 175: luca_signorelli ground_color must be in [0, 1]."""
+    from art_catalog import CATALOG
+    s = CATALOG["luca_signorelli"]
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, f"luca_signorelli ground_color out of range: {ch}"
+
+
+def test_luca_signorelli_edge_softness_low():
+    """Session 175: luca_signorelli edge_softness must be ≤ 0.15 (hard disegno contour)."""
+    from art_catalog import CATALOG
+    s = CATALOG["luca_signorelli"]
+    assert s.edge_softness <= 0.15, (
+        f"luca_signorelli edge_softness should be very low (hard disegno); got {s.edge_softness}")
+
+
+def test_luca_signorelli_wet_blend_low():
+    """Session 175: luca_signorelli wet_blend must be ≤ 0.35 (firm decisive strokes, not heavy blending)."""
+    from art_catalog import CATALOG
+    s = CATALOG["luca_signorelli"]
+    assert s.wet_blend <= 0.35, (
+        f"luca_signorelli wet_blend should be low (firm disegno); got {s.wet_blend}")
+
+
+def test_signorelli_sculptural_contour_pass_runs():
+    """Session 175: signorelli_sculptural_contour_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.67, 0.52), texture_strength=0.0)
+    p.signorelli_sculptural_contour_pass(opacity=0.55)
+
+
+def test_signorelli_sculptural_contour_pass_noop_at_zero_opacity():
+    """Session 175: signorelli_sculptural_contour_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.67, 0.52), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.signorelli_sculptural_contour_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_signorelli_sculptural_contour_pass_pixels_in_range():
+    """Session 175: signorelli_sculptural_contour_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.67, 0.52), texture_strength=0.0)
+    p.signorelli_sculptural_contour_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_signorelli_sculptural_contour_pass_modifies_canvas():
+    """Session 175: signorelli_sculptural_contour_pass at opacity > 0 must modify canvas."""
+    import numpy as np
+    import cairo
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.80, 0.70, 0.55), texture_strength=0.0)
+    ctx = cairo.Context(p.canvas.surface)
+    ctx.set_source_rgb(0.10, 0.08, 0.06)
+    ctx.rectangle(0, 0, 32, 64)
+    ctx.fill()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.signorelli_sculptural_contour_pass(
+        cool_strength=0.40, shadow_thresh=0.50,
+        edge_threshold=0.05, contour_lift=0.30, opacity=0.80)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_skin_subsurface_scatter_pass_runs():
+    """Session 175: skin_subsurface_scatter_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.82, 0.70, 0.52), texture_strength=0.0)
+    p.skin_subsurface_scatter_pass(opacity=0.45)
+
+
+def test_skin_subsurface_scatter_pass_noop_at_zero_opacity():
+    """Session 175: skin_subsurface_scatter_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.82, 0.70, 0.52), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.skin_subsurface_scatter_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_skin_subsurface_scatter_pass_pixels_in_range():
+    """Session 175: skin_subsurface_scatter_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.82, 0.70, 0.52), texture_strength=0.0)
+    p.skin_subsurface_scatter_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_skin_subsurface_scatter_pass_modifies_warm_canvas():
+    """Session 175: skin_subsurface_scatter_pass must modify a warm-toned canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.85, 0.68, 0.48), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.skin_subsurface_scatter_pass(scatter_sigma=4.0, scatter_strength=0.40, opacity=0.80)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)

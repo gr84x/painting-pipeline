@@ -339,6 +339,7 @@ class Period(Enum):
     DUTCH_WINTER_LANDSCAPE = auto()  # Hendrick Avercamp — silver-grey overcast desaturation; midtone warmth restoration for figures; icy panoramic palette; pale cool ground; crisp linear detail for small figures
     DUTCH_FLORAL_STILL_LIFE = auto()  # Jan van Huysum — jewel-pure floral palette; crystalline inverse-variance chroma amplification in smooth zones; dew-drop specular accents; extreme surface finish; dark ground
     TONAL_STILL_LIFE = auto()  # Pieter Claesz — warm silver-gray monochrome tonal palette; saturation pulled toward neutral warm gray; subtle luminance-locked tonal differentiation; Dutch ontbijt banketje style
+    UMBRIAN_HIGH_RENAISSANCE = auto()  # Luca Signorelli — hard sculptural contours; cool metallic silver-gray shadow flesh; warm amber-gold highlights; vivid saturated drapery; firm disegno; proto-Mannerist anatomical dynamism
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1712,6 +1713,9 @@ class Style:
             # moderate stroke blending for smooth tonal transitions; moderate edge_softness preserves
             # the crisp object contours in the banketje tradition while allowing subtle tonal fusion.
             Period.TONAL_STILL_LIFE: dict(stroke_size_face=4, stroke_size_bg=18, wet_blend=0.55, edge_softness=0.35),
+            # UMBRIAN_HIGH_RENAISSANCE (Luca Signorelli) — hard sculptural contours, low blending, crisp edge_softness;
+            # firm deliberate strokes; the antithesis of sfumato — disegno dominates over tonal fusion.
+            Period.UMBRIAN_HIGH_RENAISSANCE: dict(stroke_size_face=6, stroke_size_bg=20, wet_blend=0.28, edge_softness=0.10),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

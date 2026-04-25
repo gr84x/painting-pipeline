@@ -16108,3 +16108,81 @@ def test_figure_contour_atmosphere_pass_pixels_in_range_routing():
     ).reshape(32, 32, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Session 175 — signorelli_sculptural_contour_pass + skin_subsurface_scatter_pass
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_signorelli_sculptural_contour_pass_exists_routing():
+    """signorelli_sculptural_contour_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "signorelli_sculptural_contour_pass", None)), (
+        "signorelli_sculptural_contour_pass not found on Painter")
+
+
+def test_signorelli_sculptural_contour_pass_runs_routing():
+    """signorelli_sculptural_contour_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.67, 0.52), texture_strength=0.0)
+    p.signorelli_sculptural_contour_pass(opacity=0.55)
+
+
+def test_signorelli_sculptural_contour_pass_opacity_zero_routing():
+    """signorelli_sculptural_contour_pass at opacity=0 must leave canvas unchanged."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.72, 0.67, 0.52), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.signorelli_sculptural_contour_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_signorelli_sculptural_contour_pass_pixels_in_range_routing():
+    """signorelli_sculptural_contour_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.67, 0.52), texture_strength=0.0)
+    p.signorelli_sculptural_contour_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_skin_subsurface_scatter_pass_exists_routing():
+    """skin_subsurface_scatter_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "skin_subsurface_scatter_pass", None)), (
+        "skin_subsurface_scatter_pass not found on Painter")
+
+
+def test_skin_subsurface_scatter_pass_runs_routing():
+    """skin_subsurface_scatter_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.82, 0.70, 0.52), texture_strength=0.0)
+    p.skin_subsurface_scatter_pass(opacity=0.45)
+
+
+def test_skin_subsurface_scatter_pass_opacity_zero_routing():
+    """skin_subsurface_scatter_pass at opacity=0 must leave canvas unchanged."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.82, 0.70, 0.52), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.skin_subsurface_scatter_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_skin_subsurface_scatter_pass_pixels_in_range_routing():
+    """skin_subsurface_scatter_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.82, 0.70, 0.52), texture_strength=0.0)
+    p.skin_subsurface_scatter_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

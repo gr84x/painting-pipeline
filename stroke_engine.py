@@ -40517,4 +40517,261 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
+
+    def signorelli_sculptural_contour_pass(
+        self,
+        cool_strength: float = 0.28,
+        shadow_thresh: float = 0.45,
+        edge_threshold: float = 0.08,
+        contour_lift: float = 0.20,
+        opacity: float = 0.55,
+    ) -> None:
+        """Hard sculptural contour reinforcement with cool metallic shadow flesh.
+
+        Implements the defining visual qualities of Luca Signorelli's figure painting:
+        (1) cool, metallic shadow flesh — the gray-silver pewter quality of shadow zones
+        that makes his figures look carved from stone; and (2) hard, crisp contour
+        reinforcement — the iron-certain disegno that is the polar opposite of Leonardo's
+        sfumato.  Both effects are computed simultaneously from the same gradient and
+        luminance maps.
+
+        Algorithm:
+        (1) Compute luminance.
+        (2) Compute Sobel gradient magnitude; normalise to [0, 1].
+        (3) Build edge_gate: active at high-gradient contour boundaries.
+        (4) Build shadow_gate: active in low-luminance (shadow) zones.
+        (5) Cool metallic shadow shift — in shadow zones away from edges:
+            For each pixel, compute neutral mean n = (R+G+B)/3.
+            cool_delta = cool_strength × shadow_gate × (1 − edge_gate) × luma_bell.
+            out_R = R − cool_delta × (R − n)  [pull R toward neutral = desaturate warmth]
+            out_B = B + cool_delta × 0.18      [inject slight blue-silver lift]
+            This creates the pewter-gray flesh shadow characteristic of Signorelli.
+        (6) Contour contrast lift — at contour pixels (edge_gate high):
+            Compute local_mean_luma in a 5×5 neighbourhood.
+            Push luminance away from local mean: bright pixels get brighter, dark get darker.
+            lift_amount = contour_lift × edge_gate × luma_bell.
+            luma_push = (luma − local_mean) × lift_amount.
+            Add luma_push to all three channels uniformly (preserves hue).
+        (7) Composite at opacity.
+
+        SEVENTY-FIRST DISTINCT MODE: FIRST pass to combine (a) luminance-gated cool
+        metallic SHADOW shift in flesh zones AND (b) LOCAL-CONTRAST contour SHARPENING
+        specifically at gradient-detected boundaries — creating the uniquely Signorellian
+        sculptural quality of hard outlines combined with cool metallic shadow flesh.
+        Prior cool-shift passes (DUTCH_CLASSICAL_LATE_BAROQUE's alabaster-cool in
+        werff_alabaster_pearl_pass) apply globally or target highlights; prior contour
+        passes (figure_contour_atmosphere_pass s174) DISSOLVE edges bidirectionally
+        (sfumato).  This pass does the INVERSE: REINFORCES and SHARPENS contours while
+        simultaneously cooling the shadow zones — the anti-sfumato.
+
+        Args:
+            cool_strength   : Strength of cool metallic shift in shadow flesh. Default 0.28.
+            shadow_thresh   : Luminance threshold below which shadow gate is active. Default 0.45.
+            edge_threshold  : Minimum normalised gradient to qualify as a contour edge. Default 0.08.
+            contour_lift    : Maximum local contrast lift at contour boundaries. Default 0.20.
+            opacity         : Composite weight (0 = no-op). Default 0.55.
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel, uniform_filter as _uf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1 & 2: Luminance and Sobel gradient edge map ────────────────
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float64)
+        sx = _sobel(luma, axis=1)
+        sy = _sobel(luma, axis=0)
+        grad_mag = _np.sqrt(sx ** 2 + sy ** 2).astype(_np.float32)
+        max_grad = float(grad_mag.max())
+        if max_grad < 1e-6:
+            grad_norm = _np.zeros_like(grad_mag)
+        else:
+            grad_norm = grad_mag / max_grad
+
+        # ── Step 3: Edge gate ─────────────────────────────────────────────────
+        thresh_e = float(edge_threshold)
+        rng_e = max(1.0 - thresh_e, 1e-6)
+        edge_gate = _np.clip((grad_norm - thresh_e) / rng_e, 0.0, 1.0).astype(_np.float32)
+
+        # ── Step 4: Shadow gate ───────────────────────────────────────────────
+        luma_f32 = luma.astype(_np.float32)
+        s_thresh = float(shadow_thresh)
+        shadow_gate = _np.clip((s_thresh - luma_f32) / max(s_thresh, 1e-6), 0.0, 1.0)
+
+        # Luminance bell: protect pure whites and near-blacks from modification
+        luma_bell = _np.clip(luma_f32 / 0.06, 0.0, 1.0) * _np.clip((1.0 - luma_f32) / 0.06, 0.0, 1.0)
+        luma_bell = _np.clip(luma_bell, 0.0, 1.0)
+
+        # ── Step 5: Cool metallic shadow shift ───────────────────────────────
+        # Active in shadow zones (shadow_gate high), inactive at hard edges (edge_gate low)
+        cool_field = float(cool_strength) * shadow_gate * (1.0 - edge_gate) * luma_bell
+        neutral = (r0 + g0 + b0) / 3.0
+        out_r = r0 - cool_field * (r0 - neutral)           # pull R toward neutral
+        out_g = g0.copy()                                    # G unchanged
+        out_b = _np.clip(b0 + cool_field * 0.18, 0.0, 1.0) # inject slight blue-silver lift
+
+        # ── Step 6: Contour contrast lift ────────────────────────────────────
+        # At contour boundaries: amplify local contrast (hard disegno sharpening)
+        local_mean = _uf(luma_f32, size=5).astype(_np.float32)
+        luma_deviation = luma_f32 - local_mean          # positive = brighter than neighbourhood
+        lift_amount = float(contour_lift) * edge_gate * luma_bell
+        luma_push = luma_deviation * lift_amount        # push luma away from local mean
+        out_r = _np.clip(out_r + luma_push, 0.0, 1.0)
+        out_g = _np.clip(out_g + luma_push, 0.0, 1.0)
+        out_b = _np.clip(out_b + luma_push, 0.0, 1.0)
+
+        # ── Step 7: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Signorelli sculptural contour pass complete.")
+
+    def skin_subsurface_scatter_pass(
+        self,
+        scatter_sigma: float = 6.0,
+        scatter_strength: float = 0.18,
+        amber_r: float = 0.06,
+        amber_b: float = -0.04,
+        opacity: float = 0.45,
+    ) -> None:
+        """Simulates physical subsurface light scattering in skin tissue.
+
+        In oil portraits by Leonardo, Raphael, Titian, and other masters, painted skin
+        has a warm luminous quality that distinguishes it from cloth, stone, or metal.
+        This quality — the sense that the skin is translucent, that light penetrates the
+        surface and re-emerges from within — is produced physically by subsurface
+        scattering: photons enter the skin, scatter through the dermis and epidermis
+        (absorbing blue-green wavelengths preferentially), and exit at a spatially offset
+        position with a warm amber tint.  This pass simulates that optical process.
+
+        Algorithm:
+        (1) Build a skin detection mask in RGB space.  Skin pixels are warm (R > G > B
+            approximately), mid-range in luminance, and have moderate saturation.
+            skin_score = warm_score × mid_luma_gate where:
+              warm_score = clip((R − G) / warm_rng, 0,1) × clip((G − B) / green_rng, 0,1)
+              mid_luma_gate = bell curve centred at 0.60, active 0.25–0.90
+        (2) Gaussian blur skin_score × each channel at scatter_sigma to create the
+            spatially diffused 'scatter field' — how the scattered warm light spreads.
+            scatter_R = gaussian(skin_score × R, σ)
+            scatter_G = gaussian(skin_score × G, σ)
+            scatter_B = gaussian(skin_score × B, σ)
+            scatter_norm = gaussian(skin_score, σ) + ε  [normaliser]
+        (3) Compute normalised scatter colour at each pixel:
+            sc_R = scatter_R / scatter_norm  (local blurred skin colour)
+            sc_G = scatter_G / scatter_norm
+            sc_B = scatter_B / scatter_norm
+        (4) Apply amber shift to scatter colour — models preferential absorption of
+            blue-green in dermis:
+            sc_R += amber_r × scatter_norm_normalised
+            sc_B += amber_b × scatter_norm_normalised  (reduce blue)
+        (5) Inject scatter glow: at skin pixels, blend scatter colour toward current:
+            inject = scatter_strength × skin_score
+            out_R = R × (1 − inject) + sc_R × inject
+            ... same for G, B.
+        (6) Composite at opacity.
+
+        SEVENTY-SECOND DISTINCT MODE: FIRST pass to use a SPATIAL GAUSSIAN CONVOLUTION
+        on hue-selected skin pixels to simulate physical subsurface photon diffusion —
+        the mechanism by which light scatters through skin layers before re-emerging at a
+        spatially offset position with warm amber tinting.  Prior warmth passes (Milanese
+        warmth injection in giampietrino_honey_amber_highlight_pass, devotional luminism
+        in ferrari_devotional_luminosity_pass, Schalcken saffron glow) apply STATIC
+        colour temperature biases at individual pixels.  This pass instead SPATIALLY
+        BLURS the warm skin signal and RE-INJECTS it, so the scatter glow correctly
+        broadens and diffuses across the skin surface as it would in physically
+        translucent tissue.  The spatial spread models the ~1–5 mm mean free path of
+        photons in human skin.
+
+        Args:
+            scatter_sigma   : Gaussian blur radius for scatter field (px). Default 6.0.
+            scatter_strength: Maximum injection fraction at detected skin pixels. Default 0.18.
+            amber_r         : Amber warmth injection into scattered colour (R channel). Default 0.06.
+            amber_b         : Blue reduction in scattered colour (B channel, negative = reduce). Default -0.04.
+            opacity         : Composite weight (0 = no-op). Default 0.45.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1: Skin detection mask ───────────────────────────────────────
+        # Skin: warm (R > G > B), mid-tone luminance, moderate saturation
+        warm_rng = 0.25
+        green_rng = 0.15
+        warm_score = (
+            _np.clip((r0 - g0) / warm_rng, 0.0, 1.0) *
+            _np.clip((g0 - b0) / green_rng, 0.0, 1.0)
+        )
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0)
+        # Bell curve: peaks at luma=0.60, active from ~0.25 to ~0.90
+        mid_luma_gate = (
+            _np.clip((luma - 0.25) / 0.35, 0.0, 1.0) *
+            _np.clip((0.90 - luma) / 0.30, 0.0, 1.0)
+        ).astype(_np.float32)
+        skin_score = (warm_score * mid_luma_gate).astype(_np.float32)
+
+        # ── Step 2: Gaussian blur skin-weighted channels ──────────────────────
+        sigma = float(scatter_sigma)
+        scatter_r = _gf((skin_score * r0).astype(_np.float64), sigma=sigma).astype(_np.float32)
+        scatter_g = _gf((skin_score * g0).astype(_np.float64), sigma=sigma).astype(_np.float32)
+        scatter_b = _gf((skin_score * b0).astype(_np.float64), sigma=sigma).astype(_np.float32)
+        scatter_norm = _gf(skin_score.astype(_np.float64), sigma=sigma).astype(_np.float32) + 1e-6
+
+        # ── Step 3: Normalised scatter colour ─────────────────────────────────
+        sc_r = scatter_r / scatter_norm
+        sc_g = scatter_g / scatter_norm
+        sc_b = scatter_b / scatter_norm
+
+        # ── Step 4: Amber tinting of scatter colour ───────────────────────────
+        # Normalise scatter_norm to [0,1] for gating the amber injection
+        scatter_norm_n = _np.clip(scatter_norm / (scatter_norm.max() + 1e-6), 0.0, 1.0)
+        sc_r = _np.clip(sc_r + float(amber_r) * scatter_norm_n, 0.0, 1.0)
+        sc_b = _np.clip(sc_b + float(amber_b) * scatter_norm_n, 0.0, 1.0)
+
+        # ── Step 5: Inject scatter glow at skin pixels ────────────────────────
+        inject = _np.clip(float(scatter_strength) * skin_score, 0.0, 1.0)
+        out_r = r0 * (1.0 - inject) + sc_r * inject
+        out_g = g0 * (1.0 - inject) + sc_g * inject
+        out_b = b0 * (1.0 - inject) + sc_b * inject
+
+        # ── Step 6: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Skin subsurface scatter pass complete.")
         print("    Figure contour atmosphere pass complete.")
