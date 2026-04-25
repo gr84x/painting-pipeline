@@ -16284,6 +16284,105 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Fra Galgario (Giuseppe Ghislandi, 1655–1743) ──────────────────────────
+    # Known as "the Rembrandt of Bergamo", Fra Galgario was a Franciscan lay
+    # brother at the Convento del Galgario in Bergamo who became one of the
+    # most penetrating portrait painters of 18th-century Italy.  His sitters —
+    # Bergamask nobles, merchants, and religious figures — are rendered with an
+    # intimacy and psychological directness rarely equalled in Italian Baroque.
+    #
+    # Technical signature: "LIVING SURFACES" — Fra Galgario's flesh appears to
+    # glow from within.  He achieved this through warm amber-gold imprimatura,
+    # careful tonal gradation in the midtone-to-highlight transition zone, and
+    # a final warm amber glaze that unified the whole canvas.  Shadows are rich
+    # and warm (Rembrandt influence) rather than cold; the deepest voids are
+    # near-black warm umber, not grey-black.
+    #
+    # Palette discipline: crimson drapery anchors the composition; warm golden
+    # flesh occupies the light; deep umber grounds the shadow.  The palette is
+    # limited and disciplined — no cool accents, no landscape distraction.
+    "fra_galgario": ArtStyle(
+        artist="Fra Galgario (Giuseppe Ghislandi)",
+        movement="Bergamask Portrait Realism / Lombardy Baroque",
+        nationality="Italian (Bergamask/Lombard)",
+        period="1655–1743",
+        palette=[
+            (0.78, 0.63, 0.42),   # warm amber-gold — flesh in light
+            (0.65, 0.50, 0.32),   # rich warm sienna — mid-flesh
+            (0.42, 0.30, 0.15),   # deep amber-umber — shadow flesh (warm, not cold)
+            (0.55, 0.18, 0.12),   # deep crimson — clothing, drapery (anchoring accent)
+            (0.72, 0.58, 0.38),   # warm golden ochre — ground/background tone
+            (0.22, 0.15, 0.08),   # near-black warm umber — deepest shadow void
+            (0.88, 0.80, 0.62),   # pale ivory-cream — specular highlight
+        ],
+        ground_color=(0.58, 0.46, 0.28),    # warm golden-ochre imprimatura — Bergamask tradition
+        stroke_size=5,
+        wet_blend=0.58,                      # rich warm tonal continuity — "living surface" quality
+        edge_softness=0.48,                  # moderate — clear Bergamask chiaroscuro; not hard, not dissolved
+        jitter=0.025,                        # slight surface variation — aged canvas warmth
+        glazing=(0.65, 0.52, 0.28),          # warm amber unifying glaze — his "golden" portrait quality
+        crackle=True,                        # 18th-century aged canvas surface
+        chromatic_split=False,
+        technique=(
+            "Fra Galgario's defining achievement is LIVING SURFACES: his flesh does "
+            "not merely receive light — it appears to glow from within.  This effect "
+            "arises from his treatment of the MIDTONE-TO-HIGHLIGHT TRANSITION ZONE "
+            "(luma ~0.35–0.80): a gentle warm amber-gold luminescence pervades this "
+            "zone, as if the skin itself is the light source.\n\n"
+            "Technically, this requires:\n"
+            "1. A warm golden-ochre imprimatura (not white, not cool) — the ground "
+            "breathes warm amber through every subsequent layer.\n"
+            "2. Careful, blended tonal gradation — no hard transitions; the movement "
+            "from shadow to flesh to highlight is smooth and continuous.\n"
+            "3. A Gaussian bell-curve warm lift peaked at the midtone-highlight junction "
+            "(luma ~0.58) — this creates the inner-glow sensation without bleaching.\n"
+            "4. A unifying warm amber glaze over the whole figure — the 'golden' quality "
+            "that makes all Fra Galgario portraits instantly recognisable.\n\n"
+            "PALETTE DISCIPLINE: crimson drapery anchors the composition with colour "
+            "weight; warm umber grounds the shadow; pale ivory cream isolates the "
+            "specular peak.  There are no cool accents, no landscape distractions, no "
+            "decorative ornament.  The entire painting is a container for one thing: "
+            "the sitter's presence.\n\n"
+            "PSYCHOLOGICAL DIRECTNESS: Fra Galgario's sitters gaze out with a composed "
+            "directness reminiscent of Rembrandt — but warmer, more intimate, less "
+            "theatrical.  There is no narrative, no allegory, no costume drama.  "
+            "Only the face, the hands, and the quality of the light that falls on them."
+        ),
+        famous_works=[
+            ("Knight of the Golden Spur",          "c. 1710–1720"),
+            ("Portrait of Count Giovanni Battista Vailetti", "c. 1720"),
+            ("Young Man in Red",                   "c. 1720–1730"),
+            ("Portrait of a Youth with a Plumed Hat", "c. 1715"),
+            ("Self-Portrait",                      "c. 1700"),
+            ("Portrait of a Gentleman",            "c. 1730"),
+        ],
+        inspiration=(
+            "Apply fra_galgario_living_surface_pass() as the primary Fra Galgario "
+            "effect: MIDTONE-TO-HIGHLIGHT INNER LUMINESCENCE.  "
+            "Gate: luma in [glow_lo=0.35, glow_hi=0.80] — the living surface zone "
+            "between shadow and specular peak.  Use a Gaussian bell-curve gate "
+            "centred at luma_peak=0.58 with half_width=0.20 for smooth boundary "
+            "transitions.  In this zone: inject glow_r_lift to R, glow_g_lift to G "
+            "— a gentle amber-gold inner luminescence that makes flesh glow from "
+            "within rather than merely reflecting surface light.  "
+            "NOVEL: NINETIETH DISTINCT MODE.  FIRST pass to target the "
+            "MIDTONE-TO-HIGHLIGHT TRANSITION ZONE (luma 0.35–0.80) with a Gaussian "
+            "bell-curve gate PEAKED AT THE MIDTONE-HIGHLIGHT JUNCTION (luma 0.58) — "
+            "different from ceruti_dignity_shadow_pass (which targets the shadow zone "
+            "luma 0.08–0.42) in that it creates a warm inner luminescence in the "
+            "upper half of the tonal range rather than dignifying shadows.  "
+            "Follow with chromatic_temperature_field_pass() as NINETY-FIRST DISTINCT "
+            "MODE: warm-lights / cool-shadows colour temperature gradient — applies "
+            "a luma-driven warm boost to highlights and a gentle cool boost to shadows, "
+            "implementing the fundamental Old Master principle of colour temperature "
+            "opposition across the tonal range.  "
+            "Use fra_galgario_living_surface_pass(glow_lo=0.35, glow_hi=0.80, "
+            "luma_peak=0.58, half_width=0.20, glow_r_lift=0.022, glow_g_lift=0.012, "
+            "opacity=0.30) then chromatic_temperature_field_pass(warm_strength=0.025, "
+            "cool_strength=0.020, warm_luma_lo=0.62, cool_luma_hi=0.35, opacity=0.28)."
+        ),
+    ),
+
 }
 
 

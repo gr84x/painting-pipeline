@@ -187,6 +187,7 @@ EXPECTED_ARTISTS = [
     "benozzo_gozzoli",
     "sirani",
     "ceruti",
+    "fra_galgario",
 ]
 
 
@@ -26087,3 +26088,182 @@ def test_sirani_in_expected_artists():
     """Session 183: sirani must appear in EXPECTED_ARTISTS list."""
     assert "sirani" in EXPECTED_ARTISTS, (
         "sirani missing from EXPECTED_ARTISTS — add it to the list")
+
+
+# ── Session 185: Fra Galgario tests ─────────────────────────────────────────
+
+def test_fra_galgario_in_catalog():
+    """Session 185: fra_galgario must be present in CATALOG."""
+    assert "fra_galgario" in CATALOG
+
+
+def test_fra_galgario_in_expected_artists():
+    """Session 185: fra_galgario must appear in EXPECTED_ARTISTS list."""
+    assert "fra_galgario" in EXPECTED_ARTISTS, (
+        "fra_galgario missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_fra_galgario_movement():
+    """Session 185: fra_galgario movement must reference Bergamask or Lombard."""
+    s = get_style("fra_galgario")
+    assert "Bergamask" in s.movement or "Lombard" in s.movement or "bergamask" in s.movement.lower()
+
+
+def test_fra_galgario_palette_length():
+    """Session 185: fra_galgario palette must have at least 5 colours."""
+    s = get_style("fra_galgario")
+    assert len(s.palette) >= 5
+
+
+def test_fra_galgario_palette_values_in_range():
+    """Session 185: all fra_galgario palette RGB values must be in [0, 1]."""
+    s = get_style("fra_galgario")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"fra_galgario palette channel {channel} out of [0, 1]")
+
+
+def test_fra_galgario_ground_color_warm():
+    """Session 185: fra_galgario ground_color must be warm (R > B)."""
+    s = get_style("fra_galgario")
+    gc = s.ground_color
+    assert gc[0] > gc[2], (
+        f"fra_galgario ground_color R={gc[0]:.2f} should exceed B={gc[2]:.2f} — "
+        "warm Bergamask imprimatura")
+
+
+def test_fra_galgario_wet_blend_moderate_high():
+    """Session 185: BERGAMASK_PORTRAIT wet_blend must be moderate-high (living surface quality)."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.BERGAMASK_PORTRAIT)
+    params = style.stroke_params
+    assert 0.45 <= params["wet_blend"] <= 0.75, (
+        f"BERGAMASK_PORTRAIT wet_blend={params['wet_blend']:.2f} "
+        "should be moderate-high [0.45, 0.75] — warm tonal continuity")
+
+
+def test_fra_galgario_edge_softness_moderate():
+    """Session 185: BERGAMASK_PORTRAIT edge_softness must be moderate."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.BERGAMASK_PORTRAIT)
+    params = style.stroke_params
+    assert 0.30 <= params["edge_softness"] <= 0.65, (
+        f"BERGAMASK_PORTRAIT edge_softness={params['edge_softness']:.2f} "
+        "should be moderate [0.30, 0.65] — clear Bergamask chiaroscuro")
+
+
+def test_fra_galgario_living_surface_pass_exists():
+    """Session 185: fra_galgario_living_surface_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "fra_galgario_living_surface_pass", None)), (
+        "fra_galgario_living_surface_pass not found on Painter")
+
+
+def test_fra_galgario_living_surface_pass_runs():
+    """Session 185: fra_galgario_living_surface_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.fra_galgario_living_surface_pass(opacity=0.30)
+
+
+def test_fra_galgario_living_surface_pass_noop_at_zero_opacity():
+    """Session 185: fra_galgario_living_surface_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.fra_galgario_living_surface_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_fra_galgario_living_surface_pass_modifies_canvas():
+    """Session 185: fra_galgario_living_surface_pass must modify canvas on midtone ground."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Midtone pixels in the living-surface zone luma 0.35–0.80 — luma ~0.58
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 150   # R — warm midtone
+    buf[:, :, 1] = 140   # G
+    buf[:, :, 0] = 110   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.fra_galgario_living_surface_pass(glow_lo=0.35, glow_hi=0.80, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_fra_galgario_living_surface_pass_pixels_in_range():
+    """Session 185: fra_galgario_living_surface_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.fra_galgario_living_surface_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_chromatic_temperature_field_pass_exists():
+    """Session 185: chromatic_temperature_field_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "chromatic_temperature_field_pass", None)), (
+        "chromatic_temperature_field_pass not found on Painter")
+
+
+def test_chromatic_temperature_field_pass_runs():
+    """Session 185: chromatic_temperature_field_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.chromatic_temperature_field_pass(opacity=0.28)
+
+
+def test_chromatic_temperature_field_pass_noop_at_zero_opacity():
+    """Session 185: chromatic_temperature_field_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chromatic_temperature_field_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_chromatic_temperature_field_pass_modifies_canvas():
+    """Session 185: chromatic_temperature_field_pass must modify canvas with tonal spread."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Canvas with tonal spread: bright upper half (highlights) and dark lower half (shadows)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:32, :, :3] = 210   # bright — above warm_luma_lo
+    buf[32:, :, :3] = 50    # dark — below cool_luma_hi
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chromatic_temperature_field_pass(warm_strength=0.025, cool_strength=0.020, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_chromatic_temperature_field_pass_pixels_in_range():
+    """Session 185: chromatic_temperature_field_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.chromatic_temperature_field_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
