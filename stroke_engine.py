@@ -2406,7 +2406,10 @@ class Painter:
                           atmospheric_blue_shift: float = 0.0,
                           penumbra_bloom:         float = 0.0,
                           penumbra_bloom_lo:      float = 0.30,
-                          penumbra_bloom_hi:      float = 0.60):
+                          penumbra_bloom_hi:      float = 0.60,
+                          highlight_sharpness_recovery: float = 0.0,
+                          highlight_sharpness_thresh:   float = 0.75,
+                          highlight_sharpness_sigma:    float = 1.2):
         """
         Sfumato veil — improved Renaissance edge-softening technique.
 
@@ -2574,6 +2577,31 @@ class Painter:
         penumbra_bloom_lo / _hi : luminance range for the penumbra bloom bell mask.
                                Default [0.30, 0.60] targets the mid-tone transition
                                zone typical of flesh passages.
+        highlight_sharpness_recovery : When > 0, applies a targeted unsharp mask to
+                               the brightest highlight zones (luminance above
+                               highlight_sharpness_thresh) AFTER all sfumato veils
+                               have been composited.  This corrects a systematic
+                               flattening of peak highlights that accumulates when
+                               multiple veils are layered: the nose-bridge catchlight,
+                               forehead apex, and chin highlight lose subtle crispness
+                               and begin to read as merely light zones rather than
+                               gleaming surfaces.  In Leonardo's actual paintings (the
+                               Mona Lisa, Lady with an Ermine), sfumato transitions are
+                               soft, but peak highlights retain a subtle presence —
+                               bright point against soft surroundings — that gives flesh
+                               its quality of living surface rather than painted mist.
+                               The unsharp mask uses fine sigma (default 1.2px) so
+                               recovery targets only the sharpest transitions within
+                               the highlight zone, not the gentle sfumato gradients.
+                               Practical range: 0.04–0.12 for subtle recovery; 0.15–0.25
+                               for more pronounced effect after heavy veil accumulation.
+                               (Session 177 improvement.)
+        highlight_sharpness_thresh : Luminance threshold above which sharpness recovery
+                               applies.  Default 0.75 targets only the brightest flesh
+                               highlights without affecting mid-tone or shadow regions.
+        highlight_sharpness_sigma  : Gaussian sigma for the unsharp mask kernel.  Default
+                               1.2px gives fine-detail recovery; increase to 2.5–4.0
+                               for broader clarity enhancement.
         """
         print(f"Sfumato veil pass  ({n_veils} veils  blur={blur_radius:.1f}px"
               f"  warmth={warmth:.2f}  chroma_dampen={chroma_dampen:.2f}"
@@ -2849,6 +2877,53 @@ class Painter:
             self.canvas.ctx.set_source_surface(atm_surf, 0, 0)
             self.canvas.ctx.paint()
             print(f"    Atmospheric blue shift applied (strength={atmospheric_blue_shift:.2f}).")
+
+        # ── Session 177: Highlight sharpness recovery ─────────────────────────
+        # After all sfumato veils, recover subtle crispness in peak highlights.
+        # Veils accumulate mild softening; brightest highlights (nose bridge,
+        # forehead apex, chin) lose the tonal presence that distinguishes a
+        # living painted surface from painted haze.  An unsharp mask gated to
+        # high-luminance zones restores this quality.
+        if highlight_sharpness_recovery > 0.0:
+            hs_raw = np.frombuffer(
+                self.canvas.surface.get_data(), dtype=np.uint8
+            ).reshape(h, w, 4).copy()
+            hs_b = hs_raw[:, :, 0].astype(np.float32) / 255.0
+            hs_g = hs_raw[:, :, 1].astype(np.float32) / 255.0
+            hs_r = hs_raw[:, :, 2].astype(np.float32) / 255.0
+            hs_lum = 0.299 * hs_r + 0.587 * hs_g + 0.114 * hs_b
+            hs_gate = np.clip(
+                (hs_lum - highlight_sharpness_thresh)
+                / (1.0 - float(highlight_sharpness_thresh) + 1e-6),
+                0.0, 1.0
+            ).astype(np.float32)
+            hs_gate_smooth = ndimage.gaussian_filter(hs_gate, sigma=3.0)
+
+            def _usm(ch):
+                blurred = ndimage.gaussian_filter(
+                    ch.astype(np.float32), sigma=float(highlight_sharpness_sigma))
+                detail = ch.astype(np.float32) - blurred
+                return np.clip(
+                    ch.astype(np.float32)
+                    + detail * hs_gate_smooth * float(highlight_sharpness_recovery),
+                    0.0, 1.0)
+
+            hs_r_out = _usm(hs_r)
+            hs_g_out = _usm(hs_g)
+            hs_b_out = _usm(hs_b)
+            hs_buf = hs_raw.copy()
+            hs_buf[:, :, 2] = np.clip(hs_r_out * 255.0, 0, 255).astype(np.uint8)
+            hs_buf[:, :, 1] = np.clip(hs_g_out * 255.0, 0, 255).astype(np.uint8)
+            hs_buf[:, :, 0] = np.clip(hs_b_out * 255.0, 0, 255).astype(np.uint8)
+            hs_buf[:, :, 3] = hs_raw[:, :, 3]
+            hs_surf = cairo.ImageSurface.create_for_data(
+                bytearray(hs_buf.tobytes()), cairo.FORMAT_ARGB32, w, h)
+            self.canvas.ctx.set_source_surface(hs_surf, 0, 0)
+            self.canvas.ctx.paint()
+            print(f"    Highlight sharpness recovery applied"
+                  f" (strength={highlight_sharpness_recovery:.2f}"
+                  f"  thresh={highlight_sharpness_thresh:.2f}"
+                  f"  sigma={highlight_sharpness_sigma:.1f}).")
 
         print(f"  Sfumato complete ({n_veils} veils accumulated).")
 
@@ -41004,3 +41079,124 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Multi-layer atmospheric veil pass complete.")
+
+    # ── Session 177: François Boucher ─────────────────────────────────────────
+    def boucher_pastel_radiance_pass(
+            self,
+            flesh_lo:       float = 0.42,
+            flesh_hi:       float = 0.74,
+            flesh_r:        float = 0.022,
+            flesh_g:        float = 0.012,
+            flesh_b_reduce: float = 0.018,
+            sky_band:       float = 0.35,
+            sky_cool_b:     float = 0.035,
+            sky_cool_g:     float = 0.008,
+            sky_cool_r:     float = 0.012,
+            sat_boost:      float = 0.12,
+            sat_gate_lo:    float = 0.30,
+            sat_gate_hi:    float = 0.80,
+            opacity:        float = 0.42):
+        """
+        Boucher pastel radiance pass — François Boucher (1703–1770).
+
+        Encodes the two defining palette qualities of French Rococo painting at
+        its Boucherian peak: the warm peach-cream flesh luminosity and the
+        characteristic powder-blue sky atmosphere ('ciel Boucher').
+
+        THREE-ZONE ENCODING:
+
+        Zone 1 — Warm peach-cream flesh radiance:
+            Gaussian bell gate centred in mid-flesh luminance zone [flesh_lo,
+            flesh_hi]: R↑ (flesh_r), G↑ slight (flesh_g), B↓ (flesh_b_reduce).
+            Boucher's flesh is lighter and warmer than Italian Baroque — peach-cream
+            rather than amber-gold — reflecting the influence of French pastel
+            portraiture on 18th-century oil technique.  The bell gate ensures
+            the brightest highlights and deepest shadows are unaffected.
+
+        Zone 2 — Cool powder-blue sky atmosphere:
+            Vertical position gate fading from full effect at the top row (y=0)
+            to zero at sky_band of canvas height: B↑ (sky_cool_b), G↑ slight
+            (sky_cool_g), R↓ (sky_cool_r).  Reproduces 'ciel Boucher' — the
+            characteristic airy, desaturated powder-blue sky that appears behind
+            every Boucher mythological scene.
+
+        Zone 3 — Mid-tone saturation lift:
+            Gentle global saturation boost (sat_boost) gated to mid-luminance
+            [sat_gate_lo, sat_gate_hi] via Gaussian bell mask.  Applied through
+            neutral-mean chromatic expansion: delta = channel − neutral;
+            boosted = neutral + delta × (1 + sat_boost × sat_gate).  Enriches
+            Boucher's decorative palette without Fauvist intensity.
+
+        NOVEL: FIRST pass combining (a) luminance-gated warm peach injection in
+        flesh zones AND (b) vertical position-gated cool powder-blue sky atmosphere
+        AND (c) mid-tone saturation enrichment — the three structural qualities of
+        Boucher's palette working in concert: warm figure against airy background.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        out_r = r0.copy()
+        out_g = g0.copy()
+        out_b = b0.copy()
+
+        # ── Zone 1: Warm peach-cream flesh radiance ───────────────────────────
+        flesh_mid   = (float(flesh_lo) + float(flesh_hi)) * 0.5
+        flesh_width = (float(flesh_hi) - float(flesh_lo)) * 0.5 + 1e-6
+        flesh_gate  = _np.exp(
+            -0.5 * ((luma - flesh_mid) / flesh_width) ** 2
+        ).astype(_np.float32)
+
+        out_r = _np.clip(out_r + flesh_gate * float(flesh_r),        0.0, 1.0)
+        out_g = _np.clip(out_g + flesh_gate * float(flesh_g),        0.0, 1.0)
+        out_b = _np.clip(out_b - flesh_gate * float(flesh_b_reduce), 0.0, 1.0)
+
+        # ── Zone 2: Cool powder-blue sky atmosphere ───────────────────────────
+        ys_norm  = _np.linspace(0.0, 1.0, H, dtype=_np.float32)
+        sky_1d   = _np.clip(1.0 - ys_norm / (float(sky_band) + 1e-6), 0.0, 1.0)
+        sky_gate = sky_1d[:, _np.newaxis]
+
+        out_r = _np.clip(out_r - sky_gate * float(sky_cool_r), 0.0, 1.0)
+        out_g = _np.clip(out_g + sky_gate * float(sky_cool_g), 0.0, 1.0)
+        out_b = _np.clip(out_b + sky_gate * float(sky_cool_b), 0.0, 1.0)
+
+        # ── Zone 3: Mid-tone saturation lift ─────────────────────────────────
+        sat_mid   = (float(sat_gate_lo) + float(sat_gate_hi)) * 0.5
+        sat_width = (float(sat_gate_hi) - float(sat_gate_lo)) * 0.5 + 1e-6
+        sat_gate  = _np.exp(
+            -0.5 * ((luma - sat_mid) / sat_width) ** 2
+        ).astype(_np.float32)
+
+        neutral = (out_r + out_g + out_b) / 3.0
+        boost   = float(sat_boost) * sat_gate
+        out_r   = _np.clip(neutral + (out_r - neutral) * (1.0 + boost), 0.0, 1.0)
+        out_g   = _np.clip(neutral + (out_g - neutral) * (1.0 + boost), 0.0, 1.0)
+        out_b   = _np.clip(neutral + (out_b - neutral) * (1.0 + boost), 0.0, 1.0)
+
+        # ── Composite at opacity ──────────────────────────────────────────────
+        op = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Boucher pastel radiance pass complete.")

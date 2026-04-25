@@ -178,6 +178,7 @@ EXPECTED_ARTISTS = [
     "jan_van_huysum",
     "pieter_claesz",
     "marco_doggiono",
+    "boucher",
 ]
 
 
@@ -24559,3 +24560,191 @@ def test_multilayer_atmospheric_veil_pass_modifies_canvas():
     p.multilayer_atmospheric_veil_pass(opacity=1.0)
     after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
     assert not np.array_equal(before, after)
+
+
+# ── Session 177: François Boucher + FRENCH_ROCOCO_PASTORAL ────────────────────
+
+
+def test_boucher_in_catalog():
+    """Session 177: François Boucher must be present in CATALOG."""
+    assert "boucher" in CATALOG
+
+
+def test_boucher_movement():
+    """Session 177: Boucher movement must reference Rococo."""
+    s = get_style("boucher")
+    assert "rococo" in s.movement.lower() or "Rococo" in s.movement
+
+
+def test_boucher_palette_length():
+    """Session 177: Boucher palette must have at least 5 colours."""
+    s = get_style("boucher")
+    assert len(s.palette) >= 5
+
+
+def test_boucher_palette_in_range():
+    """Session 177: All Boucher palette RGB values must be in [0, 1]."""
+    s = get_style("boucher")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range channel {ch} in Boucher palette {rgb}"
+
+
+def test_boucher_ground_color_valid():
+    """Session 177: Boucher ground_color must be a valid [0, 1] RGB triple."""
+    s = get_style("boucher")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_boucher_stroke_params_positive():
+    """Session 177: Boucher stroke_size, wet_blend, edge_softness must be positive."""
+    s = get_style("boucher")
+    assert s.stroke_size > 0
+    assert s.wet_blend > 0.0
+    assert s.edge_softness > 0.0
+
+
+def test_boucher_high_wet_blend():
+    """Session 177: Boucher wet_blend must be high (Academic enamel surface)."""
+    s = get_style("boucher")
+    assert s.wet_blend >= 0.70, "Boucher demands high wet_blend for smooth Academic surface"
+
+
+def test_boucher_glazing_valid():
+    """Session 177: Boucher glazing must be a valid RGB triple."""
+    s = get_style("boucher")
+    assert s.glazing is not None, "Boucher must have a warm peach glazing colour"
+    assert len(s.glazing) == 3
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_boucher_famous_works_non_empty():
+    """Session 177: Boucher famous_works must list at least three works."""
+    s = get_style("boucher")
+    assert len(s.famous_works) >= 3
+    for title, year in s.famous_works:
+        assert isinstance(title, str) and len(title) > 0
+        assert isinstance(year, str) and len(year) > 0
+
+
+def test_french_rococo_pastoral_period_in_scene_schema():
+    """Session 177: FRENCH_ROCOCO_PASTORAL must be a valid Period enum member."""
+    assert hasattr(Period, "FRENCH_ROCOCO_PASTORAL"), (
+        "Period.FRENCH_ROCOCO_PASTORAL must be defined for Boucher (session 177)"
+    )
+
+
+def test_french_rococo_pastoral_stroke_params():
+    """Session 177: FRENCH_ROCOCO_PASTORAL stroke_params must reflect smooth Academic oil."""
+    style = Style(medium=Medium.OIL, period=Period.FRENCH_ROCOCO_PASTORAL)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.70, (
+        "FRENCH_ROCOCO_PASTORAL demands high wet_blend for Boucher porcelain surface"
+    )
+    assert params["edge_softness"] >= 0.40, (
+        "FRENCH_ROCOCO_PASTORAL demands moderate edge_softness (Rococo softness)"
+    )
+    assert params["edge_softness"] <= 0.80, (
+        "FRENCH_ROCOCO_PASTORAL edge_softness must not exceed Leonardo-school sfumato"
+    )
+
+
+def test_milanese_leonardesque_circle_stroke_params():
+    """Session 177: MILANESE_LEONARDESQUE_CIRCLE must have explicit stroke_params."""
+    style = Style(medium=Medium.OIL, period=Period.MILANESE_LEONARDESQUE_CIRCLE)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.60, (
+        "MILANESE_LEONARDESQUE_CIRCLE demands high wet_blend for Leonardesque sfumato"
+    )
+    assert params["edge_softness"] >= 0.60, (
+        "MILANESE_LEONARDESQUE_CIRCLE demands high edge_softness (sfumato tradition)"
+    )
+
+
+def test_boucher_pastel_radiance_pass_runs():
+    """Session 177: boucher_pastel_radiance_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.88, 0.80, 0.70), texture_strength=0.0)
+    p.boucher_pastel_radiance_pass(opacity=0.42)
+
+
+def test_boucher_pastel_radiance_pass_noop_at_zero_opacity():
+    """Session 177: boucher_pastel_radiance_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.88, 0.80, 0.70), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.boucher_pastel_radiance_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_boucher_pastel_radiance_pass_modifies_canvas():
+    """Session 177: boucher_pastel_radiance_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.70), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.boucher_pastel_radiance_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_boucher_pastel_radiance_pass_pixels_in_range():
+    """Session 177: boucher_pastel_radiance_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.88, 0.80, 0.70), texture_strength=0.0)
+    p.boucher_pastel_radiance_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_sfumato_highlight_sharpness_recovery_runs():
+    """Session 177: sfumato_veil_pass with highlight_sharpness_recovery must run."""
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.63, 0.45), texture_strength=0.0)
+    ref = Image.fromarray(
+        (np.ones((32, 32, 3), dtype=np.float32) * [200, 170, 130]).astype(np.uint8), "RGB"
+    )
+    p.sfumato_veil_pass(
+        ref, n_veils=2, blur_radius=3.0,
+        highlight_sharpness_recovery=0.10,
+        highlight_sharpness_thresh=0.70,
+        highlight_sharpness_sigma=1.2,
+    )
+
+
+def test_sfumato_highlight_sharpness_recovery_zero_unchanged():
+    """Session 177: highlight_sharpness_recovery=0 leaves sfumato behaviour unchanged."""
+    import numpy as np
+    from PIL import Image
+    from stroke_engine import Painter
+
+    def _run(recovery):
+        p = Painter(32, 32)
+        p.tone_ground((0.78, 0.63, 0.45), texture_strength=0.0)
+        ref = Image.fromarray(
+            (np.ones((32, 32, 3), dtype=np.float32) * [200, 170, 130]).astype(np.uint8), "RGB"
+        )
+        p.sfumato_veil_pass(
+            ref, n_veils=2, blur_radius=3.0,
+            highlight_sharpness_recovery=recovery,
+        )
+        return np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+
+    buf_zero = _run(0.0)
+    buf_zero2 = _run(0.0)
+    assert np.array_equal(buf_zero, buf_zero2), "Zero-recovery runs must be deterministic"
