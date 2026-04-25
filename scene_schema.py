@@ -344,6 +344,7 @@ class Period(Enum):
     FRENCH_ROCOCO_PASTORAL = auto()  # Boucher — peach-cream pastel flesh, powder-blue sky light, warm ornamental radiance, Academic enamel surface
     FLEMISH_GENRE_REALISM  = auto()  # Brouwer — warm tobacco amber mid-tones, smoky shadow void, dark umber ground, rapid alla prima gesture
     FLORENTINE_CIVIC_RENAISSANCE = auto()  # Ghirlandaio — clear warm Florentine light; clean vivid chromatic zones; precise Flemish-influenced detail; civic fresco tradition; dignified portraiture
+    DUTCH_INTIMATE_GENRE  = auto()  # Ter Borch — cool silver-grey satin sheen; warm ivory flesh; smooth fijnschilder surface; intimate domestic interior
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1745,6 +1746,12 @@ class Style:
             #                  but firmer than sfumato tradition; clean boundaries without sfumato dissolution.
             # edge_softness=0.30: moderately crisp — clear Florentine form definition with slight tonal modelling.
             Period.FLORENTINE_CIVIC_RENAISSANCE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.30),
+            # DUTCH_INTIMATE_GENRE (Gerard ter Borch) — fijnschilder smoothness; warm ivory flesh against cool satin grey.
+            # stroke_size_face=5: small, precise strokes for intimate portrait detail and satin fabric definition.
+            # stroke_size_bg=18: restrained background; ter Borch's interiors are understated and spare.
+            # wet_blend=0.68: high blending — the hallmark of Dutch fijnschilder surface is seamless skin/fabric transitions.
+            # edge_softness=0.45: moderate softness — crisp enough to define satin folds, soft enough for flesh modelling.
+            Period.DUTCH_INTIMATE_GENRE: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.68, edge_softness=0.45),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

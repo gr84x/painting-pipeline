@@ -181,6 +181,7 @@ EXPECTED_ARTISTS = [
     "boucher",
     "brouwer",
     "ghirlandaio",
+    "gerard_ter_borch",
 ]
 
 
@@ -395,6 +396,7 @@ EXPECTED_PERIODS = [
     "MILANESE_LEONARDESQUE_CIRCLE",
     "FLEMISH_GENRE_REALISM",
     "FLORENTINE_CIVIC_RENAISSANCE",
+    "DUTCH_INTIMATE_GENRE",
 ]
 
 
@@ -25075,6 +25077,212 @@ def test_luminance_preserving_chroma_boost_pass_pixels_in_range():
     p = Painter(32, 32)
     p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.0)
     p.luminance_preserving_chroma_boost_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+# ---------------------------------------------------------------------------
+# Session 179 — Gerard ter Borch + DUTCH_INTIMATE_GENRE
+# ---------------------------------------------------------------------------
+
+def test_gerard_ter_borch_in_catalog():
+    """Session 179: gerard_ter_borch must be present in CATALOG."""
+    assert "gerard_ter_borch" in CATALOG
+
+
+def test_gerard_ter_borch_in_expected_artists():
+    """Session 179: EXPECTED_ARTISTS list must include gerard_ter_borch."""
+    assert "gerard_ter_borch" in EXPECTED_ARTISTS, (
+        "gerard_ter_borch missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_gerard_ter_borch_movement():
+    """Session 179: gerard_ter_borch movement must reference Dutch Golden Age or Intimate Genre."""
+    s = get_style("gerard_ter_borch")
+    assert "Dutch" in s.movement or "Intimate" in s.movement or "Genre" in s.movement
+
+
+def test_gerard_ter_borch_nationality():
+    """Session 179: gerard_ter_borch nationality must be Dutch."""
+    s = get_style("gerard_ter_borch")
+    assert s.nationality == "Dutch"
+
+
+def test_gerard_ter_borch_palette_length():
+    """Session 179: gerard_ter_borch palette must have at least 6 colours."""
+    s = get_style("gerard_ter_borch")
+    assert len(s.palette) >= 6
+
+
+def test_gerard_ter_borch_palette_in_range():
+    """Session 179: all gerard_ter_borch palette channel values must be in [0, 1]."""
+    s = get_style("gerard_ter_borch")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+
+def test_gerard_ter_borch_ground_color_valid():
+    """Session 179: gerard_ter_borch ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("gerard_ter_borch")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_gerard_ter_borch_high_wet_blend():
+    """Session 179: gerard_ter_borch wet_blend must be high (fijnschilder smoothness)."""
+    s = get_style("gerard_ter_borch")
+    assert s.wet_blend >= 0.60
+
+
+def test_gerard_ter_borch_moderate_edge_softness():
+    """Session 179: gerard_ter_borch edge_softness must be moderate (satin fold definition)."""
+    s = get_style("gerard_ter_borch")
+    assert 0.30 <= s.edge_softness <= 0.65
+
+
+def test_gerard_ter_borch_has_glazing():
+    """Session 179: gerard_ter_borch must have a glazing colour (warm unifying glaze)."""
+    s = get_style("gerard_ter_borch")
+    assert s.glazing is not None
+
+
+def test_gerard_ter_borch_famous_works_not_empty():
+    """Session 179: gerard_ter_borch must have at least one famous work."""
+    s = get_style("gerard_ter_borch")
+    assert len(s.famous_works) >= 1
+
+
+def test_gerard_ter_borch_famous_works_include_suitor():
+    """Session 179: famous_works must include The Suitor's Visit."""
+    s = get_style("gerard_ter_borch")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Suitor" in t for t in titles)
+
+
+def test_gerard_ter_borch_technique_mentions_satin():
+    """Session 179: technique prose must mention satin fabric rendering."""
+    s = get_style("gerard_ter_borch")
+    assert "satin" in s.technique.lower()
+
+
+def test_gerard_ter_borch_inspiration_references_satin_sheen_pass():
+    """Session 179: inspiration must reference ter_borch_satin_sheen_pass."""
+    s = get_style("gerard_ter_borch")
+    assert "ter_borch_satin_sheen_pass" in s.inspiration
+
+
+def test_dutch_intimate_genre_period_present():
+    """Session 179: DUTCH_INTIMATE_GENRE must be a valid Period enum member."""
+    assert hasattr(Period, "DUTCH_INTIMATE_GENRE")
+
+
+def test_dutch_intimate_genre_in_expected_periods():
+    """Session 179: EXPECTED_PERIODS list must include DUTCH_INTIMATE_GENRE."""
+    assert "DUTCH_INTIMATE_GENRE" in EXPECTED_PERIODS, (
+        "DUTCH_INTIMATE_GENRE missing from EXPECTED_PERIODS — add it to the list")
+
+
+def test_dutch_intimate_genre_stroke_params_high_wet_blend():
+    """Session 179: DUTCH_INTIMATE_GENRE stroke_params must have high wet_blend (fijnschilder)."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_INTIMATE_GENRE)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.55
+
+
+def test_dutch_intimate_genre_stroke_params_moderate_edge_softness():
+    """Session 179: DUTCH_INTIMATE_GENRE edge_softness must be moderate (satin boundary)."""
+    style = Style(medium=Medium.OIL, period=Period.DUTCH_INTIMATE_GENRE)
+    params = style.stroke_params
+    assert 0.30 <= params["edge_softness"] <= 0.65
+
+
+def test_ter_borch_satin_sheen_pass_runs():
+    """Session 179: ter_borch_satin_sheen_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.0)
+    p.ter_borch_satin_sheen_pass(opacity=0.38)
+
+
+def test_ter_borch_satin_sheen_pass_noop_at_zero_opacity():
+    """Session 179: ter_borch_satin_sheen_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.ter_borch_satin_sheen_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_ter_borch_satin_sheen_pass_modifies_canvas():
+    """Session 179: ter_borch_satin_sheen_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.ter_borch_satin_sheen_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_ter_borch_satin_sheen_pass_pixels_in_range():
+    """Session 179: ter_borch_satin_sheen_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.0)
+    p.ter_borch_satin_sheen_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_shadow_chroma_depth_pass_runs():
+    """Session 179: shadow_chroma_depth_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.0)
+    p.shadow_chroma_depth_pass(opacity=0.35)
+
+
+def test_shadow_chroma_depth_pass_noop_at_zero_opacity():
+    """Session 179: shadow_chroma_depth_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.shadow_chroma_depth_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_shadow_chroma_depth_pass_modifies_canvas():
+    """Session 179: shadow_chroma_depth_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.shadow_chroma_depth_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_shadow_chroma_depth_pass_pixels_in_range():
+    """Session 179: shadow_chroma_depth_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.0)
+    p.shadow_chroma_depth_pass(opacity=1.0)
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0
     assert buf[:, :, :3].max() <= 255
