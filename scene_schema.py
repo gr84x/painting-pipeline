@@ -341,6 +341,7 @@ class Period(Enum):
     TONAL_STILL_LIFE = auto()  # Pieter Claesz — warm silver-gray monochrome tonal palette; saturation pulled toward neutral warm gray; subtle luminance-locked tonal differentiation; Dutch ontbijt banketje style
     UMBRIAN_HIGH_RENAISSANCE = auto()  # Luca Signorelli — hard sculptural contours; cool metallic silver-gray shadow flesh; warm amber-gold highlights; vivid saturated drapery; firm disegno; proto-Mannerist anatomical dynamism
     MILANESE_LEONARDESQUE_CIRCLE = auto()  # Marco d'Oggiono — inherited Leonardesque sfumato, warm ivory flesh, slightly more linear than master, sweet devotional Milanese warmth
+    FRENCH_ROCOCO_PASTORAL = auto()  # Boucher — peach-cream pastel flesh, powder-blue sky light, warm ornamental radiance, Academic enamel surface
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1717,6 +1718,18 @@ class Style:
             # UMBRIAN_HIGH_RENAISSANCE (Luca Signorelli) — hard sculptural contours, low blending, crisp edge_softness;
             # firm deliberate strokes; the antithesis of sfumato — disegno dominates over tonal fusion.
             Period.UMBRIAN_HIGH_RENAISSANCE: dict(stroke_size_face=6, stroke_size_bg=20, wet_blend=0.28, edge_softness=0.10),
+            # MILANESE_LEONARDESQUE_CIRCLE (Marco d'Oggiono) — inherited Leonardo sfumato; warm ivory flesh;
+            # stroke_size_face=6: fine Leonardesque surface; precise but not microscopic Milanese mark-making.
+            # stroke_size_bg=22: soft atmospheric landscape backgrounds in the Leonardo tradition.
+            # wet_blend=0.74: high sfumato blending; smooth Milanese surfaces with slight tonal structure.
+            # edge_softness=0.78: high sfumato — edges dissolve in Leonardesque tradition.
+            Period.MILANESE_LEONARDESQUE_CIRCLE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.74, edge_softness=0.78),
+            # FRENCH_ROCOCO_PASTORAL (Boucher) — smooth Academic oil on canvas, warm peach-cream pastel finish.
+            # stroke_size_face=5: fine Academic mark-making; Boucher's skin is polished but not microscopic.
+            # stroke_size_bg=22: moderate background scale for Boucher's elaborated mythological settings.
+            # wet_blend=0.82: very high — Boucher's porcelain-smooth skin requires near-seamless blending.
+            # edge_softness=0.58: moderate — Rococo figures have soft edges but not Leonardesque sfumato.
+            Period.FRENCH_ROCOCO_PASTORAL: dict(stroke_size_face=5, stroke_size_bg=22, wet_blend=0.82, edge_softness=0.58),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

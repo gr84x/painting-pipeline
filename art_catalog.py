@@ -15469,6 +15469,94 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 177: François Boucher ─────────────────────────────────────────
+    "boucher": ArtStyle(
+        artist          = "François Boucher",
+        movement        = "French Rococo",
+        nationality     = "French",
+        period          = "1703–1770",
+        palette         = [
+            (0.96, 0.84, 0.76),   # warm peach-cream flesh — Boucher's signature highlight tone;
+                                   # lighter and warmer than Italian Baroque flesh; the luminosity
+                                   # of a bonbonnière rather than a Florentine altarpiece
+            (0.88, 0.72, 0.68),   # rose-carnation mid-flesh — warm sentimental flush; pinkish-peach
+            (0.80, 0.88, 0.94),   # powder blue — ciel Boucher; characteristic airy sky tone
+            (0.95, 0.93, 0.88),   # ivory cream — drapery highlights, cloud passages, light fabric
+            (0.72, 0.60, 0.76),   # soft lilac — drapery shadow; cool complement to warm flesh
+            (0.86, 0.70, 0.52),   # warm amber-gold — imprimatura reading through; aged varnish
+            (0.62, 0.74, 0.80),   # muted teal-blue — distant mythological landscape and water
+        ],
+        ground_color    = (0.88, 0.80, 0.70),   # warm cream ground — French Academic preparation
+        stroke_size     = 5,
+        wet_blend       = 0.82,
+        edge_softness   = 0.58,
+        jitter          = 0.025,
+        glazing         = (0.90, 0.78, 0.72),   # warm peach final glaze
+        crackle         = True,
+        chromatic_split = False,
+        technique       = (
+            "François Boucher (1703–1770) was the supreme decorator of the French Rococo, "
+            "court painter to King Louis XV and protégé of Madame de Pompadour, whose "
+            "patronage shaped his career and defined the entire decorative program of the "
+            "French court for three decades.  His paintings define a world of luminous "
+            "pleasure: pastoral nymphs on silken grass, Venus rising on pearl-soft clouds, "
+            "shepherdesses in landscapes of idealized warmth.  Boucher's art is the "
+            "antithesis of gravity — it is decorative, sensual, playful, and technically "
+            "brilliant.  Diderot, who despised him, complained that his paintings looked "
+            "finished too quickly to be true; Boucher replied that he worked from "
+            "imagination because nature was insufficiently beautiful.\n\n"
+            "The defining quality of Boucher's flesh is its warm peach-cream luminosity.  "
+            "His figures glow as if lit from within by warm rose-amber light — not "
+            "Leonardo's sfumato warmth (amber-umber and atmospheric) but something "
+            "lighter, more frivolous, more peach than gold: the luminosity of a French "
+            "bonbonnière rather than a Florentine altarpiece.  Highlights are warm "
+            "ivory-cream; mid-flesh is rose-carnation; shadows are soft lilac that "
+            "complements the warmth without darkening it.  This shadow-complement — "
+            "warm flesh against cool lilac shadow — reflects the influence of 18th-century "
+            "French pastel portraiture: Boucher's oil flesh has the quality of pastel, "
+            "light and warm and powdery at the edges.\n\n"
+            "His characteristic sky tone — the powder blue behind every mythological "
+            "scene — is what the French call 'ciel Boucher': a distinctive desaturated, "
+            "airy blue lighter and more powdery than Tiepolo's azure or Gainsborough's "
+            "silvery grey.  A blue washed with white until only a faint memory of blue "
+            "remains, then glazed back with cool grey for depth.  His landscapes dissolve "
+            "into this powdery atmosphere, with distant forms sketched in muted teal-blues "
+            "and green-greys that suggest rather than describe topography.\n\n"
+            "Technically, Boucher worked on warm cream-toned French Academic preparations, "
+            "building oil glazes over moderate imprimatura in the Académie Royale tradition.  "
+            "His surface is extremely smooth — not quite Bouguereau's porcelain (a later "
+            "generation) but smooth enough that individual strokes are invisible in flesh.  "
+            "Ornamental and fabric passages are more bravura: loaded-brush marks for silk "
+            "highlights, confident calligraphic strokes for drapery."
+        ),
+        famous_works    = [
+            ("Triumph of Venus",                      "1740"),
+            ("Diana at her Bath",                     "1742"),
+            ("Reclining Girl (Louise O'Murphy)",      "1751"),
+            ("The Toilet of Venus",                   "1751"),
+            ("Madame de Pompadour",                   "1756"),
+            ("Pan and Syrinx",                        "1759"),
+        ],
+        inspiration     = (
+            "Apply boucher_pastel_radiance_pass() as the primary Boucher effect: "
+            "THREE-ZONE luminosity encoding Boucher's defining palette qualities.  "
+            "(1) WARM PEACH-CREAM FLESH RADIANCE — Gaussian bell gate centred in "
+            "mid-flesh luminance zone (luma lo=0.42, hi=0.74): inject warm peach "
+            "(R + flesh_r=0.022, G + flesh_g=0.012, B − flesh_b_reduce=0.018).  "
+            "Boucher's flesh is warmer than Italian Baroque — peach-cream not amber-gold.  "
+            "(2) COOL POWDER-BLUE SKY ATMOSPHERE — vertical position gate fading from "
+            "full effect at top (y=0) to zero at sky_band=0.35 of canvas height: "
+            "inject cool powder blue (B + sky_cool_b=0.035, G + sky_cool_g=0.008, "
+            "R − sky_cool_r=0.012).  Reproduces 'ciel Boucher' — the characteristic "
+            "airy, desaturated powder-blue sky.  "
+            "(3) MID-TONE SATURATION LIFT — gentle global saturation boost "
+            "(sat_boost=0.12) gated to mid-luminance (0.30–0.80) via neutral-mean "
+            "chromatic expansion: delta = channel − neutral; "
+            "boosted = neutral + delta × (1 + sat_boost × sat_gate).  "
+            "Use opacity=0.42 for balanced Boucher quality."
+        ),
+    ),
+
 }
 
 
