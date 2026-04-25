@@ -15796,6 +15796,181 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Cesare da Sesto ────────────────────────────────────────────────────────
+    "cesare_da_sesto": ArtStyle(
+        artist      = "Cesare da Sesto",
+        movement    = "Milanese-Roman Bridge Renaissance",
+        nationality = "Italian",
+        period      = "1477–1523",
+        palette     = [
+            (0.84, 0.71, 0.54),   # warm Milanese ivory flesh
+            (0.56, 0.46, 0.32),   # mid-tone warm shadow
+            (0.20, 0.16, 0.10),   # deep umber shadow
+            (0.72, 0.76, 0.80),   # cool Raphaelesque sky-blue
+            (0.42, 0.52, 0.38),   # Lombard green landscape
+            (0.60, 0.64, 0.68),   # aerial blue-grey distance
+            (0.80, 0.68, 0.38),   # warm Milanese golden highlight
+        ],
+        ground_color  = (0.58, 0.50, 0.34),    # warm ochre-ivory imprimatura
+        stroke_size   = 5,
+        wet_blend     = 0.72,
+        edge_softness = 0.62,
+        jitter        = 0.018,
+        glazing       = (0.68, 0.58, 0.30),    # warm golden unifying glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Cesare da Sesto (c. 1477–1523) is the great intermediary figure of the "
+            "early sixteenth century — a Milanese painter who absorbed the sfumato warmth "
+            "of Leonardo da Vinci in his formative years and then carried it to Rome, where "
+            "he encountered the cool classical clarity of Raphael's mature style.  The result "
+            "is a hybrid manner unlike either master: warm Leonardesque flesh and shadow, "
+            "but a Raphaelesque coolness at form boundaries that gives his figures a crisp "
+            "three-dimensional presence that pure sfumato obscures.\n\n"
+            "Cesare trained in Milan likely in Leonardo's workshop circle, sharing the atelier "
+            "with Giovanni Antonio Boltraffio, Marco d'Oggiono, and Gian Giacomo Caprotti "
+            "(Salaì).  He mastered Leonardo's fundamentals: warm ivory flesh, seamless tonal "
+            "transitions, transparent oil glazing built layer by layer, and the atmospheric "
+            "recession of distant landscapes.  His early Milanese works — devotional Madonnas "
+            "and Sacra Conversazioni — show this Leonardesque inheritance unmistakably.\n\n"
+            "Around 1508–1510 Cesare traveled to Rome, where Raphael was transforming the "
+            "Vatican Stanze and establishing the canonical vocabulary of High Renaissance "
+            "portraiture.  Raphael's approach was the antithesis of Leonardo's in one "
+            "critical respect: where Leonardo dissolved form boundaries in atmospheric haze, "
+            "Raphael preserved them with a cool luminous 'air' between adjacent forms — an "
+            "almost imperceptible cool tinting at the boundary between flesh and background "
+            "that gives his figures sculptural legibility without sacrificing softness.  "
+            "Cesare absorbed this principle and fused it with his Milanese warmth.\n\n"
+            "His most famous work, the 'Salome' (versions in Vienna Kunsthistorisches Museum "
+            "and Madrid Prado, c. 1510–1520), exemplifies this synthesis: the flesh is warm "
+            "Milanese ivory with Leonardesque sfumato transitions in the shadow zones, while "
+            "the silhouette edge reads with the clean Raphaelesque air-boundary.  The result "
+            "is a figure that feels simultaneously warm and present — occupying real space "
+            "rather than dissolving into atmosphere.  The drapery, typically a saturated "
+            "crimson or blue-green, reads with vivid clarity against the sfumato landscape.\n\n"
+            "Cesare also spent time in Sicily and Naples, where he executed altarpieces that "
+            "show the full range of his synthesis: Lombard warmth in flesh and ground, "
+            "Raphaelesque colour in drapery, and landscapes that echo Leonardo's craggy "
+            "geological fantasies.  He died young, around 1523, before the mature Mannerist "
+            "movement transformed the style he had so precisely calibrated.  His work stands "
+            "as the most resolved example of a specifically Milanese-Roman synthesis — "
+            "neither pure sfumato nor pure disegno, but a deliberate bridge between the two "
+            "greatest painting traditions of the early sixteenth century."
+        ),
+        famous_works  = [
+            ("Salome",                    "c. 1510–1520"),
+            ("Holy Family with Saint Anne", "c. 1515"),
+            ("Madonna and Child",          "c. 1515–1520"),
+            ("Adoration of the Magi",      "c. 1516–1519"),
+        ],
+        inspiration   = (
+            "Apply cesare_da_sesto_clarity_pass() as the primary Cesare da Sesto effect: "
+            "MILANESE-ROMAN CLARITY BRIDGE.  "
+            "Uses Sobel gradient magnitude to detect two zones simultaneously: "
+            "(1) LOW-GRADIENT smooth zones (flesh, fabric, sky) receive WARM Leonardesque injection "
+            "(R+warm_r, G+warm_g) — the sfumato warmth that flows through all smooth surface areas; "
+            "(2) MEDIUM-GRADIENT form boundaries receive COOL Raphaelesque 'air' injection "
+            "(B+cool_b, R-cool_r) — the cool luminous separation between adjacent forms that gives "
+            "Cesare's figures their classical spatial presence.  "
+            "This gradient-zoned bimodal warm/cool treatment simulates Cesare's defining synthesis: "
+            "Leonardesque warmth in the flesh, Raphaelesque clarity at the silhouette.  "
+            "Use opacity=0.32 for balanced hybrid quality."
+        ),
+    ),
+
+    # ── Pinturicchio ────────────────────────────────────────────────────────────
+    "pinturicchio": ArtStyle(
+        artist      = "Pinturicchio (Bernardino di Betto)",
+        movement    = "Umbrian Decorative Renaissance",
+        nationality = "Italian",
+        period      = "c. 1481–1513",
+        palette     = [
+            (0.18, 0.28, 0.72),   # lapis lazuli azure — the legendary Piccolomini blue
+            (0.85, 0.72, 0.20),   # gold leaf warmth — heraldic gold ground
+            (0.78, 0.20, 0.16),   # vermilion red — pure Italian Renaissance primary
+            (0.88, 0.84, 0.72),   # pale ivory flesh — Umbrian light, clean and warm
+            (0.22, 0.50, 0.28),   # malachite green — heraldic green field
+            (0.68, 0.58, 0.40),   # warm amber mid-flesh — Umbrian warmth
+            (0.15, 0.18, 0.25),   # dark neutral shadow — deep architectural shadow
+        ],
+        ground_color  = (0.78, 0.74, 0.60),    # warm creamy gesso — fresco plaster warmth
+        stroke_size   = 5,
+        wet_blend     = 0.58,
+        edge_softness = 0.35,
+        jitter        = 0.016,
+        glazing       = (0.80, 0.70, 0.22),    # warm golden glaze — heraldic gilding quality
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Pinturicchio (Bernardino di Betto, c. 1454–1513) was the supreme Umbrian "
+            "master of decorative narrative fresco and one of the most successful "
+            "painters in Rome during the pontificates of Innocent VIII and Alexander VI.  "
+            "He takes his nickname — 'little painter' — from his small stature, but "
+            "there is nothing small about the ambition or scale of his achievement: his "
+            "frescoes in the Borgia Apartments of the Vatican (1492–1494) cover some of "
+            "the most complex iconographic programmes of the early Renaissance, and his "
+            "ten-scene cycle in the Piccolomini Library of Siena Cathedral (1502–1507), "
+            "commissioned by Cardinal Francesco Piccolomini (later Pius III), represents "
+            "one of the most perfectly preserved Renaissance fresco sequences in existence "
+            "and the absolute summit of his art.\n\n"
+            "The Piccolomini Library frescoes define his signature quality: an extreme "
+            "richness of colour keyed by a specific, unmistakable LAPIS LAZULI BLUE.  "
+            "Pinturicchio used ultramarine — ground lapis lazuli from Afghanistan — with "
+            "exceptional generosity, producing a blue of extraordinary depth and saturation "
+            "that still reads with luminous intensity five centuries later.  Against this "
+            "azure, he placed GOLD (both gold leaf and lead-tin yellow), VERMILION, and "
+            "MALACHITE GREEN — the four primary heraldic pigments — to create a jewel-like "
+            "chromatic intensity unlike any other Umbrian painter.  Perugino, his teacher, "
+            "was lyrical and spacious; Pinturicchio is declarative and brilliant.\n\n"
+            "His figure style is characteristic Umbrian: slim, elegant, with distinctive "
+            "oval faces and slightly large, expressive eyes.  Flesh tones are pale and "
+            "cleanly modelled, without the deep sfumato shadows of the Florentines — "
+            "light is clear and even, coming from above and slightly to the left, "
+            "producing soft but distinct shadows.  Edges are crisper than Leonardo, "
+            "softer than Mantegna: a specifically Umbrian middle path.\n\n"
+            "He also worked extensively in Rome: the Bufalini Chapel in Santa Maria in "
+            "Aracoeli (c. 1484–1485), where his figures float against gilded architectural "
+            "frames, established a pattern he would repeat throughout his career.  His "
+            "ARCHITECTURAL SETTINGS are among the most accomplished of the period: "
+            "elaborate perspectival constructions with loggias, colonnades, and distant "
+            "landscapes, all rendered in warm earth tones that contrast with the jewel-blue "
+            "sky zones.  These architectures often contain real portraits — the Piccolomini "
+            "Library scenes famously include recognisable contemporaries — giving his "
+            "decorative cycles an additional documentary dimension.\n\n"
+            "Pinturicchio died in Siena in 1513, just as the High Renaissance was "
+            "entering its most monumental phase.  Raphael — who assisted him briefly "
+            "in the Piccolomini Library as a very young man — would almost immediately "
+            "supersede his decorative tradition with a more heroic, psychological vision.  "
+            "But Pinturicchio's achievement stands on its own terms: no painter before "
+            "or since has produced frescoes of equivalent chromatic brilliance, and his "
+            "Piccolomini Library remains one of the supreme colour ensembles of the "
+            "entire Italian Renaissance."
+        ),
+        famous_works  = [
+            ("Piccolomini Library frescoes",          "1502–1507"),
+            ("Borgia Apartments, Vatican",            "1492–1494"),
+            ("Bufalini Chapel, Santa Maria in Aracoeli", "c. 1484–1485"),
+            ("Portrait of a Boy",                     "c. 1481–1482"),
+            ("Nativity",                              "1501"),
+        ],
+        inspiration   = (
+            "Apply pinturicchio_jewel_azure_pass() as the primary Pinturicchio effect: "
+            "DUAL-CHANNEL DOMINANCE JEWEL ENRICHMENT.  "
+            "Detects two chromatic zones using per-channel dominance (not luminance, not saturation): "
+            "(1) AZURE ZONE — pixels where B exceeds BOTH R and G by azure_delta: "
+            "boost B + azure_boost, reduce R - azure_r_reduce, deepening the lapis lazuli quality; "
+            "(2) GOLD ZONE — pixels where R exceeds G by gold_delta_r AND G exceeds B by gold_delta_rg: "
+            "boost R + gold_boost_r, G + gold_boost_g, reduce B - gold_b_reduce, enriching the gold-leaf warmth.  "
+            "Both gates suppressed at extremes via luma clip [luma_lo=0.20, luma_hi=0.88].  "
+            "NOVEL: EIGHTY-SECOND DISTINCT MODE. FIRST pass to use PER-CHANNEL DOMINANCE DETECTION "
+            "(B > R+delta AND B > G+delta for azure; R > G+delta AND G > B+delta for gold) as binary gate "
+            "for SIMULTANEOUS DUAL-ZONE enrichment in opposite chromatic directions — not luminance-zoned, "
+            "not saturation-sorted, not hue-angular, but raw channel-comparison dominance.  "
+            "Use opacity=0.38 for balanced Pinturicchio jewel quality."
+        ),
+    ),
+
 }
 
 

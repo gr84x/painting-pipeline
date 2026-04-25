@@ -345,6 +345,8 @@ class Period(Enum):
     FLEMISH_GENRE_REALISM  = auto()  # Brouwer — warm tobacco amber mid-tones, smoky shadow void, dark umber ground, rapid alla prima gesture
     FLORENTINE_CIVIC_RENAISSANCE = auto()  # Ghirlandaio — clear warm Florentine light; clean vivid chromatic zones; precise Flemish-influenced detail; civic fresco tradition; dignified portraiture
     DUTCH_INTIMATE_GENRE  = auto()  # Ter Borch — cool silver-grey satin sheen; warm ivory flesh; smooth fijnschilder surface; intimate domestic interior
+    MILANESE_ROMAN_BRIDGE = auto()  # Cesare da Sesto — Leonardo's sfumato warmth fused with Raphael's cool classical form clarity; gradient-zoned bimodal warm/cool bridge
+    UMBRIAN_DECORATIVE_RENAISSANCE = auto()  # Pinturicchio — jewel-bright lapis azure and gold-leaf warmth; decorative richness; Piccolomini Library blues; dual-channel dominance jewel enrichment
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1752,6 +1754,18 @@ class Style:
             # wet_blend=0.68: high blending — the hallmark of Dutch fijnschilder surface is seamless skin/fabric transitions.
             # edge_softness=0.45: moderate softness — crisp enough to define satin folds, soft enough for flesh modelling.
             Period.DUTCH_INTIMATE_GENRE: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.68, edge_softness=0.45),
+            # MILANESE_ROMAN_BRIDGE (Cesare da Sesto) — bridging Leonardo sfumato and Raphael clarity.
+            # stroke_size_face=5: refined Milanese detail; small enough for Leonardo-school flesh.
+            # stroke_size_bg=20: moderate background; clear spatial recession in Raphaelesque tradition.
+            # wet_blend=0.72: high blending — Leonardesque sfumato base, but not as extreme as Leonardo 0.92.
+            # edge_softness=0.62: moderately soft — softer than Raphael's crispness, crisper than pure sfumato.
+            Period.MILANESE_ROMAN_BRIDGE: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.72, edge_softness=0.62),
+            # UMBRIAN_DECORATIVE_RENAISSANCE (Pinturicchio) — decorative precision; bright jewel colours; moderate sfumato.
+            # stroke_size_face=5: fine Umbrian panel-painting detail; crisp figure edges in fresco tradition.
+            # stroke_size_bg=20: clear architectural/landscape backgrounds; Umbrian panoramic recession.
+            # wet_blend=0.58: moderate blending — smoother than Signorelli, crisper than del Sarto; Umbrian middle ground.
+            # edge_softness=0.35: moderately crisp — decorative fresco quality; edges defined but not hard Quattrocento line.
+            Period.UMBRIAN_DECORATIVE_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.58, edge_softness=0.35),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
