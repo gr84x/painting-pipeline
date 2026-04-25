@@ -15796,6 +15796,89 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Cesare da Sesto ────────────────────────────────────────────────────────
+    "cesare_da_sesto": ArtStyle(
+        artist      = "Cesare da Sesto",
+        movement    = "Milanese-Roman Bridge Renaissance",
+        nationality = "Italian",
+        period      = "1477–1523",
+        palette     = [
+            (0.84, 0.71, 0.54),   # warm Milanese ivory flesh
+            (0.56, 0.46, 0.32),   # mid-tone warm shadow
+            (0.20, 0.16, 0.10),   # deep umber shadow
+            (0.72, 0.76, 0.80),   # cool Raphaelesque sky-blue
+            (0.42, 0.52, 0.38),   # Lombard green landscape
+            (0.60, 0.64, 0.68),   # aerial blue-grey distance
+            (0.80, 0.68, 0.38),   # warm Milanese golden highlight
+        ],
+        ground_color  = (0.58, 0.50, 0.34),    # warm ochre-ivory imprimatura
+        stroke_size   = 5,
+        wet_blend     = 0.72,
+        edge_softness = 0.62,
+        jitter        = 0.018,
+        glazing       = (0.68, 0.58, 0.30),    # warm golden unifying glaze
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Cesare da Sesto (c. 1477–1523) is the great intermediary figure of the "
+            "early sixteenth century — a Milanese painter who absorbed the sfumato warmth "
+            "of Leonardo da Vinci in his formative years and then carried it to Rome, where "
+            "he encountered the cool classical clarity of Raphael's mature style.  The result "
+            "is a hybrid manner unlike either master: warm Leonardesque flesh and shadow, "
+            "but a Raphaelesque coolness at form boundaries that gives his figures a crisp "
+            "three-dimensional presence that pure sfumato obscures.\n\n"
+            "Cesare trained in Milan likely in Leonardo's workshop circle, sharing the atelier "
+            "with Giovanni Antonio Boltraffio, Marco d'Oggiono, and Gian Giacomo Caprotti "
+            "(Salaì).  He mastered Leonardo's fundamentals: warm ivory flesh, seamless tonal "
+            "transitions, transparent oil glazing built layer by layer, and the atmospheric "
+            "recession of distant landscapes.  His early Milanese works — devotional Madonnas "
+            "and Sacra Conversazioni — show this Leonardesque inheritance unmistakably.\n\n"
+            "Around 1508–1510 Cesare traveled to Rome, where Raphael was transforming the "
+            "Vatican Stanze and establishing the canonical vocabulary of High Renaissance "
+            "portraiture.  Raphael's approach was the antithesis of Leonardo's in one "
+            "critical respect: where Leonardo dissolved form boundaries in atmospheric haze, "
+            "Raphael preserved them with a cool luminous 'air' between adjacent forms — an "
+            "almost imperceptible cool tinting at the boundary between flesh and background "
+            "that gives his figures sculptural legibility without sacrificing softness.  "
+            "Cesare absorbed this principle and fused it with his Milanese warmth.\n\n"
+            "His most famous work, the 'Salome' (versions in Vienna Kunsthistorisches Museum "
+            "and Madrid Prado, c. 1510–1520), exemplifies this synthesis: the flesh is warm "
+            "Milanese ivory with Leonardesque sfumato transitions in the shadow zones, while "
+            "the silhouette edge reads with the clean Raphaelesque air-boundary.  The result "
+            "is a figure that feels simultaneously warm and present — occupying real space "
+            "rather than dissolving into atmosphere.  The drapery, typically a saturated "
+            "crimson or blue-green, reads with vivid clarity against the sfumato landscape.\n\n"
+            "Cesare also spent time in Sicily and Naples, where he executed altarpieces that "
+            "show the full range of his synthesis: Lombard warmth in flesh and ground, "
+            "Raphaelesque colour in drapery, and landscapes that echo Leonardo's craggy "
+            "geological fantasies.  He died young, around 1523, before the mature Mannerist "
+            "movement transformed the style he had so precisely calibrated.  His work stands "
+            "as the most resolved example of a specifically Milanese-Roman synthesis — "
+            "neither pure sfumato nor pure disegno, but a deliberate bridge between the two "
+            "greatest painting traditions of the early sixteenth century."
+        ),
+        famous_works  = [
+            ("Salome",                    "c. 1510–1520"),
+            ("Holy Family with Saint Anne", "c. 1515"),
+            ("Madonna and Child",          "c. 1515–1520"),
+            ("Adoration of the Magi",      "c. 1516–1519"),
+        ],
+        inspiration   = (
+            "Apply cesare_da_sesto_clarity_pass() as the primary Cesare da Sesto effect: "
+            "MILANESE-ROMAN CLARITY BRIDGE.  "
+            "Uses Sobel gradient magnitude to detect two zones simultaneously: "
+            "(1) LOW-GRADIENT smooth zones (flesh, fabric, sky) receive WARM Leonardesque injection "
+            "(R+warm_r, G+warm_g) — the sfumato warmth that flows through all smooth surface areas; "
+            "(2) MEDIUM-GRADIENT form boundaries receive COOL Raphaelesque 'air' injection "
+            "(B+cool_b, R-cool_r) — the cool luminous separation between adjacent forms that gives "
+            "Cesare's figures their classical spatial presence.  "
+            "This gradient-zoned bimodal warm/cool treatment simulates Cesare's defining synthesis: "
+            "Leonardesque warmth in the flesh, Raphaelesque clarity at the silhouette.  "
+            "Use opacity=0.32 for balanced hybrid quality."
+        ),
+    ),
+
 }
 
 

@@ -41703,3 +41703,195 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Shadow chroma depth pass complete.")
+
+    # ── Session 180: artist pass — cesare_da_sesto_clarity_pass
+    def cesare_da_sesto_clarity_pass(
+            self,
+            smooth_thresh:  float = 0.08,
+            grad_sigma:     float = 1.5,
+            warm_r:         float = 0.025,
+            warm_g:         float = 0.010,
+            mid_grad_center: float = 0.50,
+            mid_grad_width:  float = 0.22,
+            cool_b:         float = 0.022,
+            cool_r:         float = 0.010,
+            opacity:        float = 0.32):
+        """
+        Cesare da Sesto clarity pass — session 180 artist pass.
+
+        Simulates the defining synthesis of Cesare da Sesto (1477–1523): Leonardo's
+        sfumato warmth in smooth flesh/fabric zones FUSED WITH Raphael's cool
+        'air between forms' at medium-gradient form boundaries.
+
+        MILANESE-ROMAN CLARITY BRIDGE:
+        1. Sobel gradient magnitude on luma → grad_norm (normalised to [0, 1]).
+        2. SMOOTH ZONE (grad_norm < smooth_thresh): warm Leonardesque injection
+           R+warm_r × smooth_gate, G+warm_g × smooth_gate — sfumato warmth in
+           low-gradient flesh and sky areas.
+        3. MEDIUM GRADIENT ZONE: Gaussian bell gate centred on mid_grad_center
+           in gradient space × cool Raphaelesque 'air' injection
+           B+cool_b × mid_gate, R-cool_r × mid_gate — cool luminous separation
+           at form boundaries giving classical spatial legibility.
+
+        NOVEL: EIGHTIETH DISTINCT MODE. FIRST pass to use GRADIENT MAGNITUDE as a
+        BIMODAL GATE applying OPPOSITE chromatic treatments at two gradient levels:
+        WARM in low-gradient smooth zones (Leonardesque sfumato fill) AND COOL at
+        medium-gradient form boundaries (Raphaelesque classical air). All prior
+        gradient passes apply a single monotonic treatment — either dissolving edges
+        (sfumato s158, contour blur s174) or sharpening them (anti-sfumato s175).
+        This applies a WARM/COOL SPLIT keyed on gradient magnitude, not luma level.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        # Sobel gradient magnitude on blurred luma
+        luma_s   = _gf(luma, sigma=float(grad_sigma))
+        gx       = _sobel(luma_s, axis=1)
+        gy       = _sobel(luma_s, axis=0)
+        grad_mag = _np.sqrt(gx * gx + gy * gy).astype(_np.float32)
+        grad_max = grad_mag.max() + 1e-6
+        grad_norm = grad_mag / grad_max
+
+        # Smooth zone gate: low gradient → warm Leonardesque injection
+        thresh      = float(smooth_thresh)
+        smooth_gate = _np.clip(1.0 - grad_norm / thresh, 0.0, 1.0)
+
+        out_r = _np.clip(r0 + float(warm_r) * smooth_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + float(warm_g) * smooth_gate, 0.0, 1.0)
+        out_b = b0.copy()
+
+        # Medium gradient zone: Gaussian bell on grad_norm → cool Raphaelesque air
+        mid  = float(mid_grad_center)
+        wid  = float(mid_grad_width) + 1e-6
+        mid_gate = _np.exp(-0.5 * ((grad_norm - mid) / wid) ** 2).astype(_np.float32)
+
+        out_r = _np.clip(out_r - float(cool_r) * mid_gate, 0.0, 1.0)
+        out_b = _np.clip(out_b + float(cool_b) * mid_gate, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Cesare da Sesto clarity pass complete.")
+
+    # ── Session 180: random improvement — canvas_tooth_texture_pass
+    def canvas_tooth_texture_pass(
+            self,
+            tooth_freq:  float = 48.0,
+            tooth_aspect: float = 1.0,
+            tooth_thresh: float = 0.25,
+            tooth_lo:    float = 0.22,
+            tooth_hi:    float = 0.68,
+            tooth_depth: float = 0.10,
+            ground_r:    float = 0.60,
+            ground_g:    float = 0.52,
+            ground_b:    float = 0.36,
+            opacity:     float = 0.40):
+        """
+        Canvas tooth texture pass — session 180 random improvement.
+
+        Simulates the physical interaction of oil paint with woven canvas tooth:
+        paint fills canvas cavities (tooth troughs) differently across tonal zones.
+        In highlight zones (thick paint): fills tooth completely — smooth surface.
+        In midtone zones (moderate paint load): bridges across peaks — tooth visible.
+        In deep shadow zones (thin scumble): paint is sparse, tooth less relevant.
+
+        CANVAS WEAVE TOOTH SIMULATION:
+        1. Crossed sine wave canvas weave: tooth = 0.5*(1+sin(x*freq_x)) *
+           0.5*(1+sin(y*freq_y)) — a deterministic periodic pattern at canvas scale.
+        2. Cavity mask: clip(1 - weave/tooth_thresh) → high in weave troughs.
+        3. Midtone bell gate [tooth_lo, tooth_hi]: tooth most visible in midtones
+           (where paint bridges but does not fill); suppressed in highlights and darks.
+        4. Blend toward ground colour (warm ochre imprimatura) in cavity zones.
+
+        NOVEL: EIGHTY-FIRST DISTINCT MODE. FIRST pass to use DETERMINISTIC PERIODIC
+        STRUCTURE (crossed sine wave canvas weave) to simulate canvas tooth interaction.
+        Unlike film_grain_overlay (mode 54) which uses stochastic Gaussian noise,
+        this creates a canvas-scale STRUCTURED PERIODIC texture matching real woven
+        canvas geometry. The midtone gating simulates how oil paint bridges canvas
+        peaks fully in highlights (no tooth visible) but reveals tooth cavities in
+        midtones — giving the surface the tactile woven quality visible in many
+        early Renaissance oil-on-panel and oil-on-canvas works under raking light.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        # Crossed sine wave canvas weave pattern
+        xs = _np.arange(W, dtype=_np.float32) / float(W)
+        ys = _np.arange(H, dtype=_np.float32) / float(H)
+        xm, ym = _np.meshgrid(xs, ys)
+        freq   = float(tooth_freq)
+        aspect = float(tooth_aspect)
+        tooth_x = 0.5 * (1.0 + _np.sin(xm * 2.0 * _np.pi * freq))
+        tooth_y = 0.5 * (1.0 + _np.sin(ym * 2.0 * _np.pi * freq * aspect))
+        weave   = (tooth_x * tooth_y).astype(_np.float32)
+
+        # Cavity mask: weave troughs where paint reveals canvas ground
+        thresh       = float(tooth_thresh) + 1e-6
+        cavity_mask  = _np.clip(1.0 - weave / thresh, 0.0, 1.0)
+
+        # Midtone bell gate: tooth most visible in mid-luma range
+        tlo     = float(tooth_lo)
+        thi     = float(tooth_hi)
+        mid_t   = (tlo + thi) * 0.5
+        wid_t   = (thi - tlo) * 0.5 + 1e-6
+        bell    = _np.exp(-0.5 * ((luma - mid_t) / wid_t) ** 2).astype(_np.float32)
+
+        tooth_gate = cavity_mask * bell * float(tooth_depth)
+
+        # Blend toward canvas ground color in tooth cavities
+        gr = float(ground_r)
+        gg = float(ground_g)
+        gb = float(ground_b)
+        out_r = _np.clip(r0 * (1.0 - tooth_gate) + gr * tooth_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - tooth_gate) + gg * tooth_gate, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - tooth_gate) + gb * tooth_gate, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Canvas tooth texture pass complete.")
