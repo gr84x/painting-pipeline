@@ -183,6 +183,7 @@ EXPECTED_ARTISTS = [
     "ghirlandaio",
     "gerard_ter_borch",
     "cesare_da_sesto",
+    "pinturicchio",
 ]
 
 
@@ -399,6 +400,7 @@ EXPECTED_PERIODS = [
     "FLORENTINE_CIVIC_RENAISSANCE",
     "DUTCH_INTIMATE_GENRE",
     "MILANESE_ROMAN_BRIDGE",
+    "UMBRIAN_DECORATIVE_RENAISSANCE",
 ]
 
 
@@ -25495,6 +25497,214 @@ def test_canvas_tooth_texture_pass_pixels_in_range():
     p = Painter(32, 32)
     p.tone_ground((0.72, 0.66, 0.58), texture_strength=0.0)
     p.canvas_tooth_texture_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 181 — Pinturicchio + UMBRIAN_DECORATIVE_RENAISSANCE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_pinturicchio_in_catalog():
+    """Session 181: pinturicchio must be present in CATALOG."""
+    assert "pinturicchio" in CATALOG
+
+
+def test_pinturicchio_in_expected_artists():
+    """Session 181: EXPECTED_ARTISTS list must include pinturicchio."""
+    assert "pinturicchio" in EXPECTED_ARTISTS, (
+        "pinturicchio missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_pinturicchio_movement():
+    """Session 181: pinturicchio movement must reference Umbrian or Decorative."""
+    s = get_style("pinturicchio")
+    assert "umbrian" in s.movement.lower() or "decorative" in s.movement.lower()
+
+
+def test_pinturicchio_nationality():
+    """Session 181: pinturicchio nationality must be Italian."""
+    s = get_style("pinturicchio")
+    assert s.nationality == "Italian"
+
+
+def test_pinturicchio_palette_length():
+    """Session 181: pinturicchio palette must have at least 6 colours."""
+    s = get_style("pinturicchio")
+    assert len(s.palette) >= 6
+
+
+def test_pinturicchio_palette_in_range():
+    """Session 181: all pinturicchio palette channel values must be in [0, 1]."""
+    s = get_style("pinturicchio")
+    for i, col in enumerate(s.palette):
+        for ch in col:
+            assert 0.0 <= ch <= 1.0, f"pinturicchio palette[{i}] channel {ch} out of range"
+
+
+def test_pinturicchio_has_azure_in_palette():
+    """Session 181: pinturicchio palette must contain at least one blue-dominant colour (lapis azure)."""
+    s = get_style("pinturicchio")
+    has_azure = any(b > r + 0.30 and b > g + 0.20 for r, g, b in s.palette)
+    assert has_azure, "pinturicchio palette should include a lapis-azure blue entry"
+
+
+def test_pinturicchio_has_glazing():
+    """Session 181: pinturicchio must have a glazing colour (golden heraldic glaze)."""
+    s = get_style("pinturicchio")
+    assert s.glazing is not None
+
+
+def test_pinturicchio_famous_works_not_empty():
+    """Session 181: pinturicchio must have at least one famous work."""
+    s = get_style("pinturicchio")
+    assert len(s.famous_works) >= 1
+
+
+def test_pinturicchio_famous_works_include_piccolomini():
+    """Session 181: famous works must include the Piccolomini Library frescoes."""
+    s = get_style("pinturicchio")
+    titles = [w[0] for w in s.famous_works]
+    assert any("piccolomini" in t.lower() or "Piccolomini" in t for t in titles), (
+        f"Piccolomini Library frescoes missing from works: {titles}")
+
+
+def test_pinturicchio_technique_mentions_lapis():
+    """Session 181: technique must mention lapis lazuli or azure (defining quality)."""
+    s = get_style("pinturicchio")
+    assert "lapis" in s.technique.lower() or "azure" in s.technique.lower()
+
+
+def test_pinturicchio_inspiration_references_jewel_azure_pass():
+    """Session 181: inspiration must reference pinturicchio_jewel_azure_pass."""
+    s = get_style("pinturicchio")
+    assert "pinturicchio_jewel_azure_pass" in s.inspiration
+
+
+def test_umbrian_decorative_renaissance_period_present():
+    """Session 181: UMBRIAN_DECORATIVE_RENAISSANCE must be a valid Period enum member."""
+    assert hasattr(Period, "UMBRIAN_DECORATIVE_RENAISSANCE")
+
+
+def test_umbrian_decorative_renaissance_in_expected_periods():
+    """Session 181: EXPECTED_PERIODS list must include UMBRIAN_DECORATIVE_RENAISSANCE."""
+    assert "UMBRIAN_DECORATIVE_RENAISSANCE" in EXPECTED_PERIODS, (
+        "UMBRIAN_DECORATIVE_RENAISSANCE missing from EXPECTED_PERIODS — add it to the list")
+
+
+def test_umbrian_decorative_renaissance_stroke_params_moderate_wet_blend():
+    """Session 181: UMBRIAN_DECORATIVE_RENAISSANCE wet_blend must be moderate (Umbrian middle ground)."""
+    style = Style(medium=Medium.OIL, period=Period.UMBRIAN_DECORATIVE_RENAISSANCE)
+    params = style.stroke_params
+    assert 0.40 <= params["wet_blend"] <= 0.75
+
+
+def test_umbrian_decorative_renaissance_stroke_params_moderate_edge_softness():
+    """Session 181: UMBRIAN_DECORATIVE_RENAISSANCE edge_softness must be moderate-low (decorative fresco crispness)."""
+    style = Style(medium=Medium.OIL, period=Period.UMBRIAN_DECORATIVE_RENAISSANCE)
+    params = style.stroke_params
+    assert 0.20 <= params["edge_softness"] <= 0.55
+
+
+def test_pinturicchio_jewel_azure_pass_runs():
+    """Session 181: pinturicchio_jewel_azure_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    p.pinturicchio_jewel_azure_pass(opacity=0.38)
+
+
+def test_pinturicchio_jewel_azure_pass_noop_at_zero_opacity():
+    """Session 181: pinturicchio_jewel_azure_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.pinturicchio_jewel_azure_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_pinturicchio_jewel_azure_pass_modifies_canvas():
+    """Session 181: pinturicchio_jewel_azure_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Use a canvas with both blue and warm zones to trigger both gates
+    p.tone_ground((0.40, 0.38, 0.62), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.pinturicchio_jewel_azure_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_pinturicchio_jewel_azure_pass_pixels_in_range():
+    """Session 181: pinturicchio_jewel_azure_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    p.pinturicchio_jewel_azure_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_chromatic_edge_halation_pass_runs():
+    """Session 181: chromatic_edge_halation_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    p.chromatic_edge_halation_pass(opacity=0.30)
+
+
+def test_chromatic_edge_halation_pass_noop_at_zero_opacity():
+    """Session 181: chromatic_edge_halation_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chromatic_edge_halation_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_chromatic_edge_halation_pass_modifies_canvas():
+    """Session 181: chromatic_edge_halation_pass must modify canvas with bright/dark tonal contrast."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Build a canvas with a bright warm upper half and dark lower half so the
+    # bright-to-dark edge halation gate fires at the boundary.
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    # Top half: warm bright (BGRA — channel 0=B, 1=G, 2=R, 3=A)
+    buf[:32, :, 0] = 100   # B
+    buf[:32, :, 1] = 160   # G
+    buf[:32, :, 2] = 200   # R
+    buf[:32, :, 3] = 255   # A
+    # Bottom half: dark
+    buf[32:, :, 0] = 20
+    buf[32:, :, 1] = 30
+    buf[32:, :, 2] = 40
+    buf[32:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.chromatic_edge_halation_pass(opacity=1.0, bleed_strength=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_chromatic_edge_halation_pass_pixels_in_range():
+    """Session 181: chromatic_edge_halation_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.74, 0.60), texture_strength=0.0)
+    p.chromatic_edge_halation_pass(opacity=1.0)
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0
     assert buf[:, :, :3].max() <= 255

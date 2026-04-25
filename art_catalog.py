@@ -15879,6 +15879,98 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Pinturicchio ────────────────────────────────────────────────────────────
+    "pinturicchio": ArtStyle(
+        artist      = "Pinturicchio (Bernardino di Betto)",
+        movement    = "Umbrian Decorative Renaissance",
+        nationality = "Italian",
+        period      = "c. 1481–1513",
+        palette     = [
+            (0.18, 0.28, 0.72),   # lapis lazuli azure — the legendary Piccolomini blue
+            (0.85, 0.72, 0.20),   # gold leaf warmth — heraldic gold ground
+            (0.78, 0.20, 0.16),   # vermilion red — pure Italian Renaissance primary
+            (0.88, 0.84, 0.72),   # pale ivory flesh — Umbrian light, clean and warm
+            (0.22, 0.50, 0.28),   # malachite green — heraldic green field
+            (0.68, 0.58, 0.40),   # warm amber mid-flesh — Umbrian warmth
+            (0.15, 0.18, 0.25),   # dark neutral shadow — deep architectural shadow
+        ],
+        ground_color  = (0.78, 0.74, 0.60),    # warm creamy gesso — fresco plaster warmth
+        stroke_size   = 5,
+        wet_blend     = 0.58,
+        edge_softness = 0.35,
+        jitter        = 0.016,
+        glazing       = (0.80, 0.70, 0.22),    # warm golden glaze — heraldic gilding quality
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Pinturicchio (Bernardino di Betto, c. 1454–1513) was the supreme Umbrian "
+            "master of decorative narrative fresco and one of the most successful "
+            "painters in Rome during the pontificates of Innocent VIII and Alexander VI.  "
+            "He takes his nickname — 'little painter' — from his small stature, but "
+            "there is nothing small about the ambition or scale of his achievement: his "
+            "frescoes in the Borgia Apartments of the Vatican (1492–1494) cover some of "
+            "the most complex iconographic programmes of the early Renaissance, and his "
+            "ten-scene cycle in the Piccolomini Library of Siena Cathedral (1502–1507), "
+            "commissioned by Cardinal Francesco Piccolomini (later Pius III), represents "
+            "one of the most perfectly preserved Renaissance fresco sequences in existence "
+            "and the absolute summit of his art.\n\n"
+            "The Piccolomini Library frescoes define his signature quality: an extreme "
+            "richness of colour keyed by a specific, unmistakable LAPIS LAZULI BLUE.  "
+            "Pinturicchio used ultramarine — ground lapis lazuli from Afghanistan — with "
+            "exceptional generosity, producing a blue of extraordinary depth and saturation "
+            "that still reads with luminous intensity five centuries later.  Against this "
+            "azure, he placed GOLD (both gold leaf and lead-tin yellow), VERMILION, and "
+            "MALACHITE GREEN — the four primary heraldic pigments — to create a jewel-like "
+            "chromatic intensity unlike any other Umbrian painter.  Perugino, his teacher, "
+            "was lyrical and spacious; Pinturicchio is declarative and brilliant.\n\n"
+            "His figure style is characteristic Umbrian: slim, elegant, with distinctive "
+            "oval faces and slightly large, expressive eyes.  Flesh tones are pale and "
+            "cleanly modelled, without the deep sfumato shadows of the Florentines — "
+            "light is clear and even, coming from above and slightly to the left, "
+            "producing soft but distinct shadows.  Edges are crisper than Leonardo, "
+            "softer than Mantegna: a specifically Umbrian middle path.\n\n"
+            "He also worked extensively in Rome: the Bufalini Chapel in Santa Maria in "
+            "Aracoeli (c. 1484–1485), where his figures float against gilded architectural "
+            "frames, established a pattern he would repeat throughout his career.  His "
+            "ARCHITECTURAL SETTINGS are among the most accomplished of the period: "
+            "elaborate perspectival constructions with loggias, colonnades, and distant "
+            "landscapes, all rendered in warm earth tones that contrast with the jewel-blue "
+            "sky zones.  These architectures often contain real portraits — the Piccolomini "
+            "Library scenes famously include recognisable contemporaries — giving his "
+            "decorative cycles an additional documentary dimension.\n\n"
+            "Pinturicchio died in Siena in 1513, just as the High Renaissance was "
+            "entering its most monumental phase.  Raphael — who assisted him briefly "
+            "in the Piccolomini Library as a very young man — would almost immediately "
+            "supersede his decorative tradition with a more heroic, psychological vision.  "
+            "But Pinturicchio's achievement stands on its own terms: no painter before "
+            "or since has produced frescoes of equivalent chromatic brilliance, and his "
+            "Piccolomini Library remains one of the supreme colour ensembles of the "
+            "entire Italian Renaissance."
+        ),
+        famous_works  = [
+            ("Piccolomini Library frescoes",          "1502–1507"),
+            ("Borgia Apartments, Vatican",            "1492–1494"),
+            ("Bufalini Chapel, Santa Maria in Aracoeli", "c. 1484–1485"),
+            ("Portrait of a Boy",                     "c. 1481–1482"),
+            ("Nativity",                              "1501"),
+        ],
+        inspiration   = (
+            "Apply pinturicchio_jewel_azure_pass() as the primary Pinturicchio effect: "
+            "DUAL-CHANNEL DOMINANCE JEWEL ENRICHMENT.  "
+            "Detects two chromatic zones using per-channel dominance (not luminance, not saturation): "
+            "(1) AZURE ZONE — pixels where B exceeds BOTH R and G by azure_delta: "
+            "boost B + azure_boost, reduce R - azure_r_reduce, deepening the lapis lazuli quality; "
+            "(2) GOLD ZONE — pixels where R exceeds G by gold_delta_r AND G exceeds B by gold_delta_rg: "
+            "boost R + gold_boost_r, G + gold_boost_g, reduce B - gold_b_reduce, enriching the gold-leaf warmth.  "
+            "Both gates suppressed at extremes via luma clip [luma_lo=0.20, luma_hi=0.88].  "
+            "NOVEL: EIGHTY-SECOND DISTINCT MODE. FIRST pass to use PER-CHANNEL DOMINANCE DETECTION "
+            "(B > R+delta AND B > G+delta for azure; R > G+delta AND G > B+delta for gold) as binary gate "
+            "for SIMULTANEOUS DUAL-ZONE enrichment in opposite chromatic directions — not luminance-zoned, "
+            "not saturation-sorted, not hue-angular, but raw channel-comparison dominance.  "
+            "Use opacity=0.38 for balanced Pinturicchio jewel quality."
+        ),
+    ),
+
 }
 
 
