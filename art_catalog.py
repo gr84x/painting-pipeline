@@ -15362,6 +15362,113 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Marco d'Oggiono  (session 176)
+    # ──────────────────────────────────────────────────────────────────────────
+    "marco_doggiono": ArtStyle(
+        artist      = "Marco d'Oggiono",
+        movement    = "Milanese High Renaissance / Leonardesque Circle",
+        nationality = "Italian (Milanese)",
+        period      = "c. 1467–c. 1524",
+        palette     = [
+            (0.90, 0.84, 0.70),   # warm ivory highlight — Marco's characteristic warm-luminous
+                                   # peak; warmer than Boltraffio's cool pearl, close to Luini's
+                                   # amber ivory; lead-white ground reading through warm amber glazes
+            (0.82, 0.70, 0.52),   # warm mid-tone flesh — the broad modelled register; amber-warm
+                                   # Milanese flesh, slightly more russet than Boltraffio
+            (0.64, 0.50, 0.36),   # amber-grey transition — sfumato dissolution zone; Marco's
+                                   # transitions are softer than Signorelli, crisper than Luini
+            (0.40, 0.30, 0.22),   # warm umber mid-shadow — retains amber warmth into shadow
+                                   # unlike Boltraffio's cooler shadow; Leonardesque warmth
+            (0.24, 0.20, 0.26),   # cool violet deep shadow — the Leonardesque void depth;
+                                   # slightly violet-tinged, softer than Boltraffio's blue-grey
+            (0.14, 0.12, 0.18),   # near-black void — shadow terminus; warm dark ground visible
+            (0.46, 0.52, 0.42),   # muted olive-green landscape distance — Lombard plain haze
+            (0.68, 0.72, 0.80),   # pale lavender-blue sky — atmospheric aerial distance
+        ],
+        ground_color    = (0.72, 0.60, 0.44),   # warm amber panel ground — Milanese tradition;
+                                                  # slightly warmer than Boltraffio
+        stroke_size     = 6,                      # fine but slightly larger than Boltraffio;
+                                                  # Marco's hand is precise but less jewel-like
+        wet_blend       = 0.74,                   # high sfumato blending; smooth surfaces with
+                                                  # slightly more visible tonal structure than Luini
+        edge_softness   = 0.78,                   # high sfumato — edges dissolve; slightly less
+                                                  # extreme than Boltraffio's 0.82
+        jitter          = 0.016,                  # low — controlled Milanese precision
+        glazing         = (0.68, 0.56, 0.38),     # warm amber final glaze — warmer than Boltraffio;
+                                                  # the Leonardo-school amber unifier
+        crackle         = True,                   # oil on panel; aged craquelure in originals
+        chromatic_split = False,
+        technique=(
+            "Marco d'Oggiono (c. 1467–c. 1524) was one of Leonardo da Vinci's most devoted "
+            "and diligent Milanese pupils, working directly in the master's workshop in Milan "
+            "throughout the 1490s alongside Giovanni Antonio Boltraffio and Giampietrino.  "
+            "He is historically significant for producing several of the most careful early "
+            "copies of Leonardo's compositions — including multiple versions of the Virgin "
+            "of the Rocks and the Last Supper — but his independent paintings reveal a "
+            "distinct personality: more linear than the master, warmer than Boltraffio, and "
+            "softer than Signorelli.  His is the sfumato of a faithful student who "
+            "absorbed the technique but applied it with a hand of slightly more literal "
+            "descriptiveness.\n\n"
+            "The defining quality of Marco's flesh passages is their warmth.  Where "
+            "Boltraffio's peak highlights have a cool pearl quality — silver-white rather "
+            "than ivory — Marco's highest lights retain the warm amber luminosity of the "
+            "Milanese panel ground reading through amber glazes: the skin glows with "
+            "genuine warmth rather than cool luminosity.  His shadows, too, retain more "
+            "amber in the mid-shadow zone than Boltraffio's distinctly blue-grey depths, "
+            "though they ultimately resolve into the cool violet-tinged darkness that is "
+            "characteristic of the Leonardo school across all its branches.\n\n"
+            "Marco's technique places him between Luini (maximum warmth and sweetness) "
+            "and Boltraffio (maximum cool precision and psychological depth).  His "
+            "expressions tend toward the sweetly idealized Milanese type — the half-closed "
+            "eyes, the gently inclined head, the soft indeterminate smile — that "
+            "Leonardo's workshop transmitted across the region, but with a slightly more "
+            "structured, linear quality in the drawing of features that reveals his "
+            "hand as distinct from both master and fellow pupils.  His drapery is painted "
+            "with clean zones of warm crimson, deep lapis, and warm forest green — the "
+            "Milanese sacred palette — laid in with confident warm strokes over the amber "
+            "ground and unified by thin amber glazes.  Technically he worked entirely in "
+            "oil on panel in the tradition established by Leonardo's workshop; his "
+            "surfaces have the smooth, lightly glazed quality of all the Milanese "
+            "Leonardeschi, aged now to the warm amber-brown that the amber-resin "
+            "varnishes develop over five centuries.\n\n"
+            "Apply doggiono_leonardesque_warmth_pass() as the primary Marco d'Oggiono "
+            "effect: THREE-GATE luminance tinting that encodes the three defining qualities "
+            "of his sfumato — (1) warm ivory in highlights (luma > 0.60), (2) cool violet "
+            "in shadow depths (luma < 0.38), and (3) light sfumato dissolution at detected "
+            "contour edges via Sobel gradient — all at opacity that preserves the "
+            "Leonardo-school warmth and smoothness without overcooling toward Boltraffio "
+            "or overwarming toward Luini."
+        ),
+        famous_works=[
+            ("Virgin of the Rocks (after Leonardo, Louvre version)",  "c. 1495–1500"),
+            ("Archangel Michael, Gabriel and Raphael",                 "c. 1516"),
+            ("The Three Archangels and Tobias",                        "c. 1516"),
+            ("Virgin and Child with the Infant St John",               "c. 1490–1500"),
+            ("Salvator Mundi (after Leonardo)",                        "c. 1500"),
+            ("Resurrection",                                           "c. 1490"),
+        ],
+        inspiration=(
+            "Apply doggiono_leonardesque_warmth_pass() to encode Marco d'Oggiono's "
+            "three defining Leonardesque qualities: "
+            "(1) WARM IVORY HIGHLIGHT TINTING — luma > highlight_lo=0.60; in highlight "
+            "zone, inject warm ivory lift (R + ivory_r=0.022, G + ivory_g=0.014, "
+            "B − ivory_b=0.003); Marco's highlights glow warm rather than cool-pearl "
+            "(Boltraffio) or cool-silver (sfumato); the amber panel ground reads through; "
+            "(2) COOL VIOLET SHADOW DEPTH — luma < shadow_hi=0.38; in shadow zone, "
+            "inject Leonardesque cool-violet atmosphere (R − shadow_r=0.010, "
+            "G − shadow_g=0.002, B + shadow_b=0.020); lighter than Boltraffio's blue-grey "
+            "(shadow_b=0.024) — Marco's shadows don't go as distinctly blue; "
+            "(3) SFUMATO EDGE DISSOLUTION — compute Sobel gradient of canvas luminance; "
+            "normalise edge_gate = clip((grad_norm − edge_thresh) / rng_e, 0, 1); "
+            "Gaussian blur canvas at sfumato_sigma; blend edge pixels toward blurred "
+            "version by edge_gate × sfumato_strength; dissolves contour boundaries "
+            "in the Leonardo tradition without going to the full atmospheric depth of "
+            "sfumato_veil_pass().  Use opacity=0.35 for a balanced Leonardesque quality "
+            "that warms and softens without eliminating structural clarity."
+        ),
+    ),
+
 }
 
 

@@ -574,6 +574,7 @@ def scene_to_painting(
     is_venetian_golden_naturalism = (scene.style.period == Period.VENETIAN_GOLDEN_NATURALISM)
     is_ferrarese_civic_grandeur   = (scene.style.period == Period.FERRARESE_CIVIC_GRANDEUR)
     is_artemisian_tenebrism       = (scene.style.period == Period.ARTEMISIAN_TENEBRISM)
+    is_milanese_leonardesque_circle = (scene.style.period == Period.MILANESE_LEONARDESQUE_CIRCLE)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3060,6 +3061,93 @@ def scene_to_painting(
         if _feedback is not None:
             print(_feedback.summary())
         p.finish(vignette=0.42, crackle=True)
+
+    elif is_milanese_leonardesque_circle:
+        # ── Milanese Leonardesque Circle pipeline (Marco d'Oggiono technique) ──
+        # Marco d'Oggiono worked in Leonardo's Milan workshop alongside Boltraffio.
+        # His technique is Leonardo-school sfumato: smooth oil glazes, dissolved
+        # edges, warm amber panel ground.  Unlike Boltraffio's cool-pearl highlights,
+        # Marco's peaks stay warm ivory — the amber ground reads through.
+        #
+        # Two-pass artistic contribution:
+        #   1. doggiono_leonardesque_warmth_pass(): THREE-GATE — warm ivory highlights,
+        #      cool violet shadows, Sobel-detected sfumato edge dissolution.
+        #   2. multilayer_atmospheric_veil_pass(): THREE-SCALE sfumato at fine/medium/
+        #      coarse sigma simultaneously — 74th distinct mode, random improvement.
+        doggiono_style = _ART_CATALOG.get("marco_doggiono")
+        ground_col = doggiono_style.ground_color if doggiono_style else (0.72, 0.60, 0.44)
+
+        p.tone_ground(ground_col, texture_strength=0.06)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.20), n_strokes=155)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=310)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.55),     n_strokes=740)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.60, 0.48, 0.28), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.04)
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.8),
+                       n_strokes=950, opacity=0.80, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=680, opacity=0.82, wet_blend=sp["wet_blend"] * 0.55)
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=360)
+
+        # ── doggiono_leonardesque_warmth_pass — session 176 artist pass ───────
+        # THREE-GATE: warm ivory highlights + cool violet shadows + sfumato edges.
+        # Encodes Marco's characteristic Leonardesque warmth that distinguishes him
+        # from Boltraffio (cooler) and Luini (sweeter/warmer), and from Signorelli
+        # (whom he knew in the same competitive Milanese milieu).
+        p.doggiono_leonardesque_warmth_pass(
+            highlight_lo    = 0.60,
+            ivory_r         = 0.022,
+            ivory_g         = 0.014,
+            ivory_b         = 0.003,
+            shadow_hi       = 0.38,
+            shadow_r        = 0.010,
+            shadow_g        = 0.002,
+            shadow_b        = 0.020,
+            edge_thresh     = 0.06,
+            edge_rng        = 0.10,
+            sfumato_sigma   = 2.5,
+            sfumato_strength= 0.30,
+            opacity         = 0.35,
+        )
+
+        # ── multilayer_atmospheric_veil_pass — session 176 random improvement ─
+        # THREE-SCALE sfumato (fine σ=1.5 / medium σ=4.5 / coarse σ=12.0).
+        # Weighted mix dissolves edges at multiple spatial frequencies simultaneously,
+        # producing the layered atmospheric depth of Leonardo's glazing technique.
+        p.multilayer_atmospheric_veil_pass(
+            sigma_fine    = 1.5,
+            sigma_medium  = 4.5,
+            sigma_coarse  = 12.0,
+            weight_fine   = 0.40,
+            weight_medium = 0.35,
+            weight_coarse = 0.25,
+            edge_thresh   = 0.04,
+            edge_rng      = 0.12,
+            opacity       = 0.42,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "doggiono_pass")
+
+        # Warm amber unifying glaze — Leonardo-school panel warmth.
+        p.glaze((0.68, 0.52, 0.28), opacity=0.06)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.30,
+            found_sharpness = 0.42,
+            lost_blur       = 1.8,
+            strength        = 0.28,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.44, crackle=True)
 
     elif is_venetian_golden_naturalism:
         # ── Venetian Golden Naturalism pipeline (Palma Vecchio technique) ─────
