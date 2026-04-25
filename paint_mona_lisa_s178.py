@@ -5,46 +5,36 @@ Subject: enigmatic half-length female figure, three-quarter pose, sfumato
 technique, dreamlike geological landscape background, dark veil, dark dress,
 folded hands — the full Renaissance portrait prompt.
 
-Artistic discovery (session 178): Adriaen Brouwer (1605/06–1638)
-  - Supreme master of the Flemish tavern genre; collected obsessively by
-    Rubens (17 works) and Rembrandt (8 works) — the highest endorsement
-    any genre painter has ever received from peers of that stature
-  - Painted rough peasants, card-sharps, smokers and brawlers with a
-    directness and economy that transcends genre: Van Gogh studied him
-    closely as a pioneer of expressive impasto two centuries before the term
-  - Extreme alla prima technique: thin paint on very dark umber ground,
-    no underpainting, no blending time — the gesture is the truth
-  - Palette is radically limited: raw umber, yellow ochre, tobacco amber,
-    a touch of vermilion, lead white — almost no blue or cool green
-  - His darkness is warm, never cool: the near-black ground breathes amber
-    warmth through thin paint everywhere, unifying figure and interior
-  - Single warm light source (candle, window, hearth) against shadow void
+Artistic discovery (session 178): Domenico Ghirlandaio (c.1448–1494)
+  - Dominant civic painter of late Quattrocento Florence; teacher of Michelangelo
+  - Chronicler of Florence's ruling merchant families in great fresco cycles:
+    Tornabuoni Chapel (Santa Maria Novella), Sassetti Chapel (Santa Trinità)
+  - Defines the confident, worldly self-image of Medicean Florence:
+    precise, dignified, richly detailed, shot through with warm golden light
+  - His palette is clean and saturated — distinct pigment identities rather than
+    atmospheric merged colours; vivid lapislazuli blue beside strong vermilion
+  - Flesh: warm ochre-ivory lit from above, modelled with warm earth shadows;
+    verdaccio underpainting gives half-tones a subtle warm-cool oscillation
+  - Bridge between Flemish precision and Florentine idealism
 
 New pipeline enhancements (session 178):
-  - brouwer_tavern_glow_pass: SEVENTY-FOURTH DISTINCT MODE
-    THREE-ZONE BROUWER REALISM ENCODING:
-    (1) AMBER MID-TONE WARMTH — Gaussian bell gate on mid-luminance
-        (luma 0.28–0.62): R + amber_r, G + amber_g, B − amber_b_reduce;
-        Brouwer's mid-tones are warm tobacco, not daylight grey
-    (2) SMOKY SHADOW DESATURATION — linear gate below smoke_hi (0.30):
-        chromatic desaturation toward luminance mean (smoke_desat=0.08);
-        tavern smoke mutes colour in the darkest zones — warm grey, not void
-    (3) WARM CANDLELIGHT ACCENT — linear gate above accent_lo (0.55):
-        R + accent_r, G + accent_g; where the single warm source touches
-        flesh, it leaves a golden flicker that is never neutral
-    NOVEL: FIRST pass combining tobacco-amber mid-tone Gaussian bell AND
-    smoky shadow chromatic desaturation AND warm candlelight highlight accent.
+  - ghirlandaio_civic_clarity_pass: SEVENTY-FIFTH DISTINCT MODE
+    BIMODAL SATURATION SORTING:
+    HIGH-SATURATION zone (S > sat_hi): vivid pixels pushed toward pure hue
+    identity via neutral-mean chromatic expansion × hi_gate × luma_bell_gate.
+    LOW-SATURATION zone (S < sat_lo): near-grays pulled toward clean neutral
+    via weighted neutral blend × lo_gate × luma_bell_gate.
+    NOVEL: FIRST pass to apply OPPOSITE simultaneous treatments to high- and
+    low-saturation zones — all prior saturation passes apply monotonic boost or
+    reduce, never bidirectional split keyed on saturation level.
 
-  - penumbra_chroma_bloom (sfumato_veil_pass improvement): SESSION 178
-    After all sfumato veils, selectively boosts colour saturation in the
-    penumbra zone (luma 0.28–0.52) via Gaussian bell gate.  Art-historical
-    basis: multispectral analysis of the Mona Lisa (Louvre 2020) shows
-    maximum chromatic warmth in the mid-shadow transition — carnation at
-    the shadow edge — not in the highlights (ivory-desaturated) or the deep
-    shadows (umber-muted).  Neutral-mean chromatic expansion:
-    delta = channel - neutral; boosted = neutral + delta × (1 + bloom × gate).
-    First sfumato improvement to target the penumbra CHROMA specifically,
-    distinct from penumbra_bloom (s105, targets luminance warmth).
+  - luminance_preserving_chroma_boost_pass: SEVENTY-SIXTH DISTINCT MODE
+    CHROMATIC BOOST WITH EXACT LUMINANCE RESTORATION via per-pixel channel
+    rescaling: (1) amplify chromatic vector (c − neutral) × (1 + boost × gate);
+    (2) compute luma_after; (3) scale channels by luma_orig / luma_after.
+    NOVEL: FIRST pass to combine chromatic amplification with EXACT luminance
+    restoration — all prior chroma boost passes allow luminance to shift as
+    a side-effect; this actively compensates, holding tonal drawing fixed.
 """
 
 import sys
@@ -184,21 +174,20 @@ def build_reference(w: int, h: int) -> Image.Image:
 
 
 def paint(output_path: str = "mona_lisa_s178.png") -> str:
-    """Full Leonardo sfumato pipeline with session 178 Brouwer tavern glow + penumbra chroma bloom."""
+    """Full Leonardo sfumato pipeline with session 178 Ghirlandaio civic clarity pass."""
     print("=" * 64)
     print("  Session 178 — Mona Lisa sfumato portrait")
-    print("  Artistic discovery: Adriaen Brouwer (1605/06–1638)")
-    print("    Flemish-Dutch Genre Realism — alla prima tavern painter")
-    print("    Tobacco amber mid-tones; smoky shadow void")
-    print("    SEVENTY-FOURTH MODE: brouwer_tavern_glow_pass")
-    print("    -- THREE-ZONE: amber mid-tones + smoky shadows + candlelight")
-    print("    SESSION 178 IMPROVEMENT: sfumato penumbra_chroma_bloom")
-    print("    -- Penumbra saturation boost from Mona Lisa multispectral data")
+    print("  Artistic discovery: Domenico Ghirlandaio (c.1448–1494)")
+    print("    Florentine High Renaissance — teacher of Michelangelo")
+    print("    Tornabuoni Chapel; civic fresco tradition; clean warm palette")
+    print("    SEVENTY-FIFTH MODE: ghirlandaio_civic_clarity_pass")
+    print("    -- BIMODAL SATURATION SORTING: vivid boost + neutral pull")
+    print("    SEVENTY-SIXTH MODE: luminance_preserving_chroma_boost_pass")
+    print("    -- Chromatic amplification with exact luminance restoration")
     print("=" * 64)
 
     ref = build_reference(W, H)
-    ref.save("mona_lisa_s178_reference.png")
-    print(f"  Reference saved -> mona_lisa_s178_reference.png  ({W}x{H})")
+    print(f"  Reference built  ({W}x{H})")
 
     leo = get_style("leonardo")
     p = Painter(W, H)
@@ -215,7 +204,7 @@ def paint(output_path: str = "mona_lisa_s178.png") -> str:
     print("  [4/26] Build form ...")
     p.build_form(ref, stroke_size=10, n_strokes=1400)
 
-    print("  [5/26] Sfumato veil pass (with s178 penumbra_chroma_bloom) ...")
+    print("  [5/26] Sfumato veil pass (with s177 highlight_sharpness_recovery) ...")
     p.sfumato_veil_pass(
         ref,
         n_veils                     = 10,
@@ -232,9 +221,6 @@ def paint(output_path: str = "mona_lisa_s178.png") -> str:
         highlight_sharpness_recovery= 0.10,
         highlight_sharpness_thresh  = 0.75,
         highlight_sharpness_sigma   = 1.2,
-        penumbra_chroma_bloom       = 0.18,
-        penumbra_chroma_lo          = 0.28,
-        penumbra_chroma_hi          = 0.52,
     )
 
     print("  [6/26] Edge sfumato dissolution pass ...")
@@ -443,42 +429,33 @@ def paint(output_path: str = "mona_lisa_s178.png") -> str:
     print("  [23/26] Doggiono Leonardesque warmth pass ...")
     p.doggiono_leonardesque_warmth_pass(opacity=0.28)
 
-    print("  [24/26] Boucher pastel radiance pass ...")
-    p.boucher_pastel_radiance_pass(
-        flesh_lo       = 0.44,
-        flesh_hi       = 0.72,
-        flesh_r        = 0.018,
-        flesh_g        = 0.010,
-        flesh_b_reduce = 0.014,
-        sky_band       = 0.32,
-        sky_cool_b     = 0.028,
-        sky_cool_g     = 0.006,
-        sky_cool_r     = 0.010,
-        sat_boost      = 0.10,
-        sat_gate_lo    = 0.32,
-        sat_gate_hi    = 0.78,
-        opacity        = 0.30,
+    print("  [24/26] Ghirlandaio civic clarity pass -- SEVENTY-FIFTH DISTINCT MODE ...")
+    # Bimodal saturation sorting inspired by Ghirlandaio's clean Florentine palette:
+    # vivid drapery colours (lapislazuli, vermilion) pushed toward pure hue identity;
+    # near-neutral mid-tones pulled back to clean warm-neutral, preventing muddiness.
+    # Applied after the Leonardesque warmth pass so the clarity works on a warm, toned
+    # surface — echoing how Ghirlandaio's palette reads against warm imprimatura.
+    p.ghirlandaio_civic_clarity_pass(
+        sat_hi       = 0.18,
+        sat_lo       = 0.07,
+        vivid_boost  = 0.24,
+        neutral_pull = 0.16,
+        luma_lo      = 0.12,
+        luma_hi      = 0.90,
+        opacity      = 0.38,
     )
 
-    print("  [25/26] Brouwer tavern glow pass -- SEVENTY-FOURTH DISTINCT MODE ...")
-    # Applied at moderate opacity so Brouwer's tobacco amber enriches the
-    # Leonardesque sfumato palette: the mid-tones gain warmth and vitality,
-    # the shadow void acquires smoky muting, and the highlights flash with
-    # candlelight warmth.  Complements rather than conflicts with Boucher's
-    # peach-cream (which targets lighter flesh) by working in the darker mid-
-    # tone zone where Brouwer's tavern palette lives.
-    p.brouwer_tavern_glow_pass(
-        amber_lo       = 0.28,
-        amber_hi       = 0.60,
-        amber_r        = 0.022,
-        amber_g        = 0.008,
-        amber_b_reduce = 0.014,
-        smoke_hi       = 0.28,
-        smoke_desat    = 0.06,
-        accent_lo      = 0.58,
-        accent_r       = 0.014,
-        accent_g       = 0.006,
-        opacity        = 0.34,
+    print("  [25/26] Luminance-preserving chroma boost pass -- SEVENTY-SIXTH DISTINCT MODE ...")
+    # Amplifies chromatic richness of the entire composition while keeping the
+    # tonal drawing — shadows, half-tones, highlights — exactly intact.
+    # Ghirlandaio's panels are tonally clear but chromatically vivid: this pass
+    # achieves that combination, where the image grows richer in colour without
+    # growing lighter, darker, or tonally ambiguous.
+    p.luminance_preserving_chroma_boost_pass(
+        boost    = 0.20,
+        luma_lo  = 0.18,
+        luma_hi  = 0.88,
+        opacity  = 0.32,
     )
 
     print("  [26/26] Place lights, final glaze + finish ...")

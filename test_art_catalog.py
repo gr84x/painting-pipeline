@@ -180,6 +180,7 @@ EXPECTED_ARTISTS = [
     "marco_doggiono",
     "boucher",
     "brouwer",
+    "ghirlandaio",
 ]
 
 
@@ -393,6 +394,7 @@ EXPECTED_PERIODS = [
     "UMBRIAN_HIGH_RENAISSANCE",
     "MILANESE_LEONARDESQUE_CIRCLE",
     "FLEMISH_GENRE_REALISM",
+    "FLORENTINE_CIVIC_RENAISSANCE",
 ]
 
 
@@ -24937,5 +24939,142 @@ def test_sfumato_penumbra_chroma_bloom_pixels_in_range():
     )
     p.sfumato_veil_pass(ref, n_veils=2, blur_radius=3.0, penumbra_chroma_bloom=0.30)
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+# ── Session 178: Domenico Ghirlandaio + FLORENTINE_CIVIC_RENAISSANCE ──────────
+
+def test_ghirlandaio_in_catalog():
+    """Session 178: ghirlandaio must be present in the CATALOG."""
+    assert "ghirlandaio" in CATALOG
+
+
+def test_ghirlandaio_movement():
+    """Session 178: ghirlandaio movement must reference Florentine Renaissance."""
+    s = get_style("ghirlandaio")
+    assert "florentine" in s.movement.lower() or "florence" in s.movement.lower()
+
+
+def test_ghirlandaio_palette_length():
+    """Session 178: ghirlandaio palette must have at least 6 colours."""
+    s = get_style("ghirlandaio")
+    assert len(s.palette) >= 6
+
+
+def test_ghirlandaio_palette_in_range():
+    """Session 178: all ghirlandaio palette channel values must be in [0, 1]."""
+    s = get_style("ghirlandaio")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0
+
+
+def test_ghirlandaio_ground_color_valid():
+    """Session 178: ghirlandaio ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("ghirlandaio")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_florentine_civic_renaissance_period_present():
+    """Session 178: FLORENTINE_CIVIC_RENAISSANCE must be a valid Period enum member."""
+    assert hasattr(Period, "FLORENTINE_CIVIC_RENAISSANCE")
+
+
+def test_florentine_civic_renaissance_stroke_params():
+    """Session 178: FLORENTINE_CIVIC_RENAISSANCE stroke_params must reflect Florentine disegno."""
+    style = Style(medium=Medium.OIL, period=Period.FLORENTINE_CIVIC_RENAISSANCE)
+    params = style.stroke_params
+    assert params["wet_blend"] >= 0.40
+    assert params["edge_softness"] <= 0.55
+
+
+def test_ghirlandaio_civic_clarity_pass_runs():
+    """Session 178: ghirlandaio_civic_clarity_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.0)
+    p.ghirlandaio_civic_clarity_pass(opacity=0.38)
+
+
+def test_ghirlandaio_civic_clarity_pass_noop_at_zero_opacity():
+    """Session 178: ghirlandaio_civic_clarity_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.ghirlandaio_civic_clarity_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_ghirlandaio_civic_clarity_pass_modifies_canvas():
+    """Session 178: ghirlandaio_civic_clarity_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.ghirlandaio_civic_clarity_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_ghirlandaio_civic_clarity_pass_pixels_in_range():
+    """Session 178: ghirlandaio_civic_clarity_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.0)
+    p.ghirlandaio_civic_clarity_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_luminance_preserving_chroma_boost_pass_runs():
+    """Session 178: luminance_preserving_chroma_boost_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.0)
+    p.luminance_preserving_chroma_boost_pass(opacity=0.35)
+
+
+def test_luminance_preserving_chroma_boost_pass_noop_at_zero_opacity():
+    """Session 178: luminance_preserving_chroma_boost_pass at opacity=0 leaves canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.luminance_preserving_chroma_boost_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_luminance_preserving_chroma_boost_pass_modifies_canvas():
+    """Session 178: luminance_preserving_chroma_boost_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.25)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.luminance_preserving_chroma_boost_pass(opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_luminance_preserving_chroma_boost_pass_pixels_in_range():
+    """Session 178: luminance_preserving_chroma_boost_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.78, 0.70, 0.56), texture_strength=0.0)
+    p.luminance_preserving_chroma_boost_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0
     assert buf[:, :, :3].max() <= 255

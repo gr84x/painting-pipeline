@@ -41378,3 +41378,150 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Brouwer tavern glow pass complete.")
+
+    # ── Session 178: Domenico Ghirlandaio ────────────────────────────────────
+    def ghirlandaio_civic_clarity_pass(
+            self,
+            sat_hi:          float = 0.20,
+            sat_lo:          float = 0.08,
+            vivid_boost:     float = 0.28,
+            neutral_pull:    float = 0.18,
+            luma_lo:         float = 0.12,
+            luma_hi:         float = 0.92,
+            opacity:         float = 0.38):
+        """
+        Ghirlandaio civic clarity pass — Domenico Ghirlandaio (c.1448–1494).
+
+        Encodes the defining palette quality of Ghirlandaio's Florentine civic
+        painting: a clean, bimodal colour world where vivid pigments remain
+        vivid and neutral passages remain cleanly neutral.
+
+        BIMODAL SATURATION SORTING:
+        HIGH-SATURATION zone (S > sat_hi): chromatic expansion (vivid_boost).
+        LOW-SATURATION zone (S < sat_lo): neutral pull (neutral_pull).
+        Both zones gated by Gaussian luminance bell [luma_lo, luma_hi].
+
+        NOVEL: SEVENTY-FIFTH DISTINCT MODE.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        luma_mid   = (float(luma_lo) + float(luma_hi)) * 0.5
+        luma_width = (float(luma_hi) - float(luma_lo)) * 0.5 + 1e-6
+        luma_gate  = _np.exp(
+            -0.5 * ((luma - luma_mid) / luma_width) ** 2
+        ).astype(_np.float32)
+
+        max_c = _np.maximum(_np.maximum(r0, g0), b0)
+        min_c = _np.minimum(_np.minimum(r0, g0), b0)
+        sat   = (max_c - min_c) / (max_c + 1e-6)
+
+        neutral = (r0 + g0 + b0) / 3.0
+
+        out_r = r0.copy()
+        out_g = g0.copy()
+        out_b = b0.copy()
+
+        hi_raw  = _np.clip((sat - float(sat_hi)) / (float(sat_hi) + 1e-6), 0.0, 1.0)
+        hi_gate = (hi_raw * luma_gate).astype(_np.float32)
+        boost   = float(vivid_boost) * hi_gate
+        out_r   = _np.clip(neutral + (out_r - neutral) * (1.0 + boost), 0.0, 1.0)
+        out_g   = _np.clip(neutral + (out_g - neutral) * (1.0 + boost), 0.0, 1.0)
+        out_b   = _np.clip(neutral + (out_b - neutral) * (1.0 + boost), 0.0, 1.0)
+
+        lo_raw  = _np.clip((float(sat_lo) - sat) / (float(sat_lo) + 1e-6), 0.0, 1.0)
+        lo_gate = (lo_raw * luma_gate).astype(_np.float32)
+        pull    = float(neutral_pull) * lo_gate
+        out_r   = _np.clip(out_r * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+        out_g   = _np.clip(out_g * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+        out_b   = _np.clip(out_b * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Ghirlandaio civic clarity pass complete.")
+
+    # ── Session 178: random improvement — luminance_preserving_chroma_boost_pass
+    def luminance_preserving_chroma_boost_pass(
+            self,
+            boost:        float = 0.22,
+            luma_lo:      float = 0.20,
+            luma_hi:      float = 0.85,
+            opacity:      float = 0.35):
+        """
+        Luminance-preserving chromatic boost pass — session 178 random improvement.
+
+        Amplifies the chromatic vector while EXACTLY restoring original luminance
+        via per-pixel rescaling. NOVEL: SEVENTY-SIXTH DISTINCT MODE.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma0 = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0)
+
+        luma_mid   = (float(luma_lo) + float(luma_hi)) * 0.5
+        luma_width = (float(luma_hi) - float(luma_lo)) * 0.5 + 1e-6
+        gate = _np.exp(
+            -0.5 * ((luma0 - luma_mid) / luma_width) ** 2
+        ).astype(_np.float32)
+
+        neutral = (r0 + g0 + b0) / 3.0
+        amp     = 1.0 + float(boost) * gate
+
+        boost_r = _np.clip(neutral + (r0 - neutral) * amp, 0.0, 1.0)
+        boost_g = _np.clip(neutral + (g0 - neutral) * amp, 0.0, 1.0)
+        boost_b = _np.clip(neutral + (b0 - neutral) * amp, 0.0, 1.0)
+
+        luma1 = 0.2126 * boost_r + 0.7152 * boost_g + 0.0722 * boost_b
+        scale = luma0 / (luma1 + 1e-7)
+        active = (luma0 > 0.02) & (gate > 0.01)
+        out_r = _np.where(active, _np.clip(boost_r * scale, 0.0, 1.0), boost_r)
+        out_g = _np.where(active, _np.clip(boost_g * scale, 0.0, 1.0), boost_g)
+        out_b = _np.where(active, _np.clip(boost_b * scale, 0.0, 1.0), boost_b)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Luminance-preserving chroma boost pass complete.")

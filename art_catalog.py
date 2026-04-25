@@ -15469,6 +15469,90 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 178: Domenico Ghirlandaio ────────────────────────────────────
+    "ghirlandaio": ArtStyle(
+        artist          = "Domenico Ghirlandaio",
+        movement        = "Florentine High Renaissance",
+        nationality     = "Italian",
+        period          = "1448–1494",
+        palette         = [
+            (0.92, 0.82, 0.68),   # warm ivory flesh — Ghirlandaio's characteristic clear-light Florentine
+                                   # skin tone; warm ochre-ivory ground reading through glaze layers;
+                                   # lighter than Leonardesque amber flesh, cleaner than Baroque warmth
+            (0.78, 0.65, 0.52),   # golden ochre mid-flesh — shadow zone; warm umber rather than cool blue;
+                                   # Florentine panel tradition builds shadow from warm earth pigments
+            (0.18, 0.32, 0.68),   # vivid ultramarine blue — Ghirlandaio's most characteristic drapery tone;
+                                   # jewel-saturated lapislazuli used prominently; the Tornabuoni Virgin's blue
+            (0.72, 0.18, 0.14),   # vermilion-scarlet — strong warm red drapery; punchy civic palette;
+                                   # reflects the secular confidence of Florentine merchant patronage
+            (0.22, 0.52, 0.28),   # verdaccio green — underpainting green for flesh modelling;
+                                   # Ghirlandaio inherited the fresco secco tradition's green underpainting
+            (0.88, 0.78, 0.48),   # pale gold — gilded ornament, halo accents, architectural trim detail
+            (0.40, 0.32, 0.22),   # deep warm brown — darks, hair, architectural shadow; warm not cool
+        ],
+        ground_color    = (0.78, 0.70, 0.56),   # warm amber-brown imprimatura — Florentine panel tradition
+        stroke_size     = 6,
+        wet_blend       = 0.55,
+        edge_softness   = 0.30,
+        jitter          = 0.020,
+        glazing         = (0.88, 0.80, 0.64),   # warm golden final glaze — Florentine varnish tradition
+        crackle         = True,
+        chromatic_split = False,
+        technique       = (
+            "Domenico Ghirlandaio (c.1448–1494) was the dominant civic painter of late "
+            "Quattrocento Florence, head of the workshop that trained the young Michelangelo "
+            "and the visual chronicler of Florence's ruling merchant families.  His great "
+            "fresco cycles — the Tornabuoni Chapel in Santa Maria Novella, the Sassetti "
+            "Chapel in Santa Trinità — filled Florentine churches with the faces and fashions "
+            "of contemporary Florentine society set against the background of sacred narrative.  "
+            "His art represents the confident, worldly self-image of Medicean Florence: precise, "
+            "dignified, richly detailed, and shot through with warm golden light.\n\n"
+            "Ghirlandaio's defining technical quality is the extraordinary clarity of his light "
+            "and colour.  His pigments are clean and saturated — not the atmospheric, merged "
+            "colours of Leonardo's sfumato but the distinct, individually legible palette of "
+            "Flemish-influenced Florentine tradition: vivid lapislazuli blue beside strong "
+            "vermilion, with golden ochre flesh held in clear warm light.  His portraits show "
+            "a debt to Flemish panel technique: crisp detail, jewel-like precision of textile "
+            "and ornament, and a crystalline light that treats colour as an independent "
+            "expressive element rather than subordinating it to tonal unity.\n\n"
+            "His flesh tones are warm and clear — ochre-ivory lit from above, modelled with "
+            "warm earth shadows rather than the cool grey-blue shadows of northern sfumato "
+            "tradition.  The verdaccio green underpainting of fresco tradition gives his "
+            "flesh a subtle warm-cool oscillation in the half-tones that reads as naturalistic "
+            "vitality.  His backgrounds are crisp architectural and landscape settings: "
+            "Florentine loggias, Classical arches, the Arno valley — all rendered with the "
+            "spatial confidence of a painter who understood perspective from Alberti and "
+            "atmosphere from direct observation.  Ghirlandaio's art is the bridge between "
+            "Flemish precision and Florentine idealism — the civic, secular, profoundly "
+            "material art of a city that believed beauty was a virtue in itself."
+        ),
+        famous_works    = [
+            ("Birth of the Baptist (Tornabuoni Chapel)",    "1486"),
+            ("Adoration of the Magi (Spedale degli Innocenti)", "1488"),
+            ("Old Man and his Grandson",                    "c.1490"),
+            ("Portrait of Giovanna degli Albizzi Tornabuoni", "1489"),
+            ("Visitation (Tornabuoni Chapel)",              "1486"),
+            ("The Last Supper (Ognissanti)",                "1480"),
+        ],
+        inspiration     = (
+            "Apply ghirlandaio_civic_clarity_pass() as the primary Ghirlandaio effect: "
+            "BIMODAL SATURATION SORTING that reproduces Ghirlandaio's characteristic "
+            "clean palette where each colour remains vivid and legible.  "
+            "The pass divides the canvas into vivid-chroma and near-neutral zones using "
+            "the HSV saturation approximation S = (max_channel − min_channel) / "
+            "(max_channel + ε).  HIGH-SATURATION zone (S > sat_hi=0.20): amplify "
+            "saturation via neutral-mean expansion "
+            "out = neutral + (c − neutral) × (1 + vivid_boost × hi_gate × luma_gate); "
+            "NOVEL: pushes already-vivid colours further toward their pure hue identity.  "
+            "LOW-SATURATION zone (S < sat_lo=0.08): gentle compression toward neutral "
+            "out = c × (1 − neutral_pull × lo_gate × luma_gate) + neutral × "
+            "neutral_pull × lo_gate × luma_gate; NOVEL: draws near-grays back toward "
+            "clean warm-neutral rather than leaving muddy mixed tones.  Both gates use "
+            "a Gaussian luminance bell [lo=0.12, hi=0.92] to protect deep shadows and "
+            "peak highlights.  Use opacity=0.38 for balanced Ghirlandaio clarity."
+        ),
+    ),
+
     # ── Session 177: François Boucher ─────────────────────────────────────────
     "boucher": ArtStyle(
         artist          = "François Boucher",

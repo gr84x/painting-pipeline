@@ -343,6 +343,7 @@ class Period(Enum):
     MILANESE_LEONARDESQUE_CIRCLE = auto()  # Marco d'Oggiono — inherited Leonardesque sfumato, warm ivory flesh, slightly more linear than master, sweet devotional Milanese warmth
     FRENCH_ROCOCO_PASTORAL = auto()  # Boucher — peach-cream pastel flesh, powder-blue sky light, warm ornamental radiance, Academic enamel surface
     FLEMISH_GENRE_REALISM  = auto()  # Brouwer — warm tobacco amber mid-tones, smoky shadow void, dark umber ground, rapid alla prima gesture
+    FLORENTINE_CIVIC_RENAISSANCE = auto()  # Ghirlandaio — clear warm Florentine light; clean vivid chromatic zones; precise Flemish-influenced detail; civic fresco tradition; dignified portraiture
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1737,6 +1738,13 @@ class Style:
             # wet_blend=0.18: very low — Brouwer never lingered; the stroke is truth.
             # edge_softness=0.38: moderate; boundaries are firm but not harsh — warm umber softens.
             Period.FLEMISH_GENRE_REALISM: dict(stroke_size_face=7, stroke_size_bg=20, wet_blend=0.18, edge_softness=0.38),
+            # FLORENTINE_CIVIC_RENAISSANCE (Ghirlandaio) — warm clear Florentine light; precise Flemish-influenced detail.
+            # stroke_size_face=6: mid-range face detail; Ghirlandaio's faces are modelled clearly but not microscopically.
+            # stroke_size_bg=22: moderate background for civic fresco-derived landscape and architecture passages.
+            # wet_blend=0.55: moderate — Florentine disegno demands clear form separation; not as hard as Signorelli (0.28)
+            #                  but firmer than sfumato tradition; clean boundaries without sfumato dissolution.
+            # edge_softness=0.30: moderately crisp — clear Florentine form definition with slight tonal modelling.
+            Period.FLORENTINE_CIVIC_RENAISSANCE: dict(stroke_size_face=6, stroke_size_bg=22, wet_blend=0.55, edge_softness=0.30),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
