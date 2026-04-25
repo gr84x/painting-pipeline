@@ -16158,6 +16158,132 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Giacomo Ceruti (il Pitocchetto) ───────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    #
+    # Giacomo Ceruti (Milan, 1698 – Milan, 1767) was called "il Pitocchetto" —
+    # "the little beggar painter" — for his lifelong commitment to portraying
+    # the poor, the disabled, the labouring, and the marginalised with a
+    # dignity and psychological presence unprecedented in Italian art.  While
+    # his contemporaries Tiepolo and Canaletto celebrated celestial ceilings
+    # and glittering canals for aristocratic patrons, Ceruti spent decades
+    # painting beggars in torn clothes, lace-makers by failing candlelight,
+    # and pilgrims resting on stone steps — not as moral parables, not as
+    # comic genre, but as individual human beings whose inner life is as rich
+    # as that of any saint or nobleman.
+    #
+    # His technique is rooted in the Lombard-Brescian tradition of Savoldo,
+    # Moretto, and Moroni — the tradition of OBSERVATIONAL REALISM that
+    # valued honest perception over idealization.  There is no sfumato
+    # dissolution, no theatrical Caravaggesque spotlighting, no Venetian
+    # shimmer.  Ceruti's light is quiet, diffuse, even — the north-window
+    # daylight of a working room, not a studio arrangement for a patron.
+    #
+    # His PALETTE is among the most deliberately muted in 18th-century Italian
+    # painting: warm sienna and ochre grounds, worn-fabric greys, deep umber
+    # shadows that are never cold or theatrical but always warm and earthen,
+    # pale ivory-cream flesh highlights, occasional deep madder or indigo in
+    # torn drapery for chromatic punctuation.  The overall tonality is warm-
+    # grey: the color of worn wool, aged wood, warm plaster walls.
+    #
+    # The SHADOWS are the key to his dignity pass.  Unlike Caravaggio, who uses
+    # near-black voids as moral and spatial theatre, Ceruti's darkest zones
+    # remain warm and inhabited — the darkness behind a beggar's shoulder is
+    # the same earthy sienna as their skin, lighter by degree, not different
+    # in kind.  This warm shadow continuity creates the sense that figure and
+    # setting share the same material reality: both worn, both warm, both real.
+    #
+    # His figures are NEVER prettified.  The hands of his lace-maker are worn
+    # and roughened; the face of his pilgrim carries the lines of a hard life.
+    # But they are always DIGNIFIED: they sit upright, their gaze is direct or
+    # inward but never servile, they occupy their space as fully as the princes
+    # in Velázquez.  Ceruti's psychological achievement — rendering poverty as
+    # dignity rather than pathos — was not equalled in European painting until
+    # Courbet, more than a century later.
+    #
+    # He is barely known outside specialist circles, which makes him a genuine
+    # discovery: a painter of radical humanism whose technique encodes a moral
+    # position in every warm earthy shadow.
+    "ceruti": ArtStyle(
+        artist="Giacomo Ceruti (il Pitocchetto)",
+        movement="Lombard Observational Realism / Pitocchismo",
+        nationality="Italian (Brescian/Milanese)",
+        period="1718–1762",
+        palette=[
+            (0.76, 0.62, 0.40),   # warm sienna-ochre — primary flesh/ground tone
+            (0.48, 0.36, 0.18),   # deep warm umber — shadow zone (warm, not cold)
+            (0.60, 0.55, 0.42),   # muted warm grey-olive — worn fabric, plaster wall
+            (0.54, 0.48, 0.38),   # warm buff-grey — aged textile, humble background
+            (0.82, 0.76, 0.58),   # pale ivory-cream — flesh highlight
+            (0.28, 0.22, 0.14),   # near-black warm umber — deepest shadow (warmer than Caravaggio)
+            (0.65, 0.55, 0.38),   # warm amber-sienna — earthy mid-distance
+        ],
+        ground_color=(0.58, 0.48, 0.30),    # warm sienna-ochre imprimatura — Brescian tradition
+        stroke_size=6,
+        wet_blend=0.55,                      # moderate blending — warm tonal continuity without sfumato
+        edge_softness=0.42,                  # moderate — honest clarity; no dissolution, no harshness
+        jitter=0.028,                        # slight — earthy surface variation; not slick
+        glazing=(0.62, 0.50, 0.28),          # warm amber unifying glaze — Lombard ground warmth
+        crackle=True,                        # 18th-century canvas — characteristic aged surface
+        chromatic_split=False,
+        technique=(
+            "Ceruti's defining technical achievement is WARM SHADOW DIGNITY: the "
+            "inhabited shadow zone between absolute void and lit midtone is enriched "
+            "with warm sienna-amber infusion, creating the sense that darkness is merely "
+            "a continuation of the same warm earthy reality as the lit flesh — not a "
+            "theatrical void, not a moral darkness, but simply where the light does not "
+            "quite reach.\n\n"
+            "The ground is a warm sienna-ochre imprimatura in the Brescian tradition "
+            "(Savoldo, Moretto, Moroni).  Over it, paint is applied in moderate, "
+            "well-blended layers that build tonal gradation without sfumato dissolution.  "
+            "Forms are clear but never harshly outlined — the quiet clarity of honest "
+            "Lombard observation.\n\n"
+            "PALETTE DISCIPLINE: the muted warm-grey palette — worn wool, aged plaster, "
+            "warm umber shadow — creates a chromatic setting in which the subject's "
+            "humanity is the only luminosity.  There is no background shimmer, no "
+            "landscape poetry, no decorative accent.  The painting's warmth comes "
+            "entirely from the figure.\n\n"
+            "PSYCHOLOGICAL DIRECTNESS: Ceruti's figures are never idealised or "
+            "sentimentalised.  Their clothing is torn, their hands are worn, their "
+            "expressions are inward or quietly attentive.  But they occupy their space "
+            "with full human dignity — upright, present, real.  Velázquez gave this "
+            "quality to court dwarfs; Ceruti gave it to beggars."
+        ),
+        famous_works=[
+            ("The Beggars",                          "c. 1736"),
+            ("Lace-Maker",                           "c. 1720–1725"),
+            ("Two Pilgrims Resting",                 "c. 1736"),
+            ("The Bagpipe Player",                   "c. 1736"),
+            ("Portrait of a Young Man",              "c. 1730"),
+            ("Woman with a Pitcher",                 "c. 1730"),
+        ],
+        inspiration=(
+            "Apply ceruti_dignity_shadow_pass() as the primary Ceruti effect: "
+            "MIDRANGE SHADOW ZONE WARM ENRICHMENT.  "
+            "Gate: luma in [shadow_lo=0.08, shadow_hi=0.42] — the inhabited shadow "
+            "zone between absolute void (< 0.08) and the lit midtone (> 0.42).  "
+            "Use a Gaussian bell-curve gate centred at the zone midpoint for smooth "
+            "boundary transitions.  In this zone: inject warm_r_delta to R, "
+            "warm_g_delta to G — a gentle sienna-amber infusion that makes darkness "
+            "warm and earthen rather than cold or theatrical.  "
+            "NOVEL: EIGHTY-EIGHTH DISTINCT MODE. FIRST pass to target STRICTLY the "
+            "MIDRANGE SHADOW ZONE (luma 0.08–0.42) with a Gaussian bell-curve gate "
+            "centred on the zone midpoint — different from all prior shadow gates "
+            "(absolute luma thresholds, percentile sculpting, etc.) in that it uses "
+            "a smoothly peaked bell curve to concentrate the effect at the heart of "
+            "the inhabited shadow, fading smoothly to zero at both boundaries.  "
+            "Follow with hue_coherence_field_pass() as EIGHTY-NINTH DISTINCT MODE: "
+            "local dominant hue coherence amplification via chroma unit-vector "
+            "Gaussian field — amplifies saturation of pixels aligned with their "
+            "local dominant hue, suppresses discordant outliers.  "
+            "Use ceruti_dignity_shadow_pass(shadow_lo=0.08, shadow_hi=0.42, "
+            "warm_r_delta=0.018, warm_g_delta=0.010, opacity=0.32) then "
+            "hue_coherence_field_pass(field_sigma=22.0, coherence_boost=0.15, "
+            "dissonance_suppress=0.10, opacity=0.28)."
+        ),
+    ),
+
 }
 
 

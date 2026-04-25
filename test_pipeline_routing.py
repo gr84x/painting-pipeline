@@ -202,6 +202,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
                                           and sp.get("edge_softness", 0.0) >= 0.80),
         "is_ferrarese_civic_grandeur":       period == Period.FERRARESE_CIVIC_GRANDEUR,
         "is_venetian_gilt_byzantine_splendour": period == Period.VENETIAN_GILT_BYZANTINE_SPLENDOUR,
+        "is_lombard_humble_genre":           period == Period.LOMBARD_HUMBLE_GENRE,
     }
 
 
@@ -16263,3 +16264,112 @@ def test_multilayer_atmospheric_veil_pass_pixels_in_range_routing():
     ).reshape(32, 32, 4)
     assert buf.min() >= 0
     assert buf.max() <= 255
+
+
+# ── Session 184: Giacomo Ceruti passes ────────────────────────────────────────
+
+
+def test_ceruti_dignity_shadow_pass_exists_routing():
+    """ceruti_dignity_shadow_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "ceruti_dignity_shadow_pass", None)), (
+        "ceruti_dignity_shadow_pass not found on Painter")
+
+
+def test_ceruti_dignity_shadow_pass_runs_routing():
+    """ceruti_dignity_shadow_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.48, 0.30), texture_strength=0.0)
+    p.ceruti_dignity_shadow_pass(opacity=0.32)
+
+
+def test_ceruti_dignity_shadow_pass_opacity_zero_routing():
+    """ceruti_dignity_shadow_pass at opacity=0 must leave canvas unchanged."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.48, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.ceruti_dignity_shadow_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_ceruti_dignity_shadow_pass_pixels_in_range_routing():
+    """ceruti_dignity_shadow_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.48, 0.30), texture_strength=0.0)
+    p.ceruti_dignity_shadow_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_ceruti_dignity_shadow_pass_modifies_shadow_zone_routing():
+    """ceruti_dignity_shadow_pass must modify pixels in the inhabited shadow zone."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    # Use a mid-dark reference so the shadow zone gate fires
+    from PIL import Image as _PILImg
+    arr = _np.full((32, 32, 3), 80, dtype=_np.uint8)   # luma ~0.31 — in shadow zone
+    ref = _PILImg.fromarray(arr, "RGB")
+    p.tone_ground((0.31, 0.28, 0.20), texture_strength=0.0)  # warm ground in shadow zone
+    before = _canvas_bytes(p)
+    p.ceruti_dignity_shadow_pass(shadow_lo=0.08, shadow_hi=0.42,
+                                  warm_r_delta=0.05, warm_g_delta=0.03, opacity=1.0)
+    after = _canvas_bytes(p)
+    assert before != after, "ceruti_dignity_shadow_pass should modify shadow-zone pixels"
+
+
+def test_hue_coherence_field_pass_exists_routing():
+    """hue_coherence_field_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "hue_coherence_field_pass", None)), (
+        "hue_coherence_field_pass not found on Painter")
+
+
+def test_hue_coherence_field_pass_runs_routing():
+    """hue_coherence_field_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.48, 0.30), texture_strength=0.0)
+    p.hue_coherence_field_pass(opacity=0.28)
+
+
+def test_hue_coherence_field_pass_opacity_zero_routing():
+    """hue_coherence_field_pass at opacity=0 must leave canvas unchanged."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.48, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.hue_coherence_field_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_hue_coherence_field_pass_pixels_in_range_routing():
+    """hue_coherence_field_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.48, 0.30), texture_strength=0.0)
+    p.hue_coherence_field_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_lombard_humble_genre_routing_flag_routing():
+    """LOMBARD_HUMBLE_GENRE period must set is_lombard_humble_genre=True."""
+    flags = _routing_flags(Period.LOMBARD_HUMBLE_GENRE)
+    assert flags["is_lombard_humble_genre"] is True
+
+
+def test_lombard_humble_genre_flag_not_set_for_other_periods_routing():
+    """is_lombard_humble_genre must be False for all periods except LOMBARD_HUMBLE_GENRE."""
+    for period in Period:
+        if period == Period.LOMBARD_HUMBLE_GENRE:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_lombard_humble_genre"], (
+            f"is_lombard_humble_genre should be False for {period.name}")

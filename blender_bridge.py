@@ -575,6 +575,7 @@ def scene_to_painting(
     is_ferrarese_civic_grandeur   = (scene.style.period == Period.FERRARESE_CIVIC_GRANDEUR)
     is_artemisian_tenebrism       = (scene.style.period == Period.ARTEMISIAN_TENEBRISM)
     is_milanese_leonardesque_circle = (scene.style.period == Period.MILANESE_LEONARDESQUE_CIRCLE)
+    is_lombard_humble_genre         = (scene.style.period == Period.LOMBARD_HUMBLE_GENRE)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3367,6 +3368,81 @@ def scene_to_painting(
             print(_feedback.summary())
         # Heavy vignette — the Caravaggesque void deepens at the canvas corners
         p.finish(vignette=0.68, crackle=True)
+
+    elif is_lombard_humble_genre:
+        # ── Lombard Humble Genre pipeline (Giacomo Ceruti / il Pitocchetto) ───
+        # Ceruti painted on a warm sienna-ochre imprimatura in the Brescian
+        # tradition.  His defining quality: shadows are warm and earthen, never
+        # cold theatrical voids.  The inhabited shadow zone (luma 0.08–0.42)
+        # receives a gentle sienna-amber infusion that creates continuity between
+        # figure and setting — both worn, both warm, both real.
+        #
+        # Two-pass artistic contribution:
+        #   1. ceruti_dignity_shadow_pass(): DOUBLE-BOUNDARY GAUSSIAN BELL-CURVE —
+        #      warm earthy sienna infusion gated on the inhabited shadow midrange.
+        #   2. hue_coherence_field_pass(): HUE UNIT-VECTOR GAUSSIAN FIELD —
+        #      local dominant hue coherence amplification.
+        ceruti_style = _ART_CATALOG.get("ceruti")
+        ground_col = ceruti_style.ground_color if ceruti_style else (0.58, 0.48, 0.30)
+
+        p.tone_ground(ground_col, texture_strength=0.08)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.25), n_strokes=150)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=300)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.55),     n_strokes=740)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.60, 0.48, 0.28), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.03)
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.8),
+                       n_strokes=950, opacity=0.78, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=680, opacity=0.80, wet_blend=sp["wet_blend"] * 0.55)
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=360)
+
+        # ── ceruti_dignity_shadow_pass — session 184 artist pass ──────────────
+        # DOUBLE-BOUNDARY GAUSSIAN BELL-CURVE gate on the inhabited shadow zone.
+        # Warm sienna-amber infusion makes darkness earthy and dignified — the
+        # Ceruti hallmark: shadow as warm earthen continuation of flesh, not void.
+        p.ceruti_dignity_shadow_pass(
+            shadow_lo    = 0.08,
+            shadow_hi    = 0.42,
+            warm_r_delta = 0.018,
+            warm_g_delta = 0.010,
+            opacity      = 0.32,
+        )
+
+        # ── hue_coherence_field_pass — session 184 random improvement ─────────
+        # Amplifies saturation of pixels aligned with the local dominant hue;
+        # gently suppresses chromatic outliers.  Reinforces warm-zone coherence
+        # and cool-zone coherence — the Old Masters' practice of reinforcing
+        # a dominant color in each area of the composition.
+        p.hue_coherence_field_pass(
+            field_sigma         = 22.0,
+            coherence_boost     = 0.15,
+            dissonance_suppress = 0.10,
+            opacity             = 0.28,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "ceruti_pass")
+
+        # Warm amber unifying glaze — Brescian/Lombard ground warmth
+        p.glaze((0.62, 0.50, 0.28), opacity=0.06)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.40,
+            lost_blur       = 1.6,
+            strength        = 0.26,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.42, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────
