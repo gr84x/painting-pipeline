@@ -176,6 +176,7 @@ EXPECTED_ARTISTS = [
     "abraham_bloemaert",
     "hendrick_avercamp",
     "jan_van_huysum",
+    "pieter_claesz",
 ]
 
 
@@ -385,6 +386,7 @@ EXPECTED_PERIODS = [
     "UTRECHT_MANNERIST",
     "DUTCH_WINTER_LANDSCAPE",
     "DUTCH_FLORAL_STILL_LIFE",
+    "TONAL_STILL_LIFE",
 ]
 
 
@@ -24082,3 +24084,213 @@ def test_frequency_domain_acuity_pass_modifies_canvas():
 
     assert not np.array_equal(before, after), (
         "frequency_domain_acuity_pass should modify canvas when opacity > 0 and boost > 1")
+
+
+# Session 174 -- Pieter Claesz + TONAL_STILL_LIFE
+# ---------------------------------------------------------------------------
+
+def test_pieter_claesz_s174_in_catalog():
+    """Session 174: pieter_claesz must appear in CATALOG."""
+    assert "pieter_claesz" in CATALOG, "pieter_claesz missing from CATALOG"
+
+
+def test_pieter_claesz_s174_in_expected_artists():
+    """Session 174: EXPECTED_ARTISTS list must include pieter_claesz."""
+    assert "pieter_claesz" in EXPECTED_ARTISTS
+
+
+def test_pieter_claesz_s174_movement():
+    """Session 174: pieter_claesz movement must reference tonal still life."""
+    s = get_style("pieter_claesz")
+    assert "tonal" in s.movement.lower() or "still life" in s.movement.lower()
+
+
+def test_pieter_claesz_s174_palette_min_five():
+    """Session 174: pieter_claesz palette must have at least 5 colours."""
+    s = get_style("pieter_claesz")
+    assert len(s.palette) >= 5
+
+
+def test_pieter_claesz_s174_palette_values_in_range():
+    """Session 174: all pieter_claesz palette values must be in [0, 1]."""
+    s = get_style("pieter_claesz")
+    for colour in s.palette:
+        for v in colour:
+            assert 0.0 <= v <= 1.0
+
+
+def test_pieter_claesz_s174_edge_softness_moderate():
+    """Session 174: pieter_claesz edge_softness must be < 0.55."""
+    s = get_style("pieter_claesz")
+    assert s.edge_softness < 0.55
+
+
+def test_pieter_claesz_s174_wet_blend_moderate():
+    """Session 174: pieter_claesz wet_blend must be >= 0.40."""
+    s = get_style("pieter_claesz")
+    assert s.wet_blend >= 0.40
+
+
+def test_pieter_claesz_s174_ground_color_warm_gray():
+    """Session 174: pieter_claesz ground_color must be warm gray (R >= B)."""
+    s = get_style("pieter_claesz")
+    r, g, b = s.ground_color
+    assert abs(r - g) < 0.20
+    assert r >= b
+
+
+def test_pieter_claesz_s174_inspiration_references_pass():
+    """Session 174: pieter_claesz inspiration must reference claesz_tonal_monochrome_pass."""
+    s = get_style("pieter_claesz")
+    assert "claesz_tonal_monochrome_pass" in s.inspiration
+
+
+def test_tonal_still_life_period_in_enum():
+    """Session 174: TONAL_STILL_LIFE must be a Period enum value."""
+    assert hasattr(Period, "TONAL_STILL_LIFE")
+    assert Period.TONAL_STILL_LIFE in list(Period)
+
+
+def test_tonal_still_life_in_expected_periods():
+    """Session 174: EXPECTED_PERIODS list must include TONAL_STILL_LIFE."""
+    assert "TONAL_STILL_LIFE" in EXPECTED_PERIODS
+
+
+def test_tonal_still_life_stroke_params_valid():
+    """Session 174: TONAL_STILL_LIFE stroke_params must return a valid dict."""
+    style = Style(medium=Medium.OIL, period=Period.TONAL_STILL_LIFE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "stroke_size_bg" in p
+    assert "wet_blend" in p
+    assert "edge_softness" in p
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_tonal_still_life_wet_blend_moderate():
+    """Session 174: TONAL_STILL_LIFE wet_blend should be >= 0.40."""
+    style = Style(medium=Medium.OIL, period=Period.TONAL_STILL_LIFE,
+                  palette=PaletteHint.WARM_EARTH).stroke_params
+    assert style["wet_blend"] >= 0.40
+
+
+def test_tonal_still_life_edge_softness_moderate():
+    """Session 174: TONAL_STILL_LIFE edge_softness should be < 0.55."""
+    style = Style(medium=Medium.OIL, period=Period.TONAL_STILL_LIFE,
+                  palette=PaletteHint.WARM_EARTH).stroke_params
+    assert style["edge_softness"] < 0.55
+
+
+def test_claesz_tonal_monochrome_pass_runs():
+    """Session 174: claesz_tonal_monochrome_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    p.claesz_tonal_monochrome_pass(opacity=0.55)
+
+
+def test_claesz_tonal_monochrome_pass_noop_at_zero_opacity():
+    """Session 174: claesz_tonal_monochrome_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.claesz_tonal_monochrome_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_claesz_tonal_monochrome_pass_pixels_in_range():
+    """Session 174: claesz_tonal_monochrome_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.70, 0.40, 0.20), texture_strength=0.0)
+    p.claesz_tonal_monochrome_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_claesz_tonal_monochrome_pass_reduces_chroma():
+    """Session 174: claesz_tonal_monochrome_pass with high desat should reduce chroma spread."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.85, 0.40, 0.10), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy().astype(np.float32)
+    r_b = before[:, :, 2].mean(); g_b = before[:, :, 1].mean(); b_b = before[:, :, 0].mean()
+    n_b = (r_b + g_b + b_b) / 3.0
+    dev_before = abs(r_b - n_b) + abs(g_b - n_b) + abs(b_b - n_b)
+    p.claesz_tonal_monochrome_pass(desat=0.90, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy().astype(np.float32)
+    r_a = after[:, :, 2].mean(); g_a = after[:, :, 1].mean(); b_a = after[:, :, 0].mean()
+    n_a = (r_a + g_a + b_a) / 3.0
+    dev_after = abs(r_a - n_a) + abs(g_a - n_a) + abs(b_a - n_a)
+    assert dev_after < dev_before, (
+        f"should reduce chroma; dev_before={dev_before:.3f}, dev_after={dev_after:.3f}")
+
+
+def test_claesz_tonal_monochrome_pass_modifies_canvas():
+    """Session 174: claesz_tonal_monochrome_pass at opacity > 0 must modify canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.75, 0.35, 0.15), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.claesz_tonal_monochrome_pass(desat=0.80, opacity=0.70)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_figure_contour_atmosphere_pass_runs():
+    """Session 174: figure_contour_atmosphere_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.figure_contour_atmosphere_pass(opacity=0.40)
+
+
+def test_figure_contour_atmosphere_pass_noop_at_zero_opacity():
+    """Session 174: figure_contour_atmosphere_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.figure_contour_atmosphere_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_figure_contour_atmosphere_pass_pixels_in_range():
+    """Session 174: figure_contour_atmosphere_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.figure_contour_atmosphere_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_figure_contour_atmosphere_pass_modifies_canvas():
+    """Session 174: figure_contour_atmosphere_pass must modify canvas when edge present."""
+    import numpy as np
+    import cairo
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    p.tone_ground((0.80, 0.70, 0.55), texture_strength=0.0)
+    ctx = cairo.Context(p.canvas.surface)
+    ctx.set_source_rgb(0.10, 0.08, 0.06)
+    ctx.rectangle(0, 0, 32, 64)
+    ctx.fill()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.figure_contour_atmosphere_pass(blur_sigma=3.0, bleed_strength=0.40,
+                                      edge_threshold=0.04, opacity=0.80)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)

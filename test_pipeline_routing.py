@@ -15988,3 +15988,123 @@ def test_craquelure_texture_pass_exists_routing():
     from stroke_engine import Painter
     assert callable(getattr(Painter, "craquelure_texture_pass", None)), (
         "craquelure_texture_pass not found on Painter")
+
+
+# ── Session 174 — Pieter Claesz + TONAL_STILL_LIFE ────────────────────────────
+
+
+def test_tonal_still_life_period_routing():
+    """Period.TONAL_STILL_LIFE must be present in the Period enum."""
+    assert hasattr(Period, "TONAL_STILL_LIFE"), "Period.TONAL_STILL_LIFE not found"
+    assert Period.TONAL_STILL_LIFE in list(Period)
+
+
+def test_tonal_still_life_stroke_params_routing():
+    """TONAL_STILL_LIFE stroke_params must satisfy all key constraints."""
+    style = Style(medium=Medium.OIL, period=Period.TONAL_STILL_LIFE,
+                  palette=PaletteHint.WARM_EARTH)
+    p = style.stroke_params
+    assert "stroke_size_face" in p
+    assert "stroke_size_bg" in p
+    assert "wet_blend" in p
+    assert "edge_softness" in p
+    assert 0.0 <= p["wet_blend"] <= 1.0
+    assert 0.0 <= p["edge_softness"] <= 1.0
+
+
+def test_tonal_still_life_wet_blend_routing():
+    """TONAL_STILL_LIFE wet_blend should be >= 0.40 for tonal smoothness."""
+    style = Style(medium=Medium.OIL, period=Period.TONAL_STILL_LIFE,
+                  palette=PaletteHint.WARM_EARTH).stroke_params
+    assert style["wet_blend"] >= 0.40
+
+
+def test_claesz_tonal_monochrome_pass_exists_routing():
+    """claesz_tonal_monochrome_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "claesz_tonal_monochrome_pass", None)), (
+        "claesz_tonal_monochrome_pass not found on Painter")
+
+
+def test_claesz_tonal_monochrome_pass_runs_routing():
+    """claesz_tonal_monochrome_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.55, 0.50, 0.40), texture_strength=0.0)
+    p.claesz_tonal_monochrome_pass(opacity=0.55)
+
+
+def test_claesz_tonal_monochrome_pass_opacity_zero_routing():
+    """claesz_tonal_monochrome_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.45, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.claesz_tonal_monochrome_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_claesz_tonal_monochrome_pass_modifies_routing():
+    """claesz_tonal_monochrome_pass must produce a detectable change at opacity=1."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.75, 0.35, 0.15), texture_strength=0.0)
+    buf_before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4).copy()
+    p.claesz_tonal_monochrome_pass(desat=0.80, opacity=1.0)
+    buf_after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert not _np.array_equal(buf_before, buf_after), (
+        "claesz_tonal_monochrome_pass should modify canvas at opacity=1.0")
+
+
+def test_claesz_tonal_monochrome_pass_pixels_in_range_routing():
+    """claesz_tonal_monochrome_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.70, 0.40, 0.20), texture_strength=0.0)
+    p.claesz_tonal_monochrome_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_figure_contour_atmosphere_pass_exists_routing():
+    """figure_contour_atmosphere_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "figure_contour_atmosphere_pass", None)), (
+        "figure_contour_atmosphere_pass not found on Painter")
+
+
+def test_figure_contour_atmosphere_pass_runs_routing():
+    """figure_contour_atmosphere_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.figure_contour_atmosphere_pass(opacity=0.40)
+
+
+def test_figure_contour_atmosphere_pass_opacity_zero_routing():
+    """figure_contour_atmosphere_pass at opacity=0 must leave canvas unchanged."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    before = _canvas_bytes(p)
+    p.figure_contour_atmosphere_pass(opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, "opacity=0.0 should be a no-op"
+
+
+def test_figure_contour_atmosphere_pass_pixels_in_range_routing():
+    """figure_contour_atmosphere_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.55, 0.47, 0.30), texture_strength=0.0)
+    p.figure_contour_atmosphere_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255

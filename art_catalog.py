@@ -15141,6 +15141,114 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 174 — new artist: Pieter Claesz ───────────────────────────────
+    # Randomly selected artist for session 174's inspiration.
+    # Pieter Claesz (c. 1597–1660) is the supreme master of the Dutch "ontbijt"
+    # (breakfast piece) and "banketje" (little banquet) tonal still-life style —
+    # a radical pictorial experiment in which the full chromatic range of painting
+    # is deliberately suppressed in favour of a near-monochromatic warm silver-gray
+    # palette.  Working in Haarlem throughout his career, Claesz pioneered a style
+    # so austere and so subtly differentiated that it reads, at first glance, almost
+    # like a monochrome photograph — yet rewards close looking with extraordinary
+    # richness of tonal nuance.
+    #
+    # His defining technique: the "tonal" or "monochrome banketje" approach.
+    # The entire painting is unified by a warm gray-silver envelope — the colour of
+    # polished pewter, stale bread, and oyster shells in soft window light.  Within
+    # this envelope, he distinguishes every object (a lemon rind, a glass goblet,
+    # a herring, a bread roll, a silver salt cellar) purely through subtle shifts of
+    # tonal value and surface finish, with only the most restrained chromatic accent.
+    # A single lemon peel may be the only saturated note in the entire painting.
+    #
+    # His palette is extraordinary in its restraint: warm ash-grays, pewter silvers,
+    # ivory whites, warm umber-grays for shadows, with only the palest amber or
+    # lemon ochre as the lone chromatic accent.  He avoids all primary-hue
+    # saturation — no crimsons, blues, or bright greens — in service of an
+    # overwhelming tonal unity.
+    #
+    # Surface rendering: extraordinary differentiation of material surfaces entirely
+    # through local tonal and edge variation.  Glass: cool specular highlights and
+    # cool-gray transparency.  Pewter: broad mid-gray surface with soft specular.
+    # Linen: warm white with soft directional grain.  Bread: warm ochre broken
+    # surface.  All distinguished without resort to colour differences.
+    "pieter_claesz": ArtStyle(
+        artist="Pieter Claesz",
+        movement="Dutch Golden Age / Tonal Still Life (Ontbijt / Banketje)",
+        nationality="Dutch",
+        period="c. 1597–1660",
+        palette=[
+            (0.78, 0.76, 0.70),   # warm ash-silver — pewter / oyster / linen
+            (0.62, 0.60, 0.55),   # mid warm gray — pewter shadow, stale bread
+            (0.44, 0.42, 0.37),   # deep warm umber-gray — shadow zones
+            (0.88, 0.86, 0.80),   # near-white ivory — linen, white tablecloth
+            (0.72, 0.66, 0.40),   # warm lemon ochre — the ONE saturated accent
+            (0.28, 0.26, 0.22),   # near-black umber — darkest shadows
+            (0.55, 0.53, 0.50),   # cool blue-gray — glass transparency
+        ],
+        ground_color=(0.54, 0.52, 0.46),  # warm gray-ochre imprimatura — the tonal ground
+        stroke_size=4,
+        wet_blend=0.58,
+        edge_softness=0.35,
+        jitter=0.018,
+        glazing=(0.68, 0.64, 0.52),  # warm amber-gray unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Pieter Claesz (c. 1597–1660) is the founding master of the Dutch "
+            "tonal or 'monochrome banketje' — a still-life mode so committed to "
+            "tonal unity that it deliberately suppresses almost all chromatic "
+            "variation in favour of a near-monochromatic warm silver-gray palette.\n\n"
+            "His defining innovation was the pictorial discovery that material "
+            "surfaces could be distinguished with extraordinary fidelity through "
+            "tonal and textural differentiation alone, without resort to hue.  "
+            "A pewter tankard, a glass goblet, a bread roll, a herring, an oyster "
+            "shell, a lemon rind — all are rendered within essentially the same "
+            "narrow warm gray value range, yet each reads unmistakably as itself "
+            "through the precise modulation of surface finish, edge sharpness, "
+            "highlight shape, and local luminance.\n\n"
+            "The palette: warm ash-silvers, pewter grays, ivory whites, umber "
+            "shadows — all within the same warm temperature, all desaturated to "
+            "near-neutral.  The single chromatic exception is often a lemon rind "
+            "or a piece of amber glass — one small note of yellow-ochre saturation "
+            "that reads as brilliantly coloured against the neutral ground.  This "
+            "is the 'single-accent' principle: maximum chromatic restraint "
+            "everywhere, then one warm accent that appears to glow by contrast.\n\n"
+            "Technically: thin paint on a warm gray-ochre ground; no heavy impasto; "
+            "subtle wet-on-wet blending for smooth tonal transitions; controlled "
+            "edge definition that distinguishes crisp (near objects, glass rims) "
+            "from soft (background, tablecloth folds).  The overall tonality is "
+            "low-key and restrained: midtones dominate, with only modest highlights "
+            "and shadows at the extremes.\n\n"
+            "The light source is invariably a single window to the left — soft, "
+            "directional, diffused — never candlelight (too warm, too dramatic) "
+            "and never outdoor sunlight (too hard, too shadowless).  The result is "
+            "a quality of still, interior, attentive silence that defines the "
+            "ontbijt aesthetic."
+        ),
+        famous_works=[
+            ("Still Life with a Pewter Flagon and Two Ming Bowls", "1607"),
+            ("Breakfast Piece", "c. 1625–1628"),
+            ("Monochrome Banketje", "c. 1630"),
+            ("Still Life with a Glass and a Ceramic Jug", "c. 1642"),
+            ("Breakfast Still Life with Roemer, Bread, and Cheese", "c. 1643"),
+        ],
+        inspiration=(
+            "Use claesz_tonal_monochrome_pass(): pull the entire canvas toward "
+            "a warm silver-gray tonal envelope by desaturating hue toward neutral "
+            "while preserving tonal (luminance) variation.  Algorithm: "
+            "(1) Compute neutral mean n = (R+G+B)/3 per pixel; "
+            "(2) Compute delta_c = channel − n for each channel (chromatic deviation); "
+            "(3) Reduce delta by desaturation factor: out_c = n + delta_c × (1−desat); "
+            "(4) Add warm silver tint: inject slight warm bias (R+ G+ B−) scaled by "
+            "    luma_gate to avoid tinting pure blacks and pure whites; "
+            "(5) Composite at opacity.  NOVEL: FIRST pass to combine (a) global hue "
+            "desaturation toward neutral AND (b) luminance-locked warm silver "
+            "injection in a single unified tonal pass.  All prior desaturation "
+            "passes target specific hue ranges or channels; this one desaturates "
+            "globally (regardless of hue) then re-injects a neutral warm bias."
+        ),
+    ),
+
 }
 
 
