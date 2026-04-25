@@ -576,6 +576,7 @@ def scene_to_painting(
     is_artemisian_tenebrism       = (scene.style.period == Period.ARTEMISIAN_TENEBRISM)
     is_milanese_leonardesque_circle = (scene.style.period == Period.MILANESE_LEONARDESQUE_CIRCLE)
     is_lombard_humble_genre         = (scene.style.period == Period.LOMBARD_HUMBLE_GENRE)
+    is_bergamask_portrait           = (scene.style.period == Period.BERGAMASK_PORTRAIT)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3443,6 +3444,84 @@ def scene_to_painting(
         if _feedback is not None:
             print(_feedback.summary())
         p.finish(vignette=0.42, crackle=True)
+
+    elif is_bergamask_portrait:
+        # ── Bergamask Portrait pipeline (Fra Galgario / Giuseppe Ghislandi) ──
+        # Fra Galgario (1655–1743), the 'Rembrandt of Bergamo', painted intimate
+        # psychological portraits of Bergamask nobles on a warm golden-ochre
+        # imprimatura.  His defining quality: 'living surfaces' — flesh that
+        # appears to glow from within, achieved through careful midtone-to-
+        # highlight tonal gradation enriched with warm amber-gold luminescence.
+        #
+        # Two-pass artistic contribution:
+        #   1. fra_galgario_living_surface_pass(): MIDTONE-TO-HIGHLIGHT GAUSSIAN
+        #      BELL-CURVE — warm amber-gold inner luminescence in the living zone.
+        #   2. chromatic_temperature_field_pass(): DUAL-DIRECTION LUMA-RAMP —
+        #      warm lights / cool shadows colour temperature gradient.
+        fra_galgario_style = _ART_CATALOG.get("fra_galgario")
+        ground_col = fra_galgario_style.ground_color if fra_galgario_style else (0.58, 0.46, 0.28)
+
+        p.tone_ground(ground_col, texture_strength=0.08)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.20), n_strokes=140)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=280)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.52),     n_strokes=760)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.62, 0.50, 0.28), opacity=0.06)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.03)
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.8),
+                       n_strokes=920, opacity=0.78, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=660, opacity=0.80, wet_blend=sp["wet_blend"] * 0.52)
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=340)
+
+        # ── fra_galgario_living_surface_pass — session 185 artist pass ────────
+        # MIDTONE-TO-HIGHLIGHT GAUSSIAN BELL-CURVE gate on the living surface zone.
+        # Warm amber-gold luminescence makes flesh glow from within — the Fra
+        # Galgario hallmark: skin as living light source, not mere reflector.
+        p.fra_galgario_living_surface_pass(
+            glow_lo     = 0.35,
+            glow_hi     = 0.80,
+            luma_peak   = 0.58,
+            half_width  = 0.20,
+            glow_r_lift = 0.022,
+            glow_g_lift = 0.012,
+            opacity     = 0.30,
+        )
+
+        # ── chromatic_temperature_field_pass — session 185 random improvement ─
+        # Dual-direction luma-ramp colour temperature gradient: warm R boost in
+        # highlights, cool B boost in shadows.  Implements the fundamental Old
+        # Master principle of warm lights / cool shadows in a single composable pass.
+        p.chromatic_temperature_field_pass(
+            warm_strength    = 0.025,
+            cool_strength    = 0.020,
+            warm_luma_lo     = 0.62,
+            cool_luma_hi     = 0.35,
+            transition_width = 0.22,
+            opacity          = 0.28,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "fra_galgario_pass")
+
+        # Warm amber unifying glaze — Bergamask 'golden' portrait quality
+        p.glaze((0.65, 0.52, 0.28), opacity=0.06)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.26,
+            found_sharpness = 0.38,
+            lost_blur       = 1.8,
+            strength        = 0.28,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.45, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

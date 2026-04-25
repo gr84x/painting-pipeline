@@ -203,6 +203,7 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
         "is_ferrarese_civic_grandeur":       period == Period.FERRARESE_CIVIC_GRANDEUR,
         "is_venetian_gilt_byzantine_splendour": period == Period.VENETIAN_GILT_BYZANTINE_SPLENDOUR,
         "is_lombard_humble_genre":           period == Period.LOMBARD_HUMBLE_GENRE,
+        "is_bergamask_portrait":             period == Period.BERGAMASK_PORTRAIT,
     }
 
 
@@ -16373,3 +16374,116 @@ def test_lombard_humble_genre_flag_not_set_for_other_periods_routing():
         flags = _routing_flags(period)
         assert not flags["is_lombard_humble_genre"], (
             f"is_lombard_humble_genre should be False for {period.name}")
+
+
+# ── Session 185: Fra Galgario / BERGAMASK_PORTRAIT tests ─────────────────────
+
+def test_fra_galgario_living_surface_pass_exists_routing():
+    """fra_galgario_living_surface_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "fra_galgario_living_surface_pass", None)), (
+        "fra_galgario_living_surface_pass not found on Painter")
+
+
+def test_fra_galgario_living_surface_pass_runs_routing():
+    """fra_galgario_living_surface_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.fra_galgario_living_surface_pass(opacity=0.30)
+
+
+def test_fra_galgario_living_surface_pass_opacity_zero_routing():
+    """fra_galgario_living_surface_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.fra_galgario_living_surface_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_fra_galgario_living_surface_pass_pixels_in_range_routing():
+    """fra_galgario_living_surface_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.fra_galgario_living_surface_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_fra_galgario_living_surface_pass_modifies_midtone_routing():
+    """fra_galgario_living_surface_pass must modify pixels in the living-surface zone."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Midtone pixels centred near luma_peak=0.58
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 150  # R — midtone
+    buf[:, :, 1] = 140  # G
+    buf[:, :, 0] = 110  # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.fra_galgario_living_surface_pass(glow_lo=0.35, glow_hi=0.80, opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "fra_galgario_living_surface_pass should modify midtone-zone pixels")
+
+
+def test_chromatic_temperature_field_pass_exists_routing():
+    """chromatic_temperature_field_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "chromatic_temperature_field_pass", None)), (
+        "chromatic_temperature_field_pass not found on Painter")
+
+
+def test_chromatic_temperature_field_pass_runs_routing():
+    """chromatic_temperature_field_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.chromatic_temperature_field_pass(opacity=0.28)
+
+
+def test_chromatic_temperature_field_pass_opacity_zero_routing():
+    """chromatic_temperature_field_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.chromatic_temperature_field_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_chromatic_temperature_field_pass_pixels_in_range_routing():
+    """chromatic_temperature_field_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.58, 0.46, 0.28), texture_strength=0.0)
+    p.chromatic_temperature_field_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_bergamask_portrait_routing_flag_routing():
+    """BERGAMASK_PORTRAIT period must set is_bergamask_portrait=True."""
+    flags = _routing_flags(Period.BERGAMASK_PORTRAIT)
+    assert flags["is_bergamask_portrait"] is True
+
+
+def test_bergamask_portrait_flag_not_set_for_other_periods_routing():
+    """is_bergamask_portrait must be False for all periods except BERGAMASK_PORTRAIT."""
+    for period in Period:
+        if period == Period.BERGAMASK_PORTRAIT:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_bergamask_portrait"], (
+            f"is_bergamask_portrait should be False for {period.name}")

@@ -42686,3 +42686,189 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Hue coherence field pass complete.")
+
+    # ── Pass 90: Fra Galgario — living surface inner luminescence ─────────────
+    def fra_galgario_living_surface_pass(
+        self,
+        glow_lo:    float = 0.35,
+        glow_hi:    float = 0.80,
+        luma_peak:  float = 0.58,
+        half_width: float = 0.20,
+        glow_r_lift: float = 0.022,
+        glow_g_lift: float = 0.012,
+        opacity:    float = 0.30,
+    ) -> None:
+        """NINETIETH DISTINCT MODE — Fra Galgario living surface inner luminescence.
+
+        Fra Galgario (1655–1743), the 'Rembrandt of Bergamo', achieved a quality
+        his contemporaries called 'living surfaces': flesh that appears to glow
+        from within rather than merely reflecting light from outside.  This pass
+        replicates that inner luminescence effect.
+
+        ALGORITHM:
+        1. Compute per-pixel luma: L = 0.2126*R + 0.7152*G + 0.0722*B
+        2. Compute Gaussian bell-curve gate centred at luma_peak with half_width:
+               gate_raw = exp(-0.5 * ((L - luma_peak) / half_width)^2)
+        3. Clamp gate to zero outside the living-surface zone [glow_lo, glow_hi]:
+               gate = gate_raw * (L >= glow_lo) * (L <= glow_hi)
+        4. Apply warm amber-gold lift in the gated zone:
+               R' = R + glow_r_lift * gate
+               G' = G + glow_g_lift * gate
+               (B unchanged — warmth without cyan contamination)
+        5. Blend with original at opacity.
+
+        NOVELTY: First pass to target the MIDTONE-TO-HIGHLIGHT TRANSITION ZONE
+        (luma 0.35–0.80) with a Gaussian bell-curve peaked at the midtone-highlight
+        junction (luma 0.58) — different from ceruti_dignity_shadow_pass (shadow
+        zone luma 0.08–0.42) in that it creates inner luminescence in the upper half
+        of the tonal range, where living flesh actually glows.
+
+        Args:
+            glow_lo:     Lower luma boundary of the living-surface zone (default 0.35).
+            glow_hi:     Upper luma boundary of the living-surface zone (default 0.80).
+            luma_peak:   Luma value at which the Gaussian gate peaks (default 0.58).
+            half_width:  Gaussian half-width in luma units (default 0.20).
+            glow_r_lift: Red channel lift in the gated zone (default 0.022).
+            glow_g_lift: Green channel lift in the gated zone (default 0.012).
+            opacity:     Blend weight [0, 1] (default 0.30).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # BGRA → float32 [0, 1]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Step 1: luma
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        # Step 2: Gaussian bell-curve gate centred at luma_peak
+        hw   = float(half_width)
+        peak = float(luma_peak)
+        gate_raw = _np.exp(-0.5 * ((luma - peak) / hw) ** 2).astype(_np.float32)
+
+        # Step 3: clamp gate to living-surface zone [glow_lo, glow_hi]
+        lo = float(glow_lo)
+        hi = float(glow_hi)
+        in_zone = ((luma >= lo) & (luma <= hi)).astype(_np.float32)
+        gate = gate_raw * in_zone
+
+        # Step 4: warm amber-gold lift
+        r_lift = float(glow_r_lift)
+        g_lift = float(glow_g_lift)
+        out_r = _np.clip(r0 + r_lift * gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + g_lift * gate, 0.0, 1.0)
+        # Blue unchanged — warmth without cyan contamination
+
+        # Step 5: blend with original
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        # buf[:, :, 0] (B) unchanged
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Fra Galgario living surface pass complete.")
+
+    # ── Pass 91: Chromatic temperature field — warm lights, cool shadows ───────
+    def chromatic_temperature_field_pass(
+        self,
+        warm_strength:  float = 0.025,
+        cool_strength:  float = 0.020,
+        warm_luma_lo:   float = 0.62,
+        cool_luma_hi:   float = 0.35,
+        transition_width: float = 0.22,
+        opacity:        float = 0.28,
+    ) -> None:
+        """NINETY-FIRST DISTINCT MODE — Warm-lights / cool-shadows colour temperature.
+
+        A fundamental principle of Old Master portrait painting: light zones lean warm
+        (towards amber-gold) and shadow zones lean cool (towards blue-grey).  This pass
+        implements a smooth, luma-driven colour temperature gradient across the tonal
+        range — the warm/cool opposition that gives classical portraits their spatial
+        depth and atmospheric life.
+
+        ALGORITHM:
+        1. Compute per-pixel luma: L = 0.2126*R + 0.7152*G + 0.0722*B
+        2. Warm gate (highlights): linear ramp from 0 at warm_luma_lo to 1 at
+               warm_luma_lo + transition_width — clamped to [0, 1].
+               Boost R by warm_strength * warm_gate.
+        3. Cool gate (shadows): linear ramp from 0 at cool_luma_hi to 1 at
+               cool_luma_hi - transition_width — clamped to [0, 1].
+               Boost B by cool_strength * cool_gate.
+        4. Blend with original at opacity.
+
+        NOVELTY: First pass to implement a DUAL-DIRECTION LUMA-RAMP COLOUR TEMPERATURE
+        gradient — applying simultaneous warm push in highlights and cool push in shadows
+        via separate linear ramp gates, rather than a single-direction threshold or a
+        constant colour overlay.  This creates the fundamental warm/cool opposition of
+        classical portrait painting in a single, composable pass.
+
+        Args:
+            warm_strength:    R boost in highlight zone (default 0.025).
+            cool_strength:    B boost in shadow zone (default 0.020).
+            warm_luma_lo:     Luma at which warm ramp begins rising (default 0.62).
+            cool_luma_hi:     Luma at which cool ramp begins rising (default 0.35).
+            transition_width: Width in luma units for linear ramp (default 0.22).
+            opacity:          Blend weight [0, 1] (default 0.28).
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # BGRA → float32 [0, 1]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Step 1: luma
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        tw = float(transition_width)
+
+        # Step 2: warm gate — linear ramp rising above warm_luma_lo
+        wlo = float(warm_luma_lo)
+        warm_gate = _np.clip((luma - wlo) / tw, 0.0, 1.0).astype(_np.float32)
+
+        # Step 3: cool gate — linear ramp rising below cool_luma_hi
+        chi = float(cool_luma_hi)
+        cool_gate = _np.clip((chi - luma) / tw, 0.0, 1.0).astype(_np.float32)
+
+        # Apply temperature shifts
+        ws = float(warm_strength)
+        cs = float(cool_strength)
+        out_r = _np.clip(r0 + ws * warm_gate, 0.0, 1.0)
+        out_b = _np.clip(b0 + cs * cool_gate, 0.0, 1.0)
+        # Green unchanged — avoids yellow/cyan contamination
+
+        # Step 4: blend with original
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        # buf[:, :, 1] (G) unchanged
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Chromatic temperature field pass complete.")
