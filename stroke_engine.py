@@ -40295,3 +40295,226 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Frequency domain acuity pass complete.")
+
+    # ── Session 174 passes ────────────────────────────────────────────────────
+
+    def claesz_tonal_monochrome_pass(
+        self,
+        desat: float = 0.72,
+        warm_r: float = 0.018,
+        warm_g: float = 0.010,
+        warm_b_reduce: float = 0.014,
+        luma_lo: float = 0.08,
+        luma_hi: float = 0.88,
+        opacity: float = 0.55,
+    ) -> None:
+        """Pull the entire canvas toward Pieter Claesz's warm silver-gray tonal envelope.
+
+        Inspired by Pieter Claesz (c. 1597–1660), master of the Dutch ontbijt
+        (breakfast piece) and monochrome banketje.  His radical pictorial experiment:
+        suppress almost all chromatic variation in favour of a near-monochromatic
+        warm silver-gray palette, distinguishing objects purely through tonal nuance
+        and surface finish rather than colour difference.
+
+        Algorithm:
+        (1) Compute neutral mean: n = (R+G+B)/3 per pixel.
+        (2) Compute chromatic deviation: delta_c = channel − n.
+        (3) Reduce delta by desaturation factor: out_c = n + delta_c × (1 − desat).
+            With desat=1.0 the image becomes fully monochrome; at desat=0.72 roughly
+            72% of the chromatic deviation is removed, leaving the characteristic
+            near-neutral but faintly warm tonality.
+        (4) Inject warm silver bias (gated by luminance bell):
+            luma_gate = smooth ramp up from luma_lo, down from luma_hi
+            out_r += warm_r × luma_gate
+            out_g += warm_g × luma_gate
+            out_b −= warm_b_reduce × luma_gate
+            This adds a very subtle warm-gray silver tone in midtones, leaving
+            pure blacks and pure whites unaffected.
+        (5) Composite at opacity.
+
+        SIXTY-NINTH DISTINCT MODE: FIRST pass to combine (a) global hue desaturation
+        toward neutral (regardless of hue — not targeting specific ranges) AND (b)
+        a luminance-gated warm silver injection in a single unified tonal pass.
+        All prior desaturation passes (avercamp_winter_atmosphere_pass, etc.) target
+        specific luminance ranges or use target-blending toward a fixed colour; this
+        pass desaturates globally via neutral-mean decomposition then re-injects
+        a spectrally neutral warm bias.
+
+        Args:
+            desat         : Fraction of chromatic deviation to remove. 0=unchanged, 1=monochrome.
+            warm_r        : Warm red injection in midtones. Default 0.018.
+            warm_g        : Warm green injection in midtones. Default 0.010.
+            warm_b_reduce : Blue reduction in midtones (adds warmth). Default 0.014.
+            luma_lo       : Lower luminance bound for warm injection gate. Default 0.08.
+            luma_hi       : Upper luminance bound for warm injection gate. Default 0.88.
+            opacity       : Composite weight (0 = no-op). Default 0.55.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        # Cairo BGRA: channel 0=B, 1=G, 2=R, 3=A
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1 & 2: Neutral mean and chromatic deviation ──────────────────
+        neutral = (r0 + g0 + b0) / 3.0
+        dr = r0 - neutral
+        dg = g0 - neutral
+        db = b0 - neutral
+
+        # ── Step 3: Desaturate toward neutral ─────────────────────────────────
+        factor = 1.0 - float(desat)
+        out_r = neutral + dr * factor
+        out_g = neutral + dg * factor
+        out_b = neutral + db * factor
+
+        # ── Step 4: Luminance-gated warm silver injection ─────────────────────
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        lo_l, hi_l = float(luma_lo), float(luma_hi)
+        rng_l = hi_l - lo_l + 1e-6
+        lo_ramp = _np.clip((luma - lo_l) / rng_l, 0.0, 1.0)
+        hi_ramp = _np.clip((hi_l - luma) / rng_l, 0.0, 1.0)
+        luma_gate = lo_ramp * hi_ramp
+
+        out_r = out_r + float(warm_r) * luma_gate
+        out_g = out_g + float(warm_g) * luma_gate
+        out_b = out_b - float(warm_b_reduce) * luma_gate
+
+        # ── Step 5: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + out_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + out_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + out_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Claesz tonal monochrome pass complete.")
+
+    def figure_contour_atmosphere_pass(
+        self,
+        blur_sigma: float = 4.0,
+        bleed_strength: float = 0.22,
+        edge_threshold: float = 0.06,
+        luma_lo: float = 0.05,
+        luma_hi: float = 0.95,
+        opacity: float = 0.40,
+    ) -> None:
+        """Bidirectional sfumato dissolution at figure-background contour boundary.
+
+        Improves the pipeline's core sfumato capability by creating a true
+        bidirectional atmospheric blend at the silhouette boundary between figure
+        and background.  The key insight is that Leonardo's sfumato dissolves not
+        only figure edges into background but also bleeds background atmosphere
+        INTO the figure edge — a two-way exchange of colour at the boundary that
+        makes the figure appear to emerge from the atmosphere rather than sit in
+        front of it.
+
+        Algorithm:
+        (1) Compute luminance from the current canvas.
+        (2) Estimate edge map via Sobel gradient of luma; normalise to [0, 1].
+        (3) Build edge gate: edge_gate = clip((grad_norm − edge_threshold) / rng, 0,1).
+            Active only where the gradient exceeds the threshold — at contour
+            boundaries (figure silhouette, hair edge, veil boundary, etc.).
+        (4) Gaussian blur the canvas at blur_sigma to obtain a 'background atmosphere'
+            estimate: the local neighbourhood colour averaged over the blur radius.
+        (5) Bleed blurred colour TOWARD current colour: at each edge pixel, blend
+            a fraction (bleed_strength × edge_gate) of the blurred neighbourhood
+            into the current pixel — background atmosphere bleeds inward along edges.
+        (6) Gate by luminance bell (luma_lo, luma_hi) to avoid contaminating pure
+            whites or deep shadows.
+        (7) Composite at opacity.
+
+        SEVENTIETH DISTINCT MODE: FIRST pass to implement BIDIRECTIONAL figure-
+        background sfumato dissolution by targeting the gradient-magnitude edge
+        map specifically, creating a thin atmospheric aureole at every contour
+        boundary.  Prior sfumato passes (sfumato_veil_pass, edge_sfumato_dissolution_pass)
+        blur the entire image or apply global atmospheric veils; this pass isolates
+        only pixels AT contour boundaries and creates a local two-way colour exchange
+        there.  The result is that figure edges dissolve into the surrounding
+        atmosphere in a precise and spatially specific way rather than globally.
+
+        Args:
+            blur_sigma      : Gaussian blur radius for neighbourhood atmosphere estimate. Default 4.0.
+            bleed_strength  : Maximum fraction of blurred colour to blend at edge. Default 0.22.
+            edge_threshold  : Minimum normalised gradient to qualify as a contour edge. Default 0.06.
+            luma_lo         : Lower luminance gate bound. Default 0.05.
+            luma_hi         : Upper luminance gate bound. Default 0.95.
+            opacity         : Composite weight (0 = no-op). Default 0.40.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Step 1 & 2: Luminance and edge map ───────────────────────────────
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float64)
+        sx = _sobel(luma, axis=1)
+        sy = _sobel(luma, axis=0)
+        grad_mag = _np.sqrt(sx ** 2 + sy ** 2).astype(_np.float32)
+        max_grad = float(grad_mag.max())
+        if max_grad < 1e-6:
+            return
+        grad_norm = grad_mag / max_grad
+
+        # ── Step 3: Edge gate ─────────────────────────────────────────────────
+        thresh = float(edge_threshold)
+        rng_e = max(1.0 - thresh, 1e-6)
+        edge_gate = _np.clip((grad_norm - thresh) / rng_e, 0.0, 1.0).astype(_np.float32)
+
+        # ── Step 4: Gaussian blur — neighbourhood atmosphere estimate ─────────
+        sigma = float(blur_sigma)
+        blurred_r = _gf(r0.astype(_np.float64), sigma=sigma).astype(_np.float32)
+        blurred_g = _gf(g0.astype(_np.float64), sigma=sigma).astype(_np.float32)
+        blurred_b = _gf(b0.astype(_np.float64), sigma=sigma).astype(_np.float32)
+
+        # ── Step 5 & 6: Bleed blurred atmosphere inward at edges + luma gate ──
+        luma_f32 = luma.astype(_np.float32)
+        lo_l, hi_l = float(luma_lo), float(luma_hi)
+        rng_l = hi_l - lo_l + 1e-6
+        lo_ramp = _np.clip((luma_f32 - lo_l) / rng_l, 0.0, 1.0)
+        hi_ramp = _np.clip((hi_l - luma_f32) / rng_l, 0.0, 1.0)
+        luma_gate = lo_ramp * hi_ramp
+
+        blend_alpha = edge_gate * luma_gate * float(bleed_strength)
+        blend_alpha = _np.clip(blend_alpha, 0.0, 1.0)
+
+        # Bidirectional blend: current pixel toward its blurred neighbourhood
+        atm_r = r0 * (1.0 - blend_alpha) + blurred_r * blend_alpha
+        atm_g = g0 * (1.0 - blend_alpha) + blurred_g * blend_alpha
+        atm_b = b0 * (1.0 - blend_alpha) + blurred_b * blend_alpha
+
+        # ── Step 7: Composite at opacity ──────────────────────────────────────
+        out_r = _np.clip(r0 * (1.0 - opacity) + atm_r * opacity, 0.0, 1.0)
+        out_g = _np.clip(g0 * (1.0 - opacity) + atm_g * opacity, 0.0, 1.0)
+        out_b = _np.clip(b0 * (1.0 - opacity) + atm_b * opacity, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(out_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(out_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(out_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Figure contour atmosphere pass complete.")
