@@ -42302,3 +42302,182 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Chromatic edge halation pass complete.")
+
+    # ── Session 183: artist pass — sirani_contextual_warmth_pass
+    def sirani_contextual_warmth_pass(
+            self,
+            field_sigma:         float = 28.0,
+            warm_bias_threshold: float = 0.04,
+            warm_r_delta:        float = 0.018,
+            warm_g_delta:        float = 0.010,
+            warm_b_delta:        float = 0.008,
+            opacity:             float = 0.38):
+        """
+        Sirani contextual warmth pass — session 183 artist pass.
+
+        Simulates the defining quality of Elisabetta Sirani's Bolognese palette:
+        the WARM CHROMATIC FIELD that permeates every corner of her canvases —
+        a golden Reniesque glow that warms not just the flesh but the entire
+        pictorial atmosphere, arising from her warm-ground Bolognese imprimatura
+        and golden glazing tradition.
+
+        SPATIAL NEIGHBOURHOOD FIELD WARMTH AMPLIFICATION:
+        1. Compute NEIGHBOURHOOD COLOUR FIELD via large-sigma Gaussian blur
+           (field_sigma) — this captures the broad chromatic character of the
+           surrounding area at scene scale, not local edge/texture detail.
+        2. Measure NEIGHBOURHOOD WARMTH as field_r - field_b at each pixel:
+           positive → warm-dominant context; negative → cool context.
+        3. Build warm_field_gate = clip((field_r - field_b - bias_thresh) /
+           bias_thresh, 0, 1) — nonzero only in warm-biased neighbourhoods.
+        4. Inject rosy warm lift in warm-field zones:
+           out_R = R + warm_r_delta × warm_field_gate
+           out_G = G + warm_g_delta × warm_field_gate
+           out_B = B - warm_b_delta × warm_field_gate
+
+        NOVEL: EIGHTY-SIXTH DISTINCT MODE. FIRST pass to use SPATIAL NEIGHBOURHOOD
+        FIELD WARMTH (large-sigma Gaussian blur → R-B balance of the surrounding
+        colour field) as the primary gate — not the pixel's own luminance, saturation,
+        hue angle, gradient magnitude, or channel dominance, but the CONTEXTUAL
+        WARM-COOL BALANCE of the surrounding colour field at scene scale.
+        Prior passes using local spatial aggregation: mode 6 (local std — texture
+        detection), mode 63 (HF residual sign — warm/cool bidirectional), mode 72
+        (inverse variance — smooth-zone gate), mode 75 (contour figure-atmosphere
+        exchange). These all use LOCAL VARIANCE or RESIDUAL measures; this is
+        the FIRST to use the MEAN COLOUR DIRECTION of a large neighbourhood zone
+        as the gate — simulating the chromatic induction and field-warmth effect
+        of painting on a warm Bolognese imprimatura ground.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Large-sigma Gaussian blur to get scene-scale neighbourhood colour field
+        sig = float(field_sigma)
+        field_r = _gf(r0, sigma=sig)
+        field_b = _gf(b0, sigma=sig)
+
+        # Neighbourhood warmth gate: positive in warm-dominant colour field zones
+        bias = float(warm_bias_threshold)
+        warm_field_gate = _np.clip(
+            (field_r - field_b - bias) / (bias + 1e-6),
+            0.0, 1.0
+        ).astype(_np.float32)
+
+        # Rosy warm lift in warm-field zones
+        out_r = _np.clip(r0 + float(warm_r_delta) * warm_field_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + float(warm_g_delta) * warm_field_gate, 0.0, 1.0)
+        out_b = _np.clip(b0 - float(warm_b_delta) * warm_field_gate, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Sirani contextual warmth pass complete.")
+
+    # ── Session 183: random improvement — adaptive_tonal_pivot_pass
+    def adaptive_tonal_pivot_pass(
+            self,
+            contrast_strength: float = 0.22,
+            sigmoid_slope:     float = 6.0,
+            opacity:           float = 0.30):
+        """
+        Adaptive tonal pivot pass — session 183 random improvement.
+
+        Applies a tonal contrast S-curve centred on the EMPIRICALLY COMPUTED
+        MEDIAN of the current canvas luma distribution.  After many artistic
+        passes, the image's tonal key may shift (getting slightly flat, or
+        compressed into a narrow range).  This pass restores rich tonal contrast
+        by amplifying the separation between lights and darks around the image's
+        own natural midpoint — not a fixed 0.5 midpoint but the actual median
+        of what has been painted so far.
+
+        ADAPTIVE TONAL S-CURVE:
+        1. Compute luma = 0.2126R + 0.7152G + 0.0722B.
+        2. Compute pivot = median(luma) — the empirical midpoint.
+        3. Apply sigmoid S-curve centred on pivot:
+           curve = 1 / (1 + exp(-sigmoid_slope × (luma - pivot)))
+           This maps [pivot → 0.5] and applies contrast amplification
+           symmetrically around pivot.
+        4. Compute luma_contrast = lerp(luma, curve, contrast_strength).
+        5. Apply luma_contrast / (luma + ε) channel rescaling to preserve hue
+           while applying the tonal adjustment equally to R, G, B.
+
+        NOVEL: EIGHTY-SEVENTH DISTINCT MODE. FIRST pass to use ADAPTIVE S-CURVE
+        centred on the EMPIRICALLY COMPUTED MEDIAN of the current canvas luma
+        distribution.  The sigmoid pivot self-locates at the image's own tonal
+        midpoint — adapting to whatever luminosity has been established by all
+        prior passes.  Different from: histogram percentile sculpting (mode 7 —
+        flattens to fixed percentile bounds, no sigmoid amplification); tonal
+        flattening (mode 23 — REDUCES contrast); luminance-gated warm bloom
+        (mode 17 — warm injection, not tonal contrast); local block percentile
+        contrast (mode 34 — block-wise, not global S-curve); frequency domain
+        acuity (mode 73 — spatial frequency domain, not tonal).  This is the
+        FIRST genuinely full-canvas global SIGMOID TONE MAPPING with a
+        self-locating pivot driven by the current image's empirical median.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        # Empirical pivot: median of current canvas luma
+        pivot = float(_np.median(luma))
+
+        # Sigmoid S-curve centred on empirical pivot
+        slope = float(sigmoid_slope)
+        curve = (1.0 / (1.0 + _np.exp(-slope * (luma - pivot)))).astype(_np.float32)
+
+        # Blend original luma with S-curve output by contrast_strength
+        cs = float(contrast_strength)
+        luma_contrast = luma * (1.0 - cs) + curve * cs
+
+        # Scale all channels by luma ratio to preserve hue
+        ratio = luma_contrast / (luma + 1e-6)
+
+        out_r = _np.clip(r0 * ratio, 0.0, 1.0)
+        out_g = _np.clip(g0 * ratio, 0.0, 1.0)
+        out_b = _np.clip(b0 * ratio, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Adaptive tonal pivot pass complete.")

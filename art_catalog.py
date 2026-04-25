@@ -16062,6 +16062,102 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 183: Elisabetta Sirani ────────────────────────────────────────
+    "sirani": ArtStyle(
+        artist      = "Elisabetta Sirani",
+        movement    = "Bolognese Feminine Baroque",
+        nationality = "Italian",
+        period      = "1638–1665",
+        palette     = [
+            (0.90, 0.80, 0.68),   # warm rose-ivory highlight — the luminous skin radiance unique to Sirani
+            (0.80, 0.66, 0.52),   # warm peach-rose midtone — rosy flesh warmer than Reni's ivory
+            (0.60, 0.46, 0.34),   # warm amber shadow — Reniesque golden shadow, never Caravaggesque void
+            (0.26, 0.20, 0.14),   # warm deep shadow — rich brown-amber, warm even in darkness
+            (0.44, 0.58, 0.78),   # cerulean drapery blue — Bolognese lapis-ultramarine robes
+            (0.70, 0.30, 0.28),   # warm crimson-rose drapery — the vivid crimson garments of her heroines
+            (0.62, 0.58, 0.52),   # warm neutral grey — atmospheric background tone
+            (0.78, 0.72, 0.56),   # warm parchment ground — Bolognese warm-toned preparation
+        ],
+        ground_color  = (0.62, 0.54, 0.40),    # warm mid-ochre Bolognese imprimatura
+        stroke_size   = 5,
+        wet_blend     = 0.68,
+        edge_softness = 0.60,
+        jitter        = 0.018,
+        glazing       = (0.72, 0.62, 0.42),    # warm golden glaze — Reniesque golden unifier
+        crackle       = True,
+        chromatic_split = False,
+        technique     = (
+            "Elisabetta Sirani (1638–1665) was the supreme representative of the Bolognese "
+            "Baroque feminine tradition and the only woman painter of the seventeenth century "
+            "to establish and run her own painting academy.  Born into the workshop of "
+            "Giovanni Andrea Sirani, himself a student of Guido Reni, she absorbed the "
+            "Bolognese classical ideal at its source and transformed it through a sensibility "
+            "that was distinctly her own — warmer, more directly emotional, and technically "
+            "more assured than her father had ever been.\n\n"
+            "Her palette is an evolution of Reni's golden ivory warmth.  Where Reni's "
+            "flesh tones tend toward cool ivory with warm amber shadows, Sirani's are "
+            "perceptibly warmer in the midtone — a rosy-peach quality that makes her "
+            "figures glow with an interior warmth rather than simply reflecting light.  "
+            "The shadows in her flesh are never cold: they warm from amber through golden-"
+            "brown to near-black, following the Bolognese tradition of warm-grounded shadow "
+            "that distinguishes the school from Caravaggio's cool voids and Leonardo's "
+            "grey-violet transitions.  The highlights are a warm rose-ivory unique to her "
+            "hand — brighter than Reni's restrained luminosity, softer than Artemisia's "
+            "dramatic spotlighting.\n\n"
+            "Her DRAPERY is handled with particular authority: vivid crimson robes against "
+            "warm background tones, rich cerulean blues in robes and sky, occasional deep "
+            "green accents.  The chromatic structure is classical Bolognese — warm figure "
+            "against neutral warm background — but the intensity of the individual colour "
+            "zones is distinctly Sirani's: more saturated than Reni, more varied than "
+            "Guercino, more warmly resolved than Artemisia.\n\n"
+            "SUBJECT MATTER: Sirani was the first Bolognese painter to make female "
+            "protagonists the primary subjects of her heroic compositions.  Her 'Porcia "
+            "Wounding Her Thigh' (1664), 'Timoclea Killing Her Captor' (1659), and "
+            "'Judith with the Head of Holofernes' (1658) established a tradition of "
+            "psychologically resolved women performing acts of courage or defiance — "
+            "painted with the same classical authority and compositional grandeur that "
+            "Reni reserved for his male saints.  This is not the anguished drama of "
+            "Artemisia's Judith but the composed moral certainty of a woman who has "
+            "decided and acted without regret.\n\n"
+            "She died in 1665, aged 27, possibly poisoned by a jealous servant — though "
+            "the cause was disputed at the inquest held in her honour.  The inquest itself "
+            "was an extraordinary testament to her reputation: the city of Bologna paused "
+            "to formally investigate the death of a 27-year-old painter, which attests to "
+            "the extraordinary standing she had achieved in her short lifetime.  In her "
+            "eleven productive years she completed over 170 known works — a rate of output "
+            "that has prompted modern scholars to question not only the attribution of some "
+            "works to her father, but to wonder what she might have achieved given time."
+        ),
+        famous_works  = [
+            ("Judith with the Head of Holofernes",          "1658"),
+            ("Porcia Wounding Her Thigh",                   "1664"),
+            ("Timoclea Killing Her Captor",                 "1659"),
+            ("Venus Chastising Cupid",                      "1657"),
+            ("Self-Portrait as Allegory of Painting",       "c. 1658–1660"),
+            ("Baptism of Christ",                           "1658"),
+        ],
+        inspiration   = (
+            "Apply sirani_contextual_warmth_pass() as the primary Sirani effect: "
+            "SPATIAL NEIGHBOURHOOD FIELD WARMTH AMPLIFICATION.  "
+            "Compute the neighbourhood colour field via large-sigma Gaussian blur "
+            "(field_sigma ~28); measure neighbourhood warmth as field_r - field_b; "
+            "in warm-field neighbourhoods (field_r > field_b + warm_bias_threshold): "
+            "inject gentle rosy warm lift R+warm_r_delta, G+warm_g_delta, B-warm_b_delta "
+            "scaled by neighbourhood warmth bias — amplifying the warm chromatic context "
+            "that characterises Sirani's Reniesque warm-ground Bolognese setting.  "
+            "NOVEL: EIGHTY-SIXTH DISTINCT MODE. FIRST pass to use SPATIAL NEIGHBOURHOOD "
+            "FIELD WARMTH (large-sigma Gaussian blur → R-B balance of surrounding area) "
+            "as the primary gate — not the pixel's own luma, saturation, hue angle, "
+            "gradient magnitude, or channel dominance, but the CONTEXTUAL WARM-COOL "
+            "BALANCE of the surrounding colour field at scene scale.  "
+            "Follow with adaptive_tonal_pivot_pass() as EIGHTY-SEVENTH DISTINCT MODE: "
+            "self-locating S-curve centred on the canvas median luma, amplifying tonal "
+            "contrast symmetrically to recover the rich Bolognese tonal depth.  "
+            "Use sirani_contextual_warmth_pass(field_sigma=28.0, opacity=0.38) then "
+            "adaptive_tonal_pivot_pass(contrast_strength=0.22, opacity=0.30)."
+        ),
+    ),
+
 }
 
 

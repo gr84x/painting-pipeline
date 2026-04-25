@@ -348,6 +348,7 @@ class Period(Enum):
     MILANESE_ROMAN_BRIDGE = auto()  # Cesare da Sesto — Leonardo's sfumato warmth fused with Raphael's cool classical form clarity; gradient-zoned bimodal warm/cool bridge
     UMBRIAN_DECORATIVE_RENAISSANCE = auto()  # Pinturicchio — jewel-bright lapis azure and gold-leaf warmth; decorative richness; Piccolomini Library blues; dual-channel dominance jewel enrichment
     FLORENTINE_PAGEANT_QUATTROCENTO = auto()  # Benozzo Gozzoli — jewel-bright zone-pure palette, lapis/vermilion/malachite/gold discipline, palette-snap chromatic density, Magi Chapel pageantry
+    BOLOGNESE_FEMININE_BAROQUE = auto()  # Sirani — golden Reniesque warmth; rosy-luminous flesh; contextual warm-field amplification; soft Bolognese sfumato; strong female protagonists
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1767,6 +1768,14 @@ class Style:
             # wet_blend=0.58: moderate blending — smoother than Signorelli, crisper than del Sarto; Umbrian middle ground.
             # edge_softness=0.35: moderately crisp — decorative fresco quality; edges defined but not hard Quattrocento line.
             Period.UMBRIAN_DECORATIVE_RENAISSANCE: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.58, edge_softness=0.35),
+            # FLORENTINE_PAGEANT_QUATTROCENTO (Benozzo Gozzoli) — jewel-bright zone-pure palette; fresco-scale narrative.
+            # wet_blend=0.48: moderate — zone purity maintained; fresco painting discipline; less dissolved than Leonardo.
+            # edge_softness=0.30: moderate-crisp — Quattrocento figure clarity; crisper than sfumato, softer than Signorelli.
+            Period.FLORENTINE_PAGEANT_QUATTROCENTO: dict(stroke_size_face=5, stroke_size_bg=18, wet_blend=0.48, edge_softness=0.30),
+            # BOLOGNESE_FEMININE_BAROQUE (Sirani) — golden Reniesque warmth; soft Bolognese sfumato; rosy luminous flesh.
+            # wet_blend=0.68: high — smooth Bolognese blending in the Reni tradition; soft transitions without Leonardo extremes.
+            # edge_softness=0.60: moderate-high — Bolognese sfumato; edges present but never harsh; figure dissolves gently.
+            Period.BOLOGNESE_FEMININE_BAROQUE: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.68, edge_softness=0.60),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
