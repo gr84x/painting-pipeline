@@ -41525,3 +41525,181 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Luminance-preserving chroma boost pass complete.")
+
+    # ── Session 179: ter Borch — ter_borch_satin_sheen_pass
+    def ter_borch_satin_sheen_pass(
+            self,
+            smooth_thresh:  float = 0.10,
+            sigma_local:    float = 2.5,
+            satin_lo:       float = 0.40,
+            satin_hi:       float = 0.72,
+            warm_r:         float = 0.028,
+            warm_g:         float = 0.010,
+            peak_lo:        float = 0.70,
+            cool_r:         float = 0.012,
+            cool_b:         float = 0.022,
+            opacity:        float = 0.38):
+        """
+        Ter Borch satin sheen pass — Gerard ter Borch (1617–1681).
+
+        Simulates ter Borch's signature two-zone satin fabric quality:
+        a warm amber glow just below the specular peak, and a cool crystalline
+        specular peak at the highest luminance — the iridescent quality that makes
+        his silver satin look lit from within.
+
+        VARIANCE-GATED DUAL-ZONE SATIN FABRIC SIMULATION:
+        1. Smooth surface detection: local std via Gaussian residual on luma.
+           smooth_gate = clip(1 - local_std / smooth_thresh, 0, 1) — high where
+           surface is uniform (satin/skin), zero where textured (hair/background).
+        2. Warm sub-peak glaze: Gaussian bell gate [satin_lo, satin_hi] ×
+           smooth_gate → R+warm_r, G+warm_g (warm amber sub-highlight glow).
+        3. Cool specular peak: ramp gate [peak_lo, 1.0] × smooth_gate →
+           R-cool_r, B+cool_b (cool crystalline window-light reflection).
+
+        NOVEL: SEVENTY-EIGHTH DISTINCT MODE. FIRST pass to use LOCAL VARIANCE
+        as a surface smoothness mask to simultaneously gate both a WARM mid-high
+        zone tint AND a COOL peak zone tint — all prior variance-based passes
+        apply a single monotonic chroma change (s128 adaptation, s173 amplification);
+        this applies OPPOSITE directional warm/cool treatments in two luma sub-zones,
+        both masked to smooth surface regions only.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+
+        # Local std via Gaussian blur residual — smooth_gate detects satin-like surfaces
+        sig       = float(sigma_local)
+        luma_blur = _gf(luma, sigma=sig)
+        luma_sq   = _gf(luma * luma, sigma=sig)
+        local_var = _np.clip(luma_sq - luma_blur * luma_blur, 0.0, None)
+        local_std = _np.sqrt(local_var).astype(_np.float32)
+        thresh    = float(smooth_thresh)
+        smooth_gate = _np.clip(1.0 - local_std / (thresh + 1e-6), 0.0, 1.0)
+
+        # Warm sub-peak: Gaussian bell gate over mid-high luma × smooth_gate
+        slo = float(satin_lo)
+        shi = float(satin_hi)
+        mid_s = (slo + shi) * 0.5
+        wid_s = (shi - slo) * 0.5 + 1e-6
+        warm_bell = _np.exp(-0.5 * ((luma - mid_s) / wid_s) ** 2).astype(_np.float32)
+        warm_gate = warm_bell * smooth_gate
+
+        out_r = _np.clip(r0 + float(warm_r) * warm_gate, 0.0, 1.0)
+        out_g = _np.clip(g0 + float(warm_g) * warm_gate, 0.0, 1.0)
+        out_b = b0.copy()
+
+        # Cool specular peak: one-sided ramp above peak_lo × smooth_gate
+        plo       = float(peak_lo)
+        peak_ramp = _np.clip((luma - plo) / (1.0 - plo + 1e-6), 0.0, 1.0)
+        cool_gate = peak_ramp * smooth_gate
+
+        out_r = _np.clip(out_r - float(cool_r) * cool_gate, 0.0, 1.0)
+        out_b = _np.clip(out_b + float(cool_b) * cool_gate, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Ter Borch satin sheen pass complete.")
+
+    # ── Session 179: random improvement — shadow_chroma_depth_pass
+    def shadow_chroma_depth_pass(
+            self,
+            shadow_lo:      float = 0.12,
+            shadow_hi:      float = 0.45,
+            amplify:        float = 0.30,
+            highlight_lo:   float = 0.82,
+            reduce:         float = 0.18,
+            opacity:        float = 0.35):
+        """
+        Shadow chroma depth pass — session 179 random improvement.
+
+        Simulates the natural chromatic envelope of oil paint glazing:
+        mid-shadow zones have the richest apparent saturation (transparent glazes
+        pool deepest colour in the penumbra), while peak highlights have reduced
+        chroma (thick lead white impasto desaturates toward neutral ivory).
+
+        TONAL ZONE CHROMA ENVELOPE:
+        MID-SHADOW zone [shadow_lo, shadow_hi]: chroma amplification via
+          neutral-mean vector expansion × Gaussian bell gate.
+        PEAK HIGHLIGHT zone [highlight_lo, 1.0]: chroma reduction via
+          neutral pull × one-sided ramp gate.
+
+        NOVEL: SEVENTY-NINTH DISTINCT MODE. FIRST pass to simultaneously AMPLIFY
+        mid-shadow chroma AND REDUCE highlight chroma based on LUMINANCE ZONE —
+        unlike ghirlandaio_civic_clarity_pass (pass 75) which sorts on HSV
+        SATURATION LEVEL, this operates on LUMINANCE ZONE; unlike all prior
+        chroma amplification passes which apply single monotonic boost, this
+        applies OPPOSITE treatments (amplify / reduce) in distinct luma zones.
+        """
+        import numpy as _np
+
+        if opacity <= 0.0:
+            return
+
+        H, W = self.h, self.w
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape(H, W, 4).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+        neutral = (r0 + g0 + b0) / 3.0
+
+        # Mid-shadow chroma amplification via bell gate
+        slo = float(shadow_lo)
+        shi = float(shadow_hi)
+        mid_sh = (slo + shi) * 0.5
+        wid_sh = (shi - slo) * 0.5 + 1e-6
+        shadow_bell = _np.exp(-0.5 * ((luma - mid_sh) / wid_sh) ** 2).astype(_np.float32)
+        amp_factor  = 1.0 + float(amplify) * shadow_bell
+
+        out_r = _np.clip(neutral + (r0 - neutral) * amp_factor, 0.0, 1.0)
+        out_g = _np.clip(neutral + (g0 - neutral) * amp_factor, 0.0, 1.0)
+        out_b = _np.clip(neutral + (b0 - neutral) * amp_factor, 0.0, 1.0)
+
+        # Peak highlight chroma reduction via one-sided ramp gate
+        hlo        = float(highlight_lo)
+        hi_ramp    = _np.clip((luma - hlo) / (1.0 - hlo + 1e-6), 0.0, 1.0)
+        pull       = float(reduce) * hi_ramp
+        out_r = _np.clip(out_r * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+        out_g = _np.clip(out_g * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+        out_b = _np.clip(out_b * (1.0 - pull) + neutral * pull, 0.0, 1.0)
+
+        op    = float(opacity)
+        fin_r = _np.clip(r0 * (1.0 - op) + out_r * op, 0.0, 1.0)
+        fin_g = _np.clip(g0 * (1.0 - op) + out_g * op, 0.0, 1.0)
+        fin_b = _np.clip(b0 * (1.0 - op) + out_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fin_r * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fin_g * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fin_b * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Shadow chroma depth pass complete.")

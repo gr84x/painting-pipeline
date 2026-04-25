@@ -15719,6 +15719,83 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "gerard_ter_borch": ArtStyle(
+        artist          = "Gerard ter Borch",
+        movement        = "Dutch Golden Age Intimate Genre",
+        nationality     = "Dutch",
+        period          = "1635–1681",
+        palette         = [
+            (0.88, 0.85, 0.80),   # cool ivory satin highlight — the luminous peak of ter Borch's famous silver-white fabric
+            (0.72, 0.66, 0.58),   # warm pale ivory flesh — smooth, seamless, fijnschilder-refined skin
+            (0.54, 0.50, 0.48),   # cool silver-grey satin mid-tone — the characteristic cool neutral of Dutch silk/satin
+            (0.38, 0.32, 0.26),   # warm umber shadow — the deep shadow beneath the folded fabric or behind the figure
+            (0.62, 0.54, 0.44),   # warm amber interior light — the domestic window light that illuminates these intimate scenes
+            (0.20, 0.18, 0.16),   # near-black depth — the dark ground and deepest interior shadow
+        ],
+        ground_color    = (0.42, 0.38, 0.32),   # warm mid-grey-brown ground — neutral enough for cool satin and warm flesh alike
+        stroke_size     = 5,
+        wet_blend       = 0.68,                   # high: the fijnschilder surface demands seamless, invisible brushwork
+        edge_softness   = 0.45,                   # moderate: crisp enough for satin fold boundaries; soft enough for flesh
+        jitter          = 0.018,                  # very low: ter Borch's surfaces are controlled, precise, perfectly even
+        glazing         = (0.78, 0.74, 0.68),     # warm ivory final glaze — unifies the cool satin against the warm flesh
+        crackle         = True,
+        chromatic_split = False,
+        technique       = (
+            "Gerard ter Borch (1617–1681) was the supreme Dutch master of intimate domestic genre "
+            "painting and the most celebrated renderer of fabric in the entire seventeenth century.  "
+            "His women in white or silver satin — their backs turned, their reflective fabric "
+            "catching window light — represent the highest technical achievement in Dutch oil painting "
+            "outside Vermeer, whose quietness ter Borch directly anticipated.  Ter Borch worked in "
+            "Deventer for most of his career, far from the commercial bustle of Leiden and Amsterdam, "
+            "and this geographical remove gave his work an intimacy and stillness that distinguishes "
+            "it from the more theatrical productions of the Leiden fijnschilders.\n\n"
+            "His defining technical achievement is the rendering of satin and silk.  Ter Borch "
+            "understood that satin does not simply reflect light like a mirror but catches it at "
+            "an angle, producing a TWO-ZONE luminance behaviour: a bright, cool, crystalline "
+            "specular PEAK where the fabric surface faces the light source directly, and a warm, "
+            "softly glowing SUB-PEAK zone just below the specular highlight where the fabric curves "
+            "away.  This warm sub-peak is unique to ter Borch: most painters either render fabric "
+            "as uniformly cool or uniformly warm; ter Borch places a warm amber glow immediately "
+            "below the cool crystalline peak, producing an iridescent quality that makes his satin "
+            "look lit from within.  The transition between these two zones is never hard — it is "
+            "achieved through multiple transparent glazes.\n\n"
+            "His flesh painting is equally refined: smooth, seamless, almost porcelain-like, with "
+            "no visible brushwork.  The skin occupies a warm ivory register that sits in contrast "
+            "to the cool silver of the satin, and this opposition — warm flesh / cool fabric — "
+            "is the structural colour dynamic of almost all his paintings.  The backgrounds are "
+            "deliberately understated: warm brown or grey-green, offering no competition to the "
+            "central fabric and figure drama.  Lighting is always from a single north window, "
+            "soft and diffused, never theatrical — a deliberate restraint that separates ter Borch "
+            "from the Caravaggists and from Rembrandt.\n\n"
+            "Ter Borch also worked as a portrait painter of considerable psychological acuity.  His "
+            "small portrait of the Westphalian Peace negotiations (c.1648, Rijksmuseum) is a tour "
+            "de force of the miniature group portrait, containing over fifty individualised faces "
+            "in a panel barely 45cm wide, each with the cool precision and tactile surface quality "
+            "that characterises all his work."
+        ),
+        famous_works    = [
+            ("The Suitor's Visit",                "c. 1658"),
+            ("Woman Reading a Letter",            "c. 1660–1662"),
+            ("The Letter",                        "c. 1660–1665"),
+            ("A Woman at her Toilet",             "c. 1660"),
+            ("The Gallant Conversation",          "c. 1654"),
+            ("The Swearing of the Oath of Ratification of the Treaty of Münster", "c. 1648"),
+        ],
+        inspiration     = (
+            "Apply ter_borch_satin_sheen_pass() as the primary ter Borch effect: "
+            "VARIANCE-GATED DUAL-ZONE SATIN FABRIC SIMULATION.  "
+            "Detects smooth surface zones using LOCAL STANDARD DEVIATION (low std = smooth surface = satin/skin) "
+            "via Gaussian blur on luma² residual; smooth_gate = clip(1 − local_std/smooth_thresh).  "
+            "Within those smooth zones, two SIMULTANEOUS tonal treatments simulate satin's iridescent two-zone quality: "
+            "(1) WARM SUB-PEAK GLAZE — bell gate [satin_lo=0.40, satin_hi=0.72]: inject warm amber (R+warm_r, G+warm_g) "
+            "simulating the warm sub-highlight glow just below the specular peak of ter Borch's satin fabrics; "
+            "(2) COOL SPECULAR PEAK — ramp gate [peak_lo=0.70, 1.0]: inject cool ivory crystalline (R-cool_r, B+cool_b) "
+            "simulating the cool reflective peak of the satin surface where it directly faces the window light.  "
+            "Both gates are multiplied by smooth_gate — only smooth, low-variance surfaces receive the treatment.  "
+            "Use opacity=0.38 for balanced satin quality without overwhelming the base warmth."
+        ),
+    ),
+
 }
 
 
