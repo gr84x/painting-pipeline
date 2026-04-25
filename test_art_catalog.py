@@ -185,6 +185,7 @@ EXPECTED_ARTISTS = [
     "cesare_da_sesto",
     "pinturicchio",
     "benozzo_gozzoli",
+    "sirani",
 ]
 
 
@@ -402,6 +403,8 @@ EXPECTED_PERIODS = [
     "DUTCH_INTIMATE_GENRE",
     "MILANESE_ROMAN_BRIDGE",
     "UMBRIAN_DECORATIVE_RENAISSANCE",
+    "FLORENTINE_PAGEANT_QUATTROCENTO",
+    "BOLOGNESE_FEMININE_BAROQUE",
 ]
 
 
@@ -25849,3 +25852,237 @@ def test_tonal_bounded_warmth_pass_pixels_in_range():
     assert buf[:, :, :3].min() >= 0
     assert buf[:, :, :3].max() <= 255
     assert buf[:, :, :3].max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 183 — Elisabetta Sirani + BOLOGNESE_FEMININE_BAROQUE
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_sirani_in_catalog():
+    """Session 183: sirani must be in CATALOG."""
+    assert "sirani" in CATALOG
+
+
+def test_sirani_movement():
+    """Session 183: sirani movement must reference Bolognese Baroque."""
+    s = get_style("sirani")
+    assert "Bolognese" in s.movement or "bolognese" in s.movement.lower()
+
+
+def test_sirani_palette_in_range():
+    """Session 183: all sirani palette channels must be in [0, 1]."""
+    s = get_style("sirani")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"sirani palette channel {ch} out of range"
+
+
+def test_sirani_ground_color_valid():
+    """Session 183: sirani ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("sirani")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_sirani_has_warm_ivory_in_palette():
+    """Session 183: sirani palette must include a warm ivory highlight (R >= 0.85, R > B+0.15)."""
+    s = get_style("sirani")
+    has_warm_ivory = any(r >= 0.85 and r > b + 0.15 for r, g, b in s.palette)
+    assert has_warm_ivory, (
+        "sirani palette must include a warm ivory highlight — "
+        "her luminous rose-ivory skin quality is her defining chromatic signature")
+
+
+def test_sirani_cool_neutral_glazing():
+    """Session 183: sirani glazing must be present and warm (R > B)."""
+    s = get_style("sirani")
+    assert s.glazing is not None, "sirani must have a glazing colour (warm golden Reniesque glaze)"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"sirani glazing R={r:.3f} should be > B={b:.3f} — warm golden Bolognese glaze")
+
+
+def test_sirani_high_wet_blend():
+    """Session 183: sirani wet_blend must be in [0.55, 0.80] — smooth Bolognese Reniesque blending."""
+    s = get_style("sirani")
+    assert 0.55 <= s.wet_blend <= 0.80, (
+        f"sirani wet_blend={s.wet_blend:.2f} should be in [0.55, 0.80] "
+        "(high Bolognese smooth blending, Reni school)")
+
+
+def test_sirani_moderate_high_edge_softness():
+    """Session 183: sirani edge_softness must be in [0.45, 0.75] — soft Bolognese sfumato."""
+    s = get_style("sirani")
+    assert 0.45 <= s.edge_softness <= 0.75, (
+        f"sirani edge_softness={s.edge_softness:.2f} should be in [0.45, 0.75] "
+        "(soft Bolognese sfumato in the Reni tradition)")
+
+
+def test_sirani_crackle():
+    """Session 183: sirani crackle should be True — aged 17th-century oil on canvas."""
+    s = get_style("sirani")
+    assert s.crackle is True
+
+
+def test_sirani_technique_mentions_reni():
+    """Session 183: sirani technique must mention Reni (her direct stylistic lineage)."""
+    s = get_style("sirani")
+    assert "Reni" in s.technique or "reni" in s.technique.lower()
+
+
+def test_sirani_famous_works_include_judith():
+    """Session 183: sirani famous_works must include Judith with the Head of Holofernes."""
+    s = get_style("sirani")
+    titles = [w[0].lower() for w in s.famous_works]
+    assert any("judith" in t for t in titles), (
+        "sirani famous_works must include Judith — her most celebrated Baroque heroine")
+
+
+def test_sirani_inspiration_references_contextual_warmth_pass():
+    """Session 183: sirani inspiration must reference sirani_contextual_warmth_pass."""
+    s = get_style("sirani")
+    assert "sirani_contextual_warmth_pass" in s.inspiration
+
+
+def test_sirani_inspiration_references_adaptive_tonal_pivot():
+    """Session 183: sirani inspiration must reference adaptive_tonal_pivot_pass."""
+    s = get_style("sirani")
+    assert "adaptive_tonal_pivot_pass" in s.inspiration
+
+
+def test_bolognese_feminine_baroque_period_present():
+    """Session 183: BOLOGNESE_FEMININE_BAROQUE must be a valid Period enum member."""
+    assert hasattr(Period, "BOLOGNESE_FEMININE_BAROQUE")
+
+
+def test_bolognese_feminine_baroque_in_expected_periods():
+    """Session 183: EXPECTED_PERIODS list must include BOLOGNESE_FEMININE_BAROQUE."""
+    assert "BOLOGNESE_FEMININE_BAROQUE" in EXPECTED_PERIODS, (
+        "BOLOGNESE_FEMININE_BAROQUE missing from EXPECTED_PERIODS — add it to the list")
+
+
+def test_bolognese_feminine_baroque_stroke_params_high_wet_blend():
+    """Session 183: BOLOGNESE_FEMININE_BAROQUE wet_blend must be high (Reniesque smooth blending)."""
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_FEMININE_BAROQUE)
+    params = style.stroke_params
+    assert 0.55 <= params["wet_blend"] <= 0.80, (
+        f"BOLOGNESE_FEMININE_BAROQUE wet_blend={params['wet_blend']:.2f} "
+        "should be high [0.55, 0.80] — smooth Bolognese Reniesque surface")
+
+
+def test_bolognese_feminine_baroque_stroke_params_moderate_high_edge_softness():
+    """Session 183: BOLOGNESE_FEMININE_BAROQUE edge_softness must be moderate-high (Bolognese sfumato)."""
+    style = Style(medium=Medium.OIL, period=Period.BOLOGNESE_FEMININE_BAROQUE)
+    params = style.stroke_params
+    assert 0.45 <= params["edge_softness"] <= 0.75, (
+        f"BOLOGNESE_FEMININE_BAROQUE edge_softness={params['edge_softness']:.2f} "
+        "should be moderate-high [0.45, 0.75] — Bolognese soft sfumato edge treatment")
+
+
+def test_sirani_contextual_warmth_pass_runs():
+    """Session 183: sirani_contextual_warmth_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.62, 0.54, 0.40), texture_strength=0.0)
+    p.sirani_contextual_warmth_pass(opacity=0.38)
+
+
+def test_sirani_contextual_warmth_pass_noop_at_zero_opacity():
+    """Session 183: sirani_contextual_warmth_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.62, 0.54, 0.40), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.sirani_contextual_warmth_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_sirani_contextual_warmth_pass_modifies_canvas():
+    """Session 183: sirani_contextual_warmth_pass must modify canvas on warm-toned ground."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Warm ground: R > B to ensure warm-field gate fires
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 180   # R — warm dominant
+    buf[:, :, 1] = 140   # G
+    buf[:, :, 0] = 100   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.sirani_contextual_warmth_pass(warm_bias_threshold=0.02, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_sirani_contextual_warmth_pass_pixels_in_range():
+    """Session 183: sirani_contextual_warmth_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.62, 0.54, 0.40), texture_strength=0.0)
+    p.sirani_contextual_warmth_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_adaptive_tonal_pivot_pass_runs():
+    """Session 183: adaptive_tonal_pivot_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.62, 0.54, 0.40), texture_strength=0.0)
+    p.adaptive_tonal_pivot_pass(opacity=0.30)
+
+
+def test_adaptive_tonal_pivot_pass_noop_at_zero_opacity():
+    """Session 183: adaptive_tonal_pivot_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.62, 0.54, 0.40), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.adaptive_tonal_pivot_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_adaptive_tonal_pivot_pass_modifies_canvas():
+    """Session 183: adaptive_tonal_pivot_pass must modify canvas at opacity > 0."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Canvas with tonal spread: half bright, half dark — S-curve has tonal range to amplify
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:32, :, :3] = 200   # bright upper half
+    buf[32:, :, :3] = 60    # dark lower half
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.adaptive_tonal_pivot_pass(contrast_strength=0.8, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_adaptive_tonal_pivot_pass_pixels_in_range():
+    """Session 183: adaptive_tonal_pivot_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.62, 0.54, 0.40), texture_strength=0.0)
+    p.adaptive_tonal_pivot_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_sirani_in_expected_artists():
+    """Session 183: sirani must appear in EXPECTED_ARTISTS list."""
+    assert "sirani" in EXPECTED_ARTISTS, (
+        "sirani missing from EXPECTED_ARTISTS — add it to the list")
