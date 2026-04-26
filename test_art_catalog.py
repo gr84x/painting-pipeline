@@ -192,6 +192,7 @@ EXPECTED_ARTISTS = [
     "lovis_corinth",
     "giorgio_morandi",
     "zdzislaw_beksinski",
+    "paul_klee",
 ]
 
 
@@ -27342,3 +27343,44 @@ def test_edge_definition_pass_pixels_in_range():
     p.edge_definition_pass(opacity=1.0)
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0 and buf[:, :, :3].max() <= 255
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 190 — Paul Klee entry validation
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_paul_klee_in_catalog():
+    """Session 190: paul_klee must be present in CATALOG."""
+    assert "paul_klee" in CATALOG
+
+
+def test_paul_klee_movement():
+    """Session 190: paul_klee movement must reference Bauhaus."""
+    style = get_style("paul_klee")
+    assert "Bauhaus" in style.movement
+
+
+def test_paul_klee_period():
+    """Session 190: paul_klee period must span 1900 to 1940."""
+    style = get_style("paul_klee")
+    assert "1900" in style.period and "1940" in style.period
+
+
+def test_paul_klee_palette_valid():
+    """Session 190: every paul_klee palette colour must be in [0, 1]."""
+    style = get_style("paul_klee")
+    for colour in style.palette:
+        for channel in colour:
+            assert 0.0 <= channel <= 1.0, f"Palette colour out of range: {colour}"
+
+
+def test_paul_klee_famous_works():
+    """Session 190: paul_klee must list at least 4 famous works."""
+    style = get_style("paul_klee")
+    assert len(style.famous_works) >= 4
+
+
+def test_paul_klee_inspiration_references_pass():
+    """Session 190: paul_klee inspiration must reference klee_magic_square_pass."""
+    style = get_style("paul_klee")
+    assert "klee_magic_square_pass" in style.inspiration

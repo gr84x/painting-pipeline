@@ -43929,3 +43929,112 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Imprimatura reveal pass complete.")
+
+    def klee_magic_square_pass(
+        self,
+        cell_size:        int   = 18,
+        harmony_strength: float = 0.06,
+        freq_x:           float = 0.75,
+        freq_y:           float = 0.55,
+        border_opacity:   float = 0.12,
+        warm_shift:       float = 0.04,
+        opacity:          float = 0.40,
+    ) -> None:
+        """
+        Session 190 — Klee magic square pass (101st distinct mode).
+
+        Inspired by Paul Klee's polyphonic colour grid technique, as exemplified in
+        'Fire in the Evening' (1929), 'Polyphony' (1932), and 'Ad Parnassum' (1932).
+
+        Divides the canvas into a regular grid of rectangular cells and applies a
+        harmonic colour variation to each cell based on its grid-position index,
+        using sine/cosine waves analogous to musical counterpoint in two dimensions.
+        Optionally overlays faint dark cell borders to reinforce the grid structure.
+        A warm tint shift simulates burlap/muslin ground bleed-through.
+
+        cell_size        : pixel size of each square grid cell
+        harmony_strength : peak colour-shift amplitude per channel (0–1 float)
+        freq_x           : horizontal spatial frequency of colour wave (radians/cell)
+        freq_y           : vertical spatial frequency of colour wave (radians/cell)
+        border_opacity   : opacity of thin dark cell-border lines (0 = none)
+        warm_shift       : global warm tint addition (simulates warm ground bleed)
+        opacity          : final composite opacity over the original image
+
+        NOVEL: ONE HUNDRED AND FIRST DISTINCT MODE.  FIRST pass to apply
+        POSITION-DEPENDENT HARMONIC COLOUR VARIATION IN A SPATIAL CELL GRID —
+        distinct from all prior passes which operate per-pixel uniformly, apply
+        Gaussian spatial transforms, or use luma-gated operations.  The harmonic
+        structure (sine/cosine waves indexed by cell position) directly embodies
+        Klee's polyphony concept: structured mathematical variation producing visual
+        music — independent rhythmic voices per colour channel.
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        cs = max(1, int(cell_size))
+        hs = float(harmony_strength)
+        fx = float(freq_x)
+        fy = float(freq_y)
+        ws = float(warm_shift)
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        n_cells_y = (H + cs - 1) // cs
+        n_cells_x = (W + cs - 1) // cs
+
+        # 1. Per-cell harmonic colour shift — the polyphony engine
+        for cy in range(n_cells_y):
+            y0c = cy * cs
+            y1c = min(y0c + cs, H)
+            for cx in range(n_cells_x):
+                x0c = cx * cs
+                x1c = min(x0c + cs, W)
+                # Three independent harmonic voices — one per channel
+                dr = hs * _np.sin(cx * fx)
+                dg = hs * _np.cos(cy * fy + _np.pi / 4.0)
+                db = hs * _np.sin((cx + cy) * fx * 0.5)
+                r1[y0c:y1c, x0c:x1c] = _np.clip(r1[y0c:y1c, x0c:x1c] + dr, 0.0, 1.0)
+                g1[y0c:y1c, x0c:x1c] = _np.clip(g1[y0c:y1c, x0c:x1c] + dg, 0.0, 1.0)
+                b1[y0c:y1c, x0c:x1c] = _np.clip(b1[y0c:y1c, x0c:x1c] + db, 0.0, 1.0)
+
+        # 2. Faint dark cell borders — the 'line as independent event' element
+        bo = float(border_opacity)
+        if bo > 0.0:
+            for cy in range(n_cells_y):
+                yb = cy * cs
+                if yb < H:
+                    r1[yb, :] = _np.clip(r1[yb, :] * (1.0 - bo), 0.0, 1.0)
+                    g1[yb, :] = _np.clip(g1[yb, :] * (1.0 - bo), 0.0, 1.0)
+                    b1[yb, :] = _np.clip(b1[yb, :] * (1.0 - bo), 0.0, 1.0)
+            for cx in range(n_cells_x):
+                xb = cx * cs
+                if xb < W:
+                    r1[:, xb] = _np.clip(r1[:, xb] * (1.0 - bo), 0.0, 1.0)
+                    g1[:, xb] = _np.clip(g1[:, xb] * (1.0 - bo), 0.0, 1.0)
+                    b1[:, xb] = _np.clip(b1[:, xb] * (1.0 - bo), 0.0, 1.0)
+
+        # 3. Warm ground bleed — burlap/muslin amber underlayer simulation
+        if ws > 0.0:
+            r1 = _np.clip(r1 + ws * 0.80, 0.0, 1.0)
+            g1 = _np.clip(g1 + ws * 0.50, 0.0, 1.0)
+            b1 = _np.clip(b1 + ws * 0.10, 0.0, 1.0)
+
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Klee magic square pass complete.")
