@@ -16630,3 +16630,76 @@ def test_milanese_metallic_portraiture_flag_not_set_for_other_periods_routing():
         flags = _routing_flags(period)
         assert not flags["is_milanese_metallic_portraiture"], (
             f"is_milanese_metallic_portraiture should be False for {period.name}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 190 — klee_magic_square_pass (101st distinct mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_klee_magic_square_pass_exists_routing():
+    """Session 190: klee_magic_square_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "klee_magic_square_pass", None)), (
+        "klee_magic_square_pass not found on Painter")
+
+
+def test_klee_magic_square_pass_signature_routing():
+    """Session 190: klee_magic_square_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.klee_magic_square_pass)
+    for param in ("cell_size", "harmony_strength", "freq_x", "freq_y",
+                  "border_opacity", "warm_shift", "opacity"):
+        assert param in sig.parameters, f"Missing parameter: {param}"
+
+
+def test_klee_magic_square_pass_runs_routing():
+    """Session 190: klee_magic_square_pass must complete without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.klee_magic_square_pass()
+
+
+def test_klee_magic_square_pass_opacity_zero_routing():
+    """Session 190: klee_magic_square_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.klee_magic_square_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_klee_magic_square_pass_pixels_in_range_routing():
+    """Session 190: klee_magic_square_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.78, 0.70, 0.52), texture_strength=0.0)
+    p.klee_magic_square_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_klee_magic_square_pass_modifies_canvas_routing():
+    """Session 190: klee_magic_square_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.45, 0.32), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.klee_magic_square_pass(
+        cell_size=8, harmony_strength=0.20, opacity=1.0, warm_shift=0.05
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "klee_magic_square_pass should modify canvas pixels")
+
+
+def test_klee_magic_square_pass_no_border_routing():
+    """Session 190: klee_magic_square_pass with border_opacity=0 must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.0)
+    p.klee_magic_square_pass(border_opacity=0.0, opacity=0.30)

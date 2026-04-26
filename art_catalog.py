@@ -16719,6 +16719,94 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Paul Klee ──────────────────────────────────────────────────────────────
+    "paul_klee": ArtStyle(
+        artist="Paul Klee",
+        movement="Expressionism / Bauhaus / Abstract Constructivism",
+        nationality="Swiss-German",
+        period="1900–1940",
+        palette=[
+            (0.84, 0.70, 0.28),   # warm ochre gold — Bauhaus warmth, dominant field
+            (0.72, 0.42, 0.16),   # burnt sienna orange — "Fire in the Evening" glow
+            (0.28, 0.48, 0.72),   # cobalt blue — spatial depth element
+            (0.44, 0.58, 0.38),   # muted sage green — garden / organic motif
+            (0.76, 0.52, 0.48),   # rose madder — warm emotional accent
+            (0.22, 0.16, 0.10),   # dark umber — contour line colour
+            (0.90, 0.86, 0.72),   # warm cream ivory — highest cell brightness
+            (0.58, 0.28, 0.18),   # deep terracotta — shadow cell accent
+        ],
+        ground_color=(0.78, 0.70, 0.52),    # warm buff — burlap/muslin ground bleed
+        stroke_size=6,
+        wet_blend=0.10,                      # low: cells are discrete, not merged
+        edge_softness=0.15,                  # crisp cell boundaries
+        jitter=0.022,                        # subtle variation within each cell
+        glazing=(0.80, 0.68, 0.44),          # warm amber final veil
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Klee's defining technique is the POLYPHONIC COLOUR GRID: a visual "
+            "analogue of musical counterpoint in which the canvas is divided into a "
+            "lattice of rectangular cells, each carrying a subtly different hue "
+            "variant of its neighbour.  The system is not random but harmonic — "
+            "colour relationships across rows and columns follow a structural logic "
+            "that Klee described as 'counterpoint in two dimensions.'\n\n"
+            "His most mature works ('Fire in the Evening', 1929; 'Polyphony', 1932; "
+            "'Ad Parnassum', 1932) use this grid structure as the primary pictorial "
+            "substance.  Recognisable subjects (owls, towers, cats, angels) are "
+            "embedded within the grid rather than laid over it — figure and field "
+            "share the same cellular architecture.\n\n"
+            "PALETTE is warm and archaeological: ochre gold dominates, with cobalt "
+            "blue reserved for spatial recession and rose accent for emotional warmth.  "
+            "The characteristic Klee surface glows because the warm ground (often "
+            "burlap or muslin) bleeds through thin cell areas, creating a unified "
+            "amber underlayer everywhere.\n\n"
+            "LINE is independent of fill in Klee: dark contour lines mark "
+            "boundaries between forms but do not describe volume — they are a "
+            "separate graphic event drawn over colour, like a melody over harmonic "
+            "accompaniment.  He described the line as 'a dot that went for a walk.'\n\n"
+            "SURFACE QUALITY: matte, thin, luminous.  Paint is applied in "
+            "transparent washes; the ground shows everywhere; the image has a "
+            "fresco-like flatness combined with extraordinary chromatic depth.  "
+            "There is no impasto; Klee's marks are delicate, almost miniaturist.\n\n"
+            "EMOTIONAL REGISTER: playful, philosophical, simultaneously childlike "
+            "and erudite.  The work oscillates between cosmic order and naive "
+            "spontaneity — the rigour of the grid system contains the whimsy of "
+            "simplified figuration."
+        ),
+        famous_works=[
+            ("Twittering Machine", "1922"),
+            ("Cat and Bird", "1928"),
+            ("Fire in the Evening", "1929"),
+            ("Polyphony", "1932"),
+            ("Ad Parnassum", "1932"),
+            ("Angelus Novus", "1920"),
+            ("Senecio", "1922"),
+            ("Viaducts Break Ranks", "1937"),
+        ],
+        inspiration=(
+            "Apply klee_magic_square_pass() as the primary Klee effect — "
+            "ONE HUNDRED AND FIRST DISTINCT MODE.\n"
+            "Divide the canvas into a regular grid of rectangular cells "
+            "(cell_size=18 px).  For each cell compute its grid index (cx, cy) "
+            "and apply a harmonic colour shift: shift_r = harmony_strength * "
+            "sin(cx * freq_x), shift_g = harmony_strength * cos(cy * freq_y + pi/4), "
+            "shift_b = harmony_strength * sin((cx + cy) * freq_x * 0.5).  "
+            "Optionally overlay faint dark cell borders (border_opacity=0.12) to "
+            "reinforce grid architecture.  Apply a subtle warm tint (warm_shift=0.04) "
+            "to simulate burlap ground bleed-through.\n\n"
+            "NOVEL: ONE HUNDRED AND FIRST DISTINCT MODE.  FIRST pass to apply "
+            "POSITION-DEPENDENT HARMONIC COLOUR VARIATION IN A SPATIAL CELL GRID — "
+            "distinct from all prior passes which operate per-pixel uniformly, "
+            "apply Gaussian spatial transforms, or use luma-gated operations.  "
+            "The harmonic structure (sine/cosine over grid indices) directly embodies "
+            "Klee's polyphony concept: structured mathematical variation producing "
+            "visual music.\n\n"
+            "Use klee_magic_square_pass(cell_size=18, harmony_strength=0.06, "
+            "freq_x=0.75, freq_y=0.55, border_opacity=0.12, warm_shift=0.04, "
+            "opacity=0.40)."
+        ),
+    ),
+
 }
 
 
