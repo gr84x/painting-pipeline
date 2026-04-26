@@ -190,6 +190,7 @@ EXPECTED_ARTISTS = [
     "fra_galgario",
     "ambrogio_de_predis",
     "lovis_corinth",
+    "giorgio_morandi",
 ]
 
 
@@ -26405,3 +26406,247 @@ def test_local_statistical_harmony_pass_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0
     assert buf[:, :, :3].max() <= 255
+
+
+# ── Session 188: Giorgio Morandi (96th mode) + palette_proximity_pull_pass (97th mode) ──
+
+def test_giorgio_morandi_in_catalog():
+    """Session 188: giorgio_morandi must be present in CATALOG."""
+    assert "giorgio_morandi" in CATALOG
+
+
+def test_giorgio_morandi_in_expected_artists():
+    """Session 188: giorgio_morandi must appear in EXPECTED_ARTISTS list."""
+    assert "giorgio_morandi" in EXPECTED_ARTISTS, (
+        "giorgio_morandi missing from EXPECTED_ARTISTS — add it to the list")
+
+
+def test_giorgio_morandi_movement():
+    """Session 188: giorgio_morandi movement must reference Italian Modernism or Metaphysical."""
+    s = get_style("giorgio_morandi")
+    assert ("Italian" in s.movement or "Metaphysical" in s.movement or
+            "Modernism" in s.movement), (
+        f"giorgio_morandi movement '{s.movement}' should reference Italian Modernism or Metaphysical")
+
+
+def test_giorgio_morandi_palette_length():
+    """Session 188: giorgio_morandi palette must have at least 6 colours."""
+    s = get_style("giorgio_morandi")
+    assert len(s.palette) >= 6, (
+        f"giorgio_morandi palette has {len(s.palette)} colours — expected at least 6")
+
+
+def test_giorgio_morandi_palette_values_in_range():
+    """Session 188: all giorgio_morandi palette RGB values must be in [0, 1]."""
+    s = get_style("giorgio_morandi")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for channel in rgb:
+            assert 0.0 <= channel <= 1.0, (
+                f"giorgio_morandi palette channel {channel} out of [0, 1]")
+
+
+def test_giorgio_morandi_ground_color_muted():
+    """Session 188: giorgio_morandi ground_color must be a muted mid-tone (all channels 0.4–0.85)."""
+    s = get_style("giorgio_morandi")
+    gc = s.ground_color
+    assert len(gc) == 3
+    for ch in gc:
+        assert 0.40 <= ch <= 0.85, (
+            f"giorgio_morandi ground_color channel {ch:.2f} outside expected [0.40, 0.85] — "
+            "Morandi works on a warm dusty ecru mid-tone ground")
+
+
+def test_giorgio_morandi_wet_blend_very_dry():
+    """Session 188: giorgio_morandi wet_blend must be very dry (< 0.25) — chalky matte surface."""
+    s = get_style("giorgio_morandi")
+    assert s.wet_blend < 0.25, (
+        f"giorgio_morandi wet_blend={s.wet_blend:.2f} should be < 0.25 — "
+        "Morandi's surface is dry, chalky, and scumbled; no wet blending")
+
+
+def test_giorgio_morandi_no_glazing():
+    """Session 188: giorgio_morandi glazing must be None — entirely matte, no transparent layers."""
+    s = get_style("giorgio_morandi")
+    assert s.glazing is None, (
+        "giorgio_morandi glazing should be None — Morandi's matte, chalky surface "
+        "uses no transparent glaze passes")
+
+
+def test_metaphysical_still_life_period_exists():
+    """Session 188: Period.METAPHYSICAL_STILL_LIFE must exist in the Period enum."""
+    from scene_schema import Period
+    assert hasattr(Period, "METAPHYSICAL_STILL_LIFE"), (
+        "Period.METAPHYSICAL_STILL_LIFE not found — add it to scene_schema.py")
+
+
+def test_metaphysical_still_life_stroke_params_wet_blend_very_dry():
+    """Session 188: METAPHYSICAL_STILL_LIFE wet_blend must be very dry (< 0.20)."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.METAPHYSICAL_STILL_LIFE)
+    params = style.stroke_params
+    assert params["wet_blend"] < 0.20, (
+        f"METAPHYSICAL_STILL_LIFE wet_blend={params['wet_blend']:.2f} should be < 0.20 — "
+        "Morandi's matte chalky surface requires very dry brush technique")
+
+
+def test_metaphysical_still_life_stroke_params_edge_softness_moderate():
+    """Session 188: METAPHYSICAL_STILL_LIFE edge_softness must be moderate [0.35, 0.65]."""
+    from scene_schema import Style, Medium, Period
+    style = Style(medium=Medium.OIL, period=Period.METAPHYSICAL_STILL_LIFE)
+    params = style.stroke_params
+    assert 0.35 <= params["edge_softness"] <= 0.65, (
+        f"METAPHYSICAL_STILL_LIFE edge_softness={params['edge_softness']:.2f} "
+        "should be moderate [0.35, 0.65] — forms emerge through value, not hard line")
+
+
+def test_morandi_tonal_unity_pass_exists():
+    """Session 188: morandi_tonal_unity_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "morandi_tonal_unity_pass", None)), (
+        "morandi_tonal_unity_pass not found on Painter — add it to stroke_engine.py")
+
+
+def test_morandi_tonal_unity_pass_signature():
+    """Session 188: morandi_tonal_unity_pass must accept ab_sigma, convergence_strength, luma_lo, luma_hi, opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.morandi_tonal_unity_pass)
+    for param in ("ab_sigma", "convergence_strength", "luma_lo", "luma_hi", "opacity"):
+        assert param in sig.parameters, (
+            f"morandi_tonal_unity_pass missing parameter '{param}'")
+
+
+def test_morandi_tonal_unity_pass_runs():
+    """Session 188: morandi_tonal_unity_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
+    p.morandi_tonal_unity_pass(opacity=0.55)
+
+
+def test_morandi_tonal_unity_pass_noop_at_zero_opacity():
+    """Session 188: morandi_tonal_unity_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.morandi_tonal_unity_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "morandi_tonal_unity_pass at opacity=0 must leave canvas unchanged")
+
+
+def test_morandi_tonal_unity_pass_modifies_canvas():
+    """Session 188: morandi_tonal_unity_pass must modify a chromatically varied canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    # Chromatically varied canvas: alternating red-orange and blue-green in mid-luma range
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:32, :, 2] = 200   # R — warm-red zone
+    buf[:32, :, 1] = 140   # G
+    buf[:32, :, 0] = 80    # B
+    buf[32:, :, 2] = 80    # R — cool-blue zone
+    buf[32:, :, 1] = 140   # G
+    buf[32:, :, 0] = 200   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.morandi_tonal_unity_pass(ab_sigma=10.0, convergence_strength=0.80, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), (
+        "morandi_tonal_unity_pass at opacity=1 with chromatically varied canvas should modify pixels")
+
+
+def test_morandi_tonal_unity_pass_pixels_in_range():
+    """Session 188: morandi_tonal_unity_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.72, 0.68, 0.60), texture_strength=0.0)
+    p.morandi_tonal_unity_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_palette_proximity_pull_pass_exists():
+    """Session 188: palette_proximity_pull_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "palette_proximity_pull_pass", None)), (
+        "palette_proximity_pull_pass not found on Painter — add it to stroke_engine.py")
+
+
+def test_palette_proximity_pull_pass_signature():
+    """Session 188: palette_proximity_pull_pass must accept palette, pull_strength, luma_lo, luma_hi, opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.palette_proximity_pull_pass)
+    for param in ("palette", "pull_strength", "luma_lo", "luma_hi", "opacity"):
+        assert param in sig.parameters, (
+            f"palette_proximity_pull_pass missing parameter '{param}'")
+
+
+def test_palette_proximity_pull_pass_runs():
+    """Session 188: palette_proximity_pull_pass must run without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.65, 0.60, 0.50), texture_strength=0.0)
+    p.palette_proximity_pull_pass(opacity=0.30)
+
+
+def test_palette_proximity_pull_pass_noop_at_zero_opacity():
+    """Session 188: palette_proximity_pull_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.65, 0.60, 0.50), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.palette_proximity_pull_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "palette_proximity_pull_pass at opacity=0 must leave canvas unchanged")
+
+
+def test_palette_proximity_pull_pass_modifies_canvas():
+    """Session 188: palette_proximity_pull_pass at opacity=1 must change a chromatically distinct canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    # Canvas with a saturated colour far from any palette member (bright magenta mid-luma)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    buf[:, :, 2] = 210   # R — saturated magenta
+    buf[:, :, 1] = 60    # G
+    buf[:, :, 0] = 180   # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.palette_proximity_pull_pass(pull_strength=0.80, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), (
+        "palette_proximity_pull_pass at opacity=1 with saturated canvas should modify pixels")
+
+
+def test_palette_proximity_pull_pass_pixels_in_range():
+    """Session 188: palette_proximity_pull_pass output must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.65, 0.60, 0.50), texture_strength=0.0)
+    p.palette_proximity_pull_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_palette_proximity_pull_pass_custom_palette():
+    """Session 188: palette_proximity_pull_pass must accept a custom palette list."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.50, 0.45, 0.35), texture_strength=0.0)
+    custom_palette = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]
+    p.palette_proximity_pull_pass(palette=custom_palette, pull_strength=0.30, opacity=0.50)

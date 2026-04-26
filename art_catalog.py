@@ -16484,6 +16484,85 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
     # ── Lovis Corinth ─────────────────────────────────────────────────────────
+    # ── Giorgio Morandi ────────────────────────────────────────────────────────
+    "giorgio_morandi": ArtStyle(
+        artist="Giorgio Morandi",
+        movement="Italian Modernism / Metaphysical Traditionalism",
+        nationality="Italian (Bolognese)",
+        period="1920–1964",
+        palette=[
+            (0.90, 0.88, 0.83),   # dusty chalk-white — never pure; the Morandi white
+            (0.72, 0.70, 0.66),   # ash grey — mid-light, dominant light-zone tone
+            (0.65, 0.60, 0.50),   # warm ochre-grey — the unifying mid-tone body
+            (0.55, 0.57, 0.48),   # dusty sage — the subtle green-grey accent
+            (0.58, 0.62, 0.66),   # pale blue-grey — his signature cool counterpoint
+            (0.68, 0.52, 0.38),   # dusty sienna — the warmest, most chromatic passage
+            (0.42, 0.36, 0.28),   # warm earth-brown — lower-value anchor
+            (0.60, 0.58, 0.56),   # neutral mid-grey — the all-unifying tone
+        ],
+        ground_color=(0.72, 0.68, 0.60),    # warm dusty ecru — chalked, matte tonal ground
+        stroke_size=8,
+        wet_blend=0.12,                      # very dry — chalky, scumbled, matte surface
+        edge_softness=0.50,                  # moderate — form through value, not line
+        jitter=0.022,                        # very low — controlled, deliberate surface
+        glazing=None,                        # no transparent glazing — entirely matte
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Morandi's defining achievement is TONAL UNITY THROUGH CHROMATIC ATTENUATION: "
+            "every object in his still-life groupings is coated in the same invisible "
+            "chalk-dust atmosphere, pulling all local colours toward a shared dusty "
+            "mid-grey-beige.  He literally powdered his objects before painting them — "
+            "stripping their chromatic identity and forcing the eye to read form through "
+            "the subtlest of value gradations.\n\n"
+            "His palette is the most deliberately limited of any significant 20th-century "
+            "painter: dusty whites, ash-greys, faded ochres, muted sage-greens, and pale "
+            "blue-greys — all pulled toward the same chalky mid-range.  Shadow depth is "
+            "achieved not through dark pigments but through the progressive compression of "
+            "this already-narrow tonal band.\n\n"
+            "Key technical observations:\n"
+            "1. CHROMINANCE CONVERGENCE — hues are not chosen but surrendered; each "
+            "object's colour subsides into a field of shared dusty neutrality.\n"
+            "2. DRY SCUMBLED SURFACE — no wet blending; the brush is loaded with little "
+            "paint and dragged across a dry, slightly textured ecru ground.\n"
+            "3. MEDITATIVE GEOMETRY — groupings of bottles, jugs, and cans re-arranged "
+            "endlessly across hundreds of works into ever-more-distilled compositions.\n"
+            "4. LIGHT AS ATMOSPHERE — never theatrical; soft even northern daylight "
+            "describes form without drama or cast shadow narrative.\n"
+            "5. INFINITE VARIATION IN NEAR-SAMENESS — compositions look nearly identical "
+            "but reward close study with endlessly shifting spatial tensions and scale relationships."
+        ),
+        famous_works=[
+            ("Still Life", "1946"),
+            ("Still Life with Blue Vase", "1920"),
+            ("Still Life with Bottles and Objects", "1951"),
+            ("Still Life (Metafisica)", "1919"),
+            ("Still Life", "1960"),
+            ("Courtyard of Via Fondazza", "1958"),
+        ],
+        inspiration=(
+            "Apply morandi_tonal_unity_pass() as the NINETY-SIXTH DISTINCT MODE: "
+            "CIELAB-space chrominance-only spatial convergence.  Convert the canvas "
+            "to CIELAB (L*, a*, b*), Gaussian-blur only the a* and b* chrominance "
+            "channels (sigma=14, not L*), then pull each pixel's ab toward its "
+            "neighbourhood mean at convergence_strength=0.58.  L* is mathematically "
+            "unchanged — the value drawing that describes form is perfectly preserved "
+            "while chromatic assertiveness dissolves into a unified dusty atmosphere.\n"
+            "NOVEL: FIRST pass to perform CHROMINANCE-ONLY SPATIAL CONVERGENCE IN "
+            "CIELAB SPACE.  Prior spatial convergence (local_statistical_harmony, "
+            "s186) operates on all RGB channels, implicitly shifting luma.  This pass "
+            "separates chromatic unification from value preservation by operating in a "
+            "perceptual colour space.\n"
+            "Apply palette_proximity_pull_pass() as the random improvement — the "
+            "NINETY-SEVENTH DISTINCT MODE: SOFT PALETTE-NEAREST-NEIGHBOR GRAVITY.  "
+            "For each pixel, find the nearest colour in a provided palette list "
+            "(Euclidean distance in RGB space) and attract the pixel toward it at "
+            "pull_strength=0.20.  First pass to implement per-pixel soft palette "
+            "quantization — distinct from all linear transforms, fixed tints, or "
+            "Gaussian means used in prior passes."
+        ),
+    ),
+
     "lovis_corinth": ArtStyle(
         artist="Lovis Corinth",
         movement="German Impressionism / Expressionism",

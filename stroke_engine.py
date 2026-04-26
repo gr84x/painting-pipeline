@@ -43348,3 +43348,249 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Corinth stroke velocity field pass complete.")
+
+    def morandi_tonal_unity_pass(
+        self,
+        ab_sigma:             float = 14.0,
+        convergence_strength: float = 0.58,
+        luma_lo:              float = 0.06,
+        luma_hi:              float = 0.94,
+        opacity:              float = 0.55,
+    ) -> None:
+        """
+        Session 188 — 96th distinct mode: Morandi CIELAB-space chrominance convergence.
+
+        Giorgio Morandi's defining achievement: ALL OBJECTS IN A COMPOSITION breathe
+        the same dusty, chalky atmosphere.  His bottles, jugs, and cans are painted
+        not as individual chromatic identities but as members of a single tonal
+        community — their hues uniformly drawn toward a shared dusty mid-grey.
+
+        This pass achieves that quality by performing CHROMINANCE-ONLY spatial
+        convergence in CIELAB colour space:
+        1. Convert the canvas from BGR to linear RGB to CIELAB (L*, a*, b*).
+        2. Apply a Gaussian blur to the a* and b* channels ONLY — not L*.
+        3. Pull each pixel's chrominance toward its blurred neighbourhood mean at
+           ``convergence_strength`` (0 = original, 1 = fully converged to mean).
+        4. Leave L* mathematically unchanged — the value drawing that describes
+           form is perfectly preserved.
+        5. A luma gate [luma_lo, luma_hi] on the original luminance preserves
+           deep-shadow blacks and specular whites unaltered.
+        6. Reconstruct RGB from modified L*, a*, b* and composite at opacity.
+
+        NOVEL: NINETY-SIXTH DISTINCT MODE.  FIRST pass in this pipeline to operate
+        exclusively on CIELAB chrominance channels (a*, b*) while leaving L*
+        (luminance) MATHEMATICALLY UNCHANGED.  Prior spatial convergence passes
+        (including local_statistical_harmony, session 186) operate on all three
+        RGB channels simultaneously, which implicitly shifts luminance.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo stores BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # sRGB → linear RGB
+        def _lin(c):
+            return _np.where(c <= 0.04045,
+                             c / 12.92,
+                             ((c + 0.055) / 1.055) ** 2.4)
+
+        rl = _lin(r0).astype(_np.float32)
+        gl = _lin(g0).astype(_np.float32)
+        bl = _lin(b0).astype(_np.float32)
+
+        # Linear RGB → XYZ (D65 illuminant)
+        X = (0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl).astype(_np.float32)
+        Y = (0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl).astype(_np.float32)
+        Z = (0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl).astype(_np.float32)
+
+        # XYZ → CIELAB (D65 white point: Xn=0.95047, Yn=1.00000, Zn=1.08883)
+        def _f_lab(t):
+            delta = 6.0 / 29.0
+            return _np.where(t > delta ** 3,
+                             t ** (1.0 / 3.0),
+                             t / (3.0 * delta ** 2) + 4.0 / 29.0)
+
+        fx = _f_lab(X / 0.95047).astype(_np.float32)
+        fy = _f_lab(Y / 1.00000).astype(_np.float32)
+        fz = _f_lab(Z / 1.08883).astype(_np.float32)
+
+        L_star = (116.0 * fy - 16.0).astype(_np.float32)
+        a_star = (500.0 * (fx - fy)).astype(_np.float32)
+        b_star = (200.0 * (fy - fz)).astype(_np.float32)
+
+        # Luma gate on original sRGB luminance
+        luma_m = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+        half_band_m = 0.5 * (float(luma_hi) - float(luma_lo))
+        gate_m = _np.clip(
+            _np.minimum(luma_m - float(luma_lo), float(luma_hi) - luma_m) /
+            (half_band_m + 1e-6),
+            0.0, 1.0
+        ).astype(_np.float32)
+
+        # Gaussian-blur only the chrominance channels (a*, b*)
+        sig = float(ab_sigma)
+        a_blur = _gf(a_star, sig).astype(_np.float32)
+        b_blur = _gf(b_star, sig).astype(_np.float32)
+
+        cs = float(convergence_strength)
+        a_new = (a_star + cs * (a_blur - a_star) * gate_m).astype(_np.float32)
+        b_new = (b_star + cs * (b_blur - b_star) * gate_m).astype(_np.float32)
+
+        # CIELAB → XYZ (L_star is unchanged — luminance preserved exactly)
+        def _f_inv_lab(t):
+            delta = 6.0 / 29.0
+            return _np.where(t > delta,
+                             t ** 3,
+                             3.0 * delta ** 2 * (t - 4.0 / 29.0))
+
+        fy2 = ((L_star + 16.0) / 116.0).astype(_np.float32)
+        fx2 = (a_new / 500.0 + fy2).astype(_np.float32)
+        fz2 = (fy2 - b_new / 200.0).astype(_np.float32)
+
+        X2 = (0.95047 * _f_inv_lab(fx2)).astype(_np.float32)
+        Y2 = (1.00000 * _f_inv_lab(fy2)).astype(_np.float32)
+        Z2 = (1.08883 * _f_inv_lab(fz2)).astype(_np.float32)
+
+        # XYZ → linear RGB (D65)
+        rl2 = ( 3.2404542 * X2 - 1.5371385 * Y2 - 0.4985314 * Z2).astype(_np.float32)
+        gl2 = (-0.9692660 * X2 + 1.8760108 * Y2 + 0.0415560 * Z2).astype(_np.float32)
+        bl2 = ( 0.0556434 * X2 - 0.2040259 * Y2 + 1.0572252 * Z2).astype(_np.float32)
+
+        # Linear RGB → sRGB gamma
+        def _gam(c):
+            c = _np.clip(c, 0.0, None)
+            return _np.where(c <= 0.0031308,
+                             12.92 * c,
+                             1.055 * c ** (1.0 / 2.4) - 0.055)
+
+        r2 = _np.clip(_gam(rl2), 0.0, 1.0).astype(_np.float32)
+        g2 = _np.clip(_gam(gl2), 0.0, 1.0).astype(_np.float32)
+        b2 = _np.clip(_gam(bl2), 0.0, 1.0).astype(_np.float32)
+
+        # Composite at opacity
+        op_m = float(opacity)
+        fr_m = r0 * (1.0 - op_m) + r2 * op_m
+        fg_m = g0 * (1.0 - op_m) + g2 * op_m
+        fb_m = b0 * (1.0 - op_m) + b2 * op_m
+
+        buf_m = orig.copy()
+        buf_m[:, :, 2] = _np.clip(fr_m * 255.0, 0, 255).astype(_np.uint8)
+        buf_m[:, :, 1] = _np.clip(fg_m * 255.0, 0, 255).astype(_np.uint8)
+        buf_m[:, :, 0] = _np.clip(fb_m * 255.0, 0, 255).astype(_np.uint8)
+        buf_m[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_m.tobytes()
+        self.canvas.surface.mark_dirty()
+
+    def palette_proximity_pull_pass(
+        self,
+        palette:       list  = None,
+        pull_strength: float = 0.20,
+        luma_lo:       float = 0.05,
+        luma_hi:       float = 0.95,
+        opacity:       float = 0.30,
+    ) -> None:
+        """
+        Session 188 — 97th distinct mode: palette-nearest-neighbor gravity.
+
+        The Old Masters deliberately limited their pigment selection to a pre-mixed
+        set of tints, forcing every area of the canvas to be expressible as a
+        combination from that restricted set.  This creates a powerful chromatic
+        unity: every object, no matter how different its local hue, is pulled
+        toward the same pigment family.
+
+        This pass models that practice as SOFT PALETTE GRAVITY:
+        1. For each pixel, compute the Euclidean distance (in RGB space) to every
+           colour in the provided ``palette`` list.
+        2. Find the nearest palette colour per pixel (vectorised, no Python loop).
+        3. Pull the pixel toward that nearest colour at ``pull_strength``:
+           ``new_pixel = pixel + pull_strength * (nearest_palette - pixel)``
+        4. A luma gate [luma_lo, luma_hi] leaves very dark shadows and bright
+           specular peaks unaffected.
+        5. Composite the result at ``opacity``.
+
+        At pull_strength=1.0 the pass hard-snaps to the palette (posterization).
+        At pull_strength=0.15–0.25 it creates a subtle chromatic coherence that
+        reads as intentional palette discipline.
+
+        NOVEL: NINETY-SEVENTH DISTINCT MODE.  FIRST pass in this pipeline to
+        compute NEAREST-PALETTE-NEIGHBOUR per pixel and attract toward it.  All
+        prior colorisation passes use linear transforms, fixed tints, Gaussian
+        spatial means, or directional chromatic shifts — none implement per-pixel
+        soft quantization toward a discrete artist palette set.
+
+        Default palette is Morandi's dust-muted still-life set.
+        """
+        import numpy as _np
+
+        if palette is None:
+            palette = [
+                (0.90, 0.88, 0.83),   # dusty chalk-white
+                (0.72, 0.70, 0.66),   # ash grey
+                (0.65, 0.60, 0.50),   # warm ochre-grey
+                (0.55, 0.57, 0.48),   # dusty sage
+                (0.58, 0.62, 0.66),   # pale blue-grey
+                (0.68, 0.52, 0.38),   # dusty sienna
+                (0.42, 0.36, 0.28),   # warm earth-brown
+                (0.60, 0.58, 0.56),   # neutral mid-grey
+            ]
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA layout
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Luma gate
+        luma_p = (0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0).astype(_np.float32)
+        half_band_p = 0.5 * (float(luma_hi) - float(luma_lo))
+        gate_p = _np.clip(
+            _np.minimum(luma_p - float(luma_lo), float(luma_hi) - luma_p) /
+            (half_band_p + 1e-6),
+            0.0, 1.0
+        ).astype(_np.float32)
+
+        # Palette array (N, 3) in RGB order
+        pal = _np.array(palette, dtype=_np.float32)  # (N, 3)
+
+        # Vectorised nearest-palette-colour search: (H, W, 1, 3) vs (1, 1, N, 3)
+        pixels_p = _np.stack([r0, g0, b0], axis=-1)[:, :, _np.newaxis, :]  # (H, W, 1, 3)
+        pal_bc   = pal[_np.newaxis, _np.newaxis, :, :]                      # (1, 1, N, 3)
+        dist2    = _np.sum((pixels_p - pal_bc) ** 2, axis=-1)               # (H, W, N)
+        nearest_idx = _np.argmin(dist2, axis=-1)                            # (H, W)
+        nearest = pal[nearest_idx]                                           # (H, W, 3)
+
+        pr = nearest[:, :, 0]
+        pg = nearest[:, :, 1]
+        pb = nearest[:, :, 2]
+
+        # Attract toward nearest palette colour, gated by luma
+        ps = float(pull_strength)
+        r2 = _np.clip(r0 + ps * (pr - r0) * gate_p, 0.0, 1.0).astype(_np.float32)
+        g2 = _np.clip(g0 + ps * (pg - g0) * gate_p, 0.0, 1.0).astype(_np.float32)
+        b2 = _np.clip(b0 + ps * (pb - b0) * gate_p, 0.0, 1.0).astype(_np.float32)
+
+        # Composite at opacity
+        op_p = float(opacity)
+        fr_p = r0 * (1.0 - op_p) + r2 * op_p
+        fg_p = g0 * (1.0 - op_p) + g2 * op_p
+        fb_p = b0 * (1.0 - op_p) + b2 * op_p
+
+        buf_p = orig.copy()
+        buf_p[:, :, 2] = _np.clip(fr_p * 255.0, 0, 255).astype(_np.uint8)
+        buf_p[:, :, 1] = _np.clip(fg_p * 255.0, 0, 255).astype(_np.uint8)
+        buf_p[:, :, 0] = _np.clip(fb_p * 255.0, 0, 255).astype(_np.uint8)
+        buf_p[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf_p.tobytes()
+        self.canvas.surface.mark_dirty()
