@@ -200,6 +200,7 @@ EXPECTED_ARTISTS = [
     "bridget_riley",
     "fernand_leger",
     "giorgio_de_chirico",
+    "ivan_aivazovsky",
 ]
 
 

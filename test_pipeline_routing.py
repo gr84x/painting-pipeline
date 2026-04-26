@@ -17371,3 +17371,137 @@ def test_chirico_metaphysical_shadow_pass_short_shadow():
     p.chirico_metaphysical_shadow_pass(
         shadow_length=0.05, shadow_opacity=0.50, opacity=0.60, seed=198
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# aivazovsky_marine_luminance_pass — session 199 addition
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_aivazovsky_marine_luminance_pass_exists():
+    """Session 199: aivazovsky_marine_luminance_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "aivazovsky_marine_luminance_pass"), (
+        "aivazovsky_marine_luminance_pass not found on Painter")
+    assert callable(getattr(Painter, "aivazovsky_marine_luminance_pass"))
+
+
+def test_aivazovsky_marine_luminance_pass_signature():
+    """Session 199: aivazovsky_marine_luminance_pass must have expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.aivazovsky_marine_luminance_pass)
+    for param in (
+        "horizon_y", "wave_frequency", "wave_amplitude",
+        "crest_jade", "trough_navy", "crest_strength", "trough_strength",
+        "horizon_glow", "horizon_glow_width", "horizon_glow_strength",
+        "foam_strength", "seed", "opacity",
+    ):
+        assert param in sig.parameters, (
+            f"aivazovsky_marine_luminance_pass missing parameter: {param}")
+
+
+def test_aivazovsky_marine_luminance_pass_runs():
+    """Session 199: aivazovsky_marine_luminance_pass runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.22, 0.45), texture_strength=0.0)
+    p.aivazovsky_marine_luminance_pass(
+        horizon_y=0.40,
+        wave_frequency=6.0,
+        crest_strength=0.60,
+        trough_strength=0.50,
+        horizon_glow_strength=0.55,
+        foam_strength=0.40,
+        opacity=0.78,
+        seed=199,
+    )
+
+
+def test_aivazovsky_marine_luminance_pass_pixels_in_range():
+    """Session 199: aivazovsky_marine_luminance_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.22, 0.45), texture_strength=0.0)
+    p.aivazovsky_marine_luminance_pass(
+        horizon_y=0.40, wave_frequency=6.0, opacity=1.0, seed=199
+    )
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_aivazovsky_marine_luminance_pass_modifies_canvas():
+    """Session 199: aivazovsky_marine_luminance_pass at full opacity must change pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.10, 0.22, 0.45), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.aivazovsky_marine_luminance_pass(
+        horizon_y=0.40,
+        wave_frequency=8.0,
+        crest_strength=0.70,
+        trough_strength=0.60,
+        horizon_glow_strength=0.65,
+        opacity=1.0,
+        seed=199,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "aivazovsky_marine_luminance_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_aivazovsky_marine_luminance_pass_zero_opacity_unchanged():
+    """Session 199: aivazovsky_marine_luminance_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.22, 0.45), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.aivazovsky_marine_luminance_pass(
+        horizon_y=0.40, wave_frequency=6.0, opacity=0.0, seed=199
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "aivazovsky_marine_luminance_pass at opacity=0.0 must not change any pixels")
+
+
+def test_aivazovsky_marine_luminance_pass_no_reference():
+    """Session 199: aivazovsky_marine_luminance_pass without reference must run without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.22, 0.45), texture_strength=0.0)
+    p.aivazovsky_marine_luminance_pass(
+        horizon_y=0.45, wave_frequency=5.0, opacity=0.70, seed=199
+    )
+
+
+def test_aivazovsky_marine_luminance_pass_high_horizon():
+    """Session 199: horizon_y at top of canvas (0.15) runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.22, 0.45), texture_strength=0.0)
+    p.aivazovsky_marine_luminance_pass(
+        horizon_y=0.15, wave_frequency=10.0, opacity=0.60, seed=199
+    )
+
+
+def test_aivazovsky_marine_luminance_pass_low_horizon():
+    """Session 199: horizon_y near bottom (0.80) runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.10, 0.22, 0.45), texture_strength=0.0)
+    p.aivazovsky_marine_luminance_pass(
+        horizon_y=0.80, wave_frequency=4.0, opacity=0.60, seed=199
+    )
+
+
+def test_aivazovsky_marine_luminance_pass_in_catalog():
+    """Session 199: ivan_aivazovsky must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "ivan_aivazovsky" in CATALOG, "ivan_aivazovsky missing from CATALOG"
+    s = get_style("ivan_aivazovsky")
+    assert "Marine" in s.movement or "marine" in s.movement.lower()
+    assert len(s.palette) >= 7
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
