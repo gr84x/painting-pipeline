@@ -202,8 +202,9 @@ def _routing_flags(period: Period, medium: Medium = Medium.OIL) -> dict:
                                           and sp.get("edge_softness", 0.0) >= 0.80),
         "is_ferrarese_civic_grandeur":       period == Period.FERRARESE_CIVIC_GRANDEUR,
         "is_venetian_gilt_byzantine_splendour": period == Period.VENETIAN_GILT_BYZANTINE_SPLENDOUR,
-        "is_lombard_humble_genre":           period == Period.LOMBARD_HUMBLE_GENRE,
-        "is_bergamask_portrait":             period == Period.BERGAMASK_PORTRAIT,
+        "is_lombard_humble_genre":               period == Period.LOMBARD_HUMBLE_GENRE,
+        "is_bergamask_portrait":                 period == Period.BERGAMASK_PORTRAIT,
+        "is_milanese_metallic_portraiture":      period == Period.MILANESE_METALLIC_PORTRAITURE,
     }
 
 
@@ -16487,3 +16488,145 @@ def test_bergamask_portrait_flag_not_set_for_other_periods_routing():
         flags = _routing_flags(period)
         assert not flags["is_bergamask_portrait"], (
             f"is_bergamask_portrait should be False for {period.name}")
+
+
+# ── Session 187: Ambrogio de Predis / MILANESE_METALLIC_PORTRAITURE tests ────
+
+def test_de_predis_crystalline_clarity_pass_exists_routing():
+    """de_predis_crystalline_clarity_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "de_predis_crystalline_clarity_pass", None)), (
+        "de_predis_crystalline_clarity_pass not found on Painter")
+
+
+def test_de_predis_crystalline_clarity_pass_runs_routing():
+    """de_predis_crystalline_clarity_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.50, 0.42, 0.28), texture_strength=0.0)
+    p.de_predis_crystalline_clarity_pass(opacity=0.25)
+
+
+def test_de_predis_crystalline_clarity_pass_opacity_zero_routing():
+    """de_predis_crystalline_clarity_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.50, 0.42, 0.28), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.de_predis_crystalline_clarity_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_de_predis_crystalline_clarity_pass_pixels_in_range_routing():
+    """de_predis_crystalline_clarity_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.50, 0.42, 0.28), texture_strength=0.0)
+    p.de_predis_crystalline_clarity_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_de_predis_crystalline_clarity_pass_modifies_mid_bright_routing():
+    """de_predis_crystalline_clarity_pass must modify pixels in the luma gate zone."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Load mid-bright pixels (luma ~0.60 — well within default gate 0.35–0.85)
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 160  # R
+    buf[:, :, 1] = 152  # G
+    buf[:, :, 0] = 128  # B  — luma ~0.60
+    buf[:, :, 3] = 255
+    # Create a horizontal edge at row 32 to give the USM something to detect
+    buf[32:, :, 2] = 80
+    buf[32:, :, 1] = 76
+    buf[32:, :, 0] = 64
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.de_predis_crystalline_clarity_pass(
+        sharp_sigma=1.5, sharp_strength=0.30,
+        cool_r_shift=-0.010, cool_b_shift=0.015,
+        luma_lo=0.35, luma_hi=0.85, opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "de_predis_crystalline_clarity_pass should modify mid-bright zone pixels")
+
+
+def test_luminous_midtone_lift_pass_exists_routing():
+    """luminous_midtone_lift_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "luminous_midtone_lift_pass", None)), (
+        "luminous_midtone_lift_pass not found on Painter")
+
+
+def test_luminous_midtone_lift_pass_runs_routing():
+    """luminous_midtone_lift_pass must run without error on a small canvas."""
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.50, 0.42, 0.28), texture_strength=0.0)
+    p.luminous_midtone_lift_pass(opacity=0.24)
+
+
+def test_luminous_midtone_lift_pass_opacity_zero_routing():
+    """luminous_midtone_lift_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.50, 0.42, 0.28), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.luminous_midtone_lift_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_luminous_midtone_lift_pass_pixels_in_range_routing():
+    """luminous_midtone_lift_pass output must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(32, 32)
+    p.tone_ground((0.50, 0.42, 0.28), texture_strength=0.0)
+    p.luminous_midtone_lift_pass(opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(32, 32, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_luminous_midtone_lift_pass_modifies_midtone_routing():
+    """luminous_midtone_lift_pass must lift pixels in the midtone zone."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Load pixels at luma ~0.49 — well within default gate 0.30–0.68
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape(64, 64, 4).copy()
+    buf[:, :, 2] = 128  # R
+    buf[:, :, 1] = 122  # G
+    buf[:, :, 0] = 100  # B  — luma ~0.49
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.luminous_midtone_lift_pass(
+        mid_lo=0.30, mid_hi=0.68, lift_r=0.05, lift_g=0.03, opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "luminous_midtone_lift_pass should lift midtone-zone pixels")
+
+
+def test_milanese_metallic_portraiture_routing_flag_routing():
+    """MILANESE_METALLIC_PORTRAITURE period must set is_milanese_metallic_portraiture=True."""
+    flags = _routing_flags(Period.MILANESE_METALLIC_PORTRAITURE)
+    assert flags["is_milanese_metallic_portraiture"] is True
+
+
+def test_milanese_metallic_portraiture_flag_not_set_for_other_periods_routing():
+    """is_milanese_metallic_portraiture must be False for all other periods."""
+    for period in Period:
+        if period == Period.MILANESE_METALLIC_PORTRAITURE:
+            continue
+        flags = _routing_flags(period)
+        assert not flags["is_milanese_metallic_portraiture"], (
+            f"is_milanese_metallic_portraiture should be False for {period.name}")

@@ -43076,3 +43076,186 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Local statistical harmony pass complete.")
+
+    def de_predis_crystalline_clarity_pass(
+        self,
+        sharp_sigma:    float = 1.5,
+        sharp_strength: float = 0.30,
+        cool_r_shift:   float = -0.010,
+        cool_b_shift:   float = 0.015,
+        luma_lo:        float = 0.35,
+        luma_hi:        float = 0.85,
+        opacity:        float = 0.25,
+    ) -> None:
+        """
+        Session 187 artist pass — NINETY-FOURTH DISTINCT MODE.
+
+        De Predis Crystalline Clarity Pass: precision unsharp-mask in the
+        mid-to-bright luma range with a cool-silver chromatic tint on the
+        detected edge zones.
+
+        Ambrogio de Predis (c. 1455–after 1508), Leonardo's closest Milanese
+        court collaborator, achieved a crystalline metallic precision within
+        sfumato: the broad passages are as smoothly blended as Leonardo's, but
+        key structural transitions (chin edge, nose boundary, forehead–hairline)
+        retain a faint, jewel-like sharpness.  His top highlights carry a
+        cool-silver tint — a subtle blue-grey shift entirely absent from
+        Leonardo's warm ivory highlights — producing an enamelled, metallic
+        reading unique among the Milanese sfumato painters.
+
+        This pass implements that effect:
+          1. USM sharpening: for each pixel in the luma gate [luma_lo, luma_hi],
+             compute the unsharp residual (orig – Gaussian_blur(orig, sharp_sigma))
+             and add sharp_strength × residual to the pixel.
+          2. Edge detection: the unsharp residual magnitude identifies
+             transitional boundary pixels.
+          3. Cool-silver tint: at boundary pixels (high residual magnitude),
+             apply cool_r_shift to R (reduces warmth) and cool_b_shift to B
+             (adds silver-cool), producing the characteristic de Predis
+             metallic highlight cast.
+
+        NOVEL: FIRST pass in this pipeline to combine UNSHARP-MASK SHARPENING
+        with a COOL-SILVER CHROMATIC TINT on detected edge zones — distinct from
+        all prior passes that either sharpen without chromatic shift or apply
+        chromatic shifts without structural sharpening.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Luma gate — restrict to mid-to-bright zone
+        luma  = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        l_ctr = 0.5 * (luma_lo + luma_hi)
+        l_hw  = 0.5 * (luma_hi - luma_lo)
+        gate  = _np.clip(1.0 - _np.abs(luma - l_ctr) / (l_hw + 1e-6),
+                         0.0, 1.0).astype(_np.float32)
+
+        sig = float(sharp_sigma)
+
+        # Gaussian-blurred versions for USM
+        r_blur = _gf(r0, sig).astype(_np.float32)
+        g_blur = _gf(g0, sig).astype(_np.float32)
+        b_blur = _gf(b0, sig).astype(_np.float32)
+
+        # Unsharp residuals
+        r_res = (r0 - r_blur)
+        g_res = (g0 - g_blur)
+        b_res = (b0 - b_blur)
+
+        ss = float(sharp_strength)
+
+        # Sharpened channels (USM)
+        r_sharp = r0 + ss * r_res * gate
+        g_sharp = g0 + ss * g_res * gate
+        b_sharp = b0 + ss * b_res * gate
+
+        # Edge magnitude from residual — normalised to [0, 1]
+        edge_mag = _np.sqrt(r_res**2 + g_res**2 + b_res**2)
+        edge_mag_max = edge_mag.max()
+        if edge_mag_max > 1e-8:
+            edge_mag = edge_mag / edge_mag_max
+        edge_gate = (edge_mag * gate).astype(_np.float32)
+
+        # Cool-silver tint: at edge zones, shift R down and B up
+        r_tint = r_sharp + float(cool_r_shift) * edge_gate
+        g_tint = g_sharp                                       # G unchanged
+        b_tint = b_sharp + float(cool_b_shift) * edge_gate
+
+        r_tint = _np.clip(r_tint, 0.0, 1.0)
+        g_tint = _np.clip(g_tint, 0.0, 1.0)
+        b_tint = _np.clip(b_tint, 0.0, 1.0)
+
+        # Blend at opacity
+        op = float(opacity)
+        fr = _np.clip(r0 * (1.0 - op) + r_tint * op, 0.0, 1.0)
+        fg = _np.clip(g0 * (1.0 - op) + g_tint * op, 0.0, 1.0)
+        fb = _np.clip(b0 * (1.0 - op) + b_tint * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fr * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fg * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fb * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    De Predis crystalline clarity pass complete.")
+
+    def luminous_midtone_lift_pass(
+        self,
+        mid_lo:  float = 0.30,
+        mid_hi:  float = 0.68,
+        lift_r:  float = 0.022,
+        lift_g:  float = 0.012,
+        lift_b:  float = 0.004,
+        opacity: float = 0.24,
+    ) -> None:
+        """
+        Session 187 random improvement — Luminous Midtone Lift Pass.
+
+        Selectively lifts the luma of pixels in the midtone zone [mid_lo, mid_hi]
+        with a warm bell-curve gate, adding lift_r to R, lift_g to G, and
+        lift_b to B in the gated region.
+
+        This models the Old Master practice of loading maximum luminosity into
+        the mid-value register: when the midtone zone is the brightest region of
+        the tonal scale (relative to expectation), forms appear self-illuminated
+        rather than merely reflecting surface light.  The effect is a subtle
+        warming and brightening of the compositional mid-register — the zone
+        where flesh typically lives in a well-lit sfumato portrait.
+
+        A Gaussian bell-curve gate centred at the midpoint of [mid_lo, mid_hi]
+        ensures smooth transitions at both boundaries, preventing tonal banding
+        at the gate edges.
+
+        NOVEL: FIRST pass to use WARM BELL-CURVE LUMINANCE LIFT exclusively
+        targeting the MIDTONE REGISTER — distinct from fra_galgario_living_
+        surface_pass (which targets the midtone-to-highlight transition zone
+        luma 0.35–0.80 with an asymmetric Gaussian peak at 0.58) in that it
+        applies a symmetric lift across the full midtone band without a
+        specific highlight-approach transition.
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Symmetric bell-curve gate centred at midpoint of [mid_lo, mid_hi]
+        luma   = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        m_ctr  = 0.5 * (mid_lo + mid_hi)
+        m_hw   = 0.5 * (mid_hi - mid_lo)
+        gate   = _np.clip(1.0 - _np.abs(luma - m_ctr) / (m_hw + 1e-6),
+                          0.0, 1.0).astype(_np.float32)
+
+        # Warm lift in gated zone
+        r_lift = _np.clip(r0 + float(lift_r) * gate, 0.0, 1.0)
+        g_lift = _np.clip(g0 + float(lift_g) * gate, 0.0, 1.0)
+        b_lift = _np.clip(b0 + float(lift_b) * gate, 0.0, 1.0)
+
+        # Blend at opacity
+        op = float(opacity)
+        fr = _np.clip(r0 * (1.0 - op) + r_lift * op, 0.0, 1.0)
+        fg = _np.clip(g0 * (1.0 - op) + g_lift * op, 0.0, 1.0)
+        fb = _np.clip(b0 * (1.0 - op) + b_lift * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fr * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fg * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fb * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Luminous midtone lift pass complete.")

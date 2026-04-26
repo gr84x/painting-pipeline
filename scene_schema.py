@@ -351,6 +351,7 @@ class Period(Enum):
     BOLOGNESE_FEMININE_BAROQUE = auto()  # Sirani — golden Reniesque warmth; rosy-luminous flesh; contextual warm-field amplification; soft Bolognese sfumato; strong female protagonists
     LOMBARD_HUMBLE_GENRE = auto()  # Ceruti (il Pitocchetto) — warm earthy shadow dignity; muted Brescian ochre; inhabited shadow enrichment; quiet observational warmth without theatricality
     BERGAMASK_PORTRAIT = auto()    # Fra Galgario (Giuseppe Ghislandi) — warm amber-gold "living surface" inner luminescence; rich crimson drapery; Bergamask chiaroscuro; psychological portraiture
+    MILANESE_METALLIC_PORTRAITURE = auto()  # Ambrogio de Predis — crystalline metallic precision; cool-silver highlights; enamelled sfumato portraiture; Leonardo's closest Milanese court collaborator
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1795,6 +1796,13 @@ class Style:
             # edge_softness=0.48: moderate — clear Bergamask chiaroscuro edges with gentle blending;
             # the "Rembrandt of Bergamo" warmth without full sfumato dissolution.
             Period.BERGAMASK_PORTRAIT: dict(stroke_size_face=5, stroke_size_bg=20, wet_blend=0.58, edge_softness=0.48),
+            # MILANESE_METALLIC_PORTRAITURE (Ambrogio de Predis) — enamelled crystalline sfumato.
+            # stroke_size_face=4: very fine — de Predis achieves a near-miniature precision in flesh;
+            # the surface appears enamelled rather than brushed.
+            # stroke_size_bg=16: minimal, deep backgrounds; the figure commands maximum primacy.
+            # wet_blend=0.80: extremely high — near-Leonardo blending; seamless tonal transitions.
+            # edge_softness=0.65: high-moderate; sfumato-smooth but with more structural precision.
+            Period.MILANESE_METALLIC_PORTRAITURE: dict(stroke_size_face=4, stroke_size_bg=16, wet_blend=0.80, edge_softness=0.65),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),

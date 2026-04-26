@@ -16383,6 +16383,106 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Ambrogio de Predis ───────────────────────────────────────────────────────
+    # Ambrogio de Predis (c. 1455–after 1508) was Leonardo da Vinci's closest
+    # Milanese collaborator and court portraitist to Ludovico Sforza.  He worked
+    # directly alongside Leonardo on the Virgin of the Rocks altarpiece and is
+    # known above all for his extraordinary female portrait — the so-called
+    # "Portrait of a Young Woman" (presumed Bianca Maria Sforza) in Washington.
+    #
+    # His defining quality is CRYSTALLINE METALLIC PRECISION within sfumato:
+    # where Leonardo dissolved every boundary into smoke, de Predis retained
+    # a faint but decisive structural clarity — a hard-edged precision just
+    # beneath the sfumato surface, giving his sitters an almost enamelled,
+    # jewel-like quality.  The highlights are characteristically COOL-SILVER
+    # rather than Leonardo's warm ivory: the topmost lit zone on flesh carries
+    # a subtle cool-grey tint, like polished silver rather than candlelight.
+    # This cool metallic highlight against the warm flesh midtone creates a
+    # unique chromatic arc that reads simultaneously as sfumato softness and
+    # sharp crystalline material reality.
+    #
+    # His technique:
+    #   1. Warm ground (ochre-brown) — the Milanese tradition
+    #   2. Extremely smooth flesh built in thin wet-blend layers (near-Leonardo
+    #      blending coefficient) — no visible marks on the skin surface
+    #   3. Cool-silver top highlights: a subtle blue-grey tint on the peak lit
+    #      zones creates the metallic, enamelled quality
+    #   4. Precise, lightly held contours: edges that are not dissolved (as in
+    #      pure Leonardo sfumato) but still soft — a structural clarity just
+    #      beneath the smoke
+    #   5. Deep, cool-toned backgrounds: blue-black or dark green, giving the
+    #      pale figure maximum tonal separation
+    #
+    # Pipeline key: de_predis_crystalline_clarity_pass() — applies a precision
+    # unsharp-mask in the mid-to-bright luma range, tinting the sharpened edges
+    # with a cool-silver (slightly blue-grey) cast.  This implements de Predis's
+    # defining quality: sfumato softness in the broad passages, crystalline
+    # metallic precision at key structural transitions.
+    "ambrogio_de_predis": ArtStyle(
+        artist="Ambrogio de Predis",
+        movement="Milanese Leonardesque / Italian Renaissance",
+        nationality="Italian (Milanese)",
+        period="1480–1508",
+        palette=[
+            (0.92, 0.90, 0.88),   # cool silver-ivory highlight — the defining metallic tone
+            (0.82, 0.70, 0.52),   # warm flesh light zone — the midtone body
+            (0.72, 0.58, 0.42),   # warm flesh midtone — sienna-warm
+            (0.50, 0.38, 0.28),   # warm umber shadow flesh — transitional zone
+            (0.22, 0.16, 0.10),   # deep warm umber — deepest shadow
+            (0.14, 0.22, 0.16),   # deep green — costume (Bianca's dress)
+            (0.08, 0.08, 0.10),   # cool blue-black — void background
+            (0.86, 0.82, 0.78),   # cool pearl — secondary highlight passage
+        ],
+        ground_color=(0.50, 0.42, 0.28),    # warm ochre-brown imprimatura — Milanese tradition
+        stroke_size=5,
+        wet_blend=0.85,                      # near-Leonardo blending — enamelled flesh surface
+        edge_softness=0.65,                  # high-moderate — sfumato base with structural clarity
+        jitter=0.018,                        # very low — controlled, enamel-like surface
+        glazing=(0.70, 0.65, 0.58),          # subtle cool-warm glaze — unifies without warming excess
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "De Predis achieves a CRYSTALLINE METALLIC PRECISION within sfumato: "
+            "the sfumato school's seamless blending is present throughout, but just "
+            "beneath the smoke lies a faint structural precision — a definite contour "
+            "not found in pure Leonardo.  The signature quality is the COOL-SILVER "
+            "HIGHLIGHT: the topmost lit zone on flesh carries a barely perceptible "
+            "blue-grey tint, like polished silver plate rather than candlelight.  "
+            "This metallic cool-highlight against warm flesh midtone creates an "
+            "enamelled, jewel-like reading unique among Milanese sfumato painters.  "
+            "His flesh surface is as smooth as Leonardo's — no brushwork visible — "
+            "but its tonal logic is slightly more structured: he reveals form through "
+            "gradient rather than dissolving it into atmospheric ambiguity.  "
+            "Backgrounds are characteristically deep and cool (blue-black, dark green), "
+            "giving the pale, luminous figure maximum tonal relief."
+        ),
+        famous_works=[
+            ("Portrait of a Young Woman (Bianca Maria Sforza?)", "c. 1493–1496"),
+            ("Portrait of a Musician (attr., now often Leonardo)", "c. 1483–1487"),
+            ("Virgin of the Rocks — angel and drapery passages (with Leonardo)", "1483–1508"),
+            ("Portrait of Emperor Maximilian I", "c. 1502"),
+            ("Portrait of Francesco Sforza?", "c. 1490"),
+        ],
+        inspiration=(
+            "Use de_predis_crystalline_clarity_pass() as the NINETY-FOURTH DISTINCT "
+            "MODE: a precision unsharp-mask restricted to the mid-to-bright luma range "
+            "(luma_lo=0.35, luma_hi=0.85), tinting the detected edge zones with a "
+            "cool-silver shift (cool_r_shift=-0.010, cool_b_shift=0.015).  "
+            "This implements de Predis's defining quality: broad sfumato softness "
+            "with crystalline metallic precision at key structural transitions (chin "
+            "edge, nose boundary, forehead-hairline).  "
+            "NOVEL: FIRST pass in this pipeline to combine UNSHARP-MASK SHARPENING "
+            "with a COOL-SILVER CHROMATIC TINT on detected edges — distinct from all "
+            "prior passes which either sharpen (edge passes) or apply chromatic shifts "
+            "(colour passes) independently.  "
+            "Use luminous_midtone_lift_pass() as the random improvement: a warm bell-"
+            "curve luminance lift in the midtone register (mid_lo=0.30, mid_hi=0.68) "
+            "that loads maximum luminosity into the mid-value zone — the Old Master "
+            "practice of making forms appear self-illuminated rather than merely "
+            "reflecting surface light."
+        ),
+    ),
+
 }
 
 
