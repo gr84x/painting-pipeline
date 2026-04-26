@@ -17179,3 +17179,76 @@ def test_leger_tubist_contour_pass_thin_contour():
         primary_shift=0.80,
         opacity=0.70,
     )
+
+
+# ── Session 197: kandinsky_geometric_resonance_pass ──────────────────────────
+
+def test_kandinsky_geometric_resonance_pass_exists():
+    """Session 197: kandinsky_geometric_resonance_pass must exist and run on a small canvas."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.91, 0.87), texture_strength=0.02)
+    p.underpainting(ref, stroke_size=8)
+    p.kandinsky_geometric_resonance_pass(
+        ref,
+        n_circles=3,
+        n_triangles=3,
+        n_tension_lines=4,
+        n_squares=2,
+        n_arcs=2,
+        opacity=0.65,
+        seed=197,
+    )
+
+
+def test_kandinsky_geometric_resonance_pass_modifies_canvas():
+    """kandinsky_geometric_resonance_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.91, 0.87), texture_strength=0.02)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.kandinsky_geometric_resonance_pass(
+        ref,
+        n_circles=4,
+        n_triangles=4,
+        n_tension_lines=6,
+        n_squares=3,
+        n_arcs=2,
+        synesthetic_strength=1.0,
+        opacity=1.0,
+        seed=197,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "kandinsky_geometric_resonance_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_kandinsky_geometric_resonance_pass_zero_opacity_unchanged():
+    """kandinsky_geometric_resonance_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.92, 0.91, 0.87), texture_strength=0.02)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.kandinsky_geometric_resonance_pass(opacity=0.0, seed=197)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "kandinsky_geometric_resonance_pass at opacity=0.0 must not change any pixels")
+
+
+def test_kandinsky_geometric_resonance_pass_no_reference():
+    """kandinsky_geometric_resonance_pass without a reference must run without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.91, 0.87), texture_strength=0.02)
+    p.kandinsky_geometric_resonance_pass(
+        n_circles=2,
+        n_triangles=2,
+        n_tension_lines=3,
+        n_squares=2,
+        n_arcs=1,
+        opacity=0.50,
+        seed=197,
+    )
