@@ -339,7 +339,7 @@ def main() -> str:
     )
 
     # ── Tonal compression: Rousseau's airless, matte surface ──────────────────
-    p.tonal_compression_pass(strength=0.18, opacity=0.15)
+    p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.04)
 
     # ── Edge definition: crisp silhouette edges — figure against ground,
     #    lion against sky, moon disk boundary ─────────────────────────────────
