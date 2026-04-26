@@ -327,11 +327,11 @@ def main() -> str:
     p.meso_detail_pass(strength=0.18, opacity=0.14)
 
     # ── Micro detail: impasto surface texture marks ───────────────────────────
-    p.micro_detail_pass(strength=0.10, opacity=0.10)
+    p.micro_detail_pass(strength=0.10)
 
     # ── No unifying glaze — Ensor never used one; abrupt colour clash is intent
     # Mild edge definition to sharpen mask outline against the crowd
-    p.edge_definition_pass(sharpness=0.22, opacity=0.18)
+    p.edge_definition_pass(strength=0.22, opacity=0.18)
 
     p.canvas.surface.write_to_png(OUTPUT)
     print(f"Saved: {OUTPUT}")
