@@ -16703,3 +16703,86 @@ def test_klee_magic_square_pass_no_border_routing():
     p = _make_small_painter(64, 64)
     p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.0)
     p.klee_magic_square_pass(border_opacity=0.0, opacity=0.30)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 191 — twombly_calligraphic_scrawl_pass (102nd distinct mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_twombly_calligraphic_scrawl_pass_exists_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "twombly_calligraphic_scrawl_pass", None)), (
+        "twombly_calligraphic_scrawl_pass not found on Painter")
+
+
+def test_twombly_calligraphic_scrawl_pass_signature_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.twombly_calligraphic_scrawl_pass)
+    for param in ("n_clusters", "loops_per_cluster", "loop_radius",
+                  "chalk_color", "accent_prob", "smear_opacity", "opacity"):
+        assert param in sig.parameters, f"Missing parameter: {param}"
+
+
+def test_twombly_calligraphic_scrawl_pass_runs_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass must complete without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.90, 0.84), texture_strength=0.0)
+    p.twombly_calligraphic_scrawl_pass(n_clusters=5, loops_per_cluster=3)
+
+
+def test_twombly_calligraphic_scrawl_pass_opacity_zero_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.90, 0.84), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.twombly_calligraphic_scrawl_pass(n_clusters=10, opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_twombly_calligraphic_scrawl_pass_pixels_in_range_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.90, 0.84), texture_strength=0.0)
+    p.twombly_calligraphic_scrawl_pass(n_clusters=8, loops_per_cluster=4, opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_twombly_calligraphic_scrawl_pass_modifies_canvas_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.90, 0.84), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.twombly_calligraphic_scrawl_pass(
+        n_clusters=15, loops_per_cluster=5, loop_radius=8.0,
+        chalk_color=(0.96, 0.94, 0.88), opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "twombly_calligraphic_scrawl_pass should modify canvas pixels")
+
+
+def test_twombly_calligraphic_scrawl_pass_accent_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass with accent_prob=1.0 must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.90, 0.84), texture_strength=0.0)
+    p.twombly_calligraphic_scrawl_pass(
+        n_clusters=8, accent_prob=1.0, opacity=0.50
+    )
+
+
+def test_twombly_calligraphic_scrawl_pass_no_smear_routing():
+    """Session 191: twombly_calligraphic_scrawl_pass with smear_opacity=0 must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.90, 0.84), texture_strength=0.0)
+    p.twombly_calligraphic_scrawl_pass(n_clusters=6, smear_opacity=0.0, opacity=0.45)

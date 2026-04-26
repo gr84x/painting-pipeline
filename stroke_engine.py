@@ -44310,3 +44310,167 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Klee magic square pass complete.")
+
+    def twombly_calligraphic_scrawl_pass(
+        self,
+        n_clusters:       int   = 40,
+        loops_per_cluster: int  = 5,
+        loop_radius:      float = 22.0,
+        chalk_color:      tuple = (0.96, 0.94, 0.88),
+        accent_prob:      float = 0.08,
+        smear_opacity:    float = 0.12,
+        opacity:          float = 0.62,
+    ) -> None:
+        """
+        Session 191 — Twombly calligraphic scrawl pass (102nd distinct mode).
+
+        Inspired by Cy Twombly's signature technique of looping, spiralling, wrist-
+        rotation gesture marks deposited on pale cream grounds.  Draws clusters of
+        connected loop-arc Bezier marks across the canvas — legible as writing-
+        motion but illegible as text — with a subtle erased-smear ghost beneath
+        each cluster to simulate Twombly's characteristic underdrawing.
+
+        n_clusters         : number of mark clusters to distribute across the canvas
+        loops_per_cluster  : how many loop-arcs per cluster (Twombly 'word' mass)
+        loop_radius        : base radius of each loop in pixels
+        chalk_color        : dominant mark colour (cream-white chalk)
+        accent_prob        : probability that a cluster is rendered in a vivid accent
+                             colour (cadmium red or sienna) rather than chalk
+        smear_opacity      : opacity of the gaussian-blurred dark smear ghost beneath
+                             each cluster (simulates erased underdrawing)
+        opacity            : final composite opacity over the original image
+
+        NOVEL: ONE HUNDRED AND SECOND DISTINCT MODE.  FIRST pass to generate
+        LOOPING WRIST-ROTATION TRAJECTORY MARKS — distinct from all prior passes
+        which generate directional strokes, dabs, dots, hatching, or geometric fills.
+        The loop-spiral trajectory (Bezier cubic with control points orbiting the
+        anchor node at phase-offset radii) is a new mark primitive that exists nowhere
+        else in the pipeline.  The combination of loop marks, smear ghost, and
+        chalk-on-pale-ground compositing directly embodies Twombly's calligraphic
+        accumulation method.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageDraw as _IDraw, ImageFilter as _IFilter
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        rng = _np.random.default_rng(191)
+
+        # ── accent colour pool (cadmium red and raw sienna) ───────────────────
+        accent_colors = [
+            (220, 55, 40),    # cadmium red
+            (194, 152, 50),   # raw sienna-yellow
+        ]
+
+        # ── mark layer (RGBA, transparent background) ─────────────────────────
+        mark_layer = _Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        mark_draw = _IDraw.Draw(mark_layer)
+
+        # ── smear layer (dark blurred ghost beneath marks) ────────────────────
+        smear_layer = _Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        smear_draw = _IDraw.Draw(smear_layer)
+
+        chalk_r8 = int(_np.clip(chalk_color[0] * 255, 0, 255))
+        chalk_g8 = int(_np.clip(chalk_color[1] * 255, 0, 255))
+        chalk_b8 = int(_np.clip(chalk_color[2] * 255, 0, 255))
+
+        def _bezier_point(p0, p1, p2, p3, t):
+            """Cubic Bezier point at parameter t."""
+            mt = 1.0 - t
+            x = (mt**3 * p0[0] + 3 * mt**2 * t * p1[0]
+                 + 3 * mt * t**2 * p2[0] + t**3 * p3[0])
+            y = (mt**3 * p0[1] + 3 * mt**2 * t * p1[1]
+                 + 3 * mt * t**2 * p2[1] + t**3 * p3[1])
+            return (x, y)
+
+        def _draw_loop(draw, anchor, radius, phase, color, width):
+            """
+            Draw a single loop arc: a cubic Bezier that spirals outward from anchor,
+            completing roughly one loop of radius pixels, using rotated control points.
+            """
+            ax, ay = anchor
+            r = float(radius)
+            # Control points orbit the anchor at offset phases — the wrist-rotation
+            cp1 = (ax + r * _np.cos(phase),          ay + r * _np.sin(phase))
+            cp2 = (ax + r * _np.cos(phase + 2.0),    ay + r * _np.sin(phase + 2.0))
+            # Endpoint displaced slightly from anchor — the loop drift
+            drift_angle = phase + _np.pi + rng.uniform(-0.5, 0.5)
+            drift_dist  = r * rng.uniform(0.3, 0.9)
+            end = (ax + drift_dist * _np.cos(drift_angle),
+                   ay + drift_dist * _np.sin(drift_angle))
+
+            pts = [_bezier_point((ax, ay), cp1, cp2, end, t / 20.0)
+                   for t in range(21)]
+            flat = [(int(p[0]), int(p[1])) for p in pts]
+            if len(flat) >= 2:
+                draw.line(flat, fill=color, width=width)
+            return end   # next anchor = where this loop terminated
+
+        for _ in range(int(n_clusters)):
+            # Cluster anchor: distributed across canvas, biased away from hard edges
+            cx = rng.uniform(W * 0.08, W * 0.92)
+            cy = rng.uniform(H * 0.08, H * 0.92)
+
+            # Choose mark colour
+            is_accent = rng.random() < float(accent_prob)
+            if is_accent:
+                ac = accent_colors[int(rng.integers(len(accent_colors)))]
+                mark_color = (ac[0], ac[1], ac[2], 220)
+                smear_color = (30, 20, 15, int(255 * float(smear_opacity) * 2))
+            else:
+                mark_color = (chalk_r8, chalk_g8, chalk_b8, 210)
+                smear_color = (60, 55, 45, int(255 * float(smear_opacity)))
+
+            # Mark width: Twombly strokes are thin but not hairlines
+            line_width = max(1, int(rng.uniform(1.5, 4.0)))
+            radius_var = float(loop_radius) * rng.uniform(0.55, 1.45)
+
+            # Smear ghost: blurred ellipse behind the cluster
+            smear_r = int(radius_var * 2.2)
+            smear_draw.ellipse(
+                [cx - smear_r, cy - smear_r, cx + smear_r, cy + smear_r],
+                fill=smear_color,
+            )
+
+            # Loop chain: each loop's endpoint becomes the next loop's anchor
+            anchor = (cx, cy)
+            phase = rng.uniform(0, 2 * _np.pi)
+            for _ in range(int(loops_per_cluster)):
+                phase += rng.uniform(0.8, 1.6)   # advancing phase = spiralling
+                radius_step = radius_var * rng.uniform(0.6, 1.3)
+                anchor = _draw_loop(mark_draw, anchor, radius_step, phase,
+                                    mark_color, line_width)
+
+        # Blur the smear layer for the erased-ghost effect
+        smear_blurred = smear_layer.filter(_IFilter.GaussianBlur(radius=int(loop_radius * 0.7)))
+
+        # ── composite smear ghost + marks over original ───────────────────────
+        base = _Image.fromarray(
+            _np.stack([orig[:, :, 2], orig[:, :, 1], orig[:, :, 0], orig[:, :, 3]], axis=2),
+            mode="RGBA"
+        )
+        base.alpha_composite(smear_blurred)
+        base.alpha_composite(mark_layer)
+        result = _np.array(base)
+
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(
+            (orig[:, :, 2].astype(_np.float32) * (1 - op)
+             + result[:, :, 0].astype(_np.float32) * op), 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            (orig[:, :, 1].astype(_np.float32) * (1 - op)
+             + result[:, :, 1].astype(_np.float32) * op), 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            (orig[:, :, 0].astype(_np.float32) * (1 - op)
+             + result[:, :, 2].astype(_np.float32) * op), 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Twombly calligraphic scrawl pass complete.")

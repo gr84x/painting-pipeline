@@ -193,6 +193,7 @@ EXPECTED_ARTISTS = [
     "giorgio_morandi",
     "zdzislaw_beksinski",
     "paul_klee",
+    "cy_twombly",
 ]
 
 
@@ -27384,3 +27385,69 @@ def test_paul_klee_inspiration_references_pass():
     """Session 190: paul_klee inspiration must reference klee_magic_square_pass."""
     style = get_style("paul_klee")
     assert "klee_magic_square_pass" in style.inspiration
+
+
+# ── Session 191 — Cy Twombly ──────────────────────────────────────────────────
+
+def test_cy_twombly_in_catalog():
+    """Session 191: cy_twombly must be present in CATALOG."""
+    assert "cy_twombly" in CATALOG
+
+
+def test_cy_twombly_movement():
+    """Session 191: cy_twombly movement must reference Abstract Expressionism."""
+    style = get_style("cy_twombly")
+    assert "Abstract" in style.movement or "Expressionism" in style.movement
+
+
+def test_cy_twombly_palette_valid():
+    """Session 191: every cy_twombly palette colour must be in [0, 1]."""
+    style = get_style("cy_twombly")
+    for colour in style.palette:
+        for channel in colour:
+            assert 0.0 <= channel <= 1.0, f"Palette colour out of range: {colour}"
+
+
+def test_cy_twombly_palette_length():
+    """Session 191: cy_twombly palette must have at least 5 entries."""
+    style = get_style("cy_twombly")
+    assert len(style.palette) >= 5
+
+
+def test_cy_twombly_ground_color_pale():
+    """Session 191: cy_twombly ground must be pale (all channels > 0.75)."""
+    style = get_style("cy_twombly")
+    for channel in style.ground_color:
+        assert channel > 0.75, (
+            f"cy_twombly ground_color should be pale cream; got {style.ground_color}")
+
+
+def test_cy_twombly_wet_blend_low():
+    """Session 191: cy_twombly wet_blend must be very low (< 0.15) — marks accumulate."""
+    style = get_style("cy_twombly")
+    assert style.wet_blend < 0.15, (
+        f"cy_twombly wet_blend should be very low (dry marks); got {style.wet_blend}")
+
+
+def test_cy_twombly_no_crackle():
+    """Session 191: cy_twombly crackle must be False — no aged crackle finish."""
+    style = get_style("cy_twombly")
+    assert style.crackle is False
+
+
+def test_cy_twombly_famous_works():
+    """Session 191: cy_twombly must list at least 4 famous works."""
+    style = get_style("cy_twombly")
+    assert len(style.famous_works) >= 4
+
+
+def test_cy_twombly_inspiration_references_pass():
+    """Session 191: cy_twombly inspiration must reference twombly_calligraphic_scrawl_pass."""
+    style = get_style("cy_twombly")
+    assert "twombly_calligraphic_scrawl_pass" in style.inspiration
+
+
+def test_cy_twombly_in_expected_artists():
+    """Session 191: cy_twombly must appear in EXPECTED_ARTISTS."""
+    assert "cy_twombly" in EXPECTED_ARTISTS
+
