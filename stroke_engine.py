@@ -46354,3 +46354,139 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Rousseau Naive Luminance pass complete.")
+
+    # Session 203 — Turner (J. M. W. Turner, 1775–1851): turner_vortex_luminance_pass
+
+    def turner_vortex_luminance_pass(
+        self,
+        vortex_x:        float = 0.50,
+        vortex_y:        float = 0.45,
+        vortex_radius:   float = 0.38,
+        core_strength:   float = 0.58,
+        haze_strength:   float = 0.46,
+        lum_lift:        float = 0.18,
+        vortex_color:    tuple = (0.98, 0.92, 0.60),
+        periphery_color: tuple = (0.32, 0.28, 0.48),
+        opacity:         float = 0.72,
+    ) -> None:
+        """
+        Session 203 — Turner vortex luminance pass (114th distinct mode).
+
+        Recreates the radial atmospheric dissolve of J. M. W. Turner's late
+        paintings through RADIAL TEMPERATURE VORTEX: a configurable vortex
+        centre (default: upper-centre, where Turner typically placed the sun
+        or light source) radiates warm yellow-gold outward, while distant
+        pixels receive a progressive push toward cool blue-violet atmospheric
+        haze.  A luminance lift is applied at the vortex core, brightening
+        pixels toward white-gold to mimic the near-blinding solar intensity
+        Turner described with "the sun is God."
+
+        Algorithm:
+        (1) DISTANCE MAP: for every pixel (px, py), compute normalised radial
+            distance from vortex_center.  t = dist / (vortex_radius × min(W,H));
+            clipped to [0, ∞) so pixels beyond the radius have t > 1.
+        (2) CORE GATE (warm zone): gate = clip(1 − t, 0, 1)² — peaks at 1.0
+            at the vortex centre, falls to 0 at t = 1.  Pixels receive a blend
+            toward vortex_color at strength (gate × core_strength), plus a
+            luminance lift: channels are pulled toward 1.0 by (gate × lum_lift),
+            reproducing the near-overexposed brilliance of Turner's solar core.
+        (3) HAZE GATE (cool periphery): gate = clip((t − 0.60) / 0.40, 0, 1)^1.2
+            — ramps from 0 at t = 0.60 to 1.0 at t = 1.0.  Pixels receive a
+            blend toward periphery_color at strength (gate × haze_strength),
+            pushing outer areas into the cool blue-violet atmospheric haze that
+            frames every Turner composition.
+        (4) The two gates overlap in the transition band 0.60 < t < 1.0, where
+            residual warmth and growing cool haze coexist — exactly as in
+            Turner's middle-ground zones where forms "dematerialise into colour
+            and light."
+        (5) GLOBAL COMPOSITE at opacity blends the modified image over the
+            original canvas.
+
+        NOVEL: ONE HUNDRED AND FOURTEENTH DISTINCT MODE.  First pass to use
+        RADIAL TEMPERATURE VORTEX — a simultaneous warm-core LUMINANCE LIFT
+        combined with a cool-periphery HUE PUSH, both driven by the same
+        radial distance field.  Prior passes operate on luminance bands
+        (Rousseau: stratified bands), vertical toning (Bocklin: tripartite),
+        wave frequency (Aivazovsky), or chroma polarity (Ensor).  The combined
+        radial approach, with its warm-bright core and cool-dark rim, is new.
+
+        vortex_x        : normalised X position of vortex centre (0=left, 1=right)
+        vortex_y        : normalised Y position of vortex centre (0=top, 1=bottom)
+        vortex_radius   : radius of the central warm zone as a fraction of min(W,H)
+        core_strength   : blend strength toward vortex_color at the vortex centre
+        haze_strength   : blend strength toward periphery_color at the canvas rim
+        lum_lift        : luminance brightening added at vortex centre (pulls → 1.0)
+        vortex_color    : target RGB for vortex core (warm yellow-gold)
+        periphery_color : target RGB for outer haze (cool blue-violet)
+        opacity         : final composite blend opacity
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo is BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        # ── Distance map ──────────────────────────────────────────────────────
+        cx = float(vortex_x) * W
+        cy = float(vortex_y) * H
+        radius_px = float(vortex_radius) * float(min(W, H))
+
+        ys = _np.arange(H, dtype=_np.float32)[:, None]   # (H, 1)
+        xs = _np.arange(W, dtype=_np.float32)[None, :]   # (1, W)
+        dist = _np.sqrt((xs - cx) ** 2 + (ys - cy) ** 2)
+        t = dist / (radius_px + 1e-6)                    # (H, W), 0 at centre
+
+        # ── 1. Core warm zone (t in [0, 1]) ───────────────────────────────────
+        cs = float(core_strength)
+        cr, cg, cb = float(vortex_color[0]), float(vortex_color[1]), float(vortex_color[2])
+        core_gate = _np.clip(1.0 - t, 0.0, 1.0) ** 2
+        core_alpha = core_gate * cs
+        r1 = r1 * (1.0 - core_alpha) + cr * core_alpha
+        g1 = g1 * (1.0 - core_alpha) + cg * core_alpha
+        b1 = b1 * (1.0 - core_alpha) + cb * core_alpha
+
+        # Luminance lift: pull channels toward 1.0 in proportion to core gate
+        ll = float(lum_lift)
+        lift_alpha = core_gate * ll
+        r1 = r1 + (1.0 - r1) * lift_alpha
+        g1 = g1 + (1.0 - g1) * lift_alpha
+        b1 = b1 + (1.0 - b1) * lift_alpha
+
+        # ── 2. Periphery haze zone (t > 0.60) ─────────────────────────────────
+        hs = float(haze_strength)
+        hr, hg, hb = (
+            float(periphery_color[0]),
+            float(periphery_color[1]),
+            float(periphery_color[2]),
+        )
+        haze_raw = _np.clip((t - 0.60) / 0.40, 0.0, 1.0)
+        haze_gate = haze_raw ** 1.2
+        haze_alpha = haze_gate * hs
+        r1 = r1 * (1.0 - haze_alpha) + hr * haze_alpha
+        g1 = g1 * (1.0 - haze_alpha) + hg * haze_alpha
+        b1 = b1 * (1.0 - haze_alpha) + hb * haze_alpha
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        # ── 3. Global opacity composite ───────────────────────────────────────
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Turner Vortex Luminance pass complete.")

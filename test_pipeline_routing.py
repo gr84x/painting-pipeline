@@ -17776,3 +17776,106 @@ def test_rousseau_naive_luminance_pass_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 203: J. M. W. Turner — turner_vortex_luminance_pass ──────────────
+
+def test_turner_vortex_luminance_pass_exists():
+    """Session 203: Painter must have turner_vortex_luminance_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "turner_vortex_luminance_pass"), (
+        "turner_vortex_luminance_pass not found on Painter")
+    assert callable(getattr(Painter, "turner_vortex_luminance_pass"))
+
+
+def test_turner_vortex_luminance_pass_modifies_canvas():
+    """Session 203: turner_vortex_luminance_pass at opacity=1.0 must change pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.turner_vortex_luminance_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "turner_vortex_luminance_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_turner_vortex_luminance_pass_zero_opacity_unchanged():
+    """Session 203: turner_vortex_luminance_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.turner_vortex_luminance_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "turner_vortex_luminance_pass at opacity=0.0 must not change any pixels")
+
+
+def test_turner_vortex_luminance_pass_no_prior_strokes():
+    """Session 203: turner_vortex_luminance_pass without prior strokes runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    p.turner_vortex_luminance_pass(opacity=0.72)
+
+
+def test_turner_vortex_luminance_pass_pixels_in_range():
+    """Session 203: turner_vortex_luminance_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    p.turner_vortex_luminance_pass(
+        core_strength=1.0, haze_strength=1.0, lum_lift=1.0, opacity=1.0
+    )
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert buf.min() >= 0 and buf.max() <= 255, (
+        "turner_vortex_luminance_pass produced out-of-range pixel values")
+
+
+def test_turner_vortex_luminance_pass_zero_strengths():
+    """Session 203: all strengths=0 runs without error and leaves canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.turner_vortex_luminance_pass(
+        core_strength=0.0, haze_strength=0.0, lum_lift=0.0, opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "turner_vortex_luminance_pass with all strengths=0 must not change pixels")
+
+
+def test_turner_vortex_luminance_pass_custom_vortex_position():
+    """Session 203: off-centre vortex position runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    p.turner_vortex_luminance_pass(vortex_x=0.25, vortex_y=0.30, opacity=0.60)
+
+
+def test_turner_vortex_luminance_pass_custom_colors():
+    """Session 203: custom vortex and periphery colours are accepted without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.80, 0.75, 0.60), texture_strength=0.0)
+    p.turner_vortex_luminance_pass(
+        vortex_color=(1.0, 0.95, 0.70),
+        periphery_color=(0.20, 0.22, 0.40),
+        opacity=0.65,
+    )
+
+
+def test_turner_vortex_luminance_pass_in_catalog():
+    """Session 203: turner must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "turner" in CATALOG, "turner missing from CATALOG"
+    s = get_style("turner")
+    assert "romantic" in s.movement.lower() or "impressi" in s.movement.lower()
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
