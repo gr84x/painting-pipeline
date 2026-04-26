@@ -352,6 +352,7 @@ class Period(Enum):
     LOMBARD_HUMBLE_GENRE = auto()  # Ceruti (il Pitocchetto) — warm earthy shadow dignity; muted Brescian ochre; inhabited shadow enrichment; quiet observational warmth without theatricality
     BERGAMASK_PORTRAIT = auto()    # Fra Galgario (Giuseppe Ghislandi) — warm amber-gold "living surface" inner luminescence; rich crimson drapery; Bergamask chiaroscuro; psychological portraiture
     MILANESE_METALLIC_PORTRAITURE = auto()  # Ambrogio de Predis — crystalline metallic precision; cool-silver highlights; enamelled sfumato portraiture; Leonardo's closest Milanese court collaborator
+    METAPHYSICAL_STILL_LIFE = auto()  # Giorgio Morandi — dusty chalky tonal unity; chrominance convergence; meditative colour attenuation; Bolognese still-life metaphysics
     CONTEMPORARY  = auto()
     FANTASY_ART   = auto()
     NONE          = auto()
@@ -1803,6 +1804,12 @@ class Style:
             # wet_blend=0.80: extremely high — near-Leonardo blending; seamless tonal transitions.
             # edge_softness=0.65: high-moderate; sfumato-smooth but with more structural precision.
             Period.MILANESE_METALLIC_PORTRAITURE: dict(stroke_size_face=4, stroke_size_bg=16, wet_blend=0.80, edge_softness=0.65),
+            # METAPHYSICAL_STILL_LIFE (Giorgio Morandi) — chalky matte tonal unity.
+            # stroke_size_face=8: moderate — careful, deliberate marks; not large impasto.
+            # stroke_size_bg=22: background treated with similar care but broader.
+            # wet_blend=0.12: extremely dry — chalky, scumbled, matte; no wet blending.
+            # edge_softness=0.50: moderate — forms emerge through value, not crisp line.
+            Period.METAPHYSICAL_STILL_LIFE: dict(stroke_size_face=8, stroke_size_bg=22, wet_blend=0.12, edge_softness=0.50),
             Period.CONTEMPORARY:  dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.15, edge_softness=0.50),
             Period.FANTASY_ART:   dict(stroke_size_face=7,  stroke_size_bg=26, wet_blend=0.12, edge_softness=0.55),
             Period.NONE:          dict(stroke_size_face=8,  stroke_size_bg=24, wet_blend=0.18, edge_softness=0.50),
