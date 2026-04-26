@@ -45745,3 +45745,179 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    De Chirico Metaphysical Shadow pass complete.")
+
+    def aivazovsky_marine_luminance_pass(
+        self,
+        horizon_y: float = 0.42,
+        wave_frequency: float = 8.0,
+        wave_amplitude: float = 0.06,
+        crest_jade: tuple = (0.18, 0.52, 0.40),
+        trough_navy: tuple = (0.06, 0.14, 0.32),
+        crest_strength: float = 0.68,
+        trough_strength: float = 0.55,
+        horizon_glow: tuple = (0.88, 0.78, 0.48),
+        horizon_glow_width: float = 0.08,
+        horizon_glow_strength: float = 0.60,
+        foam_strength: float = 0.50,
+        seed: int = 199,
+        opacity: float = 0.80,
+    ) -> None:
+        """
+        Aivazovsky Marine Luminance pass — translucent wave crest luminance.
+
+        Inspired by Ivan Aivazovsky's Russian Romantic seascapes (1840–1900):
+        the backlit jade-translucency of breaking wave crests, deep navy indigo
+        in the wave troughs, and the warm amber-gold radiance at the horizon
+        line where sky meets sea.
+
+        Algorithm:
+          1. Build a WAVE PHASE MAP via horizontal Perlin noise decomposition.
+             A 2D noise field with high horizontal frequency identifies crest
+             vs trough positions across the water area (below `horizon_y`).
+             Crest zones: noise peak > threshold. Trough zones: noise < 0.
+          2. CREST LUMINANCE INJECTION: at crest zones, push colour toward
+             translucent jade-green `crest_jade` at `crest_strength`. This
+             simulates Aivazovsky's thin-film backlit translucency — light
+             penetrating the upper surface of the wave from behind.
+          3. TROUGH DEEPENING: at trough zones, push colour toward deep navy
+             `trough_navy` at `trough_strength`. The dark trough between
+             crests creates the high-contrast energy of the sea.
+          4. HORIZON RADIANCE BAND: a Gaussian-falloff band centred at
+             `horizon_y` ± `horizon_glow_width` pushes colours toward warm
+             amber-gold `horizon_glow` at `horizon_glow_strength`. This
+             replicates Aivazovsky's glowing sea-horizon light path.
+          5. FOAM SPRAY OVERLAY: at the highest crest peaks, scatter fine
+             bright near-white dots (foam_strength controls density) using
+             the wave phase map's extreme high values.
+          6. Alpha-blend the composite onto the canvas at global `opacity`.
+
+        NOVEL: 110TH DISTINCT MODE. FIRST pass to use TRANSLUCENT WAVE
+        LUMINANCE DECOMPOSITION — a horizontal Perlin frequency analysis
+        that locates crest vs trough zones and applies opposing colour
+        temperatures (warm jade translucency at crests, deep navy at troughs).
+        Combined with a HORIZON RADIANCE BAND (warm amber glow at the
+        sea-horizon intersection), this replicates Aivazovsky's signature
+        optical discovery of backlit wave-crest translucency. Distinct from
+        all 109 prior passes.
+        """
+        import numpy as _np
+        from noise import pnoise2 as _pnoise2
+
+        W, H = self.canvas.w, self.canvas.h
+        _rng = _np.random.default_rng(int(seed))
+
+        # Capture canvas (BGRA)
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        ys = _np.linspace(0.0, 1.0, H)[:, _np.newaxis]   # (H,1)
+        xs = _np.linspace(0.0, 1.0, W)[_np.newaxis, :]   # (1,W)
+
+        # Water zone mask: below horizon_y
+        hz = float(horizon_y)
+        water_mask = _np.clip((ys - hz) / max(0.04, hz * 0.05), 0.0, 1.0).astype(_np.float32)
+
+        # ── 1. Wave phase map via Perlin noise ────────────────────────────────
+        # High horizontal frequency, low vertical frequency → horizontal wave bands
+        wfreq = float(wave_frequency)
+        base_x = float(_rng.integers(0, 1000))
+        base_y = float(_rng.integers(0, 1000))
+        wave_map = _np.zeros((H, W), dtype=_np.float32)
+        inv_H, inv_W = 1.0 / H, 1.0 / W
+        for y_idx in range(H):
+            for x_idx in range(W):
+                # High x-frequency for horizontal wave bands; lower y variation
+                nx = (x_idx * inv_W) * wfreq + base_x
+                ny = (y_idx * inv_H) * 2.0 + base_y
+                n = _pnoise2(nx, ny, octaves=4, persistence=0.5, lacunarity=2.0)
+                # Secondary fine-scale chop
+                n2 = _pnoise2(nx * 2.3 + 7.1, ny * 1.8 + 3.4,
+                              octaves=2, persistence=0.4, lacunarity=2.0)
+                wave_map[y_idx, x_idx] = n * 0.70 + n2 * 0.30
+
+        # Normalise to [-1, 1]
+        wm_max = _np.abs(wave_map).max() + 1e-8
+        wave_map /= wm_max
+
+        # Crest mask: top 30% of wave_map values in water zone
+        crest_threshold = 0.35
+        trough_threshold = -0.30
+
+        crest_map  = _np.clip((wave_map - crest_threshold) / (1.0 - crest_threshold + 1e-8), 0.0, 1.0)
+        trough_map = _np.clip((trough_threshold - wave_map) / (1.0 - abs(trough_threshold) + 1e-8), 0.0, 1.0)
+
+        # Only in water zone
+        crest_map  *= water_mask
+        trough_map *= water_mask
+
+        # ── 2. Crest luminance injection — jade translucency ─────────────────
+        cr, cg, cb = float(crest_jade[0]), float(crest_jade[1]), float(crest_jade[2])
+        cs = float(crest_strength)
+        alpha_c = crest_map * cs
+        r1 = r1 * (1.0 - alpha_c) + cr * alpha_c
+        g1 = g1 * (1.0 - alpha_c) + cg * alpha_c
+        b1 = b1 * (1.0 - alpha_c) + cb * alpha_c
+
+        # Brighten the crest zones (translucency = more light)
+        lum_boost = crest_map * cs * 0.18
+        r1 = _np.clip(r1 + lum_boost, 0.0, 1.0)
+        g1 = _np.clip(g1 + lum_boost * 0.9, 0.0, 1.0)
+        b1 = _np.clip(b1 + lum_boost * 0.7, 0.0, 1.0)
+
+        # ── 3. Trough deepening — navy indigo ────────────────────────────────
+        nr, ng, nb = float(trough_navy[0]), float(trough_navy[1]), float(trough_navy[2])
+        ts = float(trough_strength)
+        alpha_t = trough_map * ts
+        r1 = r1 * (1.0 - alpha_t) + nr * alpha_t
+        g1 = g1 * (1.0 - alpha_t) + ng * alpha_t
+        b1 = b1 * (1.0 - alpha_t) + nb * alpha_t
+
+        # ── 4. Horizon radiance band ─────────────────────────────────────────
+        hr, hg, hb = float(horizon_glow[0]), float(horizon_glow[1]), float(horizon_glow[2])
+        hgw = max(0.01, float(horizon_glow_width))
+        hgs = float(horizon_glow_strength)
+        # Gaussian falloff centred at horizon_y
+        horizon_band = _np.exp(-0.5 * ((ys - hz) / hgw) ** 2).astype(_np.float32)
+        # Stronger on lit water surface, taper off toward the sky
+        horizon_band = horizon_band * _np.clip((1.0 - (ys - hz) / (hgw * 3.0)), 0.0, 1.0).astype(_np.float32)
+        alpha_h = horizon_band * hgs
+        alpha_h = _np.broadcast_to(alpha_h, (H, W)).astype(_np.float32)
+        r1 = r1 * (1.0 - alpha_h) + hr * alpha_h
+        g1 = g1 * (1.0 - alpha_h) + hg * alpha_h
+        b1 = b1 * (1.0 - alpha_h) + hb * alpha_h
+
+        # ── 5. Foam spray overlay — bright near-white at extreme crest peaks ─
+        fs = float(foam_strength)
+        foam_threshold = 0.65
+        foam_map = _np.clip((wave_map - foam_threshold) / (1.0 - foam_threshold + 1e-8), 0.0, 1.0)
+        foam_map *= water_mask
+        # Add fine stochastic spray noise to the foam mask
+        spray_noise = _rng.random((H, W)).astype(_np.float32)
+        spray_noise = _np.where(spray_noise > 0.72, spray_noise, 0.0)
+        foam_alpha = _np.clip(foam_map * spray_noise * fs, 0.0, 1.0)
+        r1 = _np.clip(r1 + foam_alpha * 0.88, 0.0, 1.0)
+        g1 = _np.clip(g1 + foam_alpha * 0.88, 0.0, 1.0)
+        b1 = _np.clip(b1 + foam_alpha * 0.90, 0.0, 1.0)
+
+        # ── 6. Global opacity blend ───────────────────────────────────────────
+        op = float(opacity)
+        r1 = r0 * (1.0 - op) + r1 * op
+        g1 = g0 * (1.0 - op) + g1 * op
+        b1 = b0 * (1.0 - op) + b1 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Aivazovsky Marine Luminance pass complete.")

@@ -17423,6 +17423,115 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Ivan Aivazovsky ───────────────────────────────────────────────────────
+    # Randomly selected artist for session 199.
+    # Ivan Konstantinovich Aivazovsky (1817–1900) — Armenian-Russian Romantic
+    # painter and the undisputed master of the marine seascape.  Born in Feodosia
+    # (Crimea), he trained at the St. Petersburg Academy under Maxim Vorobiev and
+    # briefly studied in Italy before returning to Russia where he painted over
+    # six thousand seascapes in a career spanning sixty years.  His most celebrated
+    # work, The Ninth Wave (1850), depicts a group of survivors clinging to wreckage
+    # in a luminous golden dawn sea — the warm backlighting turns each wave crest
+    # into a translucent jade and amber lens.  This effect — the backlit
+    # translucency of the thin upper surface of a breaking wave — is Aivazovsky's
+    # signature optical discovery and has never been surpassed in painting.
+    #
+    # Technique: Aivazovsky worked with astounding speed (many large canvases were
+    # completed in a single day) using fast, confident wet-into-wet oil strokes on
+    # a warm toned ground.  He began with broad sweeps of the sky and horizon, then
+    # built wave structure using a loaded brush dragged horizontally — sometimes
+    # with a palette knife for the foam peaks — before adding the backlit crest
+    # glow with a small soft brush using thin translucent jade-green glazes over
+    # a still-wet mid-tone.  His palette was deliberately limited: deep navy indigo
+    # for wave troughs, blue-grey for the sky, warm amber-gold for the horizon
+    # light, translucent viridian for the wave crests, and pure lead-white for the
+    # foam spray.  He never over-blended — the dark/light contrast of trough to
+    # crest creates the energy of the sea without laboured detail.
+    #
+    # Key works: The Ninth Wave (1850), Among the Waves (1898), Moonlit Night on
+    # the Black Sea (1879), The Black Sea (1881), Brig Mercury Attacked by Two
+    # Turkish Ships (1892).
+    "ivan_aivazovsky": ArtStyle(
+        artist="Ivan Aivazovsky",
+        movement="Russian Romanticism / Marine Painting",
+        nationality="Russian-Armenian",
+        period="1840–1900",
+        palette=[
+            (0.06, 0.14, 0.32),   # deep navy indigo — wave trough, storm base
+            (0.10, 0.26, 0.50),   # ocean blue — deep water mid-tone
+            (0.16, 0.48, 0.40),   # jade translucence — backlit wave crest
+            (0.22, 0.58, 0.50),   # bright viridian — crest highlight peak
+            (0.88, 0.88, 0.94),   # sea foam white — breaking crest spray
+            (0.84, 0.74, 0.46),   # warm amber-gold — horizon light on water
+            (0.92, 0.86, 0.68),   # silver-gold — low sun horizon radiance
+            (0.52, 0.60, 0.72),   # cool blue-grey — overcast sky mid-tone
+            (0.16, 0.10, 0.06),   # near-black umber — storm cloud silhouette
+        ],
+        ground_color=(0.42, 0.36, 0.22),    # warm ochre-umber imprimatura
+        stroke_size=18,
+        wet_blend=0.72,                      # confident wet-into-wet; fast loaded brush
+        edge_softness=0.42,                  # soft tonal transitions in water; hard horizon line
+        jitter=0.048,                        # visible brushwork energy; sea is never uniform
+        glazing=(0.16, 0.38, 0.32),          # thin viridian final veil — unifies ocean tones
+        crackle=False,                       # Aivazovsky's paint is dense; crackle uncommon
+        chromatic_split=False,
+        technique=(
+            "Fast, confident wet-into-wet oil technique on a warm toned ground.  "
+            "Sky and horizon laid in first with broad sweeps; wave architecture "
+            "built with a loaded horizontal brush drag — sometimes finished with a "
+            "palette knife at the foam peaks.  The defining technique is the BACKLIT "
+            "WAVE CREST GLOW: once the wave structure is wet, a small soft brush "
+            "loads thin translucent jade-green glaze and strokes the upper crest "
+            "surface, simulating light penetrating through the thin skin of the wave "
+            "from behind.  This optical effect (transparent wave-crest translucency) "
+            "is Aivazovsky's single greatest discovery.  Warm amber-gold is dragged "
+            "across the horizon line and allowed to bleed upward into the sky and "
+            "downward into the water surface, creating the glowing path of reflected "
+            "sunlight.  Pure lead-white is placed last, quickly, at the highest foam "
+            "peaks — never blended, always confident.  Palette knife strokes add "
+            "physical texture to the foreground wave crests.  Final thin viridian "
+            "glaze unifies the ocean tonal zone."
+        ),
+        famous_works=[
+            ("The Ninth Wave",                           "1850"),
+            ("Among the Waves",                          "1898"),
+            ("Moonlit Night on the Black Sea",           "1879"),
+            ("The Black Sea",                            "1881"),
+            ("Brig Mercury Attacked by Two Turkish Ships","1892"),
+            ("Storm on the Sea at Night",                "1849"),
+            ("Calm Sea",                                  "1863"),
+        ],
+        inspiration=(
+            "Use aivazovsky_marine_luminance_pass() as the signature effect: "
+            "horizontal wave-band decomposition identifies crest zones, injects "
+            "backlit jade-translucency at the crest surface, deepens troughs to "
+            "navy indigo, and overlays a warm amber-gold horizon radiance band.  "
+            "tone_ground() with warm ochre-umber (0.42, 0.36, 0.22).  "
+            "block_in() with broad horizontal strokes (stroke_size=22).  "
+            "build_form() for wave architecture.  "
+            "place_lights() with lead-white foam peaks.  "
+            "aivazovsky_marine_luminance_pass(horizon_y=0.42, crest_jade=(0.18, 0.52, 0.40), "
+            "trough_navy=(0.06, 0.14, 0.32), horizon_glow=(0.88, 0.78, 0.48), "
+            "wave_frequency=8, opacity=0.78) as the primary pass.  "
+            "glaze((0.16, 0.38, 0.32), opacity=0.08) — thin viridian unifier.  "
+            "focal_vignette_pass() to pull attention to the lit horizon centre.\n\n"
+            "NOVEL: ONE HUNDRED AND TENTH DISTINCT MODE. FIRST pass to use "
+            "TRANSLUCENT WAVE LUMINANCE DECOMPOSITION — horizontal frequency band "
+            "analysis locates wave crest peaks, then injects backlit jade-translucency "
+            "at the crest surface by computing a wave phase map from Perlin noise and "
+            "applying a two-temperature split (warm amber troughs vs jade-translucent crests). "
+            "Combined with a HORIZON RADIANCE BAND (warm amber glow at the sea-horizon "
+            "intersection), this replicates Aivazovsky's signature optical discovery. "
+            "Entirely distinct from all prior passes: no shadow rays (de Chirico), "
+            "no contours (Schiele/Léger), no dots (Kusama), no grids (Klee). "
+            "The WAVE PHASE MAP PRIMITIVE is new — using a horizontal Perlin decomposition "
+            "to locate crest vs trough zones and apply opposing colour temperatures.\n\n"
+            "Use aivazovsky_marine_luminance_pass(horizon_y=0.42, wave_frequency=8, "
+            "crest_strength=0.68, trough_strength=0.55, horizon_glow_width=0.08, "
+            "opacity=0.80)."
+        ),
+    ),
+
 }
 
 
