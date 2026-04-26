@@ -44475,6 +44475,165 @@ class Painter:
         self.canvas.surface.mark_dirty()
         print("    Twombly calligraphic scrawl pass complete.")
 
+    def kusama_infinity_dot_pass(
+        self,
+        n_seeds:      int   = 9,
+        ring_step:    int   = 32,
+        dot_radius:   int   = 14,
+        dot_spacing:  int   = 36,
+        jitter_frac:  float = 0.22,
+        palette:      list  = None,
+        opacity:      float = 0.72,
+    ) -> None:
+        """
+        Session 193 — Kusama infinity dot pass (104th distinct mode).
+
+        Inspired by Yayoi Kusama's signature obsessive polka-dot practice, as
+        exemplified in 'Infinity Net' (1958), 'Dots Obsession' (1998), and her
+        entire dot-accumulation career.
+
+        Places N_seeds expansion centres across the canvas.  From each seed,
+        concentric rings of filled circles radiate outward at ring_step intervals.
+        Each ring contains dots evenly spaced circumferentially (arc distance
+        ≈ dot_spacing pixels).  Ring index drives a cyclic palette rotation so
+        adjacent rings alternate between complementary hues.  Dot radius carries
+        a gentle per-dot noise jitter for organic life.
+
+        n_seeds      : number of radial explosion centres
+        ring_step    : pixel distance between concentric rings (controls density)
+        dot_radius   : base filled-dot radius in pixels
+        dot_spacing  : arc distance between dot centres within a ring
+        jitter_frac  : radius noise as fraction of dot_radius (0 = perfect circles)
+        palette      : list of (R, G, B) float triples; defaults to Kusama palette
+        opacity      : final blend of dot layer over original canvas
+
+        NOVEL: ONE HUNDRED AND FOURTH DISTINCT MODE.  FIRST pass to generate
+        RADIALLY-EXPANDING CONCENTRIC RING DOT PLACEMENT — distinct from every
+        prior pass in the pipeline:
+
+          - pointillist_chroma_dots: randomly placed tiny dots for optical color
+            mixing — no ring structure, no per-ring hue cycling
+          - klee_magic_square_pass: rectangular cell grid with harmonic color shift
+          - twombly_calligraphic_scrawl_pass: looping spiral cursive marks
+          - agnes_martin_meditation_lines_pass: ruled horizontal lines
+
+        The CONCENTRIC RING spatial structure — where dots are placed at even
+        arc-distance along circles of increasing radius from multiple seeds, with
+        PER-RING HUE CYCLING — is a new primitive that exists nowhere else in the
+        pipeline.  It directly encodes Kusama's obsessive radiation logic: the eye
+        follows each ring outward from the centre, then leaps to the next colour
+        ring, creating the 'infinity' illusion of dots multiplying beyond the frame.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageDraw as _IDraw
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        _DEFAULT_PALETTE = [
+            (0.92, 0.08, 0.08),   # vivid red
+            (0.98, 0.88, 0.08),   # sunshine yellow
+            (0.06, 0.12, 0.82),   # cobalt blue
+            (0.10, 0.70, 0.18),   # vivid green
+            (0.62, 0.06, 0.78),   # deep violet
+            (0.96, 0.60, 0.06),   # cadmium orange
+        ]
+        pal = palette if palette is not None else _DEFAULT_PALETTE
+        n_col = len(pal)
+        if n_col == 0:
+            return
+
+        rng = _np.random.default_rng(193)
+
+        # Seed positions — avoid canvas border by dot_radius + ring_step margin
+        margin = int(dot_radius) + int(ring_step)
+        seed_xs = rng.integers(margin, max(margin + 1, W - margin), size=n_seeds)
+        seed_ys = rng.integers(margin, max(margin + 1, H - margin), size=n_seeds)
+
+        # Determine max ring count needed to cover the canvas diagonal from any seed
+        diag = _np.sqrt(W ** 2 + H ** 2)
+        max_rings = int(_np.ceil(diag / max(1, ring_step))) + 1
+
+        # Build dot layer as RGBA PIL image
+        dot_layer = _Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        draw = _IDraw.Draw(dot_layer)
+
+        rs = max(1, int(ring_step))
+        dr = max(1, int(dot_radius))
+        ds = max(1, int(dot_spacing))
+        jf = float(jitter_frac)
+
+        for si in range(n_seeds):
+            sx, sy = float(seed_xs[si]), float(seed_ys[si])
+
+            for ri in range(1, max_rings):
+                radius = ri * rs
+                # Number of dots in this ring — circumference / dot_spacing
+                circumference = 2.0 * _np.pi * radius
+                n_dots = max(1, int(circumference / ds))
+
+                # Palette colour for this ring — cyclic rotation
+                col_idx = (ri - 1) % n_col
+                cr, cg, cb = pal[col_idx]
+                c8r = int(_np.clip(cr * 255, 0, 255))
+                c8g = int(_np.clip(cg * 255, 0, 255))
+                c8b = int(_np.clip(cb * 255, 0, 255))
+
+                # Evenly distribute dots around the ring
+                angles = _np.linspace(0, 2.0 * _np.pi, n_dots, endpoint=False)
+                # Per-seed angular phase offset so seeds don't align perfectly
+                phase = rng.uniform(0, 2.0 * _np.pi)
+                angles += phase
+
+                for angle in angles:
+                    dx = sx + radius * _np.cos(angle)
+                    dy = sy + radius * _np.sin(angle)
+
+                    # Skip dots that fall outside canvas (with margin)
+                    if dx < -dr or dx >= W + dr or dy < -dr or dy >= H + dr:
+                        continue
+
+                    # Organic radius jitter
+                    r_jitter = dr * (1.0 + rng.uniform(-jf, jf))
+                    r_px = max(1, int(round(r_jitter)))
+
+                    x0 = int(round(dx)) - r_px
+                    y0 = int(round(dy)) - r_px
+                    x1 = int(round(dx)) + r_px
+                    y1 = int(round(dy)) + r_px
+                    draw.ellipse((x0, y0, x1, y1), fill=(c8r, c8g, c8b, 220))
+
+        # Composite dot layer over original canvas
+        base_img = _Image.fromarray(
+            _np.stack([orig[:, :, 2], orig[:, :, 1],
+                       orig[:, :, 0], orig[:, :, 3]], axis=2),
+            mode="RGBA"
+        )
+        base_img.alpha_composite(dot_layer)
+        result = _np.array(base_img)
+
+        # Blend with original at `opacity`
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2].astype(_np.float32) * (1 - op)
+            + result[:, :, 0].astype(_np.float32) * op, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1].astype(_np.float32) * (1 - op)
+            + result[:, :, 1].astype(_np.float32) * op, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0].astype(_np.float32) * (1 - op)
+            + result[:, :, 2].astype(_np.float32) * op, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Kusama infinity dot pass complete.")
+
     def agnes_martin_meditation_lines_pass(
         self,
         n_lines:       int   = 320,

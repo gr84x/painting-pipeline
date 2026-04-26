@@ -195,6 +195,7 @@ EXPECTED_ARTISTS = [
     "paul_klee",
     "cy_twombly",
     "agnes_martin",
+    "yayoi_kusama",
 ]
 
 
@@ -27532,3 +27533,81 @@ def test_agnes_martin_pale_ground():
     for ch in style.ground_color:
         assert ch >= 0.80, (
             f"agnes_martin ground_color channel {ch} is too dark for bleached linen")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 193 — Yayoi Kusama
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_yayoi_kusama_in_catalog():
+    """Session 193: yayoi_kusama must be present in CATALOG."""
+    assert "yayoi_kusama" in CATALOG
+
+
+def test_yayoi_kusama_movement():
+    """Session 193: yayoi_kusama movement must reference Japanese Contemporary or Neo-Dada."""
+    style = get_style("yayoi_kusama")
+    assert "Japanese" in style.movement or "Neo-Dada" in style.movement or "Avant-Garde" in style.movement
+
+
+def test_yayoi_kusama_palette_vivid():
+    """Session 193: yayoi_kusama palette must contain at least one vivid (high-saturation) colour."""
+    style = get_style("yayoi_kusama")
+    assert len(style.palette) >= 5, "yayoi_kusama palette should have at least 5 colours"
+    # At least one colour must have a channel >= 0.80 AND another channel <= 0.20 (high saturation)
+    vivid_found = any(
+        max(rgb) >= 0.80 and min(rgb) <= 0.20
+        for rgb in style.palette
+    )
+    assert vivid_found, "yayoi_kusama palette must contain at least one vivid high-saturation colour"
+
+
+def test_yayoi_kusama_stroke_size_large():
+    """Session 193: yayoi_kusama stroke_size must be large (graphic dots, not fine marks)."""
+    style = get_style("yayoi_kusama")
+    assert style.stroke_size >= 14, (
+        f"yayoi_kusama stroke_size should be >= 14 (large graphic dots); got {style.stroke_size}")
+
+
+def test_yayoi_kusama_wet_blend_very_low():
+    """Session 193: yayoi_kusama wet_blend must be very low (hard graphic edges)."""
+    style = get_style("yayoi_kusama")
+    assert style.wet_blend < 0.15, (
+        f"yayoi_kusama wet_blend should be very low (graphic, not painterly); got {style.wet_blend}")
+
+
+def test_yayoi_kusama_no_crackle():
+    """Session 193: yayoi_kusama crackle must be False — contemporary work, no ageing."""
+    style = get_style("yayoi_kusama")
+    assert style.crackle is False
+
+
+def test_yayoi_kusama_no_glazing():
+    """Session 193: yayoi_kusama glazing must be None — no unifying glaze in pure graphic pop."""
+    style = get_style("yayoi_kusama")
+    assert style.glazing is None
+
+
+def test_yayoi_kusama_famous_works():
+    """Session 193: yayoi_kusama must list at least 5 famous works."""
+    style = get_style("yayoi_kusama")
+    assert len(style.famous_works) >= 5
+
+
+def test_yayoi_kusama_inspiration_references_pass():
+    """Session 193: yayoi_kusama inspiration must reference kusama_infinity_dot_pass."""
+    style = get_style("yayoi_kusama")
+    assert "kusama_infinity_dot_pass" in style.inspiration
+
+
+def test_yayoi_kusama_in_expected_artists():
+    """Session 193: yayoi_kusama must appear in EXPECTED_ARTISTS."""
+    assert "yayoi_kusama" in EXPECTED_ARTISTS
+
+
+def test_yayoi_kusama_bright_ground():
+    """Session 193: yayoi_kusama ground_color must be bright (all channels >= 0.90)."""
+    style = get_style("yayoi_kusama")
+    for ch in style.ground_color:
+        assert ch >= 0.90, (
+            f"yayoi_kusama ground_color channel {ch} is too dark for white gesso ground")

@@ -16872,3 +16872,78 @@ def test_agnes_martin_meditation_lines_pass_custom_wash_routing():
         wash_opacity=0.12,
         opacity=0.60,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 193 — kusama_infinity_dot_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_kusama_infinity_dot_pass_exists_routing():
+    """Session 193: Painter must expose kusama_infinity_dot_pass as a method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "kusama_infinity_dot_pass"), (
+        "Painter is missing kusama_infinity_dot_pass method")
+
+
+def test_kusama_infinity_dot_pass_runs_routing():
+    """Session 193: kusama_infinity_dot_pass must run without error on a small canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.97, 0.97, 0.96), texture_strength=0.0)
+    p.kusama_infinity_dot_pass(n_seeds=3, ring_step=12, dot_radius=4, dot_spacing=10, opacity=0.70)
+
+
+def test_kusama_infinity_dot_pass_pixels_in_range_routing():
+    """Session 193: kusama_infinity_dot_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.97, 0.97, 0.96), texture_strength=0.0)
+    p.kusama_infinity_dot_pass(n_seeds=3, ring_step=12, dot_radius=4, dot_spacing=10, opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_kusama_infinity_dot_pass_modifies_canvas_routing():
+    """Session 193: kusama_infinity_dot_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.97, 0.97, 0.96), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.kusama_infinity_dot_pass(
+        n_seeds=4, ring_step=10, dot_radius=5, dot_spacing=12, opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "kusama_infinity_dot_pass should modify canvas pixels")
+
+
+def test_kusama_infinity_dot_pass_opacity_zero_routing():
+    """Session 193: kusama_infinity_dot_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.97, 0.97, 0.96), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.kusama_infinity_dot_pass(n_seeds=4, ring_step=10, dot_radius=5, opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_kusama_infinity_dot_pass_custom_palette_routing():
+    """Session 193: kusama_infinity_dot_pass with custom palette must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.97, 0.97, 0.96), texture_strength=0.0)
+    custom_pal = [(0.9, 0.1, 0.1), (0.1, 0.1, 0.9), (0.9, 0.9, 0.1)]
+    p.kusama_infinity_dot_pass(
+        n_seeds=2, ring_step=14, dot_radius=5, dot_spacing=12,
+        palette=custom_pal, opacity=0.65,
+    )
+
+
+def test_kusama_infinity_dot_pass_single_seed_routing():
+    """Session 193: kusama_infinity_dot_pass with n_seeds=1 must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.97, 0.97, 0.96), texture_strength=0.0)
+    p.kusama_infinity_dot_pass(n_seeds=1, ring_step=15, dot_radius=4, opacity=0.70)

@@ -16902,6 +16902,86 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Yayoi Kusama ──────────────────────────────────────────────────────────
+    "yayoi_kusama": ArtStyle(
+        artist="Yayoi Kusama",
+        movement="Japanese Contemporary / Neo-Dada / Avant-Garde",
+        nationality="Japanese",
+        period="1958–present",
+        palette=[
+            (0.92, 0.08, 0.08),   # vivid red — Kusama's signature polka-dot red
+            (0.98, 0.88, 0.08),   # sunshine yellow — pumpkin / sunflower ground
+            (0.06, 0.12, 0.82),   # cobalt blue — infinity mirror deep
+            (0.10, 0.70, 0.18),   # vivid green — biomorphic net
+            (0.62, 0.06, 0.78),   # deep violet — obsessive night
+            (0.96, 0.60, 0.06),   # cadmium orange — warm radiating dot
+            (0.96, 0.96, 0.96),   # near-white — brilliant canvas light
+        ],
+        ground_color=(0.97, 0.97, 0.96),    # brilliant white — all-over dot paintings
+        stroke_size=28,                      # large graphic dots, not fine marks
+        wet_blend=0.04,                      # almost no blending — hard graphic edges
+        edge_softness=0.08,                  # crisp dot edges; minimal feathering
+        jitter=0.06,                         # subtle size variation across dots
+        glazing=None,                        # no unifying glaze — pure graphic pop
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "GROUND: brilliant white gesso or vivid monochrome field (yellow, red, "
+            "or black).  Kusama paints on the ground BEFORE drawing dots, so the "
+            "ground colour becomes one of the repeating elements.\n\n"
+            "MARKS: large, bold polka dots — the dominant and only mark.  In her "
+            "'Infinity Net' series (1958–), the dots become so dense they form "
+            "curved nets of negative space between them.  In her later 'Pumpkins' "
+            "and dot-accumulation paintings, dots are placed individually across "
+            "figure AND ground, dissolving the boundary between object and space.\n\n"
+            "DISTRIBUTION: dots are NOT randomly scattered — they expand outward "
+            "from visual centres in concentric rings, so the eye follows the "
+            "radiation from core to edge.  This creates the 'infinity' illusion: "
+            "each dot implies more dots beyond the canvas boundary.\n\n"
+            "COLOUR LOGIC: high-contrast complementary pairs dominate — red on "
+            "yellow, violet on orange, black on white.  Within a ring, all dots "
+            "share one hue.  Between rings, hue shifts dramatically.  The palette "
+            "is deliberately unsubtle: Kusama was diagnosed with obsessive-compulsive "
+            "hallucinations in which she saw dots covering everything.  The paintings "
+            "are both symptom and cure — a form of 'obliteration' therapy.\n\n"
+            "EMOTIONAL REGISTER: simultaneously oppressive and euphoric.  The "
+            "infinite repetition overwhelms individual cognition; the bright palette "
+            "turns the overwhelm into something celebratory.  Kusama called her "
+            "practice 'art medicine' — she paints to prevent herself from going mad, "
+            "and the viewer is invited into the same therapeutic repetition."
+        ),
+        famous_works=[
+            ("Infinity Net", "1958"),
+            ("Kusama's Peep Show (Infinity Mirror Room)", "1965"),
+            ("Pumpkin", "1994"),
+            ("Infinity Mirrored Room — The Souls of Millions of Light Years Away", "2013"),
+            ("All the Eternal Love I Have for the Pumpkins", "2016"),
+            ("Dots Obsession", "1998"),
+            ("I Who Have Arrived in Heaven", "2013"),
+        ],
+        inspiration=(
+            "Apply kusama_infinity_dot_pass() as the signature Kusama effect — "
+            "ONE HUNDRED AND FOURTH DISTINCT MODE.\n"
+            "Scatter N_seeds expansion centres across the canvas (5–15 seeds).  "
+            "From each seed, draw concentric rings of dots at ring_step intervals.  "
+            "Each ring contains evenly-spaced dots circumferentially (dot_spacing "
+            "controls arc-distance between dot centres in that ring).  Ring index "
+            "maps to palette hue in a cyclic rotation, so adjacent rings alternate "
+            "between complementary colours.  Dot radius varies with a gentle noise "
+            "field (±jitter_frac of base radius) giving organic life to the grid.  "
+            "Dots are filled circles with sharp edges and no blending.\n\n"
+            "NOVEL: ONE HUNDRED AND FOURTH DISTINCT MODE.  FIRST pass to generate "
+            "RADIALLY-EXPANDING CONCENTRIC RING DOT PLACEMENT — entirely distinct "
+            "from pointillist random scatter (optical color mixing), Klee cell-grid "
+            "harmonic color, Twombly loop-spirals, or Martin ruled lines.  The "
+            "CONCENTRIC RING expansion from multiple seeds, with PER-RING HUE "
+            "CYCLING and CIRCUMFERENTIAL DOT SPACING, is a new spatial primitive "
+            "that exists nowhere else in the pipeline.\n\n"
+            "Use kusama_infinity_dot_pass(n_seeds=9, ring_step=32, dot_radius=14, "
+            "dot_spacing=36, jitter_frac=0.22, palette=None, opacity=0.72)."
+        ),
+    ),
+
     # ── Agnes Martin ──────────────────────────────────────────────────────────
     "agnes_martin": ArtStyle(
         artist="Agnes Martin",
