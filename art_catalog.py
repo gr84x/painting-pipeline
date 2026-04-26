@@ -17238,6 +17238,90 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "fernand_leger": ArtStyle(
+        artist="Fernand Léger",
+        movement="Tubism / Purism / Modernism",
+        nationality="French",
+        period="1913–1955",
+        palette=[
+            (0.84, 0.12, 0.10),   # cadmium red
+            (0.10, 0.22, 0.70),   # cobalt blue
+            (0.93, 0.80, 0.08),   # chrome yellow
+            (0.15, 0.48, 0.24),   # muted forest green
+            (0.58, 0.58, 0.58),   # cool grey
+            (0.93, 0.91, 0.88),   # off-white
+            (0.10, 0.10, 0.10),   # near-black (outline)
+        ],
+        ground_color=(0.91, 0.89, 0.85),
+        stroke_size=6,
+        wet_blend=0.0,
+        edge_softness=0.0,
+        jitter=0.02,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Léger developed what critics called 'Tubism' — a mechanised Cubism "
+            "where all organic forms (human bodies, trees, machinery) are reduced "
+            "to cylindrical, tubular, and spherical volumes. "
+            "Defining characteristics: BOLD BLACK OUTLINES around every form "
+            "(thick as a lithograph, ruthlessly flat and graphic); FLAT AREAS of "
+            "pure primary or secondary colour inside the outlines — no modelling, "
+            "no tonal gradation, no visible brushwork in the colour zones; "
+            "PRIMARY PALETTE dominated by cadmium red, cobalt blue, chrome yellow, "
+            "and black/white, occasionally punctuated by muted greens and greys; "
+            "MECHANICAL GEOMETRY — even human limbs become cylinders, even clouds "
+            "become chrome spheres; FIGURE AND MACHINE treated as equals — "
+            "workers, acrobats, cyclists, and boilers share identical formal "
+            "language. "
+            "Key works: 'The City' (1919) — stacked architectural planes and "
+            "mechanical lettering; 'Three Women' (1921) — monumental figures "
+            "as smooth machines; 'The Great Parade' (1954) — circus acrobats "
+            "in primary flat colour. "
+            "Later murals introduced mosaic-like flat colour fields divided by "
+            "heavy black grout lines — reinforcing the tile/machine metaphor. "
+            "The viewing experience: graphic, immediate, heroic, anti-lyrical. "
+            "Léger wanted art for the factory floor, not the salon. "
+            "Scale typical: large canvases (1–3 m) where the boldness of outline "
+            "and flatness of colour read at distance like industrial signage."
+        ),
+        famous_works=[
+            ("The City",                "1919"),
+            ("Three Women",             "1921"),
+            ("The Mechanic",            "1920"),
+            ("Woman with a Book",       "1923"),
+            ("Composition with Two Parrots", "1935"),
+            ("The Cyclists",            "1944"),
+            ("The Great Parade",        "1954"),
+            ("The Constructors",        "1950"),
+        ],
+        inspiration=(
+            "Apply leger_tubist_contour_pass() as the signature Léger effect — "
+            "ONE HUNDRED AND SEVENTH DISTINCT MODE.\n"
+            "Algorithm: (1) Compute Sobel edge gradient magnitude on the canvas "
+            "luminance. Threshold at the upper quartile and binary-dilate by "
+            "contour_thickness pixels → THICK BLACK CONTOUR MASK. "
+            "(2) Gaussian-blur the canvas to flatten texture into zones "
+            "(radius ≈ 6 px). (3) For each pixel, find the nearest colour in the "
+            "Léger primary palette (cadmium red, cobalt blue, chrome yellow, "
+            "forest green, cool grey, off-white, near-black) and snap toward it "
+            "at primary_shift strength. (4) Override contour-mask pixels toward "
+            "near-black at contour_strength. (5) Alpha-blend result onto canvas.\n\n"
+            "NOVEL: ONE HUNDRED AND SEVENTH DISTINCT MODE. FIRST pass to combine "
+            "EDGE-DILATION BLACK CONTOUR THICKENING with per-pixel PRIMARY-PALETTE "
+            "QUANTIZATION (flat colour forcing). No prior pass flattens colour "
+            "zones while simultaneously drawing bold graphic outlines. Distinct "
+            "from Schiele (thin angular lines / hatching), Riley (wave bands), "
+            "Klee (harmonic cell grid), Kusama (dots/spirals), Martin (ruled lines), "
+            "Beksinski (decay erosion), Twombly (gesture marks). The FLAT-FILL + "
+            "THICK-OUTLINE PRIMITIVE is a new graphic-design operation that turns "
+            "painterly marks into poster-like mechanical imagery.\n\n"
+            "Use leger_tubist_contour_pass(contour_thickness=4, "
+            "contour_threshold=0.18, flat_fill_strength=0.60, "
+            "primary_shift=0.55, contour_strength=0.88, opacity=0.82)."
+        ),
+    ),
+
 }
 
 

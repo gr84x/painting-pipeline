@@ -198,6 +198,7 @@ EXPECTED_ARTISTS = [
     "yayoi_kusama",
     "schiele",
     "bridget_riley",
+    "fernand_leger",
 ]
 
 
@@ -27696,3 +27697,108 @@ def test_bridget_riley_white_ground():
     for ch in style.ground_color:
         assert ch >= 0.95, (
             f"bridget_riley ground_color channel {ch} is too dark for white ground")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 196 — Fernand Léger (fernand_leger)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_fernand_leger_in_catalog():
+    """Session 196: fernand_leger must be present in CATALOG."""
+    assert "fernand_leger" in CATALOG, "fernand_leger missing from CATALOG"
+
+
+def test_fernand_leger_artist_name():
+    """Session 196: fernand_leger artist field must contain 'Léger'."""
+    style = get_style("fernand_leger")
+    assert "Léger" in style.artist or "Leger" in style.artist, (
+        f"fernand_leger artist name unexpected: {style.artist!r}")
+
+
+def test_fernand_leger_movement():
+    """Session 196: fernand_leger movement must reference Tubism or Purism."""
+    style = get_style("fernand_leger")
+    assert any(k in style.movement for k in ("Tubism", "Purism", "Modernism")), (
+        f"fernand_leger movement does not reference Tubism/Purism: {style.movement!r}")
+
+
+def test_fernand_leger_palette_has_seven_colours():
+    """Session 196: fernand_leger palette must contain exactly 7 colours."""
+    style = get_style("fernand_leger")
+    assert len(style.palette) == 7, (
+        f"fernand_leger palette should have 7 entries; got {len(style.palette)}")
+
+
+def test_fernand_leger_palette_has_primary_red():
+    """Session 196: fernand_leger palette must contain a cadmium-red-like colour."""
+    style = get_style("fernand_leger")
+    has_red = any(r > 0.70 and g < 0.30 and b < 0.30 for r, g, b in style.palette)
+    assert has_red, "fernand_leger palette must contain a strong red"
+
+
+def test_fernand_leger_palette_has_cobalt_blue():
+    """Session 196: fernand_leger palette must contain a cobalt-blue-like colour."""
+    style = get_style("fernand_leger")
+    has_blue = any(b > 0.55 and r < 0.30 for r, g, b in style.palette)
+    assert has_blue, "fernand_leger palette must contain a strong blue"
+
+
+def test_fernand_leger_palette_has_yellow():
+    """Session 196: fernand_leger palette must contain a chrome-yellow-like colour."""
+    style = get_style("fernand_leger")
+    has_yellow = any(r > 0.80 and g > 0.65 and b < 0.30 for r, g, b in style.palette)
+    assert has_yellow, "fernand_leger palette must contain a strong yellow"
+
+
+def test_fernand_leger_palette_in_unit_range():
+    """Session 196: all fernand_leger palette channels must be in [0, 1]."""
+    style = get_style("fernand_leger")
+    for i, (r, g, b) in enumerate(style.palette):
+        assert 0.0 <= r <= 1.0 and 0.0 <= g <= 1.0 and 0.0 <= b <= 1.0, (
+            f"fernand_leger palette[{i}] = ({r},{g},{b}) out of [0,1]")
+
+
+def test_fernand_leger_wet_blend_zero():
+    """Session 196: fernand_leger wet_blend must be 0.0 — flat, hard-edged graphic style."""
+    style = get_style("fernand_leger")
+    assert style.wet_blend == 0.0, (
+        f"fernand_leger wet_blend must be 0.0 (no wet blending); got {style.wet_blend}")
+
+
+def test_fernand_leger_edge_softness_zero():
+    """Session 196: fernand_leger edge_softness must be 0.0 — crisp poster-like edges."""
+    style = get_style("fernand_leger")
+    assert style.edge_softness == 0.0, (
+        f"fernand_leger edge_softness must be 0.0; got {style.edge_softness}")
+
+
+def test_fernand_leger_no_crackle():
+    """Session 196: fernand_leger crackle must be False — modern acrylic, no age effect."""
+    style = get_style("fernand_leger")
+    assert style.crackle is False, "fernand_leger crackle should be False"
+
+
+def test_fernand_leger_no_glazing():
+    """Session 196: fernand_leger glazing must be None — no transparent glaze over flat fills."""
+    style = get_style("fernand_leger")
+    assert style.glazing is None, "fernand_leger glazing should be None"
+
+
+def test_fernand_leger_famous_works():
+    """Session 196: fernand_leger must list at least 6 famous works."""
+    style = get_style("fernand_leger")
+    assert len(style.famous_works) >= 6, (
+        f"fernand_leger should have >= 6 famous works; got {len(style.famous_works)}")
+
+
+def test_fernand_leger_inspiration_references_pass():
+    """Session 196: fernand_leger inspiration must reference leger_tubist_contour_pass."""
+    style = get_style("fernand_leger")
+    assert "leger_tubist_contour_pass" in style.inspiration, (
+        "fernand_leger inspiration must mention leger_tubist_contour_pass")
+
+
+def test_fernand_leger_in_expected_artists():
+    """Session 196: fernand_leger must appear in EXPECTED_ARTISTS."""
+    assert "fernand_leger" in EXPECTED_ARTISTS, (
+        "fernand_leger missing from EXPECTED_ARTISTS")

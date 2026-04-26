@@ -17110,3 +17110,72 @@ def test_riley_op_art_wave_pass_colour_variant():
         color_b=(0.18, 0.42, 0.78),
         opacity=0.80,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 196 — Fernand Léger — leger_tubist_contour_pass (107th mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_leger_tubist_contour_pass_exists():
+    """Session 196: Painter must have leger_tubist_contour_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "leger_tubist_contour_pass"), (
+        "leger_tubist_contour_pass not found on Painter")
+    assert callable(getattr(Painter, "leger_tubist_contour_pass"))
+
+
+def test_leger_tubist_contour_pass_runs():
+    """leger_tubist_contour_pass() must run without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.05)
+    p.underpainting(ref, stroke_size=8)
+    p.leger_tubist_contour_pass(
+        contour_thickness=2,
+        contour_threshold=0.18,
+        flat_fill_strength=0.60,
+        primary_shift=0.55,
+        contour_strength=0.88,
+        opacity=0.82,
+    )
+
+
+def test_leger_tubist_contour_pass_modifies_canvas():
+    """leger_tubist_contour_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.05)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.leger_tubist_contour_pass(opacity=1.0, contour_thickness=2)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "leger_tubist_contour_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_leger_tubist_contour_pass_zero_opacity_unchanged():
+    """leger_tubist_contour_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.05)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.leger_tubist_contour_pass(opacity=0.0, contour_thickness=2)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "leger_tubist_contour_pass at opacity=0.0 must not change any pixels")
+
+
+def test_leger_tubist_contour_pass_thin_contour():
+    """leger_tubist_contour_pass with contour_thickness=1 must run without error."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.05)
+    p.leger_tubist_contour_pass(
+        contour_thickness=1,
+        contour_threshold=0.25,
+        primary_shift=0.80,
+        opacity=0.70,
+    )
