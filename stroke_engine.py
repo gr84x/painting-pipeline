@@ -42872,3 +42872,207 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Chromatic temperature field pass complete.")
+
+    def solario_chromatic_polar_pass(
+        self,
+        hue_rotate_deg: float = 8.0,
+        chroma_boost:   float = 0.15,
+        l_lo:           float = 20.0,
+        l_hi:           float = 85.0,
+        opacity:        float = 0.28,
+    ) -> None:
+        """
+        Session 186 — 93rd mode: Solario CIELAB polar chroma rotation pass.
+
+        Andrea Solario's colour is distinguished by a subtle chromatic warmth
+        in the flesh that differs from mere tinting: the entire hue angle of the
+        skin rotates toward amber-gold in a way that preserves saturation while
+        shifting the chromatic balance.  This is modelled by treating the CIELAB
+        (a*, b*) pair as a 2D polar vector and rotating its angle — the first pass
+        in this pipeline to apply CIELAB polar hue-angle rotation of the chroma vector.
+
+        The mid-tone L* gate [l_lo, l_hi] restricts the effect to mid-flesh,
+        preserving the deep shadow cool and the specular ivory without alteration.
+        After rotation, chroma magnitude is boosted by chroma_boost to intensify the
+        saturated amber quality.  The modified Lab values are back-converted to sRGB
+        via D65 XYZ and blended at opacity.
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # sRGB uint8 → float32 [0,1]
+        b0 = orig[:, :, 0].astype(_np.float64) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float64) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float64) / 255.0
+
+        # sRGB → linear (IEC 61966-2-1)
+        def to_linear(c):
+            return _np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+        rl = to_linear(r0)
+        gl = to_linear(g0)
+        bl = to_linear(b0)
+
+        # linear sRGB → XYZ D65
+        X = rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375
+        Y = rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750
+        Z = rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041
+
+        # XYZ D65 → CIELAB
+        Xn, Yn, Zn = 0.95047, 1.00000, 1.08883
+
+        def f_lab(t):
+            delta = 6.0 / 29.0
+            return _np.where(t > delta ** 3,
+                             t ** (1.0 / 3.0),
+                             t / (3.0 * delta ** 2) + 4.0 / 29.0)
+
+        fx = f_lab(X / Xn)
+        fy = f_lab(Y / Yn)
+        fz = f_lab(Z / Zn)
+
+        L  = 116.0 * fy - 16.0
+        a  = 500.0 * (fx - fy)
+        b  = 200.0 * (fy - fz)
+
+        # Mid-tone L* bell gate
+        l_centre = 0.5 * (l_lo + l_hi)
+        l_half   = 0.5 * (l_hi - l_lo)
+        gate = _np.clip(1.0 - _np.abs(L - l_centre) / (l_half + 1e-6), 0.0, 1.0).astype(_np.float64)
+
+        # Polar rotation of (a*, b*) chroma vector
+        theta    = _np.deg2rad(hue_rotate_deg)
+        cos_t, sin_t = _np.cos(theta), _np.sin(theta)
+        a_rot = a * cos_t - b * sin_t
+        b_rot = a * sin_t + b * cos_t
+
+        # Chroma boost
+        chroma_in  = _np.sqrt(a     ** 2 + b     ** 2)
+        chroma_out = _np.sqrt(a_rot ** 2 + b_rot ** 2)
+        scale = _np.where(chroma_out > 1e-6,
+                          (chroma_in * (1.0 + chroma_boost)) / (chroma_out + 1e-6),
+                          1.0)
+        a_new = a + gate * (a_rot * scale - a)
+        b_new = b + gate * (b_rot * scale - b)
+
+        # CIELAB → XYZ D65
+        fy2 = (L + 16.0) / 116.0
+        fx2 = a_new / 500.0 + fy2
+        fz2 = fy2 - b_new / 200.0
+
+        def f_inv(t):
+            delta = 6.0 / 29.0
+            return _np.where(t > delta,
+                             t ** 3,
+                             3.0 * delta ** 2 * (t - 4.0 / 29.0))
+
+        X2 = Xn * f_inv(fx2)
+        Y2 = Yn * f_inv(fy2)
+        Z2 = Zn * f_inv(fz2)
+
+        # XYZ D65 → linear sRGB
+        rl2 = _np.clip( 3.2404542 * X2 - 1.5371385 * Y2 - 0.4985314 * Z2, 0.0, 1.0)
+        gl2 = _np.clip(-0.9692660 * X2 + 1.8760108 * Y2 + 0.0415560 * Z2, 0.0, 1.0)
+        bl2 = _np.clip( 0.0556434 * X2 - 0.2040259 * Y2 + 1.0572252 * Z2, 0.0, 1.0)
+
+        # linear → sRGB
+        def to_srgb(c):
+            return _np.where(c <= 0.0031308, 12.92 * c, 1.055 * c ** (1.0 / 2.4) - 0.055)
+
+        r2 = _np.clip(to_srgb(rl2), 0.0, 1.0)
+        g2 = _np.clip(to_srgb(gl2), 0.0, 1.0)
+        b2 = _np.clip(to_srgb(bl2), 0.0, 1.0)
+
+        # Blend at opacity
+        op  = float(opacity)
+        fr  = (r0 * (1.0 - op) + r2 * op).astype(_np.float32)
+        fg  = (g0 * (1.0 - op) + g2 * op).astype(_np.float32)
+        fb  = (b0 * (1.0 - op) + b2 * op).astype(_np.float32)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fr * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fg * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fb * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Solario chromatic polar pass complete.")
+
+    def local_statistical_harmony_pass(
+        self,
+        sigma:            float = 12.0,
+        harmony_strength: float = 0.18,
+        luma_lo:          float = 0.12,
+        luma_hi:          float = 0.88,
+        opacity:          float = 0.26,
+    ) -> None:
+        """
+        Session 186 random improvement — Local Gaussian mean-pull regional colour
+        harmonization pass.
+
+        Regional colour harmony is a property observed in Solario and other Lombard
+        painters: large areas of the canvas exhibit a subtle tonal-chromatic unity,
+        as if each region shares a common colour memory.  This is consistent with
+        the 17th-century technique of mixing a unifying tint into each working area
+        before adding local colour — a practice that creates inter-regional
+        chromatic coherence.
+
+        This pass models that effect via local Gaussian mean-pull: for each pixel
+        and each channel, the spatial mean in a Gaussian neighbourhood (sigma px)
+        is computed via scipy.ndimage.gaussian_filter.  The pixel is gently drawn
+        toward its local average by harmony_strength.  A luma bell-gate [luma_lo,
+        luma_hi] restricts the effect to mid-range values, preserving the deep
+        shadow core and specular highlights.
+
+        This is the first pass in this pipeline to use LOCAL GAUSSIAN MEAN-PULL
+        for per-pixel adaptive regional colour harmonization.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Luma bell gate
+        luma       = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        l_centre   = 0.5 * (luma_lo + luma_hi)
+        l_half     = 0.5 * (luma_hi - luma_lo)
+        gate       = _np.clip(1.0 - _np.abs(luma - l_centre) / (l_half + 1e-6),
+                               0.0, 1.0).astype(_np.float32)
+
+        sig = float(sigma)
+        hs  = float(harmony_strength)
+
+        # Per-channel local mean pull
+        r_mean = _gf(r0, sig).astype(_np.float32)
+        g_mean = _gf(g0, sig).astype(_np.float32)
+        b_mean = _gf(b0, sig).astype(_np.float32)
+
+        r_harm = r0 + (r_mean - r0) * hs * gate
+        g_harm = g0 + (g_mean - g0) * hs * gate
+        b_harm = b0 + (b_mean - b0) * hs * gate
+
+        # Blend at opacity
+        op  = float(opacity)
+        fr  = _np.clip(r0 * (1.0 - op) + r_harm * op, 0.0, 1.0)
+        fg  = _np.clip(g0 * (1.0 - op) + g_harm * op, 0.0, 1.0)
+        fb  = _np.clip(b0 * (1.0 - op) + b_harm * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fr * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fg * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fb * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Local statistical harmony pass complete.")
