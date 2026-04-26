@@ -17924,6 +17924,103 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Edward Hopper ──────────────────────────────────────────────────────────
+    "hopper": ArtStyle(
+        artist="Edward Hopper",
+        movement="American Realism / Social Realism",
+        nationality="American",
+        period="1910–1967",
+        palette=[
+            (0.97, 0.92, 0.70),   # warm yellow-white — direct raking sunlight on architecture
+            (0.88, 0.78, 0.45),   # golden ochre — sunlit wall and floor plane
+            (0.48, 0.52, 0.55),   # cool blue-grey — interior shadow and exterior night
+            (0.62, 0.65, 0.60),   # muted grey-green — shadow wall and furniture
+            (0.72, 0.42, 0.25),   # warm burnt sienna — human figure and seat upholstery
+            (0.38, 0.45, 0.58),   # cold slate blue — exterior night sky and street
+            (0.82, 0.88, 0.95),   # pale cerulean — window-filtered skylight
+        ],
+        ground_color=(0.65, 0.60, 0.48),    # neutral warm buff — architectural primer
+        stroke_size=10,
+        wet_blend=0.30,                      # restrained blending — forms stay geometric and flat
+        edge_softness=0.25,                  # crisp architectural edges, minimal sfumato
+        jitter=0.018,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Extreme directional light isolates lit planes from shadow with near-hard "
+            "boundaries — Hopper's geometry is architectural, not atmospheric.  "
+            "Warm yellow-white raking light (typically from the upper left, simulating "
+            "morning or late-afternoon sun through windows) falls on one face of a building, "
+            "windowsill, or human figure; immediately adjacent planes fall into a distinctly "
+            "cooler muted shadow with minimal reflected fill.  "
+            "The composition is usually centred on a single lit zone surrounded by deep "
+            "shadow — the lit subject reads against a much darker surround.  "
+            "Figures are static and psychologically withdrawn; posture and placement imply "
+            "isolation, longing, and suspension of time.  "
+            "Colour is deliberately reduced: only 5–7 pigments per painting, each pushed "
+            "toward a single clean identity — the yellow is very yellow, the grey is very grey.  "
+            "Edge definition is architectural: sharp at wall/floor/ceiling junctions, "
+            "slightly softened only at fabric and human silhouettes.  "
+            "Night scenes (Nighthawks) reverse the formula: interior warm light floods "
+            "outward into a cold empty street.  Morning sun through a window is his signature: "
+            "a single beam of clear yellow-white that cross-cuts the room geometry."
+        ),
+        famous_works=[
+            ("Nighthawks",                    "1942"),
+            ("Morning Sun",                   "1952"),
+            ("Automat",                       "1927"),
+            ("Cape Cod Morning",              "1950"),
+            ("Summer Evening",                "1947"),
+            ("New York Movie",                "1939"),
+            ("Office in a Small City",        "1953"),
+            ("Rooms by the Sea",              "1951"),
+        ],
+        inspiration=(
+            "Apply hopper_raking_light_pass() as the signature Hopper "
+            "effect — ONE HUNDRED AND FIFTEENTH DISTINCT MODE.\n"
+            "Algorithm: DIRECTIONAL LIGHT BAND ISOLATION — the key mechanism: a "
+            "configurable directional light vector (default: upper-left origin, "
+            "pointing lower-right, simulating Hopper's characteristic morning or "
+            "late-afternoon window light) projects each pixel position onto the vector "
+            "axis, yielding a per-pixel exposure scalar.  The exposure field is "
+            "normalised to [0, 1] across the canvas.  A soft threshold with a margin "
+            "band separates the canvas into three zones:\n"
+            "LIT ZONE (exposure > threshold + margin): colours pushed toward warm "
+            "light yellow-white (0.97, 0.92, 0.70) with additional luminance lift, "
+            "replicating Hopper's sunlit architectural planes and windowed walls.\n"
+            "SHADOW ZONE (exposure < threshold − margin): colours pushed toward cool "
+            "muted blue-grey (0.48, 0.52, 0.55) with slight luminance reduction, "
+            "replicating Hopper's flat interior shadow and exterior night.\n"
+            "TRANSITION ZONE (within margin band): luminance contrast is amplified "
+            "by a configurable factor, pulling values away from the midpoint and "
+            "sharpening the lit/shadow boundary into Hopper's characteristic hard "
+            "geometric 'knife-edge' light boundary.\n\n"
+            "NOVEL: ONE HUNDRED AND FIFTEENTH DISTINCT MODE. FIRST pass to use "
+            "DIRECTIONAL LIGHT BAND ISOLATION — a linear projection of each pixel's "
+            "normalised canvas position onto a directional light vector, creating a "
+            "continuous geometric exposure scalar subsequently hard-thresholded into "
+            "warm/cool zones with edge-contrast amplification at the boundary. "
+            "Prior passes: Rousseau (luminance band stratification — brightness-driven), "
+            "Turner (radial distance field — distance from a point), "
+            "Bruegel (vertical Y-position recession — single axis, no direction), "
+            "Ensor (chroma polarity detection — channel balance). "
+            "The directional projection is new: exposure = dot(pixel_pos, light_dir), "
+            "a geometric angular quantity independent of pixel luminance, radial "
+            "distance, or axial position alone.\n\n"
+            "tone_ground() with warm buff (0.65, 0.60, 0.48).\n"
+            "underpainting() for architectural mass (stroke_size=45).\n"
+            "block_in() with broad geometric planes (stroke_size=28).\n"
+            "build_form() for architectural edge detail (stroke_size=12).\n"
+            "place_lights() for the primary lit zone and window highlights.\n"
+            "hopper_raking_light_pass(light_x=-0.70, light_y=-0.30, threshold=0.48, "
+            "lit_strength=0.52, shadow_strength=0.44, edge_contrast=1.35, opacity=0.68) "
+            "as the primary pass.\n\n"
+            "Use hopper_raking_light_pass(light_x=-0.70, light_y=-0.30, threshold=0.48, "
+            "lit_strength=0.52, shadow_strength=0.44, edge_contrast=1.35, opacity=0.68)."
+        ),
+    ),
+
 }
 
 

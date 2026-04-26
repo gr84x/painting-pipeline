@@ -204,6 +204,7 @@ EXPECTED_ARTISTS = [
     "arnold_bocklin",
     "james_ensor",
     "henri_rousseau",
+    "hopper",
 ]
 
 
@@ -28124,3 +28125,101 @@ def test_james_ensor_inspiration_references_112th():
     s = get_style("james_ensor")
     assert "TWELFTH" in s.inspiration or "112" in s.inspiration, (
         "james_ensor inspiration must reference ONE HUNDRED AND TWELFTH mode")
+
+
+# ── Session 204: Edward Hopper ─────────────────────────────────────────────
+
+def test_edward_hopper_in_catalog():
+    """Session 204: hopper must appear in CATALOG."""
+    assert "hopper" in CATALOG, "hopper missing from CATALOG"
+
+
+def test_edward_hopper_in_expected_artists():
+    """Session 204: list_artists() must include hopper."""
+    assert "hopper" in list_artists(), "hopper missing from list_artists()"
+
+
+def test_edward_hopper_movement():
+    """Session 204: movement must reference Realism."""
+    s = get_style("hopper")
+    assert "realism" in s.movement.lower() or "realist" in s.movement.lower(), (
+        f"hopper movement should reference Realism; got {s.movement!r}")
+
+
+def test_edward_hopper_nationality_american():
+    """Session 204: hopper must be identified as American."""
+    s = get_style("hopper")
+    assert "american" in s.nationality.lower(), (
+        f"hopper nationality should be American; got {s.nationality!r}")
+
+
+def test_edward_hopper_palette_length():
+    """Session 204: hopper palette must have at least 6 colours."""
+    s = get_style("hopper")
+    assert len(s.palette) >= 6, (
+        f"hopper should have >= 6 palette colours; got {len(s.palette)}")
+
+
+def test_edward_hopper_palette_in_range():
+    """Session 204: all hopper palette values must be in [0, 1]."""
+    s = get_style("hopper")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"hopper palette value out of range: {ch}"
+
+
+def test_edward_hopper_low_edge_softness():
+    """Session 204: hopper edge_softness must be ≤ 0.35 (crisp architectural edges)."""
+    s = get_style("hopper")
+    assert s.edge_softness <= 0.35, (
+        f"hopper edge_softness should be <= 0.35 (crisp); got {s.edge_softness}")
+
+
+def test_edward_hopper_low_wet_blend():
+    """Session 204: hopper wet_blend must be ≤ 0.40 (restrained blending)."""
+    s = get_style("hopper")
+    assert s.wet_blend <= 0.40, (
+        f"hopper wet_blend should be <= 0.40; got {s.wet_blend}")
+
+
+def test_edward_hopper_no_crackle():
+    """Session 204: hopper must not have crackle (modern oil on canvas, not aged panel)."""
+    s = get_style("hopper")
+    assert s.crackle is False, "hopper should not have crackle"
+
+
+def test_edward_hopper_period():
+    """Session 204: hopper period must span his active years."""
+    s = get_style("hopper")
+    assert "1910" in s.period or "1942" in s.period or "1882" in s.period, (
+        f"hopper period should reference his active span; got {s.period!r}")
+
+
+def test_edward_hopper_famous_works():
+    """Session 204: hopper must list at least 6 famous works."""
+    s = get_style("hopper")
+    assert len(s.famous_works) >= 6, (
+        f"hopper should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_edward_hopper_nighthawks_in_works():
+    """Session 204: 'Nighthawks' must appear in famous_works."""
+    s = get_style("hopper")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Nighthawk" in t for t in titles), (
+        f"hopper famous_works must include Nighthawks; got {titles}")
+
+
+def test_edward_hopper_inspiration_references_pass():
+    """Session 204: inspiration must reference hopper_raking_light_pass."""
+    s = get_style("hopper")
+    assert "hopper_raking_light_pass" in s.inspiration, (
+        "hopper inspiration must mention hopper_raking_light_pass")
+
+
+def test_edward_hopper_inspiration_references_115th():
+    """Session 204: inspiration must explicitly name the 115th distinct mode."""
+    s = get_style("hopper")
+    assert "FIFTEENTH" in s.inspiration or "115" in s.inspiration, (
+        "hopper inspiration must reference ONE HUNDRED AND FIFTEENTH mode")
