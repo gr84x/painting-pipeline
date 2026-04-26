@@ -45193,3 +45193,154 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Riley Op Art wave pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 196 — Fernand Léger — leger_tubist_contour_pass (107th mode)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def leger_tubist_contour_pass(
+        self,
+        reference=None,
+        contour_thickness: int = 4,
+        contour_threshold: float = 0.18,
+        flat_fill_strength: float = 0.60,
+        primary_shift: float = 0.55,
+        contour_strength: float = 0.88,
+        opacity: float = 0.82,
+        seed: int = 196,
+    ) -> None:
+        """
+        Léger Tubist Contour pass — Fernand Léger's mechanical poster aesthetic.
+
+        Inspired by Léger's Tubist period (1913–1955): bold black outlines
+        around every form, flat primary-colour fills, no gradients, no texture.
+        Algorithm:
+          1. Compute Sobel edge magnitude on canvas luminance → threshold at
+             contour_threshold → binary-dilate by contour_thickness px
+             → THICK BLACK CONTOUR MASK.
+          2. Gaussian-blur canvas to create flat colour zones (radius ≈ 6 px).
+          3. Snap each pixel toward its nearest colour in the Léger primary
+             palette (cadmium red, cobalt blue, chrome yellow, forest green,
+             cool grey, off-white, near-black) at primary_shift strength.
+          4. Force contour-mask pixels toward near-black at contour_strength.
+          5. Alpha-blend composite result onto canvas.
+
+        NOVEL: 107TH DISTINCT MODE. FIRST pass to combine EDGE-DILATION BLACK
+        CONTOUR THICKENING with per-pixel PRIMARY-PALETTE COLOUR QUANTIZATION.
+        No prior pass flattens colour zones while simultaneously imposing bold
+        graphic outlines. The FLAT-FILL + THICK-OUTLINE primitive is a new
+        graphic-design operation — distinct from all 106 prior passes.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageFilter as _IF
+        from scipy.ndimage import convolve as _conv, binary_dilation as _bd
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Extract RGB channels (canvas is BGRA: ch0=B, ch1=G, ch2=R)
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── 1. Edge detection → thick black contour mask ──────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        sobel_x = _np.array(
+            [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32
+        )
+        sobel_y = _np.array(
+            [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=_np.float32
+        )
+        gx = _conv(lum, sobel_x, mode="reflect")
+        gy = _conv(lum, sobel_y, mode="reflect")
+        grad_mag = _np.sqrt(gx ** 2 + gy ** 2)
+        grad_mag = grad_mag / (_np.percentile(grad_mag, 99.0) + 1e-8)
+        grad_mag = _np.clip(grad_mag, 0.0, 1.0)
+
+        edge_mask = grad_mag > float(contour_threshold)
+
+        k = max(1, int(contour_thickness))
+        struct_el = _np.ones((k, k), dtype=bool)
+        thick_edge = _bd(edge_mask, structure=struct_el).astype(_np.float32)
+
+        # ── 2. Gaussian blur → flat colour zones ──────────────────────────────
+        rgb_pil = _Image.fromarray(
+            _np.stack(
+                [
+                    (r0 * 255).clip(0, 255).astype(_np.uint8),
+                    (g0 * 255).clip(0, 255).astype(_np.uint8),
+                    (b0 * 255).clip(0, 255).astype(_np.uint8),
+                ],
+                axis=2,
+            ),
+            mode="RGB",
+        )
+        flat_pil = rgb_pil.filter(_IF.GaussianBlur(radius=6))
+        flat_arr = _np.array(flat_pil, dtype=_np.float32) / 255.0
+        r_flat = flat_arr[:, :, 0]
+        g_flat = flat_arr[:, :, 1]
+        b_flat = flat_arr[:, :, 2]
+
+        # ── 3. Snap toward Léger primary palette ──────────────────────────────
+        #   (cadmium red, cobalt blue, chrome yellow, forest green,
+        #    cool grey, off-white, near-black)
+        leger_pal = _np.array(
+            [
+                [0.84, 0.12, 0.10],
+                [0.10, 0.22, 0.70],
+                [0.93, 0.80, 0.08],
+                [0.15, 0.48, 0.24],
+                [0.58, 0.58, 0.58],
+                [0.93, 0.91, 0.88],
+                [0.10, 0.10, 0.10],
+            ],
+            dtype=_np.float32,
+        )
+
+        flat_rgb = _np.stack([r_flat, g_flat, b_flat], axis=-1)  # (H, W, 3)
+        # Vectorised nearest-palette lookup
+        diffs = (
+            flat_rgb[:, :, _np.newaxis, :]
+            - leger_pal[_np.newaxis, _np.newaxis, :, :]
+        )                                                         # (H, W, 7, 3)
+        nearest_idx = (diffs ** 2).sum(axis=-1).argmin(axis=-1)  # (H, W)
+        nearest_col = leger_pal[nearest_idx]                     # (H, W, 3)
+
+        ps = float(primary_shift)
+        r_snap = r_flat * (1.0 - ps) + nearest_col[:, :, 0] * ps
+        g_snap = g_flat * (1.0 - ps) + nearest_col[:, :, 1] * ps
+        b_snap = b_flat * (1.0 - ps) + nearest_col[:, :, 2] * ps
+
+        # Optional flat_fill_strength blend with original
+        ffs = float(flat_fill_strength)
+        r_fill = r0 * (1.0 - ffs) + r_snap * ffs
+        g_fill = g0 * (1.0 - ffs) + g_snap * ffs
+        b_fill = b0 * (1.0 - ffs) + b_snap * ffs
+
+        # ── 4. Force contour pixels toward near-black ──────────────────────────
+        cs = float(contour_strength)
+        black = 0.06
+        em = thick_edge
+        r1 = r_fill * (1.0 - em * cs) + black * (em * cs)
+        g1 = g_fill * (1.0 - em * cs) + black * (em * cs)
+        b1 = b_fill * (1.0 - em * cs) + black * (em * cs)
+
+        # ── 5. Blend with original canvas ─────────────────────────────────────
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(
+            (r0 * (1.0 - op) + r1 * op) * 255, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            (g0 * (1.0 - op) + g1 * op) * 255, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            (b0 * (1.0 - op) + b1 * op) * 255, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Léger Tubist Contour pass complete.")
