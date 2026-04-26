@@ -16383,6 +16383,77 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Lovis Corinth ─────────────────────────────────────────────────────────
+    "lovis_corinth": ArtStyle(
+        artist="Lovis Corinth",
+        movement="German Impressionism / Expressionism",
+        nationality="German",
+        period="1890–1925",
+        palette=[
+            (0.86, 0.68, 0.42),   # amber-gold lit flesh — warm directional light
+            (0.62, 0.44, 0.28),   # tawny mid-tone flesh — rich impasto body
+            (0.28, 0.18, 0.10),   # warm dark umber — shadow anchors
+            (0.08, 0.06, 0.04),   # near-black — deep void, Rembrandtesque depth
+            (0.76, 0.28, 0.18),   # saturated crimson — drapery and flesh accent
+            (0.44, 0.52, 0.38),   # muted sage-green — foliage, cool shadow
+            (0.90, 0.86, 0.72),   # warm ivory cream — highest specular peak
+        ],
+        ground_color=(0.30, 0.22, 0.12),    # warm dark brown ground — strong tonal contrast
+        stroke_size=10,
+        wet_blend=0.20,                      # low blend — vigorous, individual strokes visible
+        edge_softness=0.25,                  # relatively crisp — directional stroke edges show
+        jitter=0.06,                         # high variation — dynamic, expressive surface
+        glazing=(0.58, 0.44, 0.24),          # warm amber-brown final unifier
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Corinth's defining achievement is DIRECTIONAL STROKE VELOCITY: his "
+            "brushmarks carry kinetic momentum across the canvas surface.  His late "
+            "work (especially after his 1911 stroke) exhibits diagonal impasto that "
+            "moves from lower-left to upper-right at roughly 40–55°, creating a "
+            "compositional energy that lifts every form.\n\n"
+            "The palette is REMBRANDTESQUE but electrified: deep warm shadow grounds "
+            "contrast with amber-gold lit areas, but the transitions are NOT smooth "
+            "— the brush drag creates visible high-frequency tonal variation along "
+            "stroke edges, a signature texture that reads as 'living paint'.\n\n"
+            "Key technical observations:\n"
+            "1. BAND-PASS EDGE ENHANCEMENT along gradient directions — the brightest "
+            "detail is concentrated where tonal transitions are steepest, mimicking "
+            "impasto ridges catching oblique light.\n"
+            "2. HIGH JITTER mid-tones — flesh is not smooth but vibrates with colour "
+            "variation, consistent with rapidly loaded multiple pigments per stroke.\n"
+            "3. WARM DARK GROUND — the brown ground glows through thin passages, "
+            "creating Rembrandt-like luminosity in the mid-shadow zone.\n"
+            "4. CRIMSON ACCENT — a pure scarlet passage (lips, fabric, or reflected "
+            "light) provides chromatic shock against the warm earth palette."
+        ),
+        famous_works=[
+            ("Self-Portrait with Palette", "1924"),
+            ("Walchensee in Moonlight", "1920"),
+            ("Ecce Homo", "1925"),
+            ("Slaughtered Ox", "1905"),
+            ("Portrait of Charlotte Berend", "1902"),
+            ("Samson Blinded", "1912"),
+        ],
+        inspiration=(
+            "Apply corinth_stroke_velocity_field_pass() as the primary Corinth "
+            "effect: GRADIENT-MAGNITUDE-WEIGHTED BAND-PASS DETAIL ENHANCEMENT.\n"
+            "Compute band-pass detail per channel as the difference between two "
+            "Gaussian scales (fine minus coarse).  Weight the detail injection "
+            "by the local gradient magnitude (normalised), so the sharpening is "
+            "strongest at tonal transitions — the zones where impasto ridges would "
+            "catch oblique light.  Gate by a luma window [luma_lo, luma_hi] to "
+            "preserve deep shadow voids and blown specular peaks.\n"
+            "NOVEL: NINETY-FOURTH DISTINCT MODE.  FIRST pass to combine "
+            "BAND-PASS DETAIL EXTRACTION with GRADIENT-MAGNITUDE GATING — "
+            "distinct from all prior passes which use isotropic Gaussian blur, "
+            "directional motion blur, CIELAB transforms, or luma-only gates.\n"
+            "Use corinth_stroke_velocity_field_pass(detail_sigma_fine=1.2, "
+            "detail_sigma_coarse=4.0, sharpen_strength=0.28, "
+            "mag_gate_thresh=0.04, luma_lo=0.10, luma_hi=0.90, opacity=0.28)."
+        ),
+    ),
+
 }
 
 
