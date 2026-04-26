@@ -18067,3 +18067,59 @@ def test_s205_munch_anxiety_swirl_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# Session 206 — mucha_art_nouveau_aureole_pass tests ──────────────────────────
+
+
+def test_s206_mucha_aureole_pass_runs():
+    """Session 206: mucha_art_nouveau_aureole_pass runs without error on a 64×64 canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.88, 0.72), texture_strength=0.0)
+    p.mucha_art_nouveau_aureole_pass(opacity=0.62)
+
+
+def test_s206_mucha_aureole_modifies_canvas():
+    """Session 206: mucha_art_nouveau_aureole_pass must change at least one pixel."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.88, 0.72), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.mucha_art_nouveau_aureole_pass(field_strength=0.48, opacity=0.62)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "mucha_art_nouveau_aureole_pass must modify the canvas")
+
+
+def test_s206_mucha_aureole_zero_opacity_no_change():
+    """Session 206: mucha_art_nouveau_aureole_pass with opacity=0.0 must not change any pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.88, 0.72), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.mucha_art_nouveau_aureole_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "mucha_art_nouveau_aureole_pass with opacity=0.0 must not change any pixels")
+
+
+def test_s206_mucha_aureole_in_catalog():
+    """Session 206: alphonse_mucha must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "alphonse_mucha" in CATALOG, "alphonse_mucha missing from CATALOG"
+    s = get_style("alphonse_mucha")
+    assert "nouveau" in s.movement.lower(), (
+        f"alphonse_mucha movement should be Art Nouveau; got {s.movement!r}")
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
