@@ -197,6 +197,7 @@ EXPECTED_ARTISTS = [
     "agnes_martin",
     "yayoi_kusama",
     "schiele",
+    "bridget_riley",
 ]
 
 
@@ -27612,3 +27613,86 @@ def test_yayoi_kusama_bright_ground():
     for ch in style.ground_color:
         assert ch >= 0.90, (
             f"yayoi_kusama ground_color channel {ch} is too dark for white gesso ground")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 195 — Bridget Riley
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_bridget_riley_in_catalog():
+    """Session 195: bridget_riley must be present in CATALOG."""
+    assert "bridget_riley" in CATALOG
+
+
+def test_bridget_riley_movement():
+    """Session 195: bridget_riley movement must reference Op Art."""
+    style = get_style("bridget_riley")
+    assert "Op Art" in style.movement or "Optical" in style.movement
+
+
+def test_bridget_riley_palette_has_high_contrast():
+    """Session 195: bridget_riley palette must contain near-black AND near-white for maximum contrast."""
+    style = get_style("bridget_riley")
+    assert len(style.palette) >= 4, "bridget_riley palette should have at least 4 colours"
+    has_dark = any(max(rgb) <= 0.15 for rgb in style.palette)
+    has_light = any(min(rgb) >= 0.85 for rgb in style.palette)
+    assert has_dark, "bridget_riley palette must contain a near-black colour"
+    assert has_light, "bridget_riley palette must contain a near-white colour"
+
+
+def test_bridget_riley_stroke_size_small():
+    """Session 195: bridget_riley stroke_size must be small (precision mechanical lines)."""
+    style = get_style("bridget_riley")
+    assert style.stroke_size <= 6, (
+        f"bridget_riley stroke_size should be <= 6 (mechanical precision); got {style.stroke_size}")
+
+
+def test_bridget_riley_wet_blend_zero():
+    """Session 195: bridget_riley wet_blend must be zero — absolutely no painterly blending."""
+    style = get_style("bridget_riley")
+    assert style.wet_blend == 0.0, (
+        f"bridget_riley wet_blend must be 0.0 (hard graphic edges); got {style.wet_blend}")
+
+
+def test_bridget_riley_edge_softness_zero():
+    """Session 195: bridget_riley edge_softness must be zero — crisp, mechanical edges only."""
+    style = get_style("bridget_riley")
+    assert style.edge_softness == 0.0, (
+        f"bridget_riley edge_softness must be 0.0; got {style.edge_softness}")
+
+
+def test_bridget_riley_no_crackle():
+    """Session 195: bridget_riley crackle must be False — contemporary work on acrylic, no ageing."""
+    style = get_style("bridget_riley")
+    assert style.crackle is False
+
+
+def test_bridget_riley_no_glazing():
+    """Session 195: bridget_riley glazing must be None — no tonal glaze over optical field."""
+    style = get_style("bridget_riley")
+    assert style.glazing is None
+
+
+def test_bridget_riley_famous_works():
+    """Session 195: bridget_riley must list at least 5 famous works."""
+    style = get_style("bridget_riley")
+    assert len(style.famous_works) >= 5
+
+
+def test_bridget_riley_inspiration_references_pass():
+    """Session 195: bridget_riley inspiration must reference riley_op_art_wave_pass."""
+    style = get_style("bridget_riley")
+    assert "riley_op_art_wave_pass" in style.inspiration
+
+
+def test_bridget_riley_in_expected_artists():
+    """Session 195: bridget_riley must appear in EXPECTED_ARTISTS."""
+    assert "bridget_riley" in EXPECTED_ARTISTS
+
+
+def test_bridget_riley_white_ground():
+    """Session 195: bridget_riley ground_color must be near-white (all channels >= 0.95)."""
+    style = get_style("bridget_riley")
+    for ch in style.ground_color:
+        assert ch >= 0.95, (
+            f"bridget_riley ground_color channel {ch} is too dark for white ground")

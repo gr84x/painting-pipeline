@@ -45029,3 +45029,167 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Schiele angular contour pass complete.")
+
+    def riley_op_art_wave_pass(
+        self,
+        reference,
+        n_waves=80,
+        base_amplitude=12.0,
+        freq_modulation=0.8,
+        base_frequency=0.012,
+        color_a=(0.05, 0.05, 0.05),
+        color_b=(0.95, 0.95, 0.95),
+        opacity=0.90,
+        seed=42,
+    ):
+        """
+        riley_op_art_wave_pass — 106th distinct mode (Session 195).
+
+        Inspired by Bridget Riley's Op Art: precision sinusoidal wave bands
+        whose spatial frequency is modulated by reference image luminance,
+        creating optical vibration and the illusion of movement.
+
+        Algorithm:
+          1. Resample reference to canvas size; compute per-pixel luminance.
+          2. Divide canvas into `n_waves` horizontal scan bands.
+          3. For each band, sample a base y-position and compute a sinusoidal
+             displacement curve across all x:
+               y_displaced(x) = y_base
+                               + amplitude * sin(2π * freq(x) * x + phase_shift)
+             where freq(x) = base_frequency * (1 + freq_modulation * lum(x, y_base)).
+             Bright reference pixels tighten the wave (higher frequency);
+             dark pixels relax it — subject matter becomes encoded in frequency.
+          4. Between consecutive displacement curves, fill a polygon with
+             alternating color_a / color_b. Hard edges only (zero anti-alias).
+          5. Composite the wave layer onto the canvas at `opacity`.
+
+        Novel vs all prior passes:
+          - Agnes Martin: ruled parallel horizontal tremor lines (static, uniform)
+          - Schiele: octagonal edge-detected contour strokes
+          - Kusama: concentric expanding dot rings
+          - Klee: rectangular colour-cell harmonic grids
+          - Twombly: looping calligraphic spiral beziers
+          This is the FIRST pass using LUMINANCE-MODULATED SINUSOIDAL WAVE
+          BANDS with two-colour alternating fill — optical interference patterns
+          derived from image frequency content. The SPATIAL-FREQUENCY MODULATION
+          PRIMITIVE that encodes image structure as perceptual vibration is new.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageDraw as _IDraw
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        rng = _np.random.default_rng(seed)
+
+        # ── Convert reference to float luminance ───────────────────────────────
+        if isinstance(reference, _Image.Image):
+            ref_rgb = _np.array(
+                reference.convert("RGB").resize((W, H), _Image.LANCZOS),
+                dtype=_np.float32,
+            ) / 255.0
+        else:
+            ref_rgb = _np.array(reference, dtype=_np.float32)
+            if ref_rgb.max() > 1.5:
+                ref_rgb = ref_rgb / 255.0
+            if ref_rgb.shape[:2] != (H, W):
+                _tmp = _Image.fromarray(
+                    (ref_rgb * 255).clip(0, 255).astype(_np.uint8)
+                ).resize((W, H), _Image.LANCZOS)
+                ref_rgb = _np.array(_tmp, dtype=_np.float32) / 255.0
+
+        lum = (
+            0.299 * ref_rgb[:, :, 0]
+            + 0.587 * ref_rgb[:, :, 1]
+            + 0.114 * ref_rgb[:, :, 2]
+        )
+
+        # ── Prepare output layer ───────────────────────────────────────────────
+        layer = _Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        draw = _IDraw.Draw(layer)
+
+        ca_r = int(_np.clip(color_a[0] * 255, 0, 255))
+        ca_g = int(_np.clip(color_a[1] * 255, 0, 255))
+        ca_b = int(_np.clip(color_a[2] * 255, 0, 255))
+        cb_r = int(_np.clip(color_b[0] * 255, 0, 255))
+        cb_g = int(_np.clip(color_b[1] * 255, 0, 255))
+        cb_b = int(_np.clip(color_b[2] * 255, 0, 255))
+        fill_a = (ca_r, ca_g, ca_b, 255)
+        fill_b = (cb_r, cb_g, cb_b, 255)
+
+        # ── Build wave displacement curves ─────────────────────────────────────
+        # n_waves scan positions evenly across canvas height (plus top/bottom sentinels)
+        n_curves = n_waves + 1
+        y_positions = _np.linspace(0.0, float(H), n_curves)
+
+        xs = _np.arange(W, dtype=_np.float32)
+
+        def _wave_curve(y_base: float, phase: float) -> _np.ndarray:
+            """Return an array of y-values for each x along one wave curve."""
+            y_row = int(_np.clip(round(y_base), 0, H - 1))
+            lum_row = lum[y_row, :]   # luminance sample at this horizontal strip
+
+            # Local frequency: brighter → tighter waves
+            local_freq = base_frequency * (1.0 + float(freq_modulation) * lum_row)
+            # Cumulative phase (integral of local frequency × 2π × x step)
+            cum_phase = _np.cumsum(local_freq * 2.0 * _np.pi)
+            # y displacement
+            disp = float(base_amplitude) * _np.sin(cum_phase + phase)
+            return y_base + disp
+
+        curves = []
+        for i, y_base in enumerate(y_positions):
+            phase = float(rng.uniform(0.0, 2.0 * _np.pi))
+            curves.append(_wave_curve(y_base, phase))
+
+        # ── Fill polygons between consecutive wave curves ───────────────────────
+        for i in range(len(curves) - 1):
+            top_ys = curves[i]
+            bot_ys = curves[i + 1]
+            fill = fill_a if (i % 2 == 0) else fill_b
+
+            # Build polygon: left→right along top curve, right→left along bottom
+            poly = []
+            step = max(1, W // 256)   # reduce vertices for performance
+            for xi in range(0, W, step):
+                poly.append((xi, int(round(top_ys[xi]))))
+            for xi in range(W - 1, -1, -step):
+                poly.append((xi, int(round(bot_ys[xi]))))
+
+            if len(poly) >= 3:
+                draw.polygon(poly, fill=fill)
+
+        # ── Composite onto canvas at `opacity` ─────────────────────────────────
+        base_img = _Image.fromarray(
+            _np.stack(
+                [orig[:, :, 2], orig[:, :, 1], orig[:, :, 0], orig[:, :, 3]],
+                axis=2,
+            ),
+            mode="RGBA",
+        )
+        base_img.alpha_composite(layer)
+        result = _np.array(base_img)
+
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2].astype(_np.float32) * (1 - op)
+            + result[:, :, 0].astype(_np.float32) * op,
+            0, 255,
+        ).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1].astype(_np.float32) * (1 - op)
+            + result[:, :, 1].astype(_np.float32) * op,
+            0, 255,
+        ).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0].astype(_np.float32) * (1 - op)
+            + result[:, :, 2].astype(_np.float32) * op,
+            0, 255,
+        ).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Riley Op Art wave pass complete.")

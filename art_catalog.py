@@ -17161,6 +17161,83 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Bridget Riley ──────────────────────────────────────────────────────────
+    "bridget_riley": ArtStyle(
+        artist="Bridget Riley",
+        movement="Op Art / Optical Art",
+        nationality="British",
+        period="1960–present",
+        palette=[
+            (0.05, 0.05, 0.05),   # near-black — primary wave colour (early works)
+            (0.95, 0.95, 0.95),   # near-white — alternating ground
+            (0.82, 0.22, 0.14),   # cadmium red — colour-period accent
+            (0.18, 0.42, 0.78),   # cerulean blue — cool colour contrast
+            (0.92, 0.78, 0.12),   # golden yellow — warm vibration band
+            (0.28, 0.65, 0.42),   # viridian green — chromatic complement
+        ],
+        ground_color=(0.98, 0.98, 0.98),    # pure white — Riley's immaculate ground
+        stroke_size=4,
+        wet_blend=0.0,                       # zero blending — hard edges only
+        edge_softness=0.0,                   # absolutely crisp, mechanical edges
+        jitter=0.0,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Precision optical illusion through repetition and systematic variation. "
+            "Early works: strictly black-and-white sinusoidal undulating parallel lines "
+            "whose amplitude and frequency vary systematically — the eye cannot resolve "
+            "the local periodicity, producing an involuntary sensation of movement, "
+            "vibration, and depth (e.g. 'Movement in Squares', 1961; 'Fall', 1963). "
+            "Later colour works: parallel curved bands of pure hue, contrast-modulated "
+            "to produce simultaneous-contrast shimmer (e.g. 'Cataract', 1967; "
+            "'Nataraja', 1993). "
+            "Painted with mechanical precision — no visible brushwork, no texture, "
+            "no personal gesture. Assistants execute the work from Riley's drawings. "
+            "The viewer's visual system is the 'medium': retinal fatigue and lateral "
+            "inhibition do the painting. "
+            "Scale matters: works are typically large (1–3 m) so the illusion fills "
+            "peripheral vision and the effect becomes physiological, not just optical."
+        ),
+        famous_works=[
+            ("Movement in Squares", "1961"),
+            ("Fall", "1963"),
+            ("Blaze", "1964"),
+            ("Cataract", "1967"),
+            ("Arrest 3", "1965"),
+            ("Nataraja", "1993"),
+            ("Composition with Circles 4", "2004"),
+        ],
+        inspiration=(
+            "Apply riley_op_art_wave_pass() as the signature Riley effect — "
+            "ONE HUNDRED AND SIXTH DISTINCT MODE.\n"
+            "Generate N horizontal scan bands across the canvas. For each band, "
+            "compute a sinusoidal y-displacement curve: "
+            "y_displaced = y_base + amplitude * sin(2π * frequency * x + phase). "
+            "Amplitude and frequency are modulated by the local luminance of the "
+            "reference image at (x, y_base): bright areas increase frequency "
+            "(tighter waves), dark areas reduce it — this maps the image structure "
+            "into wave distortion rather than colour. Alternate fill colour between "
+            "two contrasting values (near-black / near-white for early Riley, or "
+            "two complementary hues for colour works). Draw each band as a filled "
+            "polygon between consecutive wave curves. "
+            "The result is an Op Art image where subject matter is encoded purely "
+            "in spatial frequency variation of the wave field — no pictorial marks, "
+            "no brushwork, only modulated periodicity.\n\n"
+            "NOVEL: ONE HUNDRED AND SIXTH DISTINCT MODE. FIRST pass to use "
+            "LUMINANCE-MODULATED SINUSOIDAL WAVE BANDS with alternating two-colour "
+            "fill — an optical interference pattern derived from image frequency "
+            "content. Entirely distinct from all prior passes: no contours (Schiele), "
+            "no dots (Kusama), no grids (Klee), no spirals (Twombly), no ruled lines "
+            "(Martin), no angular quantization (Schiele). The SPATIAL-FREQUENCY "
+            "MODULATION PRIMITIVE is a new geometric operation that encodes image "
+            "content as perceptual vibration.\n\n"
+            "Use riley_op_art_wave_pass(n_waves=80, base_amplitude=12.0, "
+            "freq_modulation=0.8, base_frequency=0.012, color_a=(0.05,0.05,0.05), "
+            "color_b=(0.95,0.95,0.95), opacity=0.90)."
+        ),
+    ),
+
 }
 
 

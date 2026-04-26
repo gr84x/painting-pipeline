@@ -17045,3 +17045,68 @@ def test_schiele_angular_contour_pass_custom_colors_routing():
         hatch_shadow_thresh=0.40,
         opacity=0.75,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 195 — riley_op_art_wave_pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_riley_op_art_wave_pass_exists():
+    """Painter must have riley_op_art_wave_pass() method after session 195."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "riley_op_art_wave_pass"), (
+        "riley_op_art_wave_pass not found on Painter")
+    assert callable(getattr(Painter, "riley_op_art_wave_pass"))
+
+
+def test_riley_op_art_wave_pass_runs():
+    """riley_op_art_wave_pass() must run without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.98, 0.98, 0.98), texture_strength=0.0)
+    p.riley_op_art_wave_pass(ref, n_waves=8, base_amplitude=4.0, opacity=0.90)
+
+
+def test_riley_op_art_wave_pass_zero_opacity_unchanged():
+    """riley_op_art_wave_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.98, 0.98, 0.98), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.riley_op_art_wave_pass(ref, n_waves=8, base_amplitude=4.0, opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_riley_op_art_wave_pass_modifies_canvas():
+    """riley_op_art_wave_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.98, 0.98, 0.98), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.riley_op_art_wave_pass(
+        ref, n_waves=8, base_amplitude=4.0,
+        color_a=(0.0, 0.0, 0.0), color_b=(1.0, 1.0, 1.0), opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "riley_op_art_wave_pass should modify canvas pixels")
+
+
+def test_riley_op_art_wave_pass_colour_variant():
+    """riley_op_art_wave_pass with custom colour pair must run without error."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.98, 0.98, 0.98), texture_strength=0.0)
+    p.riley_op_art_wave_pass(
+        ref,
+        n_waves=6,
+        base_amplitude=3.0,
+        freq_modulation=0.5,
+        base_frequency=0.015,
+        color_a=(0.82, 0.22, 0.14),
+        color_b=(0.18, 0.42, 0.78),
+        opacity=0.80,
+    )
