@@ -26267,3 +26267,139 @@ def test_chromatic_temperature_field_pass_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0
     assert buf[:, :, :3].max() <= 255
+
+
+# ── Session 186: solario_chromatic_polar_pass (93rd mode) + local_statistical_harmony_pass ──
+
+def test_solario_chromatic_polar_pass_exists():
+    """Session 186: solario_chromatic_polar_pass must exist on Painter."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    assert hasattr(p, "solario_chromatic_polar_pass"), (
+        "Painter.solario_chromatic_polar_pass not found — add it to stroke_engine.py")
+
+
+def test_solario_chromatic_polar_pass_signature():
+    """Session 186: solario_chromatic_polar_pass must accept hue_rotate_deg, chroma_boost, l_lo, l_hi, opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.solario_chromatic_polar_pass)
+    for param in ("hue_rotate_deg", "chroma_boost", "l_lo", "l_hi", "opacity"):
+        assert param in sig.parameters, (
+            f"solario_chromatic_polar_pass missing parameter '{param}'")
+
+
+def test_solario_chromatic_polar_pass_runs():
+    """Session 186: solario_chromatic_polar_pass must complete without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.solario_chromatic_polar_pass()
+
+
+def test_solario_chromatic_polar_pass_noop_at_zero_opacity():
+    """Session 186: solario_chromatic_polar_pass at opacity=0 must not change the canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.solario_chromatic_polar_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "solario_chromatic_polar_pass at opacity=0 must leave canvas unchanged")
+
+
+def test_solario_chromatic_polar_pass_modifies_canvas():
+    """Session 186: solario_chromatic_polar_pass at opacity=1 must change the canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.solario_chromatic_polar_pass(hue_rotate_deg=30.0, chroma_boost=0.40, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), (
+        "solario_chromatic_polar_pass at opacity=1 should change the canvas")
+
+
+def test_solario_chromatic_polar_pass_pixels_in_range():
+    """Session 186: solario_chromatic_polar_pass output pixels must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.solario_chromatic_polar_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_local_statistical_harmony_pass_exists():
+    """Session 186: local_statistical_harmony_pass must exist on Painter."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    assert hasattr(p, "local_statistical_harmony_pass"), (
+        "Painter.local_statistical_harmony_pass not found — add it to stroke_engine.py")
+
+
+def test_local_statistical_harmony_pass_signature():
+    """Session 186: local_statistical_harmony_pass must accept sigma, harmony_strength, luma_lo, luma_hi, opacity."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.local_statistical_harmony_pass)
+    for param in ("sigma", "harmony_strength", "luma_lo", "luma_hi", "opacity"):
+        assert param in sig.parameters, (
+            f"local_statistical_harmony_pass missing parameter '{param}'")
+
+
+def test_local_statistical_harmony_pass_runs():
+    """Session 186: local_statistical_harmony_pass must complete without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.local_statistical_harmony_pass()
+
+
+def test_local_statistical_harmony_pass_noop_at_zero_opacity():
+    """Session 186: local_statistical_harmony_pass at opacity=0 must not change the canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.local_statistical_harmony_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after), (
+        "local_statistical_harmony_pass at opacity=0 must leave canvas unchanged")
+
+
+def test_local_statistical_harmony_pass_modifies_canvas():
+    """Session 186: local_statistical_harmony_pass at opacity=1 must change the canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    # Use a non-uniform canvas so the Gaussian mean differs from the pixel value
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    buf[:16, :, :3] = 200
+    buf[16:, :, :3] = 50
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.local_statistical_harmony_pass(harmony_strength=1.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after), (
+        "local_statistical_harmony_pass at opacity=1 with non-uniform canvas should modify pixels")
+
+
+def test_local_statistical_harmony_pass_pixels_in_range():
+    """Session 186: local_statistical_harmony_pass output pixels must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.local_statistical_harmony_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
