@@ -18116,6 +18116,121 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Alphonse Mucha ──────────────────────────────────────────────────────────
+    # Alphonse Mucha (1860–1939) — Czech painter and decorative artist.  Born in
+    # Ivančice, Moravia (then part of the Austro-Hungarian Empire), Mucha became
+    # the defining visual voice of Art Nouveau after his poster for Sarah Bernhardt's
+    # "Gismonda" (1894) appeared overnight across Paris and made him famous.  Over
+    # the following decade he produced a body of commercial and fine-art work —
+    # decorative panels, posters, advertisements, jewellery designs, book covers —
+    # that codified the visual language of an entire era: flowing organic contours,
+    # pale luminous grounds, botanical borders, and above all the aureole — the
+    # concentric decorative halo radiating from the portrait head, simultaneously
+    # frame and sacred light, medieval icon and modern graphic design.
+    # His palette is warm and luminous: ivory parchment, golden ochre, muted sage,
+    # blush rose, and soft periwinkle blue — colours that feel like stained glass
+    # seen through a late-afternoon window.  Mucha rejected atmospheric depth in
+    # favour of a shallow pictorial plane where figure and ornament coexist as
+    # equals; his compositions feel simultaneously ancient and modern, their
+    # decorative geometry anticipating the geometric abstraction that would follow.
+    # The capstone of his career was the Slav Epic (1910–1928): 20 monumental oil
+    # paintings narrating the history of the Slavic peoples, now in Prague's
+    # Veletržní palác.
+    #
+    # Pipeline key: mucha_art_nouveau_aureole_pass() — ANNULAR POLAR DIFFRACTION.
+    # For each pixel, polar coordinates (r, θ) are computed relative to a focal
+    # centre.  A concentric ring field from r and a radial spoke field from θ are
+    # blended into a 2D decorative field whose peaks occur at ring–spoke
+    # intersections, reproducing Mucha's characteristic aureole mandala.
+    "alphonse_mucha": ArtStyle(
+        artist="Alphonse Mucha",
+        movement="Art Nouveau",
+        nationality="Czech",
+        period="1860–1939",
+        palette=[
+            (0.95, 0.90, 0.72),   # warm ivory-cream — primary luminous ground, aged vellum
+            (0.82, 0.68, 0.32),   # golden ochre — Art Nouveau gold leaf halos and ornament
+            (0.68, 0.78, 0.62),   # muted sage-green — botanical foliage and vine borders
+            (0.88, 0.72, 0.66),   # blush rose — feminine flesh tones and flower accents
+            (0.52, 0.60, 0.78),   # muted periwinkle blue — cool ornamental accent and sky
+            (0.90, 0.80, 0.48),   # warm amber-gold — aureole radiation and halo glow
+            (0.62, 0.52, 0.42),   # warm ochre-brown — border definition and shadow depths
+        ],
+        ground_color=(0.92, 0.88, 0.72),   # pale warm parchment — aged vellum luminosity
+        stroke_size=6.0,                    # fine, controlled decorative marks
+        wet_blend=0.28,                     # moderate — controlled edges with gentle blends
+        edge_softness=0.22,                 # Art Nouveau: crisp contours, gentle inner modelling
+        jitter=0.022,                       # minimal palette variation — lithographic consistency
+        glazing=(0.88, 0.78, 0.48),        # warm amber-gold unifying glaze
+        crackle=False,                      # lithographic posters: no craquelure
+        chromatic_split=False,
+        technique=(
+            "Alphonse Mucha synthesised the decorative arts of the Middle Ages and the "
+            "Renaissance with the flowing organic forms of nature into a visual language "
+            "that defined Art Nouveau's commercial flowering.  His defining compositional "
+            "invention is the aureole: a decorative circular halo, mosaic, or starburst "
+            "pattern surrounding the subject's head, constructed from concentric ring bands "
+            "and radial spoke elements — a polar coordinate ornament that simultaneously "
+            "frames the face and radiates sacred luminosity outward.  "
+            "The palette is deliberately warm and luminous: ivory parchment grounds, "
+            "golden ochre halos, muted sage botanical borders, blush rose flesh tones.  "
+            "Mucha worked primarily as a lithographic poster artist, which imposed a "
+            "chromatic discipline unique in fine art: colours are flat zones separated "
+            "by sinuous decorative outlines, with gentle modelling inside each zone but no "
+            "textural impasto.  The surface quality reads as the print — precise, luminous, "
+            "and jewel-like — even in his oil paintings.  "
+            "Botanical borders — stylised flowers, vines, wheat, peacock feathers — "
+            "occupy the pictorial frame, echoing the organic geometry of the aureole.  "
+            "The female figure is idealized: graceful, with flowing garments and elaborate "
+            "hair that merges into the decorative border, erasing the boundary between "
+            "person and ornament.  "
+            "Mucha's spatial strategy is flatness: he rejects atmospheric recession in "
+            "favour of a shallow pictorial field where figure and decoration coexist at "
+            "the same visual depth — an aesthetic continuity from medieval manuscript "
+            "illumination."
+        ),
+        famous_works=[
+            ("Gismonda",                   "1894"),
+            ("Job (cigarette paper)",      "1896"),
+            ("The Seasons",                "1896"),
+            ("Zodiac",                     "1896"),
+            ("Poster for Salon des Cent",  "1896"),
+            ("Princess Hyacinth",          "1911"),
+            ("The Moon and the Stars",     "1902"),
+            ("Slav Epic (cycle)",          "1910–1928"),
+        ],
+        inspiration=(
+            "Apply mucha_art_nouveau_aureole_pass() as the signature effect "
+            "— ONE HUNDRED AND SEVENTEENTH DISTINCT MODE.\n\n"
+            "Algorithm: ANNULAR POLAR DIFFRACTION — for each pixel, polar coordinates "
+            "(r, θ) are computed relative to a focal centre (typically the figure's head).  "
+            "A CONCENTRIC RING FIELD is generated from r: ring = sin(r × ring_frequency × 2π), "
+            "producing equidistant circular halo bands.  "
+            "A RADIAL SPOKE FIELD is generated from θ: spoke = cos(θ × n_spokes), "
+            "producing n_spokes radial ornamental fingers.  "
+            "A COMBINED FIELD blends both: field = ring × (1 − spoke_weight) + spoke × spoke_weight.  "
+            "High-field zones receive a gold tint; low-field zones receive ivory.  "
+            "A boundary attenuation gate preserves the unmodified subject at the canvas centre.  "
+            "NOVEL: FIRST pass to use ANNULAR POLAR DIFFRACTION — joint r × θ polar modulation "
+            "creating a 2D decorative field whose peaks occur at ring-spoke intersections.  "
+            "Prior passes: Turner (r only, no θ), Hopper (dot-product projection, no polar), "
+            "Munch (multi-source distance sum, no θ), Rousseau (luminance bands, no spatial polar).  "
+            "The joint polar field cannot be constructed from any prior single-variable field.\n\n"
+            "tone_ground() with pale warm parchment (0.92, 0.88, 0.72).\n"
+            "underpainting() for figure silhouette and mass (stroke_size=30).\n"
+            "block_in() with flat colour zones (stroke_size=18).\n"
+            "build_form() for gentle flesh and garment modelling (stroke_size=8).\n"
+            "place_lights() for ivory highlights and golden halo glow.\n"
+            "mucha_art_nouveau_aureole_pass(center_x=0.50, center_y=0.35, "
+            "ring_frequency=8.0, n_spokes=16, spoke_weight=0.35, "
+            "field_strength=0.48, opacity=0.62) as the primary pass.\n\n"
+            "Use mucha_art_nouveau_aureole_pass(center_x=0.50, center_y=0.35, "
+            "ring_frequency=8.0, n_spokes=16, spoke_weight=0.35, "
+            "field_strength=0.48, opacity=0.62)."
+        ),
+    ),
+
 }
 
 

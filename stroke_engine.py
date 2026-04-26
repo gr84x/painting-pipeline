@@ -46831,3 +46831,156 @@ class Painter:
 
         self.canvas.surface.mark_dirty()
         print("    Munch Anxiety Swirl pass complete.")
+
+    # Session 206 — Mucha (Alphonse Mucha, 1860–1939): mucha_art_nouveau_aureole_pass
+
+    def mucha_art_nouveau_aureole_pass(
+        self,
+        center_x:       float = 0.50,
+        center_y:       float = 0.42,
+        ring_frequency: float = 8.0,
+        n_spokes:       int   = 16,
+        spoke_weight:   float = 0.35,
+        gold_color:     tuple = (0.90, 0.78, 0.42),
+        ivory_color:    tuple = (0.95, 0.90, 0.72),
+        field_strength: float = 0.48,
+        opacity:        float = 0.62,
+    ) -> None:
+        """
+        Session 206 — Mucha Art Nouveau aureole pass (117th distinct mode).
+
+        Recreates the decorative mandala-like halos and radial ornaments of
+        Alphonse Mucha's Art Nouveau compositions through ANNULAR POLAR
+        DIFFRACTION: for each pixel, polar coordinates (r, θ) relative to a
+        configurable focal centre (typically the portrait or figure head) are
+        computed and combined into a two-dimensional decorative field.
+
+        Algorithm:
+        (1) POLAR COORDINATES: for every pixel (px, py):
+            r = Euclidean distance from (center_x × W, center_y × H),
+                normalised to [0, 1] by dividing by min(W, H).
+            θ = atan2(py − cy, px − cx), angular position in [−π, π].
+        (2) CONCENTRIC RING FIELD: ring = sin(r × ring_frequency × 2π).
+            Normalised to t_ring ∈ [0, 1].  Produces equidistant concentric
+            rings radiating from the focal centre — Mucha's characteristic
+            circular halo bands.
+        (3) RADIAL SPOKE FIELD: spoke = cos(θ × n_spokes).
+            Normalised to t_spoke ∈ [0, 1].  Produces n_spokes equally-spaced
+            bright radial fingers — Mucha's sunburst and starburst ornaments.
+        (4) COMBINED FIELD:
+            field = t_ring × (1 − spoke_weight) + t_spoke × spoke_weight.
+            Peaks occur where both rings and spokes coincide — at the halo
+            intersections — reproducing the decorative lozenge and petal shapes
+            of Art Nouveau ornamental borders.
+        (5) COLOUR APPLICATION: pixels where field > 0.5 receive a blend toward
+            gold_color; pixels where field < 0.5 receive a blend toward
+            ivory_color.  Both blends are gated by field_strength and a
+            boundary attenuation factor that ramps to zero within 15% of each
+            canvas edge, preserving the unmodified subject at canvas centre.
+        (6) GLOBAL COMPOSITE at opacity blends the modified image over the
+            original canvas.
+
+        NOVEL: ONE HUNDRED AND SEVENTEENTH DISTINCT MODE.  First pass to use
+        ANNULAR POLAR DIFFRACTION — simultaneous modulation of colour by BOTH
+        radial distance (r) AND angular position (θ) in a polar coordinate
+        frame, creating a 2D decorative field whose peaks occur at specific
+        ring × spoke intersections.  Prior pixel passes: Turner (r only, no θ);
+        Hopper (directional dot-product scalar — no r, no θ); Munch (multi-
+        source Euclidean distance sum — no θ); Rousseau (luminance band
+        stratification — no spatial polar field at all).  The joint r × θ
+        polar field is new: it produces the annular-and-radial mandala pattern
+        that characterises Mucha's aureoles and cannot be constructed from any
+        single-variable field used by prior passes.
+
+        center_x        : normalised X of focal centre (0 = left, 1 = right)
+        center_y        : normalised Y of focal centre (0 = top, 1 = bottom)
+        ring_frequency  : concentric ring cycles per unit normalised distance
+        n_spokes        : number of radial spokes in the angular field
+        spoke_weight    : weight of spoke field in combined field (0 = rings only,
+                          1 = spokes only); 0.35 gives the Art Nouveau balance
+        gold_color      : RGB target for high-field decorative zones (aureole gold)
+        ivory_color     : RGB target for low-field ground zones (pale parchment)
+        field_strength  : maximum blend strength toward gold/ivory at field peaks
+        opacity         : final composite blend opacity
+        """
+        import numpy as _np
+        import math as _math
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo is BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        # ── Polar coordinate field ─────────────────────────────────────────
+        cx = float(center_x) * W
+        cy = float(center_y) * H
+
+        xs = _np.arange(W, dtype=_np.float32)[None, :]   # (1, W)
+        ys = _np.arange(H, dtype=_np.float32)[:, None]   # (H, 1)
+
+        dx = xs - cx   # (1, W), broadcasts to (H, W)
+        dy = ys - cy   # (H, 1), broadcasts to (H, W)
+
+        r_raw  = _np.sqrt(dx ** 2 + dy ** 2)
+        r_norm = r_raw / float(min(W, H))          # (H, W), normalised [0, ∞)
+        theta  = _np.arctan2(dy, dx)               # (H, W), angular [-π, π]
+
+        # ── Concentric ring field ──────────────────────────────────────────
+        ring_raw = _np.sin(r_norm * float(ring_frequency) * 2.0 * _math.pi)
+        t_ring   = (ring_raw + 1.0) * 0.5          # [0, 1]
+
+        # ── Radial spoke field ─────────────────────────────────────────────
+        spoke_raw = _np.cos(theta * float(n_spokes))
+        t_spoke   = (spoke_raw + 1.0) * 0.5        # [0, 1]
+
+        # ── Combined decorative field ──────────────────────────────────────
+        sw    = float(spoke_weight)
+        field = t_ring * (1.0 - sw) + t_spoke * sw  # [0, 1]
+
+        # ── Boundary attenuation gate (preserve subject near canvas centre) ─
+        edge_x = _np.minimum(xs / W, (W - xs) / W)       # (1, W)
+        edge_y = _np.minimum(ys / H, (H - ys) / H)       # (H, 1)
+        boundary_gate = _np.clip(
+            _np.minimum(edge_x, edge_y) / 0.15, 0.0, 1.0
+        )   # 0 at canvas edges, 1 beyond 15% inset
+
+        fs = float(field_strength) * boundary_gate   # (H, W)
+
+        # ── Colour application ─────────────────────────────────────────────
+        gr, gg, gb = float(gold_color[0]),  float(gold_color[1]),  float(gold_color[2])
+        ir, ig, ib = float(ivory_color[0]), float(ivory_color[1]), float(ivory_color[2])
+
+        gold_alpha  = _np.clip((field - 0.5) * 2.0, 0.0, 1.0) * fs
+        ivory_alpha = _np.clip((0.5 - field) * 2.0, 0.0, 1.0) * fs
+
+        r1 = r1 * (1.0 - gold_alpha)  + gr * gold_alpha
+        g1 = g1 * (1.0 - gold_alpha)  + gg * gold_alpha
+        b1 = b1 * (1.0 - gold_alpha)  + gb * gold_alpha
+
+        r1 = r1 * (1.0 - ivory_alpha) + ir * ivory_alpha
+        g1 = g1 * (1.0 - ivory_alpha) + ig * ivory_alpha
+        b1 = b1 * (1.0 - ivory_alpha) + ib * ivory_alpha
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        # ── Global opacity composite ───────────────────────────────────────
+        op  = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Mucha Art Nouveau Aureole pass complete.")

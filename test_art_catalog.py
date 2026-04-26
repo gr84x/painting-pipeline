@@ -205,6 +205,7 @@ EXPECTED_ARTISTS = [
     "james_ensor",
     "henri_rousseau",
     "hopper",
+    "alphonse_mucha",
 ]
 
 
@@ -28311,3 +28312,107 @@ def test_edvard_munch_inspiration_references_116th():
     s = get_style("munch")
     assert "SIXTEENTH" in s.inspiration or "116" in s.inspiration, (
         "munch inspiration must reference ONE HUNDRED AND SIXTEENTH mode")
+
+
+# ── Session 206 — Alphonse Mucha ───────────────────────────────────────────────
+
+
+def test_alphonse_mucha_in_catalog():
+    """Session 206: alphonse_mucha must appear in CATALOG."""
+    assert "alphonse_mucha" in CATALOG, "alphonse_mucha missing from CATALOG"
+
+
+def test_alphonse_mucha_in_expected_artists():
+    """Session 206: alphonse_mucha must appear in list_artists()."""
+    assert "alphonse_mucha" in list_artists(), (
+        "alphonse_mucha missing from list_artists()")
+
+
+def test_alphonse_mucha_movement():
+    """Session 206: mucha movement must be Art Nouveau."""
+    s = get_style("alphonse_mucha")
+    assert "art nouveau" in s.movement.lower() or "nouveau" in s.movement.lower(), (
+        f"alphonse_mucha movement should be Art Nouveau; got {s.movement!r}")
+
+
+def test_alphonse_mucha_nationality_czech():
+    """Session 206: mucha must be identified as Czech."""
+    s = get_style("alphonse_mucha")
+    assert "czech" in s.nationality.lower(), (
+        f"alphonse_mucha nationality should be Czech; got {s.nationality!r}")
+
+
+def test_alphonse_mucha_palette_length():
+    """Session 206: mucha palette must have at least 6 colours."""
+    s = get_style("alphonse_mucha")
+    assert len(s.palette) >= 6, (
+        f"alphonse_mucha palette should have >= 6 colours; got {len(s.palette)}")
+
+
+def test_alphonse_mucha_palette_in_range():
+    """Session 206: all mucha palette RGB values must be in [0, 1]."""
+    s = get_style("alphonse_mucha")
+    for rgb in s.palette:
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"alphonse_mucha palette has out-of-range value: {ch}")
+
+
+def test_alphonse_mucha_warm_ground():
+    """Session 206: mucha ground_color must be a warm pale parchment (R > B)."""
+    s = get_style("alphonse_mucha")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"alphonse_mucha ground_color should be warm (R > B); got {s.ground_color!r}")
+
+
+def test_alphonse_mucha_no_crackle():
+    """Session 206: mucha crackle must be False (lithographic technique)."""
+    s = get_style("alphonse_mucha")
+    assert not s.crackle, (
+        "alphonse_mucha crackle should be False (lithographic posters have no craquelure)")
+
+
+def test_alphonse_mucha_has_glazing():
+    """Session 206: mucha must have a warm amber-gold glazing."""
+    s = get_style("alphonse_mucha")
+    assert s.glazing is not None, "alphonse_mucha should have a glazing colour"
+    r, g, b = s.glazing
+    assert r > b, (
+        f"alphonse_mucha glazing should be warm (R > B); got {s.glazing!r}")
+
+
+def test_alphonse_mucha_period():
+    """Session 206: mucha period should reference his lifespan."""
+    s = get_style("alphonse_mucha")
+    assert "1860" in s.period or "1939" in s.period, (
+        f"alphonse_mucha period should reference 1860 or 1939; got {s.period!r}")
+
+
+def test_alphonse_mucha_famous_works():
+    """Session 206: mucha must list at least 6 famous works."""
+    s = get_style("alphonse_mucha")
+    assert len(s.famous_works) >= 6, (
+        f"alphonse_mucha should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_alphonse_mucha_gismonda_in_works():
+    """Session 206: 'Gismonda' must appear in famous_works."""
+    s = get_style("alphonse_mucha")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Gismonda" in t for t in titles), (
+        f"alphonse_mucha famous_works must include Gismonda; got {titles}")
+
+
+def test_alphonse_mucha_inspiration_references_pass():
+    """Session 206: inspiration must reference mucha_art_nouveau_aureole_pass."""
+    s = get_style("alphonse_mucha")
+    assert "mucha_art_nouveau_aureole_pass" in s.inspiration, (
+        "alphonse_mucha inspiration must mention mucha_art_nouveau_aureole_pass")
+
+
+def test_alphonse_mucha_inspiration_references_117th():
+    """Session 206: inspiration must explicitly name the 117th distinct mode."""
+    s = get_style("alphonse_mucha")
+    assert "SEVENTEENTH" in s.inspiration or "117" in s.inspiration, (
+        "alphonse_mucha inspiration must reference ONE HUNDRED AND SEVENTEENTH mode")
