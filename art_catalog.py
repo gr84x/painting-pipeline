@@ -17667,6 +17667,121 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Session 201 ───────────────────────────────────────────────────────────
+    # James Ensor (1860–1949) — Belgian Expressionist and Symbolist.  Ensor spent
+    # almost his entire life in Ostend, Belgium, drawing on the carnival masks and
+    # curios in his mother's souvenir shop.  He was a founding member of Les XX
+    # (Les Vingt), the progressive Brussels avant-garde group.  His masterwork,
+    # "Christ's Entry into Brussels in 1889" (painted 1888), is among the largest
+    # paintings of the 19th century and the most radical crowd scene in the history
+    # of Western painting — a sea of grotesque carnival masks pressing toward the
+    # viewer, Christ invisible in the throng.  Ensor's technique: warm ochre
+    # grounds, thick impasto, acidic complementary colour clashes, and a chromatic
+    # dissonance that makes the eye vibrate.  He influenced Expressionism, early
+    # Surrealism, and every artist who ever wanted paint to feel psychologically
+    # threatening.  He lived to 89, received every official honour Belgium could
+    # offer, and saw his influence spread across Europe — then spent his last
+    # decades repeating his early compositions, the masks having consumed him as
+    # thoroughly as they consumed his subjects.
+    #
+    # Pipeline key: ensor_carnival_mask_pass() — BIDIRECTIONAL CHROMA POLARIZATION.
+    # Each pixel's dominant warm/cool direction is detected (R vs B channel balance)
+    # and amplified in its existing direction while simultaneously receiving a ghost
+    # of the complementary hue — creating the carnival chromatic dissonance without
+    # imposing a single dominant hue cast.  Stochastic impasto sparkle and warm
+    # ochre ground reveal complete the effect.
+    "james_ensor": ArtStyle(
+        artist="James Ensor",
+        movement="Expressionism / Symbolism",
+        nationality="Belgian",
+        period="1860–1949",
+        palette=[
+            (0.88, 0.72, 0.18),   # acid golden-yellow (carnival sky / ochre ground)
+            (0.82, 0.35, 0.12),   # burnt orange-red (mask highlight / costume)
+            (0.18, 0.42, 0.78),   # vivid carnival blue (shadow / sky complement)
+            (0.55, 0.18, 0.62),   # carnival violet (mask shadow)
+            (0.28, 0.68, 0.32),   # acidic lime-green (crowd costume)
+            (0.92, 0.92, 0.88),   # near-white plaster / mask face
+            (0.10, 0.08, 0.06),   # near-black skeleton void
+            (0.78, 0.22, 0.30),   # crimson-rose mask / banner
+        ],
+        ground_color=(0.72, 0.62, 0.32),   # warm ochre-yellow ground
+        stroke_size=8,
+        wet_blend=0.50,
+        edge_softness=0.28,
+        jitter=0.085,
+        glazing=None,
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Ensor painted on warm ochre grounds with thick, gestural impasto — colours "
+            "applied directly without blending, creating an acidic chromatic clash of "
+            "complementary opposites.  His carnival palette: garish yellows against indigo "
+            "shadows, crimson reds clashing with acid greens, carnival whites luminous against "
+            "near-black voids.  No sfumato, no tonal gradation — instead, abrupt hue "
+            "juxtapositions that create simultaneous contrast at every edge.  His method in "
+            "'Christ's Entry into Brussels' (1888): a near-chaotic accumulation of short loaded "
+            "strokes, each colour placed next to its complement, creating a visual noise that "
+            "reads as crowd energy and psychological unease.  The impasto is heavy and gestural — "
+            "paint ridges catch raking light and create a sparkling surface texture visible from "
+            "across a room.  Ensor worked on a warm ochre ground (visible through the thinner "
+            "passages) that provides a unifying warmth beneath the garish chromatic chaos above.  "
+            "His masks are painted with the same loaded brush as his crowds: thick whites, abrupt "
+            "black outlines, crimson and violet accent strokes — no rendering, only declaration."
+        ),
+        famous_works=[
+            ("Christ's Entry into Brussels in 1889",            "1888"),
+            ("The Temptation of Saint Anthony",                 "1887"),
+            ("Skeletons Fighting for the Body of a Hanged Man", "1891"),
+            ("Masks Confronting Death",                         "1888"),
+            ("The Intrigue",                                    "1890"),
+            ("Self-Portrait with Masks",                        "1899"),
+            ("The Astonishment of the Mask Wouse",             "1889"),
+            ("Skeleton Studying Chinoiseries",                  "1885"),
+        ],
+        inspiration=(
+            "Apply ensor_carnival_mask_pass() as the signature Ensor "
+            "effect — ONE HUNDRED AND TWELFTH DISTINCT MODE.\n"
+            "Algorithm: BIDIRECTIONAL CHROMA POLARIZATION — the key mechanism: for each "
+            "pixel, the dominant warm/cool hue direction is detected by comparing the "
+            "red channel against the blue channel.  A warm gate (R > B) and a cool gate "
+            "(B > R) are derived, and each pixel is pushed harder in its existing dominant "
+            "direction (amplification) while simultaneously receiving an injection of the "
+            "complementary hue's ghost colour at reduced opacity (complementary tension). "
+            "This creates a chromatic polarization: warm areas become warmer AND carry a "
+            "cool ghost; cool areas become cooler AND carry a warm ghost.  The simultaneous "
+            "push in both directions produces the Ensor dissonance — colours that read as "
+            "simultaneously vivid and clashing.\n"
+            "A stochastic impasto sparkle layer applies bright near-white highlights to "
+            "high-luma pixels modulated by a high-frequency noise field, replicating "
+            "Ensor's impasto paint ridges catching raking light.\n"
+            "A warm ochre ground reveal in the darkest shadow zones injects the ochre "
+            "ground colour (0.72, 0.62, 0.32) into near-black pixels, replicating the "
+            "warm ground showing through thin passages.\n\n"
+            "NOVEL: ONE HUNDRED AND TWELFTH DISTINCT MODE. FIRST pass to use BIDIRECTIONAL "
+            "CHROMA POLARIZATION — amplifying the existing warm/cool hue direction of each "
+            "pixel while simultaneously injecting its complement as a ghost colour.  Prior "
+            "passes use unidirectional chroma operations: Böcklin (tripartite luminance "
+            "toning — luminance-gated zones), de Chirico (shadow ray projection — directional "
+            "ray casting), Aivazovsky (wave-phase map — horizontal frequency decomposition), "
+            "Redon (luminous reverie bloom — dark ground retention + colour halo spread). "
+            "The bidirectional approach is new: both the warm and cool channels are pushed "
+            "simultaneously in opposite directions, creating carnival chromatic dissonance "
+            "without imposing a single dominant hue cast and without spatial masking.\n\n"
+            "tone_ground() with warm ochre (0.72, 0.62, 0.32).\n"
+            "underpainting() for crowd/subject masses.\n"
+            "block_in() with broad gestural strokes (stroke_size=24).\n"
+            "build_form() for figure volumes and mask shapes (stroke_size=10).\n"
+            "place_lights() for mask whites and carnival costume highlights.\n"
+            "ensor_carnival_mask_pass(warm_boost=0.40, cool_boost=0.38, "
+            "complement_ghost=0.18, sparkle_strength=0.22, ground_reveal=0.28, "
+            "opacity=0.72) as the primary pass.\n"
+            "Optional second pass at opacity=0.35 to push intensity further.\n\n"
+            "Use ensor_carnival_mask_pass(warm_boost=0.40, cool_boost=0.38, "
+            "complement_ghost=0.18, sparkle_strength=0.22, ground_reveal=0.28, opacity=0.72)."
+        ),
+    ),
+
 }
 
 

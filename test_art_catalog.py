@@ -202,6 +202,7 @@ EXPECTED_ARTISTS = [
     "giorgio_de_chirico",
     "ivan_aivazovsky",
     "arnold_bocklin",
+    "james_ensor",
 ]
 
 
@@ -28014,3 +28015,111 @@ def test_arnold_bocklin_in_expected_artists():
     """Session 200: arnold_bocklin must appear in EXPECTED_ARTISTS."""
     assert "arnold_bocklin" in EXPECTED_ARTISTS, (
         "arnold_bocklin missing from EXPECTED_ARTISTS")
+
+
+# ── Session 201: James Ensor ──────────────────────────────────────────────────
+
+def test_james_ensor_in_catalog():
+    """Session 201: james_ensor must be present in CATALOG."""
+    assert "james_ensor" in CATALOG, (
+        "james_ensor missing from CATALOG — add it to art_catalog.py")
+
+
+def test_james_ensor_in_expected_artists():
+    """Session 201: james_ensor must appear in EXPECTED_ARTISTS."""
+    assert "james_ensor" in EXPECTED_ARTISTS, (
+        "james_ensor missing from EXPECTED_ARTISTS")
+
+
+def test_james_ensor_movement():
+    """Session 201: Ensor's movement must reference Expressionism or Symbolism."""
+    s = get_style("james_ensor")
+    assert "express" in s.movement.lower() or "symbol" in s.movement.lower(), (
+        f"james_ensor movement should reference Expressionism or Symbolism; got {s.movement!r}")
+
+
+def test_james_ensor_nationality_belgian():
+    """Session 201: Ensor was Belgian."""
+    s = get_style("james_ensor")
+    assert s.nationality.lower() == "belgian", (
+        f"james_ensor nationality should be 'Belgian'; got {s.nationality!r}")
+
+
+def test_james_ensor_palette_length():
+    """Session 201: Ensor palette must have at least 7 carnival colours."""
+    s = get_style("james_ensor")
+    assert len(s.palette) >= 7, (
+        f"james_ensor palette must have ≥7 colours; got {len(s.palette)}")
+
+
+def test_james_ensor_palette_in_range():
+    """Session 201: All Ensor palette RGB values must be in [0, 1]."""
+    s = get_style("james_ensor")
+    for i, (r, g, b) in enumerate(s.palette):
+        assert 0.0 <= r <= 1.0, f"james_ensor palette[{i}] R={r:.3f} out of [0,1]"
+        assert 0.0 <= g <= 1.0, f"james_ensor palette[{i}] G={g:.3f} out of [0,1]"
+        assert 0.0 <= b <= 1.0, f"james_ensor palette[{i}] B={b:.3f} out of [0,1]"
+
+
+def test_james_ensor_warm_ground():
+    """Session 201: Ensor ground must be warm (R > B) — the ochre souvenir-shop ground."""
+    s = get_style("james_ensor")
+    r, g, b = s.ground_color
+    assert r > b, (
+        f"james_ensor ground_color should be warm (R > B); got ({r:.3f},{g:.3f},{b:.3f})")
+
+
+def test_james_ensor_crackle():
+    """Session 201: crackle must be True — aged 19th-century Belgian canvas."""
+    s = get_style("james_ensor")
+    assert s.crackle is True, "james_ensor crackle should be True (aged 19th-c. canvas)"
+
+
+def test_james_ensor_no_glazing():
+    """Session 201: Ensor used no unifying glaze — abrupt colour clashes, not unification."""
+    s = get_style("james_ensor")
+    assert s.glazing is None, (
+        "james_ensor glazing should be None — Ensor did not unify with glazes")
+
+
+def test_james_ensor_high_jitter():
+    """Session 201: jitter must be high (≥ 0.06) — carnival chromatic chaos."""
+    s = get_style("james_ensor")
+    assert s.jitter >= 0.06, (
+        f"james_ensor jitter should be ≥0.06 (carnival chaos); got {s.jitter:.3f}")
+
+
+def test_james_ensor_period():
+    """Session 201: Ensor's period must reference the 19th century."""
+    s = get_style("james_ensor")
+    assert "18" in s.period, (
+        f"james_ensor period should reference 1800s; got {s.period!r}")
+
+
+def test_james_ensor_famous_works():
+    """Session 201: must list at least 6 famous works."""
+    s = get_style("james_ensor")
+    assert len(s.famous_works) >= 6, (
+        f"james_ensor should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_james_ensor_christ_entry_in_works():
+    """Session 201: 'Christ's Entry' must appear in famous_works."""
+    s = get_style("james_ensor")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Christ" in t or "Entry" in t for t in titles), (
+        f"james_ensor famous_works must include Christ's Entry; got {titles}")
+
+
+def test_james_ensor_inspiration_references_pass():
+    """Session 201: inspiration must reference ensor_carnival_mask_pass."""
+    s = get_style("james_ensor")
+    assert "ensor_carnival_mask_pass" in s.inspiration, (
+        "james_ensor inspiration must mention ensor_carnival_mask_pass")
+
+
+def test_james_ensor_inspiration_references_112th():
+    """Session 201: inspiration must explicitly name the 112th distinct mode."""
+    s = get_style("james_ensor")
+    assert "TWELFTH" in s.inspiration or "112" in s.inspiration, (
+        "james_ensor inspiration must reference ONE HUNDRED AND TWELFTH mode")

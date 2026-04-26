@@ -17625,3 +17625,73 @@ def test_bocklin_mythic_atmosphere_pass_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 201: James Ensor — ensor_carnival_mask_pass ──────────────────────
+
+def test_ensor_carnival_mask_pass_exists():
+    """Session 201: Painter must have ensor_carnival_mask_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "ensor_carnival_mask_pass"), (
+        "ensor_carnival_mask_pass not found on Painter")
+    assert callable(getattr(Painter, "ensor_carnival_mask_pass"))
+
+
+def test_ensor_carnival_mask_pass_modifies_canvas():
+    """Session 201: ensor_carnival_mask_pass at opacity=1.0 must change pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.72, 0.62, 0.32), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.ensor_carnival_mask_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "ensor_carnival_mask_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_ensor_carnival_mask_pass_zero_opacity_unchanged():
+    """Session 201: ensor_carnival_mask_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.32), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.ensor_carnival_mask_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "ensor_carnival_mask_pass at opacity=0.0 must not change any pixels")
+
+
+def test_ensor_carnival_mask_pass_no_prior_strokes():
+    """Session 201: ensor_carnival_mask_pass without prior strokes runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.32), texture_strength=0.0)
+    p.ensor_carnival_mask_pass(opacity=0.70)
+
+
+def test_ensor_carnival_mask_pass_zero_sparkle():
+    """Session 201: sparkle_strength=0 runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.32), texture_strength=0.0)
+    p.ensor_carnival_mask_pass(sparkle_strength=0.0, opacity=0.60)
+
+
+def test_ensor_carnival_mask_pass_zero_ground_reveal():
+    """Session 201: ground_reveal=0 runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.72, 0.62, 0.32), texture_strength=0.0)
+    p.ensor_carnival_mask_pass(ground_reveal=0.0, opacity=0.60)
+
+
+def test_ensor_carnival_mask_pass_in_catalog():
+    """Session 201: james_ensor must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "james_ensor" in CATALOG, "james_ensor missing from CATALOG"
+    s = get_style("james_ensor")
+    assert "express" in s.movement.lower() or "symbol" in s.movement.lower()
+    assert len(s.palette) >= 7
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

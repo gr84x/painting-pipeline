@@ -46054,3 +46054,146 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Böcklin Mythic Atmosphere pass complete.")
+
+    def ensor_carnival_mask_pass(
+        self,
+        warm_boost:       float = 0.38,
+        cool_boost:       float = 0.35,
+        complement_ghost: float = 0.16,
+        sparkle_strength: float = 0.20,
+        ground_reveal:    float = 0.25,
+        ground_color:     tuple = (0.72, 0.62, 0.32),
+        opacity:          float = 0.65,
+    ) -> None:
+        """
+        Session 201 — Ensor carnival mask pass (112th distinct mode).
+
+        Recreates the chromatic world of James Ensor's Expressionist paintings
+        through BIDIRECTIONAL CHROMA POLARIZATION: the dominant warm/cool hue
+        direction of each pixel is amplified while simultaneously its complementary
+        ghost colour is injected at reduced opacity, producing the carnival
+        chromatic dissonance without a single dominant hue cast.
+
+        Algorithm:
+        (1) WARM POLARIZATION: pixels where R > B (warm-dominant) have their red
+            channel boosted by warm_boost * warm_gate, where warm_gate = (R - B)
+            normalised to [0, 1].  Simultaneously, a cool ghost (blue-violet
+            complement) is injected at complement_ghost * warm_gate.
+        (2) COOL POLARIZATION: pixels where B > R (cool-dominant) have their blue
+            channel boosted by cool_boost * cool_gate, where cool_gate = (B - R)
+            normalised to [0, 1].  Simultaneously, a warm ochre ghost is injected
+            at complement_ghost * cool_gate.
+        (3) IMPASTO SPARKLE: a high-frequency stochastic noise field is generated;
+            pixels whose luma exceeds a threshold (0.55) receive a near-white
+            brightness addition proportional to sparkle_strength * noise, replicating
+            Ensor's loaded impasto ridges catching raking light.
+        (4) OCHRE GROUND REVEAL: pixels whose luma is below a dark threshold (0.22)
+            receive an injection of ground_color at ground_reveal strength, replicating
+            the warm ochre ground showing through thin dark passages.
+
+        NOVEL: ONE HUNDRED AND TWELFTH DISTINCT MODE.  FIRST pass to use
+        BIDIRECTIONAL CHROMA POLARIZATION — amplifying the existing warm/cool hue
+        direction of each pixel while simultaneously injecting its complement as a
+        ghost colour.  Prior passes use unidirectional chroma operations:
+        Böcklin (tripartite luminance toning — luminance-gated zones),
+        de Chirico (shadow ray projection — directional ray casting),
+        Aivazovsky (wave-phase map — horizontal frequency decomposition),
+        Redon (luminous reverie bloom — dark ground retention + colour halo spread).
+        The bidirectional approach is new: both the warm and cool channels are pushed
+        simultaneously in opposite directions creating carnival chromatic dissonance
+        without imposing a single dominant hue cast and without spatial masking.
+
+        warm_boost        : amplification strength for warm-dominant pixels (R > B)
+        cool_boost        : amplification strength for cool-dominant pixels (B > R)
+        complement_ghost  : opacity of the complementary hue ghost injected into each zone
+        sparkle_strength  : intensity of stochastic impasto highlight sparkle
+        ground_reveal     : opacity at which ochre ground shows through dark passages
+        ground_color      : warm ground colour (RGB tuple in [0, 1])
+        opacity           : final composite blend opacity
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        rng = _np.random.default_rng(201)
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        # ── 1. Warm polarization: R > B pixels ───────────────────────────────
+        wb = float(warm_boost)
+        cg = float(complement_ghost)
+        warm_diff = _np.clip(r0 - b0, 0.0, 1.0)          # positive where warm-dominant
+        warm_gate = warm_diff / (warm_diff.max() + 1e-8)  # normalise to [0, 1]
+
+        # Boost red channel in warm-dominant zones
+        r1 = _np.clip(r1 + wb * warm_gate * (1.0 - r1), 0.0, 1.0)
+
+        # Inject cool (blue-violet) ghost into warm zones
+        cool_ghost_r, cool_ghost_g, cool_ghost_b = 0.20, 0.18, 0.72
+        ghost_alpha_w = cg * warm_gate
+        r1 = r1 * (1.0 - ghost_alpha_w) + cool_ghost_r * ghost_alpha_w
+        g1 = g1 * (1.0 - ghost_alpha_w) + cool_ghost_g * ghost_alpha_w
+        b1 = b1 * (1.0 - ghost_alpha_w) + cool_ghost_b * ghost_alpha_w
+
+        # ── 2. Cool polarization: B > R pixels ───────────────────────────────
+        cb = float(cool_boost)
+        cool_diff = _np.clip(b0 - r0, 0.0, 1.0)          # positive where cool-dominant
+        cool_gate = cool_diff / (cool_diff.max() + 1e-8)  # normalise to [0, 1]
+
+        # Boost blue channel in cool-dominant zones
+        b1 = _np.clip(b1 + cb * cool_gate * (1.0 - b1), 0.0, 1.0)
+
+        # Inject warm (golden-ochre) ghost into cool zones
+        warm_ghost_r, warm_ghost_g, warm_ghost_b = 0.88, 0.68, 0.12
+        ghost_alpha_c = cg * cool_gate
+        r1 = r1 * (1.0 - ghost_alpha_c) + warm_ghost_r * ghost_alpha_c
+        g1 = g1 * (1.0 - ghost_alpha_c) + warm_ghost_g * ghost_alpha_c
+        b1 = b1 * (1.0 - ghost_alpha_c) + warm_ghost_b * ghost_alpha_c
+
+        # ── 3. Impasto sparkle: bright near-white on high-luma ridges ────────
+        ss = float(sparkle_strength)
+        luma = 0.2126 * r1 + 0.7152 * g1 + 0.0722 * b1
+        sparkle_noise = rng.random((H, W)).astype(_np.float32)
+        # Only brightest noise points contribute (top ~28% of noise values)
+        sparkle_mask = _np.where(sparkle_noise > 0.72, sparkle_noise - 0.72, 0.0)
+        sparkle_mask /= (sparkle_mask.max() + 1e-8)
+        # Gate to high-luma zones only (impasto peaks are bright)
+        luma_gate = _np.clip((luma - 0.55) / (1.0 - 0.55 + 1e-6), 0.0, 1.0)
+        sparkle_alpha = sparkle_mask * luma_gate * ss
+        r1 = _np.clip(r1 + sparkle_alpha * (0.96 - r1), 0.0, 1.0)
+        g1 = _np.clip(g1 + sparkle_alpha * (0.94 - g1), 0.0, 1.0)
+        b1 = _np.clip(b1 + sparkle_alpha * (0.88 - b1), 0.0, 1.0)
+
+        # ── 4. Ochre ground reveal in darkest passages ───────────────────────
+        gr = float(ground_reveal)
+        gdr, gdg, gdb = float(ground_color[0]), float(ground_color[1]), float(ground_color[2])
+        dark_gate = _np.clip(1.0 - luma / (0.22 + 1e-6), 0.0, 1.0)
+        dark_gate = dark_gate ** 1.5  # sharpen the gate toward near-black only
+        ground_alpha = dark_gate * gr
+        r1 = r1 * (1.0 - ground_alpha) + gdr * ground_alpha
+        g1 = g1 * (1.0 - ground_alpha) + gdg * ground_alpha
+        b1 = b1 * (1.0 - ground_alpha) + gdb * ground_alpha
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        # ── 5. Global opacity composite ───────────────────────────────────────
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Ensor Carnival Mask pass complete.")
