@@ -28223,3 +28223,91 @@ def test_edward_hopper_inspiration_references_115th():
     s = get_style("hopper")
     assert "FIFTEENTH" in s.inspiration or "115" in s.inspiration, (
         "hopper inspiration must reference ONE HUNDRED AND FIFTEENTH mode")
+
+
+# ── Session 205: Edvard Munch ───────────────────────────────────────────────
+
+def test_edvard_munch_in_catalog():
+    """Session 205: munch must appear in CATALOG."""
+    assert "munch" in CATALOG, "munch missing from CATALOG"
+
+
+def test_edvard_munch_in_expected_artists():
+    """Session 205: list_artists() must include munch."""
+    assert "munch" in list_artists(), "munch missing from list_artists()"
+
+
+def test_edvard_munch_movement():
+    """Session 205: movement must reference Expressionism or Symbolism."""
+    s = get_style("munch")
+    assert (
+        "expressionism" in s.movement.lower()
+        or "expressionist" in s.movement.lower()
+        or "symbolism" in s.movement.lower()
+    ), f"munch movement should reference Expressionism or Symbolism; got {s.movement!r}"
+
+
+def test_edvard_munch_nationality_norwegian():
+    """Session 205: munch must be identified as Norwegian."""
+    s = get_style("munch")
+    assert "norwegian" in s.nationality.lower(), (
+        f"munch nationality should be Norwegian; got {s.nationality!r}")
+
+
+def test_edvard_munch_palette_length():
+    """Session 205: munch palette must have at least 6 colours."""
+    s = get_style("munch")
+    assert len(s.palette) >= 6, (
+        f"munch should have >= 6 palette colours; got {len(s.palette)}")
+
+
+def test_edvard_munch_palette_in_range():
+    """Session 205: all munch palette values must be in [0, 1]."""
+    s = get_style("munch")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"munch palette value out of range: {ch}"
+
+
+def test_edvard_munch_high_jitter():
+    """Session 205: munch jitter must be >= 0.035 (emotional agitation in brushwork)."""
+    s = get_style("munch")
+    assert s.jitter >= 0.035, (
+        f"munch jitter should be >= 0.035 (emotional agitation); got {s.jitter}")
+
+
+def test_edvard_munch_period():
+    """Session 205: munch period must span his active years."""
+    s = get_style("munch")
+    assert "1880" in s.period or "1893" in s.period or "1863" in s.period, (
+        f"munch period should reference his active span; got {s.period!r}")
+
+
+def test_edvard_munch_famous_works():
+    """Session 205: munch must list at least 6 famous works."""
+    s = get_style("munch")
+    assert len(s.famous_works) >= 6, (
+        f"munch should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_edvard_munch_scream_in_works():
+    """Session 205: 'The Scream' must appear in famous_works."""
+    s = get_style("munch")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Scream" in t for t in titles), (
+        f"munch famous_works must include The Scream; got {titles}")
+
+
+def test_edvard_munch_inspiration_references_pass():
+    """Session 205: inspiration must reference munch_anxiety_swirl_pass."""
+    s = get_style("munch")
+    assert "munch_anxiety_swirl_pass" in s.inspiration, (
+        "munch inspiration must mention munch_anxiety_swirl_pass")
+
+
+def test_edvard_munch_inspiration_references_116th():
+    """Session 205: inspiration must explicitly name the 116th distinct mode."""
+    s = get_style("munch")
+    assert "SIXTEENTH" in s.inspiration or "116" in s.inspiration, (
+        "munch inspiration must reference ONE HUNDRED AND SIXTEENTH mode")

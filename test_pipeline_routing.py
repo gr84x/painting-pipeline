@@ -17984,3 +17984,86 @@ def test_hopper_raking_light_pass_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 205: Edvard Munch — munch_anxiety_swirl_pass (additional tests) ──
+
+def test_s205_munch_anxiety_swirl_method_exists():
+    """Session 205: Painter must have munch_anxiety_swirl_pass method."""
+    from stroke_engine import Painter as _P
+    assert hasattr(_P, "munch_anxiety_swirl_pass"), (
+        "Painter missing munch_anxiety_swirl_pass method")
+
+
+def test_s205_munch_anxiety_swirl_strokes_modify_canvas():
+    """Session 205: n_swirl_strokes=80 with visible opacity must modify canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.38, 0.32, 0.25), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.munch_anxiety_swirl_pass(
+        n_swirl_strokes=80, stroke_opacity=0.60, color_intensity=0.80,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "munch_anxiety_swirl_pass with n_swirl_strokes=80 should modify canvas")
+
+
+def test_s205_munch_anxiety_swirl_zero_opacity_noop():
+    """Session 205: opacity=0.0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.38, 0.32, 0.25), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.munch_anxiety_swirl_pass(n_swirl_strokes=80, opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "munch_anxiety_swirl_pass with opacity=0.0 must not change any pixels")
+
+
+def test_s205_munch_anxiety_swirl_single_focus_point():
+    """Session 205: single focus_point runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.38, 0.32, 0.25), texture_strength=0.0)
+    p.munch_anxiety_swirl_pass(
+        n_swirl_strokes=20, focus_points=[(0.5, 0.5)], stroke_opacity=0.40,
+    )
+
+
+def test_s205_munch_anxiety_swirl_three_focus_points():
+    """Session 205: three focus_points run without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.38, 0.32, 0.25), texture_strength=0.0)
+    p.munch_anxiety_swirl_pass(
+        n_swirl_strokes=20,
+        focus_points=[(0.2, 0.2), (0.5, 0.8), (0.8, 0.3)],
+        stroke_opacity=0.40,
+    )
+
+
+def test_s205_munch_anxiety_swirl_custom_colors():
+    """Session 205: custom warm_color/cool_color accepted without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.38, 0.32, 0.25), texture_strength=0.0)
+    p.munch_anxiety_swirl_pass(
+        n_swirl_strokes=20,
+        warm_color=(1.0, 0.5, 0.0),
+        cool_color=(0.0, 0.2, 0.8),
+        stroke_opacity=0.45,
+    )
+
+
+def test_s205_munch_anxiety_swirl_in_catalog():
+    """Session 205: munch must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "munch" in CATALOG, "munch missing from CATALOG"
+    s = get_style("munch")
+    assert (
+        "expressionism" in s.movement.lower()
+        or "symbolism" in s.movement.lower()
+    )
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

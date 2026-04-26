@@ -18021,6 +18021,101 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Edvard Munch ───────────────────────────────────────────────────────────
+    "munch": ArtStyle(
+        artist="Edvard Munch",
+        movement="Norwegian Expressionism / Symbolism",
+        nationality="Norwegian",
+        period="1880–1944",
+        palette=[
+            (0.82, 0.28, 0.18),   # fiery red-orange — anxiety heat, 'The Scream' sky
+            (0.18, 0.22, 0.52),   # deep indigo — existential dread, wave trough
+            (0.88, 0.68, 0.22),   # golden amber — agitated warmth and near-sunset glow
+            (0.35, 0.55, 0.40),   # muted sage — Norwegian landscape distance
+            (0.72, 0.55, 0.48),   # warm flesh — figure tones, face and hands
+            (0.22, 0.28, 0.38),   # dark blue-grey — heavy shadow and existential void
+            (0.90, 0.85, 0.62),   # pale cream-gold — spectral highlight, ghostly sky band
+        ],
+        ground_color=(0.38, 0.32, 0.25),    # dark warm umber — emotional depth ground
+        stroke_size=12,
+        wet_blend=0.62,                      # active wet blending — swirling brushwork
+        edge_softness=0.55,                  # softened edges — forms dissolve into anxious atmosphere
+        jitter=0.042,                        # high jitter — emotional agitation in brushwork
+        glazing=(0.75, 0.30, 0.10),       # warm crimson-amber unifying glaze
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Munch dismantles the boundary between observed colour and felt emotion. "
+            "His skies are not atmospheric phenomena but psychological states: the blood-orange "
+            "and indigo of The Scream (1893) describe anxiety, not weather.  "
+            "The defining visual mechanism is sinusoidal colour oscillation: warm and cool colours "
+            "alternate in undulating bands that radiate from emotional focal points — the screaming "
+            "figure, the anguished face, the solitary silhouette.  "
+            "Where these wave fields from different emotional centres constructively interfere, "
+            "colour intensity amplifies; where they cancel, the passage becomes relativity neutral, "
+            "giving the composition its characteristic pattern of agonised colour zones separated by "
+            "brief intervals of exhausted calm.  "
+            "Palette is reduced to a handful of saturated opposites: red-orange vs indigo, "
+            "warm amber vs cool grey-blue.  Saturation in the interference peaks far exceeds "
+            "anything a naturalistic painter would use.  "
+            "Figures are rendered as flat silhouettes or near-silhouettes — the face and hands "
+            "receive minimal modelling; psychological isolation is conveyed through posture and "
+            "placement, not anatomical detail.  "
+            "The brushwork is energetic and directional, following the contour of the wave field "
+            "rather than the form of the object: the sky's brushstrokes curve in arcs, the water's "
+            "in horizontal undulations, and the landscape's in tight swirling spirals."
+        ),
+        famous_works=[
+            ("The Scream",                    "1893"),
+            ("Madonna",                        "1894"),
+            ("The Dance of Life",             "1900"),
+            ("Anxiety",                        "1894"),
+            ("Melancholy",                     "1892"),
+            ("The Sick Child",                "1886"),
+            ("Vampire",                        "1893"),
+            ("The Bridge",                     "1903"),
+        ],
+        inspiration=(
+            "Apply munch_anxiety_swirl_pass() as the signature Munch "
+            "effect — ONE HUNDRED AND SIXTEENTH DISTINCT MODE.\n"
+            "Algorithm: CHROMATIC WAVE INTERFERENCE — the key mechanism: configurable "
+            "emotional focus points (default: central figure and upper-left anxiety node) "
+            "each emit a sine wave field proportional to their Euclidean distance from "
+            "every canvas pixel.  The per-pixel interference field is computed as the "
+            "arithmetic mean of all sine contributions, yielding a scalar in [-1, 1].  "
+            "This field is rescaled to [0, 1]: values > 0.5 (constructive crests) drive "
+            "pixel colours toward warm_color (default: fiery red-orange); values < 0.5 "
+            "(destructive troughs) drive colours toward cool_color (default: deep indigo).  "
+            "In the highest-amplitude interference zones (|field − 0.5| > threshold), "
+            "a luma-preserving saturation boost is applied — pulling each channel away from "
+            "the per-pixel luminance toward its current hue identity — reproducing Munch's "
+            "hyper-saturated anxiety peaks.  A final global opacity composite blends the "
+            "modified image over the original.\n\n"
+            "NOVEL: ONE HUNDRED AND SIXTEENTH DISTINCT MODE. FIRST pass to use "
+            "CHROMATIC WAVE INTERFERENCE — summing sine functions of Euclidean distances "
+            "from multiple configurable focus points to produce a multi-source oscillating "
+            "interference field that modulates both colour temperature (warm/cool tilt) "
+            "and saturation (luma-preserving channel amplification) simultaneously. "
+            "Prior passes: Hopper (directional linear dot-product — no oscillation, single "
+            "direction), Turner (single-source radial distance — no oscillation, one centre), "
+            "Aivazovsky (spatial wave-phase from wave geometry — not an interference sum), "
+            "Rousseau (luminance band stratification — brightness-driven, not spatial). "
+            "The wave interference from multiple sources is new: the pattern is determined "
+            "by the constructive/destructive superposition of distance-based sinusoids, "
+            "producing organic, emotionally-inflected swirling colour fields.\n\n"
+            "tone_ground() with dark warm umber (0.38, 0.32, 0.25).\n"
+            "underpainting() for emotional mass and figure silhouettes (stroke_size=55).\n"
+            "block_in() with broad colour zones (stroke_size=30).\n"
+            "build_form() for landscape and figure volumes (stroke_size=12).\n"
+            "place_lights() for spectral highlights and pale sky bands.\n"
+            "munch_anxiety_swirl_pass(focus_points=[(0.50, 0.42), (0.25, 0.25)], "
+            "wave_frequency=9.0, wave_amplitude=0.55, opacity=0.68) as the primary pass.\n\n"
+            "Use munch_anxiety_swirl_pass(focus_points=[(0.50, 0.42), (0.25, 0.25)], "
+            "wave_frequency=9.0, wave_amplitude=0.55, opacity=0.68)."
+        ),
+    ),
+
 }
 
 
