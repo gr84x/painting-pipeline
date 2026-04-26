@@ -331,32 +331,71 @@ class HatchMaker(MarkMaker):
     """
     Parallel hatch lines — the mark of pen-and-ink, engraving, and old-master
     chalk drawings. cross_hatch=True adds a second layer at 45° for tonal depth.
+
+    straightness controls how organic each hatch line is.  1.0 = perfectly
+    straight (old behaviour).  Lower values introduce a sinusoidal drift that
+    makes the hatching read as hand-drawn rather than mechanical.
     """
 
     def __init__(self, params: Optional[MarkParams] = None,
                  line_count: int = 8, line_spacing: float = 1.2,
-                 cross_hatch: bool = False):
+                 cross_hatch: bool = False,
+                 straightness: float = 1.0):
         super().__init__(params)
-        self.line_count = line_count
+        self.line_count   = line_count
         self.line_spacing = line_spacing
-        self.cross_hatch = cross_hatch
+        self.cross_hatch  = cross_hatch
+        # Improvement #12: straightness in [0, 1].  <1 applies a gentle
+        # sinusoidal perpendicular drift along each line so the marks feel
+        # hand-drawn.  0.70–0.85 is the sweet spot for chalk / pen-and-ink.
+        self.straightness = max(0.0, min(1.0, straightness))
 
     def _build_lines(self, cx: float, cy: float,
-                     direction: float) -> list:
-        w = self.params.width
-        L = w * 3.0
+                     direction: float, rng: random.Random) -> list:
+        w     = self.params.width
+        L     = w * 3.0
         cos_d, sin_d = math.cos(direction), math.sin(direction)
-        perp = (-sin_d, cos_d)
+        perp  = (-sin_d, cos_d)
         spacing = w / max(1, self.line_count) * self.line_spacing
+
+        # Organic wobble amplitude — grows as straightness falls below 1.
+        wobble_amp = w * (1.0 - self.straightness) * 0.8
+
         lines = []
         for i in range(self.line_count):
             offset = (i - self.line_count / 2.0) * spacing
             lx = cx + perp[0] * offset
             ly = cy + perp[1] * offset
-            lines.append((
-                (lx - cos_d * L / 2, ly - sin_d * L / 2),
-                (lx + cos_d * L / 2, ly + sin_d * L / 2),
-            ))
+
+            if wobble_amp < 0.5:
+                # Straight line (original behaviour)
+                lines.append((
+                    (lx - cos_d * L / 2, ly - sin_d * L / 2),
+                    (lx + cos_d * L / 2, ly + sin_d * L / 2),
+                ))
+            else:
+                # Polyline with sinusoidal perpendicular drift — hand-drawn feel.
+                # Break the line into N_SEG small segments; each segment midpoint
+                # is nudged perpendicular to the stroke direction by a sine wave
+                # with random phase and a slight amplitude variation per line.
+                N_SEG  = 6
+                amp    = wobble_amp * rng.uniform(0.6, 1.4)
+                phase  = rng.uniform(0, 2 * math.pi)
+                freq   = rng.uniform(0.8, 1.6)   # wave cycles along L
+                pts_line = []
+                for seg in range(N_SEG + 1):
+                    t    = seg / N_SEG           # 0 → 1 along the line
+                    base_x = lx + cos_d * L * (t - 0.5)
+                    base_y = ly + sin_d * L * (t - 0.5)
+                    drift  = amp * math.sin(freq * math.pi * t + phase)
+                    pts_line.append((
+                        base_x + perp[0] * drift,
+                        base_y + perp[1] * drift,
+                    ))
+                # Store as consecutive (pt1, pt2) pairs for the draw loop
+                for j in range(len(pts_line) - 1):
+                    lines.append((pts_line[j], pts_line[j + 1]))
+
         return lines
 
     def mark(
@@ -368,10 +407,11 @@ class HatchMaker(MarkMaker):
         **kwargs,
     ) -> np.ndarray:
         cx, cy = float(position[0]), float(position[1])
-        fill = _color_rgba(color, self.params.opacity)
-        lines = self._build_lines(cx, cy, direction)
+        fill   = _color_rgba(color, self.params.opacity)
+        rng    = self._rng()
+        lines  = self._build_lines(cx, cy, direction, rng)
         if self.cross_hatch:
-            lines += self._build_lines(cx, cy, direction + math.pi / 4)
+            lines += self._build_lines(cx, cy, direction + math.pi / 4, rng)
 
         def draw_fn(draw, img):
             for (pt1, pt2) in lines:

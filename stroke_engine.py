@@ -34,6 +34,54 @@ from art_utils import Composition
 Color = Tuple[float, float, float]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Guided filter — edge-preserving error map smoothing
+# ─────────────────────────────────────────────────────────────────────────────
+
+def guided_filter(
+    src: np.ndarray,
+    guide: np.ndarray,
+    radius: int,
+    eps: float = 0.01,
+) -> np.ndarray:
+    """
+    Fast box-filter guided filter (He et al. 2013).
+
+    Unlike isotropic Gaussian blur, a guided filter preserves edges in the
+    guide image when smoothing `src`.  Applying this to the error map with
+    the reference luminance as guide concentrates strokes *inside* meaningful
+    zones rather than smearing across object boundaries.
+
+    Parameters
+    ----------
+    src    : (H, W) float32 array to smooth — the raw error map.
+    guide  : (H, W) float32 array that defines edges — typically luma(reference).
+    radius : Box half-width in pixels.  Corresponds to Gaussian sigma × ~1.5.
+    eps    : Regularisation that controls how strongly edges in `guide` are
+             preserved.  Smaller = sharper edge preservation.
+    """
+    from scipy.ndimage import uniform_filter
+
+    def _mean(x: np.ndarray) -> np.ndarray:
+        return uniform_filter(x.astype(np.float64), 2 * radius + 1).astype(np.float32)
+
+    mean_I  = _mean(guide)
+    mean_p  = _mean(src)
+    mean_Ip = _mean(guide * src)
+    mean_II = _mean(guide * guide)
+
+    cov_Ip = mean_Ip - mean_I * mean_p
+    var_I  = mean_II - mean_I * mean_I
+
+    a = cov_Ip / (var_I + eps)
+    b = mean_p - a * mean_I
+
+    mean_a = _mean(a)
+    mean_b = _mean(b)
+
+    return np.clip(mean_a * guide + mean_b, 0.0, None).astype(np.float32)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Color mixing — subtractive (pigment) model
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -69,6 +117,35 @@ def complement(c: Color) -> Color:
     h, s, v = colorsys.rgb_to_hsv(*c)
     h_comp = (h + 0.5) % 1.0
     return colorsys.hsv_to_rgb(h_comp, s, v)
+
+
+def snap_to_harmony(
+    c: Color,
+    palette: List[Color],
+    snap_strength: float = 0.35,
+) -> Color:
+    """
+    Soft-constrain a sampled colour toward the nearest colour in `palette`.
+
+    Rather than hard-replacing the colour (which kills local variation), this
+    lerps `snap_strength` of the way toward the closest palette entry.  The
+    result retains per-pixel reference sampling while gently steering adjacent
+    strokes into harmonious hue relationships.
+
+    Parameters
+    ----------
+    c            : Sampled colour to constrain.
+    palette      : List of (R, G, B) harmony colours from Palette.harmony().
+    snap_strength: 0 = no snapping (identity); 1 = hard snap to palette.
+                   0.25–0.40 gives subtle cohesion without killing variation.
+    """
+    if not palette or snap_strength < 1e-6:
+        return c
+
+    # Find nearest palette entry by Euclidean distance in RGB space
+    best = min(palette, key=lambda p: sum((c[i] - p[i]) ** 2 for i in range(3)))
+    t    = max(0.0, min(1.0, snap_strength))
+    return tuple(c[i] + t * (best[i] - c[i]) for i in range(3))
 
 
 def temp_shift(c: Color, warmth: float) -> Color:
@@ -723,10 +800,19 @@ class Painter:
     Each method corresponds to a real stage in oil painting practice.
     """
 
-    def __init__(self, width: int, height: int):
-        self.canvas = PaintCanvas(width, height)
-        self.rng    = np.random.default_rng(7)
-        self._rng_py = random.Random(7)
+    def __init__(self, width: int, height: int, seed: int = 7):
+        """
+        Parameters
+        ----------
+        width, height : Canvas dimensions in pixels.
+        seed          : RNG seed for reproducibility.  Change to generate
+                        compositionally different paintings from the same
+                        reference.  Use PipelineSpec.seed to drive this from
+                        the session level.
+        """
+        self.canvas   = PaintCanvas(width, height)
+        self.rng      = np.random.default_rng(seed)
+        self._rng_py  = random.Random(seed)
         self.w, self.h = width, height
         # Figure mask: (H, W) float32 — 1.0=figure, 0.0=background.
         # Set via set_figure_mask() before painting.
@@ -1025,16 +1111,21 @@ class Painter:
 
     def underpainting(self, reference: Union[np.ndarray, Image.Image],
                       stroke_size: float = 52,
-                      n_strokes:   int   = 150):
+                      n_strokes:   int   = 150,
+                      dry_amount:  float = 0.90):
         """
         Step 2 — Dead-colour underpainting.
         Value structure only, desaturated toward raw umber.
         Establishes light/dark composition before colour is introduced.
+
+        dry_amount — canvas.dry() factor before painting.  Higher = faster dry
+                     = harder edges between this pass and the next.  Use
+                     Painter._drying_curve() to compute from pass position.
         """
         print(f"Underpainting  ({n_strokes} strokes  size={stroke_size:.0f}px)…")
         ref = self._prep(reference)
         gray_ref = self._to_value(ref, warm_tint=(0.42, 0.32, 0.18))
-        self.canvas.dry(0.9)
+        self.canvas.dry(dry_amount)
         self._place_strokes(gray_ref, stroke_size, n_strokes,
                             opacity=0.60, wet_blend=0.12,
                             jitter_amt=0.02, curvature=0.04,
@@ -1043,15 +1134,18 @@ class Painter:
 
     def block_in(self, reference: Union[np.ndarray, Image.Image],
                  stroke_size: float = 36,
-                 n_strokes:   int   = 300):
+                 n_strokes:   int   = 300,
+                 dry_amount:  float = 0.65):
         """
         Step 3 — Block-in.
         Large confident strokes establishing main colour masses.
         Painters work boldly here; no detail yet.
+
+        dry_amount — see underpainting() for description.
         """
         print(f"Blocking in    ({n_strokes} strokes  size={stroke_size:.0f}px)…")
         ref = self._prep(reference)
-        self.canvas.dry(0.65)
+        self.canvas.dry(dry_amount)
         self._place_strokes(ref, stroke_size, n_strokes,
                             opacity=0.72, wet_blend=0.28,
                             jitter_amt=0.045, curvature=0.07,
@@ -1060,21 +1154,27 @@ class Painter:
 
     def build_form(self, reference: Union[np.ndarray, Image.Image],
                    stroke_size: float = 15,
-                   n_strokes:   int   = 700):
+                   n_strokes:   int   = 700,
+                   dry_amount:  float = 0.55):
         """
         Step 4 — Form building.
         Medium directional strokes that follow surface curvature.
         This is the most labour-intensive stage.
         Stroke direction follows image gradient contours (Hertzmann 1998).
+
+        dry_amount — see underpainting() for description.  Lower values here
+                     (0.45–0.60) keep the surface wet so form strokes blend
+                     naturally into the block-in layer underneath.
         """
         print(f"Building form  ({n_strokes} strokes  size={stroke_size:.0f}px)…")
         ref = self._prep(reference)
-        self.canvas.dry(0.55)
+        self.canvas.dry(dry_amount)
         self._place_strokes(ref, stroke_size, n_strokes,
                             opacity=0.78, wet_blend=0.22,
                             jitter_amt=0.038, curvature=0.10,
                             tip=BrushTip(BrushTip.FILBERT),
-                            stroke_mask=self._figure_mask)
+                            stroke_mask=self._figure_mask,
+                            complexity_scale=True)
 
     def place_lights(self, reference: Union[np.ndarray, Image.Image],
                      stroke_size: float = 6,
@@ -3837,11 +3937,44 @@ class Painter:
         alph = ref[:, :, 3:4]
         return np.concatenate([rgb, alph], axis=2)
 
+    # ── Improvement #10: non-linear drying curve ─────────────────────────────
+
+    @staticmethod
+    def _drying_curve(pass_index: int, total_passes: int,
+                      early_dry: float = 0.88,
+                      late_dry:  float = 0.42) -> float:
+        """
+        Return a canvas drying amount for the current pass in a sequence.
+
+        Early passes (underpainting, block-in) dry quickly — bold marks need
+        a firm foundation.  Later passes (glazing, sfumato) stay wetter longer
+        so colour blends smoothly.  The transition follows a smooth cosine
+        curve rather than a linear ramp so the change is barely perceptible
+        in the mid-sequence passes.
+
+        Parameters
+        ----------
+        pass_index   : 0-based index of the current pass.
+        total_passes : Total number of passes in the session.
+        early_dry    : canvas.dry() amount at pass 0 (fastest drying).
+        late_dry     : canvas.dry() amount at the final pass (slowest drying).
+
+        Returns a float suitable for canvas.dry(amount).
+        """
+        if total_passes <= 1:
+            return early_dry
+        t = pass_index / (total_passes - 1)            # 0.0 → 1.0
+        # Cosine ease-in-out: slow at both ends, fastest change in the middle
+        ease = 0.5 * (1.0 - math.cos(math.pi * t))
+        return early_dry + (late_dry - early_dry) * ease
+
     # ── Composition helpers ───────────────────────────────────────────────────
 
     def _build_composition_map(self,
-                               focal_xy: tuple = None,
-                               strength: float = 0.6) -> np.ndarray:
+                               focal_xy:   tuple = None,
+                               strength:   float = 0.6,
+                               focal_pull: float = 0.0,
+                               ) -> np.ndarray:
         """
         Build a composition weight map with soft peaks at rule-of-thirds and
         golden-ratio intersections, plus a focal point boost.
@@ -3852,9 +3985,17 @@ class Painter:
 
         Parameters
         ----------
-        focal_xy : (x, y) normalised focal point.  If provided, an extra
-                   stronger Gaussian is added at that position.
-        strength : 0 = no bias (returns uniform 1.0); 1 = full bias.
+        focal_xy   : (x, y) normalised focal point.  Extra tighter Gaussian
+                     added at that position when provided.
+        strength   : 0 = no compositional bias (returns uniform 1.0); 1 = full.
+        focal_pull : Improvement #9.  Additional multiplier [0, 1] that blends
+                     the error-driven component toward the composition map at
+                     the _place_strokes call site.  This method only constructs
+                     the map; the caller uses focal_pull to scale how much the
+                     map overrides the error distribution.  Setting it here on
+                     the stored self._comp_map amplifies its effect: values > 1
+                     attract more, < 1 repel more, proportional to focal_pull.
+                     0 = no amplification beyond `strength`.
         """
         w, h = self.w, self.h
         cmap = np.ones((h, w), dtype=np.float32)
@@ -3879,15 +4020,15 @@ class Painter:
 
         ys, xs = np.ogrid[:h, :w]
 
-        for px, py in thirds_pts + golden_pts:
-            bump = np.exp(-((xs - px) ** 2 + (ys - py) ** 2) / (2.0 * sigma ** 2))
+        for gx, gy in thirds_pts + golden_pts:
+            bump = np.exp(-((xs - gx) ** 2 + (ys - gy) ** 2) / (2.0 * sigma ** 2))
             cmap += bump.astype(np.float32)
 
         # Optional focal-point boost — stronger, tighter Gaussian
         if focal_xy is not None:
             fx = focal_xy[0] * w
             fy = focal_xy[1] * h
-            sigma_f = min(w, h) * 0.08
+            sigma_f    = min(w, h) * 0.08
             focal_bump = 1.5 * np.exp(
                 -((xs - fx) ** 2 + (ys - fy) ** 2) / (2.0 * sigma_f ** 2)
             )
@@ -3896,13 +4037,20 @@ class Painter:
         # Lerp between uniform 1.0 and the biased map according to strength
         cmap = 1.0 + (cmap - 1.0) * strength
 
+        # Improvement #9: focal_pull amplifies the map's peaks and valleys so
+        # _place_strokes' error * cmap product steers placement more strongly
+        # toward compositionally significant zones.
+        if focal_pull > 0.0:
+            # Exponentiate: pull > 0 sharpens the Gaussian peaks vs flat areas.
+            cmap = np.power(np.clip(cmap, 1e-6, None), 1.0 + focal_pull)
+
         # Normalise so the mean is 1.0 — preserves overall stroke density
         mean = cmap.mean()
         if mean > 1e-9:
             cmap /= mean
 
         # Clip: never suppress strokes entirely; never over-concentrate
-        cmap = np.clip(cmap, 0.5, 3.0)
+        cmap = np.clip(cmap, 0.5, 3.5)
         return cmap.astype(np.float32)
 
     def _derive_focal_xy(self) -> tuple:
@@ -4202,42 +4350,68 @@ class Painter:
             self._atmosphere_fog_pass(atmosphere)
 
     def _place_strokes(self,
-                       ref:              np.ndarray,
-                       stroke_size:      float,
-                       n_strokes:        int,
-                       opacity:          float,
-                       wet_blend:        float,
-                       jitter_amt:       float,
-                       curvature:        float,
-                       tip:              BrushTip,
-                       stroke_mask:      Optional[np.ndarray] = None,
-                       override_color:   Optional[Color]      = None,
-                       composition_map:  Optional[np.ndarray] = None):
+                       ref:                 np.ndarray,
+                       stroke_size:         float,
+                       n_strokes:           int,
+                       opacity:             float,
+                       wet_blend:           float,
+                       jitter_amt:          float,
+                       curvature:           float,
+                       tip:                 BrushTip,
+                       stroke_mask:         Optional[np.ndarray] = None,
+                       override_color:      Optional[Color]      = None,
+                       composition_map:     Optional[np.ndarray] = None,
+                       # ── Improvement #2 — lognormal size distribution ──────
+                       size_sigma:          float = 0.40,
+                       # ── Improvement #3 — depth / atmospheric perspective ──
+                       depth_field:         Optional[np.ndarray] = None,
+                       depth_size_scale:    float = 0.55,   # min size at max depth
+                       depth_opacity_scale: float = 0.65,   # min opacity at max depth
+                       depth_cool_amount:   float = 0.14,   # max cool shift at horizon
+                       # ── Improvement #4 — light-coherent color ────────────
+                       light_pos:           Optional[Tuple[float, float]] = None,
+                       light_warmth:        float = 0.15,   # max warm shift at source
+                       # ── Improvement #6 — anti-clustering ─────────────────
+                       min_spacing:         float = 0.0,    # px; 0 = disabled
+                       # ── Improvement #7 — imprimatura reveal ──────────────
+                       imprimatura_reveal:  float = 0.0,    # [0, 0.25] fraction skip
+                       # ── Improvement #8 — complexity-scaled n_strokes ─────
+                       complexity_scale:    bool  = False,
+                       # ── Improvement #11 — palette harmony snapping ────────
+                       palette_colors:      Optional[List[Color]] = None,
+                       harmony_snap:        float = 0.0,   # [0, 1]; 0 = off
+                       ):
         """
         Core stroke placement loop.
-        Positions are sampled from the error map (canvas vs reference)
-        so strokes are concentrated where most improvement is needed.
 
-        stroke_mask    — optional (H, W) float32 in [0, 1].  When provided,
-            stroke centres are ONLY sampled from within the mask region.
-            The mask is eroded by the maximum stroke half-length so no
-            stroke can reach across the boundary.  Each segment is then
-            individually clipped at the mask boundary as a hard backstop.
+        Positions are sampled from the guided-filtered error map (canvas vs
+        reference) so strokes concentrate where most improvement is needed,
+        while respecting object edges in the reference image.
 
-            Pass self._figure_mask for figure strokes.
-            Pass (1 - self._figure_mask) for background strokes.
-
-        override_color — optional fixed RGB (float, float, float) in [0, 1].
-            When set, ALL strokes use this colour instead of sampling from
-            the reference.  Used by toon_paint() for flat cel-shading passes.
-
-        composition_map — optional (H, W) float32 weight array.  When
-            provided, multiplied into the error map after region masking so
-            stroke placement is biased toward compositionally significant areas
-            (rule-of-thirds / golden-ratio intersections, focal point).  A
-            value of 1.0 is neutral; values > 1.0 attract strokes; values
-            < 1.0 repel strokes.  If None and self._comp_map is set, that
-            stored map is used automatically.
+        Parameters
+        ----------
+        stroke_mask    : (H, W) float32 in [0,1].  Stroke centres sampled only
+                         inside the mask; eroded by stroke half-reach to prevent
+                         boundary crossing.  Each segment is clipped at the mask.
+        override_color : Fixed RGB for cel-shading passes (toon_paint).
+        composition_map: (H, W) float32 bias field.  >1 attracts, <1 repels.
+                         Falls back to self._comp_map when None.
+        size_sigma     : Lognormal σ for per-stroke size variation.  0 = old
+                         uniform belt (±55%).  0.40 gives a natural power-law
+                         spread so a few large marks coexist with many small ones.
+        depth_field    : (H, W) float32 in [0,1]; 0=near, 1=far.  When set,
+                         far strokes are smaller, cooler, and more transparent
+                         (atmospheric perspective).
+        light_pos      : (x, y) normalised light source position.  Strokes near
+                         the source receive a warm temperature shift; far strokes
+                         are cool.  Physically consistent with place_lights().
+        min_spacing    : Minimum pixel distance between stroke centres in this
+                         pass.  Reduces accidental clumping in uniform regions.
+        imprimatura_reveal : Probability [0, 0.25] that a stroke is skipped so
+                             the toned ground shows through — Titian's technique.
+        complexity_scale   : If True, adjust n_strokes by the spatial-frequency
+                             complexity of the active region so busy areas get
+                             more coverage than flat zones.
         """
         rarr = ref[:, :, :3].astype(np.float32) / 255.0
         h, w = ref.shape[:2]
@@ -4247,40 +4421,73 @@ class Painter:
                              dtype=np.uint8).reshape(h, w, 4).copy()
         carr = cbuf[:, :, [2, 1, 0]].astype(np.float32) / 255.0
 
-        # Error map — where canvas diverges from reference
+        # ── Error map ────────────────────────────────────────────────────────
         err = np.mean(np.abs(carr - rarr), axis=2).astype(np.float32)
-        err = ndimage.gaussian_filter(err, sigma=stroke_size * 0.45)
+        # Improvement #1: guided filter preserves object edges in placement.
+        guide_lum = (0.299 * rarr[:, :, 0] +
+                     0.587 * rarr[:, :, 1] +
+                     0.114 * rarr[:, :, 2]).astype(np.float32)
+        gf_radius = max(1, int(stroke_size * 0.45))
+        err = guided_filter(err, guide_lum, radius=gf_radius, eps=0.005)
 
-        # Region masking ── erode so stroke centres stay well inside the region
+        # ── Region masking ───────────────────────────────────────────────────
         region_mask_for_draw = None
         if stroke_mask is not None:
-            binary = (stroke_mask > 0.5)
-            # Erode by max stroke half-reach so endpoints can't cross boundary
+            binary    = (stroke_mask > 0.5)
             erosion_r = max(1, int(stroke_size * 1.4))
             struct    = np.ones((erosion_r * 2 + 1, erosion_r * 2 + 1), dtype=bool)
             eroded    = ndimage.binary_erosion(binary, structure=struct)
-            err = err * eroded.astype(np.float32)
-            # Also store the (un-eroded) mask for per-segment clipping
+            err       = err * eroded.astype(np.float32)
             region_mask_for_draw = stroke_mask.astype(np.float32)
 
-        # Composition map — bias stroke placement toward significant anchor areas.
-        # Falls back to self._comp_map if no per-call map is given.
+        # ── Composition map ──────────────────────────────────────────────────
         _cmap = composition_map if composition_map is not None else self._comp_map
         if _cmap is not None:
             err = err * _cmap
 
         err_flat = err.flatten()
-        total = err_flat.sum()
+        total    = err_flat.sum()
         if total < 1e-9:
             return   # mask too small / nothing to paint
         prob = err_flat / total
 
-        # Stroke direction field
+        # ── Improvement #8: complexity-based stroke count ────────────────────
+        # Busier regions (high spatial frequency) warrant more coverage.
+        if complexity_scale:
+            gy, gx    = np.gradient(guide_lum)
+            grad_mag  = np.sqrt(gx ** 2 + gy ** 2)
+            if stroke_mask is not None:
+                active_grad = grad_mag[stroke_mask > 0.5]
+            else:
+                active_grad = grad_mag.ravel()
+            complexity = float(np.mean(active_grad)) if active_grad.size else 0.0
+            max_comp   = float(np.percentile(grad_mag, 95)) + 1e-8
+            comp_ratio = float(np.clip(complexity / max_comp, 0.3, 1.0))
+            n_strokes  = max(1, int(n_strokes * (0.45 + 0.55 * comp_ratio)))
+
+        # ── Stroke direction field ───────────────────────────────────────────
         angles = flow_field(rarr)
 
+        # ── Sample positions ─────────────────────────────────────────────────
         positions = self.rng.choice(h * w, size=n_strokes,
                                     p=prob, replace=True)
-        lengths = stroke_size * self.rng.uniform(1.6, 3.2, n_strokes)
+
+        # ── Improvement #2: lognormal length distribution ────────────────────
+        if size_sigma > 0.0:
+            log_mean = math.log(stroke_size * 2.2)   # median length
+            lengths  = np.exp(self.rng.normal(log_mean, size_sigma, n_strokes))
+            lengths  = np.clip(lengths, stroke_size * 0.8, stroke_size * 5.0)
+        else:
+            lengths  = stroke_size * self.rng.uniform(1.6, 3.2, n_strokes)
+
+        # ── Light source vector (normalised canvas coords) ───────────────────
+        light_cx = float(light_pos[0]) * w if light_pos is not None else None
+        light_cy = float(light_pos[1]) * h if light_pos is not None else None
+        max_dist  = math.sqrt(w * w + h * h) + 1e-8  # for normalisation
+
+        # ── Anti-clustering state ─────────────────────────────────────────────
+        placed_centres: List[Tuple[int, int]] = []
+        min_spacing_sq = min_spacing * min_spacing
 
         for i, pos in enumerate(positions):
             py, px = int(pos // w), int(pos % w)
@@ -4288,26 +4495,91 @@ class Painter:
             px = int(np.clip(px, margin, w - margin))
             py = int(np.clip(py, margin, h - margin))
 
-            # Use override_color for cel-shading passes; otherwise sample reference.
+            # ── Improvement #7: imprimatura reveal ───────────────────────────
+            # Skip a fraction of strokes so the toned ground shows through.
+            if imprimatura_reveal > 0.0 and \
+                    self._rng_py.random() < imprimatura_reveal:
+                continue
+
+            # ── Improvement #6: anti-clustering ─────────────────────────────
+            if min_spacing > 0.0 and placed_centres:
+                too_close = any(
+                    (px - cx) ** 2 + (py - cy) ** 2 < min_spacing_sq
+                    for cx, cy in placed_centres
+                )
+                if too_close:
+                    continue
+            placed_centres.append((px, py))
+
+            # ── Per-stroke size (lognormal for width too) ────────────────────
+            if size_sigma > 0.0:
+                log_w_mean = math.log(max(0.5, stroke_size))
+                w_val = float(np.clip(
+                    math.exp(self._rng_py.gauss(log_w_mean, size_sigma * 0.6)),
+                    stroke_size * 0.35, stroke_size * 2.2,
+                ))
+            else:
+                w_val = stroke_size * self._rng_py.uniform(0.55, 1.15)
+
+            # ── Improvement #3: depth-field modulation ───────────────────────
+            stroke_opacity = opacity
+            eff_w_val      = w_val
+            depth_val      = 0.0
+            if depth_field is not None:
+                depth_val     = float(depth_field[py, px])
+                # Far objects: smaller, less opaque
+                size_t        = 1.0 - depth_val * (1.0 - depth_size_scale)
+                eff_w_val     = w_val * size_t
+                stroke_opacity = opacity * (1.0 - depth_val * (1.0 - depth_opacity_scale))
+
+            # ── Color sampling ───────────────────────────────────────────────
             if override_color is not None:
                 col = jitter(override_color, jitter_amt, self._rng_py)
             else:
                 col = tuple(float(rarr[py, px, c]) for c in range(3))
                 col = jitter(col, jitter_amt, self._rng_py)
 
-            a = float(angles[py, px]) + self._rng_py.uniform(-0.28, 0.28)
-            L = lengths[i]
-            start = (px - math.cos(a)*L*0.5, py - math.sin(a)*L*0.5)
+            # ── Improvement #11: palette harmony snapping ────────────────────
+            # Gently nudge sampled color toward nearest harmony palette entry
+            # so adjacent strokes share hue family without losing local detail.
+            if palette_colors and harmony_snap > 0.0:
+                col = snap_to_harmony(col, palette_colors, harmony_snap)
+
+            # ── Improvement #3 cont.: atmospheric cool shift for far objects ─
+            if depth_field is not None and depth_val > 0.05:
+                col = temp_shift(col, -depth_val * depth_cool_amount)
+
+            # ── Improvement #4: light-coherent warm/cool shift ───────────────
+            if light_cx is not None:
+                dist_to_light = math.sqrt(
+                    (px - light_cx) ** 2 + (py - light_cy) ** 2
+                )
+                # Proximity [0,1]: 1 = at light source, 0 = far away
+                proximity   = 1.0 - min(1.0, dist_to_light / (max_dist * 0.55))
+                warmth_amt  = proximity * light_warmth
+                # Attenuate warm boost in far/atmospheric zones
+                if depth_field is not None:
+                    warmth_amt *= (1.0 - depth_val * 0.5)
+                col = temp_shift(col, warmth_amt)
+
+            # ── Stroke geometry ──────────────────────────────────────────────
+            # Direction field angle + small jitter (tighter than before so
+            # strokes follow form more faithfully — improvement #6).
+            a     = float(angles[py, px]) + self._rng_py.uniform(-0.18, 0.18)
+            L     = lengths[i]
+            # Scale length proportionally when depth shrinks the stroke
+            if depth_field is not None:
+                L *= (1.0 - depth_val * (1.0 - depth_size_scale))
+            start = (px - math.cos(a) * L * 0.5, py - math.sin(a) * L * 0.5)
 
             n_pts = max(4, int(L / 5))
-            pts = stroke_path(start, a, L,
-                              curve=self._rng_py.uniform(-curvature, curvature),
-                              n=n_pts)
-            w_val = stroke_size * self._rng_py.uniform(0.55, 1.15)
-            ws    = [w_val] * len(pts)
+            pts   = stroke_path(start, a, L,
+                                curve=self._rng_py.uniform(-curvature, curvature),
+                                n=n_pts)
+            ws    = [eff_w_val] * len(pts)
 
             self.canvas.apply_stroke(pts, ws, col, tip,
-                                     opacity=opacity,
+                                     opacity=stroke_opacity,
                                      wet_blend=wet_blend,
                                      jitter_amt=jitter_amt,
                                      rng=self._rng_py,

@@ -29,7 +29,7 @@ Usage
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -72,6 +72,37 @@ class PipelineSpec:
     # Surface material for MaterialPass
     surface:       str   = "skin"  # "skin" | "feather" | "fur" | "scales" | "fabric"
 
+    # ── Improvement #5: reproducibility & exploration ─────────────────────────
+    # Change seed to generate a different but equally valid painting from the
+    # same reference.  Drives Painter.__init__ so all passes share one stream.
+    seed:          int   = 7
+
+    # ── Improvement #2: stroke size variation ────────────────────────────────
+    # Lognormal σ for per-stroke size.  0 = old uniform belt.  0.40 is a good
+    # default; higher values (0.6+) produce a more expressive size range.
+    stroke_size_sigma: float = 0.40
+
+    # ── Improvement #9: composition map focal pull ────────────────────────────
+    # 0 = pure error-driven placement; 1 = pure composition-map bias.
+    focal_pull:    float = 0.40
+
+    # ── Improvement #4: scene light source ───────────────────────────────────
+    # Normalised (x, y) in [0, 1].  None = no light-coherent color shift.
+    light_pos:     Optional[Tuple[float, float]] = None
+
+    # ── Improvement #7: imprimatura reveal ───────────────────────────────────
+    # Fraction of strokes skipped to let toned ground show through [0, 0.20].
+    imprimatura_reveal: float = 0.0
+
+    # ── Improvement #11: palette harmony ─────────────────────────────────────
+    # Colour-wheel scheme applied to the artist palette to constrain sampling.
+    # '' = off.  Options: 'complementary', 'analogous', 'triadic',
+    # 'split_complementary', 'tetradic', 'double_split'.
+    harmony_mode:  str   = ""
+    # Snap strength [0, 1]: how hard to push strokes toward harmony colours.
+    # 0.30 gives subtle cohesion; 0.60+ becomes visibly palette-constrained.
+    harmony_snap:  float = 0.30
+
     # Ordered pass list (populated by default_passes() if left empty)
     passes:        List[PassConfig] = field(default_factory=list)
 
@@ -101,13 +132,38 @@ def default_passes(spec: PipelineSpec) -> List[PassConfig]:
     Sfumato and material passes are included only when requested.
     Adaptive stroke sizes derive from spec.stroke_base so the list is
     valid at any subject_frac / canvas size.
+
+    Improvement #10 — non-linear drying curve: early passes (underpainting,
+    block-in) dry quickly so bold marks have a firm base; later passes
+    (build-form) dry more slowly so colour blends naturally.  Drying amounts
+    are computed via Painter._drying_curve() with the stroke passes as the
+    sequence (detail/finishing passes don't call canvas.dry).
     """
     sb = spec.stroke_base
+
+    # Stroke passes that call canvas.dry() — compute non-linear drying amounts.
+    # Index order matches the sequence: underpainting=0, block_in=1, build_form=2.
+    # Total = 3 so the curve spans the foundational layer sequence.
+    def dry(i: int, total: int = 3) -> float:
+        """Cosine ease: 0.90 at i=0, ~0.65 at i=1, ~0.48 at i=2."""
+        t    = i / max(total - 1, 1)
+        ease = 0.5 * (1.0 - __import__("math").cos(__import__("math").pi * t))
+        return round(0.90 + (0.42 - 0.90) * ease, 3)
+
     passes: List[PassConfig] = [
         # Foundational passes — large brushes, loose structure
-        PassConfig("underpainting", kwargs=dict(stroke_size=int(sb * 8), opacity=0.60)),
-        PassConfig("block_in",      kwargs=dict(stroke_size=int(sb * 5), opacity=0.55)),
-        PassConfig("build_form",    kwargs=dict(stroke_size=int(sb * 3), opacity=0.50)),
+        PassConfig("underpainting", kwargs=dict(
+            stroke_size=int(sb * 8), opacity=0.60,
+            dry_amount=dry(0),
+        )),
+        PassConfig("block_in", kwargs=dict(
+            stroke_size=int(sb * 5), opacity=0.55,
+            dry_amount=dry(1),
+        )),
+        PassConfig("build_form", kwargs=dict(
+            stroke_size=int(sb * 3), opacity=0.50,
+            dry_amount=dry(2),
+        )),
         PassConfig("place_lights",  kwargs=dict(stroke_size=int(sb * 2), opacity=0.45)),
         # Detail passes — fine marks, frequency-targeted
         PassConfig("meso_detail_pass",     kwargs=dict(opacity=0.35)),
@@ -180,7 +236,8 @@ class PaintingSession:
         artist_data = (CATALOG.get(self.spec.artist_key, {})
                        if self.spec.artist_key else {})
         canvas  = ArtCanvas(W, H)
-        painter = Painter(canvas, reference, artist_data)
+        # Improvement #5: forward spec seed so all passes share one RNG stream.
+        painter = Painter(W, H, seed=self.spec.seed)
         return painter
 
     def _apply_pass(
