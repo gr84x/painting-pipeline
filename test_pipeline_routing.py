@@ -17252,3 +17252,122 @@ def test_kandinsky_geometric_resonance_pass_no_reference():
         opacity=0.50,
         seed=197,
     )
+
+
+# ── Session 198: chirico_metaphysical_shadow_pass (109th distinct mode) ───────
+
+def test_chirico_metaphysical_shadow_pass_exists():
+    """Session 198: Painter must expose chirico_metaphysical_shadow_pass as a method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "chirico_metaphysical_shadow_pass"), (
+        "Painter is missing chirico_metaphysical_shadow_pass method")
+    assert callable(getattr(Painter, "chirico_metaphysical_shadow_pass"))
+
+
+def test_chirico_metaphysical_shadow_pass_signature():
+    """Session 198: chirico_metaphysical_shadow_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.chirico_metaphysical_shadow_pass)
+    for param in (
+        "reference", "shadow_angle", "shadow_length",
+        "shadow_opacity", "warm_strength", "warm_opacity",
+        "edge_threshold", "seed", "opacity",
+    ):
+        assert param in sig.parameters, f"chirico_metaphysical_shadow_pass missing parameter: {param}"
+
+
+def test_chirico_metaphysical_shadow_pass_runs():
+    """Session 198: chirico_metaphysical_shadow_pass must run without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.58), texture_strength=0.0)
+    p.chirico_metaphysical_shadow_pass(
+        shadow_angle=225.0,
+        shadow_length=0.15,
+        shadow_opacity=0.72,
+        warm_strength=0.45,
+        warm_opacity=0.38,
+        opacity=0.80,
+        seed=198,
+    )
+
+
+def test_chirico_metaphysical_shadow_pass_pixels_in_range():
+    """Session 198: chirico_metaphysical_shadow_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.58), texture_strength=0.0)
+    p.chirico_metaphysical_shadow_pass(
+        shadow_angle=225.0, shadow_length=0.15, opacity=1.0, seed=198
+    )
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_chirico_metaphysical_shadow_pass_modifies_canvas():
+    """Session 198: chirico_metaphysical_shadow_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.80, 0.58), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.chirico_metaphysical_shadow_pass(
+        shadow_angle=225.0,
+        shadow_length=0.20,
+        shadow_opacity=0.80,
+        warm_strength=0.50,
+        warm_opacity=0.50,
+        opacity=1.0,
+        seed=198,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "chirico_metaphysical_shadow_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_chirico_metaphysical_shadow_pass_zero_opacity_unchanged():
+    """Session 198: chirico_metaphysical_shadow_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.58), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.chirico_metaphysical_shadow_pass(
+        shadow_angle=225.0, shadow_length=0.15, opacity=0.0, seed=198
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "chirico_metaphysical_shadow_pass at opacity=0.0 must not change any pixels")
+
+
+def test_chirico_metaphysical_shadow_pass_no_reference():
+    """Session 198: chirico_metaphysical_shadow_pass without reference must run without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.58), texture_strength=0.0)
+    p.chirico_metaphysical_shadow_pass(
+        shadow_length=0.10, shadow_opacity=0.60, opacity=0.70, seed=198
+    )
+
+
+def test_chirico_metaphysical_shadow_pass_varying_angle():
+    """Session 198: chirico_metaphysical_shadow_pass at 45° shadow angle must run without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.58), texture_strength=0.0)
+    p.chirico_metaphysical_shadow_pass(
+        shadow_angle=45.0,
+        shadow_length=0.12,
+        opacity=0.70,
+        seed=198,
+    )
+
+
+def test_chirico_metaphysical_shadow_pass_short_shadow():
+    """Session 198: chirico_metaphysical_shadow_pass with shadow_length=0.05 must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.88, 0.80, 0.58), texture_strength=0.0)
+    p.chirico_metaphysical_shadow_pass(
+        shadow_length=0.05, shadow_opacity=0.50, opacity=0.60, seed=198
+    )

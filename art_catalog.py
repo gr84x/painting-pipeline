@@ -17322,6 +17322,107 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giorgio de Chirico ─────────────────────────────────────────────────────
+    "giorgio_de_chirico": ArtStyle(
+        artist="Giorgio de Chirico",
+        movement="Metaphysical Painting / Pittura Metafisica",
+        nationality="Italian-Greek",
+        period="1909–1978",
+        palette=[
+            (0.82, 0.46, 0.14),   # terracotta orange — sunlit arcade walls
+            (0.87, 0.72, 0.30),   # ochre gold — late-afternoon stone light
+            (0.62, 0.44, 0.22),   # raw sienna — shadowed arch interiors
+            (0.30, 0.38, 0.54),   # Prussian blue-grey — deep cast shadows
+            (0.92, 0.87, 0.70),   # pale cream — open piazza ground
+            (0.15, 0.13, 0.20),   # near-black umber — deepest window voids
+            (0.68, 0.62, 0.50),   # warm grey — distant architectural mass
+        ],
+        ground_color=(0.88, 0.84, 0.68),    # warm ochre linen — sun-baked piazza
+        stroke_size=8,
+        wet_blend=0.10,
+        edge_softness=0.05,
+        jitter=0.04,
+        glazing=(0.78, 0.62, 0.28),   # warm amber glaze — unifying afternoon haze
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "De Chirico founded Pittura Metafisica (Metaphysical Painting) "
+            "ca. 1909–1919, producing one of the most psychologically charged "
+            "bodies of work in Western art. "
+            "Defining characteristics: "
+            "IMPOSSIBLY LONG SHADOWS — cast by low-angle late-afternoon sunlight "
+            "at angles that violate geometric possibility; shadows extend far beyond "
+            "the canvas edge, implying a hidden world outside the frame. "
+            "CLASSICAL ARCADES AND PIAZZAS — Italian Renaissance architecture "
+            "rendered with sharp perspective recession, but emptied of human life; "
+            "the piazza becomes a stage set for absent actors. "
+            "ABRUPT PERSPECTIVAL CONTRADICTIONS — two or more incompatible vanishing "
+            "points coexist in the same canvas; staircases lead nowhere; distant "
+            "horizons sit at different heights in adjacent architectural zones. "
+            "INCONGRUOUS STILL-LIFE OBJECTS — a rubber glove, an artichoke, a "
+            "locomotive, a classical bust, all rendered with the same flat clarity "
+            "regardless of scale; their presence is unexplained and disturbing. "
+            "WARM TERRACOTTA + COOL SHADOW palette — ochre and orange dominate the "
+            "lit surfaces while long shadows are painted in cool Prussian blue-grey, "
+            "creating a temperature opposition that amplifies the eerie stillness. "
+            "FLAT, AIRLESS MODELLING — almost no impasto; paint applied thinly, "
+            "evenly; the surface offers no texture or evidence of hand — the "
+            "disembodied quality of a dream or memory. "
+            "Key works: 'The Enigma of the Hour' (1910), 'Mystery and Melancholy "
+            "of a Street' (1914) — small girl with hoop, long arcade shadow, "
+            "unseen pursuer; 'The Song of Love' (1914) — rubber glove + Apollo head; "
+            "'The Melancholy and Mystery of a Street' (1914); "
+            "'The Disquieting Muses' (1916) — mannequin figures before Ferrara castle; "
+            "'Ariadne' (1913) — reclining classical figure, deep piazza shadows. "
+            "The viewer's experience: temporal dislocation, the anxiety of an empty "
+            "afternoon, the presentiment of something about to happen that never does."
+        ),
+        famous_works=[
+            ("The Enigma of the Hour",             "1910"),
+            ("Mystery and Melancholy of a Street", "1914"),
+            ("The Song of Love",                   "1914"),
+            ("The Disquieting Muses",              "1916"),
+            ("Ariadne",                            "1913"),
+            ("The Philosopher's Conquest",         "1914"),
+            ("The Great Metaphysician",            "1917"),
+            ("Gare Montparnasse (The Melancholy of Departure)", "1914"),
+        ],
+        inspiration=(
+            "Apply chirico_metaphysical_shadow_pass() as the signature de Chirico "
+            "effect — ONE HUNDRED AND NINTH DISTINCT MODE.\n"
+            "Algorithm: (1) Compute canvas luminance gradient magnitude → silhouette "
+            "map. Threshold at the upper quartile to get strong edge pixels (shadow "
+            "casters). (2) For each edge pixel, cast a SHADOW RAY of length "
+            "shadow_length pixels along the unified shadow direction vector "
+            "(angle shadow_angle from horizontal, default ~135° = lower-right to "
+            "upper-left light source casting shadows toward lower-right). "
+            "Deposit a darkened, Prussian-blue-grey tinted pixel along each ray "
+            "position, with opacity that falls off linearly with distance from "
+            "the caster. (3) Compute a WARM HIGHLIGHT OVERLAY: for pixels whose "
+            "luminance is above a bright threshold, push colour toward warm ochre "
+            "(0.87, 0.72, 0.30) at warm_strength. (4) Alpha-blend the shadow "
+            "overlay onto the canvas at shadow_opacity, then blend the warm "
+            "highlight overlay at warm_opacity. "
+            "The result: impossibly long geometric shadow fingers radiating from "
+            "every architectural silhouette, with warm ochre highlights — the "
+            "quintessential de Chirico metaphysical light.\n\n"
+            "NOVEL: ONE HUNDRED AND NINTH DISTINCT MODE. FIRST pass to use "
+            "DIRECTIONAL SHADOW RAY CASTING — deriving silhouette edges from "
+            "the canvas gradient, then projecting long shadow rays along a "
+            "unified directional vector with distance-attenuated cool tinting. "
+            "Combined with a WARM HIGHLIGHT OVERLAY, this creates the two-temperature "
+            "split (warm sunlit + cool shadow) that defines de Chirico's palette. "
+            "Entirely distinct from all prior passes: no contours (Schiele/Léger), "
+            "no dots (Kusama), no grids (Klee), no spirals (Twombly), no ruled lines "
+            "(Martin), no wave bands (Riley), no synesthetic geometry (Kandinsky). "
+            "The SHADOW-RAY PROJECTION PRIMITIVE is a new spatial operation that "
+            "encodes directional light as rasterised silhouette extension.\n\n"
+            "Use chirico_metaphysical_shadow_pass(shadow_angle=225.0, "
+            "shadow_length=0.35, shadow_opacity=0.72, warm_strength=0.45, "
+            "warm_opacity=0.38, opacity=0.80)."
+        ),
+    ),
+
 }
 
 

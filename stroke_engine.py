@@ -45577,3 +45577,171 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Kandinsky Geometric Resonance pass complete.")
+
+    def chirico_metaphysical_shadow_pass(
+        self,
+        reference=None,
+        shadow_angle: float = 225.0,
+        shadow_length: float = 0.35,
+        shadow_opacity: float = 0.72,
+        warm_strength: float = 0.45,
+        warm_opacity: float = 0.38,
+        edge_threshold: float = 0.18,
+        seed: int = 198,
+        opacity: float = 0.80,
+    ) -> None:
+        """
+        De Chirico Metaphysical Shadow pass — directional shadow ray casting.
+
+        Inspired by Giorgio de Chirico's Pittura Metafisica (1909–1919):
+        impossibly long shadows cast at a low sun angle across empty piazzas,
+        warm ochre light on architectural surfaces, cool Prussian-blue-grey
+        in the shadow zones.
+
+        Algorithm:
+          1. Compute canvas luminance gradient magnitude → silhouette map.
+             Threshold at `edge_threshold` fraction of the 99th percentile
+             to identify strong shadow-casting edges.
+          2. For each detected edge pixel, cast a SHADOW RAY of
+             `shadow_length * min(W, H)` pixels along the unified
+             direction vector defined by `shadow_angle` (degrees from
+             positive-x, counter-clockwise). Deposit a cool Prussian-
+             blue-grey tinted, darkened colour at each ray step; opacity
+             falls off linearly from `shadow_opacity` at the caster to
+             zero at the ray tip.
+          3. Build a WARM HIGHLIGHT OVERLAY: pixels whose luminance
+             exceeds 0.60 are nudged toward terracotta ochre
+             (0.87, 0.72, 0.30) at strength `warm_strength`.
+          4. Composite: first blend shadow overlay onto canvas at its
+             per-pixel opacity, then blend warm highlight overlay at
+             `warm_opacity`, finally scale the whole composite by the
+             global `opacity` scalar.
+
+        NOVEL: 109TH DISTINCT MODE. FIRST pass to use DIRECTIONAL SHADOW
+        RAY CASTING — deriving silhouette edges from the canvas gradient
+        and projecting long attenuated shadow rays along a unified
+        directional vector with distance-falloff cool tinting. Combined
+        with a WARM HIGHLIGHT OVERLAY (two-temperature split), this
+        replicates de Chirico's signature metaphysical light. Distinct
+        from all 108 prior passes.
+        """
+        import numpy as _np
+        from scipy.ndimage import convolve as _conv
+
+        W, H = self.canvas.w, self.canvas.h
+        _rng = _np.random.default_rng(int(seed))
+
+        # Capture canvas (BGRA)
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── 1. Gradient-based silhouette / edge map ──────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        sobel_x = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        sobel_y = _np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=_np.float32)
+        gx = _conv(lum, sobel_x, mode="reflect")
+        gy = _conv(lum, sobel_y, mode="reflect")
+        grad_mag = _np.sqrt(gx ** 2 + gy ** 2)
+        p99 = _np.percentile(grad_mag, 99.0) + 1e-8
+        edge_mask = grad_mag > (float(edge_threshold) * p99)  # (H, W) bool
+
+        # ── 2. Shadow ray casting ────────────────────────────────────────────
+        import math as _math
+        ang_rad = float(shadow_angle) * _math.pi / 180.0
+        dx = _math.cos(ang_rad)
+        dy = -_math.sin(ang_rad)   # image y-axis is flipped
+
+        ray_len = int(float(shadow_length) * min(W, H))
+        ray_len = max(4, ray_len)
+
+        # Prussian blue-grey shadow colour
+        SHADOW_R, SHADOW_G, SHADOW_B = 0.18, 0.22, 0.38
+
+        # Accumulate shadow contribution: (H, W) float for each channel + alpha
+        shad_r = _np.zeros((H, W), dtype=_np.float32)
+        shad_g = _np.zeros((H, W), dtype=_np.float32)
+        shad_b = _np.zeros((H, W), dtype=_np.float32)
+        shad_a = _np.zeros((H, W), dtype=_np.float32)
+
+        ys_e, xs_e = _np.where(edge_mask)
+
+        for step in range(1, ray_len + 1):
+            attenuation = 1.0 - step / ray_len   # linear falloff
+            px_offset = int(round(dx * step))
+            py_offset = int(round(dy * step))
+
+            # Vectorised: compute destination coordinates
+            xs_d = xs_e + px_offset
+            ys_d = ys_e + py_offset
+
+            # Clip to canvas bounds
+            valid = (xs_d >= 0) & (xs_d < W) & (ys_d >= 0) & (ys_d < H)
+            xs_v = xs_d[valid]
+            ys_v = ys_d[valid]
+
+            step_alpha = float(shadow_opacity) * attenuation
+
+            # Mix shadow colour with existing pixel via multiply-darken:
+            # result = existing * (1 - step_alpha) + shadow_colour * step_alpha
+            existing_r = r0[ys_v, xs_v]
+            existing_g = g0[ys_v, xs_v]
+            existing_b = b0[ys_v, xs_v]
+
+            # Darken: shadow is a mix of the cool shadow hue and a darkened version
+            target_r = existing_r * 0.45 + SHADOW_R * 0.55
+            target_g = existing_g * 0.45 + SHADOW_G * 0.55
+            target_b = existing_b * 0.45 + SHADOW_B * 0.55
+
+            # Accumulate using max-alpha blending (shadows stack)
+            shad_r[ys_v, xs_v] = _np.maximum(
+                shad_r[ys_v, xs_v], target_r * step_alpha
+            )
+            shad_g[ys_v, xs_v] = _np.maximum(
+                shad_g[ys_v, xs_v], target_g * step_alpha
+            )
+            shad_b[ys_v, xs_v] = _np.maximum(
+                shad_b[ys_v, xs_v], target_b * step_alpha
+            )
+            shad_a[ys_v, xs_v] = _np.maximum(
+                shad_a[ys_v, xs_v], step_alpha
+            )
+
+        # ── 3. Warm highlight overlay ────────────────────────────────────────
+        WARM_R, WARM_G, WARM_B = 0.87, 0.72, 0.30
+        bright_mask = (lum > 0.60).astype(_np.float32)
+        ws = float(warm_strength)
+        warm_r = r0 * (1.0 - ws) + WARM_R * ws
+        warm_g = g0 * (1.0 - ws) + WARM_G * ws
+        warm_b = b0 * (1.0 - ws) + WARM_B * ws
+        warm_alpha = bright_mask * float(warm_opacity)
+
+        # ── 4. Composite: shadow → warm → global opacity ─────────────────────
+        # Apply shadow overlay
+        a_s = shad_a  # (H, W) per-pixel shadow alpha
+        r1 = r0 * (1.0 - a_s) + shad_r
+        g1 = g0 * (1.0 - a_s) + shad_g
+        b1 = b0 * (1.0 - a_s) + shad_b
+
+        # Apply warm highlight on top
+        r1 = r1 * (1.0 - warm_alpha) + warm_r * warm_alpha
+        g1 = g1 * (1.0 - warm_alpha) + warm_g * warm_alpha
+        b1 = b1 * (1.0 - warm_alpha) + warm_b * warm_alpha
+
+        # Global opacity blend back to original
+        op = float(opacity)
+        r1 = r0 * (1.0 - op) + r1 * op
+        g1 = g0 * (1.0 - op) + g1 * op
+        b1 = b0 * (1.0 - op) + b1 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    De Chirico Metaphysical Shadow pass complete.")
