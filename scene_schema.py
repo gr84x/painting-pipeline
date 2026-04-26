@@ -1824,6 +1824,43 @@ class Style:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CanvasSpec — canvas geometry + adaptive stroke-size hints
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class CanvasSpec:
+    """Canvas geometry with adaptive stroke-size hints for the painting pipeline.
+
+    subject_frac controls how much of the short axis the primary subject
+    occupies — 0.9 for a head filling the frame, 0.1 for a distant figure.
+    stroke_base scales proportionally, so the same pass list produces
+    appropriately sized marks at every composition scale.
+    """
+    width:        int   = 780
+    height:       int   = 1080
+    subject_frac: float = 0.65   # fraction of short axis occupied by primary subject
+    dpi:          int   = 96
+
+    @property
+    def subject_px(self) -> float:
+        """Pixel diameter of the primary subject."""
+        return min(self.width, self.height) * self.subject_frac
+
+    @property
+    def stroke_base(self) -> float:
+        """Baseline stroke width: subject_px / 200.
+
+        A 780px wide canvas with subject_frac=0.65 → subject_px=507 → stroke_base≈2.5 px.
+        Passes multiply this by their scale factor (underpainting ×8, finish ×1).
+        """
+        return max(1.0, self.subject_px / 200.0)
+
+    def stroke_for_scale(self, scale: float = 1.0) -> float:
+        """Return a stroke width for a given pass scale factor."""
+        return max(1.0, self.stroke_base * scale)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Top-level Scene
 # ─────────────────────────────────────────────────────────────────────────────
 
