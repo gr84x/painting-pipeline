@@ -191,6 +191,7 @@ EXPECTED_ARTISTS = [
     "ambrogio_de_predis",
     "lovis_corinth",
     "giorgio_morandi",
+    "zdzislaw_beksinski",
 ]
 
 

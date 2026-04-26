@@ -16633,6 +16633,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Zdzisław Beksiński ─────────────────────────────────────────────────────
+    "zdzislaw_beksinski": ArtStyle(
+        artist="Zdzisław Beksiński",
+        movement="Dystopian Surrealism / Fantastic Realism",
+        nationality="Polish",
+        period="1960–2005",
+        palette=[
+            (0.18, 0.12, 0.08),   # deep charred umber — the abyss
+            (0.42, 0.28, 0.15),   # burnt sienna — warm shadow glow
+            (0.55, 0.38, 0.18),   # raw sienna — mid shadow warm
+            (0.62, 0.52, 0.40),   # dried bone — skull pale
+            (0.75, 0.65, 0.50),   # ash stone — desolate midtone
+            (0.88, 0.72, 0.48),   # tarnished gold — spectral highlight
+            (0.70, 0.22, 0.08),   # ember red — fire in the dark
+            (0.30, 0.30, 0.32),   # cold ash grey — lifeless atmosphere
+        ],
+        ground_color=(0.22, 0.15, 0.09),    # very dark warm umber imprimatura
+        stroke_size=7,
+        wet_blend=0.18,                      # largely dry — thick impasto layers
+        edge_softness=0.30,                  # semi-soft: forms dissolve into void
+        jitter=0.038,                        # organic decay variation
+        glazing=(0.15, 0.10, 0.06),          # darkening amber glaze over all
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Beksiński's world is one of TOTAL TONAL IMMERSION IN DARKNESS.  His "
+            "surfaces begin on a near-black ground — scorched umber or cold charcoal "
+            "— and build upward through warm mid-tones that never fully escape the "
+            "shadow.  The characteristic 'warm void' is achieved by imprimatura "
+            "revelation: areas of very thin paint allow the dark warm ground to glow "
+            "through, creating the sense that the figures are lit from within, like "
+            "embers beneath ash.\n\n"
+            "His paint handling is paradoxically delicate despite the oppressive "
+            "imagery.  Marks are small and accumulated — not gestural but obsessive, "
+            "building texture through hundreds of tiny strokes that create a skin-like "
+            "surface quality.  Boundaries between forms dissolve into twilight: edges "
+            "are soft but not blended, rather LOST in a shared darkness.\n\n"
+            "PALETTE is ruthlessly restricted: burnt sienna, raw umber, and ash "
+            "dominate, with rare incandescent accents of ember-orange or bone-white "
+            "that carry enormous emotional weight precisely because they are scarce.  "
+            "Chromatic saturation is minimal — the images read almost as monochrome "
+            "until a single warm passage ignites the composition.\n\n"
+            "ATMOSPHERE: a pervasive ashen haze unifies the picture plane.  Distant "
+            "forms vanish not into blue aerial perspective but into undifferentiated "
+            "dark — the haze is the same temperature as the shadows, producing "
+            "claustrophobic depth rather than open space.  This 'dystopian atmosphere' "
+            "is his most distinctive formal contribution: darkness used as the primary "
+            "pictorial substance rather than its absence.\n\n"
+            "SURFACE TEXTURE is complex and geological: impasto ridges accumulate "
+            "over glazes, creating a stratigraphy of buried marks.  The paint film "
+            "reads as organic material — flesh, bone, stone, rust — rather than "
+            "coloured pigment.\n\n"
+            "EMOTIONAL REGISTER: melancholic, sublime, quietly catastrophic.  The "
+            "work never shouts; it whispers of apocalypse with the patience of "
+            "geological time."
+        ),
+        famous_works=[
+            ("Untitled (Self Portrait)", "1956"),
+            ("Untitled (Dystopian Landscape)", "1978"),
+            ("Untitled (Figure in Ruins)", "1984"),
+            ("Untitled (Cathedral)", "1987"),
+            ("Untitled (Skeletal Embrace)", "1991"),
+            ("Untitled (Burning Architecture)", "1996"),
+        ],
+        inspiration=(
+            "Apply beksinski_dystopian_atmosphere_pass() [pass #99] to achieve the "
+            "signature ashen void atmosphere.  Parameters:\n"
+            "  ash_pull=0.35  — strength of desaturation toward ash neutral\n"
+            "  shadow_deepen=0.28  — extra shadow darkening in luma < 0.40\n"
+            "  ember_glow=0.18  — warm red-orange bloom in deep shadow (luma < 0.20)\n"
+            "  grain_strength=0.018  — organic surface noise\n"
+            "  opacity=0.40\n\n"
+            "Follow with imprimatura_reveal_pass() [pass #100] at a low opacity "
+            "(0.20–0.30) using ground_color=(0.22, 0.15, 0.09) to let the dark warm "
+            "ground breathe through thin paint areas.\n\n"
+            "Use a very dark ground: tone_ground((0.22, 0.15, 0.09)).  Keep "
+            "stroke_size small (6–8) and wet_blend low (0.15–0.20) so marks "
+            "accumulate rather than blend.  Finish WITHOUT crackle — his surfaces "
+            "are smooth despite the psychological weight.\n\n"
+            "NOVEL: NINETY-NINTH DISTINCT MODE.  FIRST pass to combine CHROMINANCE "
+            "DESATURATION with SHADOW-ZONE EMBER GLOW in a single pixel operation — "
+            "distinct from all prior passes which either desaturate globally, apply "
+            "warm glows to highlights, or handle atmosphere via aerial perspective."
+        ),
+    ),
+
 }
 
 

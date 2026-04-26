@@ -43776,3 +43776,156 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Edge definition pass complete.")
+
+    def beksinski_dystopian_atmosphere_pass(
+        self,
+        ash_pull:       float = 0.35,
+        shadow_deepen:  float = 0.28,
+        ember_glow:     float = 0.18,
+        grain_strength: float = 0.018,
+        opacity:        float = 0.40,
+    ) -> None:
+        """
+        Session 189 — Beksiński dystopian atmosphere pass (99th distinct mode).
+
+        Recreates the oppressive ashen void that defines Zdzisław Beksiński's
+        dystopian surrealism: chrominance is desaturated toward a cold ash neutral,
+        shadow zones are deepened independently, and deep-shadow regions receive a
+        subtle ember-warm underpainted glow (the dark imprimatura showing through
+        thin paint).  Organic grain completes the geological surface quality.
+
+        ash_pull      : strength of per-pixel desaturation pull toward ash grey
+        shadow_deepen : extra multiplicative darkening applied where luma < 0.40
+        ember_glow    : warm red-orange additive bloom injected where luma < 0.20
+        grain_strength: amplitude of Beksiński's obsessive micro-texture noise
+        opacity       : final composite opacity
+
+        NOVEL: NINETY-NINTH DISTINCT MODE.  FIRST pass to simultaneously apply
+        CHROMINANCE DESATURATION, SHADOW-ZONE DARKENING, and EMBER GLOW in a
+        single pixel operation — distinct from all prior passes which address
+        these operations separately.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # 1. Desaturate toward cold ash neutral (0.50, 0.49, 0.47)
+        ash_r, ash_g, ash_b = 0.50, 0.49, 0.47
+        ap = float(ash_pull)
+        r1 = r0 + ap * (ash_r - r0)
+        g1 = g0 + ap * (ash_g - g0)
+        b1 = b0 + ap * (ash_b - b0)
+
+        # 2. Deepen shadows: multiplicative darkening where luma < 0.40
+        sd = float(shadow_deepen)
+        shadow_gate = _np.clip(1.0 - luma / 0.40, 0.0, 1.0)
+        shadow_factor = 1.0 - sd * shadow_gate
+        r1 = r1 * shadow_factor
+        g1 = g1 * shadow_factor
+        b1 = b1 * shadow_factor
+
+        # 3. Ember glow in deepest shadow (luma < 0.20): warm red-orange bloom
+        eg = float(ember_glow)
+        ember_gate = _np.clip(1.0 - luma / 0.20, 0.0, 1.0) ** 2
+        r1 = r1 + eg * ember_gate * 0.70   # warm red
+        g1 = g1 + eg * ember_gate * 0.18   # faint orange component
+        b1 = b1 + eg * ember_gate * 0.02   # almost no blue
+
+        # 4. Organic grain: smoothed noise for the obsessive micro-texture
+        gs = float(grain_strength)
+        rng   = _np.random.default_rng(189)
+        noise = rng.standard_normal((H, W)).astype(_np.float32)
+        noise = _gf(noise, sigma=0.7) * gs
+        r1 = r1 + noise
+        g1 = g1 + noise * 0.85
+        b1 = b1 + noise * 0.70
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Beksiński dystopian atmosphere pass complete.")
+
+    def imprimatura_reveal_pass(
+        self,
+        ground_color:     tuple = (0.55, 0.47, 0.30),
+        reveal_strength:  float = 0.30,
+        thin_paint_luma:  float = 0.45,
+        opacity:          float = 0.25,
+    ) -> None:
+        """
+        Session 189 — imprimatura reveal pass (100th distinct mode).
+
+        Simulates the old-master technique of toned-ground revelation: where paint
+        is thinly applied, the warm or cool imprimatura (initial toned ground)
+        shows through, creating a glowing underlayer that unifies the whole image.
+
+        Targets the mid-dark luma register [0, thin_paint_luma] — the zones where
+        a real painter would have applied the fewest opaque layers, leaving the
+        ground visible.  At those pixels, the ground_color is blended in with
+        strength proportional to how dark the pixel is (darker = thinner paint =
+        more ground showing).
+
+        ground_color     : RGB of the imprimatura / toned ground (0–1 floats)
+        reveal_strength  : blend factor at maximum thinness
+        thin_paint_luma  : luma threshold above which paint is considered opaque
+        opacity          : final composite opacity
+
+        NOVEL: ONE-HUNDREDTH DISTINCT MODE.  FIRST pass to model DIFFERENTIAL PAINT
+        THICKNESS as a function of luminance, blending an explicit ground color into
+        dark/mid zones — distinct from all prior passes which treat the ground color
+        only as a global tint (glaze) or apply it uniformly.
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # Reveal gate: strongest at luma=0, fades to zero at thin_paint_luma
+        tp = max(float(thin_paint_luma), 0.01)
+        reveal_gate = _np.clip(1.0 - luma / tp, 0.0, 1.0) * float(reveal_strength)
+
+        gr, gg, gb = float(ground_color[0]), float(ground_color[1]), float(ground_color[2])
+        r1 = r0 + reveal_gate * (gr - r0)
+        g1 = g0 + reveal_gate * (gg - g0)
+        b1 = b0 + reveal_gate * (gb - b0)
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Imprimatura reveal pass complete.")
