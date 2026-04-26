@@ -575,8 +575,9 @@ def scene_to_painting(
     is_ferrarese_civic_grandeur   = (scene.style.period == Period.FERRARESE_CIVIC_GRANDEUR)
     is_artemisian_tenebrism       = (scene.style.period == Period.ARTEMISIAN_TENEBRISM)
     is_milanese_leonardesque_circle = (scene.style.period == Period.MILANESE_LEONARDESQUE_CIRCLE)
-    is_lombard_humble_genre         = (scene.style.period == Period.LOMBARD_HUMBLE_GENRE)
-    is_bergamask_portrait           = (scene.style.period == Period.BERGAMASK_PORTRAIT)
+    is_lombard_humble_genre              = (scene.style.period == Period.LOMBARD_HUMBLE_GENRE)
+    is_bergamask_portrait                = (scene.style.period == Period.BERGAMASK_PORTRAIT)
+    is_milanese_metallic_portraiture     = (scene.style.period == Period.MILANESE_METALLIC_PORTRAITURE)
 
     if is_proto_expressionist:
         # ── Proto-Expressionist pipeline (Goya Black Paintings technique) ────
@@ -3522,6 +3523,83 @@ def scene_to_painting(
         if _feedback is not None:
             print(_feedback.summary())
         p.finish(vignette=0.45, crackle=True)
+
+    elif is_milanese_metallic_portraiture:
+        # ── Milanese Metallic Portraiture pipeline (Ambrogio de Predis) ─────
+        # De Predis worked directly alongside Leonardo on the Virgin of the
+        # Rocks and produced the most enamelled, crystalline portraits in the
+        # Milanese sfumato tradition.  His defining quality: cool-silver top
+        # highlights combined with structural precision just beneath the sfumato
+        # surface — an enamelled jewel-like reading unique in 15th-century Milan.
+        #
+        # Two-pass artistic contribution (session 187):
+        #   1. de_predis_crystalline_clarity_pass(): NINETY-FOURTH DISTINCT MODE —
+        #      USM sharpening in mid-to-bright luma range with cool-silver edge tint.
+        #   2. luminous_midtone_lift_pass(): RANDOM IMPROVEMENT —
+        #      warm bell-curve luminance lift in the midtone register.
+        de_predis_style = _ART_CATALOG.get("ambrogio_de_predis")
+        ground_col = de_predis_style.ground_color if de_predis_style else (0.50, 0.42, 0.28)
+
+        p.tone_ground(ground_col, texture_strength=0.07)
+        p.underpainting(ref, stroke_size=int(sp["stroke_size_bg"] * 1.20), n_strokes=140)
+        p.block_in(ref,   stroke_size=int(sp["stroke_size_bg"]),            n_strokes=280)
+        p.build_form(ref, stroke_size=int(sp["stroke_size_bg"] * 0.50),     n_strokes=780)
+
+        if _feedback is not None:
+            _ck = _feedback.checkpoint(p, "build_form")
+            if _feedback.should_apply_remediation():
+                p.glaze((0.60, 0.52, 0.30), opacity=0.05)
+                p.tonal_compression_pass(shadow_lift=0.02, highlight_compress=0.97, midtone_contrast=0.03)
+
+        p.focused_pass(ref, None, stroke_size=int(sp["stroke_size_face"] * 1.8),
+                       n_strokes=940, opacity=0.78, wet_blend=sp["wet_blend"])
+        p.focused_pass(ref, None, stroke_size=sp["stroke_size_face"],
+                       n_strokes=680, opacity=0.80, wet_blend=sp["wet_blend"] * 0.50)
+        p.place_lights(ref, stroke_size=sp["stroke_size_face"], n_strokes=360)
+
+        # ── de_predis_crystalline_clarity_pass — session 187 artist pass ─────
+        # NINETY-FOURTH DISTINCT MODE: precision unsharp-mask in the mid-to-
+        # bright luma range, with a cool-silver chromatic tint on detected edges.
+        # Models de Predis's defining quality: crystalline metallic precision at
+        # structural transitions beneath the broad sfumato softness.
+        p.de_predis_crystalline_clarity_pass(
+            sharp_sigma   = 1.5,
+            sharp_strength = 0.30,
+            cool_r_shift  = -0.010,
+            cool_b_shift  = 0.015,
+            luma_lo       = 0.35,
+            luma_hi       = 0.85,
+            opacity       = 0.28,
+        )
+
+        # ── luminous_midtone_lift_pass — session 187 random improvement ──────
+        # Warm bell-curve luminance lift in the midtone register: loads maximum
+        # luminosity into the mid-value zone, making forms appear self-illuminated.
+        p.luminous_midtone_lift_pass(
+            mid_lo  = 0.30,
+            mid_hi  = 0.68,
+            lift_r  = 0.022,
+            lift_g  = 0.012,
+            opacity = 0.26,
+        )
+
+        if _feedback is not None:
+            _feedback.checkpoint(p, "de_predis_pass")
+
+        # Subtle cool-warm glaze — de Predis's restrained, luminous palette
+        p.glaze((0.70, 0.65, 0.58), opacity=0.04)
+
+        p.edge_lost_and_found_pass(
+            focal_xy        = p._derive_focal_xy(),
+            found_radius    = 0.28,
+            found_sharpness = 0.44,
+            lost_blur       = 1.5,
+            strength        = 0.24,
+            figure_only     = False,
+        )
+        if _feedback is not None:
+            print(_feedback.summary())
+        p.finish(vignette=0.38, crackle=True)
 
     else:
         # ── Standard oil painting pipeline ───────────────────────────────────

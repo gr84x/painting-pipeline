@@ -5,27 +5,38 @@ Subject: enigmatic half-length female figure, three-quarter pose, sfumato
 technique, dreamlike geological landscape background, dark veil, dark dress,
 folded hands — the full Renaissance portrait prompt.
 
-Artistic discovery (session 187): Lovis Corinth (1858–1925)
-  - German Impressionism / Expressionism
-  - Directional stroke velocity — impasto brushmarks carry kinetic momentum
-  - Low wet-blend (0.20) — individual strokes remain visible, vigorous
-  - Rembrandtesque warm dark ground contrasting with amber-gold lit flesh
-  - Distinctive: band-pass detail at tonal transitions — impasto ridges catching light
-  - Samson Blinded (1912), Ecce Homo (1925), Self-Portrait with Palette (1924)
-  - Defining quality: high-frequency detail concentrated at gradient edges,
-    creating the sensation of paint ridge micro-contrast
+Artistic discovery (session 187): Ambrogio de Predis (c. 1455–after 1508)
+  - Milanese Leonardesque / Italian Renaissance
+  - Crystalline metallic precision within sfumato — cool-silver highlights
+  - Leonardo's closest Milanese court collaborator (Virgin of the Rocks)
+  - Portrait of a Young Woman (Bianca Maria Sforza?), c. 1493–1496
+  - Portrait of Emperor Maximilian I, c. 1502
+  - Defining quality: COOL-SILVER TOP HIGHLIGHTS — the topmost lit zone on
+    flesh carries a subtle blue-grey tint, like polished silver rather than
+    candlelight, producing an enamelled, jewel-like reading unique among
+    Milanese sfumato painters.  Structural precision just beneath the sfumato
+    surface distinguishes de Predis from pure Leonardo dissolution.
 
-New pipeline enhancement (session 187):
-  - corinth_stroke_velocity_field_pass: NINETY-FOURTH DISTINCT MODE
-    GRADIENT-MAGNITUDE-WEIGHTED BAND-PASS DETAIL ENHANCEMENT:
-    Computes per-channel band-pass detail as (fine Gaussian − coarse Gaussian),
-    then injects that detail weighted by the LOCAL GRADIENT MAGNITUDE of luma —
-    sharpening is strongest exactly at tonal transitions (where impasto ridges
-    would catch oblique light) and zero in flat areas.  A luma bell-gate
-    [luma_lo, luma_hi] preserves deep shadow voids and specular peaks.
-    NOVEL: FIRST pass in this pipeline to combine BAND-PASS DETAIL EXTRACTION
-    with GRADIENT-MAGNITUDE GATING — all prior sharpening passes use isotropic
-    Gaussian kernels without gradient-magnitude weighting.
+New pipeline enhancements (session 187):
+  - de_predis_crystalline_clarity_pass: NINETY-FOURTH DISTINCT MODE
+    PRECISION UNSHARP-MASK WITH COOL-SILVER EDGE TINTING:
+    Applies a precision USM restricted to the mid-to-bright luma range
+    (luma_lo=0.35, luma_hi=0.85), then tints the detected edge zones with a
+    cool-silver shift (cool_r_shift=-0.010, cool_b_shift=0.015).  The edge
+    detection is derived from the unsharp residual magnitude.  This implements
+    de Predis's defining quality: broad sfumato softness in the passages, with
+    crystalline metallic precision at key structural transitions.
+    NOVEL: FIRST pass to combine UNSHARP-MASK SHARPENING with COOL-SILVER
+    CHROMATIC TINT on detected edges — distinct from all prior passes.
+
+  - luminous_midtone_lift_pass: RANDOM IMPROVEMENT
+    WARM BELL-CURVE LUMINANCE LIFT IN THE MIDTONE REGISTER:
+    A symmetric bell-curve gate centred at the midpoint of [mid_lo, mid_hi]
+    selectively lifts R, G, B in the midtone zone, loading maximum luminosity
+    into the mid-value register.  Models the Old Master technique of making
+    forms appear self-illuminated rather than merely reflecting surface light.
+    NOVEL: FIRST pass to apply SYMMETRIC MIDTONE-BAND BELL-CURVE LIFT without
+    asymmetric peak bias — distinct from fra_galgario_living_surface_pass.
 """
 
 import sys
@@ -62,15 +73,18 @@ def build_reference(w: int, h: int) -> Image.Image:
          + rocks[None, None, :] * t_mid[:, :, None]
          + earth[None, None, :] * t_earth[:, :, None])
 
+    # Horizon mismatch — left sits slightly higher
     left_lift = np.clip(0.55 - xx, 0.0, 0.55) * 0.14
     arr += left_lift[:, :, None] * np.array([0.02, 0.06, 0.16], dtype=np.float32)
 
+    # Winding path on the left
     path_x = 0.24 + (yy - 0.30) * 0.20
     path_dist = np.abs(xx - path_x) / 0.045
     path_mask = (np.clip(1.0 - path_dist, 0.0, 1.0)
                  * np.clip((yy - 0.25) / 0.40, 0.0, 1.0))
     arr += path_mask[:, :, None] * np.array([0.07, 0.08, 0.06], dtype=np.float32)
 
+    # Rocky outcrops
     for rx, ry, rsx, rsy in [(0.14, 0.42, 0.09, 0.07),
                                (0.82, 0.44, 0.07, 0.05),
                                (0.64, 0.37, 0.06, 0.04),
@@ -79,6 +93,7 @@ def build_reference(w: int, h: int) -> Image.Image:
         rmask = np.clip(1.2 - rd, 0.0, 1.0) ** 1.5 * 0.38
         arr = _blend(arr, np.array([0.26, 0.28, 0.25], dtype=np.float32), rmask)
 
+    # Water suggestion
     water_d = ((xx - 0.72) / 0.22)**2 + ((yy - 0.46) / 0.04)**2
     water_mask = np.clip(1.0 - water_d, 0.0, 1.0)**2 * 0.32
     arr += water_mask[:, :, None] * np.array([0.16, 0.22, 0.32], dtype=np.float32)
@@ -161,15 +176,18 @@ def build_reference(w: int, h: int) -> Image.Image:
 
 
 def paint(output_path: str = "mona_lisa_s187.png") -> str:
-    """Full Leonardo sfumato pipeline with session 187 Corinth-inspired pass."""
+    """Full Leonardo sfumato pipeline with session 187 de Predis-inspired passes."""
     print("=" * 64)
     print("  Session 187 — Mona Lisa sfumato portrait")
-    print("  Artistic discovery: Lovis Corinth (1858–1925)")
-    print("    German Impressionism / Expressionism")
-    print("    Directional stroke velocity — impasto with kinetic momentum")
-    print("    Warm dark ground, amber-gold lit flesh, vigorous brushwork")
-    print("    NINETY-FOURTH MODE: corinth_stroke_velocity_field_pass")
-    print("    -- Gradient-magnitude-weighted band-pass detail enhancement")
+    print("  Artistic discovery: Ambrogio de Predis (c. 1455–after 1508)")
+    print("    Milanese Leonardesque — crystalline metallic precision")
+    print("    Leonardo's closest court collaborator (Virgin of the Rocks)")
+    print("    Portrait of a Young Woman (Bianca Maria Sforza?)")
+    print("    Cool-silver highlights — enamelled, jewel-like flesh quality")
+    print("    NINETY-FOURTH MODE: de_predis_crystalline_clarity_pass")
+    print("    -- Precision USM + cool-silver edge tinting")
+    print("    RANDOM IMPROVEMENT: luminous_midtone_lift_pass")
+    print("    -- Warm bell-curve luminance lift in the midtone register")
     print("=" * 64)
 
     ref = build_reference(W, H)
@@ -178,19 +196,19 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
     leo = get_style("leonardo")
     p = Painter(W, H)
 
-    print("  [1/37] Tone ground ...")
+    print("  [1/38] Tone ground ...")
     p.tone_ground(leo.ground_color, texture_strength=0.06)
 
-    print("  [2/37] Underpainting ...")
+    print("  [2/38] Underpainting ...")
     p.underpainting(ref, stroke_size=52, n_strokes=160)
 
-    print("  [3/37] Block-in ...")
+    print("  [3/38] Block-in ...")
     p.block_in(ref, stroke_size=34, n_strokes=340)
 
-    print("  [4/37] Build form ...")
+    print("  [4/38] Build form ...")
     p.build_form(ref, stroke_size=10, n_strokes=1400)
 
-    print("  [5/37] Sfumato veil pass ...")
+    print("  [5/38] Sfumato veil pass ...")
     p.sfumato_veil_pass(
         ref,
         n_veils                      = 10,
@@ -209,7 +227,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         highlight_sharpness_sigma    = 1.2,
     )
 
-    print("  [6/37] Edge sfumato dissolution pass ...")
+    print("  [6/38] Edge sfumato dissolution pass ...")
     p.edge_sfumato_dissolution_pass(
         grad_threshold = 0.10,
         blur_sigma     = 6.0,
@@ -217,7 +235,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity        = 0.30,
     )
 
-    print("  [7/37] Figure contour atmosphere pass ...")
+    print("  [7/38] Figure contour atmosphere pass ...")
     p.figure_contour_atmosphere_pass(
         blur_sigma     = 6.0,
         bleed_strength = 0.28,
@@ -227,7 +245,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity        = 0.42,
     )
 
-    print("  [8/37] Skin subsurface scatter pass ...")
+    print("  [8/38] Skin subsurface scatter pass ...")
     p.skin_subsurface_scatter_pass(
         scatter_sigma    = 5.0,
         scatter_strength = 0.20,
@@ -236,7 +254,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity          = 0.26,
     )
 
-    print("  [9/37] Tonal envelope pass ...")
+    print("  [9/38] Tonal envelope pass ...")
     p.tonal_envelope_pass(
         center_x      = 0.492,
         center_y      = 0.31,
@@ -247,7 +265,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         gamma         = 1.9,
     )
 
-    print("  [10/37] Selective focus pass ...")
+    print("  [10/38] Selective focus pass ...")
     p.selective_focus_pass(
         center_x        = 0.492,
         center_y        = 0.28,
@@ -257,7 +275,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         gamma           = 2.2,
     )
 
-    print("  [11/37] Massys bridge glazing pass ...")
+    print("  [11/38] Massys bridge glazing pass ...")
     p.massys_bridge_glazing_pass(
         flesh_warm_r        = 0.09,
         flesh_warm_g        = 0.04,
@@ -274,7 +292,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity             = 0.22,
     )
 
-    print("  [12/37] Reynolds Grand Manner mezzotint tone pass ...")
+    print("  [12/38] Reynolds Grand Manner mezzotint tone pass ...")
     p.reynolds_grand_manner_pass(
         amber_strength  = 0.05,
         amber_r         = 0.07,
@@ -290,7 +308,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity         = 0.26,
     )
 
-    print("  [13/37] Luminance gradient warmth pass ...")
+    print("  [13/38] Luminance gradient warmth pass ...")
     p.luminance_gradient_warmth_pass(
         grad_sigma  = 2.0,
         warm_r      = 0.025,
@@ -300,7 +318,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity     = 0.28,
     )
 
-    print("  [14/37] Warm ambient occlusion pass ...")
+    print("  [14/38] Warm ambient occlusion pass ...")
     p.warm_ambient_occlusion_pass(
         occ_radius  = 18.0,
         shad_lo     = 0.10,
@@ -310,7 +328,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity     = 0.28,
     )
 
-    print("  [15/37] Shadow color temperature pass ...")
+    print("  [15/38] Shadow color temperature pass ...")
     p.shadow_color_temperature_pass(
         shadow_thresh     = 0.38,
         cool_b            = 0.040,
@@ -321,7 +339,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity           = 0.24,
     )
 
-    print("  [16/37] Multilayer atmospheric veil pass ...")
+    print("  [16/38] Multilayer atmospheric veil pass ...")
     p.multilayer_atmospheric_veil_pass(
         sigma_fine    = 1.5,
         sigma_medium  = 5.0,
@@ -333,7 +351,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity       = 0.28,
     )
 
-    print("  [17/37] Peripheral defocus pass ...")
+    print("  [17/38] Peripheral defocus pass ...")
     p.peripheral_defocus_pass(
         inner_radius  = 0.38,
         blur_sigma    = 4.0,
@@ -342,7 +360,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity       = 0.30,
     )
 
-    print("  [18/37] Luminance preserving chroma boost pass ...")
+    print("  [18/38] Luminance preserving chroma boost pass ...")
     p.luminance_preserving_chroma_boost_pass(
         boost         = 0.12,
         luma_lo       = 0.18,
@@ -350,7 +368,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity       = 0.22,
     )
 
-    print("  [19/37] Shadow chroma depth pass ...")
+    print("  [19/38] Shadow chroma depth pass ...")
     p.shadow_chroma_depth_pass(
         shadow_lo    = 0.12,
         shadow_hi    = 0.44,
@@ -360,7 +378,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity      = 0.24,
     )
 
-    print("  [20/37] Tonal bounded warmth pass ...")
+    print("  [20/38] Tonal bounded warmth pass ...")
     p.tonal_bounded_warmth_pass(
         mid_dark_lo = 0.18,
         mid_dark_hi = 0.44,
@@ -373,7 +391,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity     = 0.28,
     )
 
-    print("  [21/37] Canvas tooth texture pass ...")
+    print("  [21/38] Canvas tooth texture pass ...")
     p.canvas_tooth_texture_pass(
         tooth_freq  = 48.0,
         tooth_lo    = 0.22,
@@ -385,7 +403,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity     = 0.28,
     )
 
-    print("  [22/37] Chromatic vignette pass ...")
+    print("  [22/38] Chromatic vignette pass ...")
     p.chromatic_vignette_pass(
         radius          = 0.72,
         darken_strength = 0.18,
@@ -396,7 +414,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity         = 0.32,
     )
 
-    print("  [23/37] Cesare da Sesto clarity pass ...")
+    print("  [23/38] Cesare da Sesto clarity pass ...")
     p.cesare_da_sesto_clarity_pass(
         smooth_thresh    = 0.30,
         grad_sigma       = 1.5,
@@ -409,7 +427,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity          = 0.26,
     )
 
-    print("  [24/37] Benozzo Gozzoli pageant pass ...")
+    print("  [24/38] Benozzo Gozzoli pageant pass ...")
     p.benozzo_gozzoli_pageant_pass(
         snap_strength = 0.08,
         luma_lo       = 0.15,
@@ -417,7 +435,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity       = 0.20,
     )
 
-    print("  [25/37] Sirani contextual warmth pass [s183, 86th mode] ...")
+    print("  [25/38] Sirani contextual warmth pass [s183, 86th mode] ...")
     p.sirani_contextual_warmth_pass(
         field_sigma          = 28.0,
         warm_bias_threshold  = 0.03,
@@ -427,14 +445,14 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity              = 0.38,
     )
 
-    print("  [26/37] Adaptive tonal pivot pass [s183, 87th mode] ...")
+    print("  [26/38] Adaptive tonal pivot pass [s183, 87th mode] ...")
     p.adaptive_tonal_pivot_pass(
         contrast_strength = 0.22,
         sigmoid_slope     = 6.0,
         opacity           = 0.30,
     )
 
-    print("  [27/37] Ceruti dignity shadow pass [s184, 88th mode] ...")
+    print("  [27/38] *** CERUTI DIGNITY SHADOW PASS [s184, 88th mode] ***")
     p.ceruti_dignity_shadow_pass(
         shadow_lo    = 0.08,
         shadow_hi    = 0.42,
@@ -443,7 +461,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity      = 0.32,
     )
 
-    print("  [28/37] Hue coherence field pass [s184, 89th mode] ...")
+    print("  [28/38] *** HUE COHERENCE FIELD PASS [s184, 89th mode] ***")
     p.hue_coherence_field_pass(
         field_sigma         = 22.0,
         coherence_boost     = 0.15,
@@ -451,7 +469,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity             = 0.28,
     )
 
-    print("  [29/37] Fra Galgario living surface pass [s185, 90th mode] ...")
+    print("  [29/38] *** FRA GALGARIO LIVING SURFACE PASS [s185, 90th mode] ***")
     p.fra_galgario_living_surface_pass(
         glow_lo     = 0.35,
         glow_hi     = 0.80,
@@ -462,7 +480,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity     = 0.30,
     )
 
-    print("  [30/37] Chromatic temperature field pass [s185, 91st mode] ...")
+    print("  [30/38] *** CHROMATIC TEMPERATURE FIELD PASS [s185, 91st mode] ***")
     p.chromatic_temperature_field_pass(
         warm_strength    = 0.025,
         cool_strength    = 0.020,
@@ -472,7 +490,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity          = 0.28,
     )
 
-    print("  [31/37] Solario chromatic polar pass [s186, 93rd mode] ...")
+    print("  [31/38] *** SOLARIO CHROMATIC POLAR PASS [s186, 93rd mode] ***")
     p.solario_chromatic_polar_pass(
         hue_rotate_deg = 7.0,
         chroma_boost   = 0.12,
@@ -481,7 +499,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity        = 0.26,
     )
 
-    print("  [32/37] Local statistical harmony pass [s186] ...")
+    print("  [32/38] *** LOCAL STATISTICAL HARMONY PASS [s186, random improvement] ***")
     p.local_statistical_harmony_pass(
         sigma            = 14.0,
         harmony_strength = 0.15,
@@ -490,18 +508,28 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity          = 0.24,
     )
 
-    print("  [33/37] *** CORINTH STROKE VELOCITY FIELD PASS [s187, 94th mode] ***")
-    p.corinth_stroke_velocity_field_pass(
-        detail_sigma_fine   = 1.2,
-        detail_sigma_coarse = 4.0,
-        sharpen_strength    = 0.28,
-        mag_gate_thresh     = 0.04,
-        luma_lo             = 0.10,
-        luma_hi             = 0.90,
-        opacity             = 0.28,
+    print("  [33/38] *** DE PREDIS CRYSTALLINE CLARITY PASS [s187, 94th mode] ***")
+    p.de_predis_crystalline_clarity_pass(
+        sharp_sigma    = 1.5,
+        sharp_strength = 0.30,
+        cool_r_shift   = -0.010,
+        cool_b_shift   = 0.015,
+        luma_lo        = 0.35,
+        luma_hi        = 0.85,
+        opacity        = 0.26,
     )
 
-    print("  [34/37] Chromatic edge halation pass ...")
+    print("  [34/38] *** LUMINOUS MIDTONE LIFT PASS [s187, random improvement] ***")
+    p.luminous_midtone_lift_pass(
+        mid_lo  = 0.30,
+        mid_hi  = 0.68,
+        lift_r  = 0.022,
+        lift_g  = 0.012,
+        lift_b  = 0.004,
+        opacity = 0.26,
+    )
+
+    print("  [35/38] Chromatic edge halation pass ...")
     p.chromatic_edge_halation_pass(
         grad_threshold  = 0.06,
         bloom_sigma     = 4.0,
@@ -511,7 +539,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity         = 0.24,
     )
 
-    print("  [35/37] Skin subsurface scatter pass (final warm glow) ...")
+    print("  [36/38] Skin subsurface scatter pass (final warm glow) ...")
     p.skin_subsurface_scatter_pass(
         scatter_sigma    = 3.5,
         scatter_strength = 0.14,
@@ -520,7 +548,7 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         opacity          = 0.20,
     )
 
-    print("  [36/37] Sfumato veil final ...")
+    print("  [37/38] Sfumato veil final ...")
     p.sfumato_veil_pass(
         ref,
         n_veils                      = 4,
@@ -539,10 +567,10 @@ def paint(output_path: str = "mona_lisa_s187.png") -> str:
         highlight_sharpness_sigma    = 1.0,
     )
 
-    print("  [37/37] Place lights, final glaze + finish ...")
+    print("  [38/38] Place lights, final glaze + finish ...")
     p.place_lights(ref, stroke_size=5, n_strokes=320)
-    # Warm amber glaze — unifying Corinth golden ground quality
-    p.glaze((0.68, 0.54, 0.32), opacity=0.034)
+    # Cool-warm glaze — de Predis's restrained enamelled palette
+    p.glaze((0.70, 0.65, 0.58), opacity=0.032)
     p.finish(vignette=0.28, crackle=True)
 
     result = p.canvas.to_pil()
