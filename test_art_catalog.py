@@ -188,6 +188,7 @@ EXPECTED_ARTISTS = [
     "sirani",
     "ceruti",
     "fra_galgario",
+    "lovis_corinth",
 ]
 
 

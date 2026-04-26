@@ -43076,3 +43076,92 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Local statistical harmony pass complete.")
+
+    def corinth_stroke_velocity_field_pass(
+        self,
+        detail_sigma_fine:   float = 1.2,
+        detail_sigma_coarse: float = 4.0,
+        sharpen_strength:    float = 0.28,
+        mag_gate_thresh:     float = 0.04,
+        luma_lo:             float = 0.10,
+        luma_hi:             float = 0.90,
+        opacity:             float = 0.28,
+    ) -> None:
+        """
+        Session 187 — 94th mode: Corinth gradient-magnitude-weighted band-pass
+        detail enhancement pass.
+
+        Lovis Corinth's impasto creates a characteristic optical effect: impasto
+        ridges catch oblique light, creating intense local contrast at tonal
+        transitions.  The paint surface carries kinetic energy — the stroke direction
+        and loading are visible in high-frequency detail concentrated precisely where
+        the light/shadow boundaries run.
+
+        This pass models that effect by:
+        1. Computing per-channel band-pass detail (fine Gaussian minus coarse Gaussian)
+           which isolates the medium-frequency edge structure at the impasto-ridge scale.
+        2. Weighting the detail injection by the LOCAL GRADIENT MAGNITUDE of luma —
+           so sharpening is strongest exactly at tonal transitions, mimicking impasto
+           ridges.  Flat areas are unaffected; edges are amplified.
+        3. A luma bell-gate [luma_lo, luma_hi] preserves deep shadow voids and blown
+           specular peaks without alteration.
+
+        This is the FIRST pass in this pipeline to combine BAND-PASS DETAIL EXTRACTION
+        with GRADIENT-MAGNITUDE GATING — all prior sharpening passes use isotropic
+        Gaussian kernels without gradient-magnitude weighting.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Luma bell gate — preserve shadows and specular peaks
+        luma       = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        l_centre   = 0.5 * (luma_lo + luma_hi)
+        l_half     = 0.5 * (luma_hi - luma_lo)
+        luma_gate  = _np.clip(1.0 - _np.abs(luma - l_centre) / (l_half + 1e-6),
+                               0.0, 1.0).astype(_np.float32)
+
+        # Gradient magnitude of luma — highest at tonal transitions (impasto ridge zones)
+        luma_fine   = _gf(luma, float(detail_sigma_fine)).astype(_np.float32)
+        gx          = _np.gradient(luma_fine, axis=1).astype(_np.float32)
+        gy          = _np.gradient(luma_fine, axis=0).astype(_np.float32)
+        grad_mag    = _np.sqrt(gx ** 2 + gy ** 2)
+        # Normalize gradient weight: saturates to 1 at strong edges
+        mag_weight  = grad_mag / (grad_mag + float(mag_gate_thresh) + 1e-6)
+        mag_weight  = mag_weight.astype(_np.float32)
+
+        # Band-pass detail per channel: fine scale minus coarse scale
+        ss = float(sharpen_strength)
+
+        def enhance(c):
+            fine   = _gf(c, float(detail_sigma_fine)).astype(_np.float32)
+            coarse = _gf(c, float(detail_sigma_coarse)).astype(_np.float32)
+            detail = fine - coarse          # mid-frequency edge detail
+            return c + ss * detail * mag_weight * luma_gate
+
+        r_enh = _np.clip(enhance(r0), 0.0, 1.0)
+        g_enh = _np.clip(enhance(g0), 0.0, 1.0)
+        b_enh = _np.clip(enhance(b0), 0.0, 1.0)
+
+        # Blend at opacity
+        op  = float(opacity)
+        fr  = r0 * (1.0 - op) + r_enh * op
+        fg  = g0 * (1.0 - op) + g_enh * op
+        fb  = b0 * (1.0 - op) + b_enh * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(fr * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(fg * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(fb * 255.0, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Corinth stroke velocity field pass complete.")
