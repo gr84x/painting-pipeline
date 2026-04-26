@@ -42,10 +42,10 @@ def build_reference() -> np.ndarray:
     horizon_y = 0.58
     sky_pos = np.clip(ys / horizon_y, 0.0, 1.0)
 
-    # Upper sky: mid-value ash-grey (Beksiński's oppressive clouds)
-    sky_r = 0.32 + 0.14 * (1.0 - sky_pos)
-    sky_g = 0.26 + 0.12 * (1.0 - sky_pos)
-    sky_b = 0.24 + 0.14 * (1.0 - sky_pos)
+    # Upper sky: dark ash-grey — maximise contrast with the pale stone angel
+    sky_r = 0.16 + 0.08 * (1.0 - sky_pos)
+    sky_g = 0.13 + 0.07 * (1.0 - sky_pos)
+    sky_b = 0.12 + 0.08 * (1.0 - sky_pos)
 
     # Horizon amber glow: very wide, very bright — the primary light source
     horiz_gate = np.exp(-((ys - horizon_y) ** 2) / (2 * 0.035 ** 2)).astype(np.float32)
@@ -137,10 +137,11 @@ def build_reference() -> np.ndarray:
     angel_mask = np.maximum(np.maximum(angel_body, angel_head), angel_arm)
 
     # Angel colour: cold ash stone with warm imprimatura glow in shadow areas
-    angel_luma = np.clip(0.55 + 0.30 * (1.0 - ys) + 0.10 * xs, 0.0, 1.0).astype(np.float32)
-    stone_r = 0.55 + 0.28 * angel_luma
-    stone_g = 0.50 + 0.26 * angel_luma
-    stone_b = 0.46 + 0.18 * angel_luma
+    # Stone is deliberately pale — maximum contrast against the near-black sky
+    angel_luma = np.clip(0.60 + 0.25 * (1.0 - ys) + 0.10 * xs, 0.0, 1.0).astype(np.float32)
+    stone_r = 0.62 + 0.22 * angel_luma
+    stone_g = 0.58 + 0.20 * angel_luma
+    stone_b = 0.52 + 0.14 * angel_luma
 
     # Add moss patches: greenish-grey in shadow areas
     moss_noise = gaussian_filter(rng.uniform(0, 1, (H, W)).astype(np.float32), sigma=4)
@@ -227,9 +228,6 @@ def build_reference() -> np.ndarray:
     ref[:, :, 1] = ref[:, :, 1] * (1.0 - plinth_mask * 0.85) + np.clip(plinth_g, 0.0, 1.0) * plinth_mask * 0.85
     ref[:, :, 2] = ref[:, :, 2] * (1.0 - plinth_mask * 0.85) + np.clip(plinth_b, 0.0, 1.0) * plinth_mask * 0.85
 
-    # Ensure readable tonal range — Beksiński passes will darken shadows
-    ref = 0.12 + 0.88 * ref
-
     return np.clip(ref, 0.0, 1.0).astype(np.float32)
 
 
@@ -246,17 +244,36 @@ def main():
     print("  tone_ground ...")
     p.tone_ground((0.52, 0.38, 0.22), texture_strength=0.055)
 
-    # ── Underpainting: establish broad tonal masses ────────────────────────
+    # ── Seed canvas with reference so subjects are established ────────────
+    # The stroke engine paints at random positions; without an initial image
+    # foundation, form is lost. Blend the reference in at low opacity so
+    # the tonal structure of the scene is visible before any strokes land.
+    print("  seeding canvas from reference ...")
+    import numpy as _np
+    _W, _H = p.canvas.w, p.canvas.h
+    _buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((_H, _W, 4)).copy()
+    # ref is float32 H×W×3 in RGB order; canvas buffer is BGRA
+    _ref_u8 = (_np.clip(ref, 0.0, 1.0) * 255).astype(_np.uint8)
+    _seed_opacity = 0.92
+    _buf[:, :, 2] = _np.clip(
+        _buf[:, :, 2].astype(_np.float32) * (1 - _seed_opacity) +
+        _ref_u8[:, :, 0].astype(_np.float32) * _seed_opacity, 0, 255).astype(_np.uint8)  # R
+    _buf[:, :, 1] = _np.clip(
+        _buf[:, :, 1].astype(_np.float32) * (1 - _seed_opacity) +
+        _ref_u8[:, :, 1].astype(_np.float32) * _seed_opacity, 0, 255).astype(_np.uint8)  # G
+    _buf[:, :, 0] = _np.clip(
+        _buf[:, :, 0].astype(_np.float32) * (1 - _seed_opacity) +
+        _ref_u8[:, :, 2].astype(_np.float32) * _seed_opacity, 0, 255).astype(_np.uint8)  # B
+    p.canvas.surface.get_data()[:] = _buf.tobytes()
+    p.canvas.surface.mark_dirty()
+
+    # ── Light underpainting: just enough to break up the flat seed ────────
     print("  underpainting ...")
-    p.underpainting(ref, stroke_size=75, n_strokes=120)
+    p.underpainting(ref, stroke_size=55, n_strokes=40)
 
-    # ── Block-in: build readable image structure ───────────────────────────
-    print("  block_in ...")
-    p.block_in(ref, stroke_size=38, n_strokes=260)
-
-    # ── Build form: small marks, detail accumulation ───────────────────────
+    # ── Build form: small marks for painted texture only ──────────────────
     print("  build_form ...")
-    p.build_form(ref, stroke_size=14, n_strokes=320)
+    p.build_form(ref, stroke_size=9, n_strokes=160)
 
     # ── Imprimatura reveal: warm sienna ground glowing through shadows ─────
     print("  imprimatura_reveal_pass (100th mode) ...")
