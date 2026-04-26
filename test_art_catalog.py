@@ -26404,3 +26404,695 @@ def test_local_statistical_harmony_pass_pixels_in_range():
     buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
     assert buf[:, :, :3].min() >= 0
     assert buf[:, :, :3].max() <= 255
+
+
+# ==============================================================================
+# Session 188 — CanvasSpec, build_subject_mask, build_direction_field,
+#               mark_makers, material_passes, reference_builder, pipeline,
+#               and new stroke_engine passes
+# ==============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CanvasSpec
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_canvas_spec_importable():
+    """CanvasSpec must be importable from scene_schema."""
+    from scene_schema import CanvasSpec
+
+
+def test_canvas_spec_defaults():
+    """CanvasSpec must have sensible defaults."""
+    from scene_schema import CanvasSpec
+    cs = CanvasSpec()
+    assert cs.width == 780
+    assert cs.height == 1080
+    assert 0.0 < cs.subject_frac <= 1.0
+    assert cs.dpi > 0
+
+
+def test_canvas_spec_subject_px_proportional():
+    """subject_px must scale with subject_frac and canvas short axis."""
+    from scene_schema import CanvasSpec
+    cs = CanvasSpec(width=600, height=800, subject_frac=0.5)
+    assert abs(cs.subject_px - 300.0) < 1e-9
+
+
+def test_canvas_spec_stroke_base_positive():
+    """stroke_base must always be >= 1.0."""
+    from scene_schema import CanvasSpec
+    for frac in (0.05, 0.5, 1.0):
+        cs = CanvasSpec(width=100, height=100, subject_frac=frac)
+        assert cs.stroke_base >= 1.0
+
+
+def test_canvas_spec_stroke_for_scale():
+    """stroke_for_scale must return stroke_base * scale, min 1.0."""
+    from scene_schema import CanvasSpec
+    cs = CanvasSpec(width=780, height=1080, subject_frac=0.65)
+    assert cs.stroke_for_scale(1.0) == cs.stroke_base
+    assert cs.stroke_for_scale(0.0) >= 1.0
+
+
+def test_canvas_spec_large_frac_gives_larger_strokes():
+    """Larger subject_frac must yield a larger stroke_base."""
+    from scene_schema import CanvasSpec
+    small = CanvasSpec(width=780, height=1080, subject_frac=0.10)
+    large = CanvasSpec(width=780, height=1080, subject_frac=0.90)
+    assert large.stroke_base > small.stroke_base
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# build_subject_mask
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_build_subject_mask_importable():
+    """build_subject_mask must be importable from art_utils."""
+    from art_utils import build_subject_mask
+
+
+def test_build_subject_mask_returns_float32():
+    """build_subject_mask must return H x W float32 array."""
+    import numpy as np
+    from art_utils import build_subject_mask
+    ref = np.full((32, 32, 3), 0.5, dtype=np.float32)
+    mask = build_subject_mask(ref)
+    assert mask.dtype == np.float32
+    assert mask.shape == (32, 32)
+
+
+def test_build_subject_mask_range():
+    """build_subject_mask values must be in [0, 1]."""
+    import numpy as np
+    from art_utils import build_subject_mask
+    ref = np.random.default_rng(0).random((48, 48, 3)).astype(np.float32)
+    for method in ("convex_region", "luminance_threshold", "gradient_watershed"):
+        mask = build_subject_mask(ref, method=method)
+        assert mask.min() >= 0.0
+        assert mask.max() <= 1.0
+
+
+def test_build_subject_mask_bright_reference():
+    """Bright reference should produce a mostly-positive mask."""
+    import numpy as np
+    from art_utils import build_subject_mask
+    ref = np.full((32, 32, 3), 0.8, dtype=np.float32)
+    mask = build_subject_mask(ref, method="luminance_threshold", threshold=0.5)
+    assert mask.mean() > 0.5
+
+
+def test_build_subject_mask_dark_reference():
+    """Dark reference should produce a mostly-zero mask."""
+    import numpy as np
+    from art_utils import build_subject_mask
+    ref = np.full((32, 32, 3), 0.1, dtype=np.float32)
+    mask = build_subject_mask(ref, method="luminance_threshold", threshold=0.5)
+    assert mask.mean() < 0.5
+
+
+def test_build_subject_mask_invalid_method():
+    """build_subject_mask must raise ValueError for unknown method."""
+    import numpy as np, pytest
+    from art_utils import build_subject_mask
+    ref = np.zeros((16, 16, 3), dtype=np.float32)
+    with pytest.raises(ValueError):
+        build_subject_mask(ref, method="nonexistent_method")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# build_direction_field
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_build_direction_field_importable():
+    """build_direction_field must be importable from art_utils."""
+    from art_utils import build_direction_field
+
+
+def test_build_direction_field_shape():
+    """build_direction_field must return H x W x 2 float32."""
+    import numpy as np
+    from art_utils import build_direction_field
+    ref = np.random.default_rng(0).random((32, 48, 3)).astype(np.float32)
+    field = build_direction_field(ref)
+    assert field.shape == (32, 48, 2)
+    assert field.dtype == np.float32
+
+
+def test_build_direction_field_unit_vectors():
+    """Direction field median vector magnitude must be near 1.0 (no NaN)."""
+    import numpy as np
+    from art_utils import build_direction_field
+    ref = np.random.default_rng(1).random((32, 32, 3)).astype(np.float32)
+    field = build_direction_field(ref)
+    mags = np.sqrt(field[:, :, 0] ** 2 + field[:, :, 1] ** 2)
+    assert not np.isnan(field).any()
+    assert float(np.median(mags)) > 0.95
+
+
+def test_build_direction_field_range():
+    """Direction field component values must be in [-1, 1]."""
+    import numpy as np
+    from art_utils import build_direction_field
+    ref = np.random.default_rng(2).random((24, 24, 3)).astype(np.float32)
+    field = build_direction_field(ref)
+    assert field.min() >= -1.0 - 1e-6
+    assert field.max() <=  1.0 + 1e-6
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# mark_makers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_get_mark_maker_importable():
+    """get_mark_maker must be importable from mark_makers."""
+    from mark_makers import get_mark_maker
+
+
+def test_get_mark_maker_all_names():
+    """get_mark_maker must resolve all seven registered names."""
+    from mark_makers import get_mark_maker
+    for name in ("stroke", "dab", "dry_brush", "palette_knife", "scumble", "hatch", "fan"):
+        mm = get_mark_maker(name)
+        assert mm is not None
+
+
+def test_get_mark_maker_invalid_raises():
+    """get_mark_maker must raise ValueError for unknown name."""
+    import pytest
+    from mark_makers import get_mark_maker
+    with pytest.raises(ValueError):
+        get_mark_maker("nonexistent_brush")
+
+
+def test_mark_params_defaults():
+    """MarkParams must have sensible defaults."""
+    from mark_makers import MarkParams
+    mp = MarkParams()
+    assert mp.width > 0
+    assert 0.0 < mp.opacity <= 1.0
+    assert mp.jitter >= 0.0
+
+
+def test_stroke_maker_returns_array():
+    """StrokeMaker.mark must return array of same H x W x 4 shape."""
+    import numpy as np
+    from mark_makers import StrokeMaker, MarkParams
+    sm = StrokeMaker(MarkParams(width=6.0, opacity=0.8))
+    canvas = np.zeros((64, 64, 4), dtype=np.uint8)
+    canvas[:, :, 3] = 255
+    result = sm.mark(canvas, (0.7, 0.4, 0.2), (32, 32), direction=0.5)
+    assert result.shape == canvas.shape
+    assert result.dtype == np.uint8
+
+
+def test_dab_maker_modifies_canvas():
+    """DabMaker.mark must deposit paint (change at least one pixel)."""
+    import numpy as np
+    from mark_makers import DabMaker, MarkParams
+    dm = DabMaker(MarkParams(width=10.0, opacity=1.0))
+    canvas = np.zeros((64, 64, 4), dtype=np.uint8)
+    result = dm.mark(canvas, (1.0, 0.0, 0.0), (32, 32))
+    assert not np.array_equal(canvas, result)
+
+
+def test_fan_maker_mark_shape():
+    """FanMaker.mark must return same H x W x 4 shape."""
+    import numpy as np
+    from mark_makers import FanMaker, MarkParams
+    fm = FanMaker(MarkParams(width=8.0, opacity=0.6), bristle_count=10)
+    canvas = np.zeros((48, 48, 4), dtype=np.uint8)
+    result = fm.mark(canvas, (0.2, 0.6, 0.9), (24, 24), direction=1.2)
+    assert result.shape == (48, 48, 4)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# material_passes — helper + tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _make_cairo_surface_s188(H=32, W=32, value=128):
+    """Return a filled pycairo ImageSurface for material pass tests."""
+    import numpy as np
+    import cairo
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, W, H)
+    buf = np.frombuffer(surface.get_data(), dtype=np.uint8).reshape((H, W, 4))
+    buf[:, :, :3] = value
+    buf[:, :, 3]  = 255
+    surface.mark_dirty()
+    return surface
+
+
+def test_get_material_pass_importable():
+    """get_material_pass must be importable from material_passes."""
+    from material_passes import get_material_pass
+
+
+def test_get_material_pass_all_names():
+    """get_material_pass must resolve all five registered names."""
+    from material_passes import get_material_pass
+    for name in ("skin", "feather", "fur", "scales", "fabric"):
+        assert get_material_pass(name) is not None
+
+
+def test_get_material_pass_invalid_raises():
+    """get_material_pass must raise ValueError for unknown name."""
+    import pytest
+    from material_passes import get_material_pass
+    with pytest.raises(ValueError):
+        get_material_pass("mud")
+
+
+def test_material_params_defaults():
+    """MaterialParams must have sensible defaults."""
+    from material_passes import MaterialParams
+    p = MaterialParams()
+    assert 0.0 < p.opacity <= 1.0
+    assert p.subject_mask is None
+    assert p.direction_field is None
+
+
+def test_skin_pass_runs():
+    """SkinPass.apply must complete without error."""
+    from material_passes import SkinPass, MaterialParams
+    SkinPass(MaterialParams(opacity=0.35)).apply(_make_cairo_surface_s188())
+
+
+def test_skin_pass_output_in_range():
+    """SkinPass output pixels must stay in [0, 255]."""
+    import numpy as np
+    from material_passes import SkinPass, MaterialParams
+    surface = _make_cairo_surface_s188(value=180)
+    SkinPass(MaterialParams(opacity=0.8)).apply(surface)
+    buf = np.frombuffer(surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0
+    assert buf[:, :, :3].max() <= 255
+
+
+def test_feather_pass_runs():
+    """FeatherPass.apply must complete without error."""
+    from material_passes import FeatherPass, MaterialParams
+    FeatherPass(MaterialParams(opacity=0.35)).apply(_make_cairo_surface_s188())
+
+
+def test_fur_pass_runs():
+    """FurPass.apply must complete without error."""
+    from material_passes import FurPass, MaterialParams
+    FurPass(MaterialParams(opacity=0.35)).apply(_make_cairo_surface_s188())
+
+
+def test_scales_pass_runs():
+    """ScalesPass.apply must complete without error."""
+    from material_passes import ScalesPass, MaterialParams
+    ScalesPass(MaterialParams(opacity=0.35)).apply(_make_cairo_surface_s188())
+
+
+def test_fabric_pass_runs():
+    """FabricPass.apply must complete without error."""
+    from material_passes import FabricPass, MaterialParams
+    FabricPass(MaterialParams(opacity=0.35)).apply(_make_cairo_surface_s188())
+
+
+def test_material_pass_noop_at_zero_opacity():
+    """Any material pass at opacity=0 must not change the canvas."""
+    import numpy as np
+    from material_passes import SkinPass, MaterialParams
+    surface = _make_cairo_surface_s188(value=128)
+    before = np.frombuffer(surface.get_data(), dtype=np.uint8).copy()
+    SkinPass(MaterialParams(opacity=0.0)).apply(surface)
+    after = np.frombuffer(surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_material_pass_zero_mask_no_change():
+    """Material pass with all-zero subject mask must not change the canvas."""
+    import numpy as np
+    from material_passes import SkinPass, MaterialParams
+    mask = np.zeros((32, 32), dtype=np.float32)
+    surface = _make_cairo_surface_s188(value=128)
+    before = np.frombuffer(surface.get_data(), dtype=np.uint8).copy()
+    SkinPass(MaterialParams(opacity=1.0, subject_mask=mask)).apply(surface)
+    after = np.frombuffer(surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# reference_builder
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_reference_builder_importable():
+    """ReferenceBuilder must be importable from reference_builder."""
+    from reference_builder import ReferenceBuilder
+
+
+def test_reference_spec_defaults():
+    """ReferenceSpec must have sensible defaults."""
+    from reference_builder import ReferenceSpec
+    rs = ReferenceSpec()
+    assert rs.H > 0 and rs.W > 0
+    assert 0.0 < rs.subject_frac <= 1.0
+
+
+def test_build_portrait_shape():
+    """build_portrait must return H x W x 3 float32 in [0,1]."""
+    import numpy as np
+    from reference_builder import ReferenceBuilder, ReferenceSpec
+    rb = ReferenceBuilder(ReferenceSpec(H=48, W=32, subject_frac=0.6))
+    ref = rb.build_portrait()
+    assert ref.shape == (48, 32, 3)
+    assert ref.dtype == np.float32
+    assert ref.min() >= 0.0
+    assert ref.max() <= 1.0
+
+
+def test_build_portrait_not_blank():
+    """build_portrait must produce non-trivial (non-zero) output."""
+    import numpy as np
+    from reference_builder import ReferenceBuilder, ReferenceSpec
+    ref = ReferenceBuilder(ReferenceSpec(H=48, W=32)).build_portrait()
+    assert ref.max() > 0.01
+
+
+def test_build_creature_shape():
+    """build_creature must return H x W x 3 float32 in [0,1]."""
+    import numpy as np
+    from reference_builder import ReferenceBuilder, ReferenceSpec
+    rb = ReferenceBuilder(ReferenceSpec(H=48, W=36, subject_frac=0.55))
+    ref = rb.build_creature()
+    assert ref.shape == (48, 36, 3)
+    assert ref.min() >= 0.0
+    assert ref.max() <= 1.0
+
+
+def test_reference_builder_subject_mask():
+    """ReferenceBuilder.build_subject_mask must return H x W float32 in [0,1]."""
+    import numpy as np
+    from reference_builder import ReferenceBuilder, ReferenceSpec
+    rb = ReferenceBuilder(ReferenceSpec(H=32, W=32))
+    mask = rb.build_subject_mask(rb.build_portrait())
+    assert mask.shape == (32, 32)
+    assert mask.dtype == np.float32
+    assert mask.min() >= 0.0 and mask.max() <= 1.0
+
+
+def test_reference_builder_direction_field():
+    """ReferenceBuilder.build_direction_field must return H x W x 2 float32.
+    Pixels with near-zero gradient (uniform regions) may have sub-unit magnitude;
+    the median magnitude must be close to 1.0 and no NaN values may appear.
+    """
+    import numpy as np
+    from reference_builder import ReferenceBuilder, ReferenceSpec
+    rb = ReferenceBuilder(ReferenceSpec(H=32, W=32))
+    df = rb.build_direction_field(rb.build_portrait())
+    assert df.shape == (32, 32, 2)
+    assert df.dtype == np.float32
+    assert not np.isnan(df).any(), "Direction field must not contain NaN"
+    mags = np.sqrt(df[:, :, 0] ** 2 + df[:, :, 1] ** 2)
+    assert float(np.median(mags)) > 0.95, "Median direction vector magnitude should be near 1.0"
+
+
+def test_hard_edge_has_stronger_gradient_than_soft():
+    """Hard-edge reference must have higher max gradient than soft-edge."""
+    import numpy as np
+    from reference_builder import ReferenceBuilder, ReferenceSpec
+
+    def max_grad(ref):
+        luma = 0.2126 * ref[:, :, 0] + 0.7152 * ref[:, :, 1] + 0.0722 * ref[:, :, 2]
+        gy, gx = np.gradient(luma)
+        return float(np.sqrt(gx ** 2 + gy ** 2).max())
+
+    hard = ReferenceBuilder(ReferenceSpec(H=64, W=48, soft_edges=0.0)).build_portrait()
+    soft = ReferenceBuilder(ReferenceSpec(H=64, W=48, soft_edges=4.0)).build_portrait()
+    assert max_grad(hard) > max_grad(soft)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# pipeline
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_pipeline_spec_importable():
+    """PipelineSpec must be importable from pipeline."""
+    from pipeline import PipelineSpec
+
+
+def test_pipeline_spec_defaults():
+    """PipelineSpec must have sensible defaults."""
+    from pipeline import PipelineSpec
+    ps = PipelineSpec()
+    assert ps.canvas_width > 0
+    assert ps.canvas_height > 0
+    assert 0.0 < ps.subject_frac <= 1.0
+    assert 0.0 <= ps.sfumato_level <= 1.0
+
+
+def test_pipeline_spec_stroke_base_positive():
+    """PipelineSpec.stroke_base must be >= 1.0."""
+    from pipeline import PipelineSpec
+    for frac in (0.05, 0.5, 1.0):
+        assert PipelineSpec(canvas_width=200, canvas_height=300, subject_frac=frac).stroke_base >= 1.0
+
+
+def test_default_passes_returns_list():
+    """default_passes must return a non-empty list of PassConfig."""
+    from pipeline import default_passes, PipelineSpec, PassConfig
+    passes = default_passes(PipelineSpec())
+    assert isinstance(passes, list) and len(passes) > 0
+    assert all(isinstance(p, PassConfig) for p in passes)
+
+
+def test_default_passes_includes_detail_passes():
+    """default_passes must include meso_detail_pass and edge_definition_pass."""
+    from pipeline import default_passes, PipelineSpec
+    names = [p.name for p in default_passes(PipelineSpec())]
+    assert "meso_detail_pass" in names
+    assert "edge_definition_pass" in names
+
+
+def test_default_passes_no_sfumato_when_zero():
+    """sfumato_pass must not appear when sfumato_level=0."""
+    from pipeline import default_passes, PipelineSpec
+    names = [p.name for p in default_passes(PipelineSpec(sfumato_level=0.0))]
+    assert "sfumato_pass" not in names
+
+
+def test_default_passes_sfumato_when_nonzero():
+    """sfumato_pass must appear when sfumato_level > 0."""
+    from pipeline import default_passes, PipelineSpec
+    names = [p.name for p in default_passes(PipelineSpec(sfumato_level=0.5))]
+    assert "sfumato_pass" in names
+
+
+def test_adaptive_stroke_sizes_scale_with_subject_frac():
+    """Larger subject_frac must produce larger initial stroke sizes."""
+    from pipeline import default_passes, PipelineSpec
+
+    def first_stroke(passes):
+        for p in passes:
+            if "stroke_size" in p.kwargs:
+                return p.kwargs["stroke_size"]
+        return 0
+
+    small = default_passes(PipelineSpec(subject_frac=0.10))
+    large = default_passes(PipelineSpec(subject_frac=0.90))
+    assert first_stroke(large) > first_stroke(small)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# stroke_engine — meso_detail_pass, canvas_grain_pass, edge_definition_pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_meso_detail_pass_exists():
+    """Session 188: meso_detail_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter(32, 32), "meso_detail_pass")
+
+
+def test_meso_detail_pass_signature():
+    """Session 188: meso_detail_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.meso_detail_pass)
+    for param in ("detail_sigma_fine", "detail_sigma_coarse", "strength",
+                  "luma_lo", "luma_hi", "opacity"):
+        assert param in sig.parameters
+
+
+def test_meso_detail_pass_runs():
+    """Session 188: meso_detail_pass must complete without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.meso_detail_pass()
+
+
+def test_meso_detail_pass_noop_at_zero_opacity():
+    """Session 188: meso_detail_pass at opacity=0 must not change canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.meso_detail_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_meso_detail_pass_modifies_non_uniform_canvas():
+    """Session 188: meso_detail_pass must change a non-uniform canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4).copy()
+    buf[:16, :, :3] = 200
+    buf[16:, :, :3] = 50
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.meso_detail_pass(strength=1.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_meso_detail_pass_pixels_in_range():
+    """Session 188: meso_detail_pass output pixels must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.meso_detail_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0 and buf[:, :, :3].max() <= 255
+
+
+def test_canvas_grain_pass_exists():
+    """Session 188: canvas_grain_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter(32, 32), "canvas_grain_pass")
+
+
+def test_canvas_grain_pass_signature():
+    """Session 188: canvas_grain_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.canvas_grain_pass)
+    for param in ("noise_scale", "noise_strength", "sharpness",
+                  "luma_lo", "luma_hi", "opacity"):
+        assert param in sig.parameters
+
+
+def test_canvas_grain_pass_runs():
+    """Session 188: canvas_grain_pass must complete without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.canvas_grain_pass()
+
+
+def test_canvas_grain_pass_noop_at_zero_opacity():
+    """Session 188: canvas_grain_pass at opacity=0 must not change canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.canvas_grain_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_canvas_grain_pass_modifies_canvas():
+    """Session 188: canvas_grain_pass at high noise must modify canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.canvas_grain_pass(noise_strength=0.1, sharpness=0.5, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_canvas_grain_pass_pixels_in_range():
+    """Session 188: canvas_grain_pass output pixels must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.canvas_grain_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0 and buf[:, :, :3].max() <= 255
+
+
+def test_edge_definition_pass_exists():
+    """Session 188: edge_definition_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter(32, 32), "edge_definition_pass")
+
+
+def test_edge_definition_pass_signature():
+    """Session 188: edge_definition_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.edge_definition_pass)
+    for param in ("edge_sigma", "strength", "soft_threshold",
+                  "luma_lo", "luma_hi", "opacity"):
+        assert param in sig.parameters
+
+
+def test_edge_definition_pass_runs():
+    """Session 188: edge_definition_pass must complete without error."""
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.edge_definition_pass()
+
+
+def test_edge_definition_pass_noop_at_zero_opacity():
+    """Session 188: edge_definition_pass at opacity=0 must not change canvas."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.edge_definition_pass(opacity=0.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_edge_definition_pass_sharpens_step_edge():
+    """Session 188: edge_definition_pass must sharpen a genuine step edge."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(64, 64)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(64, 64, 4).copy()
+    buf[:32, :, :3] = 200
+    buf[32:, :, :3] = 50
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.edge_definition_pass(strength=1.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert not np.array_equal(before, after)
+
+
+def test_edge_definition_pass_flat_canvas_unchanged():
+    """Session 188: edge_definition_pass on a flat canvas must be a no-op."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.50, 0.50, 0.50), texture_strength=0.0)
+    before = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    p.edge_definition_pass(strength=2.0, opacity=1.0)
+    after = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).copy()
+    assert np.array_equal(before, after)
+
+
+def test_edge_definition_pass_pixels_in_range():
+    """Session 188: edge_definition_pass output pixels must be in [0, 255]."""
+    import numpy as np
+    from stroke_engine import Painter
+    p = Painter(32, 32)
+    p.tone_ground((0.60, 0.50, 0.30), texture_strength=0.0)
+    p.edge_definition_pass(opacity=1.0)
+    buf = np.frombuffer(p.canvas.surface.get_data(), dtype=np.uint8).reshape(32, 32, 4)
+    assert buf[:, :, :3].min() >= 0 and buf[:, :, :3].max() <= 255

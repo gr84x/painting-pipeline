@@ -647,6 +647,106 @@ def open_in_paint(path: str):
     subprocess.Popen(["mspaint", path])
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Subject mask + direction field builders
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_subject_mask(
+    reference: "np.ndarray",
+    method: str = "luminance_threshold",
+    threshold: float = 0.35,
+    sigma: float = 2.0,
+    center: Optional[Tuple[float, float]] = None,
+    radius_frac: float = 0.45,
+) -> "np.ndarray":
+    """
+    Build a binary subject mask (H×W float32 in [0,1]) from a synthetic reference.
+
+    Parameters
+    ----------
+    reference    : H×W×3 float32 numpy array in [0, 1]
+    method       : 'convex_region'       — soft ellipse centred on center/radius_frac
+                   'luminance_threshold' — pixels whose smoothed luma > threshold
+                   'gradient_watershed'  — largest connected bright region
+    threshold    : luma cutoff for threshold and watershed methods
+    sigma        : Gaussian pre-blur sigma (also softens final mask edges)
+    center       : (row_frac, col_frac) fractional centre for convex_region
+    radius_frac  : fraction of min(H,W) for convex_region radius
+
+    Returns H×W float32 in [0,1].
+    """
+    import numpy as np
+    from scipy.ndimage import gaussian_filter, label
+
+    ref = np.asarray(reference, dtype=np.float32)
+    H, W = ref.shape[:2]
+
+    if method == "convex_region":
+        cy, cx = center or (0.5, 0.5)
+        r = min(H, W) * radius_frac
+        ys, xs = np.mgrid[0:H, 0:W].astype(np.float32)
+        dist = np.sqrt(((ys - cy * H) / (r + 1e-6)) ** 2 +
+                       ((xs - cx * W) / (r + 1e-6)) ** 2)
+        mask = np.clip(1.0 - dist, 0.0, 1.0).astype(np.float32)
+
+    elif method == "luminance_threshold":
+        luma   = 0.2126 * ref[:, :, 0] + 0.7152 * ref[:, :, 1] + 0.0722 * ref[:, :, 2]
+        luma_s = gaussian_filter(luma, sigma=sigma)
+        mask   = (luma_s > threshold).astype(np.float32)
+
+    elif method == "gradient_watershed":
+        luma    = 0.2126 * ref[:, :, 0] + 0.7152 * ref[:, :, 1] + 0.0722 * ref[:, :, 2]
+        luma_s  = gaussian_filter(luma, sigma=sigma)
+        labeled, n = label(luma_s > threshold)
+        if n == 0:
+            mask = np.zeros((H, W), dtype=np.float32)
+        else:
+            sizes    = [(labeled == i).sum() for i in range(1, n + 1)]
+            dominant = int(np.argmax(sizes)) + 1
+            mask     = (labeled == dominant).astype(np.float32)
+
+    else:
+        raise ValueError(
+            f"Unknown subject mask method {method!r}. "
+            "Available: 'convex_region', 'luminance_threshold', 'gradient_watershed'"
+        )
+
+    if sigma > 0.0:
+        mask = gaussian_filter(mask, sigma=sigma * 0.5)
+
+    return np.clip(mask, 0.0, 1.0).astype(np.float32)
+
+
+def build_direction_field(
+    reference: "np.ndarray",
+    sigma: float = 3.0,
+) -> "np.ndarray":
+    """
+    Build a direction field (H×W×2 float32) from a synthetic reference array.
+
+    Each pixel holds a unit vector [dy, dx] tangent to the local luminance
+    gradient — the direction a brush would follow to paint *along* the form
+    rather than across it.
+
+    Returns H×W×2 float32 with component values in [-1, 1].
+    """
+    import numpy as np
+    from scipy.ndimage import gaussian_filter
+
+    ref    = np.asarray(reference, dtype=np.float32)
+    luma   = 0.2126 * ref[:, :, 0] + 0.7152 * ref[:, :, 1] + 0.0722 * ref[:, :, 2]
+    luma_s = gaussian_filter(luma, sigma=sigma)
+
+    gy, gx = np.gradient(luma_s)
+    # Tangent direction = rotate gradient 90° (perpendicular to isophotes)
+    ty, tx = -gx, gy
+    mag    = np.sqrt(ty ** 2 + tx ** 2) + 1e-8
+    ty    /= mag
+    tx    /= mag
+
+    return np.stack([ty, tx], axis=-1).astype(np.float32)
+
+
 def show(canvas: ArtCanvas, viewer: str = "inkscape"):
     """
     Save the canvas to a temp PNG and open it.

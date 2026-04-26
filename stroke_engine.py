@@ -43165,3 +43165,185 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Corinth stroke velocity field pass complete.")
+
+    def meso_detail_pass(
+        self,
+        detail_sigma_fine:   float = 0.8,
+        detail_sigma_coarse: float = 3.5,
+        strength:            float = 0.35,
+        luma_lo:             float = 0.08,
+        luma_hi:             float = 0.92,
+        opacity:             float = 0.35,
+    ) -> None:
+        """
+        Session 188 — meso-scale detail pass (96th mode).
+
+        Targets the 0.5–3 px frequency band: larger than pores, smaller than
+        form-defining strokes — the texture register that reads as 'painted
+        material' at arm's length.  Meso-detail is what distinguishes a softly-lit
+        oil surface from a photograph: the slight variance in paint loading at
+        medium scale.
+
+        Band-pass extraction (fine Gaussian minus coarse Gaussian) isolated in
+        the mid-tone luma register via bell gate [luma_lo, luma_hi].
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma      = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        l_centre  = 0.5 * (luma_lo + luma_hi)
+        l_half    = 0.5 * (luma_hi - luma_lo) + 1e-6
+        luma_gate = _np.clip(1.0 - _np.abs(luma - l_centre) / l_half, 0.0, 1.0)
+
+        def enhance(c):
+            fine   = _gf(c, float(detail_sigma_fine)).astype(_np.float32)
+            coarse = _gf(c, float(detail_sigma_coarse)).astype(_np.float32)
+            return c + float(strength) * (fine - coarse) * luma_gate
+
+        r_e = _np.clip(enhance(r0), 0.0, 1.0)
+        g_e = _np.clip(enhance(g0), 0.0, 1.0)
+        b_e = _np.clip(enhance(b0), 0.0, 1.0)
+        op  = float(opacity)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Meso-detail pass complete.")
+
+    def canvas_grain_pass(
+        self,
+        noise_scale:    float = 1.2,
+        noise_strength: float = 0.025,
+        sharpness:      float = 0.18,
+        luma_lo:        float = 0.10,
+        luma_hi:        float = 0.88,
+        opacity:        float = 0.28,
+    ) -> None:
+        """
+        Session 188 — canvas grain pass (97th mode).
+
+        Injects sub-pixel surface texture: the grain of the paint film, canvas
+        tooth, and pore-scale variation that makes painted surfaces tactile.
+        Targets the 0–1 px frequency band.
+
+        Combines:
+        1. Noise texture: Gaussian-filtered random field at noise_scale sigma.
+        2. Micro-sharpening: unsharp mask at very fine scale (sigma=0.5).
+        Both modulated by luma bell gate to preserve shadow / highlight purity.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma      = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        l_centre  = 0.5 * (luma_lo + luma_hi)
+        l_half    = 0.5 * (luma_hi - luma_lo) + 1e-6
+        luma_gate = _np.clip(1.0 - _np.abs(luma - l_centre) / l_half, 0.0, 1.0)
+
+        rng   = _np.random.default_rng(42)
+        noise = rng.standard_normal((H, W)).astype(_np.float32)
+        noise = _gf(noise, sigma=float(noise_scale))
+        noise = noise / (noise.std() + 1e-8) * float(noise_strength) * luma_gate
+
+        def sharpen(c):
+            blurred = _gf(c, sigma=0.5).astype(_np.float32)
+            return c + float(sharpness) * (c - blurred) * luma_gate
+
+        r_e = _np.clip(sharpen(r0) + noise * 0.6, 0.0, 1.0)
+        g_e = _np.clip(sharpen(g0) + noise * 0.4, 0.0, 1.0)
+        b_e = _np.clip(sharpen(b0) + noise * 0.2, 0.0, 1.0)
+        op  = float(opacity)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Canvas grain pass complete.")
+
+    def edge_definition_pass(
+        self,
+        edge_sigma:     float = 0.8,
+        strength:       float = 0.40,
+        soft_threshold: float = 0.05,
+        luma_lo:        float = 0.05,
+        luma_hi:        float = 0.95,
+        opacity:        float = 0.30,
+    ) -> None:
+        """
+        Session 188 — edge definition pass (98th mode).
+
+        Clarifies boundaries between forms — head vs background, eye vs skin,
+        feather edge vs sky — using a gradient-magnitude-gated unsharp mask.
+
+        The soft_threshold parameter implements lost-and-found edge control:
+        only fires where luma gradient magnitude exceeds soft_threshold, so
+        flat regions (no gradient) are never sharpened. This prevents halos
+        in smooth passages while crisping genuine contour lines.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma      = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        l_centre  = 0.5 * (luma_lo + luma_hi)
+        l_half    = 0.5 * (luma_hi - luma_lo) + 1e-6
+        luma_gate = _np.clip(1.0 - _np.abs(luma - l_centre) / l_half, 0.0, 1.0)
+
+        gx = _np.gradient(luma, axis=1).astype(_np.float32)
+        gy = _np.gradient(luma, axis=0).astype(_np.float32)
+        grad_mag  = _np.sqrt(gx ** 2 + gy ** 2)
+        edge_gate = _np.clip(
+            (grad_mag - float(soft_threshold)) / (float(soft_threshold) + 1e-6),
+            0.0, 1.0,
+        )
+        combined_gate = luma_gate * edge_gate
+
+        def sharpen(c):
+            blurred = _gf(c, sigma=float(edge_sigma)).astype(_np.float32)
+            return c + float(strength) * (c - blurred) * combined_gate
+
+        r_e = _np.clip(sharpen(r0), 0.0, 1.0)
+        g_e = _np.clip(sharpen(g0), 0.0, 1.0)
+        b_e = _np.clip(sharpen(b0), 0.0, 1.0)
+        op  = float(opacity)
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b_e * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Edge definition pass complete.")
