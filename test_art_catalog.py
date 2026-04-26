@@ -194,6 +194,7 @@ EXPECTED_ARTISTS = [
     "zdzislaw_beksinski",
     "paul_klee",
     "cy_twombly",
+    "agnes_martin",
 ]
 
 
@@ -27451,3 +27452,83 @@ def test_cy_twombly_in_expected_artists():
     """Session 191: cy_twombly must appear in EXPECTED_ARTISTS."""
     assert "cy_twombly" in EXPECTED_ARTISTS
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 192 — Agnes Martin (agnes_martin)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_agnes_martin_in_catalog():
+    """Session 192: agnes_martin must be present in CATALOG."""
+    assert "agnes_martin" in CATALOG
+
+
+def test_agnes_martin_movement():
+    """Session 192: agnes_martin movement must reference Minimalism."""
+    style = get_style("agnes_martin")
+    assert "Minimali" in style.movement or "minimali" in style.movement.lower()
+
+
+def test_agnes_martin_palette_length():
+    """Session 192: agnes_martin palette must have at least 5 entries."""
+    style = get_style("agnes_martin")
+    assert len(style.palette) >= 5
+
+
+def test_agnes_martin_palette_very_pale():
+    """Session 192: agnes_martin palette must be muted (all channels >= 0.55)."""
+    style = get_style("agnes_martin")
+    for rgb in style.palette:
+        assert all(ch >= 0.55 for ch in rgb), (
+            f"agnes_martin palette colour {rgb} is too saturated/dark for Martin")
+
+
+def test_agnes_martin_stroke_size_fine():
+    """Session 192: agnes_martin stroke_size must be very small (pencil line work)."""
+    style = get_style("agnes_martin")
+    assert style.stroke_size <= 3, (
+        f"agnes_martin stroke_size should be <= 3 (fine pencil); got {style.stroke_size}")
+
+
+def test_agnes_martin_wet_blend_low():
+    """Session 192: agnes_martin wet_blend must be very low (dry pencil lines)."""
+    style = get_style("agnes_martin")
+    assert style.wet_blend < 0.20, (
+        f"agnes_martin wet_blend should be very low; got {style.wet_blend}")
+
+
+def test_agnes_martin_no_crackle():
+    """Session 192: agnes_martin crackle must be False — no aged crackle finish."""
+    style = get_style("agnes_martin")
+    assert style.crackle is False
+
+
+def test_agnes_martin_no_chromatic_split():
+    """Session 192: agnes_martin chromatic_split must be False — no divisionism."""
+    style = get_style("agnes_martin")
+    assert style.chromatic_split is False
+
+
+def test_agnes_martin_famous_works():
+    """Session 192: agnes_martin must list at least 5 famous works."""
+    style = get_style("agnes_martin")
+    assert len(style.famous_works) >= 5
+
+
+def test_agnes_martin_inspiration_references_pass():
+    """Session 192: agnes_martin inspiration must reference agnes_martin_meditation_lines_pass."""
+    style = get_style("agnes_martin")
+    assert "agnes_martin_meditation_lines_pass" in style.inspiration
+
+
+def test_agnes_martin_in_expected_artists():
+    """Session 192: agnes_martin must appear in EXPECTED_ARTISTS."""
+    assert "agnes_martin" in EXPECTED_ARTISTS
+
+
+def test_agnes_martin_pale_ground():
+    """Session 192: agnes_martin ground_color must be very pale (all channels >= 0.80)."""
+    style = get_style("agnes_martin")
+    for ch in style.ground_color:
+        assert ch >= 0.80, (
+            f"agnes_martin ground_color channel {ch} is too dark for bleached linen")

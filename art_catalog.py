@@ -16902,6 +16902,94 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Agnes Martin ──────────────────────────────────────────────────────────
+    "agnes_martin": ArtStyle(
+        artist="Agnes Martin",
+        movement="Minimalism / Transcendent Abstraction",
+        nationality="Canadian-American",
+        period="1950–2004",
+        palette=[
+            (0.94, 0.92, 0.86),   # pale linen — the ground itself, near-white
+            (0.80, 0.86, 0.90),   # soft grey-blue wash — atmospheric haze
+            (0.92, 0.86, 0.82),   # warm ivory blush — rose-inflected ground
+            (0.78, 0.82, 0.76),   # sage-grey — muted green distance
+            (0.86, 0.84, 0.88),   # pale lavender — cool meditative veil
+            (0.70, 0.72, 0.74),   # mid-grey — pencil graphite tone
+        ],
+        ground_color=(0.96, 0.94, 0.90),    # bleached linen / unprimed canvas
+        stroke_size=1,                       # fine pencil — nearly no mark size
+        wet_blend=0.08,                      # near-dry pencil/graphite line work
+        edge_softness=0.05,                  # crisp ruled lines; no sfumato
+        jitter=0.012,                        # barely perceptible organic tremor
+        glazing=(0.90, 0.92, 0.96),          # cool blue-grey final atmosphere veil
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "GROUND: unprimed or very lightly primed linen.  The ground is the "
+            "painting as much as the marks — Martin left it to breathe.  Pale "
+            "ivory or bleached cream; no dark imprimatura.\n\n"
+            "MARKS: very fine horizontal pencil or graphite lines ruled across "
+            "the full width of the canvas, spaced 1–3 cm apart.  Lines are not "
+            "mechanically perfect — the faint tremor of a human hand is present "
+            "in every mark.  This tremor is the 'breath' that separates Martin's "
+            "work from industrial fabrication.\n\n"
+            "WASH: beneath or over the lines, a thin watercolor or diluted acrylic "
+            "wash introduces a barely-there tonal field — pale blue, warm ivory, "
+            "or rose.  The wash is uneven: it pools slightly at the lower edge of "
+            "each line zone, creating a micro-gradient.  The overall effect is "
+            "serene, luminous, and physically very quiet.\n\n"
+            "COMPOSITION: always rectilinear — a square or near-square format.  "
+            "The horizontal is dominant; vertical marks appear only as grids in "
+            "her grid series (1960s–1970s).  No figurative or landscape reference. "
+            "No focal point; the entire surface is equally attended.\n\n"
+            "PALETTE: severely restricted — 2–3 closely-related tones per work.  "
+            "Never saturated.  Never dark.  She famously avoided black.  Her "
+            "colours name themselves: 'grey', 'pale blue', 'warm white', 'soft "
+            "pink'.  The effect is less about colour than about TONE — a single "
+            "band of near-white can carry enormous emotional weight precisely "
+            "because it is seen against an equally near-white ground.\n\n"
+            "EMOTIONAL REGISTER: profound, undramatic peace.  Joy that is quiet "
+            "and involuntary, not exuberant.  Martin described her own paintings "
+            "as 'about happiness, a bliss, a perfect state.'  The horizontal line "
+            "is a horizon — the place where sky meets earth, where breath deepens, "
+            "where the mind rests.  Viewers consistently report a physiological "
+            "response: a slowing, a quieting, a sense of space opening inside."
+        ),
+        famous_works=[
+            ("The Tree", "1964"),
+            ("Friendship", "1963"),
+            ("Loving", "1999"),
+            ("Untitled #5", "1994"),
+            ("La Grange", "1989"),
+            ("Night Sea", "1963"),
+            ("Untitled #7", "2003"),
+        ],
+        inspiration=(
+            "Apply agnes_martin_meditation_lines_pass() as the signature Martin "
+            "effect — ONE HUNDRED AND THIRD DISTINCT MODE.\n"
+            "Rule N=280–400 nearly-horizontal pencil lines across the full canvas "
+            "width, spaced evenly in Y.  Each line carries:\n"
+            "  - organic Y tremor: per-pixel Perlin noise offset in ±3 px range\n"
+            "  - breathing opacity: a slow sine wave along X that varies line "
+            "    opacity in the range [0.25, 0.75], so the line breathes with "
+            "    light rather than being mechanically uniform\n"
+            "  - micro-tone variation: each line's base luminance shifts ±0.04 "
+            "    between neighbouring lines, creating the banded wash effect\n"
+            "A soft pale wash (pale grey-blue or warm rose, opacity 0.08–0.15) "
+            "is applied across the entire canvas before the lines to establish "
+            "the tonal ground.\n\n"
+            "NOVEL: ONE HUNDRED AND THIRD DISTINCT MODE.  FIRST pass to generate "
+            "CONTINUOUS HORIZONTAL MEDITATION LINES with breathing opacity, "
+            "organic pencil tremor, and micro-tone banding.  No prior pass "
+            "creates the ruled-line meditation effect that is Martin's "
+            "signature.  Pairs with pale pale ground (tone_ground ≤ 0.10 "
+            "texture_strength) and optional glaze with her cool veil colour.\n\n"
+            "Use agnes_martin_meditation_lines_pass(n_lines=320, tremor_sigma=1.2, "
+            "breathe_freq=2.5, line_opacity=0.52, wash_color=(0.84, 0.88, 0.92), "
+            "wash_opacity=0.10, tone_drift=0.030, opacity=0.68)."
+        ),
+    ),
+
 }
 
 

@@ -16786,3 +16786,89 @@ def test_twombly_calligraphic_scrawl_pass_no_smear_routing():
     p = _make_small_painter(64, 64)
     p.tone_ground((0.92, 0.90, 0.84), texture_strength=0.0)
     p.twombly_calligraphic_scrawl_pass(n_clusters=6, smear_opacity=0.0, opacity=0.45)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 192 — agnes_martin_meditation_lines_pass (103rd distinct mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_agnes_martin_meditation_lines_pass_exists_routing():
+    """Session 192: agnes_martin_meditation_lines_pass must exist as a callable on Painter."""
+    from stroke_engine import Painter
+    assert callable(getattr(Painter, "agnes_martin_meditation_lines_pass", None)), (
+        "agnes_martin_meditation_lines_pass not found on Painter")
+
+
+def test_agnes_martin_meditation_lines_pass_signature_routing():
+    """Session 192: agnes_martin_meditation_lines_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.agnes_martin_meditation_lines_pass)
+    for param in ("n_lines", "tremor_sigma", "breathe_freq",
+                  "line_opacity", "wash_color", "wash_opacity",
+                  "tone_drift", "opacity"):
+        assert param in sig.parameters, f"Missing parameter: {param}"
+
+
+def test_agnes_martin_meditation_lines_pass_runs_routing():
+    """Session 192: agnes_martin_meditation_lines_pass must complete without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.92, 0.88), texture_strength=0.0)
+    p.agnes_martin_meditation_lines_pass(n_lines=20)
+
+
+def test_agnes_martin_meditation_lines_pass_opacity_zero_routing():
+    """Session 192: agnes_martin_meditation_lines_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.92, 0.88), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.agnes_martin_meditation_lines_pass(n_lines=20, wash_opacity=0.0, opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_agnes_martin_meditation_lines_pass_pixels_in_range_routing():
+    """Session 192: agnes_martin_meditation_lines_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.92, 0.88), texture_strength=0.0)
+    p.agnes_martin_meditation_lines_pass(n_lines=30, opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_agnes_martin_meditation_lines_pass_modifies_canvas_routing():
+    """Session 192: agnes_martin_meditation_lines_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.92, 0.88), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.agnes_martin_meditation_lines_pass(
+        n_lines=30, wash_opacity=0.15, line_opacity=0.60, opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "agnes_martin_meditation_lines_pass should modify canvas pixels")
+
+
+def test_agnes_martin_meditation_lines_pass_no_lines_routing():
+    """Session 192: agnes_martin_meditation_lines_pass with n_lines=0 must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.92, 0.88), texture_strength=0.0)
+    p.agnes_martin_meditation_lines_pass(n_lines=0, opacity=0.50)
+
+
+def test_agnes_martin_meditation_lines_pass_custom_wash_routing():
+    """Session 192: agnes_martin_meditation_lines_pass with custom wash must still run."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.90, 0.86), texture_strength=0.0)
+    p.agnes_martin_meditation_lines_pass(
+        n_lines=15,
+        wash_color=(0.92, 0.88, 0.86),
+        wash_opacity=0.12,
+        opacity=0.60,
+    )

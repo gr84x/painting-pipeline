@@ -44474,3 +44474,182 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Twombly calligraphic scrawl pass complete.")
+
+    def agnes_martin_meditation_lines_pass(
+        self,
+        n_lines:       int   = 320,
+        tremor_sigma:  float = 1.2,
+        breathe_freq:  float = 2.5,
+        line_opacity:  float = 0.52,
+        wash_color:    tuple = (0.84, 0.88, 0.92),
+        wash_opacity:  float = 0.10,
+        tone_drift:    float = 0.030,
+        opacity:       float = 0.68,
+    ) -> None:
+        """
+        Session 192 — Agnes Martin meditation lines pass (103rd distinct mode).
+
+        Inspired by Agnes Martin's signature technique of ruling hundreds of
+        nearly-horizontal pencil lines across an unprimed linen canvas, each
+        carrying an almost imperceptible organic tremor and a slow breathing
+        variation in tone.  The pass first lays a thin atmospheric wash over
+        the canvas, then rules N fine lines from edge to edge with:
+
+          - organic Y tremor: per-pixel offset drawn from a smoothed noise field
+            so each line has the subtle waver of a human-held ruler
+          - breathing opacity: a slow sine wave along X causes each line to
+            fade and brighten as it crosses the canvas, simulating uneven
+            pencil pressure
+          - micro-tone banding: neighbouring lines drift ±tone_drift in
+            luminance, creating the banded watercolour-wash effect visible in
+            works like 'Friendship' (1963) and 'Loving' (1999)
+
+        n_lines       : number of meditation lines to rule across the canvas
+        tremor_sigma  : sigma of the Gaussian smoothing applied to per-pixel
+                        Y noise (higher = longer-wave waver, more relaxed)
+        breathe_freq  : cycles of opacity sine wave per canvas width (2–4
+                        gives one slow 'breath' across the painting)
+        line_opacity  : base alpha of each line (the tremor breathing modulates
+                        this up and down)
+        wash_color    : (R, G, B) of the pale atmosphere wash applied first
+        wash_opacity  : opacity of the atmosphere wash over the base canvas
+        tone_drift    : per-line luminance variation in [0, 1] — how much
+                        neighbouring lines differ in brightness
+        opacity       : final composite blend of the line layer over original
+
+        NOVEL: ONE HUNDRED AND THIRD DISTINCT MODE.  FIRST pass to generate
+        CONTINUOUS HORIZONTAL MEDITATION LINES with breathing opacity, organic
+        pencil tremor, and micro-tone banding.  Every prior pass in the pipeline
+        generates either directional strokes, dabs, dots, hatching, geometric
+        cell fills, or looping spiral marks.  None create the ruled-line
+        meditation structure that is Martin's unmistakable signature — a
+        surface where the entire canvas is equally attended, where no focal
+        point exists, and where the viewer's eye travels continuously left to
+        right across hundreds of near-identical yet individually unique marks.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+        from PIL import Image as _Image, ImageDraw as _IDraw
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        rng = _np.random.default_rng(192)
+
+        # ── Step 1: atmosphere wash over base canvas ──────────────────────────
+        wr8 = int(_np.clip(wash_color[0] * 255, 0, 255))
+        wg8 = int(_np.clip(wash_color[1] * 255, 0, 255))
+        wb8 = int(_np.clip(wash_color[2] * 255, 0, 255))
+        wo  = float(wash_opacity)
+        washed = orig.copy()
+        washed[:, :, 2] = _np.clip(
+            orig[:, :, 2].astype(_np.float32) * (1 - wo) + wr8 * wo, 0, 255
+        ).astype(_np.uint8)
+        washed[:, :, 1] = _np.clip(
+            orig[:, :, 1].astype(_np.float32) * (1 - wo) + wg8 * wo, 0, 255
+        ).astype(_np.uint8)
+        washed[:, :, 0] = _np.clip(
+            orig[:, :, 0].astype(_np.float32) * (1 - wo) + wb8 * wo, 0, 255
+        ).astype(_np.uint8)
+
+        # ── Step 2: build line layer ──────────────────────────────────────────
+        line_layer = _Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        draw = _IDraw.Draw(line_layer)
+
+        n = int(n_lines)
+        if n == 0:
+            self.canvas.surface.get_data()[:] = washed.tobytes()
+            self.canvas.surface.mark_dirty()
+            print("    Agnes Martin meditation lines pass complete (0 lines).")
+            return
+        # Evenly spaced line Y anchors across the canvas (with small margin)
+        y_anchors = _np.linspace(H * 0.02, H * 0.98, n)
+
+        # Per-pixel Y tremor: smoothed noise field — each line gets its own row
+        # of offsets so adjacent lines have correlated but not identical tremor
+        raw_noise = rng.standard_normal((n, W)).astype(_np.float32)
+        tremor_field = _gf(raw_noise, sigma=(float(tremor_sigma) * 4,
+                                              float(tremor_sigma) * 20))
+        # Scale so tremor is in ±3 px range
+        t_max = _np.abs(tremor_field).max()
+        if t_max > 1e-6:
+            tremor_field = tremor_field / t_max * 3.0
+
+        # Per-line micro-tone variation (luminance drift between neighbouring lines)
+        tone_series = _np.cumsum(
+            rng.uniform(-float(tone_drift), float(tone_drift), n)
+        ).astype(_np.float32)
+        # Centre the drift so it doesn't wander too far from 0
+        tone_series -= tone_series.mean()
+        tone_series = _np.clip(tone_series, -0.12, 0.12)
+
+        # Breathing opacity wave — slow sine across canvas width, per-line phase
+        xs_norm = _np.linspace(0, 1, W, dtype=_np.float32)
+        freq = float(breathe_freq)
+
+        base_lo = int(_np.clip(line_opacity * 0.55 * 255, 0, 255))
+        base_hi = int(_np.clip(line_opacity * 1.00 * 255, 0, 255))
+
+        # Line colour: graphite grey-pencil tone, modulated per line
+        # Base graphite: (0.50, 0.50, 0.52) in RGB
+        for i in range(n):
+            ya = float(y_anchors[i])
+            td = float(tone_series[i])   # luminance drift for this line
+            # Graphite tone with drift
+            lum = _np.clip(0.50 + td, 0.20, 0.75)
+            lr8 = int(_np.clip((lum + 0.02) * 255, 0, 255))
+            lg8 = int(_np.clip((lum + 0.02) * 255, 0, 255))
+            lb8 = int(_np.clip((lum + 0.04) * 255, 0, 255))  # faint cool shift
+
+            # Breathing alpha per pixel — sine wave with per-line phase offset
+            phase_offset = rng.uniform(0, 2 * _np.pi)
+            breathe = 0.5 + 0.5 * _np.sin(
+                2 * _np.pi * freq * xs_norm + phase_offset
+            )
+            # alpha in [base_lo, base_hi]
+            alphas = (base_lo + (base_hi - base_lo) * breathe).astype(_np.float32)
+
+            # Y positions with tremor: each pixel x gets a slightly different Y
+            y_positions = ya + tremor_field[i]
+            y_positions = _np.clip(y_positions, 0, H - 1).astype(_np.int32)
+
+            # Draw individual pixel segments rather than a single polyline so
+            # the alpha can vary per pixel — draw short runs of pixels
+            # Group consecutive pixels with the same y into horizontal runs
+            for x in range(W):
+                yp = int(y_positions[x])
+                alpha = int(_np.clip(alphas[x], 0, 255))
+                if alpha < 4:
+                    continue
+                line_layer.putpixel((x, yp), (lr8, lg8, lb8, alpha))
+
+        # ── Step 3: composite line layer over washed canvas ───────────────────
+        base_img = _Image.fromarray(
+            _np.stack([washed[:, :, 2], washed[:, :, 1],
+                       washed[:, :, 0], washed[:, :, 3]], axis=2),
+            mode="RGBA"
+        )
+        base_img.alpha_composite(line_layer)
+        result = _np.array(base_img)
+
+        # ── Step 4: blend with original at `opacity` ──────────────────────────
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2].astype(_np.float32) * (1 - op)
+            + result[:, :, 0].astype(_np.float32) * op, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1].astype(_np.float32) * (1 - op)
+            + result[:, :, 1].astype(_np.float32) * op, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0].astype(_np.float32) * (1 - op)
+            + result[:, :, 2].astype(_np.float32) * op, 0, 255
+        ).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Agnes Martin meditation lines pass complete.")
