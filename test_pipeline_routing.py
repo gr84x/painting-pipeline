@@ -17695,3 +17695,84 @@ def test_ensor_carnival_mask_pass_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 202: Henri Rousseau — rousseau_naive_luminance_pass ──────────────
+
+def test_rousseau_naive_luminance_pass_exists():
+    """Session 202: Painter must have rousseau_naive_luminance_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "rousseau_naive_luminance_pass"), (
+        "rousseau_naive_luminance_pass not found on Painter")
+    assert callable(getattr(Painter, "rousseau_naive_luminance_pass"))
+
+
+def test_rousseau_naive_luminance_pass_modifies_canvas():
+    """Session 202: rousseau_naive_luminance_pass at opacity=1.0 must change pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.12, 0.18, 0.10), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.rousseau_naive_luminance_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "rousseau_naive_luminance_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_rousseau_naive_luminance_pass_zero_opacity_unchanged():
+    """Session 202: rousseau_naive_luminance_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.18, 0.10), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.rousseau_naive_luminance_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "rousseau_naive_luminance_pass at opacity=0.0 must not change any pixels")
+
+
+def test_rousseau_naive_luminance_pass_no_prior_strokes():
+    """Session 202: rousseau_naive_luminance_pass without prior strokes runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.18, 0.10), texture_strength=0.0)
+    p.rousseau_naive_luminance_pass(opacity=0.75)
+
+
+def test_rousseau_naive_luminance_pass_zero_strengths():
+    """Session 202: all band strengths = 0 runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.18, 0.10), texture_strength=0.0)
+    p.rousseau_naive_luminance_pass(
+        void_strength=0.0, foliage_strength=0.0,
+        midlit_strength=0.0, highlight_strength=0.0,
+        sky_strength=0.0, opacity=0.60,
+    )
+
+
+def test_rousseau_naive_luminance_pass_custom_colors():
+    """Session 202: custom band colors are accepted without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.18, 0.10), texture_strength=0.0)
+    p.rousseau_naive_luminance_pass(
+        void_color=(0.02, 0.02, 0.08),
+        foliage_color=(0.05, 0.25, 0.08),
+        midlit_color=(0.80, 0.70, 0.30),
+        highlight_color=(0.95, 0.95, 0.90),
+        sky_color=(0.18, 0.22, 0.52),
+        opacity=0.65,
+    )
+
+
+def test_rousseau_naive_luminance_pass_in_catalog():
+    """Session 202: henri_rousseau must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "henri_rousseau" in CATALOG, "henri_rousseau missing from CATALOG"
+    s = get_style("henri_rousseau")
+    assert "naive" in s.movement.lower() or "naï" in s.movement.lower() or "post" in s.movement.lower()
+    assert len(s.palette) >= 7
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
