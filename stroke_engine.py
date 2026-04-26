@@ -46648,4 +46648,186 @@ class Painter:
         buf[:, :, 3] = orig[:, :, 3]
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
-        print("    Hopper Raking Light pass complete.")
+
+    # Session 205 — Munch (Edvard Munch, 1863–1944): munch_anxiety_swirl_pass
+
+    def munch_anxiety_swirl_pass(
+        self,
+        n_swirl_strokes:  int   = 120,
+        swirl_amplitude:  float = 0.25,
+        swirl_frequency:  float = 6.0,
+        color_intensity:  float = 0.65,
+        bg_only:          bool  = False,
+        stroke_opacity:   float = 0.45,
+        stroke_size:      float = 9.0,
+        warm_color:       tuple = (0.82, 0.28, 0.18),
+        cool_color:       tuple = (0.18, 0.22, 0.52),
+        focus_points:     list  = None,
+        wave_frequency:   float = 9.0,
+        opacity:          float = 1.0,
+    ) -> None:
+        """
+        Session 205 — Munch anxiety swirl pass (116th distinct mode).
+
+        Recreates the swirling, emotionally-charged chromatic distortion of
+        Edvard Munch's paintings through CHROMATIC WAVE INTERFERENCE STROKES:
+        N sinusoidally-undulating stroke paths are drawn across the canvas,
+        each coloured by the constructive/destructive interference field of
+        multiple emotional focus points.  Where the interference waves from
+        different sources constructively align, strokes are tinted toward
+        warm_color (fiery red-orange); where they cancel, toward cool_color
+        (deep indigo).  The stroke paths themselves curl and arc in sympathy
+        with Munch's characteristic swirling brushwork.
+
+        Algorithm:
+        (1) EARLY EXIT if n_swirl_strokes == 0 or effective opacity ≤ 0 → no-op.
+        (2) INTERFERENCE COLOR FIELD: at any canvas position (px, py) in [0,1],
+            the field value is the mean sine of Euclidean distances to all
+            focus points: field = mean(sin(dist_i * wave_frequency * 2π)).
+            Normalised to t ∈ [0,1]; warm blend (t > 0.5) or cool (t < 0.5),
+            scaled by color_intensity.
+        (3) STROKE GENERATION: for each stroke, a random origin and direction
+            angle are chosen.  The stroke path follows a sinusoidal trajectory
+            perpendicular to the direction: offset = swirl_amplitude * W *
+            sin(swirl_frequency * π * t + random_phase), producing n_segments
+            line points.
+        (4) FIGURE MASK GATE (bg_only=True): the stroke midpoint is checked
+            against self._figure_mask; if it falls inside the figure (mask > 0.5),
+            the stroke is skipped — preserving the figure unaltered.
+        (5) DRAW: each accepted stroke is drawn with self.canvas.ctx using
+            LINE_CAP_ROUND at effective_opacity = stroke_opacity × opacity.
+
+        NOVEL: ONE HUNDRED AND SIXTEENTH DISTINCT MODE. FIRST pass to use
+        CHROMATIC WAVE INTERFERENCE STROKES — sinusoidally-undulating stroke
+        paths whose colour is determined by a multi-source wave interference
+        field (the mean sine of distances from configurable emotional focus
+        points), combining stroke-based mark-making with a multi-source
+        interference colour field simultaneously.  Prior passes: Hopper
+        (directional pixel composite — no stroke paths), Turner (radial
+        luminance field — single source, no strokes), Aivazovsky (wave-phase
+        geometry for water surface — not multi-source interference coloring),
+        Rousseau (luminance band stratification — pixel-only, no strokes).
+        The combination of a sinusoidal stroke trajectory with multi-source
+        interference coloring is new.
+
+        n_swirl_strokes  : number of swirl strokes to draw (0 = no-op)
+        swirl_amplitude  : perpendicular undulation as a fraction of canvas width
+        swirl_frequency  : number of full sine cycles along each stroke
+        color_intensity  : blend strength toward warm/cool color per stroke
+        bg_only          : when True, skip strokes whose midpoint falls in the
+                           figure mask (self._figure_mask > 0.5)
+        stroke_opacity   : per-stroke alpha value (0 = transparent, 1 = opaque)
+        stroke_size      : stroke line width in pixels
+        warm_color       : RGB for constructive-interference (crest) zones
+        cool_color       : RGB for destructive-interference (trough) zones
+        focus_points     : list of (x, y) in [0,1] canvas coords; default
+                           [(0.50, 0.42), (0.25, 0.25)]
+        wave_frequency   : interference oscillation frequency (cycles per unit dist)
+        opacity          : global multiplier on stroke_opacity
+        """
+        import math as _math
+        import cairo as _cairo
+
+        if n_swirl_strokes == 0:
+            return
+
+        effective_opacity = float(stroke_opacity) * float(opacity)
+        if effective_opacity <= 0.0:
+            return
+
+        if focus_points is None:
+            focus_points = [(0.50, 0.42), (0.25, 0.25)]
+
+        W, H = self.canvas.w, self.canvas.h
+        rng  = self._rng_py
+        ctx  = self.canvas.ctx
+        fig_mask = self._figure_mask   # (H, W) float32 or None
+
+        freq = float(wave_frequency) * 2.0 * _math.pi
+        ci   = float(color_intensity)
+        wr, wg, wb = float(warm_color[0]), float(warm_color[1]), float(warm_color[2])
+        cr_, cg_, cb_ = float(cool_color[0]), float(cool_color[1]), float(cool_color[2])
+
+        def interference_t(px_n: float, py_n: float) -> float:
+            """Return interference field t ∈ [0,1] at normalised position."""
+            if not focus_points:
+                return 0.5
+            total = 0.0
+            for fx, fy in focus_points:
+                d = _math.sqrt((px_n - fx) ** 2 + (py_n - fy) ** 2)
+                total += _math.sin(d * freq)
+            return (total / len(focus_points) + 1.0) * 0.5
+
+        def stroke_color(t_val: float):
+            """Interpolate between neutral grey and warm/cool based on t."""
+            neutral = 0.50
+            if t_val >= 0.5:
+                blend = (t_val - 0.5) * 2.0 * ci
+                r = wr * blend + neutral * (1.0 - blend)
+                g = wg * blend + neutral * (1.0 - blend)
+                b = wb * blend + neutral * (1.0 - blend)
+            else:
+                blend = (0.5 - t_val) * 2.0 * ci
+                r = cr_ * blend + neutral * (1.0 - blend)
+                g = cg_ * blend + neutral * (1.0 - blend)
+                b = cb_ * blend + neutral * (1.0 - blend)
+            return (
+                max(0.0, min(1.0, r)),
+                max(0.0, min(1.0, g)),
+                max(0.0, min(1.0, b)),
+            )
+
+        amp_px = float(swirl_amplitude) * float(W)
+        sw_freq_pi = float(swirl_frequency) * _math.pi
+
+        ctx.set_line_cap(_cairo.LINE_CAP_ROUND)
+        ctx.set_line_join(_cairo.LINE_JOIN_ROUND)
+        ctx.set_line_width(float(stroke_size))
+
+        for _ in range(int(n_swirl_strokes)):
+            # Random start position
+            x0 = rng.uniform(0.0, float(W))
+            y0 = rng.uniform(0.0, float(H))
+
+            # Random direction and swirl phase
+            angle = rng.uniform(0.0, 2.0 * _math.pi)
+            phase = rng.uniform(0.0, 2.0 * _math.pi)
+            dx = _math.cos(angle)
+            dy = _math.sin(angle)
+            # Perpendicular for undulation
+            px_ = -dy
+            py_ = dx
+
+            # Stroke length scaled to canvas size
+            length = rng.uniform(W * 0.07, W * 0.20)
+            n_seg = max(8, int(length / max(1.0, float(stroke_size) * 0.8)))
+
+            # Build stroke points
+            pts = []
+            for k in range(n_seg + 1):
+                t_path = k / float(n_seg)
+                d = t_path * length
+                undulation = amp_px * _math.sin(sw_freq_pi * t_path + phase)
+                sx = x0 + dx * d + px_ * undulation
+                sy = y0 + dy * d + py_ * undulation
+                pts.append((sx, sy))
+
+            # Figure mask gate at midpoint
+            mid_x, mid_y = pts[len(pts) // 2]
+            mi = int(min(max(mid_y, 0.0), float(H - 1)))
+            mj = int(min(max(mid_x, 0.0), float(W - 1)))
+            if bg_only and fig_mask is not None and fig_mask[mi, mj] > 0.5:
+                continue
+
+            # Stroke color from interference field at midpoint
+            t_val = interference_t(mid_x / float(W), mid_y / float(H))
+            r_c, g_c, b_c = stroke_color(t_val)
+
+            ctx.set_source_rgba(r_c, g_c, b_c, effective_opacity)
+            ctx.move_to(pts[0][0], pts[0][1])
+            for sx, sy in pts[1:]:
+                ctx.line_to(sx, sy)
+            ctx.stroke()
+
+        self.canvas.surface.mark_dirty()
+        print("    Munch Anxiety Swirl pass complete.")
