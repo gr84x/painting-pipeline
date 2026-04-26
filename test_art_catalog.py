@@ -196,6 +196,7 @@ EXPECTED_ARTISTS = [
     "cy_twombly",
     "agnes_martin",
     "yayoi_kusama",
+    "schiele",
 ]
 
 

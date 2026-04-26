@@ -16947,3 +16947,101 @@ def test_kusama_infinity_dot_pass_single_seed_routing():
     p = _make_small_painter(64, 64)
     p.tone_ground((0.97, 0.97, 0.96), texture_strength=0.0)
     p.kusama_infinity_dot_pass(n_seeds=1, ring_step=15, dot_radius=4, opacity=0.70)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 194 — schiele_angular_contour_pass (105th distinct mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_schiele_angular_contour_pass_exists_routing():
+    """Session 194: Painter must expose schiele_angular_contour_pass as a method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "schiele_angular_contour_pass"), (
+        "Painter is missing schiele_angular_contour_pass method")
+    assert callable(getattr(Painter, "schiele_angular_contour_pass"))
+
+
+def test_schiele_angular_contour_pass_signature_routing():
+    """Session 194: schiele_angular_contour_pass must accept expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.schiele_angular_contour_pass)
+    for param in (
+        "reference", "edge_threshold", "contour_weight",
+        "flesh_wash_opacity", "hatch_opacity", "n_hatch_lines",
+        "hatch_shadow_thresh", "contour_color", "flesh_color", "opacity",
+    ):
+        assert param in sig.parameters, f"Missing parameter: {param}"
+
+
+def test_schiele_angular_contour_pass_runs_routing():
+    """Session 194: schiele_angular_contour_pass must run without error on small canvas."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.0)
+    p.schiele_angular_contour_pass(ref, edge_threshold=0.15, opacity=0.80)
+
+
+def test_schiele_angular_contour_pass_pixels_in_range_routing():
+    """Session 194: schiele_angular_contour_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.0)
+    p.schiele_angular_contour_pass(ref, opacity=1.0)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_schiele_angular_contour_pass_opacity_zero_routing():
+    """Session 194: schiele_angular_contour_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.schiele_angular_contour_pass(
+        ref, flesh_wash_opacity=0.0, hatch_opacity=0.0, opacity=0.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after)
+
+
+def test_schiele_angular_contour_pass_modifies_canvas_routing():
+    """Session 194: schiele_angular_contour_pass at full opacity must change canvas pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.schiele_angular_contour_pass(
+        ref, flesh_wash_opacity=0.30, hatch_opacity=0.30, opacity=1.0
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "schiele_angular_contour_pass should modify canvas pixels")
+
+
+def test_schiele_angular_contour_pass_no_hatching_routing():
+    """Session 194: schiele_angular_contour_pass with n_hatch_lines=0 must still run."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.0)
+    p.schiele_angular_contour_pass(ref, n_hatch_lines=0, opacity=0.70)
+
+
+def test_schiele_angular_contour_pass_custom_colors_routing():
+    """Session 194: schiele_angular_contour_pass with custom colors must still run."""
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.88, 0.85, 0.80), texture_strength=0.0)
+    p.schiele_angular_contour_pass(
+        ref,
+        contour_color=(0.10, 0.05, 0.02),
+        flesh_color=(0.82, 0.60, 0.44),
+        hatch_shadow_thresh=0.40,
+        opacity=0.75,
+    )

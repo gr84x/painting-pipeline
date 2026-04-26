@@ -44812,3 +44812,220 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Agnes Martin meditation lines pass complete.")
+
+    # ── Session 194 ─────────────────────────────────────────────────────────────
+
+    def schiele_angular_contour_pass(
+        self,
+        reference,
+        edge_threshold=0.15,
+        contour_weight=2.5,
+        flesh_wash_opacity=0.18,
+        hatch_opacity=0.22,
+        n_hatch_lines=40,
+        hatch_shadow_thresh=0.35,
+        contour_color=(0.05, 0.03, 0.02),
+        flesh_color=(0.86, 0.65, 0.50),
+        opacity=0.80,
+        seed=42,
+    ):
+        """
+        schiele_angular_contour_pass — 105th distinct mode (Session 194).
+
+        Inspired by Egon Schiele's Austrian Expressionist draftsmanship:
+        heavy angular contour lines from edge detection, variable line weight,
+        sparse directional flesh-tone washes, and diagonal shadow hatching.
+
+        Algorithm:
+          1. Compute luminance gradient magnitude (Sobel) of the reference.
+          2. For each sampled edge pixel, compute the local edge direction
+             (perpendicular to gradient vector), snap to the nearest of 8
+             discrete angles (octagonal quantization — the source of the
+             characteristic Schiele angularity), and draw a short stroke of
+             width proportional to gradient magnitude.
+          3. Apply a thin flesh-tone wash to midtone reference areas
+             (lum in [0.35, 0.75]), leaving bright highlights and dark shadows
+             as bare ground.
+          4. Draw angular parallel hatch lines (20° slant) confined to
+             shadow regions (lum < hatch_shadow_thresh).
+          5. Composite all layers onto the canvas at `opacity`.
+
+        Novel vs all prior passes:
+          - pointillist_pass: random optical-mixing dot scatter
+          - klee_magic_square_pass: rectangular harmonic cell grid
+          - twombly_calligraphic_scrawl_pass: looping spiral cursive marks
+          - agnes_martin_meditation_lines_pass: horizontal ruled tremor lines
+          - kusama_infinity_dot_pass: concentric ring dot expansion
+          This is the FIRST pass using OCTAGONAL-QUANTIZED EDGE-DETECTED
+          CONTOUR STROKES with gradient-weighted line width.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageDraw as _IDraw
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        rng = _np.random.default_rng(seed)
+
+        # ── Convert reference to float numpy array ─────────────────────────────
+        if isinstance(reference, _Image.Image):
+            ref_rgb = _np.array(
+                reference.convert("RGB").resize((W, H), _Image.LANCZOS),
+                dtype=_np.float32,
+            ) / 255.0
+        else:
+            ref_rgb = _np.array(reference, dtype=_np.float32)
+            if ref_rgb.max() > 1.5:
+                ref_rgb = ref_rgb / 255.0
+            if ref_rgb.shape[:2] != (H, W):
+                _tmp = _Image.fromarray(
+                    (ref_rgb * 255).clip(0, 255).astype(_np.uint8)
+                ).resize((W, H), _Image.LANCZOS)
+                ref_rgb = _np.array(_tmp, dtype=_np.float32) / 255.0
+
+        # ── Luminance map ──────────────────────────────────────────────────────
+        lum = (
+            0.299 * ref_rgb[:, :, 0]
+            + 0.587 * ref_rgb[:, :, 1]
+            + 0.114 * ref_rgb[:, :, 2]
+        )
+
+        # ── Gradient magnitude (Sobel finite differences) ─────────────────────
+        gx = _np.zeros_like(lum)
+        gy = _np.zeros_like(lum)
+        gx[:, 1:-1] = (lum[:, 2:] - lum[:, :-2]) * 0.5
+        gy[1:-1, :] = (lum[2:, :] - lum[:-2, :]) * 0.5
+        grad_mag = _np.sqrt(gx ** 2 + gy ** 2)
+        if grad_mag.max() > 1e-8:
+            grad_mag = grad_mag / grad_mag.max()
+
+        # ── Create output RGBA layer ───────────────────────────────────────────
+        layer = _Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        draw = _IDraw.Draw(layer)
+
+        # ── Step 1: Flesh wash in midtone areas ───────────────────────────────
+        flesh_mask = (lum > 0.35) & (lum < 0.75)
+        if flesh_wash_opacity > 0 and flesh_mask.any():
+            fr8 = int(_np.clip(flesh_color[0] * 255, 0, 255))
+            fg8 = int(_np.clip(flesh_color[1] * 255, 0, 255))
+            fb8 = int(_np.clip(flesh_color[2] * 255, 0, 255))
+            fa8 = int(_np.clip(flesh_wash_opacity * 255, 0, 255))
+            wash_arr = _np.zeros((H, W, 4), dtype=_np.uint8)
+            wash_arr[flesh_mask, 0] = fr8
+            wash_arr[flesh_mask, 1] = fg8
+            wash_arr[flesh_mask, 2] = fb8
+            wash_arr[flesh_mask, 3] = fa8
+            wash_img = _Image.fromarray(wash_arr, mode="RGBA")
+            layer.alpha_composite(wash_img)
+
+        # ── Step 2: Angular shadow hatching ───────────────────────────────────
+        if hatch_opacity > 0 and n_hatch_lines > 0:
+            ha8 = int(_np.clip(hatch_opacity * 255, 0, 255))
+            cc_r = int(_np.clip(contour_color[0] * 255, 0, 255))
+            cc_g = int(_np.clip(contour_color[1] * 255, 0, 255))
+            cc_b = int(_np.clip(contour_color[2] * 255, 0, 255))
+            hatch_rgba = (cc_r, cc_g, cc_b, ha8)
+            shadow_mask = lum < float(hatch_shadow_thresh)
+            # 20° slant — Schiele's characteristic directional hatching
+            hatch_angle_rad = _np.deg2rad(20.0)
+            cos_a = float(_np.cos(hatch_angle_rad))
+            sin_a = float(_np.sin(hatch_angle_rad))
+            hatch_spacing = max(3, (H + W) // max(n_hatch_lines, 1))
+            for offset in range(-H, W + H, hatch_spacing):
+                # Start at (offset, 0), advance along angle
+                if sin_a > 1e-8:
+                    x1_f = offset + H * cos_a / sin_a
+                else:
+                    x1_f = float(offset + W)
+                x0, y0 = int(offset), 0
+                x1, y1 = int(x1_f), H
+                # Sample points along segment to test shadow coverage
+                n_samp = max(4, min(16, abs(x1 - x0) // 8 + abs(y1 - y0) // 8))
+                sxs = _np.linspace(x0, x1, n_samp).astype(int)
+                sys_ = _np.linspace(y0, y1, n_samp).astype(int)
+                sxs = _np.clip(sxs, 0, W - 1)
+                sys_ = _np.clip(sys_, 0, H - 1)
+                if shadow_mask[sys_, sxs].any():
+                    draw.line([(x0, y0), (x1, y1)], fill=hatch_rgba, width=1)
+
+        # ── Step 3: Angular contour strokes ───────────────────────────────────
+        edge_mask = grad_mag > float(edge_threshold)
+        edge_ys, edge_xs = _np.where(edge_mask)
+
+        if len(edge_xs) > 0:
+            cc_r8 = int(_np.clip(contour_color[0] * 255, 0, 255))
+            cc_g8 = int(_np.clip(contour_color[1] * 255, 0, 255))
+            cc_b8 = int(_np.clip(contour_color[2] * 255, 0, 255))
+
+            # Subsample: at most ~1800 strokes for performance
+            n_edges = len(edge_xs)
+            step = max(1, n_edges // 1800)
+            sxs = edge_xs[::step]
+            sys_ = edge_ys[::step]
+
+            # Stroke length: ~1/30 of short axis
+            stroke_half = max(2, min(W, H) // 30)
+
+            # 8-direction angle table (octagonal quantization)
+            n_angles = 8
+            angle_step = _np.pi / n_angles
+
+            for i in range(len(sxs)):
+                ex, ey = int(sxs[i]), int(sys_[i])
+                gx_v = float(gx[ey, ex])
+                gy_v = float(gy[ey, ex])
+                g_len = float(_np.sqrt(gx_v ** 2 + gy_v ** 2)) + 1e-8
+                # Edge direction is perpendicular to gradient
+                edge_dx = -gy_v / g_len
+                edge_dy = gx_v / g_len
+                # Snap to octagonal angle
+                raw_angle = float(_np.arctan2(edge_dy, edge_dx))
+                q_idx = round(raw_angle / angle_step)
+                q_angle = q_idx * angle_step
+                cos_q = float(_np.cos(q_angle))
+                sin_q = float(_np.sin(q_angle))
+                # Variable weight from gradient magnitude
+                mag_here = float(grad_mag[ey, ex])
+                w_px = max(1, int(contour_weight * mag_here * 3.0))
+                alpha_c = int(_np.clip(mag_here * 195 + 60, 60, 245))
+                c_rgba = (cc_r8, cc_g8, cc_b8, alpha_c)
+                x0 = int(ex - cos_q * stroke_half)
+                y0 = int(ey - sin_q * stroke_half)
+                x1 = int(ex + cos_q * stroke_half)
+                y1 = int(ey + sin_q * stroke_half)
+                draw.line([(x0, y0), (x1, y1)], fill=c_rgba, width=w_px)
+
+        # ── Step 4: Composite onto canvas at `opacity` ─────────────────────────
+        base_img = _Image.fromarray(
+            _np.stack(
+                [orig[:, :, 2], orig[:, :, 1], orig[:, :, 0], orig[:, :, 3]],
+                axis=2,
+            ),
+            mode="RGBA",
+        )
+        base_img.alpha_composite(layer)
+        result = _np.array(base_img)
+
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(
+            orig[:, :, 2].astype(_np.float32) * (1 - op)
+            + result[:, :, 0].astype(_np.float32) * op,
+            0, 255,
+        ).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(
+            orig[:, :, 1].astype(_np.float32) * (1 - op)
+            + result[:, :, 1].astype(_np.float32) * op,
+            0, 255,
+        ).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(
+            orig[:, :, 0].astype(_np.float32) * (1 - op)
+            + result[:, :, 2].astype(_np.float32) * op,
+            0, 255,
+        ).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Schiele angular contour pass complete.")
