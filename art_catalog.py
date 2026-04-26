@@ -17070,6 +17070,97 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Egon Schiele ──────────────────────────────────────────────────────────
+    "schiele": ArtStyle(
+        artist="Egon Schiele",
+        movement="Austrian Expressionism",
+        nationality="Austrian",
+        period="1907–1918",
+        palette=[
+            (0.22, 0.12, 0.06),   # raw umber — signature heavy contour line
+            (0.86, 0.65, 0.50),   # raw sienna flesh — exposed skin midtone
+            (0.80, 0.38, 0.20),   # burnt sienna — deep shadow flesh
+            (0.92, 0.82, 0.70),   # pale ochre — lit skin highlight
+            (0.40, 0.42, 0.24),   # dull moss green — costume and drapery
+            (0.74, 0.20, 0.14),   # venetian red — emotional accent
+            (0.88, 0.86, 0.82),   # warm off-white — bare ground, negative space
+        ],
+        ground_color=(0.88, 0.85, 0.80),    # warm cream — unprimed paper feel
+        stroke_size=3,                       # fine, angular contour marks
+        wet_blend=0.06,                      # minimal blending — dry, scratchy
+        edge_softness=0.04,                  # crisp, hard contour edges
+        jitter=0.08,                         # slight line-weight variation
+        glazing=None,                        # no glazing — transparent washes only
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "GROUND: warm cream or off-white — Schiele worked on unprimed or "
+            "lightly toned paper; the ground breathes through thin washes and "
+            "bare areas are left deliberately exposed.\n\n"
+            "PRIMARY MARK: heavy, angular contour lines drawn in raw umber or "
+            "near-black.  Lines are NOT smooth — they change direction abruptly "
+            "at joints, corners, and dramatic body angles.  Variable weight: "
+            "thick at areas of mass (torso, hip), thin at extremities.  Lines "
+            "often stop and restart, leaving visible gaps that create tension.\n\n"
+            "WASHES: thin, transparent watercolour-like washes applied in flat "
+            "zones — pale flesh for skin, muted moss for garments, venetian red "
+            "for emotional accents.  Washes do NOT cover the full figure: "
+            "significant areas are left as bare ground, giving the figure an "
+            "unfinished, raw quality that is entirely intentional.\n\n"
+            "HATCHING: angular, parallel hatch strokes applied sparingly in "
+            "shadow zones.  Unlike academic crosshatching, Schiele's hatching "
+            "follows the body's planar direction — it is topological, not "
+            "merely tonal.  Lines are drawn at slight angles (15°–30°), "
+            "tightly spaced near deep shadows, loosening toward midtones.\n\n"
+            "BACKGROUND: nearly always minimal — flat wash, a few marks, or "
+            "bare paper.  The figure floats in undefined space.  This isolation "
+            "amplifies psychological intensity: the subject cannot escape its "
+            "own form or the viewer's gaze.\n\n"
+            "EMOTIONAL REGISTER: raw, uncomfortable, intimate, defiant.  "
+            "Schiele's figures do not perform beauty; they endure exposure.  "
+            "The angular lines refuse smooth idealization.  The sparse, "
+            "revealing washes suggest vulnerability.  Every mark is chosen "
+            "to disrupt conventional beauty while asserting the subject's "
+            "existence with fierce intensity."
+        ),
+        famous_works=[
+            ("Self-Portrait with Physalis", "1912"),
+            ("Death and the Maiden", "1915"),
+            ("The Embrace", "1917"),
+            ("Reclining Woman with Green Stockings", "1917"),
+            ("Seated Couple", "1915"),
+            ("Nude Self-Portrait, Grimacing", "1910"),
+        ],
+        inspiration=(
+            "Apply schiele_angular_contour_pass() as the signature Schiele "
+            "effect — ONE HUNDRED AND FIFTH DISTINCT MODE.\n"
+            "Extract figure edges from the reference via luminance gradient "
+            "magnitude.  For each sampled edge pixel, compute the local edge "
+            "direction (perpendicular to gradient), snap it to the nearest of "
+            "8 discrete angles (octagonal quantization), then draw a short "
+            "stroke of variable weight along that quantized direction.  Higher "
+            "gradient magnitude → thicker, darker stroke.  Separately, apply "
+            "a thin flesh-tone wash to midtone (0.35–0.75 luminance) areas, "
+            "and draw angular parallel hatch lines (20° slant) confined to "
+            "shadow regions (lum < hatch_shadow_thresh).  Leave the warm "
+            "cream ground visible in bright areas.\n\n"
+            "NOVEL: ONE HUNDRED AND FIFTH DISTINCT MODE.  FIRST pass to "
+            "generate ANGULARIZED EDGE-DETECTED CONTOUR STROKES with "
+            "octagonal direction quantization, variable weight, sparse "
+            "directional shadow hatching, and selective flesh washes — "
+            "entirely distinct from Kusama dot rings, Klee cell grids, "
+            "Twombly loop-spirals, Martin ruled lines, or any previous "
+            "mark-making mode.  The OCTAGONAL ANGLE QUANTIZATION primitive "
+            "(snapping gradient-perpendicular directions to 8 discrete "
+            "angles) combined with GRADIENT-WEIGHTED CONTOUR STROKES and "
+            "TOPOLOGICAL SHADOW HATCHING is a new spatial primitive that "
+            "exists nowhere else in the pipeline.\n\n"
+            "Use schiele_angular_contour_pass(edge_threshold=0.15, "
+            "contour_weight=2.5, flesh_wash_opacity=0.18, hatch_opacity=0.22, "
+            "n_hatch_lines=40, hatch_shadow_thresh=0.35, opacity=0.80)."
+        ),
+    ),
+
 }
 
 
