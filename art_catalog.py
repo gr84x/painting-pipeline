@@ -16807,6 +16807,101 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Cy Twombly ─────────────────────────────────────────────────────────────
+    "cy_twombly": ArtStyle(
+        artist="Cy Twombly",
+        movement="Abstract Expressionism / Neo-Expressionism",
+        nationality="American",
+        period="1950–2011",
+        palette=[
+            (0.96, 0.94, 0.88),   # chalky cream white — the dominant surface
+            (0.88, 0.86, 0.80),   # warm off-white — layered chalk build-up
+            (0.72, 0.70, 0.65),   # pale warm grey — scrawl shadow tones
+            (0.82, 0.22, 0.16),   # cadmium red — the rare violent accent
+            (0.76, 0.60, 0.20),   # raw sienna — gestural underlayer warmth
+            (0.30, 0.38, 0.55),   # muted steel blue — cold shadow scrawl
+            (0.42, 0.36, 0.28),   # umber grey — dried marker/pencil line
+            (0.90, 0.82, 0.48),   # pale Naples yellow — sunlit passage
+        ],
+        ground_color=(0.92, 0.90, 0.84),    # cream white — the classic Twombly field
+        stroke_size=3,
+        wet_blend=0.05,                      # very dry: marks accumulate, never blend
+        edge_softness=0.08,                  # crisp, chalky, hard-edged marks
+        jitter=0.045,                        # high variation: each mark is individual
+        glazing=None,                        # no unifying glaze — rawness is the point
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Twombly's method is CALLIGRAPHIC ACCUMULATION: the canvas or board is "
+            "treated as a writing surface on which looping, spiralling, scratching, "
+            "and scrawling marks are deposited in successive campaigns.  Each mark "
+            "is a gesture — an index of the wrist and arm in motion — not a "
+            "representation of an external reality.  The marks are writing-like but "
+            "illegible: they invoke script without communicating text, creating "
+            "what the poet Roland Barthes called 'the trembling of the letter.'\n\n"
+            "His surfaces typically begin with a cream or pale grey field — sometimes "
+            "industrial house paint — and the scrawl accumulates on top.  LAYERING "
+            "is temporal: earlier marks show through later ones; the palimpsest "
+            "structure is the painting's content.  Erasure is common: Twombly smears "
+            "and wipes marks before they dry, leaving grey smudge ghosts beneath "
+            "fresh chalk lines.\n\n"
+            "COLOUR is restrained but potent: the vast majority of each work is "
+            "near-white or pale grey; occasional cadmium red streaks or olive-yellow "
+            "loops carry enormous weight precisely because they are rare.  His most "
+            "celebrated works — 'Fifty Days at Iliam' (1978), 'Leda and the Swan' "
+            "(1962), 'Quattro Stagioni' (1993–1995) — use colour selectively, as "
+            "punctuation rather than description.\n\n"
+            "MARK MORPHOLOGY: the signature Twombly mark is the LOOP — a looping "
+            "spiral that begins as a tight coil and loosens outward, like a spring "
+            "unwinding, or collapses inward to a node.  Clusters of loops form "
+            "'word-like' masses; individual arcs bridge between clusters.  Occasional "
+            "straight slash marks and drips interrupt the loops, adding violence to "
+            "the lyric.\n\n"
+            "SURFACE QUALITY: raw, unfinished, confrontationally physical.  House "
+            "paint, oil, wax crayon, pencil, and chalk coexist on the same surface. "
+            "The 'accidental' quality is rigorously controlled: what looks careless "
+            "is deeply considered.  His surfaces never look like paintings; they look "
+            "like the artist has been physically present and left traces of motion.\n\n"
+            "EMOTIONAL REGISTER: simultaneously lyric and violent, erudite and "
+            "infantile, classical and raw.  The constant reference to Mediterranean "
+            "mythology (Homer, Virgil, Sappho) grounds the anarchic surfaces in "
+            "deep literary time while the marks themselves assert pure physical "
+            "immediacy.  The viewer oscillates between reading and seeing, never "
+            "fully able to settle into either mode."
+        ),
+        famous_works=[
+            ("Leda and the Swan", "1962"),
+            ("Fifty Days at Iliam", "1978"),
+            ("Untitled (New York City)", "1968"),
+            ("Quattro Stagioni", "1993–1995"),
+            ("Coronation of Sesostris", "2000"),
+            ("Blooming", "2001–2008"),
+            ("Bacchus", "2005"),
+        ],
+        inspiration=(
+            "Apply twombly_calligraphic_scrawl_pass() as the primary Twombly effect — "
+            "ONE HUNDRED AND SECOND DISTINCT MODE.\n"
+            "Draw 25–60 random looping-spiral gesture clusters distributed across the "
+            "canvas, each comprising 3–8 connected loop arcs.  Each loop begins at a "
+            "random node, traces a Bezier spiral (control points displaced by "
+            "loop_radius × rng), and terminates at a new node 0.5–1.5 loop_radii "
+            "from the start.  Marks are rendered in near-white (chalk) with rare "
+            "single-cluster cadmium-red or sienna accents.  Mark width: 1.5–4 px.  "
+            "A subtle smear ghost (gaussian-blurred dark smudge beneath each cluster) "
+            "simulates erased underdrawing.  Final opacity blend: 0.55–0.70 "
+            "(high enough to be visible on the pale ground).\n\n"
+            "NOVEL: ONE HUNDRED AND SECOND DISTINCT MODE.  FIRST pass to generate "
+            "LOOPING WRIST-ROTATION TRAJECTORY MARKS — distinct from all prior passes "
+            "which generate directional strokes, dabs, dots, hatching, or geometric "
+            "fills.  The loop-spiral trajectory (Bezier control points orbiting a "
+            "centre with phase-offset radius) is a new mark primitive that exists "
+            "nowhere else in the pipeline.\n\n"
+            "Use twombly_calligraphic_scrawl_pass(n_clusters=40, loops_per_cluster=5, "
+            "loop_radius=22, chalk_color=(0.96, 0.94, 0.88), accent_prob=0.08, "
+            "smear_opacity=0.12, opacity=0.62)."
+        ),
+    ),
+
 }
 
 
