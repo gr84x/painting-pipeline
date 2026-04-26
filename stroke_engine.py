@@ -46490,3 +46490,162 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Turner Vortex Luminance pass complete.")
+
+    # Session 204 — Hopper (Edward Hopper, 1882–1967): hopper_raking_light_pass
+
+    def hopper_raking_light_pass(
+        self,
+        light_x:         float = -0.70,
+        light_y:         float = -0.30,
+        threshold:       float = 0.48,
+        margin:          float = 0.08,
+        lit_strength:    float = 0.52,
+        shadow_strength: float = 0.44,
+        edge_contrast:   float = 1.35,
+        lit_color:       tuple = (0.97, 0.92, 0.70),
+        shadow_color:    tuple = (0.48, 0.52, 0.55),
+        opacity:         float = 0.68,
+    ) -> None:
+        """
+        Session 204 — Hopper raking light pass (115th distinct mode).
+
+        Recreates the stark directional light of Edward Hopper's paintings
+        through DIRECTIONAL LIGHT BAND ISOLATION: each pixel's normalised canvas
+        position is projected onto a configurable directional light vector,
+        yielding a per-pixel exposure scalar.  The exposure field is normalised
+        to [0, 1] and split into warm-lit and cool-shadow zones by a soft
+        threshold, with edge-contrast amplification at the boundary producing
+        Hopper's characteristic hard geometric 'knife-edge' light boundary.
+
+        Algorithm:
+        (1) EXPOSURE FIELD: for every pixel (px, py), normalise its canvas
+            position to [-0.5, 0.5] in both axes, then project onto the
+            (normalised) light direction vector: exposure = dot(pos, -light_dir).
+            Normalise the resulting scalar field to [0, 1] across the canvas.
+        (2) LIT ZONE (exposure > threshold + margin): apply a smooth gate that
+            ramps from 0 at the threshold boundary to 1 deep in the lit zone.
+            Pixels receive a blend toward lit_color at (gate × lit_strength),
+            plus a luminance lift that pulls all channels toward 1.0.
+        (3) SHADOW ZONE (exposure < threshold − margin): apply a symmetric
+            smooth gate.  Pixels receive a blend toward shadow_color at
+            (gate × shadow_strength), plus a slight luminance reduction.
+        (4) TRANSITION ZONE (|exposure − threshold| < margin): luminance contrast
+            is amplified by edge_contrast, pulling pixel luminance away from the
+            mid-grey midpoint — values above mid-grey brighten, values below
+            darken — sharpening the lit/shadow boundary to a hard architectural
+            edge.
+        (5) GLOBAL COMPOSITE at opacity blends the modified image over the
+            original canvas.
+
+        NOVEL: ONE HUNDRED AND FIFTEENTH DISTINCT MODE.  First pass to use
+        DIRECTIONAL LIGHT BAND ISOLATION — a geometric dot-product projection of
+        each pixel's canvas position onto a directional light vector, creating a
+        continuous angular exposure field subsequently thresholded into warm/cool
+        zones with boundary contrast amplification.  Prior passes: Rousseau
+        (luminance band stratification — brightness-driven), Turner (radial
+        distance from a point), Bruegel (vertical Y-axis recession), Ensor
+        (chroma polarity detection).  The directional projection is new:
+        exposure is a geometric scalar dot(pos, light_dir), independent of
+        pixel luminance, radial distance, or any single image axis alone.
+
+        light_x         : X component of light direction vector (negative = light from left)
+        light_y         : Y component of light direction vector (negative = light from top)
+        threshold       : normalised exposure value separating lit from shadow (0–1)
+        margin          : half-width of the soft transition band around threshold
+        lit_strength    : blend strength toward lit_color in the lit zone
+        shadow_strength : blend strength toward shadow_color in the shadow zone
+        edge_contrast   : luminance contrast amplification in the transition zone (1.0 = none)
+        lit_color       : target RGB for the lit zone (warm yellow-white)
+        shadow_color    : target RGB for the shadow zone (cool blue-grey)
+        opacity         : final composite blend opacity
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo is BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        # ── Directional exposure field ─────────────────────────────────────────
+        lx, ly = float(light_x), float(light_y)
+        mag = _np.sqrt(lx ** 2 + ly ** 2) + 1e-6
+        lx, ly = lx / mag, ly / mag
+
+        # Pixel positions normalised to [-0.5, 0.5]
+        xs = (_np.arange(W, dtype=_np.float32)[None, :] / float(W)) - 0.5   # (1, W)
+        ys = (_np.arange(H, dtype=_np.float32)[:, None] / float(H)) - 0.5   # (H, 1)
+
+        # Project onto reversed light direction: high value = facing the light
+        exposure = -(xs * lx + ys * ly)   # (H, W)
+        exp_min = exposure.min()
+        exp_max = exposure.max()
+        exposure = (exposure - exp_min) / (exp_max - exp_min + 1e-6)
+
+        th = float(threshold)
+        mg = float(margin)
+
+        # ── 1. Lit zone (exposure > threshold + margin) ────────────────────────
+        ls = float(lit_strength)
+        lr, lg, lb = float(lit_color[0]), float(lit_color[1]), float(lit_color[2])
+        lit_gate = _np.clip((exposure - (th + mg)) / (mg + 1e-6), 0.0, 1.0) ** 1.3
+        lit_alpha = lit_gate * ls
+        r1 = r1 * (1.0 - lit_alpha) + lr * lit_alpha
+        g1 = g1 * (1.0 - lit_alpha) + lg * lit_alpha
+        b1 = b1 * (1.0 - lit_alpha) + lb * lit_alpha
+        # Luminance lift: pull channels toward 1.0 in lit zone; scales with lit_strength
+        lift = lit_gate * ls * 0.22
+        r1 = r1 + (1.0 - r1) * lift
+        g1 = g1 + (1.0 - g1) * lift
+        b1 = b1 + (1.0 - b1) * lift
+
+        # ── 2. Shadow zone (exposure < threshold − margin) ─────────────────────
+        ss = float(shadow_strength)
+        sr, sg, sb = float(shadow_color[0]), float(shadow_color[1]), float(shadow_color[2])
+        shadow_gate = _np.clip(((th - mg) - exposure) / (mg + 1e-6), 0.0, 1.0) ** 1.3
+        shadow_alpha = shadow_gate * ss
+        r1 = r1 * (1.0 - shadow_alpha) + sr * shadow_alpha
+        g1 = g1 * (1.0 - shadow_alpha) + sg * shadow_alpha
+        b1 = b1 * (1.0 - shadow_alpha) + sb * shadow_alpha
+        # Slight luminance reduction in shadow zone; scales with shadow_strength
+        darken = shadow_gate * ss * 0.18
+        r1 = r1 * (1.0 - darken)
+        g1 = g1 * (1.0 - darken)
+        b1 = b1 * (1.0 - darken)
+
+        # ── 3. Transition zone: edge contrast amplification ────────────────────
+        ec = float(edge_contrast)
+        if ec > 1.0:
+            transition_gate = _np.clip(
+                1.0 - _np.abs(exposure - th) / (mg + 1e-6), 0.0, 1.0
+            )
+            luma1 = 0.2126 * r1 + 0.7152 * g1 + 0.0722 * b1
+            delta = (luma1 - 0.5) * (ec - 1.0) * transition_gate
+            # Scale each channel by the same factor to preserve hue
+            scale = _np.clip(1.0 + delta / (luma1 + 1e-6), 0.5, 2.0)
+            r1 = _np.clip(r1 * scale, 0.0, 1.0)
+            g1 = _np.clip(g1 * scale, 0.0, 1.0)
+            b1 = _np.clip(b1 * scale, 0.0, 1.0)
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        # ── 4. Global opacity composite ───────────────────────────────────────
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Hopper Raking Light pass complete.")

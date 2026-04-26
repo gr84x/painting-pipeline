@@ -17879,3 +17879,108 @@ def test_turner_vortex_luminance_pass_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 204: Edward Hopper — hopper_raking_light_pass ─────────────────
+
+def test_hopper_raking_light_pass_exists():
+    """Session 204: Painter must have hopper_raking_light_pass() method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hopper_raking_light_pass"), (
+        "hopper_raking_light_pass not found on Painter")
+    assert callable(getattr(Painter, "hopper_raking_light_pass"))
+
+
+def test_hopper_raking_light_pass_modifies_canvas():
+    """Session 204: hopper_raking_light_pass at opacity=1.0 must change pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.65, 0.60, 0.48), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.hopper_raking_light_pass(opacity=1.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "hopper_raking_light_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_hopper_raking_light_pass_zero_opacity_unchanged():
+    """Session 204: hopper_raking_light_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.60, 0.48), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.hopper_raking_light_pass(opacity=0.0)
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "hopper_raking_light_pass at opacity=0.0 must not change any pixels")
+
+
+def test_hopper_raking_light_pass_no_prior_strokes():
+    """Session 204: hopper_raking_light_pass without prior strokes runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.60, 0.48), texture_strength=0.0)
+    p.hopper_raking_light_pass(opacity=0.68)
+
+
+def test_hopper_raking_light_pass_pixels_in_range():
+    """Session 204: hopper_raking_light_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.65, 0.60, 0.48), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    p.hopper_raking_light_pass(
+        light_x=-0.70, light_y=-0.30, threshold=0.48,
+        lit_strength=0.52, shadow_strength=0.44,
+        edge_contrast=1.35, opacity=0.68,
+    )
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8)
+    assert buf.min() >= 0 and buf.max() <= 255, (
+        "hopper_raking_light_pass produced out-of-range pixel values")
+
+
+def test_hopper_raking_light_pass_zero_strengths():
+    """Session 204: lit_strength=0, shadow_strength=0, edge_contrast=1 leaves canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.60, 0.48), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.hopper_raking_light_pass(
+        lit_strength=0.0, shadow_strength=0.0, edge_contrast=1.0, opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "hopper_raking_light_pass with all strengths=0 must not change pixels")
+
+
+def test_hopper_raking_light_pass_custom_light_direction():
+    """Session 204: custom light direction (right-to-left) runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.60, 0.48), texture_strength=0.0)
+    p.hopper_raking_light_pass(light_x=0.80, light_y=0.20, opacity=0.50)
+
+
+def test_hopper_raking_light_pass_custom_colors():
+    """Session 204: custom lit/shadow colours are accepted without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.65, 0.60, 0.48), texture_strength=0.0)
+    p.hopper_raking_light_pass(
+        lit_color=(1.0, 1.0, 0.8),
+        shadow_color=(0.2, 0.3, 0.4),
+        opacity=0.60,
+    )
+
+
+def test_hopper_raking_light_pass_in_catalog():
+    """Session 204: hopper must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "hopper" in CATALOG, "hopper missing from CATALOG"
+    s = get_style("hopper")
+    assert "realism" in s.movement.lower() or "realist" in s.movement.lower()
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
