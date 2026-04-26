@@ -327,13 +327,13 @@ def main() -> str:
     )
 
     # ── Meso detail: sharpen the architecture's edges ─────────────────────────
-    p.meso_detail_pass(ref_pil, stroke_size=6)
+    p.meso_detail_pass(strength=0.30, opacity=0.28)
 
     # ── Glazing: unifying warm amber haze over the whole image ───────────────
-    p.glazing_pass((0.78, 0.62, 0.28), opacity=0.10)
+    p.glaze((0.78, 0.62, 0.28), opacity=0.10)
 
     # ── Vignette: draw focus into the piazza and the mannequin ───────────────
-    p.vignette_pass(strength=0.30)
+    p.focal_vignette_pass(vignette_strength=0.30, opacity=0.45)
 
     p.canvas.surface.write_to_png(OUTPUT)
     print(f"Saved: {OUTPUT}")
