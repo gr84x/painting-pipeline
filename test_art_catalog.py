@@ -199,6 +199,7 @@ EXPECTED_ARTISTS = [
     "schiele",
     "bridget_riley",
     "fernand_leger",
+    "giorgio_de_chirico",
 ]
 
 
@@ -27802,3 +27803,109 @@ def test_fernand_leger_in_expected_artists():
     """Session 196: fernand_leger must appear in EXPECTED_ARTISTS."""
     assert "fernand_leger" in EXPECTED_ARTISTS, (
         "fernand_leger missing from EXPECTED_ARTISTS")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 198 — Giorgio de Chirico (giorgio_de_chirico)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_giorgio_de_chirico_in_catalog():
+    """Session 198: giorgio_de_chirico must be present in CATALOG."""
+    assert "giorgio_de_chirico" in CATALOG, "giorgio_de_chirico missing from CATALOG"
+
+
+def test_giorgio_de_chirico_artist_name():
+    """Session 198: artist field must contain 'de Chirico'."""
+    style = get_style("giorgio_de_chirico")
+    assert "de Chirico" in style.artist or "Chirico" in style.artist, (
+        f"giorgio_de_chirico artist name unexpected: {style.artist!r}")
+
+
+def test_giorgio_de_chirico_movement():
+    """Session 198: movement must reference Metaphysical or Pittura Metafisica."""
+    style = get_style("giorgio_de_chirico")
+    assert any(k in style.movement for k in ("Metaphysical", "Metafisica", "Pittura")), (
+        f"giorgio_de_chirico movement does not reference Metaphysical: {style.movement!r}")
+
+
+def test_giorgio_de_chirico_palette_count():
+    """Session 198: palette must contain exactly 7 colours."""
+    style = get_style("giorgio_de_chirico")
+    assert len(style.palette) == 7, (
+        f"giorgio_de_chirico palette should have 7 entries; got {len(style.palette)}")
+
+
+def test_giorgio_de_chirico_palette_has_warm_ochre():
+    """Session 198: palette must contain a warm ochre/terracotta colour."""
+    style = get_style("giorgio_de_chirico")
+    has_warm = any(r > 0.70 and g > 0.40 and b < 0.50 for r, g, b in style.palette)
+    assert has_warm, "giorgio_de_chirico palette must contain a warm ochre/terracotta colour"
+
+
+def test_giorgio_de_chirico_palette_has_cool_shadow():
+    """Session 198: palette must contain a cool blue-grey for shadow zones."""
+    style = get_style("giorgio_de_chirico")
+    has_cool = any(b > r and b > 0.40 and r < 0.55 for r, g, b in style.palette)
+    assert has_cool, "giorgio_de_chirico palette must contain a cool blue-grey shadow colour"
+
+
+def test_giorgio_de_chirico_palette_in_unit_range():
+    """Session 198: all palette channels must be in [0, 1]."""
+    style = get_style("giorgio_de_chirico")
+    for i, (r, g, b) in enumerate(style.palette):
+        assert 0.0 <= r <= 1.0 and 0.0 <= g <= 1.0 and 0.0 <= b <= 1.0, (
+            f"giorgio_de_chirico palette[{i}] = ({r},{g},{b}) out of [0,1]")
+
+
+def test_giorgio_de_chirico_wet_blend_low():
+    """Session 198: wet_blend must be low — flat, airless metaphysical surface."""
+    style = get_style("giorgio_de_chirico")
+    assert style.wet_blend <= 0.15, (
+        f"giorgio_de_chirico wet_blend must be <= 0.15; got {style.wet_blend}")
+
+
+def test_giorgio_de_chirico_no_crackle():
+    """Session 198: crackle must be False — de Chirico's surfaces are smooth."""
+    style = get_style("giorgio_de_chirico")
+    assert style.crackle is False, "giorgio_de_chirico crackle should be False"
+
+
+def test_giorgio_de_chirico_has_glazing():
+    """Session 198: glazing must not be None — warm amber glaze unifies the afternoon haze."""
+    style = get_style("giorgio_de_chirico")
+    assert style.glazing is not None, "giorgio_de_chirico glazing should be set (warm amber)"
+
+
+def test_giorgio_de_chirico_warm_ground():
+    """Session 198: ground_color must be warm ochre (red and green channels elevated)."""
+    style = get_style("giorgio_de_chirico")
+    r, g, b = style.ground_color
+    assert r > 0.70 and g > 0.60, (
+        f"giorgio_de_chirico ground_color should be warm ochre; got ({r},{g},{b})")
+
+
+def test_giorgio_de_chirico_famous_works():
+    """Session 198: must list at least 6 famous works."""
+    style = get_style("giorgio_de_chirico")
+    assert len(style.famous_works) >= 6, (
+        f"giorgio_de_chirico should have >= 6 famous works; got {len(style.famous_works)}")
+
+
+def test_giorgio_de_chirico_inspiration_references_pass():
+    """Session 198: inspiration must reference chirico_metaphysical_shadow_pass."""
+    style = get_style("giorgio_de_chirico")
+    assert "chirico_metaphysical_shadow_pass" in style.inspiration, (
+        "giorgio_de_chirico inspiration must mention chirico_metaphysical_shadow_pass")
+
+
+def test_giorgio_de_chirico_in_expected_artists():
+    """Session 198: giorgio_de_chirico must appear in EXPECTED_ARTISTS."""
+    assert "giorgio_de_chirico" in EXPECTED_ARTISTS, (
+        "giorgio_de_chirico missing from EXPECTED_ARTISTS")
+
+
+def test_giorgio_de_chirico_period_contains_1910s():
+    """Session 198: period must span the Metaphysical period (1909–1919 era)."""
+    style = get_style("giorgio_de_chirico")
+    assert "190" in style.period or "191" in style.period, (
+        f"giorgio_de_chirico period should reference 1909–1919 era; got {style.period!r}")
