@@ -17782,6 +17782,148 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ──────────────────────────────────────────────────────────────────────
+    # HENRI ROUSSEAU (1844–1910) — Session 202
+    # ──────────────────────────────────────────────────────────────────────
+    #
+    # Henri Julien Félix Rousseau, known as "Le Douanier" (The Customs
+    # Officer) for his day-job career, arrived at painting entirely self-
+    # taught in his early forties — yet produced some of the most haunting
+    # and compositionally inventive canvases of the post-Impressionist era.
+    # Picasso threw a famous banquet in his honour; Kandinsky reproduced his
+    # work in the Blaue Reiter almanac; the Surrealists claimed him as a
+    # spiritual ancestor.  His naïveté was genuine but not simple: every leaf
+    # in his jungle scenes is individually silhouetted, every branch placed
+    # with deliberate decorative precision, every figure illuminated by a
+    # sourceless moonlight that feels more theatrical than natural.
+    #
+    # Rousseau's technique is characterized by a radical inversion of
+    # academic tonal practice.  Academic painting modulates tone continuously
+    # within each form; Rousseau treats each organic element — leaf, fur,
+    # fabric, sky band — as a near-uniform luminance zone separated from its
+    # neighbour by a crisp silhouette edge.  The result is a stacked-layer
+    # quality: his jungles read as a series of flat cut-paper shapes laid
+    # over one another, each layer slightly different in value.  He applies
+    # paint in thin, smooth coats — no impasto, no visible brushwork — so
+    # the surface is airless and immaculate.
+    #
+    # His colour world is dominated by deep, saturated greens (his jungle
+    # palette contains 15+ distinct shades of green), counterpointed by the
+    # warm amber-gold of moonlit or tropical light falling on pale figures or
+    # animals.  Shadows are pushed to near-black indigo rather than warm
+    # brown; highlights are cool ivory-white rather than warm cream.  The
+    # sky, even in daylight scenes, carries a slightly unrealistic blue that
+    # feels more like theatrical backdrop than atmosphere.
+    #
+    # Pipeline key: rousseau_naive_luminance_pass() — NAIVE LUMINANCE
+    # STRATIFICATION.  Each pixel's luminance is quantized into discrete
+    # bands, suppressing fine tonal gradation and producing Rousseau's
+    # characteristic flat-zone quality.  A deep indigo-black is pushed into
+    # the darkest band (jungle void deeps); a warm moonlit amber is pushed
+    # into the mid-bright band (figure/animal illumination); a cool deep-
+    # green tint is added to dark-mid zones (jungle foliage character); a
+    # cool blue cast is blended into the upper canvas region (theatrical sky).
+    "henri_rousseau": ArtStyle(
+        artist="Henri Rousseau",
+        movement="Post-Impressionism / Naïve Art",
+        nationality="French",
+        period="1844–1910",
+        palette=[
+            (0.08, 0.32, 0.12),   # deep jungle shadow-green
+            (0.18, 0.52, 0.22),   # mid jungle green (dominant foliage)
+            (0.38, 0.72, 0.30),   # bright foliage highlight-green
+            (0.72, 0.62, 0.22),   # moonlit amber-gold (figure light)
+            (0.88, 0.82, 0.60),   # ivory moonlit highlight
+            (0.06, 0.06, 0.18),   # near-black indigo void (jungle deep)
+            (0.22, 0.32, 0.62),   # theatrical sky blue
+            (0.82, 0.42, 0.18),   # tropical sunset orange (accent)
+        ],
+        ground_color=(0.12, 0.18, 0.10),   # deep dark-green ground
+        stroke_size=7,
+        wet_blend=0.12,
+        edge_softness=0.10,
+        jitter=0.025,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Rousseau applied paint in thin, smooth coats with no visible brushwork or "
+            "impasto — his surfaces are airless and immaculate, unlike any academic or "
+            "Impressionist contemporary.  Each organic element — leaf, fur, fabric, sky "
+            "band — is painted as a near-uniform luminance zone separated from its "
+            "neighbour by a crisp silhouette edge: a stacked cut-paper quality.  "
+            "His jungle palette contains 15+ distinct greens, ranging from near-black "
+            "indigo-green to vivid yellow-green, each a separate flat layer.  Shadows "
+            "are pushed to deep indigo-black; highlights are cool ivory-white.  "
+            "His moonlit figures glow with an amber warmth that has no identifiable "
+            "light source — theatrical rather than natural.  The sky is an unrealistically "
+            "flat, saturated blue that reads as scenic backdrop.  Rousseau never used "
+            "perspective construction correctly, but his spatial arrangements carry an "
+            "internal logic: size variation and overlapping silhouettes imply depth without "
+            "atmospheric diminution or tonal softening.  He worked wet-on-dry, building "
+            "each leaf and branch as a discrete shape before adding the next layer."
+        ),
+        famous_works=[
+            ("The Sleeping Gypsy",                          "1897"),
+            ("Tiger in a Tropical Storm (Surprised!)",       "1891"),
+            ("The Dream",                                    "1910"),
+            ("The Snake Charmer",                            "1907"),
+            ("Fight Between a Tiger and a Buffalo",          "1908"),
+            ("The Merry Jesters",                            "1906"),
+            ("The Flamingoes",                               "1907"),
+            ("Myself: Portrait-Landscape",                   "1890"),
+        ],
+        inspiration=(
+            "Apply rousseau_naive_luminance_pass() as the signature Rousseau "
+            "effect — ONE HUNDRED AND THIRTEENTH DISTINCT MODE.\n"
+            "Algorithm: NAIVE LUMINANCE STRATIFICATION — the key mechanism: each "
+            "pixel's luminance is calculated and the pixel is sorted into one of "
+            "four discrete luminance bands (void-dark, foliage-dark, mid-lit, "
+            "highlighted).  Fine tonal gradation within each band is compressed "
+            "toward the band's target luminance, suppressing the continuous tonal "
+            "modulation of academic painting and producing Rousseau's characteristic "
+            "flat-zone quality — each organic layer reads as near-uniform in value.\n"
+            "VOID BAND (luma < 0.15): colours pushed toward deep indigo-black "
+            "(0.06, 0.06, 0.18), replicating Rousseau's impenetrable jungle deeps "
+            "and cast shadow zones.\n"
+            "FOLIAGE BAND (0.15 ≤ luma < 0.40): colours receive a deep-green tint "
+            "injection (0.08, 0.28, 0.10) at moderate strength, replicating the "
+            "characteristic dark-green foliage that dominates his jungle layers.\n"
+            "MID-LIT BAND (0.40 ≤ luma < 0.68): colours pushed toward warm moonlit "
+            "amber (0.75, 0.65, 0.25), replicating the sourceless golden illumination "
+            "that falls on figures, animals, and moon-lit ground.\n"
+            "HIGHLIGHT BAND (luma ≥ 0.68): colours pushed toward cool ivory-white "
+            "(0.90, 0.88, 0.78), replicating Rousseau's clean, cool highlights on "
+            "white robes, animal fur, and moonlit surfaces.\n"
+            "SKY VIGNETTE: a vertical gradient (stronger toward the top of the "
+            "canvas, zero at the bottom third) injects a cool blue-violet cast "
+            "(0.22, 0.28, 0.58) into the upper region, producing his distinctive "
+            "flat theatrical sky without altering foreground foliage tones.\n\n"
+            "NOVEL: ONE HUNDRED AND THIRTEENTH DISTINCT MODE. FIRST pass to use "
+            "NAIVE LUMINANCE STRATIFICATION — quantizing continuous tonal gradation "
+            "into discrete luminance bands with per-band target colour injection. "
+            "Prior passes operate on continuous luminance fields: Böcklin "
+            "(tripartite luminance toning — hard threshold gates but continuous push), "
+            "Aivazovsky (wave-phase map — spatially-driven not luminance-driven), "
+            "Ensor (bidirectional chroma polarization — channel balance detection). "
+            "The stratification approach is new: each pixel is assigned to exactly "
+            "one band and receives that band's target injection, producing the "
+            "stepped flat-zone quality that defines naïve art.\n\n"
+            "tone_ground() with deep dark-green (0.12, 0.18, 0.10).\n"
+            "underpainting() for jungle mass and figure silhouettes.\n"
+            "block_in() with broad foliage shapes (stroke_size=22).\n"
+            "build_form() for leaf layers and figure volumes (stroke_size=8).\n"
+            "place_lights() for moonlit highlights and figure illumination.\n"
+            "rousseau_naive_luminance_pass(void_strength=0.55, foliage_strength=0.42, "
+            "midlit_strength=0.48, highlight_strength=0.40, sky_strength=0.35, "
+            "opacity=0.75) as the primary pass.\n"
+            "Optional second pass at opacity=0.30 to deepen the stratification.\n\n"
+            "Use rousseau_naive_luminance_pass(void_strength=0.55, foliage_strength=0.42, "
+            "midlit_strength=0.48, highlight_strength=0.40, sky_strength=0.35, opacity=0.75)."
+        ),
+    ),
+
 }
 
 

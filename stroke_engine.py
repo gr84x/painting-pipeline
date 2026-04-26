@@ -46197,3 +46197,160 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Ensor Carnival Mask pass complete.")
+
+    def rousseau_naive_luminance_pass(
+        self,
+        void_strength:      float = 0.55,
+        foliage_strength:   float = 0.42,
+        midlit_strength:    float = 0.48,
+        highlight_strength: float = 0.40,
+        sky_strength:       float = 0.35,
+        void_color:         tuple = (0.06, 0.06, 0.18),
+        foliage_color:      tuple = (0.08, 0.28, 0.10),
+        midlit_color:       tuple = (0.75, 0.65, 0.25),
+        highlight_color:    tuple = (0.90, 0.88, 0.78),
+        sky_color:          tuple = (0.22, 0.28, 0.58),
+        opacity:            float = 0.75,
+    ) -> None:
+        """
+        Session 202 — Rousseau naïve luminance pass (113th distinct mode).
+
+        Recreates the flat-zone quality of Henri Rousseau's jungle paintings
+        through NAIVE LUMINANCE STRATIFICATION: each pixel is sorted into one
+        of four discrete luminance bands and receives that band's target colour
+        injection, suppressing continuous tonal gradation and producing
+        Rousseau's characteristic cut-paper stacked-layer appearance.
+
+        Algorithm:
+        (1) VOID BAND (luma < 0.15): colours pushed toward deep indigo-black,
+            replicating Rousseau's impenetrable jungle shadow deeps.
+        (2) FOLIAGE BAND (0.15 <= luma < 0.40): colours receive a deep-green
+            tint injection, replicating the characteristic dark jungle foliage
+            layers that dominate his compositions.
+        (3) MID-LIT BAND (0.40 <= luma < 0.68): colours pushed toward warm
+            moonlit amber, replicating the sourceless golden illumination that
+            falls on his figures, animals, and moonlit ground.
+        (4) HIGHLIGHT BAND (luma >= 0.68): colours pushed toward cool ivory-
+            white, replicating clean highlights on white robes and fur.
+        (5) SKY VIGNETTE: a vertical gradient (top of canvas to bottom third)
+            injects a cool blue-violet cast into the upper region, producing
+            his flat theatrical sky without altering foreground foliage.
+
+        NOVEL: ONE HUNDRED AND THIRTEENTH DISTINCT MODE.  FIRST pass to use
+        NAIVE LUMINANCE STRATIFICATION — quantizing the continuous luminance
+        field into discrete bands, each receiving a distinct target colour
+        injection.  Prior passes operate on continuous fields: Bocklin
+        (tripartite toning — continuous push toward targets), Ensor
+        (bidirectional chroma polarization — channel balance detection),
+        Aivazovsky (wave-phase map — spatially-driven frequency).  The
+        stratification is new: each pixel belongs to exactly one band and
+        receives that band's injection, producing the stepped flat-zone quality
+        that defines naive art.
+
+        void_strength      : blend strength toward indigo-black in darkest zone
+        foliage_strength   : blend strength toward deep green in foliage zone
+        midlit_strength    : blend strength toward amber in mid-lit zone
+        highlight_strength : blend strength toward ivory in highlight zone
+        sky_strength       : maximum blend strength for sky vignette at top
+        void_color         : target RGB for void band (deep indigo-black)
+        foliage_color      : target RGB for foliage band (deep jungle green)
+        midlit_color       : target RGB for mid-lit band (moonlit amber)
+        highlight_color    : target RGB for highlight band (cool ivory-white)
+        sky_color          : target RGB for sky vignette (theatrical blue-violet)
+        opacity            : final composite blend opacity
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo is BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        # Luminance (rec. 709 weights)
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        # ── 1. Void band (luma < 0.15) ────────────────────────────────────
+        vs = float(void_strength)
+        vr, vg, vb = float(void_color[0]), float(void_color[1]), float(void_color[2])
+        # Smooth gate: ramps from 1 at luma=0 to 0 at luma=0.15
+        void_gate = _np.clip(1.0 - luma / 0.15, 0.0, 1.0) ** 1.5
+        void_alpha = void_gate * vs
+        r1 = r1 * (1.0 - void_alpha) + vr * void_alpha
+        g1 = g1 * (1.0 - void_alpha) + vg * void_alpha
+        b1 = b1 * (1.0 - void_alpha) + vb * void_alpha
+
+        # ── 2. Foliage band (0.15 <= luma < 0.40) ─────────────────────────
+        fs = float(foliage_strength)
+        fr, fg, fb = float(foliage_color[0]), float(foliage_color[1]), float(foliage_color[2])
+        # Bell gate centred in this band: peaks at luma=0.275
+        foliage_centre = 0.275
+        foliage_width  = 0.125
+        foliage_gate = _np.clip(
+            1.0 - _np.abs(luma - foliage_centre) / foliage_width, 0.0, 1.0
+        ) ** 1.2
+        foliage_alpha = foliage_gate * fs
+        r1 = r1 * (1.0 - foliage_alpha) + fr * foliage_alpha
+        g1 = g1 * (1.0 - foliage_alpha) + fg * foliage_alpha
+        b1 = b1 * (1.0 - foliage_alpha) + fb * foliage_alpha
+
+        # ── 3. Mid-lit band (0.40 <= luma < 0.68) ─────────────────────────
+        ms = float(midlit_strength)
+        mr, mg, mb = float(midlit_color[0]), float(midlit_color[1]), float(midlit_color[2])
+        midlit_centre = 0.54
+        midlit_width  = 0.14
+        midlit_gate = _np.clip(
+            1.0 - _np.abs(luma - midlit_centre) / midlit_width, 0.0, 1.0
+        ) ** 1.2
+        midlit_alpha = midlit_gate * ms
+        r1 = r1 * (1.0 - midlit_alpha) + mr * midlit_alpha
+        g1 = g1 * (1.0 - midlit_alpha) + mg * midlit_alpha
+        b1 = b1 * (1.0 - midlit_alpha) + mb * midlit_alpha
+
+        # ── 4. Highlight band (luma >= 0.68) ───────────────────────────────
+        hs = float(highlight_strength)
+        hr, hg, hb = (
+            float(highlight_color[0]), float(highlight_color[1]), float(highlight_color[2])
+        )
+        # Smooth gate: ramps from 0 at luma=0.68 to 1 at luma=1.0
+        highlight_gate = _np.clip(
+            (luma - 0.68) / (1.0 - 0.68 + 1e-6), 0.0, 1.0
+        ) ** 1.5
+        highlight_alpha = highlight_gate * hs
+        r1 = r1 * (1.0 - highlight_alpha) + hr * highlight_alpha
+        g1 = g1 * (1.0 - highlight_alpha) + hg * highlight_alpha
+        b1 = b1 * (1.0 - highlight_alpha) + hb * highlight_alpha
+
+        # ── 5. Sky vignette (vertical gradient, top to upper-40% of canvas) ─
+        ss = float(sky_strength)
+        sr, sg, sb = float(sky_color[0]), float(sky_color[1]), float(sky_color[2])
+        # Gradient: 1.0 at y=0 (top row), 0.0 at y/H = 0.40
+        y_norm = _np.arange(H, dtype=_np.float32)[:, None] / float(H)   # (H, 1) broadcast
+        sky_gradient = _np.clip(1.0 - y_norm / 0.40, 0.0, 1.0) ** 1.5
+        sky_alpha = sky_gradient * ss
+        r1 = r1 * (1.0 - sky_alpha) + sr * sky_alpha
+        g1 = g1 * (1.0 - sky_alpha) + sg * sky_alpha
+        b1 = b1 * (1.0 - sky_alpha) + sb * sky_alpha
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        # ── 6. Global opacity composite ───────────────────────────────────
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Rousseau Naive Luminance pass complete.")

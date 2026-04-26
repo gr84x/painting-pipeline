@@ -203,6 +203,7 @@ EXPECTED_ARTISTS = [
     "ivan_aivazovsky",
     "arnold_bocklin",
     "james_ensor",
+    "henri_rousseau",
 ]
 
 
