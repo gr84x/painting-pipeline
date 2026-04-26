@@ -45344,3 +45344,236 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Léger Tubist Contour pass complete.")
+
+    def kandinsky_geometric_resonance_pass(
+        self,
+        reference=None,
+        n_circles: int = 18,
+        n_triangles: int = 14,
+        n_tension_lines: int = 22,
+        n_squares: int = 10,
+        n_arcs: int = 7,
+        primitive_scale: float = 1.0,
+        synesthetic_strength: float = 0.75,
+        opacity: float = 0.65,
+        seed: int = 197,
+    ) -> None:
+        """
+        Kandinsky Geometric Resonance pass — synesthetic geometric abstraction.
+
+        Inspired by Kandinsky's Bauhaus phase (1922–1933) and his treatise
+        "Concerning the Spiritual in Art" (1911): each geometric primitive carries
+        a specific acoustic-colour identity per his synesthetic theory:
+          • Cadmium yellow   → triangles  (advancing, trumpet-sharp, restless)
+          • Ultramarine blue → circles    (receding, cello-deep, heavenly)
+          • Vermilion red    → squares    (stable, drumbeat warmth, earthbound)
+          • Near-black       → tension lines (extinguished resonance, structure)
+          • Violet           → open arcs  (wavering, uncertain, fading to silence)
+
+        Algorithm:
+          1. Compute canvas gradient magnitude → interest map.  If reference
+             is provided, blend its gradient into the interest map (50/50).
+          2. Sample n_circles positions weighted toward HIGH-gradient loci
+             (blue circles float in complex spatial depths); draw 2–3 concentric
+             rings per centre.
+          3. Sample n_triangles positions weighted toward LOW-gradient (flat)
+             zones (yellow triangles advance from calm areas); draw equilateral
+             triangles at random rotation.
+          4. Sample n_tension_lines positions at PEAK-gradient loci; connect
+             adjacent pairs with near-black lines (structural tension).
+          5. Sample n_squares positions from MID-TONE stable regions; draw
+             rotated squares with vermilion fill.
+          6. Sample n_arcs positions; draw open violet arcs (partial circles)
+             at random sweep angles.
+          7. Apply 1 px Gaussian blur to the geometric overlay for painterly
+             integration, then alpha-blend onto canvas at `opacity`.
+
+        NOVEL: 108TH DISTINCT MODE. FIRST pass to implement Kandinsky's
+        SYNESTHETIC COLOUR THEORY directly as geometric form-placement rules —
+        each primitive type is locked to its acoustic-colour identity and
+        placed in spatially distinct zones (circles in complex areas, triangles
+        in calm, lines on edges, squares in mid-tones). No prior pass uses
+        interest-map-stratified multi-primitive geometric scatter with
+        per-type synesthetic palette assignment. Distinct from all 107 prior
+        passes.
+        """
+        import numpy as _np
+        from PIL import Image as _Image, ImageDraw as _IDraw, ImageFilter as _IF
+        from scipy.ndimage import convolve as _conv
+        import math as _math
+
+        W, H = self.canvas.w, self.canvas.h
+        _rng = _np.random.default_rng(int(seed))
+
+        # Capture canvas (BGRA: ch0=B, ch1=G, ch2=R, ch3=A)
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── 1. Gradient interest map ─────────────────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        sobel_x = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        sobel_y = _np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=_np.float32)
+        gx = _conv(lum, sobel_x, mode="reflect")
+        gy = _conv(lum, sobel_y, mode="reflect")
+        grad_mag = _np.sqrt(gx ** 2 + gy ** 2)
+        grad_norm = _np.clip(grad_mag / (_np.percentile(grad_mag, 99.0) + 1e-8), 0.0, 1.0)
+
+        if reference is not None:
+            try:
+                ref_arr = _np.asarray(reference, dtype=_np.float32)
+                if ref_arr.max() > 1.5:
+                    ref_arr = ref_arr / 255.0
+                ref_lum = (
+                    0.299 * ref_arr[:, :, 0] +
+                    0.587 * ref_arr[:, :, 1] +
+                    0.114 * ref_arr[:, :, 2]
+                ) if ref_arr.ndim == 3 else ref_arr
+                if ref_lum.shape != (H, W):
+                    ref_pil_g = _Image.fromarray(
+                        (ref_lum * 255).clip(0, 255).astype(_np.uint8)
+                    ).resize((W, H), _Image.LANCZOS)
+                    ref_lum = _np.array(ref_pil_g, dtype=_np.float32) / 255.0
+                rgx = _conv(ref_lum, sobel_x, mode="reflect")
+                rgy = _conv(ref_lum, sobel_y, mode="reflect")
+                ref_grad = _np.clip(
+                    _np.sqrt(rgx ** 2 + rgy ** 2) /
+                    (_np.percentile(_np.sqrt(rgx ** 2 + rgy ** 2), 99.0) + 1e-8),
+                    0.0, 1.0,
+                )
+                grad_norm = 0.5 * grad_norm + 0.5 * ref_grad
+            except Exception:
+                pass
+
+        # ── 2. Per-primitive sampling weight maps ────────────────────────────
+        # Circles  → high-gradient zones (complex, receding depths)
+        w_high = (grad_norm ** 1.5 + 0.04).ravel()
+        w_high /= w_high.sum()
+        # Triangles → flat/calm zones (advancing from stillness)
+        w_calm = ((1.0 - grad_norm) ** 1.5 + 0.04).ravel()
+        w_calm /= w_calm.sum()
+        # Tension lines → peak-gradient loci (structural edges)
+        w_edge = (grad_norm ** 3.0 + 0.01).ravel()
+        w_edge /= w_edge.sum()
+        # Squares → mid-tone stable zones (earthbound, steady)
+        mid_dist = 1.0 - _np.abs(lum - 0.50) * 2.0
+        w_mid = (_np.clip(mid_dist, 0.0, 1.0) ** 1.5 + 0.03).ravel()
+        w_mid /= w_mid.sum()
+        # Arcs → uniform scatter (wavering, undefined presence)
+        w_uni = _np.ones(H * W, dtype=_np.float32) / (H * W)
+
+        def _sample(n, weights):
+            """Sample n unique pixel positions with given weights."""
+            n = max(1, int(n))
+            indices = _rng.choice(H * W, size=min(n, H * W), replace=False, p=weights)
+            ys, xs = _np.unravel_index(indices, (H, W))
+            return list(zip(xs.tolist(), ys.tolist()))
+
+        # ── 3. Kandinsky synesthetic palette (RGB uint8) ─────────────────────
+        KAN_YELLOW = (244, 215, 31)   # cadmium yellow — trumpet-sharp
+        KAN_BLUE   = (20,  46,  173)  # ultramarine blue — cello-deep
+        KAN_RED    = (209, 41,  31)   # vermilion red — drumbeat
+        KAN_BLACK  = (15,  15,  15)   # near-black — extinguished resonance
+        KAN_VIOLET = (140, 56,  179)  # violet — wavering, uncertain
+
+        # ── 4. Geometric overlay (RGBA transparent canvas) ───────────────────
+        overlay = _Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        draw = _IDraw.Draw(overlay, "RGBA")
+
+        short = min(W, H)
+        base_r = max(6, int(short * 0.050 * float(primitive_scale)))
+        base_t = max(8, int(short * 0.060 * float(primitive_scale)))
+        base_s = max(5, int(short * 0.040 * float(primitive_scale)))
+        alpha = int(_np.clip(float(synesthetic_strength) * 220 + 20, 40, 240))
+
+        # ── Circles (ultramarine blue) ────────────────────────────────────────
+        for cx, cy in _sample(n_circles, w_high):
+            r = int(base_r * (0.55 + _rng.random() * 0.90))
+            for ring in range(3):
+                rr = r - ring * max(2, r // 5)
+                if rr <= 1:
+                    break
+                ring_alpha = int(alpha * (1.0 - ring * 0.28))
+                ring_w = max(1, r // 7 - ring)
+                draw.ellipse(
+                    [cx - rr, cy - rr, cx + rr, cy + rr],
+                    outline=(*KAN_BLUE, ring_alpha),
+                    width=ring_w,
+                )
+
+        # ── Triangles (cadmium yellow) ────────────────────────────────────────
+        for tx, ty in _sample(n_triangles, w_calm):
+            size = int(base_t * (0.55 + _rng.random() * 0.90))
+            angle = _rng.random() * 2.0 * _math.pi
+            pts = [
+                (tx + size * _math.cos(angle + k * 2.094395),
+                 ty + size * _math.sin(angle + k * 2.094395))
+                for k in range(3)
+            ]
+            draw.polygon(
+                pts,
+                fill=(*KAN_YELLOW, alpha),
+                outline=(*KAN_BLACK, min(255, alpha + 30)),
+            )
+
+        # ── Tension lines (near-black) ────────────────────────────────────────
+        line_pts = _sample(n_tension_lines, w_edge)
+        lw = max(1, base_r // 6)
+        for i in range(0, len(line_pts) - 1, 2):
+            x1, y1 = line_pts[i]
+            x2, y2 = line_pts[i + 1]
+            draw.line([(x1, y1), (x2, y2)],
+                      fill=(*KAN_BLACK, int(alpha * 0.88)),
+                      width=lw)
+
+        # ── Squares (vermilion red) ───────────────────────────────────────────
+        for sx, sy in _sample(n_squares, w_mid):
+            s = int(base_s * (0.50 + _rng.random() * 0.80))
+            angle = _rng.random() * _math.pi * 0.5  # 0–90° rotation
+            diag = s * _math.sqrt(2.0) * 0.5
+            corners = [
+                (sx + diag * _math.cos(angle + k * 1.5707963),
+                 sy + diag * _math.sin(angle + k * 1.5707963))
+                for k in range(4)
+            ]
+            draw.polygon(
+                corners,
+                fill=(*KAN_RED, alpha),
+                outline=(*KAN_BLACK, min(255, alpha + 25)),
+            )
+
+        # ── Arcs (violet) — open partial circles, wavering ───────────────────
+        for ax, ay in _sample(n_arcs, w_uni):
+            ar = int(base_r * (0.70 + _rng.random() * 1.0))
+            start_deg = int(_rng.random() * 360)
+            sweep_deg = int(60 + _rng.random() * 200)
+            aw = max(1, base_r // 5)
+            draw.arc(
+                [ax - ar, ay - ar, ax + ar, ay + ar],
+                start=start_deg,
+                end=(start_deg + sweep_deg) % 360,
+                fill=(*KAN_VIOLET, int(alpha * 0.80)),
+                width=aw,
+            )
+
+        # ── 5. Soft blur for painterly integration ────────────────────────────
+        overlay = overlay.filter(_IF.GaussianBlur(radius=1))
+
+        # ── 6. Alpha-blend overlay onto canvas ───────────────────────────────
+        ov_arr = _np.array(overlay, dtype=_np.float32) / 255.0  # (H, W, 4) RGBA
+        blend = ov_arr[:, :, 3] * float(opacity)
+        r1 = r0 * (1.0 - blend) + ov_arr[:, :, 0] * blend
+        g1 = g0 * (1.0 - blend) + ov_arr[:, :, 1] * blend
+        b1 = b0 * (1.0 - blend) + ov_arr[:, :, 2] * blend
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(r1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(g1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(b1 * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Kandinsky Geometric Resonance pass complete.")
