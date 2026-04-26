@@ -17505,3 +17505,123 @@ def test_aivazovsky_marine_luminance_pass_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── bocklin_mythic_atmosphere_pass — session 200 addition ─────────────────────
+
+def test_bocklin_mythic_atmosphere_pass_exists():
+    """Session 200: bocklin_mythic_atmosphere_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bocklin_mythic_atmosphere_pass"), (
+        "bocklin_mythic_atmosphere_pass not found on Painter")
+    assert callable(getattr(Painter, "bocklin_mythic_atmosphere_pass"))
+
+
+def test_bocklin_mythic_atmosphere_pass_signature():
+    """Session 200: bocklin_mythic_atmosphere_pass must have expected parameters."""
+    import inspect
+    from stroke_engine import Painter
+    sig = inspect.signature(Painter.bocklin_mythic_atmosphere_pass)
+    for param in (
+        "shadow_cool", "shadow_threshold", "mist_strength", "mist_color",
+        "highlight_threshold", "jewel_boost",
+        "vignette_strength", "vignette_power", "opacity",
+    ):
+        assert param in sig.parameters, (
+            f"bocklin_mythic_atmosphere_pass missing parameter: {param}")
+
+
+def test_bocklin_mythic_atmosphere_pass_runs():
+    """Session 200: bocklin_mythic_atmosphere_pass runs without error on a small canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.26, 0.28, 0.36), texture_strength=0.0)
+    p.bocklin_mythic_atmosphere_pass(
+        shadow_cool=0.40,
+        mist_strength=0.30,
+        mist_color=(0.38, 0.42, 0.54),
+        jewel_boost=0.32,
+        vignette_strength=0.55,
+        opacity=0.65,
+    )
+
+
+def test_bocklin_mythic_atmosphere_pass_pixels_in_range():
+    """Session 200: bocklin_mythic_atmosphere_pass output pixels must stay in [0, 255]."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.26, 0.28, 0.36), texture_strength=0.0)
+    p.bocklin_mythic_atmosphere_pass(
+        shadow_cool=0.40, mist_strength=0.30, jewel_boost=0.32,
+        vignette_strength=0.55, opacity=1.0,
+    )
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape(64, 64, 4)
+    assert buf.min() >= 0
+    assert buf.max() <= 255
+
+
+def test_bocklin_mythic_atmosphere_pass_modifies_canvas():
+    """Session 200: bocklin_mythic_atmosphere_pass at full opacity must change pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.26, 0.28, 0.36), texture_strength=0.0)
+    p.underpainting(ref, stroke_size=8)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.bocklin_mythic_atmosphere_pass(
+        shadow_cool=0.40, mist_strength=0.30, jewel_boost=0.32,
+        vignette_strength=0.55, opacity=1.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert not _np.array_equal(before, after), (
+        "bocklin_mythic_atmosphere_pass should modify canvas pixels at opacity=1.0")
+
+
+def test_bocklin_mythic_atmosphere_pass_zero_opacity_unchanged():
+    """Session 200: bocklin_mythic_atmosphere_pass at opacity=0 must leave canvas unchanged."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.26, 0.28, 0.36), texture_strength=0.0)
+    before = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    p.bocklin_mythic_atmosphere_pass(
+        shadow_cool=0.40, mist_strength=0.30, jewel_boost=0.32,
+        vignette_strength=0.55, opacity=0.0,
+    )
+    after = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).copy()
+    assert _np.array_equal(before, after), (
+        "bocklin_mythic_atmosphere_pass at opacity=0.0 must not change any pixels")
+
+
+def test_bocklin_mythic_atmosphere_pass_no_reference():
+    """Session 200: bocklin_mythic_atmosphere_pass without prior strokes runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.26, 0.28, 0.36), texture_strength=0.0)
+    p.bocklin_mythic_atmosphere_pass(opacity=0.70)
+
+
+def test_bocklin_mythic_atmosphere_pass_high_vignette():
+    """Session 200: vignette_strength=1.0 runs without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.26, 0.28, 0.36), texture_strength=0.0)
+    p.bocklin_mythic_atmosphere_pass(vignette_strength=1.0, opacity=0.60)
+
+
+def test_bocklin_mythic_atmosphere_pass_zero_jewel_boost():
+    """Session 200: jewel_boost=0 runs without error and still applies mist/shadow."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.26, 0.28, 0.36), texture_strength=0.0)
+    p.bocklin_mythic_atmosphere_pass(jewel_boost=0.0, opacity=0.50)
+
+
+def test_bocklin_mythic_atmosphere_pass_in_catalog():
+    """Session 200: arnold_bocklin must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "arnold_bocklin" in CATALOG, "arnold_bocklin missing from CATALOG"
+    s = get_style("arnold_bocklin")
+    assert "Symbolism" in s.movement or "symbolism" in s.movement.lower()
+    assert len(s.palette) >= 7
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

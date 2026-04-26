@@ -17532,6 +17532,141 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Arnold Böcklin ────────────────────────────────────────────────────────
+    # Randomly selected artist for session 200.
+    # Arnold Böcklin (1827–1901) — Swiss-German Symbolist painter and one of the
+    # most influential European artists of the late nineteenth century.  Born in
+    # Basel, Switzerland, he trained in Düsseldorf under Johann Wilhelm Schirmer
+    # and later lived and worked in Rome, Munich, Florence, and Zurich.  His work
+    # merges the rigorous academic technique of his German training with a
+    # profoundly personal, visionary symbolism: classical mythology, allegory, and
+    # a brooding sense of the uncanny pervade his canvases.
+    #
+    # His most celebrated work, "Isle of the Dead" (five versions, 1880–1886),
+    # shows a small boat bearing a white-shrouded figure approaching a rocky island
+    # dominated by tall black cypresses — the image became one of the most
+    # reproduced paintings of the fin-de-siècle, reproduced in homes across
+    # Europe and described by Freud as "a beautiful picture" and by Lenin as
+    # "magnificent."  The image works through compositional restraint: the dark
+    # island sits perfectly centred, its mirror reflection in the calm black water
+    # creating a closed, symmetrical world.  The periphery of the canvas is all
+    # deep shadow; the light falls only on the white marble architecture at the
+    # island's centre and the shrouded figure in the boat.
+    #
+    # Technique: Böcklin was technically fastidious.  He worked on a warm-toned
+    # ground, building up smooth, glazed layers in the academic tradition.  His
+    # atmospheric depth — the cool grey mist that separates foreground from
+    # background — was achieved through thin, successive veils of blue-grey glaze
+    # over already-dry underlayers.  His jewel-bright mythological figures (satyrs,
+    # nereids, centaurs) were painted with loaded impasto into wet adjacent darks,
+    # creating the characteristic vibration of saturated colour against
+    # desaturated atmospheric field.  He was one of the first European painters to
+    # experiment with encaustic (wax-based) painting and was deeply interested in
+    # historical colour techniques.  He also used a restricted palette with great
+    # deliberateness: deep cool blacks and blue-grays for shadow and water; warm
+    # ochres and ambers for stone; jewel primaries (crimson, emerald, amber-gold)
+    # for figures; near-white marble for classical architecture.
+    #
+    # Key works: Isle of the Dead (five versions, 1880–1886); The Plague (1898);
+    # The Sirens (1875); Pan in the Reeds (1857); The Sacred Grove (1882);
+    # Triton and Nereid (1874); Self-Portrait with Death Playing the Fiddle (1872).
+    "arnold_bocklin": ArtStyle(
+        artist="Arnold Böcklin",
+        movement="German-Swiss Symbolism",
+        nationality="Swiss-German",
+        period="1850–1901",
+        palette=[
+            (0.06, 0.06, 0.10),   # near-black water shadow — Isle of the Dead depth
+            (0.34, 0.38, 0.50),   # cool blue-grey mist — atmospheric mid-ground haze
+            (0.06, 0.16, 0.06),   # dark cypress green — island silhouette foliage
+            (0.86, 0.84, 0.80),   # white marble — classical architecture highlight
+            (0.62, 0.50, 0.26),   # warm ochre stone — sunlit rocky island surface
+            (0.68, 0.12, 0.10),   # jewel crimson — mythological figure robe
+            (0.08, 0.46, 0.26),   # jewel emerald — mythological figure draping
+            (0.80, 0.62, 0.14),   # jewel amber-gold — gilt/golden accent element
+            (0.05, 0.04, 0.10),   # near-black violet shadow — deepest peripheral darkness
+        ],
+        ground_color=(0.26, 0.28, 0.36),    # cool grey-blue imprimatura — atmospheric base
+        stroke_size=6,
+        wet_blend=0.78,                      # smooth academic glazing technique
+        edge_softness=0.68,                  # soft atmospheric transitions
+        jitter=0.012,                        # restrained; Böcklin is precise, not gestural
+        glazing=(0.38, 0.42, 0.56),          # cool blue-grey unifying atmospheric glaze
+        crackle=True,                        # aged 19th-century panel/canvas
+        chromatic_split=False,
+        technique=(
+            "Smooth, academic glazing technique on a cool-toned grey-blue ground.  "
+            "Background atmosphere is built up through successive thin veils of "
+            "cool blue-grey glaze over dry underlayers — this is BÖCKLIN'S "
+            "ATMOSPHERIC MIST TECHNIQUE.  Foreground mythological figures are "
+            "painted wet-into-adjacent-dark: jewel-bright saturated colour "
+            "(crimson, emerald, amber) is placed as loaded impasto directly into "
+            "still-wet dark surroundings, causing the saturated colour to vibrate "
+            "against the desaturated field.  Classical marble architecture is "
+            "rendered with white-lead impasto for structural highlights; deep "
+            "shadow zones are glazed down to near-black blue-violet.  Peripheral "
+            "vignette is heavy — almost pitch-black frame edges that concentrate "
+            "all light on the central compositional axis.  The result: a window "
+            "into a dream world where light seems to emanate from within the "
+            "subject rather than falling upon it."
+        ),
+        famous_works=[
+            ("Isle of the Dead (first version)",    "1880"),
+            ("Isle of the Dead (third version)",    "1883"),
+            ("The Plague",                          "1898"),
+            ("The Sirens",                          "1875"),
+            ("Pan in the Reeds",                    "1857"),
+            ("The Sacred Grove",                    "1882"),
+            ("Triton and Nereid",                   "1874"),
+            ("Self-Portrait with Death Playing the Fiddle", "1872"),
+        ],
+        inspiration=(
+            "Apply bocklin_mythic_atmosphere_pass() as the signature Böcklin "
+            "effect — ONE HUNDRED AND ELEVENTH DISTINCT MODE.\n"
+            "Algorithm: TRIPARTITE LUMINANCE TONING — three luminance zones are "
+            "identified and each receives a distinct chromatic operation.\n"
+            "(1) SHADOW ZONE (luma < shadow_threshold): pixels are pushed toward "
+            "cool blue-violet near-black (bocklin_shadow_col) by shadow_cool "
+            "strength — recreating the peripheral void darkness that frames every "
+            "Böcklin composition.\n"
+            "(2) MIDTONE ZONE (shadow_threshold ≤ luma < highlight_threshold): "
+            "pixels receive an atmospheric mist injection — blended toward "
+            "mist_color (cool blue-grey) at mist_strength — replicating the "
+            "successive thin glaze veils Böcklin used to push backgrounds into "
+            "atmospheric recession.\n"
+            "(3) HIGHLIGHT ZONE (luma ≥ highlight_threshold): per-pixel saturation "
+            "is boosted by jewel_boost — pulling colour toward its maximum "
+            "chrominance — replicating the jewel-bright impasto Böcklin used for "
+            "mythological figures against dark surroundings.\n"
+            "(4) PERIPHERAL VIGNETTE: a radial power-law falloff darkens the "
+            "canvas edges to near-black at vignette_strength — the compositional "
+            "frame that concentrates all light on the central axis.\n\n"
+            "NOVEL: ONE HUNDRED AND ELEVENTH DISTINCT MODE. FIRST pass to use "
+            "TRIPARTITE LUMINANCE TONING — applying three distinct chromatic "
+            "operations simultaneously to three luminance zones (shadow, midtone, "
+            "highlight) in a single pixel pass. Prior passes address single zones "
+            "or single operations: Beksiński (shadow zone + grain), de Chirico "
+            "(shadow ray projection), Aivazovsky (horizontal wave-phase map). "
+            "The TRIPARTITE approach is a new spatial primitive: the per-pixel "
+            "luminance value gates which of three chromatic transformations is "
+            "applied, achieving simultaneous shadow-cooling, atmospheric-misting, "
+            "and highlight jewel-saturation in one composited layer.\n\n"
+            "tone_ground() with cool grey-blue (0.26, 0.28, 0.36).\n"
+            "underpainting() establishing dark island mass and water.\n"
+            "block_in() for general tonal structure.\n"
+            "build_form() for stone, foliage, and figure volumes.\n"
+            "place_lights() for marble highlights and shrouded figure.\n"
+            "bocklin_mythic_atmosphere_pass(shadow_cool=0.42, mist_strength=0.32, "
+            "mist_color=(0.38, 0.42, 0.54), jewel_boost=0.35, "
+            "vignette_strength=0.58, opacity=0.72) as the primary pass.\n"
+            "glaze((0.34, 0.38, 0.52), opacity=0.07) — cool atmospheric unifier.\n"
+            "focal_vignette_pass(vignette_strength=0.45) — final framing.\n\n"
+            "Use bocklin_mythic_atmosphere_pass(shadow_cool=0.42, mist_strength=0.32, "
+            "mist_color=(0.38, 0.42, 0.54), jewel_boost=0.35, "
+            "vignette_strength=0.58, opacity=0.72)."
+        ),
+    ),
+
 }
 
 

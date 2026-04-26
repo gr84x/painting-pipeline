@@ -201,6 +201,7 @@ EXPECTED_ARTISTS = [
     "fernand_leger",
     "giorgio_de_chirico",
     "ivan_aivazovsky",
+    "arnold_bocklin",
 ]
 
 
@@ -27910,3 +27911,106 @@ def test_giorgio_de_chirico_period_contains_1910s():
     style = get_style("giorgio_de_chirico")
     assert "190" in style.period or "191" in style.period, (
         f"giorgio_de_chirico period should reference 1909–1919 era; got {style.period!r}")
+
+
+# ── Session 200: Arnold Böcklin ───────────────────────────────────────────────
+
+def test_arnold_bocklin_in_catalog():
+    """Session 200: arnold_bocklin must be present in CATALOG."""
+    assert "arnold_bocklin" in CATALOG, "arnold_bocklin missing from CATALOG"
+
+
+def test_arnold_bocklin_movement():
+    """Session 200: movement must reference Symbolism."""
+    style = get_style("arnold_bocklin")
+    assert "Symbolism" in style.movement or "symbolism" in style.movement.lower(), (
+        f"arnold_bocklin movement should reference Symbolism; got {style.movement!r}")
+
+
+def test_arnold_bocklin_nationality():
+    """Session 200: nationality must reference Swiss or German."""
+    style = get_style("arnold_bocklin")
+    nat = style.nationality.lower()
+    assert "swiss" in nat or "german" in nat, (
+        f"arnold_bocklin nationality should include Swiss or German; got {style.nationality!r}")
+
+
+def test_arnold_bocklin_palette_length():
+    """Session 200: palette must have at least 7 colour entries."""
+    style = get_style("arnold_bocklin")
+    assert len(style.palette) >= 7, (
+        f"arnold_bocklin palette should have >= 7 colours; got {len(style.palette)}")
+
+
+def test_arnold_bocklin_palette_values_in_range():
+    """Session 200: all palette RGB components must be in [0, 1]."""
+    style = get_style("arnold_bocklin")
+    for rgb in style.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"arnold_bocklin palette value out of range: {ch}"
+
+
+def test_arnold_bocklin_ground_color():
+    """Session 200: ground_color must be cool (blue channel elevated relative to red)."""
+    style = get_style("arnold_bocklin")
+    r, g, b = style.ground_color
+    assert b > r, (
+        f"arnold_bocklin ground_color should be cool (b > r); got ({r},{g},{b})")
+
+
+def test_arnold_bocklin_has_crackle():
+    """Session 200: crackle must be True — aged 19th-century canvas."""
+    style = get_style("arnold_bocklin")
+    assert style.crackle is True, "arnold_bocklin crackle should be True (aged 19th-c. canvas)"
+
+
+def test_arnold_bocklin_glazing():
+    """Session 200: glazing must be set and blue-dominant (cool atmospheric glaze)."""
+    style = get_style("arnold_bocklin")
+    assert style.glazing is not None, "arnold_bocklin glazing must be set"
+    r, g, b = style.glazing
+    assert b > r, (
+        f"arnold_bocklin glazing should be cool (b > r); got ({r},{g},{b})")
+
+
+def test_arnold_bocklin_period():
+    """Session 200: period must span the 19th-century Symbolist era."""
+    style = get_style("arnold_bocklin")
+    assert "18" in style.period, (
+        f"arnold_bocklin period should reference 1800s; got {style.period!r}")
+
+
+def test_arnold_bocklin_famous_works():
+    """Session 200: must list at least 6 famous works."""
+    style = get_style("arnold_bocklin")
+    assert len(style.famous_works) >= 6, (
+        f"arnold_bocklin should have >= 6 famous works; got {len(style.famous_works)}")
+
+
+def test_arnold_bocklin_isle_of_dead_in_works():
+    """Session 200: 'Isle of the Dead' must appear in famous_works."""
+    style = get_style("arnold_bocklin")
+    titles = [w[0] for w in style.famous_works]
+    assert any("Isle" in t for t in titles), (
+        f"arnold_bocklin famous_works must include 'Isle of the Dead'; got {titles}")
+
+
+def test_arnold_bocklin_inspiration_references_pass():
+    """Session 200: inspiration must reference bocklin_mythic_atmosphere_pass."""
+    style = get_style("arnold_bocklin")
+    assert "bocklin_mythic_atmosphere_pass" in style.inspiration, (
+        "arnold_bocklin inspiration must mention bocklin_mythic_atmosphere_pass")
+
+
+def test_arnold_bocklin_inspiration_references_111th():
+    """Session 200: inspiration must explicitly name the 111th distinct mode."""
+    style = get_style("arnold_bocklin")
+    assert "ELEVENTH" in style.inspiration or "111" in style.inspiration, (
+        "arnold_bocklin inspiration must reference ONE HUNDRED AND ELEVENTH mode")
+
+
+def test_arnold_bocklin_in_expected_artists():
+    """Session 200: arnold_bocklin must appear in EXPECTED_ARTISTS."""
+    assert "arnold_bocklin" in EXPECTED_ARTISTS, (
+        "arnold_bocklin missing from EXPECTED_ARTISTS")

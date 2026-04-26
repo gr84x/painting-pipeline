@@ -45921,3 +45921,136 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Aivazovsky Marine Luminance pass complete.")
+
+    def bocklin_mythic_atmosphere_pass(
+        self,
+        shadow_cool:         float = 0.40,
+        shadow_threshold:    float = 0.28,
+        mist_strength:       float = 0.30,
+        mist_color:          tuple = (0.38, 0.42, 0.54),
+        highlight_threshold: float = 0.68,
+        jewel_boost:         float = 0.32,
+        vignette_strength:   float = 0.55,
+        vignette_power:      float = 2.0,
+        opacity:             float = 0.65,
+    ) -> None:
+        """
+        Session 200 — Böcklin mythic atmosphere pass (111th distinct mode).
+
+        Recreates the chromatic world of Arnold Böcklin's Symbolist paintings
+        through TRIPARTITE LUMINANCE TONING: three luminance zones receive
+        three distinct chromatic operations in a single composited pixel pass.
+
+        (1) Shadow zone (luma < shadow_threshold):
+            Pushed toward cool blue-violet near-black — the peripheral void
+            darkness that frames every Böcklin composition like a vignette
+            burned into the paint itself.
+
+        (2) Midtone zone (shadow_threshold ≤ luma < highlight_threshold):
+            Atmospheric mist injection — blended toward mist_color (cool
+            blue-grey) — replicating Böcklin's successive thin glaze veils
+            that push backgrounds into atmospheric recession.
+
+        (3) Highlight zone (luma ≥ highlight_threshold):
+            Per-pixel saturation boosted by jewel_boost — pulling colour
+            toward maximum chrominance — replicating the jewel-bright impasto
+            Böcklin used for mythological figures against dark surroundings.
+
+        (4) Peripheral vignette: radial power-law falloff darkens canvas
+            edges to near-black at vignette_strength (the compositional frame
+            that concentrates all light on the central axis).
+
+        shadow_cool        : strength of blue-violet push in shadows
+        shadow_threshold   : luma boundary below which shadow toning applies
+        mist_strength      : strength of cool-grey mist in midtones
+        mist_color         : RGB target for atmospheric midtone mist
+        highlight_threshold: luma boundary above which jewel saturation applies
+        jewel_boost        : saturation amplification in highlight zone
+        vignette_strength  : maximum darkness at canvas corners/edges
+        vignette_power     : power-law curve of vignette falloff (higher = sharper)
+        opacity            : final composite opacity
+
+        NOVEL: ONE HUNDRED AND ELEVENTH DISTINCT MODE. FIRST pass to use
+        TRIPARTITE LUMINANCE TONING — applying three distinct chromatic
+        operations simultaneously to three luminance zones (shadow, midtone,
+        highlight) in a single pixel pass. Prior passes address single zones
+        or single operations: Beksiński (shadow zone + grain), de Chirico
+        (shadow ray projection), Aivazovsky (horizontal wave-phase map).
+        The TRIPARTITE approach gates per-pixel transformation through the
+        luma value, achieving shadow-cooling, atmospheric-misting, and
+        highlight jewel-saturation simultaneously in one composited layer.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        luma = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+
+        r1 = r0.copy()
+        g1 = g0.copy()
+        b1 = b0.copy()
+
+        # ── Zone 1: Shadow — cool blue-violet near-black ─────────────────────
+        sc = float(shadow_cool)
+        st = float(shadow_threshold)
+        bocklin_shadow_r, bocklin_shadow_g, bocklin_shadow_b = 0.06, 0.05, 0.12
+        shadow_gate = _np.clip(1.0 - luma / (st + 1e-6), 0.0, 1.0)
+        r1 = r1 + sc * shadow_gate * (bocklin_shadow_r - r1)
+        g1 = g1 + sc * shadow_gate * (bocklin_shadow_g - g1)
+        b1 = b1 + sc * shadow_gate * (bocklin_shadow_b - b1)
+
+        # ── Zone 2: Midtone — atmospheric blue-grey mist injection ───────────
+        ms = float(mist_strength)
+        ht = float(highlight_threshold)
+        mr, mg, mb = float(mist_color[0]), float(mist_color[1]), float(mist_color[2])
+        # Gate is strongest at the midpoint of the midtone band; fades toward both boundaries
+        midtone_raw = _np.clip((luma - st) / (ht - st + 1e-6), 0.0, 1.0)
+        # Bell-shaped gate: peaks at midpoint of midtone range
+        midtone_gate = 4.0 * midtone_raw * (1.0 - midtone_raw)   # parabolic bell, max = 1.0 at centre
+        midtone_gate = midtone_gate * _np.clip(luma / (st + 1e-6), 0.0, 1.0)  # silence in shadow zone
+        r1 = r1 + ms * midtone_gate * (mr - r1)
+        g1 = g1 + ms * midtone_gate * (mg - g1)
+        b1 = b1 + ms * midtone_gate * (mb - b1)
+
+        # ── Zone 3: Highlight — jewel saturation boost ────────────────────────
+        jb = float(jewel_boost)
+        highlight_gate = _np.clip((luma - ht) / (1.0 - ht + 1e-6), 0.0, 1.0)
+        # Per-pixel saturation boost: find the max channel and push other channels away from mean
+        chan_mean = (r1 + g1 + b1) / 3.0
+        r1 = r1 + jb * highlight_gate * (r1 - chan_mean)
+        g1 = g1 + jb * highlight_gate * (g1 - chan_mean)
+        b1 = b1 + jb * highlight_gate * (b1 - chan_mean)
+
+        # ── Zone 4: Peripheral vignette ───────────────────────────────────────
+        vs = float(vignette_strength)
+        vp = float(vignette_power)
+        ys_v = _np.linspace(-1.0, 1.0, H, dtype=_np.float32)[:, None]
+        xs_v = _np.linspace(-1.0, 1.0, W, dtype=_np.float32)[None, :]
+        radial = _np.sqrt(xs_v ** 2 + ys_v ** 2) / _np.sqrt(2.0)
+        vignette_mask = _np.clip(radial ** vp, 0.0, 1.0)
+        vignette_factor = 1.0 - vs * vignette_mask
+        r1 = r1 * vignette_factor
+        g1 = g1 * vignette_factor
+        b1 = b1 * vignette_factor
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        op = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + r1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + g1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + b1 * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Böcklin Mythic Atmosphere pass complete.")
