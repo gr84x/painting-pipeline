@@ -18721,6 +18721,106 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "piet_mondrian": ArtStyle(
+        artist="Piet Mondrian",
+        movement="De Stijl / Neoplasticism",
+        nationality="Dutch",
+        period="1900–1944",
+        palette=[
+            (0.86, 0.08, 0.06),   # primary red — cadmium-like warm scarlet
+            (0.97, 0.87, 0.02),   # primary yellow — lemon-cadmium
+            (0.01, 0.17, 0.54),   # primary blue — deep cobalt
+            (0.94, 0.92, 0.88),   # white — dominant open ground
+            (0.72, 0.72, 0.72),   # neutral gray — transition cell
+            (0.06, 0.06, 0.08),   # black — structural grid line colour
+        ],
+        ground_color=(0.94, 0.92, 0.88),    # white/off-white ground
+        stroke_size=2,
+        wet_blend=0.00,                      # perfectly flat; no wet blending
+        edge_softness=0.00,                  # hard right-angle edges only
+        jitter=0.00,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Piet Mondrian (1872–1944) arrived at Neoplasticism — his term for the ultimate "
+            "abstraction — through a decade-long process of radical reduction.  Beginning in "
+            "the tradition of Dutch landscape painting, he passed through Symbolism, Post-"
+            "Impressionism, and Analytic Cubism before reaching, around 1919, the pure visual "
+            "grammar of De Stijl: only right angles, only the three primary colours (red, yellow, "
+            "blue), only the three non-colours (black, white, gray), and only horizontal/vertical "
+            "lines — never diagonals.  "
+            "The characteristic grid of thick black lines divides the canvas into rectangles of "
+            "varied proportion.  Within the cells, large areas of white are interrupted by "
+            "occasional flat-filled rectangles of pure red, yellow, or blue — never orange, "
+            "never green, never purple.  The grid lines themselves have weight and vary slightly "
+            "in thickness; they are not mere edges but positive structural elements.  "
+            "Mondrian's compositional genius lies in the asymmetric distribution of his few "
+            "coloured cells: a single red rectangle in one corner, a thin blue strip along one "
+            "edge, and several white/gray fields create a dynamic tension that feels both "
+            "perfectly balanced and perpetually unresolved.  He spent months adjusting the "
+            "proportions of his grids — moving individual lines by millimetres — seeking the "
+            "exact point where the composition neither sagged nor leapt.  "
+            "His Broadway Boogie Woogie (1942–43) introduces a final evolution: the black lines "
+            "are replaced by small coloured squares along the grid paths, syncopated like jazz.  "
+            "But the essential Mondrian is the white-and-primary grid — a system so elemental "
+            "it has influenced architecture, graphic design, fashion, and industrial design for "
+            "a century."
+        ),
+        famous_works=[
+            ("Composition with Red, Blue, and Yellow",   "1930"),
+            ("Broadway Boogie Woogie",                    "1942–1943"),
+            ("Victory Boogie Woogie",                     "1942–1944"),
+            ("Composition II in Red, Blue, and Yellow",  "1929"),
+            ("Tableau I",                                 "1921"),
+            ("Composition with Large Red Plane, Yellow, Black, Gray, and Blue", "1921"),
+            ("Pier and Ocean",                            "1915"),
+            ("Gray Tree",                                 "1911"),
+            ("Evening; Red Tree",                         "1908–1910"),
+            ("Composition A",                             "1923"),
+        ],
+        inspiration=(
+            "Apply mondrian_neoplastic_grid_pass() as the signature effect "
+            "— ONE HUNDRED AND TWENTY-THIRD DISTINCT MODE.\n\n"
+            "Algorithm: CONTENT-DRIVEN NEOPLASTIC GRID DECOMPOSITION — a four-stage pass "
+            "that imposes Mondrian's orthogonal grid vocabulary onto an arbitrary painted surface "
+            "using the image's own luminance structure to determine grid line placement.\n"
+            "(1) AXIS-SEPARATED GRADIENT ENERGY: compute luminance L = 0.299R + 0.587G + 0.114B.  "
+            "Compute row-wise mean of L → row_mean(H,); compute its absolute first-difference "
+            "row_energy(H,).  Identify the h_lines rows with highest energy (non-max suppress within "
+            "a 5% height exclusion zone) as horizontal grid line positions.  Repeat column-wise for "
+            "v_lines vertical grid line positions.  These content-derived positions reflect where "
+            "the image transitions most strongly — placing Mondrian's structural lines at the image's "
+            "own compositional seams.\n"
+            "(2) CELL COLOR ASSIGNMENT: the h_lines+1 × v_lines+1 grid of rectangular cells is "
+            "enumerated.  For each cell, compute the mean (R, G, B) of original pixels in that "
+            "region.  Assign the nearest Mondrian color by squared Euclidean distance from the "
+            "six-color neoplastic palette: primary red (0.86, 0.08, 0.06), primary yellow "
+            "(0.97, 0.87, 0.02), primary blue (0.01, 0.17, 0.54), white (0.94, 0.92, 0.88), "
+            "gray (0.72, 0.72, 0.72), black (0.06, 0.06, 0.08).  This ensures cells that are "
+            "luminous/neutral map to white, dark cells map to black/gray, and saturated colored "
+            "cells snap to the nearest primary.\n"
+            "(3) GRID LINE INJECTION: within line_width pixels of any grid line position (rows or "
+            "columns), overwrite pixels with deep black (0.06, 0.06, 0.08).\n"
+            "(4) COMPOSITE: blend the reconstructed Mondrian grid image with the original canvas "
+            "at opacity.\n\n"
+            "NOVEL: ONE HUNDRED AND TWENTY-THIRD DISTINCT MODE.  First pass to perform "
+            "CONTENT-DERIVED ORTHOGONAL GRID PLACEMENT (row/column energy peak detection) + "
+            "CELL-LEVEL NEAREST-PRIMARY-COLOR ASSIGNMENT + EXPLICIT BLACK GRIDLINE INJECTION.  "
+            "Prior passes: Miró (pixel-level palette quantization + gradient outline — no grid "
+            "structure, no cell-level color assignment); Albers (concentric rectangle zones from "
+            "canvas center — fixed geometry, no content-derived placement); Kline (gestural axis "
+            "sweep — diagonal strokes, not orthogonal grids); Hofmann (temperature differential — "
+            "no structural decomposition); all 122 prior passes lack the axis-separated energy "
+            "peak detection → orthogonal cell decomposition → nearest-primary fill combination.\n\n"
+            "tone_ground() with white ground (0.94, 0.92, 0.88).\n"
+            "underpainting() flat mass (stroke_size=18).\n"
+            "block_in() colour planes (stroke_size=12).\n"
+            "mondrian_neoplastic_grid_pass(h_lines=4, v_lines=5, line_width=5, "
+            "grid_strength=0.82, opacity=0.78) as the primary pass."
+        ),
+    ),
+
 }
 
 
