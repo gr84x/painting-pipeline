@@ -18231,6 +18231,127 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Robert Delaunay ─────────────────────────────────────────────────────────
+    # Robert Delaunay (1885–1941) — French painter; founder of Orphism (also called
+    # Simultanism), the most chromatic branch of early twentieth-century abstraction.
+    # Born in Paris, Delaunay began as a Symbolist and passed through Cézannism before
+    # arriving in 1912 at a painting practice built entirely on colour: not colour as
+    # description, but colour as the primary structural element — rhythm, form, light,
+    # and space all arising from the interaction of hue contrasts alone.  His guiding
+    # scientific principle was Chevreul's law of simultaneous contrast: adjacent
+    # complementary colours intensify each other, creating optical vibration, apparent
+    # luminosity, and the sensation of movement without depicted motion.
+    #
+    # His key formal invention was the CHROMATIC DISK: large overlapping circular
+    # sectors filled with pure primary and secondary colours, their edges producing
+    # simultaneous contrast where blue meets orange, green meets red, yellow meets
+    # violet.  The disks are not representational — they are colour events.  In his
+    # "Windows Open Simultaneously" (1912), fragmented planes of blue, orange, and
+    # green replace the architectural elements of a Parisian apartment window; in
+    # "Simultaneous Contrasts: Sun and Moon" (1913), two overlapping disks of chromatic
+    # arcs describe both celestial bodies and the sensation of looking at them.
+    # "Rhythme 1" (1938) strips this even further: pure circular colour bands in
+    # motion, colour as the subject.
+    #
+    # Palette: pure chromatic — cobalt blue, vermilion orange, cadmium yellow,
+    # emerald green, magenta-violet — applied in undiluted, saturated zones with
+    # sharp colour-field boundaries and no atmospheric mixing.
+    #
+    # Pipeline key: delaunay_orphist_disk_pass() — MULTI-DISK COMPLEMENTARY RING FIELD.
+    # N disk centres are distributed across the canvas; each emits concentric ring bands
+    # coloured by its own complementary pair.  Proximity-weighted overlap creates the
+    # simultaneous contrast fields of Orphism.
+    "robert_delaunay": ArtStyle(
+        artist="Robert Delaunay",
+        movement="Orphism (Simultanism)",
+        nationality="French",
+        period="1885–1941",
+        palette=[
+            (0.05, 0.22, 0.78),   # cobalt blue — primary chromatic ground, sky-field cool
+            (0.92, 0.32, 0.05),   # vermilion orange — direct complement to cobalt, heat
+            (0.95, 0.84, 0.06),   # cadmium yellow — solar luminosity, warm arc peak
+            (0.08, 0.62, 0.28),   # emerald green — cool complement to magenta, nature
+            (0.78, 0.10, 0.58),   # magenta-violet — direct complement to green, dusk
+            (0.95, 0.95, 0.95),   # near-white — high-light disc sectors and optical peaks
+            (0.10, 0.10, 0.18),   # deep navy-black — low-field disc shadow anchor
+        ],
+        ground_color=(0.12, 0.12, 0.20),   # deep blue-black — Orphist dark ground
+        stroke_size=12.0,                   # broad chromatic field application
+        wet_blend=0.12,                     # minimal blending — sharp colour-field edges
+        edge_softness=0.10,                 # hard boundaries between colour zones
+        jitter=0.030,                       # moderate jitter — colour field vibrancy
+        glazing=None,                       # no glazing — pure unmodulated colour
+        crackle=False,
+        chromatic_split=True,               # Orphism is the ultimate chromatic split
+        technique=(
+            "Robert Delaunay built painting entirely from colour contrast — rejecting "
+            "line, tone, and atmospheric depth in favour of pure chromatic interaction.  "
+            "His central principle, derived from Chevreul's simultaneous contrast law, is "
+            "that adjacent complementary colours intensify each other: blue makes its "
+            "neighbouring orange appear more orange; orange makes its blue appear more blue.  "
+            "He formalised this into CHROMATIC DISKS: large overlapping circular sectors "
+            "filled with saturated primaries and secondaries, their edges generating optical "
+            "vibration.  There is no sfumato, no atmospheric recession, no descriptive "
+            "chiaroscuro — only colour as structure.  "
+            "His palettes are unmixed primary/secondary pairs: cobalt blue against vermilion "
+            "orange, cadmium yellow against violet, emerald green against magenta.  Applied "
+            "in broad, flat zones with sharp edges, the simultaneous contrast at every "
+            "boundary creates a sensation of light and movement.  "
+            "His 'Windows Open Simultaneously' (1912) fragments a Parisian view into pure "
+            "colour planes; 'Simultaneous Contrasts: Sun and Moon' (1913) reduces celestial "
+            "observation to interlocking chromatic arcs; 'Rhythme 1' (1938) is pure disk "
+            "rhythm with no representational residue.  "
+            "The Orphist canvas is an energy field, not a description of the world."
+        ),
+        famous_works=[
+            ("Windows Open Simultaneously (First Part, Third Motif)", "1912"),
+            ("Simultaneous Contrasts: Sun and Moon",                   "1913"),
+            ("The City",                                                "1911"),
+            ("The Eiffel Tower",                                        "1910"),
+            ("Circular Forms",                                          "1930"),
+            ("Rhythme 1",                                               "1938"),
+            ("Portuguese Woman",                                        "1916"),
+        ],
+        inspiration=(
+            "Apply delaunay_orphist_disk_pass() as the signature effect "
+            "— ONE HUNDRED AND EIGHTEENTH DISTINCT MODE.\n\n"
+            "Algorithm: MULTI-DISK COMPLEMENTARY RING FIELD — N disk centres are "
+            "distributed across the canvas (golden-angle spiral or specified positions).  "
+            "For each disk k, polar coordinates (r_k) are computed relative to the disk's "
+            "centre.  A RING BAND FIELD is generated: ring_k = sin(r_k × ring_freq × 2π), "
+            "normalised to t_ring ∈ [0,1].  Each disk k is assigned a COMPLEMENTARY COLOR "
+            "PAIR from the Orphist palette (e.g., cobalt-blue / vermilion-orange, "
+            "cadmium-yellow / magenta-violet, emerald-green / orange).  Where ring_k > 0.5, "
+            "pixels are blended toward color_A_k; where ring_k < 0.5, toward color_B_k.  "
+            "Contributions from all N disks are PROXIMITY-WEIGHTED: weight_k = exp(−r_k² / σ²), "
+            "normalised to sum to 1 across all disks.  The weighted sum creates overlapping "
+            "chromatic disk fields.  At disk boundaries the proximity-weighted blend produces "
+            "Delaunay's simultaneous contrast transitions — blue meets orange, green meets "
+            "magenta.  A global opacity composite applies the field.\n\n"
+            "NOVEL: ONE HUNDRED AND EIGHTEENTH DISTINCT MODE.  First pass to use "
+            "MULTI-DISK COMPLEMENTARY RING FIELD: multiple independent chromatic disk "
+            "centres, each carrying its own complementary colour pair, overlaid by "
+            "proximity weighting.  Prior passes: Mucha (single centre, r × θ joint field — "
+            "one focal point, no complementary pairing); Munch (multi-source scalar "
+            "interference — multiple centres but only scalar distance sum, no ring bands, "
+            "no chromatic pairing per centre); Turner (single centre, r gradient — no "
+            "rings, no multi-centre); Hopper (dot-product projection — no polar field).  "
+            "The combination of multi-centre layout, per-centre complementary colour pairing, "
+            "and proximity-weighted ring-band overlay cannot be assembled from any single "
+            "prior pass.\n\n"
+            "tone_ground() with deep blue-black (0.12, 0.12, 0.20).\n"
+            "underpainting() for abstract mass and form (stroke_size=50).\n"
+            "block_in() with broad chromatic zones (stroke_size=30).\n"
+            "build_form() for colour field structure (stroke_size=14).\n"
+            "place_lights() for optical high points and white peak sectors.\n"
+            "delaunay_orphist_disk_pass(n_disks=7, ring_frequency=5.0, "
+            "disk_sigma=0.38, opacity=0.65) as the primary pass.\n\n"
+            "Use delaunay_orphist_disk_pass(n_disks=7, ring_frequency=5.0, "
+            "disk_sigma=0.38, opacity=0.65)."
+        ),
+    ),
+
 }
 
 
