@@ -123,8 +123,8 @@ def build_heron_reference(w: int, h: int) -> Image.Image:
     # Build sky as vertical gradient (top=blue-violet, horizon=orange-gold)
     t_sky = np.clip(yy / horizon_y, 0.0, 1.0)   # 0=top (violet), 1=horizon (gold)
     # Two-stage blend: upper half violet→apricot, lower half apricot→gold
-    t1 = np.clip(t_sky * 2.0, 0.0, 1.0)
-    t2 = np.clip(t_sky * 2.0 - 1.0, 0.0, 1.0)
+    t1 = np.clip(t_sky * 2.0, 0.0, 1.0)[:, :, None]      # (H, W, 1)
+    t2 = np.clip(t_sky * 2.0 - 1.0, 0.0, 1.0)[:, :, None]
     arr = (sky_deep[None, None, :] * (1.0 - t1) +
            sky_apricot[None, None, :] * t1 * (1.0 - t2) +
            horizon_gold[None, None, :] * t2)
@@ -158,7 +158,7 @@ def build_heron_reference(w: int, h: int) -> Image.Image:
     water_near_horizon = np.array([0.48, 0.52, 0.58], dtype=np.float32)
 
     # Gradient from cool teal (foreground bottom) to lighter near horizon
-    t_water = np.clip((yy - water_horizon) / (1.0 - water_horizon), 0.0, 1.0)
+    t_water = np.clip((yy - water_horizon) / (1.0 - water_horizon), 0.0, 1.0)[:, :, None]
     # Reverse: near horizon (t→0) is lighter, foreground (t→1) is darker
     water_colour = (water_near_horizon[None, None, :] * (1.0 - t_water) +
                     water_deep[None, None, :] * t_water)
