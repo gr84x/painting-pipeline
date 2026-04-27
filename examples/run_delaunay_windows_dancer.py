@@ -277,14 +277,14 @@ def main() -> str:
         ],
     )
 
-    # ── Chromatic aberration: slight optical fringing at colour boundaries ────
-    p.chromatic_aberration_pass(opacity=0.10)
+    # ── Chromatic edge halation: slight optical fringing at colour boundaries ─
+    p.chromatic_edge_halation_pass(opacity=0.10)
 
     # ── Meso detail: surface energy on figure and tower ───────────────────────
     p.meso_detail_pass(strength=0.08, opacity=0.08)
 
     # ── Vignette: slight edge darkening to push the disk field forward ────────
-    p.vignette_pass(opacity=0.18)
+    p.canvas.vignette(strength=0.18)
 
     p.canvas.surface.write_to_png(OUTPUT)
     print(f"Saved: {OUTPUT}")
