@@ -18821,6 +18821,129 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "mark_rothko": ArtStyle(
+        artist="Mark Rothko",
+        movement="Abstract Expressionism / Color Field Painting",
+        nationality="American (born Latvian)",
+        period="1940–1970",
+        palette=[
+            (0.78, 0.14, 0.08),   # cadmium red — warm scarlet field
+            (0.60, 0.08, 0.06),   # deep oxide red — brooding crimson
+            (0.72, 0.32, 0.10),   # burnt sienna — oxidised orange-brown
+            (0.86, 0.50, 0.08),   # chrome orange — luminous warmth
+            (0.62, 0.46, 0.16),   # warm ochre — amber threshold
+            (0.22, 0.06, 0.18),   # deep violet — nocturnal abyss
+            (0.08, 0.06, 0.06),   # mars black — void ground
+        ],
+        ground_color=(0.18, 0.10, 0.06),    # deep warm darkness — Rothko's imprimatura
+        stroke_size=42,
+        wet_blend=0.62,                      # high wet blend — colour fields must breathe
+        edge_softness=0.78,                  # very soft edges — the defining quality
+        jitter=0.08,
+        glazing=(0.20, 0.08, 0.04),          # warm dark glaze unifies all fields
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Mark Rothko (1903–1970) arrived at Color Field painting through a long "
+            "arc of disillusionment with the figure.  Beginning as a Social Realist "
+            "painter in the 1930s, he passed through Surrealism and mythological "
+            "imagery before reaching, around 1949, the blunt simplicity that would "
+            "define his mature work: two or three horizontal rectangles of pure colour, "
+            "softly edged, hovering against a darker ground, filling canvases that "
+            "were large enough to envelop the viewer.  "
+            "The rectangles are not geometric in any hard sense.  Their edges are "
+            "deliberately ragged — applied with large brushes loaded with thin, "
+            "diluted pigment, dragged horizontally across the canvas so that the "
+            "fibres of the linen show through and the boundary between one field and "
+            "the next is a zone of dissolution rather than a line.  Rothko called this "
+            "the 'breathing' quality: at the edge, one colour exhales into the other.  "
+            "He instructed viewers to stand close — no more than eighteen inches from "
+            "the surface — so that the peripheral vision fills entirely with colour "
+            "and the rectangles lose their objecthood, becoming instead an atmospheric "
+            "presence, a confrontation.  "
+            "His palette grew darker over the decades.  The luminous oranges and "
+            "yellows of the 1950s ('Orange and Yellow', 1956; 'Saffron', 1957) gave "
+            "way to the Seagram Murals' maroons and blacks (1958–59), and then to "
+            "the greys and umbers of the Harvard murals (1962) and finally the "
+            "black-on-grey paintings of his last year.  Many critics read this "
+            "chromatic descent as a biographical narrative of depression; Rothko "
+            "himself insisted his paintings were about human emotion in the most "
+            "direct sense — not symbols of emotion, but vehicles for it.  "
+            "Technically he worked on unstretched canvas pinned to the wall or floor, "
+            "mixing his pigment with egg and dammar resin to produce surfaces that "
+            "are simultaneously luminous and matte.  The layering of thin glazes — "
+            "sometimes ten or twelve passes — gives the fields an internal depth, a "
+            "sense that light emanates from within the paint rather than reflecting "
+            "from it.  This inner luminosity is the optical illusion at the heart of "
+            "every Rothko: the painting glows because the eye cannot find a fixed "
+            "surface to rest upon."
+        ),
+        famous_works=[
+            ("Orange and Yellow",                    "1956"),
+            ("No. 61 (Rust and Blue)",               "1953"),
+            ("No. 14",                               "1960"),
+            ("Black on Maroon",                      "1958"),
+            ("Saffron",                              "1957"),
+            ("Magenta, Black, Green on Orange",      "1949"),
+            ("Seagram Murals (series)",              "1958–1959"),
+            ("Harvard Murals (series)",              "1962"),
+            ("No. 3 / No. 13",                       "1949"),
+            ("White Center (Yellow, Pink and Lavender on Rose)", "1950"),
+        ],
+        inspiration=(
+            "Apply rothko_color_field_pass() as the signature effect "
+            "— ONE HUNDRED AND TWENTY-FOURTH DISTINCT MODE.\n\n"
+            "Algorithm: LUMINANCE-BAND CHROMATIC FIELD AMPLIFICATION — a five-stage "
+            "pass that imposes Rothko's horizontal colour-field vocabulary onto a "
+            "painted surface by segmenting the canvas into horizontal luminance bands, "
+            "amplifying each band's dominant hue, and dissolving the interband "
+            "boundaries with a smooth sigmoid-weighted Gaussian gradient.\n"
+            "(1) HORIZONTAL BAND SEGMENTATION: divide the canvas into n_bands "
+            "horizontal zones of equal pixel height (default 3, matching Rothko's "
+            "typical two-or-three-rectangle compositions).  For each band, compute "
+            "the mean (R, G, B) of original pixels — this becomes the band's "
+            "'dominant colour', the chromatic identity toward which all pixels in "
+            "that zone will be drawn.\n"
+            "(2) BAND HUE AMPLIFICATION: for every pixel in band i, shift its "
+            "colour toward the band's dominant colour by hue_strength: "
+            "adj = orig × (1 − hue_strength) + band_mean × hue_strength.  "
+            "This amplifies the chromatic coherence of each zone, just as Rothko's "
+            "thin pigment layers built up a unified field of colour within each "
+            "rectangle — many brushstrokes resolving into one optical mass.\n"
+            "(3) SOFT INTERBAND BOUNDARY DISSOLVE: at each band boundary row y_b, "
+            "compute per-row sigmoid weights w_next(y) = 0.5 + 0.5 × tanh((y − y_b) "
+            "/ edge_sigma) and w_prev = 1 − w_next.  Pixels within 3 × edge_sigma "
+            "rows of a boundary receive a weighted blend of the two adjacent bands' "
+            "amplified colours.  This creates the 'breathing' soft edge — Rothko's "
+            "defining mark — where one field exhales into the next over a gradient "
+            "zone rather than at a hard line.\n"
+            "(4) DARKENING VEIL: multiply adj channels by veil_factor (< 1.0) to "
+            "apply Rothko's characteristic chromatic depth — his fields are luminous "
+            "but never bright; the darkness is always present beneath the colour.  "
+            "This simulates his layered dammar-resin glazing technique.\n"
+            "(5) COMPOSITE: blend darkened field image with original canvas at opacity.\n\n"
+            "NOVEL: ONE HUNDRED AND TWENTY-FOURTH DISTINCT MODE.  First pass to "
+            "combine HORIZONTAL BAND HUE AMPLIFICATION (band-level mean-colour shift "
+            "applied uniformly within each zone) + SOFT INTERBAND SIGMOID-WEIGHTED "
+            "BOUNDARY DISSOLVE (per-row tanh weighting between adjacent band colours "
+            "within 3×sigma of boundary) + CHROMATIC DARKENING VEIL (global channel "
+            "multiply for meditative depth).  "
+            "Prior passes: Mondrian (orthogonal grid + flat cell colour snapping — "
+            "hard edges, no boundary dissolve, no hue amplification); Albers "
+            "(concentric rectangle zones from centre — fixed geometry, no content-"
+            "derived band placement); Miró (pixel-level palette quantisation + "
+            "gradient outline — no banding, no interband dissolve); Hofmann "
+            "(warm/cool temperature differential — whole-canvas, not band-segmented); "
+            "all 123 prior passes lack the combination of horizontal band segmentation + "
+            "per-band hue amplification + sigmoid interband boundary dissolve.\n\n"
+            "tone_ground() with deep warm darkness (0.18, 0.10, 0.06).\n"
+            "underpainting() large strokes (stroke_size=48).\n"
+            "block_in() soft planes (stroke_size=36).\n"
+            "rothko_color_field_pass(n_bands=3, hue_strength=0.68, edge_sigma=28.0, "
+            "veil_factor=0.88, opacity=0.80) as the primary pass."
+        ),
+    ),
+
 }
 
 

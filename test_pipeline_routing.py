@@ -18645,3 +18645,100 @@ def test_s212_mondrian_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 213 — rothko_color_field_pass (124th distinct mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_rothko_color_field_pass_exists():
+    """Session 213: rothko_color_field_pass must exist as a method on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "rothko_color_field_pass"), (
+        "Painter must have a rothko_color_field_pass method")
+    assert callable(getattr(Painter, "rothko_color_field_pass")), (
+        "rothko_color_field_pass must be callable")
+
+
+def test_rothko_color_field_pass_runs():
+    """Session 213: rothko_color_field_pass must execute without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.18, 0.10, 0.06), texture_strength=0.0)
+    p.rothko_color_field_pass(n_bands=3, hue_strength=0.68, edge_sigma=8.0,
+                              veil_factor=0.88, opacity=0.80)
+
+
+def test_rothko_color_field_pass_modifies_canvas():
+    """Session 213: rothko_color_field_pass must visibly change a coloured canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Fill with a RGB gradient so bands will have distinct means
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    for row in range(64):
+        val = int(row * 4)
+        buf[row, :, 2] = val          # R increases downward
+        buf[row, :, 1] = 255 - val    # G decreases downward
+        buf[row, :, 0] = 80           # B flat
+        buf[row, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = bytes(p.canvas.surface.get_data())
+    p.rothko_color_field_pass(n_bands=3, hue_strength=0.68, edge_sigma=6.0,
+                              veil_factor=0.88, opacity=0.80)
+    after = bytes(p.canvas.surface.get_data())
+    assert before != after, "rothko_color_field_pass must modify the canvas"
+
+
+def test_rothko_color_field_pass_zero_opacity_noop():
+    """Session 213: rothko_color_field_pass with opacity=0.0 must not change pixels."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.18, 0.10, 0.06), texture_strength=0.0)
+    before = bytes(p.canvas.surface.get_data())
+    p.rothko_color_field_pass(n_bands=3, hue_strength=0.68, edge_sigma=8.0,
+                              veil_factor=0.88, opacity=0.0)
+    after = bytes(p.canvas.surface.get_data())
+    assert before == after, (
+        "rothko_color_field_pass with opacity=0.0 must not change any pixels")
+
+
+def test_rothko_color_field_pass_deterministic():
+    """Session 213: rothko_color_field_pass must produce identical output on repeated calls."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(213)
+        buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(20, 200, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3] = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p1 = _make_painter()
+    p1.rothko_color_field_pass(n_bands=3, hue_strength=0.68, edge_sigma=8.0,
+                               veil_factor=0.88, opacity=0.80)
+    out1 = _np.frombuffer(p1.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    p2 = _make_painter()
+    p2.rothko_color_field_pass(n_bands=3, hue_strength=0.68, edge_sigma=8.0,
+                               veil_factor=0.88, opacity=0.80)
+    out2 = _np.frombuffer(p2.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    assert _np.array_equal(out1, out2), (
+        "rothko_color_field_pass must produce identical output given identical inputs")
+
+
+def test_s213_rothko_in_catalog():
+    """Session 213: mark_rothko must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "mark_rothko" in CATALOG, "mark_rothko missing from CATALOG"
+    s = get_style("mark_rothko")
+    assert "Abstract" in s.movement or "Color Field" in s.movement or "Colour Field" in s.movement, (
+        f"mark_rothko movement should reference Abstract Expressionism or Color Field; got {s.movement!r}")
+    assert s.chromatic_split is False, "mark_rothko chromatic_split must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
