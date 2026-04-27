@@ -48541,3 +48541,128 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Chaïm Soutine Visceral Distortion pass complete.")
+
+    def kokoschka_anxious_portrait_pass(
+        self,
+        *,
+        edge_darkness:    float = 0.55,
+        color_tension:    float = 0.30,
+        scratch_strength: float = 0.40,
+        shadow_gamma:     float = 1.8,
+        opacity:          float = 0.80,
+    ) -> None:
+        """
+        Oskar Kokoschka anxious portrait pass — 129th distinct mode.
+
+        Algorithm: KOKOSCHKA ANXIOUS PORTRAIT PASS
+        (1) DoG CONTOUR DARKENING: Difference-of-Gaussians edge map
+            (sigma_inner=1.5, sigma_outer=5.0) on luminance identifies form
+            boundaries. Modulated by RandomState(218) noise (scratch_strength)
+            to produce scratchy, irregular painted contours. All channels
+            darkened in proportion to edge_darkness * modulated_edge_map.
+        (2) PSYCHOLOGICAL WARM/COOL ZONE SHIFT: Shadow zones (lum < 0.45)
+            blended toward Kokoschka blue-green (0.20, 0.40, 0.45); warm
+            midtones (lum in [0.45, 0.75]) blended toward flesh-red
+            (0.65, 0.25, 0.15). Blend weight scaled by color_tension.
+        (3) EXPRESSIVE SHADOW GAMMA: Power curve (shadow_gamma) applied to
+            shadow zones (lum < 0.80); highlights held. RGB rescaled.
+        (4) Composite at opacity.
+
+        NOVEL: ONE HUNDRED AND TWENTY-NINTH DISTINCT MODE. Combines
+        Difference-of-Gaussians contour darkening with stochastic noise
+        modulation (scratchy painted outlines) and warm/cool zone-specific
+        hue shifting (blue-green in shadows, warm-red in midtones) plus
+        gamma-based shadow intensification. The DoG contour approach extracts
+        edges from the image's own gradient structure and darkens them as
+        painted marks — distinct from Schiele's geometric stroke drawing,
+        Freud's raking-gradient impasto, Soutine's sinusoidal coordinate
+        warping, and Munch's displacement swirl field.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        # ── (0) Read canvas ────────────────────────────────────────────────────
+        surface = self.canvas.surface
+        H, W    = self.canvas.h, self.canvas.w
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape((H, W, 4)).copy()
+        b0      = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0      = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0      = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        r = r0.copy()
+        g = g0.copy()
+        b = b0.copy()
+
+        # ── (1) DoG Contour Darkening ──────────────────────────────────────────
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        # Difference-of-Gaussians edge map
+        g_inner = _gf(lum, sigma=1.5)
+        g_outer = _gf(lum, sigma=5.0)
+        dog     = g_inner - g_outer
+        dog_pos = _np.clip(dog, 0.0, None)
+
+        # Normalize to [0, 1]
+        dog_max = dog_pos.max()
+        if dog_max > 1e-6:
+            dog_norm = dog_pos / dog_max
+        else:
+            dog_norm = dog_pos
+
+        # Stochastic modulation — makes contours scratchy and irregular
+        rng       = _np.random.RandomState(seed=218)
+        noise     = rng.uniform(0.0, 1.0, (H, W)).astype(_np.float32)
+        noise_sm  = _gf(noise, sigma=0.8)   # slight smoothing to kill pixel-level salt noise
+        modulated = dog_norm * (1.0 + float(scratch_strength) * noise_sm)
+        modulated = _np.clip(modulated, 0.0, 1.0)
+
+        # Darken channels at edge locations
+        ed = float(edge_darkness)
+        r  = _np.clip(r * (1.0 - ed * modulated), 0.0, 1.0)
+        g  = _np.clip(g * (1.0 - ed * modulated), 0.0, 1.0)
+        b  = _np.clip(b * (1.0 - ed * modulated), 0.0, 1.0)
+
+        # ── (2) Psychological Warm/Cool Zone Shift ─────────────────────────────
+        lum2 = 0.299 * r + 0.587 * g + 0.114 * b
+        ct   = float(color_tension)
+
+        # Shadow zone: blend toward Kokoschka blue-green (0.20, 0.40, 0.45)
+        shadow_w = _np.clip((0.45 - lum2) / 0.40, 0.0, 1.0) * ct
+        r = _np.clip(r * (1.0 - shadow_w) + 0.20 * shadow_w, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - shadow_w) + 0.40 * shadow_w, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - shadow_w) + 0.45 * shadow_w, 0.0, 1.0)
+
+        # Warm midtone zone: blend toward warm flesh-red (0.65, 0.25, 0.15)
+        mid_w = _np.clip(_np.minimum(lum2 - 0.45, 0.75 - lum2) / 0.15, 0.0, 1.0) * ct
+        r = _np.clip(r * (1.0 - mid_w) + 0.65 * mid_w, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - mid_w) + 0.25 * mid_w, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - mid_w) + 0.15 * mid_w, 0.0, 1.0)
+
+        # ── (3) Expressive Shadow Gamma ────────────────────────────────────────
+        lum3    = 0.299 * r + 0.587 * g + 0.114 * b
+        gamma   = float(shadow_gamma)
+        # weight: 1.0 in deep shadows, 0.0 at lum >= 0.80
+        dark_w  = _np.clip((0.80 - lum3) / 0.80, 0.0, 1.0)
+        adj_lum = (lum3 ** gamma) * dark_w + lum3 * (1.0 - dark_w)
+        adj_lum = _np.clip(adj_lum, 0.0, 1.0)
+
+        lum_safe = _np.where(lum3 > 1e-6, lum3, 1e-6)
+        lum_ratio = _np.clip(adj_lum / lum_safe, 0.0, 2.5)
+        r = _np.clip(r * lum_ratio, 0.0, 1.0)
+        g = _np.clip(g * lum_ratio, 0.0, 1.0)
+        b = _np.clip(b * lum_ratio, 0.0, 1.0)
+
+        # ── (4) Composite ──────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Oskar Kokoschka Anxious Portrait pass complete.")
