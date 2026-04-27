@@ -18847,3 +18847,105 @@ def test_s214_kandinsky_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 215: freud_impasto_vulnerability_pass (126th distinct mode) ───────
+
+def test_s215_freud_pass_exists():
+    """Session 215: freud_impasto_vulnerability_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "freud_impasto_vulnerability_pass"), (
+        "Painter must have a freud_impasto_vulnerability_pass method")
+
+
+def test_s215_freud_pass_runs():
+    """Session 215: freud_impasto_vulnerability_pass must run without exception on a 64×64 canvas."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(215)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(20, 200, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    p.freud_impasto_vulnerability_pass(
+        ridge_radius=2, ridge_threshold=0.04, ridge_strength=0.55,
+        shadow_threshold=0.38, shadow_cool_strength=0.40,
+        raking_falloff=0.72, opacity=0.78)
+
+
+def test_s215_freud_pass_modifies_canvas():
+    """Session 215: freud_impasto_vulnerability_pass must visibly change the canvas."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(215)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(20, 200, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.freud_impasto_vulnerability_pass(
+        ridge_radius=2, ridge_threshold=0.04, ridge_strength=0.55,
+        shadow_threshold=0.38, shadow_cool_strength=0.40,
+        raking_falloff=0.72, opacity=0.90)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "freud_impasto_vulnerability_pass must modify the canvas")
+
+
+def test_s215_freud_pass_zero_opacity_no_change():
+    """Session 215: freud_impasto_vulnerability_pass at opacity=0.0 must not change any pixels."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(215)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(20, 200, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.freud_impasto_vulnerability_pass(
+        ridge_radius=2, ridge_threshold=0.04, ridge_strength=0.55,
+        shadow_threshold=0.38, shadow_cool_strength=0.40,
+        raking_falloff=0.72, opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "freud_impasto_vulnerability_pass at opacity=0.0 must not change any pixels")
+
+
+def test_s215_freud_in_catalog():
+    """Session 215: lucian_freud must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "lucian_freud" in CATALOG, "lucian_freud missing from CATALOG"
+    s = get_style("lucian_freud")
+    assert "Figurative" in s.movement or "Expressionism" in s.movement, (
+        f"lucian_freud movement should reference Figurative Expressionism; got {s.movement!r}")
+    assert s.crackle is False, "lucian_freud crackle must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

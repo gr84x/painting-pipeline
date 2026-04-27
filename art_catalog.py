@@ -18945,6 +18945,101 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
     # ─────────────────────────────────────────────────────────────────────────
+    # Session 215 — Lucian Freud
+    # ─────────────────────────────────────────────────────────────────────────
+    "lucian_freud": ArtStyle(
+        artist="Lucian Freud",
+        movement="Figurative Expressionism",
+        nationality="German-British",
+        period="1922–2011",
+        palette=[
+            (0.82, 0.72, 0.60),  # warm flesh highlight
+            (0.58, 0.53, 0.45),  # mid flesh — raw sienna-grey
+            (0.44, 0.49, 0.40),  # shadow flesh — cool green-grey
+            (0.28, 0.25, 0.20),  # raw umber dark
+            (0.90, 0.90, 0.88),  # cold titanium white
+            (0.15, 0.15, 0.12),  # near-black studio shadow
+            (0.55, 0.50, 0.42),  # mid-tone unifying warmth
+        ],
+        ground_color=(0.38, 0.36, 0.30),
+        stroke_size=6,
+        wet_blend=0.42,
+        edge_softness=0.28,
+        jitter=0.045,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Lucian Freud worked from life in obsessive, extended sessions — sometimes "
+            "hundreds of hours per painting — using hog-hair brushes loaded with "
+            "generous quantities of oil paint to build up thick, ridged impasto surfaces. "
+            "He favoured cold northern studio light, which raked across his canvases and "
+            "revealed every textural ridge of the paint film.  His palette was austere: "
+            "raw umber, titanium white, raw sienna, cold grey, and just enough warmth in "
+            "the flesh tones to read as living skin — never flattering, always probing.  "
+            "Shadows slid toward a characteristic cool green-grey, while highlights were "
+            "pushed to near-white with heavily loaded strokes.  He abandoned his early "
+            "linear Pre-Raphaelite precision in the late 1950s, shifting entirely to a "
+            "painterly, visceral approach in which the subject's psychological state was "
+            "revealed through the physical act of mark-making: the trembling impasto of "
+            "vulnerable flesh, the bravura slash of a highlight across a brow, the sombre "
+            "green cast of a studio-lit shoulder blade.  Freud regarded painting as a form "
+            "of biological investigation — the paint itself a kind of skin laid over skin."
+        ),
+        famous_works=[
+            ("Girl with a White Dog", "1951–52"),
+            ("Benefits Supervisor Sleeping", "1995"),
+            ("Naked Portrait with Reflection", "1980"),
+            ("After Cézanne", "2000"),
+            ("Reflection (Self-portrait)", "1985"),
+            ("Standing by the Rags", "1988–89"),
+            ("Leigh Bowery (Seated)", "1990"),
+            ("And the Bridegroom", "1993"),
+            ("The Painter's Mother Resting I", "1976"),
+            ("Big Sue", "1995"),
+        ],
+        inspiration=(
+            "Apply freud_impasto_vulnerability_pass() as the signature effect "
+            "— ONE HUNDRED AND TWENTY-SIXTH DISTINCT MODE.\n\n"
+            "Algorithm: FREUD IMPASTO VULNERABILITY PASS — a four-stage pass that "
+            "imposes Lucian Freud's thick-impasto, psychologically raw figurative "
+            "vocabulary onto a painted surface.\n"
+            "(1) LUMINANCE RIDGE AMPLIFICATION: compute per-pixel local luminance "
+            "standard deviation in a small (ridge_radius × 2 + 1) neighbourhood via "
+            "scipy uniform_filter box-mean and box-mean-of-squares.  Where local std dev "
+            "exceeds ridge_threshold, amplify existing luminance deviation from local mean "
+            "by ridge_strength — highlights pushed brighter, shadows pulled darker — "
+            "simulating the raised impasto ridges of Freud's loaded hog-hair brush marks.\n"
+            "(2) SHADOW COOLING: identify shadow pixels via soft luminance mask "
+            "(weight = clip((1 − adj_lum / shadow_threshold) × shadow_cool_strength, 0, sc)) "
+            "and shift RGB toward Freud's characteristic cool green-grey (0.44, 0.49, 0.40).  "
+            "Captures the greenish, cold quality of Freud's studio shadow passages.\n"
+            "(3) RAKING LIGHT GRADIENT: apply a cosine-tapered top-to-bottom luminance "
+            "gradient simulating Freud's north-facing studio raking light.  Each row y "
+            "receives multiplier raking[y] = raking_falloff + (1 − raking_falloff) × "
+            "(1 + cos(π × y / (H−1))) / 2 — 1.0 at y=0, raking_falloff at y=H−1.  "
+            "Favours upper areas (light-struck) over lower (falling into ambient).\n"
+            "(4) COMPOSITE: blend the adjusted surface with the original canvas at opacity.\n\n"
+            "NOVEL: ONE HUNDRED AND TWENTY-SIXTH DISTINCT MODE.  First pass to combine "
+            "LOCAL VARIANCE LUMINANCE RIDGE AMPLIFICATION (uniform_filter box variance → "
+            "std dev mask → contrast boost at high-variance pixels, simulating impasto "
+            "ridges) + SHADOW-SELECTIVE GREEN-GREY COOLING (luminance-gated colour shift "
+            "toward (0.44, 0.49, 0.40)) + COSINE-TAPERED UNILATERAL RAKING LIGHT GRADIENT "
+            "(top-to-bottom luminance attenuation from 1.0 to raking_falloff).  Prior "
+            "passes: Kandinsky (tension field chord injection), Rothko (horizontal band "
+            "hue amplification), Mondrian (grid + cell colour snap), Kline (gestural slash "
+            "accumulation) — none combines local-variance ridge amplification with "
+            "shadow cooling and a directional raking light gradient.\n\n"
+            "tone_ground() with cool grey-brown (0.38, 0.36, 0.30).\n"
+            "underpainting() large strokes (stroke_size=36).\n"
+            "block_in() loaded marks (stroke_size=22).\n"
+            "freud_impasto_vulnerability_pass(ridge_radius=4, ridge_threshold=0.04, "
+            "ridge_strength=0.55, shadow_threshold=0.38, shadow_cool_strength=0.40, "
+            "raking_falloff=0.72, opacity=0.78) as the primary pass."
+        ),
+    ),
+
+    # ─────────────────────────────────────────────────────────────────────────
     # Session 214 — Wassily Kandinsky
     # ─────────────────────────────────────────────────────────────────────────
     "wassily_kandinsky": ArtStyle(

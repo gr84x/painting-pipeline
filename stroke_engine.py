@@ -48184,3 +48184,102 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Kandinsky Synesthetic Composition pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 215 — freud_impasto_vulnerability_pass (126th distinct mode)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def freud_impasto_vulnerability_pass(
+        self,
+        *,
+        ridge_radius:         int   = 4,
+        ridge_threshold:      float = 0.04,
+        ridge_strength:       float = 0.55,
+        shadow_threshold:     float = 0.38,
+        shadow_cool_strength: float = 0.40,
+        raking_falloff:       float = 0.72,
+        opacity:              float = 0.78,
+    ) -> None:
+        """Lucian Freud impasto vulnerability pass — ridge amplification + shadow cooling.
+
+        Algorithm: FREUD IMPASTO VULNERABILITY PASS
+        (1) Luminance ridge amplification via box-filter local variance.
+        (2) Shadow cooling: push dark pixels toward cool green-grey (0.44, 0.49, 0.40).
+        (3) Raking light gradient: cosine taper top (1.0) to bottom (raking_falloff).
+        (4) Composite at opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import uniform_filter as _uf
+
+        W = self.canvas.w
+        H = self.canvas.h
+
+        raw  = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        orig = raw.copy()
+
+        # Cairo BGRA: ch0=B, ch1=G, ch2=R, ch3=A
+        b0 = raw[:, :, 0].astype(_np.float32) / 255.0
+        g0 = raw[:, :, 1].astype(_np.float32) / 255.0
+        r0 = raw[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0  # (H, W)
+
+        # ── (1) Luminance ridge amplification via local variance ───────────────
+        k = int(ridge_radius) * 2 + 1
+        lum_mean   = _uf(lum,        size=k, mode="reflect")
+        lum_sq_mean = _uf(lum ** 2,  size=k, mode="reflect")
+        lum_var    = _np.clip(lum_sq_mean - lum_mean ** 2, 0.0, None)
+        lum_std    = _np.sqrt(lum_var)
+
+        # Ridge mask: pixels whose local contrast exceeds threshold
+        ridge_mask = (lum_std > float(ridge_threshold)).astype(_np.float32)
+        rs         = float(ridge_strength)
+
+        # Amplify luminance deviation from local mean at ridge pixels
+        dev        = lum - lum_mean
+        adj_lum    = _np.clip(lum_mean + dev * (1.0 + rs * ridge_mask), 0.0, 1.0)
+
+        # Scale RGB uniformly by the luminance ratio (preserves hue)
+        lum_safe   = _np.where(lum > 1e-6, lum, 1e-6)
+        lum_ratio  = _np.clip(adj_lum / lum_safe, 0.0, 2.5)
+        adj_r      = _np.clip(r0 * lum_ratio, 0.0, 1.0)
+        adj_g      = _np.clip(g0 * lum_ratio, 0.0, 1.0)
+        adj_b      = _np.clip(b0 * lum_ratio, 0.0, 1.0)
+
+        # ── (2) Shadow cooling — shift dark pixels toward Freud's green-grey ──
+        cool_r, cool_g, cool_b = 0.44, 0.49, 0.40
+        sc       = float(shadow_cool_strength)
+        st       = float(shadow_threshold)
+        # Soft shadow weight: 0 at lum=st, sc at lum=0
+        shadow_w = _np.clip((1.0 - adj_lum / max(st, 1e-6)) * sc, 0.0, sc)
+        adj_r    = _np.clip(adj_r * (1.0 - shadow_w) + cool_r * shadow_w, 0.0, 1.0)
+        adj_g    = _np.clip(adj_g * (1.0 - shadow_w) + cool_g * shadow_w, 0.0, 1.0)
+        adj_b    = _np.clip(adj_b * (1.0 - shadow_w) + cool_b * shadow_w, 0.0, 1.0)
+
+        # ── (3) Raking light gradient — cosine taper top→bottom ───────────────
+        rf        = float(raking_falloff)
+        # raking[y] = rf + (1-rf) * (1 + cos(π*y/(H-1))) / 2
+        # = 1.0 at y=0, rf at y=H-1
+        ys_norm   = _np.linspace(0.0, _np.pi, H, dtype=_np.float32)
+        raking    = rf + (1.0 - rf) * (1.0 + _np.cos(ys_norm)) * 0.5  # (H,)
+        raking    = raking[:, _np.newaxis]  # broadcast over width
+        adj_r     = _np.clip(adj_r * raking, 0.0, 1.0)
+        adj_g     = _np.clip(adj_g * raking, 0.0, 1.0)
+        adj_b     = _np.clip(adj_b * raking, 0.0, 1.0)
+
+        # ── (4) Composite ──────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + adj_r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + adj_g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + adj_b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Lucian Freud Impasto Vulnerability pass complete.")

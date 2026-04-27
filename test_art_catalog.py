@@ -213,6 +213,8 @@ EXPECTED_ARTISTS = [
     "joan_miro",
     "piet_mondrian",
     "mark_rothko",
+    "wassily_kandinsky",
+    "lucian_freud",
 ]
 
 
@@ -29173,3 +29175,76 @@ def test_wassily_kandinsky_in_list_artists():
     """Session 214: wassily_kandinsky must appear in list_artists()."""
     assert "wassily_kandinsky" in list_artists(), (
         "wassily_kandinsky must appear in list_artists()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 215 — Lucian Freud
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_lucian_freud_in_catalog():
+    """Session 215: lucian_freud must be present in CATALOG."""
+    assert "lucian_freud" in CATALOG, "lucian_freud not found in CATALOG"
+
+
+def test_lucian_freud_artist_name():
+    """Session 215: lucian_freud artist field must be 'Lucian Freud'."""
+    s = get_style("lucian_freud")
+    assert s.artist == "Lucian Freud", (
+        f"lucian_freud artist should be 'Lucian Freud'; got {s.artist!r}")
+
+
+def test_lucian_freud_movement():
+    """Session 215: lucian_freud movement must reference Figurative Expressionism."""
+    s = get_style("lucian_freud")
+    assert "Figurative" in s.movement or "Expressionism" in s.movement, (
+        f"lucian_freud movement should reference Figurative Expressionism; got {s.movement!r}")
+
+
+def test_lucian_freud_palette_length():
+    """Session 215: lucian_freud must have at least 5 palette colours."""
+    s = get_style("lucian_freud")
+    assert len(s.palette) >= 5, (
+        f"lucian_freud should have >= 5 palette colours; got {len(s.palette)}")
+
+
+def test_lucian_freud_palette_in_range():
+    """Session 215: all lucian_freud palette RGB values must be in [0, 1]."""
+    s = get_style("lucian_freud")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"lucian_freud palette channel {ch} out of [0, 1]")
+
+
+def test_lucian_freud_no_crackle():
+    """Session 215: lucian_freud crackle must be False (modern artist, unaged surface)."""
+    s = get_style("lucian_freud")
+    assert s.crackle is False, "lucian_freud crackle must be False"
+
+
+def test_lucian_freud_famous_works_count():
+    """Session 215: lucian_freud must have at least 6 famous works listed."""
+    s = get_style("lucian_freud")
+    assert len(s.famous_works) >= 6, (
+        f"lucian_freud should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_lucian_freud_inspiration_references_pass():
+    """Session 215: lucian_freud inspiration must reference freud_impasto_vulnerability_pass."""
+    s = get_style("lucian_freud")
+    assert "freud_impasto_vulnerability_pass" in s.inspiration, (
+        "lucian_freud inspiration must mention freud_impasto_vulnerability_pass")
+
+
+def test_lucian_freud_inspiration_references_126th():
+    """Session 215: inspiration must explicitly name the 126th distinct mode."""
+    s = get_style("lucian_freud")
+    assert "126" in s.inspiration or "TWENTY-SIXTH" in s.inspiration, (
+        "lucian_freud inspiration must reference ONE HUNDRED AND TWENTY-SIXTH mode")
+
+
+def test_lucian_freud_in_list_artists():
+    """Session 215: lucian_freud must appear in list_artists()."""
+    assert "lucian_freud" in list_artists(), (
+        "lucian_freud must appear in list_artists()")
