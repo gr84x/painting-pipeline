@@ -19263,6 +19263,120 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "chaim_soutine": ArtStyle(
+        artist="Chaïm Soutine",
+        movement="Expressionism",
+        nationality="French (Lithuanian-born)",
+        period="1913–1943",
+        palette=[
+            (0.72, 0.08, 0.05),   # beef-blood red — raw visceral intensity
+            (0.62, 0.28, 0.10),   # burnt sienna — rich earthy warmth
+            (0.25, 0.14, 0.07),   # raw umber shadow — anchoring dark
+            (0.90, 0.48, 0.05),   # cadmium orange — hot accent flame
+            (0.76, 0.60, 0.12),   # yellow ochre — sunlit earth mid-tone
+            (0.94, 0.90, 0.78),   # bone white — sparse highlight
+            (0.12, 0.30, 0.15),   # deep viridian — occasional foliage flash
+            (0.18, 0.10, 0.06),   # dark umber — deep ground shadow
+        ],
+        ground_color=(0.28, 0.14, 0.08),   # dark reddish-brown gesso ground
+        stroke_size=22.0,
+        wet_blend=0.82,
+        edge_softness=0.42,
+        jitter=0.22,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Chaïm Soutine (1893–1943) is among the most viscerally powerful painters "
+            "of the twentieth century — a Lithuanian-born Expressionist working in Paris "
+            "whose work electrified the Abstract Expressionists and drove de Kooning to "
+            "declare, on first seeing the Carcass of Beef, that a door had been opened.\n\n"
+            "Soutine's technique was as wild as his imagery. He attacked the canvas with "
+            "thick, writhing impasto strokes applied at furious speed, building up surfaces "
+            "that project physically from the canvas. Where Freud's impasto is carefully "
+            "observed and controlled, Soutine's is almost violent — paint twisted, dragged, "
+            "stabbed, and pulled. The brushstroke itself becomes the emotional event.\n\n"
+            "His characteristic formal distortion is deliberate, not accidental. Carcasses "
+            "of beef twist and convulse; pastry cooks' bodies are stretched and bent; "
+            "Ceret landscapes seem to writhe as if in geological upheaval. Buildings lean, "
+            "skies churn, and the horizon line refuses to stay still. This formal instability "
+            "is the visual equivalent of psychological intensity — the world seen through "
+            "absolute emotional saturation.\n\n"
+            "His palette is volcanic: beef-blood reds, burnt siennas, raw umbers, cadmium "
+            "oranges, and yellow ochres dominate. Highlights are rare and precious — tiny "
+            "flashes of near-white on carcass fat or a gleaming eye. Shadows push into "
+            "deep burnt umber and raw sienna, never black. He often used a warm, dark "
+            "reddish-brown ground that bleeds through the upper paint layers, unifying "
+            "the surface with a warm undertow.\n\n"
+            "Soutine was known to paint over previous compositions, buying back his own "
+            "canvases to destroy them. His surviving work has an urgency and singularity "
+            "that suggests each canvas was a final statement. He never repeated himself. "
+            "Even in his quieter still lifes — herring, fish, fowl — the objects seem "
+            "barely contained by the canvas, as if the act of looking at them has charged "
+            "them with an unbearable vitality.\n\n"
+            "ALGORITHM: soutine_visceral_distortion_pass() implements this through four "
+            "stages. First, writhing warp field: a multi-frequency sinusoidal displacement "
+            "field (three layers: low/mid/high frequency) warps canvas coordinates, making "
+            "forms appear to writhe in the characteristic Soutine manner. Implemented via "
+            "scipy.ndimage.map_coordinates for bilinear pixel remapping. Second, red-ochre "
+            "chromatic push: midtone reds are boosted and blue channel suppressed; shadows "
+            "are warmed toward burnt sienna ochre. Third, impasto ridge carving: local "
+            "luminance variance is amplified more aggressively than Freud's raking pass — "
+            "no raking gradient, continuous amplification scaled by local contrast. Fourth, "
+            "composite at opacity.\n\n"
+            "Recommended pipeline for Soutine aesthetic:\n"
+            "tone_ground() with dark reddish-brown (0.28, 0.14, 0.08).\n"
+            "underpainting() with large loose strokes (stroke_size=50).\n"
+            "block_in() (stroke_size=32).\n"
+            "build_form() (stroke_size=18).\n"
+            "place_lights() (stroke_size=8).\n"
+            "soutine_visceral_distortion_pass(warp_strength=7.0, red_push=0.20, "
+            "ochre_warm=0.28, impasto_radius=6, impasto_strength=0.50, opacity=0.75) "
+            "as the primary stylistic pass.\n"
+            "glaze() with warm ochre tint (0.62, 0.42, 0.10) at low opacity."
+        ),
+        famous_works=[
+            ("Carcass of Beef", "1925"),
+            ("Pastry Cook of Cagnes", "1922–1923"),
+            ("Still Life with Soup Tureen", "1916–1917"),
+            ("Landscape of Cagnes", "1924"),
+            ("The Choirboy", "1927–1928"),
+            ("Windy Day, Auxerre", "1939"),
+            ("La Maison Blanche, Céret", "1921"),
+            ("Bellhop", "1925"),
+        ],
+        inspiration=(
+            "soutine_visceral_distortion_pass — ONE HUNDRED AND TWENTY-EIGHTH distinct mode "
+            "(session 217).\n\n"
+            "Implements Soutine's writhing expressionist language: multi-frequency sinusoidal "
+            "coordinate warping, red-ochre chromatic push, and aggressive impasto ridge carving.\n\n"
+            "Parameters and defaults:\n"
+            "  warp_strength     = 7.0   # pixel displacement magnitude of warp field\n"
+            "  red_push          = 0.20  # midtone red boost strength\n"
+            "  ochre_warm        = 0.28  # shadow warming toward burnt sienna ochre\n"
+            "  impasto_radius    = 6     # neighborhood radius for impasto ridge detection\n"
+            "  impasto_strength  = 0.50  # local contrast amplification strength\n"
+            "  opacity           = 0.75  # final composite opacity vs original canvas\n\n"
+            "Stage 1 — WRITHING WARP FIELD:\n"
+            "  Three-layer sinusoidal displacement (low/mid/high frequency).\n"
+            "  RandomState(217) seeds 8 phase offsets.\n"
+            "  Low: 0.60*ws amplitude, ~4 cycles/image; mid: 0.30*ws, ~8 cycles + cross-term;\n"
+            "  high: 0.10*ws, ~16 cycles. Applied via map_coordinates(order=1, reflect).\n\n"
+            "Stage 2 — RED-OCHRE CHROMATIC PUSH:\n"
+            "  Midtone zone (lum in [0.20, 0.70]): r += red_push * midtone_weight;\n"
+            "  b -= red_push * 0.4 * midtone_weight (suppress cool in midtones).\n"
+            "  Shadow zone (lum < 0.40): blend toward ochre (0.58, 0.38, 0.10)\n"
+            "  at weight = ochre_warm * (0.40 - lum) / 0.40.\n\n"
+            "Stage 3 — IMPASTO RIDGE CARVING:\n"
+            "  Compute local luminance variance over (2*impasto_radius+1) neighborhood.\n"
+            "  ridge_amplify = 1 + impasto_strength * sqrt(variance) * 8.\n"
+            "  Scale RGB by lum_ratio = adj_lum / orig_lum, capped at 2.8 (more\n"
+            "  aggressive than Freud's 2.5 cap, no raking gradient).\n\n"
+            "Stage 4 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + warped*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 
