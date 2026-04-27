@@ -28912,3 +28912,108 @@ def test_joan_miro_inspiration_references_122nd():
     s = get_style("joan_miro")
     assert "122" in s.inspiration or "TWENTY-SECOND" in s.inspiration, (
         "joan_miro inspiration must reference ONE HUNDRED AND TWENTY-SECOND mode")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 212 — Piet Mondrian (123rd distinct mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_piet_mondrian_in_catalog():
+    """Session 212: piet_mondrian must be present in CATALOG."""
+    assert "piet_mondrian" in CATALOG, "piet_mondrian missing from CATALOG"
+
+
+def test_piet_mondrian_movement():
+    """Session 212: piet_mondrian movement must reference De Stijl or Neoplasticism."""
+    s = get_style("piet_mondrian")
+    assert "Stijl" in s.movement or "Neo" in s.movement, (
+        f"piet_mondrian movement should reference De Stijl or Neoplasticism; got {s.movement!r}")
+
+
+def test_piet_mondrian_nationality():
+    """Session 212: piet_mondrian must be identified as Dutch."""
+    s = get_style("piet_mondrian")
+    assert "Dutch" in s.nationality, (
+        f"piet_mondrian nationality must be Dutch; got {s.nationality!r}")
+
+
+def test_piet_mondrian_palette_length():
+    """Session 212: piet_mondrian palette must contain at least 5 colors."""
+    s = get_style("piet_mondrian")
+    assert len(s.palette) >= 5, (
+        f"piet_mondrian should have ≥5 palette entries; got {len(s.palette)}")
+
+
+def test_piet_mondrian_palette_values_in_range():
+    """Session 212: all piet_mondrian palette RGB values must be in [0, 1]."""
+    s = get_style("piet_mondrian")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Each palette entry must have 3 components; got {rgb}"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"piet_mondrian palette value out of range: {ch}")
+
+
+def test_piet_mondrian_ground_color_valid():
+    """Session 212: piet_mondrian ground_color must be a valid RGB triple in [0, 1]."""
+    s = get_style("piet_mondrian")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, (
+            f"piet_mondrian ground_color value out of range: {ch}")
+
+
+def test_piet_mondrian_period():
+    """Session 212: piet_mondrian period must include 1900 or 1872 and 1944."""
+    s = get_style("piet_mondrian")
+    assert "1944" in s.period or "1900" in s.period, (
+        f"piet_mondrian period must include 1944 or 1900; got {s.period!r}")
+
+
+def test_piet_mondrian_chromatic_split_false():
+    """Session 212: piet_mondrian chromatic_split must be False (flat color, no dot splitting)."""
+    s = get_style("piet_mondrian")
+    assert s.chromatic_split is False, (
+        "piet_mondrian chromatic_split must be False")
+
+
+def test_piet_mondrian_edge_softness_low():
+    """Session 212: piet_mondrian edge_softness must be near 0 (hard orthogonal edges)."""
+    s = get_style("piet_mondrian")
+    assert s.edge_softness < 0.10, (
+        f"piet_mondrian edge_softness must be < 0.10; got {s.edge_softness}")
+
+
+def test_piet_mondrian_famous_works():
+    """Session 212: piet_mondrian must have at least 6 famous works listed."""
+    s = get_style("piet_mondrian")
+    assert len(s.famous_works) >= 6, (
+        f"piet_mondrian should have ≥6 famous works; got {len(s.famous_works)}")
+
+
+def test_piet_mondrian_broadway_in_works():
+    """Session 212: piet_mondrian famous_works must include Broadway Boogie Woogie."""
+    s = get_style("piet_mondrian")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Broadway" in t for t in titles), (
+        f"piet_mondrian famous_works must include Broadway Boogie Woogie; got {titles}")
+
+
+def test_piet_mondrian_in_list_artists():
+    """Session 212: piet_mondrian must appear in list_artists()."""
+    assert "piet_mondrian" in list_artists(), (
+        "piet_mondrian must appear in list_artists()")
+
+
+def test_piet_mondrian_inspiration_references_pass():
+    """Session 212: piet_mondrian inspiration must reference mondrian_neoplastic_grid_pass."""
+    s = get_style("piet_mondrian")
+    assert "mondrian_neoplastic_grid_pass" in s.inspiration, (
+        "piet_mondrian inspiration must mention mondrian_neoplastic_grid_pass")
+
+
+def test_piet_mondrian_inspiration_references_123rd():
+    """Session 212: inspiration must explicitly name the 123rd distinct mode."""
+    s = get_style("piet_mondrian")
+    assert "123" in s.inspiration or "TWENTY-THIRD" in s.inspiration, (
+        "piet_mondrian inspiration must reference ONE HUNDRED AND TWENTY-THIRD mode")

@@ -18553,3 +18553,95 @@ def test_s211_miro_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 212 — mondrian_neoplastic_grid_pass (123rd distinct mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_mondrian_neoplastic_grid_pass_exists():
+    """Session 212: mondrian_neoplastic_grid_pass must exist as a method on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "mondrian_neoplastic_grid_pass"), (
+        "Painter must have a mondrian_neoplastic_grid_pass method")
+    assert callable(getattr(Painter, "mondrian_neoplastic_grid_pass")), (
+        "mondrian_neoplastic_grid_pass must be callable")
+
+
+def test_mondrian_neoplastic_grid_pass_runs():
+    """Session 212: mondrian_neoplastic_grid_pass must execute without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.94, 0.92, 0.88), texture_strength=0.0)
+    p.mondrian_neoplastic_grid_pass(h_lines=2, v_lines=3, line_width=3, grid_strength=0.80, opacity=0.70)
+
+
+def test_mondrian_neoplastic_grid_pass_modifies_canvas():
+    """Session 212: mondrian_neoplastic_grid_pass must visibly change a coloured canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    # Fill with a mid-range gradient so some cells snap to primary colours
+    buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    for row in range(64):
+        for col in range(64):
+            buf[row, col, 2] = int(row * 4)        # R gradient
+            buf[row, col, 1] = int(col * 4)        # G gradient
+            buf[row, col, 0] = 80                  # B flat
+            buf[row, col, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = bytes(p.canvas.surface.get_data())
+    p.mondrian_neoplastic_grid_pass(h_lines=3, v_lines=3, line_width=4, grid_strength=0.82, opacity=0.78)
+    after = bytes(p.canvas.surface.get_data())
+    assert before != after, "mondrian_neoplastic_grid_pass must modify the canvas"
+
+
+def test_mondrian_neoplastic_grid_pass_zero_opacity_noop():
+    """Session 212: mondrian_neoplastic_grid_pass with opacity=0.0 must not change pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.50, 0.60, 0.40), texture_strength=0.0)
+    before = bytes(p.canvas.surface.get_data())
+    p.mondrian_neoplastic_grid_pass(h_lines=3, v_lines=3, line_width=3, grid_strength=0.80, opacity=0.0)
+    after = bytes(p.canvas.surface.get_data())
+    assert before == after, (
+        "mondrian_neoplastic_grid_pass with opacity=0.0 must not change any pixels")
+
+
+def test_mondrian_neoplastic_grid_pass_deterministic():
+    """Session 212: mondrian_neoplastic_grid_pass must produce identical output on repeated calls."""
+    import numpy as _np
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(77)
+        buf = _np.frombuffer(p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(30, 220, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3] = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p1 = _make_painter()
+    p1.mondrian_neoplastic_grid_pass(h_lines=3, v_lines=4, line_width=4, grid_strength=0.80, opacity=0.75)
+    out1 = _np.frombuffer(p1.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    p2 = _make_painter()
+    p2.mondrian_neoplastic_grid_pass(h_lines=3, v_lines=4, line_width=4, grid_strength=0.80, opacity=0.75)
+    out2 = _np.frombuffer(p2.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    assert _np.array_equal(out1, out2), (
+        "mondrian_neoplastic_grid_pass must produce identical output given identical inputs")
+
+
+def test_s212_mondrian_in_catalog():
+    """Session 212: piet_mondrian must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "piet_mondrian" in CATALOG, "piet_mondrian missing from CATALOG"
+    s = get_style("piet_mondrian")
+    assert "Stijl" in s.movement or "Neo" in s.movement, (
+        f"piet_mondrian movement should reference De Stijl or Neoplasticism; got {s.movement!r}")
+    assert s.chromatic_split is False, "piet_mondrian chromatic_split must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

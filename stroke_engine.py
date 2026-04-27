@@ -47708,3 +47708,188 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Miró Surrealist Biomorph pass complete.")
+
+    def mondrian_neoplastic_grid_pass(
+        self,
+        *,
+        h_lines:       int   = 4,
+        v_lines:       int   = 5,
+        line_width:    int   = 5,
+        grid_strength: float = 0.82,
+        opacity:       float = 0.78,
+    ) -> None:
+        """
+        Session 212 — Piet Mondrian Neoplastic Grid pass (123rd distinct mode).
+
+        CONTENT-DRIVEN NEOPLASTIC GRID DECOMPOSITION: a four-stage pass that
+        imposes Mondrian's orthogonal grid vocabulary onto a painted surface
+        using the image's own luminance structure to determine grid line placement.
+
+        Algorithm:
+        (1) AXIS-SEPARATED GRADIENT ENERGY: compute luminance L per pixel.
+            Row-wise: compute mean luminance per row → row_mean (H,); take absolute
+            first-difference → row_energy (H,).  Select the h_lines rows with
+            highest energy as horizontal grid line positions, suppressing candidates
+            within 5% of canvas height of a stronger already-chosen line (greedy
+            non-maximum suppression).  Repeat column-wise for v_lines vertical
+            grid line positions.  Content-derived placement means lines fall at the
+            image's own strongest tonal seams — not at arbitrary fractions.
+        (2) CELL COLOR ASSIGNMENT: the (h_lines+1) × (v_lines+1) rectangular grid
+            of cells is enumerated.  For each cell, compute mean (R, G, B) of
+            original pixels.  Assign the nearest Mondrian color by squared Euclidean
+            RGB distance from the six-color neoplastic palette:
+              primary red    (0.86, 0.08, 0.06)
+              primary yellow (0.97, 0.87, 0.02)
+              primary blue   (0.01, 0.17, 0.54)
+              white          (0.94, 0.92, 0.88)
+              gray           (0.72, 0.72, 0.72)
+              black          (0.06, 0.06, 0.08)
+            Cells are filled with their assigned flat color weighted by grid_strength:
+            cell_pixel = original × (1 − grid_strength) + assigned_color × grid_strength.
+        (3) GRID LINE INJECTION: within line_width pixels of any horizontal or
+            vertical grid line position, overwrite with deep black (0.06, 0.06, 0.08)
+            at full weight (grid lines are always opaque black, independent of opacity).
+        (4) COMPOSITE: blend reconstructed Mondrian grid image with the original
+            canvas: final = original × (1 − opacity) + mondrian × opacity.
+
+        NOVEL: ONE HUNDRED AND TWENTY-THIRD DISTINCT MODE.  First pass to perform
+        CONTENT-DERIVED ORTHOGONAL GRID PLACEMENT (row/column energy peak detection,
+        greedy NMS) + CELL-LEVEL NEAREST-PRIMARY-COLOR ASSIGNMENT (mean cell color
+        → six-way Euclidean snap) + EXPLICIT BLACK GRIDLINE INJECTION (line_width
+        pixel bands overwritten to black).
+        Prior passes: Miró (pixel-level palette quantization + gradient outline —
+        no grid, no cell-level assignment); Albers (concentric zones from canvas
+        center — fixed geometry, not content-derived); Kline (gestural diagonal
+        axis sweep — not orthogonal); Hofmann (temperature differential —
+        no structural decomposition); all 122 prior passes lack the combination of
+        axis-separated energy peak detection + cell-level nearest-primary fill +
+        orthogonal black gridline injection.
+
+        h_lines      : number of horizontal grid lines to detect and draw
+        v_lines      : number of vertical grid lines to detect and draw
+        line_width   : thickness of black grid lines in pixels (always black)
+        grid_strength: blend weight of assigned Mondrian color within each cell
+        opacity      : final composite blend over original canvas
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Axis-separated gradient energy ───────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0  # (H, W)
+
+        # Horizontal grid lines: energy from row-wise mean luminance derivative
+        row_mean = lum.mean(axis=1)                   # (H,)
+        row_energy = _np.abs(_np.diff(row_mean, prepend=row_mean[0]))  # (H,)
+
+        def _pick_lines(energy: _np.ndarray, n: int, excl_frac: float = 0.05) -> list:
+            """Greedy NMS: pick n peak positions, suppressing within excl_frac of size."""
+            size = len(energy)
+            excl = max(1, int(size * excl_frac))
+            e = energy.copy()
+            positions = []
+            for _ in range(n):
+                idx = int(e.argmax())
+                if e[idx] == 0.0:
+                    break
+                positions.append(idx)
+                lo = max(0, idx - excl)
+                hi = min(size, idx + excl)
+                e[lo:hi] = 0.0
+            return sorted(positions)
+
+        h_pos = _pick_lines(row_energy, h_lines)      # sorted row indices
+        col_mean = lum.mean(axis=0)                   # (W,)
+        col_energy = _np.abs(_np.diff(col_mean, prepend=col_mean[0]))  # (W,)
+        v_pos = _pick_lines(col_energy, v_lines)      # sorted column indices
+
+        # ── (2) Cell color assignment ─────────────────────────────────────────
+        # Mondrian's six-color neoplastic palette (RGB float32)
+        mondrian_palette = _np.array([
+            [0.86, 0.08, 0.06],   # primary red
+            [0.97, 0.87, 0.02],   # primary yellow
+            [0.01, 0.17, 0.54],   # primary blue
+            [0.94, 0.92, 0.88],   # white
+            [0.72, 0.72, 0.72],   # gray
+            [0.06, 0.06, 0.08],   # black
+        ], dtype=_np.float32)
+
+        # Build row/col boundaries including 0 and H/W
+        row_bounds = [0] + h_pos + [H]
+        col_bounds = [0] + v_pos + [W]
+
+        adj_r = r0.copy()
+        adj_g = g0.copy()
+        adj_b = b0.copy()
+
+        gs = float(grid_strength)
+
+        for ri in range(len(row_bounds) - 1):
+            r_lo = row_bounds[ri]
+            r_hi = row_bounds[ri + 1]
+            for ci in range(len(col_bounds) - 1):
+                c_lo = col_bounds[ci]
+                c_hi = col_bounds[ci + 1]
+                if r_hi <= r_lo or c_hi <= c_lo:
+                    continue
+                cell_r = r0[r_lo:r_hi, c_lo:c_hi].mean()
+                cell_g = g0[r_lo:r_hi, c_lo:c_hi].mean()
+                cell_b = b0[r_lo:r_hi, c_lo:c_hi].mean()
+                mean_rgb = _np.array([cell_r, cell_g, cell_b], dtype=_np.float32)
+                # Nearest Mondrian color by squared Euclidean distance
+                diff = mondrian_palette - mean_rgb[_np.newaxis, :]
+                sq_dist = (diff * diff).sum(axis=1)
+                nearest = mondrian_palette[sq_dist.argmin()]
+                # Blend cell pixels toward assigned Mondrian color
+                adj_r[r_lo:r_hi, c_lo:c_hi] = (
+                    r0[r_lo:r_hi, c_lo:c_hi] * (1.0 - gs) + nearest[0] * gs
+                )
+                adj_g[r_lo:r_hi, c_lo:c_hi] = (
+                    g0[r_lo:r_hi, c_lo:c_hi] * (1.0 - gs) + nearest[1] * gs
+                )
+                adj_b[r_lo:r_hi, c_lo:c_hi] = (
+                    b0[r_lo:r_hi, c_lo:c_hi] * (1.0 - gs) + nearest[2] * gs
+                )
+
+        # ── (3) Grid line injection ────────────────────────────────────────────
+        # Black grid lines at detected positions (always full black, independent of opacity)
+        black_r, black_g, black_b = 0.06, 0.06, 0.08
+        lw = int(line_width)
+
+        for hy in h_pos:
+            lo = max(0, hy - lw // 2)
+            hi = min(H, hy + lw // 2 + 1)
+            adj_r[lo:hi, :] = black_r
+            adj_g[lo:hi, :] = black_g
+            adj_b[lo:hi, :] = black_b
+
+        for vx in v_pos:
+            lo = max(0, vx - lw // 2)
+            hi = min(W, vx + lw // 2 + 1)
+            adj_r[:, lo:hi] = black_r
+            adj_g[:, lo:hi] = black_g
+            adj_b[:, lo:hi] = black_b
+
+        # ── (4) Composite ─────────────────────────────────────────────────────
+        op = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + adj_r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + adj_g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + adj_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Mondrian Neoplastic Grid pass complete.")
