@@ -220,6 +220,7 @@ EXPECTED_ARTISTS = [
     "oskar_kokoschka",
     "giovanni_boldini",
     "luc_tuymans",
+    "felix_vallotton",
 ]
 
 
@@ -29759,3 +29760,108 @@ def test_felix_vallotton_in_list_artists():
     """Session 221: felix_vallotton must appear in list_artists()."""
     assert "felix_vallotton" in list_artists(), (
         "felix_vallotton must appear in list_artists()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pierre Bonnard -- session 222 additions
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_pierre_bonnard_in_catalog():
+    """Session 222: pierre_bonnard must appear in CATALOG."""
+    assert "pierre_bonnard" in CATALOG, "pierre_bonnard missing from CATALOG"
+
+
+def test_pierre_bonnard_movement():
+    """Session 222: pierre_bonnard movement must reference Nabi or Post-Impressionist."""
+    s = get_style("pierre_bonnard")
+    mv = s.movement.lower()
+    assert "nabi" in mv or "post-impressionist" in mv or "post impressionist" in mv, (
+        f"pierre_bonnard movement unexpected: {s.movement!r}")
+
+
+def test_pierre_bonnard_palette_length():
+    """Session 222: pierre_bonnard must have at least 7 palette entries."""
+    s = get_style("pierre_bonnard")
+    assert len(s.palette) >= 7, (
+        f"pierre_bonnard should have >= 7 palette entries; got {len(s.palette)}")
+
+
+def test_pierre_bonnard_palette_in_range():
+    """Session 222: all pierre_bonnard palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("pierre_bonnard")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"pierre_bonnard palette entry not 3-tuple: {rgb}"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"pierre_bonnard palette channel {ch} out of [0, 1]")
+
+
+def test_pierre_bonnard_ground_color_valid():
+    """Session 222: pierre_bonnard ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("pierre_bonnard")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, (
+            f"pierre_bonnard ground_color channel {ch} out of [0, 1]")
+
+
+def test_pierre_bonnard_moderate_edge_softness():
+    """Session 222: Bonnard's dissolving contours mean edge_softness should be >= 0.30."""
+    s = get_style("pierre_bonnard")
+    assert s.edge_softness >= 0.30, (
+        f"pierre_bonnard edge_softness should be >= 0.30; got {s.edge_softness}")
+
+
+def test_pierre_bonnard_has_glazing():
+    """Session 222: Bonnard uses a warm gold unifying glaze -- glazing must not be None."""
+    s = get_style("pierre_bonnard")
+    assert s.glazing is not None, "pierre_bonnard glazing must not be None (warm gold glaze)"
+    for ch in s.glazing:
+        assert 0.0 <= ch <= 1.0, (
+            f"pierre_bonnard glazing channel {ch} out of [0, 1]")
+
+
+def test_pierre_bonnard_no_crackle():
+    """Session 222: pierre_bonnard crackle must be False."""
+    s = get_style("pierre_bonnard")
+    assert s.crackle is False, "pierre_bonnard crackle must be False"
+
+
+def test_pierre_bonnard_no_chromatic_split():
+    """Session 222: pierre_bonnard chromatic_split must be False (not divisionist)."""
+    s = get_style("pierre_bonnard")
+    assert s.chromatic_split is False, "pierre_bonnard chromatic_split must be False"
+
+
+def test_pierre_bonnard_moderate_jitter():
+    """Session 222: Bonnard's memory-heightened colour means jitter should be >= 0.02."""
+    s = get_style("pierre_bonnard")
+    assert s.jitter >= 0.02, (
+        f"pierre_bonnard jitter should be >= 0.02; got {s.jitter}")
+
+
+def test_pierre_bonnard_famous_works_count():
+    """Session 222: pierre_bonnard must have at least 5 famous works listed."""
+    s = get_style("pierre_bonnard")
+    assert len(s.famous_works) >= 5, (
+        f"pierre_bonnard should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_pierre_bonnard_inspiration_references_pass():
+    """Session 222: inspiration must reference bonnard_chromatic_intimism_pass."""
+    s = get_style("pierre_bonnard")
+    assert "bonnard_chromatic_intimism_pass" in s.inspiration, (
+        "pierre_bonnard inspiration must mention bonnard_chromatic_intimism_pass")
+
+
+def test_pierre_bonnard_inspiration_references_133rd():
+    """Session 222: inspiration must explicitly name the 133rd distinct mode."""
+    s = get_style("pierre_bonnard")
+    assert "133" in s.inspiration or "THIRTY-THIRD" in s.inspiration, (
+        "pierre_bonnard inspiration must reference ONE HUNDRED AND THIRTY-THIRD mode")
+
+
+def test_pierre_bonnard_in_list_artists():
+    """Session 222: pierre_bonnard must appear in list_artists()."""
+    assert "pierre_bonnard" in list_artists(), (
+        "pierre_bonnard must appear in list_artists()")

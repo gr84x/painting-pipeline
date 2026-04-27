@@ -19752,6 +19752,101 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Pierre Bonnard ─────────────────────────────────────────────────────────
+    "pierre_bonnard": ArtStyle(
+        artist="Pierre Bonnard",
+        movement="Post-Impressionist / Nabi (Intimisme)",
+        nationality="French",
+        period="1887–1947",
+        palette=[
+            (0.94, 0.82, 0.48),   # warm cadmium gold — sunlit interior light
+            (0.88, 0.60, 0.38),   # burnt sienna-orange — flesh and fabric warmth
+            (0.62, 0.78, 0.55),   # yellow-green — Bonnard's acid garden greens
+            (0.55, 0.32, 0.65),   # violet-rose — his signature shadow tone
+            (0.92, 0.88, 0.72),   # cream ivory — luminous highlights
+            (0.30, 0.45, 0.72),   # soft cobalt — sky and cool counterpoint
+            (0.78, 0.42, 0.55),   # warm rose-magenta — interior fabric or tile
+            (0.40, 0.62, 0.48),   # muted sage — foliage in deep space
+        ],
+        ground_color=(0.82, 0.75, 0.55),    # warm ochre-gold ground — Mediterranean light
+        stroke_size=10,
+        wet_blend=0.42,                      # moderate-low blending — mosaic dabs stay distinct
+        edge_softness=0.45,                  # soft, dissolving contours absorbed by colour
+        jitter=0.045,                        # rich chromatic variation — worked from memory
+        glazing=(0.96, 0.88, 0.62),         # warm gold unifying glaze — Mediterranean warmth
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "French Post-Impressionist working in a mode of 'Intimisme': intimate "
+            "domestic scenes — bathrooms, dining tables, garden terraces — charged "
+            "with saturated, almost dissonant chromatic warmth.  Worked from memory "
+            "and rapid sketches rather than direct observation, leading to colour "
+            "choices more vivid and emotionally true than visual reality: shadow zones "
+            "become violet-rose, highlights lift to warm gold, fabrics and foliage "
+            "sing at full chromatic saturation.  Small, mosaic-like touches of paint "
+            "build surfaces that vibrate without the optical rigour of Seurat's "
+            "pointillism.  Contours dissolve into surrounding colour fields — figures "
+            "are absorbed by the chromatic field rather than defined against it.  "
+            "Unusually high vantage points, bold cropping, and Japanese-influenced "
+            "spatial compression create spaces that feel both intimate and slightly "
+            "airless.  Palette is warm-dominant — cadmium gold, burnt sienna, "
+            "violet-rose — with acid yellow-greens and cool cobalts as sharp foils. "
+            "Often described as the last of the great Impressionists, though his "
+            "colour use pushes far beyond Impressionism toward Fauvism."
+        ),
+        famous_works=[
+            ("The Breakfast Room", "1930–31"),
+            ("Nude in the Bath", "1936–38"),
+            ("The Garden", "1936"),
+            ("Dining Room in the Country", "1913"),
+            ("The Terrace at Vernon", "1928"),
+            ("Marthe and Her Dog", "1891"),
+            ("The White Cat", "1894"),
+            ("Woman in a Garden", "1891"),
+        ],
+        inspiration=(
+            "bonnard_chromatic_intimism_pass — ONE HUNDRED AND THIRTY-THIRD distinct mode "
+            "(session 222).\n\n"
+            "Implements Bonnard's signature chromatic intensification: works from the "
+            "assumption that memory heightens colour beyond observation — saturation "
+            "is boosted, shadows shift to violet-rose, highlights lift to warm gold, "
+            "and mid-tone areas scatter with dappled luminance variations. "
+            "Contours soften into surrounding fields.\n\n"
+            "Parameters and defaults:\n"
+            "  saturation_boost   = 0.55  # chromatic intensification strength [0-1]\n"
+            "  violet_shadow      = 0.40  # violet-rose push in shadow zones [0-1]\n"
+            "  gold_highlight     = 0.30  # warm gold lift in highlights [0-1]\n"
+            "  dapple_strength    = 0.08  # mid-tone luminance scatter amplitude [0-1]\n"
+            "  contour_soften     = 0.35  # edge softening (dissolve contours) [0-1]\n"
+            "  opacity            = 0.85  # final composite opacity\n\n"
+            "Stage 1 — CHROMATIC SATURATION BOOST:\n"
+            "  Compute luminance = 0.299R + 0.587G + 0.114B.\n"
+            "  Expand each channel away from neutral: "
+            "ch_boosted = lum + (ch - lum) * (1 + saturation_boost).\n"
+            "  Clip to [0, 1].  Replicates memory-heightened colour beyond observation.\n\n"
+            "Stage 2 — VIOLET-ROSE SHADOW TONING:\n"
+            "  Gate weight = clip((0.45 - lum) / 0.30, 0, 1) for shadow zones.\n"
+            "  Blend toward warm violet-rose (0.55, 0.32, 0.65) by violet_shadow * weight.\n"
+            "  Bonnard consistently perceived shadows as chromatic, not neutral grey.\n\n"
+            "Stage 3 — WARM GOLD HIGHLIGHT GILDING:\n"
+            "  Gate weight = clip((lum - 0.70) / 0.20, 0, 1) for highlight zones.\n"
+            "  Blend toward cream-gold (0.96, 0.90, 0.72) by gold_highlight * weight.\n"
+            "  Replicates his Mediterranean interior light — warm, luminous highlights.\n\n"
+            "Stage 4 — DAPPLED LUMINANCE SCATTER:\n"
+            "  RandomState(222) generates seeded Gaussian noise at sigma=3 (mid-scale).\n"
+            "  Gate to mid-tones only (0.35 < lum < 0.75) to avoid scatter in extremes.\n"
+            "  Add dapple_strength * noise * gate to all channels.\n"
+            "  Simulates light filtered through curtains or foliage in Bonnard's interiors.\n\n"
+            "Stage 5 — CONTOUR SOFTENING:\n"
+            "  Compute Sobel edge magnitude from luminance to identify contour zones.\n"
+            "  Gaussian blur (sigma=2.0) applied over the full image.\n"
+            "  Blend in blurred version at contour_soften * edge_gate.\n"
+            "  Dissolves contours into surrounding colour fields in Bonnard's manner.\n\n"
+            "Stage 6 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 

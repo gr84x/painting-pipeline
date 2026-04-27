@@ -49333,3 +49333,255 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Vallotton Hard-Edge Flat pass complete.")
+
+    def bonnard_chromatic_intimism_pass(
+        self,
+        *,
+        saturation_boost: float = 0.55,
+        violet_shadow: float = 0.40,
+        gold_highlight: float = 0.30,
+        dapple_strength: float = 0.08,
+        contour_soften: float = 0.35,
+        opacity: float = 0.85,
+    ) -> None:
+        """
+        Bonnard Chromatic Intimism -- ONE HUNDRED AND THIRTY-THIRD distinct mode.
+        Session 222: Pierre Bonnard (1867-1947).
+
+        Six-stage algorithm implementing Bonnard's memory-heightened chromatic
+        intensification: saturation is boosted beyond observation, shadow zones
+        shift to warm violet-rose, highlights lift to cream gold, mid-tones receive
+        a seeded dappled luminance scatter (light through curtains/foliage), and
+        contours are softened so forms dissolve into their surrounding colour fields.
+
+        Novelty (vs. chromatic_zoning_pass and existing passes):
+        chromatic_zoning_pass shadows are cool blue-grey (0.22, 0.38, 0.52).
+        Bonnard's shadows are warm violet-rose (0.55, 0.32, 0.65) -- a different
+        chromatic perception.  The dappled scatter stage (seeded Gaussian noise
+        gated to mid-tones) is new to the pipeline.  The contour-softening stage
+        blends the blurred image at edge zones -- distinct from all existing passes.
+        Global saturation expansion ch = lum + (ch-lum)*(1+boost) differs from
+        chromatic_zoning_pass's neutral-level midtone expansion.
+
+        saturation_boost : Expand each channel away from luminance.  Default 0.55.
+        violet_shadow    : Shadow blend toward violet-rose (0.55,0.32,0.65).  Default 0.40.
+        gold_highlight   : Highlight blend toward cream-gold (0.96,0.90,0.72).  Default 0.30.
+        dapple_strength  : Mid-tone seeded noise amplitude.  Default 0.08.
+        contour_soften   : Edge-zone Gaussian blend to dissolve contours.  Default 0.35.
+        opacity          : Final composite opacity.  Default 0.85.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Bonnard Chromatic Intimism pass (133rd mode)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r = orig[:, :, 2].astype(_np.float32) / 255.0
+        g = orig[:, :, 1].astype(_np.float32) / 255.0
+        b = orig[:, :, 0].astype(_np.float32) / 255.0
+        r0, g0, b0 = r.copy(), g.copy(), b.copy()
+
+        lum = (0.299 * r + 0.587 * g + 0.114 * b).astype(_np.float32)
+
+        # -- Stage 1 -- Chromatic Saturation Boost --------------------------------
+        boost = float(saturation_boost)
+        r = _np.clip(lum + (r - lum) * (1.0 + boost), 0.0, 1.0)
+        g = _np.clip(lum + (g - lum) * (1.0 + boost), 0.0, 1.0)
+        b = _np.clip(lum + (b - lum) * (1.0 + boost), 0.0, 1.0)
+
+        lum = (0.299 * r + 0.587 * g + 0.114 * b).astype(_np.float32)
+
+        # -- Stage 2 -- Violet-Rose Shadow Toning ---------------------------------
+        vs_weight = _np.clip((0.45 - lum) / 0.30, 0.0, 1.0)
+        vs = float(violet_shadow)
+        r = _np.clip(r * (1.0 - vs * vs_weight) + 0.55 * vs * vs_weight, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - vs * vs_weight) + 0.32 * vs * vs_weight, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - vs * vs_weight) + 0.65 * vs * vs_weight, 0.0, 1.0)
+
+        # -- Stage 3 -- Warm Gold Highlight Gilding --------------------------------
+        gh_weight = _np.clip((lum - 0.70) / 0.20, 0.0, 1.0)
+        gh = float(gold_highlight)
+        r = _np.clip(r * (1.0 - gh * gh_weight) + 0.96 * gh * gh_weight, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - gh * gh_weight) + 0.90 * gh * gh_weight, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - gh * gh_weight) + 0.72 * gh * gh_weight, 0.0, 1.0)
+
+        # -- Stage 4 -- Dappled Luminance Scatter ----------------------------------
+        ds = float(dapple_strength)
+        if ds > 1e-6:
+            rng       = _np.random.RandomState(222)
+            raw_noise = rng.randn(h, w).astype(_np.float32)
+            noise     = _ndi.gaussian_filter(raw_noise, sigma=3.0).astype(_np.float32)
+            if noise.std() > 1e-9:
+                noise = noise / noise.std()
+            mid_gate = _np.clip(
+                _np.minimum(lum - 0.35, 0.75 - lum) / 0.20, 0.0, 1.0
+            )
+            dapple = ds * noise * mid_gate
+            r = _np.clip(r + dapple, 0.0, 1.0)
+            g = _np.clip(g + dapple, 0.0, 1.0)
+            b = _np.clip(b + dapple, 0.0, 1.0)
+
+        # -- Stage 5 -- Contour Softening ------------------------------------------
+        cs = float(contour_soften)
+        if cs > 1e-6:
+            lum_cur = (0.299 * r + 0.587 * g + 0.114 * b).astype(_np.float32)
+            gx      = _ndi.sobel(lum_cur, axis=1).astype(_np.float32)
+            gy      = _ndi.sobel(lum_cur, axis=0).astype(_np.float32)
+            gmag    = _np.sqrt(gx ** 2 + gy ** 2)
+            if gmag.max() > 1e-9:
+                edge_gate = _np.clip(gmag / gmag.max() * 3.0, 0.0, 1.0)
+            else:
+                edge_gate = _np.zeros_like(gmag)
+            edge_gate = _ndi.gaussian_filter(edge_gate, sigma=1.5).astype(_np.float32)
+
+            blur_r = _ndi.gaussian_filter(r, sigma=2.0).astype(_np.float32)
+            blur_g = _ndi.gaussian_filter(g, sigma=2.0).astype(_np.float32)
+            blur_b = _ndi.gaussian_filter(b, sigma=2.0).astype(_np.float32)
+            blend  = cs * edge_gate
+            r = _np.clip(r * (1.0 - blend) + blur_r * blend, 0.0, 1.0)
+            g = _np.clip(g * (1.0 - blend) + blur_g * blend, 0.0, 1.0)
+            b = _np.clip(b * (1.0 - blend) + blur_b * blend, 0.0, 1.0)
+
+        # -- Stage 6 -- Composite --------------------------------------------------
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Bonnard Chromatic Intimism pass complete.")
+
+    def edge_quality_variation_pass(
+        self,
+        *,
+        lost_soften: float = 0.60,
+        soft_blur: float = 0.30,
+        firm_sharpen: float = 0.40,
+        hard_sharpen: float = 0.80,
+        opacity: float = 0.75,
+    ) -> None:
+        """
+        Edge Quality Variation -- session 222 artistic improvement.
+
+        Classical painting edge theory distinguishes four edge types by local contrast:
+          Lost   -- adjacent values so close the boundary disappears
+          Soft   -- gradual transition; areas remain distinct
+          Firm   -- clear boundary with moderate contrast
+          Hard   -- high contrast transition; eye immediately drawn
+
+        This pass classifies each pixel's region by Sobel edge magnitude percentile
+        and applies zone-appropriate processing:
+          Lost  (lowest 30%): Gaussian blend to merge near-invisible boundaries
+          Soft  (30-60%):     mild Gaussian spread
+          Firm  (60-85%):     moderate unsharp-mask sharpening
+          Hard  (top 15%):    strong unsharp-mask sharpening
+
+        Novelty: first pass to implement differential edge processing based on the
+        four-category classical painting framework. vallotton_hard_edge_flat_pass
+        sharpens all zone edges uniformly; this pass applies a spectrum -- losing
+        some, softening some, firming some, hardening others.
+
+        lost_soften   : Gaussian blend weight at lost-edge zones.  Default 0.60.
+        soft_blur     : Gaussian blend weight at soft-edge zones.  Default 0.30.
+        firm_sharpen  : Unsharp-mask strength at firm-edge zones.  Default 0.40.
+        hard_sharpen  : Unsharp-mask strength at hard-edge zones.  Default 0.80.
+        opacity       : Final composite opacity.  Default 0.75.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Edge Quality Variation pass (session 222 improvement)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+
+        # -- Compute edge magnitude map --------------------------------------------
+        lum  = (0.299 * r + 0.587 * g + 0.114 * b).astype(_np.float32)
+        gx   = _ndi.sobel(lum, axis=1).astype(_np.float32)
+        gy   = _ndi.sobel(lum, axis=0).astype(_np.float32)
+        gmag = _np.sqrt(gx ** 2 + gy ** 2)
+        if gmag.max() > 1e-9:
+            gmag = gmag / gmag.max()
+
+        # -- Gaussian-blur reference for soft/sharp operations --------------------
+        blur_sigma = max(1.2, min(self.canvas.w, self.canvas.h) * 0.004)
+        blur_r = _ndi.gaussian_filter(r, sigma=blur_sigma).astype(_np.float32)
+        blur_g = _ndi.gaussian_filter(g, sigma=blur_sigma).astype(_np.float32)
+        blur_b = _ndi.gaussian_filter(b, sigma=blur_sigma).astype(_np.float32)
+
+        # -- Four zone percentile thresholds --------------------------------------
+        flat = gmag.ravel()
+        t30  = float(_np.percentile(flat, 30))
+        t60  = float(_np.percentile(flat, 60))
+        t85  = float(_np.percentile(flat, 85))
+
+        # -- Zone weights (smooth transitions) ------------------------------------
+        w_lost = _np.clip((t30 - gmag) / max(t30, 1e-9), 0.0, 1.0)
+        w_soft = _np.clip(
+            _np.minimum((gmag - t30) / max(t60 - t30, 1e-9),
+                        (t60 - gmag) / max(t60 - t30, 1e-9)) * 2.0,
+            0.0, 1.0
+        )
+        w_firm = _np.clip(
+            _np.minimum((gmag - t60) / max(t85 - t60, 1e-9),
+                        (t85 - gmag) / max(t85 - t60, 1e-9)) * 2.0,
+            0.0, 1.0
+        )
+        w_hard = _np.clip((gmag - t85) / max(1.0 - t85, 1e-9), 0.0, 1.0)
+
+        ls = float(lost_soften)
+        sb = float(soft_blur)
+        fs = float(firm_sharpen)
+        hs = float(hard_sharpen)
+
+        # -- Apply zone-specific processing ----------------------------------------
+        # Lost: merge near-invisible boundaries.
+        r = _np.clip(r - w_lost * ls * (r - blur_r), 0.0, 1.0)
+        g = _np.clip(g - w_lost * ls * (g - blur_g), 0.0, 1.0)
+        b = _np.clip(b - w_lost * ls * (b - blur_b), 0.0, 1.0)
+
+        # Soft: mild Gaussian pull.
+        r = _np.clip(r - w_soft * sb * (r - blur_r), 0.0, 1.0)
+        g = _np.clip(g - w_soft * sb * (g - blur_g), 0.0, 1.0)
+        b = _np.clip(b - w_soft * sb * (b - blur_b), 0.0, 1.0)
+
+        # Firm: moderate unsharp-mask.
+        r = _np.clip(r + w_firm * fs * (r - blur_r), 0.0, 1.0)
+        g = _np.clip(g + w_firm * fs * (g - blur_g), 0.0, 1.0)
+        b = _np.clip(b + w_firm * fs * (b - blur_b), 0.0, 1.0)
+
+        # Hard: strong unsharp-mask.
+        r = _np.clip(r + w_hard * hs * (r - blur_r), 0.0, 1.0)
+        g = _np.clip(g + w_hard * hs * (g - blur_g), 0.0, 1.0)
+        b = _np.clip(b + w_hard * hs * (b - blur_b), 0.0, 1.0)
+
+        # -- Composite -------------------------------------------------------------
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Edge Quality Variation pass complete.")

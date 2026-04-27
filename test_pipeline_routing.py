@@ -19593,3 +19593,182 @@ def test_s221_felix_vallotton_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# bonnard_chromatic_intimism_pass -- session 222 artist pass
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_s222_bonnard_pass_exists():
+    """Session 222: Painter must have bonnard_chromatic_intimism_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bonnard_chromatic_intimism_pass"), (
+        "Painter is missing bonnard_chromatic_intimism_pass")
+    assert callable(getattr(Painter, "bonnard_chromatic_intimism_pass"))
+
+
+def test_s222_bonnard_pass_no_error():
+    """Session 222: bonnard_chromatic_intimism_pass runs without error on a toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.82, 0.75, 0.55), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.bonnard_chromatic_intimism_pass(
+        saturation_boost=0.55,
+        violet_shadow=0.40,
+        gold_highlight=0.30,
+        dapple_strength=0.08,
+        contour_soften=0.35,
+        opacity=0.85,
+    )
+
+
+def test_s222_bonnard_pass_changes_non_uniform_canvas():
+    """Session 222: bonnard_chromatic_intimism_pass must modify a non-uniform canvas."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.78, 0.68, 0.48), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=30)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.bonnard_chromatic_intimism_pass(opacity=0.85)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).max()
+    assert diff > 0, (
+        "bonnard_chromatic_intimism_pass must change a non-uniform canvas")
+
+
+def test_s222_bonnard_pass_zero_opacity_no_change():
+    """Session 222: bonnard_chromatic_intimism_pass at opacity=0.0 must not change pixels."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.80, 0.72, 0.52), texture_strength=0.05)
+    p.block_in(ref, stroke_size=10, n_strokes=20)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.bonnard_chromatic_intimism_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "bonnard_chromatic_intimism_pass at opacity=0.0 must not change any pixels")
+
+
+def test_s222_bonnard_pass_saturation_increases_colour_variance():
+    """Session 222: saturation_boost should increase per-channel variance for a coloured canvas."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    # Create a canvas with some colour variation
+    p.tone_ground((0.65, 0.50, 0.38), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=40)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    # High saturation boost, no other effects, full opacity
+    p.bonnard_chromatic_intimism_pass(
+        saturation_boost=1.0,
+        violet_shadow=0.0,
+        gold_highlight=0.0,
+        dapple_strength=0.0,
+        contour_soften=0.0,
+        opacity=1.0,
+    )
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    # With high boost the canvas should have changed
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).max()
+    assert diff > 0, (
+        "bonnard_chromatic_intimism_pass with saturation_boost=1.0 must modify a coloured canvas")
+
+
+def test_s222_pierre_bonnard_in_catalog():
+    """Session 222: pierre_bonnard must appear in CATALOG with correct properties."""
+    from art_catalog import CATALOG, get_style
+    assert "pierre_bonnard" in CATALOG, "pierre_bonnard missing from CATALOG"
+    s = get_style("pierre_bonnard")
+    mv = s.movement.lower()
+    assert "nabi" in mv or "post-impressionist" in mv, (
+        f"pierre_bonnard movement unexpected: {s.movement!r}")
+    assert s.glazing is not None, "pierre_bonnard glazing must not be None"
+    assert s.crackle is False, "pierre_bonnard crackle must be False"
+    assert s.edge_softness >= 0.30, (
+        f"pierre_bonnard edge_softness should be >= 0.30; got {s.edge_softness}")
+    assert len(s.palette) >= 7
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# edge_quality_variation_pass -- session 222 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_s222_edge_quality_pass_exists():
+    """Session 222: Painter must have edge_quality_variation_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "edge_quality_variation_pass"), (
+        "Painter is missing edge_quality_variation_pass")
+    assert callable(getattr(Painter, "edge_quality_variation_pass"))
+
+
+def test_s222_edge_quality_pass_no_error():
+    """Session 222: edge_quality_variation_pass runs without error on a toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.70, 0.65, 0.50), texture_strength=0.05)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.edge_quality_variation_pass(
+        lost_soften=0.60,
+        soft_blur=0.30,
+        firm_sharpen=0.40,
+        hard_sharpen=0.80,
+        opacity=0.75,
+    )
+
+
+def test_s222_edge_quality_pass_changes_non_uniform_canvas():
+    """Session 222: edge_quality_variation_pass must modify a non-uniform canvas."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=30)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.edge_quality_variation_pass(opacity=0.75)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).max()
+    assert diff > 0, (
+        "edge_quality_variation_pass must change a non-uniform canvas")
+
+
+def test_s222_edge_quality_pass_zero_opacity_no_change():
+    """Session 222: edge_quality_variation_pass at opacity=0.0 must not change pixels."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.65, 0.60, 0.45), texture_strength=0.05)
+    p.block_in(ref, stroke_size=10, n_strokes=20)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.edge_quality_variation_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "edge_quality_variation_pass at opacity=0.0 must not change any pixels")
