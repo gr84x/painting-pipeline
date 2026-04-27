@@ -29657,3 +29657,105 @@ def test_luc_tuymans_in_list_artists():
     """Session 220: luc_tuymans must appear in list_artists()."""
     assert "luc_tuymans" in list_artists(), (
         "luc_tuymans must appear in list_artists()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Félix Vallotton — session 221 additions
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_felix_vallotton_in_catalog():
+    """Session 221: felix_vallotton must appear in CATALOG."""
+    assert "felix_vallotton" in CATALOG, "felix_vallotton missing from CATALOG"
+
+
+def test_felix_vallotton_movement():
+    """Session 221: felix_vallotton movement must reference Nabis or Post-Impressionist."""
+    s = get_style("felix_vallotton")
+    mv = s.movement.lower()
+    assert "nabis" in mv or "post-impressionist" in mv or "post impressionist" in mv, (
+        f"felix_vallotton movement unexpected: {s.movement!r}")
+
+
+def test_felix_vallotton_palette_length():
+    """Session 221: felix_vallotton must have at least 6 palette entries."""
+    s = get_style("felix_vallotton")
+    assert len(s.palette) >= 6, (
+        f"felix_vallotton should have >= 6 palette entries; got {len(s.palette)}")
+
+
+def test_felix_vallotton_palette_in_range():
+    """Session 221: all felix_vallotton palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("felix_vallotton")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"felix_vallotton palette entry not 3-tuple: {rgb}"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"felix_vallotton palette channel {ch} out of [0, 1]")
+
+
+def test_felix_vallotton_ground_color_valid():
+    """Session 221: felix_vallotton ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("felix_vallotton")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, (
+            f"felix_vallotton ground_color channel {ch} out of [0, 1]")
+
+
+def test_felix_vallotton_low_edge_softness():
+    """Session 221: Vallotton's hard-edge style means edge_softness should be <= 0.15."""
+    s = get_style("felix_vallotton")
+    assert s.edge_softness <= 0.15, (
+        f"felix_vallotton edge_softness should be low (<= 0.15); got {s.edge_softness}")
+
+
+def test_felix_vallotton_no_glazing():
+    """Session 221: Vallotton does not use glazing — glazing must be None."""
+    s = get_style("felix_vallotton")
+    assert s.glazing is None, "felix_vallotton glazing must be None"
+
+
+def test_felix_vallotton_no_crackle():
+    """Session 221: felix_vallotton crackle must be False."""
+    s = get_style("felix_vallotton")
+    assert s.crackle is False, "felix_vallotton crackle must be False"
+
+
+def test_felix_vallotton_no_chromatic_split():
+    """Session 221: felix_vallotton chromatic_split must be False."""
+    s = get_style("felix_vallotton")
+    assert s.chromatic_split is False, "felix_vallotton chromatic_split must be False"
+
+
+def test_felix_vallotton_low_jitter():
+    """Session 221: Vallotton's restrained palette means jitter should be <= 0.05."""
+    s = get_style("felix_vallotton")
+    assert s.jitter <= 0.05, (
+        f"felix_vallotton jitter should be low (<= 0.05); got {s.jitter}")
+
+
+def test_felix_vallotton_famous_works_count():
+    """Session 221: felix_vallotton must have at least 5 famous works listed."""
+    s = get_style("felix_vallotton")
+    assert len(s.famous_works) >= 5, (
+        f"felix_vallotton should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_felix_vallotton_inspiration_references_pass():
+    """Session 221: inspiration must reference vallotton_hard_edge_flat_pass."""
+    s = get_style("felix_vallotton")
+    assert "vallotton_hard_edge_flat_pass" in s.inspiration, (
+        "felix_vallotton inspiration must mention vallotton_hard_edge_flat_pass")
+
+
+def test_felix_vallotton_inspiration_references_132nd():
+    """Session 221: inspiration must explicitly name the 132nd distinct mode."""
+    s = get_style("felix_vallotton")
+    assert "132" in s.inspiration or "THIRTY-SECOND" in s.inspiration, (
+        "felix_vallotton inspiration must reference ONE HUNDRED AND THIRTY-SECOND mode")
+
+
+def test_felix_vallotton_in_list_artists():
+    """Session 221: felix_vallotton must appear in list_artists()."""
+    assert "felix_vallotton" in list_artists(), (
+        "felix_vallotton must appear in list_artists()")

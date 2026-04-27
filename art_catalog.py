@@ -19666,6 +19666,92 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Félix Vallotton ────────────────────────────────────────────────────────
+    "felix_vallotton": ArtStyle(
+        artist="Félix Vallotton",
+        movement="Nabis / Post-Impressionist",
+        nationality="Swiss-French",
+        period="1885–1925",
+        palette=[
+            (0.88, 0.80, 0.65),   # ivory-bone flesh — warm and flat
+            (0.55, 0.50, 0.38),   # ochre mid-tone — muted interior light
+            (0.22, 0.20, 0.18),   # near-black charcoal — hard shadow zones
+            (0.45, 0.40, 0.28),   # raw sienna brown — warm fabric and wood
+            (0.62, 0.62, 0.55),   # cool grey-green — walls, backgrounds
+            (0.80, 0.50, 0.22),   # accent cadmium-orange — textile or skin warmth
+            (0.18, 0.22, 0.35),   # deep Prussian navy — deep shadow cast areas
+        ],
+        ground_color=(0.72, 0.68, 0.58),    # warm mid-ochre ground — typical French oil
+        stroke_size=12,
+        wet_blend=0.14,                      # minimal blending — flat, decisive marks
+        edge_softness=0.05,                  # crisp, hard-edged — woodcut heritage
+        jitter=0.012,                        # tight control — restrained palette variation
+        glazing=None,                        # no final glaze — surfaces stay direct
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Swiss-French Nabis painter working in an anti-impressionist, "
+            "woodcut-influenced mode: form simplified into flat zones of "
+            "uninflected colour separated by hard, precise contours. No visible "
+            "brushwork, no atmospheric blending — each colour zone resolves to a "
+            "single value as in his celebrated black-and-white woodcuts.  "
+            "Interior scenes radiate psychological tension through the flatness "
+            "itself: space becomes airless, light has no softness, shadows pool "
+            "into hard-edged dark zones.  Palette is restrained — warm ivories, "
+            "ochres, charcoal darks — occasionally punctuated by a single warm "
+            "accent.  Strong value contrast replaces chiaroscuro modelling. "
+            "Influenced by Japanese ukiyo-e prints and Paul Gauguin, but where "
+            "Gauguin sought tropical exoticism, Vallotton translated the same "
+            "decorative flatness into bourgeois interiors charged with unease."
+        ),
+        famous_works=[
+            ("The Ball", "1899"),
+            ("The Visit", "1899"),
+            ("Nude with Red Carpet", "1909"),
+            ("The Lie", "1898"),
+            ("Laziness", "1896"),
+            ("Interior with Woman in Red", "1903"),
+            ("The Flautist", "1896"),
+            ("Woman Searching Through a Cupboard", "1901"),
+        ],
+        inspiration=(
+            "vallotton_hard_edge_flat_pass — ONE HUNDRED AND THIRTY-SECOND distinct mode "
+            "(session 221).\n\n"
+            "Implements Vallotton's signature anti-impressionist flatness: uses "
+            "iterated bilateral filtering to flatten colour zones while preserving "
+            "their boundaries, posterizes to force discrete tonal steps, then "
+            "sharpens zone edges to hard precision.  An optional thin contour "
+            "overlay adds the woodcut influence.\n\n"
+            "Parameters and defaults:\n"
+            "  n_tones             = 5     # posterization tones per channel [3-8]\n"
+            "  bilateral_iters     = 3     # flattening passes (more = flatter)\n"
+            "  edge_sharpen        = 0.60  # unsharp-mask strength at zone edges\n"
+            "  contour_weight      = 0.25  # thin woodcut contour overlay [0-1]\n"
+            "  contour_thickness   = 1.2   # contour line width in pixels\n"
+            "  opacity             = 0.82  # final composite opacity\n\n"
+            "Stage 1 — ZONE FLATTENING:\n"
+            "  Apply bilateral_iters rounds of bilateral filter (d=9, sigmaColor=55, "
+            "sigmaSpace=55 equivalent via Gaussian cascade) to smooth within-zone "
+            "colour variation while preserving sharp inter-zone transitions.\n"
+            "  Result: interior of each color region becomes nearly flat.\n\n"
+            "Stage 2 — POSTERIZATION:\n"
+            "  Quantize each channel to n_tones discrete levels: "
+            "floor(ch * n_tones) / (n_tones - 1).\n"
+            "  Forces Vallotton's flat, committal colour — no gradients survive.\n\n"
+            "Stage 3 — EDGE SHARPENING:\n"
+            "  Compute Sobel edge magnitude from the posterized image.\n"
+            "  Apply unsharp mask gated to edge regions: "
+            "result += edge_sharpen * edge_mag * (posterized - blurred).\n"
+            "  Sharpens zone boundaries to hard precision — the defining quality.\n\n"
+            "Stage 4 — CONTOUR OVERLAY (optional):\n"
+            "  Threshold edge magnitude to thin hard contour lines.\n"
+            "  Overlay dark contour colour at contour_weight — thin woodcut lines,\n"
+            "  not the thick organic cloisons of the Gauguin pass.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 

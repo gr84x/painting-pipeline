@@ -19476,3 +19476,120 @@ def test_s220_luc_tuymans_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# vallotton_hard_edge_flat_pass — session 221 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_s221_vallotton_pass_exists():
+    """Session 221: Painter must have vallotton_hard_edge_flat_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "vallotton_hard_edge_flat_pass"), (
+        "Painter is missing vallotton_hard_edge_flat_pass")
+    assert callable(getattr(Painter, "vallotton_hard_edge_flat_pass"))
+
+
+def test_s221_vallotton_pass_no_error():
+    """Session 221: vallotton_hard_edge_flat_pass runs without error on a toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.72, 0.68, 0.58), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.vallotton_hard_edge_flat_pass(
+        n_tones=5,
+        bilateral_iters=2,
+        edge_sharpen=0.60,
+        contour_weight=0.25,
+        opacity=0.82,
+    )
+
+
+def test_s221_vallotton_pass_changes_non_uniform_canvas():
+    """Session 221: vallotton_hard_edge_flat_pass must modify a non-uniform canvas."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.50, 0.38), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=30)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.vallotton_hard_edge_flat_pass(n_tones=5, bilateral_iters=2, opacity=0.82)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).max()
+    assert diff > 0, (
+        "vallotton_hard_edge_flat_pass must change a non-uniform canvas")
+
+
+def test_s221_vallotton_pass_zero_opacity_no_change():
+    """Session 221: vallotton_hard_edge_flat_pass at opacity=0.0 must not change pixels."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.05)
+    p.block_in(ref, stroke_size=10, n_strokes=20)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.vallotton_hard_edge_flat_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "vallotton_hard_edge_flat_pass at opacity=0.0 must not change any pixels")
+
+
+def test_s221_vallotton_pass_posterizes_tones():
+    """Session 221: posterization should produce at most n_tones*2 distinct levels per channel."""
+    import numpy as _np
+
+    # Note: at opacity=1.0 the output is a blend of original (0%) and posterized (100%),
+    # so unique values come from the posterized result alone.
+    # With n_tones=4, each channel maps to at most 4 discrete float steps, which after
+    # uint8 conversion and compositing gives at most ~4 distinct levels per channel.
+    # We allow a generous bound of n_tones*2 to account for floating-point rounding.
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.55, 0.45, 0.35), texture_strength=0.08)
+    p.block_in(ref, stroke_size=10, n_strokes=40)
+
+    # Strong posterization: few tones, no contour, no edge sharpening, full opacity
+    n_tones = 4
+    p.vallotton_hard_edge_flat_pass(
+        n_tones=n_tones,
+        bilateral_iters=5,
+        edge_sharpen=0.0,
+        contour_weight=0.0,
+        opacity=1.0,
+    )
+    after_buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    # Count distinct values in the red channel (BGRA: index 2)
+    unique_r = len(_np.unique(after_buf[:, :, 2]))
+    assert unique_r <= n_tones * 2, (
+        f"vallotton_hard_edge_flat_pass with n_tones={n_tones} should produce at most "
+        f"{n_tones * 2} distinct red channel values; got {unique_r}")
+
+
+def test_s221_felix_vallotton_in_catalog():
+    """Session 221: felix_vallotton must appear in CATALOG with correct properties."""
+    from art_catalog import CATALOG, get_style
+    assert "felix_vallotton" in CATALOG, "felix_vallotton missing from CATALOG"
+    s = get_style("felix_vallotton")
+    mv = s.movement.lower()
+    assert "nabis" in mv or "post-impressionist" in mv, (
+        f"felix_vallotton movement unexpected: {s.movement!r}")
+    assert s.glazing is None, "felix_vallotton glazing must be None"
+    assert s.crackle is False, "felix_vallotton crackle must be False"
+    assert s.edge_softness <= 0.15, (
+        f"felix_vallotton edge_softness should be <= 0.15; got {s.edge_softness}")
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
