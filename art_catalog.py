@@ -19377,6 +19377,119 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    # ── Oskar Kokoschka ────────────────────────────────────────────────────────
+    "oskar_kokoschka": ArtStyle(
+        artist="Oskar Kokoschka",
+        movement="Expressionism / Austrian Expressionism",
+        nationality="Austrian (later British)",
+        period="1905–1975",
+        palette=[
+            (0.72, 0.40, 0.22),   # warm living flesh — his characteristic face tone
+            (0.20, 0.40, 0.45),   # blue-green shadow — the psychological cool
+            (0.20, 0.12, 0.06),   # dark umber — jacket, deep shadow
+            (0.68, 0.54, 0.28),   # raw ochre — background plaster, warm ground
+            (0.75, 0.18, 0.12),   # cadmium red — accent, nervous energy flash
+            (0.90, 0.88, 0.78),   # bone white — sparse highlight, collar flash
+            (0.35, 0.52, 0.68),   # cerulean blue — window light, sky, cool distance
+            (0.52, 0.28, 0.14),   # burnt sienna mid — transition tone
+        ],
+        ground_color=(0.48, 0.35, 0.20),   # warm raw sienna ground
+        stroke_size=16.0,
+        wet_blend=0.70,
+        edge_softness=0.38,
+        jitter=0.18,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Oskar Kokoschka (1886–1980) was the most psychologically forceful portraitist "
+            "of the Austrian Expressionist generation — arguably the more extreme counterpart "
+            "to Egon Schiele's line-driven nervous energy, though the two men barely overlapped "
+            "in Vienna before the First World War.\n\n"
+            "Kokoschka painted the hidden life of his sitters. His early portraits — made before "
+            "the war, when he was barely twenty — show a face beneath the social face, as if the "
+            "nervous system were made visible under the skin. He scraped the surface, attacked it "
+            "with the brush end, built up and scoured back. The handling is turbulent but never "
+            "arbitrary: each mark serves the psychological reading.\n\n"
+            "His palette is divided by an anxious warm/cool tension. The living warm tones of "
+            "flesh — warm reds and siennas — exist in perpetual conflict with the cool blue-green "
+            "of his shadows, which suggest the presence of cold thought or psychological depth "
+            "beneath the warm surface. This chromatic opposition is the visual equivalent of the "
+            "psychological tension he was reading in his subjects.\n\n"
+            "The contours in Kokoschka are heavy, painted — not the thin ruled wire of Schiele "
+            "but a broad, nervous brushed line that varies in weight and trembles slightly at "
+            "changes of direction. The form appears to vibrate at its own edge. These contours "
+            "are darkened with the same paint the shadow zones are darkened — they come from the "
+            "same gesture, not from a separate drawing operation.\n\n"
+            "His later work opened outward: huge allegorical compositions, panoramic city views "
+            "(London, Dresden, Prague), and the cycle of self-portraits that runs through his "
+            "entire career. But even at the grandest scale, the psychological core remained: "
+            "the warm/cool tension, the scratched-in painted line, the face that has been looked "
+            "at until it reveals something it was not meant to show.\n\n"
+            "ALGORITHM: kokoschka_anxious_portrait_pass() implements this through four stages. "
+            "First, Difference-of-Gaussians contour darkening: a DoG edge map identifies form "
+            "boundaries; these are modulated with RandomState(218) noise and used to darken the "
+            "channels, creating heavy, scratchy painted outlines. Second, psychological warm/cool "
+            "zone shift: shadows (lum < 0.45) are pushed toward Kokoschka blue-green "
+            "(0.20, 0.40, 0.45); warm midtones (lum 0.45–0.75) toward warm flesh-red "
+            "(0.65, 0.25, 0.15). Third, expressive shadow gamma: a power curve darkens the "
+            "shadow zone while holding highlights, intensifying the psychological contrast. "
+            "Fourth, composite at opacity.\n\n"
+            "Recommended pipeline for Kokoschka aesthetic:\n"
+            "tone_ground() with warm raw sienna (0.48, 0.35, 0.20).\n"
+            "underpainting() with large loose strokes (stroke_size=45).\n"
+            "block_in() (stroke_size=28).\n"
+            "build_form() (stroke_size=14).\n"
+            "place_lights() (stroke_size=6).\n"
+            "kokoschka_anxious_portrait_pass(edge_darkness=0.55, color_tension=0.30, "
+            "scratch_strength=0.40, shadow_gamma=1.8, opacity=0.80) as the primary "
+            "stylistic pass.\n"
+            "edge_definition_pass(strength=0.35).\n"
+            "glaze() with warm sienna tint (0.55, 0.28, 0.12) at low opacity."
+        ),
+        famous_works=[
+            ("The Bride of the Wind (The Tempest)", "1914"),
+            ("Portrait of Adolf Loos", "1909"),
+            ("Two Nudes (Lovers)", "1913"),
+            ("The Power of Music", "1918–1920"),
+            ("Self-Portrait with Crossed Arms", "1923"),
+            ("Prague — Nostalgia", "1938"),
+            ("Anschluss — Alice in Wonderland", "1942"),
+            ("London, Large Thames View", "1926"),
+            ("Thermopylae Triptych", "1954"),
+        ],
+        inspiration=(
+            "kokoschka_anxious_portrait_pass — ONE HUNDRED AND TWENTY-NINTH distinct mode "
+            "(session 218).\n\n"
+            "Implements Kokoschka's psychological portrait language: DoG contour darkening "
+            "with stochastic noise modulation, warm/cool zone-specific chromatic push, "
+            "and gamma-based shadow intensification.\n\n"
+            "Parameters and defaults:\n"
+            "  edge_darkness    = 0.55   # DoG-edge darkening strength\n"
+            "  color_tension    = 0.30   # warm/cool zone blend intensity\n"
+            "  scratch_strength = 0.40   # noise modulation on edge map\n"
+            "  shadow_gamma     = 1.8    # power curve exponent for shadow darkening\n"
+            "  opacity          = 0.80   # final composite opacity vs original canvas\n\n"
+            "Stage 1 — DoG CONTOUR DARKENING:\n"
+            "  Luminance from RGB. Two Gaussian blurs (sigma_inner=1.5, sigma_outer=5.0).\n"
+            "  DoG = G_inner - G_outer; clip to positive, normalize to [0,1].\n"
+            "  Multiply by (1 + scratch_strength * noise field from RandomState(218)).\n"
+            "  Darken channels: ch *= (1 - edge_darkness * modulated_edge_map).\n\n"
+            "Stage 2 — WARM/COOL ZONE SHIFT:\n"
+            "  Shadow weight = clip((0.45-lum)/0.40, 0, 1) * color_tension.\n"
+            "  Blend toward blue-green (0.20, 0.40, 0.45) in shadow zones.\n"
+            "  Midtone weight = clip(min(lum-0.45, 0.75-lum)/0.15, 0, 1) * color_tension.\n"
+            "  Blend toward warm flesh-red (0.65, 0.25, 0.15) in warm midtones.\n\n"
+            "Stage 3 — SHADOW GAMMA:\n"
+            "  dark_w = clip((0.80 - lum) / 0.80, 0, 1).\n"
+            "  adj_lum = lum^gamma * dark_w + lum * (1 - dark_w).\n"
+            "  Scale RGB by adj_lum / lum_safe (capped at 2.5).\n\n"
+            "Stage 4 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 

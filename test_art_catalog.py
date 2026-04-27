@@ -29404,3 +29404,77 @@ def test_chaim_soutine_in_list_artists():
     """Session 217: chaim_soutine must appear in list_artists()."""
     assert "chaim_soutine" in list_artists(), (
         "chaim_soutine must appear in list_artists()")
+
+
+# ── Session 218: Oskar Kokoschka ─────────────────────────────────────────────
+
+def test_oskar_kokoschka_in_catalog():
+    """Session 218: oskar_kokoschka must appear in CATALOG with Expressionism movement."""
+    from art_catalog import CATALOG, get_style
+    assert "oskar_kokoschka" in CATALOG, "oskar_kokoschka missing from CATALOG"
+    s = get_style("oskar_kokoschka")
+    assert "Expressionism" in s.movement, (
+        f"oskar_kokoschka movement should contain Expressionism; got {s.movement!r}")
+    assert s.crackle is False, "oskar_kokoschka crackle must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+def test_oskar_kokoschka_nationality():
+    """Session 218: nationality must reference Austrian."""
+    s = get_style("oskar_kokoschka")
+    nat = s.nationality.lower()
+    assert "austrian" in nat, (
+        f"oskar_kokoschka nationality should reference Austrian; got {s.nationality!r}")
+
+
+def test_oskar_kokoschka_palette_length():
+    """Session 218: oskar_kokoschka must have at least 6 palette colors."""
+    s = get_style("oskar_kokoschka")
+    assert len(s.palette) >= 6, (
+        f"oskar_kokoschka palette should have >= 6 colors; got {len(s.palette)}")
+
+
+def test_oskar_kokoschka_palette_in_range():
+    """Session 218: all palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("oskar_kokoschka")
+    for rgb in s.palette:
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"oskar_kokoschka palette channel {ch} out of [0, 1]")
+
+
+def test_oskar_kokoschka_no_crackle():
+    """Session 218: oskar_kokoschka crackle must be False."""
+    s = get_style("oskar_kokoschka")
+    assert s.crackle is False, "oskar_kokoschka crackle must be False"
+
+
+def test_oskar_kokoschka_famous_works_count():
+    """Session 218: oskar_kokoschka must have at least 6 famous works listed."""
+    s = get_style("oskar_kokoschka")
+    assert len(s.famous_works) >= 6, (
+        f"oskar_kokoschka should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_oskar_kokoschka_inspiration_references_pass():
+    """Session 218: inspiration must reference kokoschka_anxious_portrait_pass."""
+    s = get_style("oskar_kokoschka")
+    assert "kokoschka_anxious_portrait_pass" in s.inspiration, (
+        "oskar_kokoschka inspiration must mention kokoschka_anxious_portrait_pass")
+
+
+def test_oskar_kokoschka_inspiration_references_129th():
+    """Session 218: inspiration must explicitly name the 129th distinct mode."""
+    s = get_style("oskar_kokoschka")
+    assert "129" in s.inspiration or "TWENTY-NINTH" in s.inspiration, (
+        "oskar_kokoschka inspiration must reference ONE HUNDRED AND TWENTY-NINTH mode")
+
+
+def test_oskar_kokoschka_in_list_artists():
+    """Session 218: oskar_kokoschka must appear in list_artists()."""
+    assert "oskar_kokoschka" in list_artists(), (
+        "oskar_kokoschka must appear in list_artists()")
