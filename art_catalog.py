@@ -19584,6 +19584,88 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "luc_tuymans": ArtStyle(
+        artist="Luc Tuymans",
+        movement="Contemporary Figurative / Post-Conceptual Realism",
+        nationality="Belgian",
+        period="1958–present",
+        palette=[
+            (0.88, 0.86, 0.82),   # pale bone white — brightest highlight
+            (0.76, 0.73, 0.68),   # warm light grey — upper midtone, lit flesh
+            (0.60, 0.58, 0.55),   # cool middle grey — lower midtone
+            (0.44, 0.42, 0.40),   # muted neutral grey — shadow passage
+            (0.82, 0.79, 0.73),   # desaturated warm tone — mid-flesh
+            (0.64, 0.61, 0.57),   # pale sienna-grey — shadow flesh
+            (0.34, 0.32, 0.30),   # near-black grey — deepest shadow
+            (0.93, 0.92, 0.90),   # near-white — overexposed highlight
+        ],
+        ground_color=(0.80, 0.78, 0.74),    # pale grey-beige ground — almost white
+        stroke_size=14,
+        wet_blend=0.28,                      # limited blending — alla prima, not over-worked
+        edge_softness=0.18,                  # clinical, precise edges
+        jitter=0.015,                        # minimal variation — controlled, sparse palette
+        glazing=None,                        # no glazing — bare, near-unfinished surface
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Contemporary Belgian figuration working in extreme desaturation: a "
+            "near-achromatic palette of washed-out greys, pale bones, and barely "
+            "committed warmth. Paints alla prima in a single session — marks are "
+            "definitive, rarely reworked. Thin transparent paint allows the pale "
+            "ground to breathe through, creating a pallid, almost clinical surface. "
+            "Psychological unease through restraint: colour refuses to commit; "
+            "nothing is emphatic. Subjects rendered with detached precision — no "
+            "sentimentality, no heroism. Close cropping and unusual angles fragment "
+            "the figure, enhancing alienation. The paint is almost absent, the image "
+            "almost erased — yet something irreducible remains. "
+            "Inspired by early Flemish masters in compositional economy but stripped "
+            "of all their warmth. Works about silence, aftermath, and the ordinary "
+            "made permanently strange."
+        ),
+        famous_works=[
+            ("The Body", "1990"),
+            ("Gas Chamber", "1986"),
+            ("Nervous", "1993"),
+            ("Disenchantment", "2004"),
+            ("Still Life", "2002"),
+            ("The Stack", "2014"),
+            ("Proper", "1998"),
+        ],
+        inspiration=(
+            "tuymans_pale_wash_pass — ONE HUNDRED AND THIRTY-FIRST distinct mode "
+            "(session 220).\n\n"
+            "Implements Tuymans' signature pale desaturation: strips chromatic "
+            "saturation toward near-achromatic, applies a cool clinical pallor to "
+            "mid-tones and highlights, compresses the tonal range to create the "
+            "washed-out quality, and simulates thin paint with a low-opacity blur.\n\n"
+            "Parameters and defaults:\n"
+            "  desaturation_strength = 0.72  # pull toward grey [0, 1]\n"
+            "  pallor_cool           = 0.18  # cool blue-white tint in mid+highlights\n"
+            "  tonal_compression     = 0.28  # gamma lift compresses mid-high tones\n"
+            "  thin_paint_blur       = 1.2   # gaussian sigma (thin paint spread)\n"
+            "  opacity               = 0.80  # final composite opacity\n\n"
+            "Stage 1 — DESATURATION:\n"
+            "  Compute neutral grey = (R+G+B)/3.\n"
+            "  Blend each channel toward neutral by desaturation_strength.\n"
+            "  Result: palette shifts toward near-achromatic — Tuymans' core quality.\n\n"
+            "Stage 2 — COOL PALLOR:\n"
+            "  Luminance gate: weight = clip((lum - 0.32) / 0.42, 0, 1) "
+            "(mid-to-bright zones).\n"
+            "  Blend toward cool pallor (0.90, 0.91, 0.95) by pallor_cool * weight.\n"
+            "  Replicates cold north-light and bleached, overcast-day quality.\n\n"
+            "Stage 3 — TONAL COMPRESSION:\n"
+            "  Applies gamma lift: lum_new = lum ^ (1 - tonal_compression * 0.45).\n"
+            "  Normalise channels to preserve hue after gamma lift.\n"
+            "  Creates washed-out, over-lit quality — shadows lift, blacks grey out.\n\n"
+            "Stage 4 — THIN PAINT SIMULATION:\n"
+            "  Gaussian blur (sigma=thin_paint_blur) mixed in at 0.22 weight.\n"
+            "  Simulates how thin paint spreads and loses mark-edge sharpness.\n"
+            "  Gated below 0.40 contribution to preserve compositional legibility.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 

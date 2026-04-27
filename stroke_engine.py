@@ -7158,7 +7158,7 @@ class Painter:
         MANNERIST).  Keep strength below 0.30 to avoid an over-sharpened look.
         """
         print(f"Micro-detail pass  (strength={strength:.2f}  "
-              f"fine_sigma={fine_sigma:.1f}  coarse_sigma={coarse_sigma:.1f})…")
+              f"fine_sigma={fine_sigma:.1f}  coarse_sigma={coarse_sigma:.1f})...")
 
         surf = self.canvas.surface
         h, w = surf.get_height(), surf.get_width()
@@ -48906,3 +48906,270 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Chromatic Zoning pass complete.")
+
+    def tuymans_pale_wash_pass(
+        self,
+        *,
+        desaturation_strength: float = 0.72,
+        pallor_cool: float = 0.18,
+        tonal_compression: float = 0.28,
+        thin_paint_blur: float = 1.2,
+        opacity: float = 0.80,
+    ) -> None:
+        """
+        Tuymans Pale Wash — ONE HUNDRED AND THIRTY-FIRST distinct mode.
+        Session 220: Luc Tuymans (1958–present).
+
+        Four-stage algorithm implementing Tuymans' signature clinical desaturation:
+        aggressive saturation pull toward near-achromatic, cool pallor in mid-tones
+        and highlights, gamma-based tonal compression that lifts shadows and
+        compresses highlights to create the washed-out quality, and a low-weight
+        Gaussian blend simulating the visual effect of thinly applied oil.
+
+        Novelty (vs. Boldini s220 swirl and existing passes): Boldini's pass
+        adds warmth and movement; this pass does the opposite — it strips warmth,
+        arrests movement, and compresses tonal range. The tonal compression via
+        gamma lift is distinct from the existing chromatic_zoning_pass (which
+        boosts midtone saturation) and from atmospheric_depth_pass (which applies
+        a depth-cued gradient). This pass applies uniform tonal collapse across the
+        whole canvas — the Tuymans effect is totalising, not zonal.
+
+        desaturation_strength: Blend strength toward neutral grey per channel.
+                               0 = original, 1 = fully greyscale.  Default 0.72 —
+                               strong desaturation but retaining the faintest
+                               hint of warmth or coolness.
+        pallor_cool          : Blend strength toward cool bone-white in mid-tones
+                               and highlights (lum > 0.32).  Simulates the cold
+                               north-facing overcast studio light in Tuymans'
+                               Antwerp and Brussels paintings.  Default 0.18.
+        tonal_compression    : Gamma exponent modifier.  Applies lum^gamma where
+                               gamma = 1 - tonal_compression * 0.45 < 1, which
+                               lifts shadow values toward mid-grey while
+                               compressing highlights toward white.  The result is
+                               the characteristic Tuymans washed-out flatness —
+                               no deep blacks, no pure whites, everything resolves
+                               in a narrow, pale band.  Default 0.28.
+        thin_paint_blur      : Sigma of the Gaussian blur mixed in at 22% weight
+                               to simulate the way thinly applied oil paint
+                               spreads and softens mark boundaries without fully
+                               blurring the composition.  Default 1.2 px.
+        opacity              : Final composite strength vs original canvas.
+                               Default 0.80.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Tuymans Pale Wash pass (131st mode)…")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+
+        # ── (1) Desaturation — pull toward neutral grey ────────────────────────
+        neutral = (r + g + b) / 3.0
+        ds      = float(desaturation_strength)
+        r = r * (1.0 - ds) + neutral * ds
+        g = g * (1.0 - ds) + neutral * ds
+        b = b * (1.0 - ds) + neutral * ds
+
+        # ── (2) Cool Pallor — north-light bone-white in mid+highlights ─────────
+        lum     = 0.299 * r + 0.587 * g + 0.114 * b
+        pallor  = (0.90, 0.91, 0.95)
+        # Weight peaks at lum=1, rises from zero at lum=0.32
+        pallor_w = _np.clip((lum - 0.32) / 0.42, 0.0, 1.0) * float(pallor_cool)
+        r = _np.clip(r * (1.0 - pallor_w) + pallor[0] * pallor_w, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - pallor_w) + pallor[1] * pallor_w, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - pallor_w) + pallor[2] * pallor_w, 0.0, 1.0)
+
+        # ── (3) Tonal Compression — gamma lift lifts shadows, caps highlights ──
+        # gamma < 1 lifts all tones: darkest tones lifted most, highlights capped.
+        gamma   = 1.0 - float(tonal_compression) * 0.45   # typical range 0.87–0.82
+        gamma   = max(gamma, 0.50)                         # safety clamp
+
+        lum2    = 0.299 * r + 0.587 * g + 0.114 * b
+        safe    = _np.clip(lum2, 1e-7, 1.0)
+        lum_new = _np.clip(safe ** gamma, 0.0, 1.0)
+        ratio   = lum_new / safe   # per-pixel brightness adjustment factor
+
+        r = _np.clip(r * ratio, 0.0, 1.0)
+        g = _np.clip(g * ratio, 0.0, 1.0)
+        b = _np.clip(b * ratio, 0.0, 1.0)
+
+        # ── (4) Thin Paint Simulation — low-weight Gaussian spread ────────────
+        sig = float(thin_paint_blur)
+        if sig > 0.1:
+            br = _ndi.gaussian_filter(r, sigma=sig).astype(_np.float32)
+            bg = _ndi.gaussian_filter(g, sigma=sig).astype(_np.float32)
+            bb = _ndi.gaussian_filter(b, sigma=sig).astype(_np.float32)
+            thin_w = 0.22   # never exceed 40% to keep edges legible
+            r = _np.clip(r * (1.0 - thin_w) + br * thin_w, 0.0, 1.0)
+            g = _np.clip(g * (1.0 - thin_w) + bg * thin_w, 0.0, 1.0)
+            b = _np.clip(b * (1.0 - thin_w) + bb * thin_w, 0.0, 1.0)
+
+        # ── (5) Composite ──────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Luc Tuymans Pale Wash pass complete.")
+
+    def bristle_separation_texture_pass(
+        self,
+        *,
+        separation_strength: float = 0.35,
+        bristle_count: int = 5,
+        bristle_angle_jitter: float = 0.30,
+        highlight_boost: float = 0.12,
+        shadow_deepen: float = 0.08,
+        opacity: float = 0.55,
+    ) -> None:
+        """
+        Bristle Separation Texture — Session 220 artistic ability improvement.
+
+        Simulates the distinctive optical effect of a fanned bristle brush:
+        each brushstroke leaves multiple parallel sub-marks rather than a
+        single continuous swath.  Between the bristle tracks the canvas
+        texture breathes through, producing the characteristic broken-colour
+        quality of confident, loaded-brush alla prima painting (Sargent,
+        Boldini, Sorolla) and the dry-brush scumble texture of Velázquez and
+        Rembrandt's late work.
+
+        Novelty (vs. existing passes): The existing scumble_pass, canvas_grain_pass,
+        and impasto_texture_pass all work with surface topology — bump maps,
+        texture normals, or dry-brush deposits on a simulated canvas weave.
+        This pass instead models the BRISTLE GEOMETRY: it synthesises a set of
+        parallel sub-strokes per local gradient direction, producing directional
+        micro-striations aligned with the inferred paint direction.  The result
+        is a uniquely *painterly* surface quality — not canvas texture, not paint
+        relief, but the imprint of the brush itself.
+
+        Distinct from soutine_visceral_distortion_pass: Soutine uses sinusoidal
+        warp to distort the whole image.  Bristle separation applies anisotropic
+        directional micro-contrast without displacing pixel positions.
+
+        separation_strength  : Overall strength of the bristle separation
+                               effect.  Higher values make individual bristle
+                               tracks more visible.  Default 0.35.
+        bristle_count        : Number of parallel bristle sub-tracks per stroke
+                               direction sample.  More bristles = finer texture.
+                               Default 5; practical range 3–9.
+        bristle_angle_jitter : Random angular spread of the bristle fan in
+                               radians.  Small values (0.20–0.40) give a
+                               coherent parallel-stripe feel; larger values
+                               (0.80+) approach a random-bristle effect like
+                               a worn brush.  Default 0.30.
+        highlight_boost      : Brightness lift applied to bristle-track peaks
+                               (the loaded-paint centres).  Simulates the way
+                               fresh wet paint is slightly brighter than the
+                               surrounding area.  Default 0.12.
+        shadow_deepen        : Darkness applied in the gaps between bristle
+                               tracks.  Simulates the bare canvas or dried
+                               base that shows through between marks.
+                               Default 0.08.
+        opacity              : Final composite strength.  Default 0.55.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Bristle Separation Texture pass (session 220 improvement)…")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Infer local stroke direction from luminance gradient ───────────────
+        gx = _ndi.sobel(lum, axis=1).astype(_np.float32)
+        gy = _ndi.sobel(lum, axis=0).astype(_np.float32)
+
+        # Stroke direction is perpendicular to the gradient (follow the edge).
+        stroke_angle = _np.arctan2(gy, gx) + _np.pi / 2.0   # (H, W)
+        gmag         = _np.sqrt(gx**2 + gy**2)
+        # Smooth the direction field so bristle marks are coherent, not noisy.
+        angle_x = _ndi.gaussian_filter(_np.cos(stroke_angle), sigma=4.0)
+        angle_y = _ndi.gaussian_filter(_np.sin(stroke_angle), sigma=4.0)
+        smooth_angle = _np.arctan2(angle_y, angle_x)
+
+        # ── Build bristle separation mask ──────────────────────────────────────
+        # For each pixel, compute a sum of cosines in the bristle-fan directions.
+        # The sum oscillates between -1 and +1 across the bristle spacing, giving
+        # alternating bright (loaded bristle) and dark (gap) tracks.
+        ys = _np.arange(h, dtype=_np.float32)
+        xs = _np.arange(w, dtype=_np.float32)
+        yy, xx = _np.meshgrid(ys, xs, indexing='ij')   # (H, W) each
+
+        n   = int(bristle_count)
+        rng = getattr(self, '_rng', _np.random.RandomState(42))
+        # Bristle track spacing in pixels — scale with canvas size
+        spacing = max(2.5, min(w, h) * 0.006)
+
+        separation_mask = _np.zeros((h, w), dtype=_np.float32)
+        for i in range(n):
+            # Fan angle for this bristle: evenly spaced within jitter range
+            fan_frac  = (i / max(n - 1, 1)) - 0.5   # -0.5 … +0.5
+            bristle_a = smooth_angle + fan_frac * float(bristle_angle_jitter)
+
+            # Project each pixel onto the bristle direction — varies with position
+            proj = xx * _np.cos(bristle_a) + yy * _np.sin(bristle_a)
+
+            # Cosine oscillation across bristle spacing
+            wave = _np.cos(2.0 * _np.pi * proj / spacing)
+            separation_mask += wave
+
+        separation_mask /= float(n)   # average — range ≈ [-1, +1]
+
+        # ── Gate by gradient magnitude — no effect in flat/uniform areas ───────
+        if gmag.max() > 1e-9:
+            edge_gate = _np.clip(gmag / gmag.max() * 5.0, 0.0, 1.0)
+        else:
+            edge_gate = _np.zeros_like(gmag)
+        edge_gate = _ndi.gaussian_filter(edge_gate, sigma=2.0).astype(_np.float32)
+
+        strength = float(separation_strength) * edge_gate
+
+        # Peaks (+1): bristle track centres — apply highlight boost
+        hi  = _np.clip(separation_mask, 0.0, 1.0) * strength * float(highlight_boost)
+        # Troughs (-1): gaps between bristles — apply shadow deepen
+        shd = _np.clip(-separation_mask, 0.0, 1.0) * strength * float(shadow_deepen)
+
+        delta = hi - shd   # net luminance delta per pixel, range ≈ [-strength*shadow, +strength*hi]
+
+        r_adj = _np.clip(r0 + delta, 0.0, 1.0)
+        g_adj = _np.clip(g0 + delta, 0.0, 1.0)
+        b_adj = _np.clip(b0 + delta, 0.0, 1.0)
+
+        # ── Composite ─────────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r_adj * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g_adj * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b_adj * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Bristle Separation Texture pass complete.")

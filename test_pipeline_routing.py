@@ -19298,3 +19298,181 @@ def test_s219_boldini_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# tuymans_pale_wash_pass — session 220 new artist pass (131st mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_s220_tuymans_pass_exists():
+    """Session 220: Painter must have tuymans_pale_wash_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "tuymans_pale_wash_pass"), (
+        "Painter is missing tuymans_pale_wash_pass")
+    assert callable(getattr(Painter, "tuymans_pale_wash_pass"))
+
+
+def test_s220_tuymans_pass_changes_pixels():
+    """Session 220: tuymans_pale_wash_pass must change canvas pixels."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(220)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(60, 220, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.tuymans_pale_wash_pass(opacity=0.80)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "tuymans_pale_wash_pass must change canvas pixels")
+
+
+def test_s220_tuymans_pass_zero_opacity_no_change():
+    """Session 220: tuymans_pale_wash_pass at opacity=0.0 must not change pixels."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(2200)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(30, 210, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.tuymans_pale_wash_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "tuymans_pale_wash_pass at opacity=0.0 must not change any pixels")
+
+
+def test_s220_tuymans_pass_desaturates():
+    """Session 220: tuymans_pale_wash_pass must reduce mean saturation."""
+    import numpy as _np
+
+    p = _make_small_painter(64, 64)
+    rng = _np.random.RandomState(2201)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    # Fill with strongly saturated colours to make desaturation detectable
+    buf[:, :, 2] = 200   # R
+    buf[:, :, 1] = 80    # G
+    buf[:, :, 0] = 40    # B
+    buf[:, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+
+    def _saturation(buf_arr):
+        r = buf_arr[:, :, 2].astype(_np.float32)
+        g = buf_arr[:, :, 1].astype(_np.float32)
+        b = buf_arr[:, :, 0].astype(_np.float32)
+        mx = _np.maximum(_np.maximum(r, g), b)
+        mn = _np.minimum(_np.minimum(r, g), b)
+        denom = _np.where(mx > 0, mx, 1.0)
+        return _np.mean((mx - mn) / denom)
+
+    before_sat = _saturation(buf)
+    p.tuymans_pale_wash_pass(desaturation_strength=0.72, opacity=0.80)
+    after_buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    after_sat = _saturation(after_buf)
+    assert after_sat < before_sat, (
+        f"tuymans_pale_wash_pass must reduce saturation; "
+        f"before={before_sat:.3f}, after={after_sat:.3f}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# bristle_separation_texture_pass — session 220 artistic improvement
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_s220_bristle_pass_exists():
+    """Session 220: Painter must have bristle_separation_texture_pass method."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "bristle_separation_texture_pass"), (
+        "Painter is missing bristle_separation_texture_pass")
+    assert callable(getattr(Painter, "bristle_separation_texture_pass"))
+
+
+def test_s220_bristle_pass_no_error():
+    """Session 220: bristle_separation_texture_pass runs without error on a toned canvas."""
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.78, 0.76, 0.72), texture_strength=0.04)
+    p.block_in(ref, stroke_size=8, n_strokes=20)
+    p.bristle_separation_texture_pass(
+        separation_strength=0.35,
+        bristle_count=5,
+        bristle_angle_jitter=0.30,
+        opacity=0.55,
+    )
+
+
+def test_s220_bristle_pass_changes_non_uniform_canvas():
+    """Session 220: bristle_separation_texture_pass must modify a non-uniform canvas."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.50, 0.45, 0.32), texture_strength=0.06)
+    p.block_in(ref, stroke_size=8, n_strokes=30)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.bristle_separation_texture_pass(separation_strength=0.35, opacity=0.55)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    diff = _np.abs(after.astype(_np.int32) - before.astype(_np.int32)).max()
+    assert diff > 0, (
+        "bristle_separation_texture_pass must change a non-uniform canvas")
+
+
+def test_s220_bristle_pass_zero_opacity_no_change():
+    """Session 220: bristle_separation_texture_pass at opacity=0.0 must not change pixels."""
+    import numpy as _np
+
+    p   = _make_small_painter(64, 64)
+    ref = _solid_reference(64, 64)
+    p.tone_ground((0.60, 0.55, 0.40), texture_strength=0.05)
+    p.block_in(ref, stroke_size=10, n_strokes=20)
+
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.bristle_separation_texture_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "bristle_separation_texture_pass at opacity=0.0 must not change any pixels")
+
+
+def test_s220_luc_tuymans_in_catalog():
+    """Session 220: luc_tuymans must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "luc_tuymans" in CATALOG, "luc_tuymans missing from CATALOG"
+    s = get_style("luc_tuymans")
+    mv = s.movement.lower()
+    assert "contemporary" in mv or "figurative" in mv, (
+        f"luc_tuymans movement unexpected: {s.movement!r}")
+    assert s.glazing is None, "luc_tuymans glazing must be None"
+    assert s.crackle is False, "luc_tuymans crackle must be False"
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

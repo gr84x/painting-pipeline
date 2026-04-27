@@ -216,6 +216,10 @@ EXPECTED_ARTISTS = [
     "wassily_kandinsky",
     "lucian_freud",
     "richard_diebenkorn",
+    "chaim_soutine",
+    "oskar_kokoschka",
+    "giovanni_boldini",
+    "luc_tuymans",
 ]
 
 
@@ -29551,3 +29555,105 @@ def test_giovanni_boldini_in_list_artists():
     """Session 219: giovanni_boldini must appear in list_artists()."""
     assert "giovanni_boldini" in list_artists(), (
         "giovanni_boldini must appear in list_artists()")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Luc Tuymans — session 220 additions
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_luc_tuymans_in_catalog():
+    """Session 220: luc_tuymans must appear in CATALOG."""
+    assert "luc_tuymans" in CATALOG, "luc_tuymans missing from CATALOG"
+
+
+def test_luc_tuymans_movement():
+    """Session 220: luc_tuymans movement must reference Contemporary or Figurative."""
+    s = get_style("luc_tuymans")
+    mv = s.movement.lower()
+    assert "contemporary" in mv or "figurative" in mv or "conceptual" in mv, (
+        f"luc_tuymans movement unexpected: {s.movement!r}")
+
+
+def test_luc_tuymans_palette_length():
+    """Session 220: luc_tuymans must have at least 6 palette entries."""
+    s = get_style("luc_tuymans")
+    assert len(s.palette) >= 6, (
+        f"luc_tuymans should have >= 6 palette entries; got {len(s.palette)}")
+
+
+def test_luc_tuymans_palette_in_range():
+    """Session 220: all luc_tuymans palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("luc_tuymans")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"luc_tuymans palette entry not 3-tuple: {rgb}"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"luc_tuymans palette channel {ch} out of [0, 1]")
+
+
+def test_luc_tuymans_ground_color_valid():
+    """Session 220: luc_tuymans ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("luc_tuymans")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, f"luc_tuymans ground_color channel {ch} out of [0, 1]"
+
+
+def test_luc_tuymans_ground_is_pale():
+    """Session 220: Tuymans' ground should be light (luminance >= 0.70)."""
+    s = get_style("luc_tuymans")
+    lum = 0.299 * s.ground_color[0] + 0.587 * s.ground_color[1] + 0.114 * s.ground_color[2]
+    assert lum >= 0.70, (
+        f"luc_tuymans ground_color should be pale (lum >= 0.70); got {lum:.3f}")
+
+
+def test_luc_tuymans_no_glazing():
+    """Session 220: Tuymans does not use glazing — glazing must be None."""
+    s = get_style("luc_tuymans")
+    assert s.glazing is None, "luc_tuymans glazing must be None (no final glaze)"
+
+
+def test_luc_tuymans_no_crackle():
+    """Session 220: luc_tuymans crackle must be False."""
+    s = get_style("luc_tuymans")
+    assert s.crackle is False, "luc_tuymans crackle must be False"
+
+
+def test_luc_tuymans_no_chromatic_split():
+    """Session 220: luc_tuymans chromatic_split must be False (no Divisionism)."""
+    s = get_style("luc_tuymans")
+    assert s.chromatic_split is False, "luc_tuymans chromatic_split must be False"
+
+
+def test_luc_tuymans_low_jitter():
+    """Session 220: Tuymans' sparse palette means jitter should be <= 0.05."""
+    s = get_style("luc_tuymans")
+    assert s.jitter <= 0.05, (
+        f"luc_tuymans jitter should be low (<= 0.05); got {s.jitter}")
+
+
+def test_luc_tuymans_famous_works_count():
+    """Session 220: luc_tuymans must have at least 5 famous works listed."""
+    s = get_style("luc_tuymans")
+    assert len(s.famous_works) >= 5, (
+        f"luc_tuymans should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_luc_tuymans_inspiration_references_pass():
+    """Session 220: inspiration must reference tuymans_pale_wash_pass."""
+    s = get_style("luc_tuymans")
+    assert "tuymans_pale_wash_pass" in s.inspiration, (
+        "luc_tuymans inspiration must mention tuymans_pale_wash_pass")
+
+
+def test_luc_tuymans_inspiration_references_131st():
+    """Session 220: inspiration must explicitly name the 131st distinct mode."""
+    s = get_style("luc_tuymans")
+    assert "131" in s.inspiration or "THIRTY-FIRST" in s.inspiration, (
+        "luc_tuymans inspiration must reference ONE HUNDRED AND THIRTY-FIRST mode")
+
+
+def test_luc_tuymans_in_list_artists():
+    """Session 220: luc_tuymans must appear in list_artists()."""
+    assert "luc_tuymans" in list_artists(), (
+        "luc_tuymans must appear in list_artists()")
