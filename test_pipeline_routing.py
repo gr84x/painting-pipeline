@@ -18467,3 +18467,89 @@ def test_s210_hofmann_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 211 — Joan Miró: miro_surrealist_biomorph_pass (122nd distinct mode) ─
+
+def test_miro_surrealist_biomorph_pass_exists():
+    """Session 211: miro_surrealist_biomorph_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "miro_surrealist_biomorph_pass"), (
+        "Painter must have a miro_surrealist_biomorph_pass method")
+    assert callable(getattr(Painter, "miro_surrealist_biomorph_pass"))
+
+
+def test_miro_surrealist_biomorph_pass_runs():
+    """Session 211: miro_surrealist_biomorph_pass must run without exception on a 64×64 canvas."""
+    p = _make_small_painter(64, 64)
+    p.miro_surrealist_biomorph_pass(flat_strength=0.60, outline_strength=0.80, edge_sigma=1.5, opacity=0.70)
+
+
+def test_miro_surrealist_biomorph_pass_modifies_canvas():
+    """Session 211: miro_surrealist_biomorph_pass must visibly change a coloured canvas."""
+    import numpy as _np
+    from PIL import Image
+    # Reference with distinct colour zones to trigger both flat fill and outline effects
+    ref_arr = _np.zeros((64, 64, 3), dtype=_np.uint8)
+    ref_arr[:32, :, 0] = 220    # red zone top half
+    ref_arr[32:, :, 2] = 200    # blue zone bottom half
+    ref = Image.fromarray(ref_arr, "RGB")
+
+    p = _make_small_painter(64, 64)
+    p.underpainting(ref, stroke_size=16, n_strokes=50)
+    before = _canvas_bytes(p)
+    p.miro_surrealist_biomorph_pass(flat_strength=0.72, outline_strength=0.88, edge_sigma=1.5, opacity=0.80)
+    after = _canvas_bytes(p)
+    assert before != after, "miro_surrealist_biomorph_pass must modify the canvas"
+
+
+def test_miro_surrealist_biomorph_pass_zero_opacity_noop():
+    """Session 211: miro_surrealist_biomorph_pass with opacity=0.0 must not change any pixels."""
+    p = _make_small_painter(64, 64)
+    before = _canvas_bytes(p)
+    p.miro_surrealist_biomorph_pass(flat_strength=0.72, outline_strength=0.88, edge_sigma=1.5, opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "miro_surrealist_biomorph_pass with opacity=0.0 must not change any pixels")
+
+
+def test_miro_surrealist_biomorph_pass_deterministic():
+    """Session 211: miro_surrealist_biomorph_pass must produce identical output on repeated calls."""
+    import numpy as _np
+    from PIL import Image
+    ref_arr = _np.zeros((64, 64, 3), dtype=_np.uint8)
+    ref_arr[:32, :, 0] = 210
+    ref_arr[32:, :, 2] = 190
+    ref = Image.fromarray(ref_arr, "RGB")
+
+    p1 = _make_small_painter(64, 64)
+    p1.underpainting(ref, stroke_size=16, n_strokes=50)
+    p1.miro_surrealist_biomorph_pass(flat_strength=0.70, outline_strength=0.85, edge_sigma=1.5, opacity=0.75)
+    out1 = _np.frombuffer(
+        p1.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    p2 = _make_small_painter(64, 64)
+    p2.underpainting(ref, stroke_size=16, n_strokes=50)
+    p2.miro_surrealist_biomorph_pass(flat_strength=0.70, outline_strength=0.85, edge_sigma=1.5, opacity=0.75)
+    out2 = _np.frombuffer(
+        p2.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    assert _np.array_equal(out1, out2), (
+        "miro_surrealist_biomorph_pass must produce identical output given identical inputs")
+
+
+def test_s211_miro_in_catalog():
+    """Session 211: joan_miro must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "joan_miro" in CATALOG, "joan_miro missing from CATALOG"
+    s = get_style("joan_miro")
+    assert "Surreal" in s.movement or "Abstract" in s.movement, (
+        f"joan_miro movement should reference Surrealism or Abstract; got {s.movement!r}")
+    assert s.chromatic_split is False, "joan_miro chromatic_split must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
