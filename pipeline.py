@@ -165,12 +165,21 @@ def default_passes(spec: PipelineSpec) -> List[PassConfig]:
             dry_amount=dry(2),
         )),
         PassConfig("place_lights",  kwargs=dict(stroke_size=int(sb * 2), opacity=0.45)),
+        # Refinement passes — fine strokes before filter-based detail
+        PassConfig("build_form", kwargs=dict(
+            stroke_size=max(1, int(sb * 1.5)), opacity=0.45,
+        )),
+        PassConfig("place_lights", kwargs=dict(stroke_size=max(1, int(sb * 1)), opacity=0.40)),
         # Detail passes — fine marks, frequency-targeted
         PassConfig("meso_detail_pass",     kwargs=dict(opacity=0.35)),
         PassConfig("micro_detail_pass",    kwargs=dict(opacity=0.28)),
         PassConfig("edge_definition_pass", kwargs=dict(opacity=0.30)),
+        # Focal sharpening with peripheral softness — classical lost-and-found edges
+        PassConfig("edge_lost_and_found_pass", kwargs=dict(strength=0.35, figure_only=True)),
         # Surface material
         PassConfig(spec.surface, kind="material", kwargs=dict(opacity=0.35)),
+        # Dry-brush scumble — deposits on texture peaks, breaks up dissolved look
+        PassConfig("scumble_pass", kwargs=dict(opacity=0.18, figure_only=True)),
     ]
 
     # Sfumato — only when the artist or user requests it
