@@ -18944,6 +18944,103 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 214 — Wassily Kandinsky
+    # ─────────────────────────────────────────────────────────────────────────
+    "wassily_kandinsky": ArtStyle(
+        artist="Wassily Kandinsky",
+        movement="Der Blaue Reiter / Abstract Expressionism",
+        nationality="Russian-German",
+        period="1866–1944",
+        palette=[
+            (0.95, 0.85, 0.15),  # cadmium yellow
+            (0.85, 0.15, 0.12),  # vermilion red
+            (0.12, 0.25, 0.72),  # cobalt blue
+            (0.05, 0.05, 0.05),  # ivory black
+            (0.92, 0.90, 0.85),  # titanium white
+            (0.15, 0.55, 0.25),  # emerald green
+            (0.75, 0.40, 0.05),  # cadmium orange
+        ],
+        ground_color=(0.22, 0.20, 0.18),
+        stroke_size=12,
+        wet_blend=0.30,
+        edge_softness=0.15,
+        jitter=0.22,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Kandinsky regarded painting as visual music — each colour a sound, "
+            "each form an emotional chord.  His early Der Blaue Reiter works "
+            "dissolved landscape into pools of pure chromatic energy; his Bauhaus "
+            "compositions built ordered universes of circles, triangles, and "
+            "diagonal vectors locked in dynamic tension.  He worked with thinly "
+            "applied oils over a lightly toned white ground, laying in vivid "
+            "primaries with deliberate, often blunt strokes, then reinforcing "
+            "edges with black linear scaffolding.  Concentric circles — his "
+            "signature motif — appear throughout as nodes of concentrated colour "
+            "vibration, anchoring the radiating line-work around them like "
+            "resonating drum-skins.  His palette of cadmium yellow, vermilion, "
+            "cobalt blue, ivory black, and white pushes colour contrasts to their "
+            "psychological limits: warm/cool, light/dark, advancing/receding.  "
+            "The canvas surface reads as a score — every shape an instrument, "
+            "every passage of colour a phrase of sound translated into pigment."
+        ),
+        famous_works=[
+            ("Composition VIII", "1923"),
+            ("Several Circles", "1926"),
+            ("On White II", "1923"),
+            ("Impression III (Concert)", "1911"),
+            ("Yellow-Red-Blue", "1925"),
+            ("Composition VII", "1913"),
+            ("Blue Mountain", "1908"),
+            ("Improvisation 28 (Second Version)", "1912"),
+            ("Black Lines", "1913"),
+            ("Dominant Curve", "1936"),
+        ],
+        inspiration=(
+            "Apply kandinsky_synesthetic_composition_pass() as the signature effect "
+            "— ONE HUNDRED AND TWENTY-FIFTH DISTINCT MODE.\n\n"
+            "Algorithm: SYNESTHETIC CHROMATIC CHORD OVERLAY — (1) TENSION FIELD "
+            "COMPUTATION: compute per-pixel gradient magnitude using a manual Sobel "
+            "operator on the luminance channel.  Normalize to [0, 1].  High-tension "
+            "pixels correspond to colour transitions and contour edges — Kandinsky's "
+            "'resonant nodes' where opposing chromatic forces collide.\n"
+            "(2) PALETTE CHORD INJECTION: identify n_chords tension peaks via greedy "
+            "non-maximum suppression (suppress within chord_radius of each accepted "
+            "peak).  At each peak centre, blend the canvas in a Gaussian disc of "
+            "sigma = chord_radius × 0.5 with one of Kandinsky's palette colours at "
+            "weight chord_strength.  Each disc is a 'colour chord' — a burst of "
+            "concentrated chromatic energy anchored to the canvas's own tension.\n"
+            "(3) CONCENTRIC ARC MOTIF: at each chord centre, overlay two thin "
+            "concentric circular rings (radius = chord_radius × 0.7 and × 1.3) by "
+            "darkening pixels where |dist − ring_r| < 2.  These rings replicate "
+            "Kandinsky's beloved 'Several Circles' concentric motif and add "
+            "rhythmic repetition around each chromatic node.\n"
+            "(4) DOMINANT-GRADIENT DIRECTIONAL LINE TRACE: sample the dominant "
+            "gradient angle (arctan2 of Sobel gy/gx) at each peak; trace a thin "
+            "bright impulse line of length chord_radius × 2 along that direction at "
+            "low alpha.  These vectors animate the composition — Kandinsky's "
+            "'directional tensions' that pull the eye through the painted score.\n"
+            "(5) COMPOSITE: blend modified canvas with original at opacity.\n\n"
+            "NOVEL: ONE HUNDRED AND TWENTY-FIFTH DISTINCT MODE.  First pass to "
+            "combine TENSION-FIELD-DRIVEN CHORD PLACEMENT (Sobel gradient magnitude "
+            "→ greedy non-max suppression → per-peak Gaussian palette disc) + "
+            "CONCENTRIC ARC RING OVERLAY (thin circular darkening rings at each "
+            "chord centre) + DOMINANT-GRADIENT DIRECTIONAL LINE TRACE (arctan2 "
+            "impulse vector per peak).  Prior passes work globally (Rothko bands, "
+            "Mondrian grid, Albers squares, Hofmann push-pull) or via palette "
+            "quantisation (Miró) — none derives chord placement from the canvas's "
+            "own chromatic tension field combined with concentric arc motifs and "
+            "gradient-aligned linear impulses.\n\n"
+            "tone_ground() with warm grey (0.22, 0.20, 0.18).\n"
+            "underpainting() broad strokes (stroke_size=40).\n"
+            "block_in() geometric planes (stroke_size=28).\n"
+            "kandinsky_synesthetic_composition_pass(n_chords=12, chord_radius=32, "
+            "chord_strength=0.62, ring_alpha=0.45, opacity=0.76) as the primary pass."
+        ),
+    ),
+
 }
 
 

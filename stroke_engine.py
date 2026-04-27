@@ -48038,3 +48038,149 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Rothko Color Field pass complete.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Session 214 — kandinsky_synesthetic_composition_pass (125th distinct mode)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def kandinsky_synesthetic_composition_pass(
+        self,
+        *,
+        n_chords:       int   = 12,
+        chord_radius:   int   = 32,
+        chord_strength: float = 0.62,
+        ring_alpha:     float = 0.45,
+        opacity:        float = 0.76,
+    ) -> None:
+        """Kandinsky synesthetic composition pass — tension-field-driven chromatic chords.
+
+        Algorithm: SYNESTHETIC CHROMATIC CHORD OVERLAY
+        (1) Tension field via Sobel gradient on luminance.
+        (2) Palette chord injection at n_chords tension peaks (Gaussian disc blend).
+        (3) Concentric arc ring overlay at each chord centre.
+        (4) Dominant-gradient directional line trace per peak.
+        (5) Composite at opacity.
+        """
+        import numpy as _np
+
+        W = self.canvas.w
+        H = self.canvas.h
+
+        raw  = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+        orig = raw.copy()
+
+        # BGRA channel mapping: R = ch2, G = ch1, B = ch0
+        r0 = raw[:, :, 2].astype(_np.float32) / 255.0
+        g0 = raw[:, :, 1].astype(_np.float32) / 255.0
+        b0 = raw[:, :, 0].astype(_np.float32) / 255.0
+
+        # ── (1) Tension field via Sobel on luminance ───────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0  # (H, W)
+
+        p = _np.pad(lum, 1, mode="edge")
+        gx = (
+            -1.0 * p[:-2, :-2] + 1.0 * p[:-2, 2:] +
+            -2.0 * p[1:-1, :-2] + 2.0 * p[1:-1, 2:] +
+            -1.0 * p[2:, :-2]  + 1.0 * p[2:, 2:]
+        )
+        gy = (
+            -1.0 * p[:-2, :-2] - 2.0 * p[:-2, 1:-1] - 1.0 * p[:-2, 2:] +
+             1.0 * p[2:, :-2]  + 2.0 * p[2:, 1:-1]  + 1.0 * p[2:, 2:]
+        )
+        tension = _np.hypot(gx, gy)
+        t_max = tension.max()
+        if t_max > 1e-9:
+            tension /= t_max
+
+        # ── (2) Greedy peak detection ──────────────────────────────────────────
+        # Kandinsky palette (hardcoded to avoid circular import)
+        _pal = [
+            (0.95, 0.85, 0.15),  # cadmium yellow
+            (0.85, 0.15, 0.12),  # vermilion red
+            (0.12, 0.25, 0.72),  # cobalt blue
+            (0.05, 0.05, 0.05),  # ivory black
+            (0.92, 0.90, 0.85),  # titanium white
+            (0.15, 0.55, 0.25),  # emerald green
+            (0.75, 0.40, 0.05),  # cadmium orange
+        ]
+
+        margin      = max(2, chord_radius // 4)
+        suppressed  = _np.zeros((H, W), dtype=_np.bool_)
+        flat_order  = _np.argsort(tension.ravel())[::-1]
+        peaks       = []
+
+        for idx in flat_order:
+            cy, cx = divmod(int(idx), W)
+            if suppressed[cy, cx]:
+                continue
+            if cy < margin or cy > H - margin - 1 or cx < margin or cx > W - margin - 1:
+                continue
+            peaks.append((cy, cx))
+            ys_lo = max(0, cy - chord_radius)
+            ys_hi = min(H, cy + chord_radius + 1)
+            xs_lo = max(0, cx - chord_radius)
+            xs_hi = min(W, cx + chord_radius + 1)
+            suppressed[ys_lo:ys_hi, xs_lo:xs_hi] = True
+            if len(peaks) >= n_chords:
+                break
+
+        adj_r = r0.copy()
+        adj_g = g0.copy()
+        adj_b = b0.copy()
+
+        sigma_disc = max(1.0, chord_radius * 0.5)
+        ring_r1    = chord_radius * 0.7
+        ring_r2    = chord_radius * 1.3
+
+        ys_grid          = _np.arange(H, dtype=_np.float32)
+        xs_grid          = _np.arange(W, dtype=_np.float32)
+        xs_2d, ys_2d     = _np.meshgrid(xs_grid, ys_grid)  # (H, W) each
+
+        for i, (cy, cx) in enumerate(peaks):
+            cr, cg, cb = _pal[i % len(_pal)]
+
+            dist2  = (ys_2d - cy) ** 2 + (xs_2d - cx) ** 2
+            dist   = _np.sqrt(dist2)
+
+            # Gaussian disc: blend palette colour at chord_strength
+            disc_w = _np.exp(-dist2 / (2.0 * sigma_disc ** 2)) * float(chord_strength)
+            adj_r  = _np.clip(adj_r * (1.0 - disc_w) + cr * disc_w, 0.0, 1.0)
+            adj_g  = _np.clip(adj_g * (1.0 - disc_w) + cg * disc_w, 0.0, 1.0)
+            adj_b  = _np.clip(adj_b * (1.0 - disc_w) + cb * disc_w, 0.0, 1.0)
+
+            # Concentric ring darkening
+            ra     = float(ring_alpha)
+            ring   = ((dist > ring_r1 - 2.0) & (dist < ring_r1 + 2.0)) | \
+                     ((dist > ring_r2 - 2.0) & (dist < ring_r2 + 2.0))
+            adj_r  = _np.where(ring, adj_r * (1.0 - ra), adj_r)
+            adj_g  = _np.where(ring, adj_g * (1.0 - ra), adj_g)
+            adj_b  = _np.where(ring, adj_b * (1.0 - ra), adj_b)
+
+            # Directional impulse line along dominant gradient angle
+            angle  = float(_np.arctan2(float(gy[cy, cx]), float(gx[cy, cx])))
+            ts     = _np.arange(-chord_radius, chord_radius, dtype=_np.float32)
+            tys    = _np.clip(
+                (cy + ts * _np.sin(angle)).astype(_np.int32), 0, H - 1)
+            txs    = _np.clip(
+                (cx + ts * _np.cos(angle)).astype(_np.int32), 0, W - 1)
+            boost  = 0.30 * 0.35
+            adj_r[tys, txs] = _np.clip(adj_r[tys, txs] + boost, 0.0, 1.0)
+            adj_g[tys, txs] = _np.clip(adj_g[tys, txs] + boost, 0.0, 1.0)
+            adj_b[tys, txs] = _np.clip(adj_b[tys, txs] + boost, 0.0, 1.0)
+
+        # ── (5) Composite ──────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + adj_r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + adj_g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + adj_b * op, 0.0, 1.0)
+
+        buf              = orig.copy()
+        buf[:, :, 2]     = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1]     = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0]     = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3]     = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Kandinsky Synesthetic Composition pass complete.")

@@ -29096,3 +29096,80 @@ def test_mark_rothko_in_list_artists():
     """Session 213: mark_rothko must appear in list_artists()."""
     assert "mark_rothko" in list_artists(), (
         "mark_rothko must appear in list_artists()")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 214 — wassily_kandinsky / kandinsky_synesthetic_composition_pass
+#               (125th distinct mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_wassily_kandinsky_in_catalog():
+    """Session 214: wassily_kandinsky must be present in the CATALOG."""
+    assert "wassily_kandinsky" in CATALOG, "wassily_kandinsky missing from CATALOG"
+
+
+def test_wassily_kandinsky_movement():
+    """Session 214: wassily_kandinsky movement must reference Der Blaue Reiter or Abstract."""
+    s = get_style("wassily_kandinsky")
+    assert "Blaue" in s.movement or "Abstract" in s.movement or "Expressionism" in s.movement, (
+        f"wassily_kandinsky movement must reference Der Blaue Reiter or Abstract; got {s.movement!r}")
+
+
+def test_wassily_kandinsky_period():
+    """Session 214: wassily_kandinsky period must reference 1866 or 1944."""
+    s = get_style("wassily_kandinsky")
+    assert "1866" in s.period or "1944" in s.period, (
+        f"wassily_kandinsky period must reference 1866 or 1944; got {s.period!r}")
+
+
+def test_wassily_kandinsky_palette_valid():
+    """Session 214: wassily_kandinsky palette must have >= 5 colours, all channels in [0, 1]."""
+    s = get_style("wassily_kandinsky")
+    assert len(s.palette) >= 5, (
+        f"wassily_kandinsky needs >= 5 palette colours; got {len(s.palette)}")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Palette entry must have 3 channels; got {rgb}"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Palette channel out of range [0, 1]: {ch}"
+
+
+def test_wassily_kandinsky_edge_softness_low():
+    """Session 214: wassily_kandinsky edge_softness must be < 0.30 — crisp geometric forms."""
+    s = get_style("wassily_kandinsky")
+    assert s.edge_softness < 0.30, (
+        f"wassily_kandinsky edge_softness must be < 0.30; got {s.edge_softness}")
+
+
+def test_wassily_kandinsky_famous_works_include_composition():
+    """Session 214: famous_works must include a Composition entry."""
+    s = get_style("wassily_kandinsky")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Composition" in t for t in titles), (
+        f"wassily_kandinsky famous_works must include a Composition work; got {titles}")
+
+
+def test_wassily_kandinsky_famous_works_count():
+    """Session 214: wassily_kandinsky must have at least 6 famous works listed."""
+    s = get_style("wassily_kandinsky")
+    assert len(s.famous_works) >= 6, (
+        f"wassily_kandinsky should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_wassily_kandinsky_inspiration_references_pass():
+    """Session 214: wassily_kandinsky inspiration must reference kandinsky_synesthetic_composition_pass."""
+    s = get_style("wassily_kandinsky")
+    assert "kandinsky_synesthetic_composition_pass" in s.inspiration, (
+        "wassily_kandinsky inspiration must mention kandinsky_synesthetic_composition_pass")
+
+
+def test_wassily_kandinsky_inspiration_references_125th():
+    """Session 214: inspiration must explicitly name the 125th distinct mode."""
+    s = get_style("wassily_kandinsky")
+    assert "125" in s.inspiration or "TWENTY-FIFTH" in s.inspiration, (
+        "wassily_kandinsky inspiration must reference ONE HUNDRED AND TWENTY-FIFTH mode")
+
+
+def test_wassily_kandinsky_in_list_artists():
+    """Session 214: wassily_kandinsky must appear in list_artists()."""
+    assert "wassily_kandinsky" in list_artists(), (
+        "wassily_kandinsky must appear in list_artists()")
