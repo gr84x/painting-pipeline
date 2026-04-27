@@ -49173,3 +49173,163 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Bristle Separation Texture pass complete.")
+
+    def vallotton_hard_edge_flat_pass(
+        self,
+        *,
+        n_tones: int = 5,
+        bilateral_iters: int = 3,
+        edge_sharpen: float = 0.60,
+        contour_weight: float = 0.25,
+        contour_thickness: float = 1.2,
+        opacity: float = 0.82,
+    ) -> None:
+        """
+        Vallotton Hard-Edge Flat — ONE HUNDRED AND THIRTY-SECOND distinct mode.
+        Session 221: Félix Vallotton (1865–1925).
+
+        Five-stage algorithm implementing Vallotton's anti-impressionist flatness:
+        iterated bilateral flattening eliminates within-zone colour variation while
+        preserving zone boundaries; posterization forces discrete tonal commitment;
+        edge sharpening brings zone contours to hard precision; an optional thin
+        woodcut-style contour overlay references Vallotton's celebrated printmaking.
+
+        Novelty (vs. cloisonne_pass and existing passes):
+        cloisonne_pass fills zones with *loaded-brush strokes* and draws thick
+        organic contours — it is a stroke-simulation pass.  This pass works
+        entirely in image-space: bilateral filtering + posterization + unsharp
+        edge gate.  The algorithm does not paint; it flattens and sharpens what
+        is already on the canvas, replicating how Vallotton's method compresses
+        impressionist complexity into hard-edged graphic form.  The contour here
+        is thin and precise (woodcut influence), not the broad cloisonné lead of
+        Gauguin.  Distinct also from chromatic_zoning_pass (which boosts midtone
+        saturation without flattening zones) and watercolor_wash_pass (which adds
+        soft, wet spreading).
+
+        n_tones            : Posterization steps per channel.  3 = very graphic,
+                             5 = typical Vallotton, 8 = subtle.  Default 5.
+        bilateral_iters    : Number of bilateral-filter rounds to flatten within-zone
+                             colour.  Each pass reduces micro-texture while preserving
+                             inter-zone edges.  Default 3; range 1–6.
+        edge_sharpen       : Unsharp-mask strength applied exclusively at zone
+                             boundaries.  0 = no sharpening, 1 = maximum crispness.
+                             Default 0.60.
+        contour_weight     : Opacity of the thin woodcut-style dark contour overlay.
+                             0 = no contour, 0.25 = subtle reference to printmaking.
+                             Default 0.25.
+        contour_thickness  : Gaussian sigma (pixels) used to grow the contour mask.
+                             Lower values = thinner, sharper woodcut lines.  Default 1.2.
+        opacity            : Final composite blend with original canvas.  Default 0.82.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Vallotton Hard-Edge Flat pass (132nd mode)…")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+
+        # ── Stage 1 — Zone Flattening (bilateral-equivalent cascade) ──────────
+        # True bilateral filtering requires cv2 or skimage; we replicate it via
+        # a Gaussian cascade: large-sigma Gaussian weights neighbouring pixels
+        # by spatial proximity and colour similarity through iterative application.
+        # Each iteration: compute local mean via Gaussian blur, then pull each
+        # channel toward the mean proportionally to how close the local colour
+        # is to the pixel's own colour (colour-similarity gate).
+        sigma_s = max(2.0, min(w, h) * 0.012)   # spatial sigma — scale with canvas
+        sigma_c = 0.18                            # colour similarity threshold
+        n_iters = max(1, int(bilateral_iters))
+        for _ in range(n_iters):
+            # Smooth the colour channels spatially
+            br = _ndi.gaussian_filter(r, sigma=sigma_s).astype(_np.float32)
+            bg = _ndi.gaussian_filter(g, sigma=sigma_s).astype(_np.float32)
+            bb = _ndi.gaussian_filter(b, sigma=sigma_s).astype(_np.float32)
+            # Colour-similarity gate: how close is each pixel to its local mean?
+            # Pixels far from their local mean (edges) receive less pull.
+            diff_sq = (r - br) ** 2 + (g - bg) ** 2 + (b - bb) ** 2
+            sim     = _np.exp(-diff_sq / (2.0 * sigma_c ** 2))
+            # Blend toward smoothed version only where colour is similar
+            r = _np.clip(r * (1.0 - sim) + br * sim, 0.0, 1.0)
+            g = _np.clip(g * (1.0 - sim) + bg * sim, 0.0, 1.0)
+            b = _np.clip(b * (1.0 - sim) + bb * sim, 0.0, 1.0)
+
+        # ── Stage 2 — Posterization ────────────────────────────────────────────
+        # Quantize each channel to n_tones discrete steps.
+        # Vallotton's zones are committed — no gradient survives.
+        n = max(2, int(n_tones))
+        step = 1.0 / float(n - 1)
+        r = _np.round(r / step) * step
+        g = _np.round(g / step) * step
+        b = _np.round(b / step) * step
+        r = _np.clip(r, 0.0, 1.0)
+        g = _np.clip(g, 0.0, 1.0)
+        b = _np.clip(b, 0.0, 1.0)
+
+        # ── Stage 3 — Edge Sharpening at Zone Boundaries ──────────────────────
+        # Detect zone boundaries from the posterized image (luminance).
+        lum_post = 0.299 * r + 0.587 * g + 0.114 * b
+        gx  = _ndi.sobel(lum_post, axis=1).astype(_np.float32)
+        gy  = _ndi.sobel(lum_post, axis=0).astype(_np.float32)
+        gmag = _np.sqrt(gx ** 2 + gy ** 2)
+        if gmag.max() > 1e-9:
+            gmag = gmag / gmag.max()
+
+        # Unsharp-mask signal from a light Gaussian blur of the posterized image
+        blur_r = _ndi.gaussian_filter(r, sigma=1.5).astype(_np.float32)
+        blur_g = _ndi.gaussian_filter(g, sigma=1.5).astype(_np.float32)
+        blur_b = _ndi.gaussian_filter(b, sigma=1.5).astype(_np.float32)
+        sharp  = float(edge_sharpen)
+        # Gate the sharpening to edge zones only — flat interior zones untouched
+        gate   = _np.clip(gmag * 4.0, 0.0, 1.0)   # binary-ish mask of edge regions
+        r = _np.clip(r + sharp * gate * (r - blur_r), 0.0, 1.0)
+        g = _np.clip(g + sharp * gate * (g - blur_g), 0.0, 1.0)
+        b = _np.clip(b + sharp * gate * (b - blur_b), 0.0, 1.0)
+
+        # ── Stage 4 — Thin Woodcut Contour Overlay ────────────────────────────
+        cw = float(contour_weight)
+        if cw > 0.01:
+            # Re-detect edges on the sharpened result for the final contour mask
+            lum_sharp = 0.299 * r + 0.587 * g + 0.114 * b
+            ex = _ndi.sobel(lum_sharp, axis=1).astype(_np.float32)
+            ey = _ndi.sobel(lum_sharp, axis=0).astype(_np.float32)
+            emag = _np.sqrt(ex ** 2 + ey ** 2)
+            if emag.max() > 1e-9:
+                emag = emag / emag.max()
+            # Grow the contour mask slightly — woodcut lines have finite width
+            ct_sigma = max(0.5, float(contour_thickness))
+            contour_mask = _ndi.gaussian_filter(emag, sigma=ct_sigma).astype(_np.float32)
+            # Threshold to a thin hard line
+            threshold    = _np.percentile(contour_mask, 80)
+            contour_mask = _np.clip((contour_mask - threshold) / max(threshold, 1e-9),
+                                     0.0, 1.0)
+            # Vallotton's woodcut lines: near-black, not Gauguin's blue-black
+            c_dark = 0.08
+            r = _np.clip(r * (1.0 - contour_mask * cw) + c_dark * contour_mask * cw,
+                          0.0, 1.0)
+            g = _np.clip(g * (1.0 - contour_mask * cw) + c_dark * contour_mask * cw,
+                          0.0, 1.0)
+            b = _np.clip(b * (1.0 - contour_mask * cw) + c_dark * contour_mask * cw,
+                          0.0, 1.0)
+
+        # ── Stage 5 — Composite ───────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Vallotton Hard-Edge Flat pass complete.")
