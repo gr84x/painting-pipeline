@@ -18123,3 +18123,84 @@ def test_s206_mucha_aureole_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 207 — Robert Delaunay: delaunay_orphist_disk_pass (118th distinct mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_s207_delaunay_disk_pass_exists():
+    """Session 207: delaunay_orphist_disk_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "delaunay_orphist_disk_pass"), (
+        "Painter must have a delaunay_orphist_disk_pass method")
+
+
+def test_s207_delaunay_disk_pass_runs():
+    """Session 207: delaunay_orphist_disk_pass must run without exception on a 64×64 canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.12, 0.20), texture_strength=0.0)
+    p.delaunay_orphist_disk_pass(n_disks=4, ring_frequency=4.0, disk_sigma=0.38, opacity=0.60)
+
+
+def test_s207_delaunay_disk_pass_modifies_canvas():
+    """Session 207: delaunay_orphist_disk_pass must visibly change the canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.12, 0.20), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.delaunay_orphist_disk_pass(n_disks=4, ring_frequency=4.0, disk_sigma=0.38, opacity=0.65)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "delaunay_orphist_disk_pass must modify the canvas")
+
+
+def test_s207_delaunay_disk_pass_zero_opacity_no_change():
+    """Session 207: delaunay_orphist_disk_pass with opacity=0.0 must not change any pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.12, 0.20), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.delaunay_orphist_disk_pass(n_disks=4, ring_frequency=4.0, disk_sigma=0.38, opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "delaunay_orphist_disk_pass with opacity=0.0 must not change any pixels")
+
+
+def test_s207_delaunay_disk_pass_custom_centers():
+    """Session 207: delaunay_orphist_disk_pass must accept custom disk_centers."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.12, 0.12, 0.20), texture_strength=0.0)
+    centers = [(0.25, 0.25), (0.75, 0.25), (0.50, 0.75)]
+    p.delaunay_orphist_disk_pass(
+        n_disks=3,
+        ring_frequency=5.0,
+        disk_sigma=0.40,
+        opacity=0.55,
+        disk_centers=centers,
+    )
+
+
+def test_s207_delaunay_in_catalog():
+    """Session 207: robert_delaunay must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "robert_delaunay" in CATALOG, "robert_delaunay missing from CATALOG"
+    s = get_style("robert_delaunay")
+    assert "Orphism" in s.movement or "Simultanism" in s.movement, (
+        f"robert_delaunay movement should reference Orphism; got {s.movement!r}")
+    assert s.chromatic_split is True, "robert_delaunay chromatic_split must be True"
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

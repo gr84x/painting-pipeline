@@ -28416,3 +28416,100 @@ def test_alphonse_mucha_inspiration_references_117th():
     s = get_style("alphonse_mucha")
     assert "SEVENTEENTH" in s.inspiration or "117" in s.inspiration, (
         "alphonse_mucha inspiration must reference ONE HUNDRED AND SEVENTEENTH mode")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Robert Delaunay (Session 207 — 118th distinct mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_robert_delaunay_in_catalog():
+    """Session 207: robert_delaunay must be present in CATALOG."""
+    assert "robert_delaunay" in CATALOG, "robert_delaunay missing from CATALOG"
+
+
+def test_robert_delaunay_in_list_artists():
+    """Session 207: robert_delaunay must appear in list_artists()."""
+    assert "robert_delaunay" in list_artists(), (
+        "robert_delaunay missing from list_artists()")
+
+
+def test_robert_delaunay_movement():
+    """Session 207: movement should reference Orphism."""
+    s = get_style("robert_delaunay")
+    assert "Orphism" in s.movement or "Simultanism" in s.movement, (
+        f"robert_delaunay movement should reference Orphism or Simultanism; got {s.movement!r}")
+
+
+def test_robert_delaunay_nationality():
+    """Session 207: nationality should be French."""
+    s = get_style("robert_delaunay")
+    assert "French" in s.nationality, (
+        f"robert_delaunay nationality should be French; got {s.nationality!r}")
+
+
+def test_robert_delaunay_period():
+    """Session 207: period should reference 1885 or 1941."""
+    s = get_style("robert_delaunay")
+    assert "1885" in s.period or "1941" in s.period, (
+        f"robert_delaunay period should reference 1885 or 1941; got {s.period!r}")
+
+
+def test_robert_delaunay_palette_count():
+    """Session 207: palette should have at least 6 colours."""
+    s = get_style("robert_delaunay")
+    assert len(s.palette) >= 6, (
+        f"robert_delaunay should have >= 6 palette colours; got {len(s.palette)}")
+
+
+def test_robert_delaunay_palette_valid():
+    """Session 207: all palette RGB values must be in [0, 1]."""
+    s = get_style("robert_delaunay")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"robert_delaunay palette value out of range: {ch!r} in {rgb!r}")
+
+
+def test_robert_delaunay_chromatic_split():
+    """Session 207: chromatic_split should be True (Orphism = ultimate chromatic split)."""
+    s = get_style("robert_delaunay")
+    assert s.chromatic_split is True, (
+        "robert_delaunay chromatic_split should be True — Orphism is pure chromatic contrast")
+
+
+def test_robert_delaunay_famous_works():
+    """Session 207: famous_works must be non-empty."""
+    s = get_style("robert_delaunay")
+    assert len(s.famous_works) >= 5, (
+        f"robert_delaunay should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_robert_delaunay_simultaneous_contrasts_in_works():
+    """Session 207: 'Simultaneous Contrasts' must appear in famous_works."""
+    s = get_style("robert_delaunay")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Simultaneous" in t for t in titles), (
+        f"robert_delaunay famous_works must include Simultaneous Contrasts; got {titles}")
+
+
+def test_robert_delaunay_windows_in_works():
+    """Session 207: 'Windows' must appear in famous_works."""
+    s = get_style("robert_delaunay")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Windows" in t for t in titles), (
+        f"robert_delaunay famous_works must include Windows; got {titles}")
+
+
+def test_robert_delaunay_inspiration_references_pass():
+    """Session 207: inspiration must reference delaunay_orphist_disk_pass."""
+    s = get_style("robert_delaunay")
+    assert "delaunay_orphist_disk_pass" in s.inspiration, (
+        "robert_delaunay inspiration must mention delaunay_orphist_disk_pass")
+
+
+def test_robert_delaunay_inspiration_references_118th():
+    """Session 207: inspiration must explicitly name the 118th distinct mode."""
+    s = get_style("robert_delaunay")
+    assert "EIGHTEENTH" in s.inspiration or "118" in s.inspiration, (
+        "robert_delaunay inspiration must reference ONE HUNDRED AND EIGHTEENTH mode")

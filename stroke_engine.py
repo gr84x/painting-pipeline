@@ -46984,3 +46984,167 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Mucha Art Nouveau Aureole pass complete.")
+
+    # Session 207 — Robert Delaunay (1885–1941): delaunay_orphist_disk_pass
+
+    def delaunay_orphist_disk_pass(
+        self,
+        *,
+        n_disks:        int   = 7,
+        ring_frequency: float = 5.0,
+        disk_sigma:     float = 0.38,
+        opacity:        float = 0.65,
+        disk_centers:   list  = None,
+        color_pairs:    list  = None,
+    ) -> None:
+        """
+        Session 207 — Robert Delaunay Orphist disk pass (118th distinct mode).
+
+        Recreates the overlapping chromatic disk fields of Robert Delaunay's
+        Orphism through MULTI-DISK COMPLEMENTARY RING FIELD: N independent disk
+        centres, each emitting concentric ring bands coloured by its own
+        complementary pair, overlaid by proximity weighting.
+
+        Algorithm:
+        (1) DISK CENTRES: n_disks centres distributed by golden-angle spiral
+            unless disk_centers is specified.
+        (2) COMPLEMENTARY PAIRS: each disk k is assigned a pair (color_A_k,
+            color_B_k) cycling through Delaunay's primary/complementary pairs:
+            cobalt-blue/vermilion-orange, cadmium-yellow/magenta-violet,
+            emerald-green/orange, blue/yellow, orange/green.
+        (3) RING BAND FIELD per disk: r_k = Euclidean distance from centre k,
+            normalised by min(W, H); ring_k = sin(r_k × ring_frequency × 2π),
+            normalised to t_ring_k ∈ [0, 1].
+        (4) PROXIMITY WEIGHT per disk: w_k = exp(−r_k² / disk_sigma²),
+            normalised across all disks so sum(w_k) = 1 at each pixel.
+        (5) COLOUR BLEND per disk: blend_k = t_ring_k × color_A_k +
+            (1 − t_ring_k) × color_B_k.
+        (6) WEIGHTED SUM: pixel colour = sum_k(w_k × blend_k).
+        (7) GLOBAL OPACITY COMPOSITE at opacity blends the Orphist field over the
+            original canvas.
+
+        NOVEL: ONE HUNDRED AND EIGHTEENTH DISTINCT MODE.  First pass to use
+        MULTI-DISK COMPLEMENTARY RING FIELD — multiple independent chromatic disk
+        centres, each carrying its own complementary colour pair, overlaid by
+        proximity weighting.  Prior passes: Mucha (single centre, r × θ joint
+        field — one focal point, no complementary pairing per disk); Munch
+        (multi-source scalar interference — multiple centres but only scalar
+        distance sum, no ring bands, no per-centre chromatic pairing); Turner
+        (single centre, r gradient — no rings, no multi-centre); Hopper
+        (dot-product projection — no polar field at all).  The combination of
+        multi-centre layout, per-centre complementary colour pairing, and
+        proximity-weighted ring-band overlay cannot be assembled from any prior
+        single pass.
+
+        n_disks         : number of overlapping chromatic disk centres
+        ring_frequency  : concentric ring cycles per unit normalised distance
+        disk_sigma      : proximity fall-off radius (normalised units); controls
+                          how broadly each disk's colour field spreads
+        opacity         : final composite blend opacity
+        disk_centers    : optional list of (x_norm, y_norm) tuples overriding
+                          the golden-angle spiral distribution
+        color_pairs     : optional list of ((r,g,b),(r,g,b)) tuples overriding
+                          the default Delaunay complementary pairs
+        """
+        import numpy as _np
+        import math as _math
+
+        W, H = self.canvas.w, self.canvas.h
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo is BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── Default complementary pairs (Delaunay's Orphist palette) ──────────
+        _default_pairs = [
+            ((0.05, 0.22, 0.78), (0.92, 0.32, 0.05)),   # cobalt-blue / vermilion-orange
+            ((0.95, 0.84, 0.06), (0.78, 0.10, 0.58)),   # cadmium-yellow / magenta-violet
+            ((0.08, 0.62, 0.28), (0.92, 0.32, 0.05)),   # emerald-green / orange
+            ((0.05, 0.22, 0.78), (0.95, 0.84, 0.06)),   # blue / yellow
+            ((0.92, 0.32, 0.05), (0.08, 0.62, 0.28)),   # orange / green
+        ]
+        if color_pairs is None:
+            color_pairs = _default_pairs
+
+        # ── Disk centres: golden-angle spiral ────────────────────────────────
+        if disk_centers is None:
+            phi = (1.0 + _math.sqrt(5.0)) / 2.0   # golden ratio
+            _centers = []
+            for i in range(n_disks):
+                t = float(i) / max(1, n_disks - 1)
+                angle = 2.0 * _math.pi * i / phi
+                # Distribute within central 80% of canvas
+                radius = 0.15 + 0.30 * _math.sqrt(float(i + 1) / n_disks)
+                cx = 0.50 + radius * _math.cos(angle)
+                cy = 0.50 + radius * _math.sin(angle) * (float(H) / W)
+                cx = max(0.05, min(0.95, cx))
+                cy = max(0.05, min(0.95, cy))
+                _centers.append((cx, cy))
+            disk_centers = _centers
+
+        n = len(disk_centers)
+        pairs = [color_pairs[i % len(color_pairs)] for i in range(n)]
+
+        # ── Pixel coordinate grids ────────────────────────────────────────────
+        xs = _np.arange(W, dtype=_np.float32)[None, :]   # (1, W)
+        ys = _np.arange(H, dtype=_np.float32)[:, None]   # (H, 1)
+        scale = float(min(W, H))
+        sigma2 = float(disk_sigma) ** 2
+
+        # ── Accumulate weighted colour field ──────────────────────────────────
+        acc_r = _np.zeros((H, W), dtype=_np.float32)
+        acc_g = _np.zeros((H, W), dtype=_np.float32)
+        acc_b = _np.zeros((H, W), dtype=_np.float32)
+        acc_w = _np.zeros((H, W), dtype=_np.float32)
+
+        for k in range(n):
+            cx_k = float(disk_centers[k][0]) * W
+            cy_k = float(disk_centers[k][1]) * H
+            col_a, col_b = pairs[k]
+
+            dx = xs - cx_k
+            dy = ys - cy_k
+            r_raw  = _np.sqrt(dx ** 2 + dy ** 2)
+            r_norm = r_raw / scale   # normalised distance
+
+            # Ring band field
+            ring_raw = _np.sin(r_norm * float(ring_frequency) * 2.0 * _math.pi)
+            t_ring   = (ring_raw + 1.0) * 0.5   # [0, 1]
+
+            # Proximity weight (Gaussian fall-off)
+            w_k = _np.exp(-(r_norm ** 2) / sigma2)
+
+            # Per-disk colour blend
+            blend_r = t_ring * float(col_a[0]) + (1.0 - t_ring) * float(col_b[0])
+            blend_g = t_ring * float(col_a[1]) + (1.0 - t_ring) * float(col_b[1])
+            blend_b = t_ring * float(col_a[2]) + (1.0 - t_ring) * float(col_b[2])
+
+            acc_r += w_k * blend_r
+            acc_g += w_k * blend_g
+            acc_b += w_k * blend_b
+            acc_w += w_k
+
+        # Normalise by total weight (avoid div-by-zero)
+        safe_w = _np.maximum(acc_w, 1e-8)
+        field_r = acc_r / safe_w
+        field_g = acc_g / safe_w
+        field_b = acc_b / safe_w
+
+        field_r = _np.clip(field_r, 0.0, 1.0)
+        field_g = _np.clip(field_g, 0.0, 1.0)
+        field_b = _np.clip(field_b, 0.0, 1.0)
+
+        # ── Global opacity composite ───────────────────────────────────────────
+        op  = float(opacity)
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip((r0 * (1 - op) + field_r * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip((g0 * (1 - op) + field_g * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip((b0 * (1 - op) + field_b * op) * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Delaunay Orphist Disk pass complete.")
