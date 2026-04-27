@@ -19490,6 +19490,100 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+
+    # ── Giovanni Boldini ──────────────────────────────────────────────────────
+    # Randomly selected artist for this session's inspiration.
+    # Giovanni Boldini (1842–1931) was the supreme portraitist of the Belle
+    # Époque — an Italian painter based in Paris whose portraits of society
+    # women and aristocrats pulse with animated energy.  His signature
+    # technique, dubbed the "Boldini swirl," involves long, calligraphic
+    # brushstrokes that radiate spirally outward from the figure's centre,
+    # conveying the impression of arrested motion — as though the subject
+    # has just turned and the silk is still catching up.  Backgrounds dissolve
+    # into loose, gestural marks while the face and hands receive the tightest
+    # attention: a hierarchy of resolution that isolates the living presence
+    # of the subject from the blurred social world around her.
+    #
+    # Palette: Boldini favoured warm ivory flesh against deep umber-black
+    # backgrounds, accented by the warm gold of gaslit Paris salon interiors.
+    # Dress fabrics shimmer with cool silver-white or warm champagne; jewels
+    # give tiny icy blue-white sparks.  Shadows are warm — burnt sienna
+    # and raw umber rather than cool grey — and never truly black, always
+    # carrying some chromatic warmth.
+    "giovanni_boldini": ArtStyle(
+        artist="Giovanni Boldini",
+        movement="Belle Époque / Post-Impressionism / Italian Realism",
+        nationality="Italian (Paris-based)",
+        period="1842–1931",
+        palette=[
+            (0.90, 0.82, 0.68),   # warm ivory flesh — primary skin tone
+            (0.96, 0.88, 0.62),   # warm gold highlight — gaslit forehead
+            (0.78, 0.56, 0.32),   # mid-tone sienna — shadow passage
+            (0.24, 0.16, 0.10),   # warm umber-black — deep background
+            (0.92, 0.90, 0.88),   # champagne-white — dress highlight
+            (0.68, 0.54, 0.72),   # mauve-grey — dress shadow fold
+            (0.36, 0.24, 0.14),   # warm burnt umber — background mass
+            (0.95, 0.96, 0.98),   # cool icy white — jewel highlight
+        ],
+        ground_color=(0.32, 0.22, 0.14),    # warm dark umber ground
+        stroke_size=9,
+        wet_blend=0.68,                      # moderately wet — blended flesh, broken background
+        edge_softness=0.38,                  # crisper than Impressionism on the face
+        jitter=0.055,                        # significant variation — spiraling marks
+        glazing=(0.72, 0.58, 0.30),          # warm golden glaze — salon gaslight atmosphere
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Belle Époque portraiture of animated energy: the 'Boldini swirl.' "
+            "Long sinuous brushstrokes radiate from the figure centre outward, "
+            "conveying arrested motion — silk still swirling, hair catching the light. "
+            "Face and hands receive the tightest brushwork; background dissolves into "
+            "gestural spiraling marks. Palette anchored in warm ivory flesh against "
+            "deep umber backgrounds. Gaslit salon warmth — gold highlights, warm shadows. "
+            "Never true black in the shadows: always warm umber with embedded colour. "
+            "Dress fabrics built with long diagonal strokes in cool champagne or pale mauve, "
+            "highlights dragged with a dry filbert to create silk sheen. "
+            "Jewels and eyes: tiny precise icy sparks of cool white against warm surrounds."
+        ),
+        famous_works=[
+            ("Portrait of Consuelo, Duchess of Marlborough", "1906"),
+            ("Madame Charles Max", "1896"),
+            ("Waltzing", "c. 1880"),
+            ("Portrait of a Lady in Black", "c. 1890"),
+            ("The White Lady", "c. 1888"),
+            ("Portrait of John Singer Sargent", "1890"),
+            ("Mme Gautreau Drinking a Toast", "c. 1882–1883"),
+        ],
+        inspiration=(
+            "boldini_belle_epoque_swirl_pass — ONE HUNDRED AND THIRTIETH distinct mode "
+            "(session 219).\n\n"
+            "Implements Boldini's animated portraiture: radial spiral warp centred on "
+            "the figure, warm gold chromatic enhancement, and directional edge blur that "
+            "elongates form boundaries into calligraphic swirls.\n\n"
+            "Parameters and defaults:\n"
+            "  swirl_strength   = 8.0   # spiral warp pixel radius at the figure centre\n"
+            "  swirl_falloff    = 0.55  # radial falloff exponent (higher = tighter centre)\n"
+            "  gold_warmth      = 0.25  # warm gold push in highlights and upper midtones\n"
+            "  elongation_sigma = 3.5   # directional edge blur sigma\n"
+            "  opacity          = 0.75  # final composite opacity vs original canvas\n\n"
+            "Stage 1 — RADIAL SPIRAL WARP:\n"
+            "  Build polar coordinate map (r, theta) from canvas centre.\n"
+            "  Warp angle offset: delta_theta = swirl_strength / (r + 1) * falloff_mask.\n"
+            "  Displacement: dx = r*cos(theta+delta_theta) - r*cos(theta) [pixels].\n"
+            "  Apply via scipy.ndimage.map_coordinates with order=1 interpolation.\n\n"
+            "Stage 2 — WARM GOLD ENHANCEMENT:\n"
+            "  Luminance gate: weight = clip((lum - 0.38) / 0.35, 0, 1) (midtones+highlights).\n"
+            "  Blend each channel toward gold (0.88, 0.72, 0.30) by gold_warmth * weight.\n\n"
+            "Stage 3 — DIRECTIONAL EDGE ELONGATION:\n"
+            "  Compute Sobel gradient direction field (angle of steepest luminance descent).\n"
+            "  Apply Gaussian blur at edge zones (grad_mag > threshold) with sigma=elongation_sigma.\n"
+            "  Gate elongation to edge zone to avoid over-blurring flat areas.\n\n"
+            "Stage 4 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 
