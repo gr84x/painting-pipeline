@@ -48666,3 +48666,243 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Oskar Kokoschka Anxious Portrait pass complete.")
+
+    def boldini_belle_epoque_swirl_pass(
+        self,
+        *,
+        swirl_strength: float = 8.0,
+        swirl_falloff: float = 0.55,
+        gold_warmth: float = 0.25,
+        elongation_sigma: float = 3.5,
+        opacity: float = 0.75,
+    ) -> None:
+        """
+        Boldini Belle Époque Swirl — ONE HUNDRED AND THIRTIETH distinct mode.
+        Session 219: Giovanni Boldini (1842–1931).
+
+        Three-stage algorithm implementing Boldini's animated portrait language:
+        radial spiral warp centred on the canvas, warm gold chromatic push, and
+        directional edge elongation that turns form boundaries into calligraphic swirls.
+
+        Novelty (vs. Soutine s217 warp): Soutine uses multi-frequency sinusoidal
+        warp across the full canvas to convey writhing distortion.  Boldini's warp
+        is radially organised — a true polar spiral — so the swirl radiates from a
+        central focal point, mimicking the centrifugal energy of a turning figure.
+        The additional gold-warmth pass encodes Boldini's gaslit salon atmosphere,
+        and the edge-elongation blur is gated to gradient zones only, leaving the
+        face and hands relatively crisp while backgrounds dissolve into spiral marks.
+
+        swirl_strength   : Peak spiral warp displacement in pixels at the canvas
+                           centre.  Controls how dramatically background elements
+                           spiral around the figure.  Default 8.0 px; reduce to
+                           3–4 for subtlety, raise to 12–16 for full Boldini
+                           expressiveness.
+        swirl_falloff    : Radial falloff power applied to warp strength.  Higher
+                           values concentrate the swirl near the canvas centre
+                           while preserving peripheral detail.  Default 0.55.
+        gold_warmth      : Blend strength toward warm gold (0.88, 0.72, 0.30) in
+                           midtone and highlight zones.  Simulates Boldini's
+                           gaslit Paris salon atmosphere — warm light enriches
+                           skin and dress fabrics with an amber-gold cast.
+                           Default 0.25; practical range 0.15–0.40.
+        elongation_sigma : Sigma of the Gaussian blur applied along gradient
+                           edge zones.  Creates Boldini's characteristic brushstroke
+                           elongation — form boundaries become calligraphic swirls
+                           rather than crisp edges.  Default 3.5 px; range 2.0–6.0.
+        opacity          : Final composite strength vs original canvas.  Default 0.75.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Boldini Belle Époque Swirl pass (130th mode)…")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        # Extract float32 BGR → RGB
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+
+        # ── (1) Radial Spiral Warp ─────────────────────────────────────────────
+        # Build polar coordinate map centred on the canvas.
+        cy, cx  = h / 2.0, w / 2.0
+        ys      = _np.arange(h, dtype=_np.float32) - cy
+        xs      = _np.arange(w, dtype=_np.float32) - cx
+        xx, yy  = _np.meshgrid(xs, ys)       # (H, W) coordinate grids
+
+        r_px    = _np.sqrt(xx**2 + yy**2)    # radial distance in pixels
+        theta   = _np.arctan2(yy, xx)         # polar angle
+
+        # Warp angle offset: stronger near centre, falls off radially.
+        half_diag   = _np.sqrt((h / 2)**2 + (w / 2)**2)
+        norm_r      = r_px / (half_diag + 1e-6)
+        falloff_map = _np.clip(1.0 - norm_r ** float(swirl_falloff), 0.0, 1.0)
+        delta_theta = float(swirl_strength) / (r_px + 1.0) * falloff_map * half_diag * 0.012
+
+        # New coordinates after spiral rotation
+        theta_new = theta + delta_theta
+        new_xs    = r_px * _np.cos(theta_new) + cx    # (H, W)
+        new_ys    = r_px * _np.sin(theta_new) + cy    # (H, W)
+
+        coords = [new_ys.ravel(), new_xs.ravel()]
+        for arr in (r, g, b):
+            warped = _ndi.map_coordinates(
+                arr, coords, order=1, mode='nearest'
+            ).reshape(h, w).astype(_np.float32)
+            arr[:] = warped
+
+        # ── (2) Warm Gold Enhancement ──────────────────────────────────────────
+        gold  = (0.88, 0.72, 0.30)
+        lum   = 0.299 * r + 0.587 * g + 0.114 * b
+        # Gate to midtones and highlights: weight peaks at lum ~0.60+
+        gold_w = _np.clip((lum - 0.38) / 0.35, 0.0, 1.0) * float(gold_warmth)
+        r = _np.clip(r * (1.0 - gold_w) + gold[0] * gold_w, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - gold_w) + gold[1] * gold_w, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - gold_w) + gold[2] * gold_w, 0.0, 1.0)
+
+        # ── (3) Directional Edge Elongation ───────────────────────────────────
+        # Compute gradient magnitude from current luminance.
+        lum2  = 0.299 * r + 0.587 * g + 0.114 * b
+        gx    = _ndi.sobel(lum2, axis=1).astype(_np.float32)
+        gy    = _ndi.sobel(lum2, axis=0).astype(_np.float32)
+        gmag  = _np.sqrt(gx**2 + gy**2)
+
+        # Gate blur to edge zones; suppress in flat areas.
+        if gmag.max() > 1e-9:
+            edge_gate = _np.clip(gmag / gmag.max() * 4.0, 0.0, 1.0)
+        else:
+            edge_gate = _np.zeros_like(gmag)
+        edge_gate = _ndi.gaussian_filter(edge_gate.astype(_np.float32), sigma=1.0)
+
+        # Apply Gaussian blur over edge zones only (max 55% contribution).
+        sig = float(elongation_sigma)
+        blurred_r = _ndi.gaussian_filter(r, sigma=sig).astype(_np.float32)
+        blurred_g = _ndi.gaussian_filter(g, sigma=sig).astype(_np.float32)
+        blurred_b = _ndi.gaussian_filter(b, sigma=sig).astype(_np.float32)
+
+        elong_w = edge_gate * 0.55
+        r = _np.clip(r * (1.0 - elong_w) + blurred_r * elong_w, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - elong_w) + blurred_g * elong_w, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - elong_w) + blurred_b * elong_w, 0.0, 1.0)
+
+        # ── (4) Composite ──────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Giovanni Boldini Belle Époque Swirl pass complete.")
+
+    def chromatic_zoning_pass(
+        self,
+        *,
+        shadow_hue_shift: float = 0.12,
+        highlight_ivory_lift: float = 0.08,
+        midtone_saturation_boost: float = 0.18,
+        opacity: float = 0.65,
+    ) -> None:
+        """
+        Chromatic Zoning — Session 219 artistic ability improvement.
+
+        Divides the canvas into three luminance-based zones (shadows, midtones,
+        highlights) and applies targeted chromatic adjustments to each zone
+        independently, improving the articulation of warm/cool temperature
+        separation across the full tonal range.
+
+        Inspired by the classical observation that in convincing figure painting,
+        highlights lean toward warm ivory/gold, midtones carry the fullest
+        chromatic saturation (the carnation zone), and shadows shift toward a
+        cool ambient blue-grey.  This pass formalises that zoning with per-zone
+        chromatic operators applied softly via bell-curve masks so zone transitions
+        are imperceptible.
+
+        Novelty (vs. existing warm_cool_form_duality_pass): that pass applies a
+        global warm/cool split based on a single luminance threshold.  Chromatic
+        Zoning uses THREE independently-gated zones with different operators in
+        each — cool shift in shadows, saturation boost in midtones, ivory
+        desaturation in highlights — producing a more nuanced tonal temperature
+        articulation that mirrors classical academic painting practice.
+
+        shadow_hue_shift        : Strength of cool blue-grey shift applied to
+                                  shadow zones (luminance < 0.35).  Simulates the
+                                  cool ambient sky fill that reaches shadow zones
+                                  while direct warm light cannot.  Default 0.12.
+        highlight_ivory_lift    : Strength of warm ivory desaturation applied
+                                  to the brightest highlights (luminance > 0.78).
+                                  Peak highlights lose chromatic saturation and
+                                  shift toward bone-white — physically accurate
+                                  for specular skin reflection.  Default 0.08.
+        midtone_saturation_boost: Saturation increase in the midtone zone
+                                  (0.35 < lum < 0.78).  Midtones carry the most
+                                  chromatic information — carnation warmth, dress
+                                  colour, environmental bounce.  A gentle boost
+                                  enriches colour presence.  Default 0.18.
+        opacity                 : Final composite strength.  Default 0.65.
+        """
+        import numpy as _np
+
+        print("    Chromatic Zoning pass (session 219 improvement)…")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+        lum     = 0.299 * r + 0.587 * g + 0.114 * b
+
+        # ── Shadow zone: cool blue-grey shift ─────────────────────────────────
+        # Weight peaks at lum=0, falls to zero at lum=0.35.
+        shadow_w = _np.clip((0.35 - lum) / 0.35, 0.0, 1.0) ** 1.2 * float(shadow_hue_shift)
+        cool     = (0.22, 0.38, 0.52)
+        r = _np.clip(r * (1.0 - shadow_w) + cool[0] * shadow_w, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - shadow_w) + cool[1] * shadow_w, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - shadow_w) + cool[2] * shadow_w, 0.0, 1.0)
+
+        # ── Highlight zone: ivory desaturation ────────────────────────────────
+        # Weight peaks at lum=1, falls to zero at lum=0.78.
+        hi_w  = _np.clip((lum - 0.78) / 0.22, 0.0, 1.0) * float(highlight_ivory_lift)
+        ivory = (0.94, 0.92, 0.84)
+        r = _np.clip(r * (1.0 - hi_w) + ivory[0] * hi_w, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - hi_w) + ivory[1] * hi_w, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - hi_w) + ivory[2] * hi_w, 0.0, 1.0)
+
+        # ── Midtone zone: saturation boost ────────────────────────────────────
+        # Triangular gate: peaks at lum≈0.55, falls to zero at lum=0.35 and 0.78.
+        mid_w   = _np.clip(
+            _np.minimum((lum - 0.35) / 0.20, (0.78 - lum) / 0.23), 0.0, 1.0
+        ) * float(midtone_saturation_boost)
+        neutral = (r + g + b) / 3.0
+        r = _np.clip(neutral + (r - neutral) * (1.0 + mid_w), 0.0, 1.0)
+        g = _np.clip(neutral + (g - neutral) * (1.0 + mid_w), 0.0, 1.0)
+        b = _np.clip(neutral + (b - neutral) * (1.0 + mid_w), 0.0, 1.0)
+
+        # ── Composite ─────────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Chromatic Zoning pass complete.")

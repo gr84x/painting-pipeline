@@ -29478,3 +29478,76 @@ def test_oskar_kokoschka_in_list_artists():
     """Session 218: oskar_kokoschka must appear in list_artists()."""
     assert "oskar_kokoschka" in list_artists(), (
         "oskar_kokoschka must appear in list_artists()")
+
+
+# ── Session 219: Giovanni Boldini ─────────────────────────────────────────────
+
+def test_giovanni_boldini_in_catalog():
+    """Session 219: giovanni_boldini must appear in CATALOG with Belle Époque movement."""
+    from art_catalog import CATALOG, get_style
+    assert "giovanni_boldini" in CATALOG, "giovanni_boldini missing from CATALOG"
+    s = get_style("giovanni_boldini")
+    assert "Belle" in s.movement or "Post-Impressionism" in s.movement, (
+        f"giovanni_boldini movement should reference Belle Époque; got {s.movement!r}")
+    assert s.crackle is False, "giovanni_boldini crackle must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+def test_giovanni_boldini_nationality():
+    """Session 219: nationality must reference Italian."""
+    s = get_style("giovanni_boldini")
+    assert "Italian" in s.nationality, (
+        f"giovanni_boldini nationality should reference Italian; got {s.nationality!r}")
+
+
+def test_giovanni_boldini_palette_length():
+    """Session 219: giovanni_boldini must have at least 6 palette colors."""
+    s = get_style("giovanni_boldini")
+    assert len(s.palette) >= 6, (
+        f"giovanni_boldini palette should have >= 6 colors; got {len(s.palette)}")
+
+
+def test_giovanni_boldini_palette_in_range():
+    """Session 219: all palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("giovanni_boldini")
+    for rgb in s.palette:
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"giovanni_boldini palette channel {ch} out of [0, 1]")
+
+
+def test_giovanni_boldini_no_crackle():
+    """Session 219: giovanni_boldini crackle must be False."""
+    s = get_style("giovanni_boldini")
+    assert s.crackle is False, "giovanni_boldini crackle must be False"
+
+
+def test_giovanni_boldini_famous_works_count():
+    """Session 219: giovanni_boldini must have at least 6 famous works listed."""
+    s = get_style("giovanni_boldini")
+    assert len(s.famous_works) >= 6, (
+        f"giovanni_boldini should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_giovanni_boldini_inspiration_references_pass():
+    """Session 219: inspiration must reference boldini_belle_epoque_swirl_pass."""
+    s = get_style("giovanni_boldini")
+    assert "boldini_belle_epoque_swirl_pass" in s.inspiration, (
+        "giovanni_boldini inspiration must mention boldini_belle_epoque_swirl_pass")
+
+
+def test_giovanni_boldini_inspiration_references_130th():
+    """Session 219: inspiration must explicitly name the 130th distinct mode."""
+    s = get_style("giovanni_boldini")
+    assert "130" in s.inspiration or "THIRTIETH" in s.inspiration, (
+        "giovanni_boldini inspiration must reference ONE HUNDRED AND THIRTIETH mode")
+
+
+def test_giovanni_boldini_in_list_artists():
+    """Session 219: giovanni_boldini must appear in list_artists()."""
+    assert "giovanni_boldini" in list_artists(), (
+        "giovanni_boldini must appear in list_artists()")
