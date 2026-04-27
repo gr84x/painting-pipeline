@@ -18619,6 +18619,108 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Joan Miró ──────────────────────────────────────────────────────────────
+    "joan_miro": ArtStyle(
+        artist="Joan Miró",
+        movement="Surrealism / Abstract Art",
+        nationality="Spanish (Catalan)",
+        period="1920–1983",
+        palette=[
+            (0.89, 0.15, 0.07),   # cadmium red — primary warm anchor
+            (0.98, 0.85, 0.04),   # cadmium yellow — solar primary
+            (0.06, 0.12, 0.75),   # ultramarine blue — deep primary cool
+            (0.04, 0.04, 0.04),   # pitch black — outline and shadow
+            (0.96, 0.94, 0.88),   # raw canvas white — open ground
+            (0.75, 0.58, 0.20),   # raw ochre — warm earth accent
+            (0.12, 0.55, 0.25),   # sap green — occasional organic accent
+        ],
+        ground_color=(0.94, 0.92, 0.85),    # raw canvas / warm white ground
+        stroke_size=3,
+        wet_blend=0.04,                      # flat, dry; no wet blending
+        edge_softness=0.05,                  # crisp hard edges — Miró's outlines
+        jitter=0.02,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Joan Miró developed one of the most immediately recognizable visual languages of the "
+            "20th century — a vocabulary of biomorphic signs, playful symbols, and flat primary "
+            "colours that feels both primitive and sophisticated, childlike and deeply felt.  "
+            "Trained in Barcelona and influenced initially by Fauvism and Cubism, Miró moved to "
+            "Paris in 1920 and fell in with the Surrealists, though he always resisted the label.  "
+            "His technique evolved toward radical simplification: forms — birds, women, stars, eyes, "
+            "crescents, ladders — are reduced to their essential gesture, outlined in bold black, and "
+            "filled with flat areas of unmodulated primary colour.  The ground (usually raw canvas or "
+            "warm white) is left exposed as an active field.  "
+            "The characteristic black contour line is non-negotiable: it surrounds every biomorphic "
+            "shape, separating red from yellow from blue from ground with decisive authority.  "
+            "Inside the outline, colour is flat — no modelling, no gradient, no impasto.  The colour "
+            "reads as pure pigment: cadmium red, cadmium yellow, ultramarine blue, and their secondary "
+            "interactions.  Black is both outline and shape — a positive element as powerful as any "
+            "colour.  White or bare canvas breathes between forms, carrying silence and space.  "
+            "Small accent marks — a dot of red inside a blue zone, a tiny crescent, an isolated star — "
+            "punctuate the compositions like punctuation in a sentence.  "
+            "His Constellations series (1940–41), painted on burlap in gouache while fleeing the war, "
+            "shows this system at its most concentrated: dense webs of black lines connect biomorphic "
+            "shapes in a field of stars and night.  His monumental Blue triptych (1961) pushes to the "
+            "opposite extreme — near-empty fields of pure ultramarine with a single thread of black "
+            "and a red blot.  "
+            "Miró was also prolific as a printmaker, ceramicist, and sculptor, but the essential "
+            "painterly principle — primary palette, biomorphic sign, flat fill, black outline, open "
+            "ground — runs through all of them."
+        ),
+        famous_works=[
+            ("The Tilled Field",                    "1923–1924"),
+            ("Harlequin's Carnival",                "1924–1925"),
+            ("The Birth of the World",              "1925"),
+            ("Dutch Interior I",                    "1928"),
+            ("Constellations",                      "1940–1941"),
+            ("The Farm",                            "1921–1922"),
+            ("Blue II",                             "1961"),
+            ("Catalan Landscape (The Hunter)",      "1923–1924"),
+            ("Painting (The Potato)",               "1928"),
+            ("Woman, Bird, Star (Homage to Picasso)", "1983"),
+        ],
+        inspiration=(
+            "Apply miro_surrealist_biomorph_pass() as the signature effect "
+            "— ONE HUNDRED AND TWENTY-SECOND DISTINCT MODE.\n\n"
+            "Algorithm: BIOMORPHIC PALETTE QUANTIZATION WITH BLACK OUTLINE INJECTION — "
+            "a three-stage content-driven style transfer that enforces Miró's flat-primary-colour "
+            "vocabulary and black contour language onto an arbitrary image.  "
+            "(1) NEAREST-PALETTE QUANTIZATION: for every pixel compute its Euclidean RGB distance "
+            "to each of Miró's seven palette colours; assign each pixel its nearest palette colour "
+            "to build a fully quantized target image.  "
+            "(2) GRADIENT-WEIGHTED FLAT ZONE BLEND: compute Sobel gradient magnitude G on the "
+            "luminance channel; pixels with low G (flat interior of a shape) are blended strongly "
+            "toward their quantized colour: delta = flat_strength × (1 − G) × (target − original).  "
+            "This flattens interior regions toward pure primary colour while preserving structure.  "
+            "(3) BLACK OUTLINE INJECTION: pixels with high G (colour boundaries) are blended toward "
+            "pitch black: outline_delta = outline_strength × G × (black − original).  "
+            "This injects Miró's characteristic bold black contour lines precisely at region edges, "
+            "driven by the image's own colour boundary structure.  "
+            "(4) COMPOSITE: all adjustments are summed, clipped to [0, 1], then blended with the "
+            "original canvas at opacity.\n\n"
+            "NOVEL: ONE HUNDRED AND TWENTY-SECOND DISTINCT MODE.  First pass to combine "
+            "CONTENT-DRIVEN PALETTE QUANTIZATION (nearest Miró palette colour per pixel) + "
+            "GRADIENT-WEIGHTED INTERIOR FLATTENING (low-gradient pixels pulled toward flat primary) "
+            "+ EXPLICIT BLACK OUTLINE INJECTION (high-gradient boundary pixels darkened toward black).  "
+            "Prior passes: Hofmann (temperature differential amplification — no palette quantization); "
+            "Albers (Chebyshev zone contrast — no quantization, no outline); "
+            "Kline (gestural axis sweep — black strokes at axis, not at content edges); "
+            "Kusama (dot fields — no quantization or outline); "
+            "all 121 prior passes lack the three-stage combination of palette quantization + "
+            "gradient-weighted flat fill + explicit black outline injection driven by content edges.\n\n"
+            "tone_ground() with warm raw canvas (0.94, 0.92, 0.85).\n"
+            "underpainting() broad mass (stroke_size=20).\n"
+            "block_in() colour zones (stroke_size=14).\n"
+            "build_form() simplified structure (stroke_size=6).\n"
+            "miro_surrealist_biomorph_pass(flat_strength=0.72, outline_strength=0.88, "
+            "edge_sigma=1.5, opacity=0.80) as the primary pass.\n\n"
+            "Use miro_surrealist_biomorph_pass(flat_strength=0.72, outline_strength=0.88, "
+            "edge_sigma=1.5, opacity=0.80)."
+        ),
+    ),
+
 }
 
 

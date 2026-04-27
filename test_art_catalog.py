@@ -210,6 +210,7 @@ EXPECTED_ARTISTS = [
     "franz_kline",
     "josef_albers",
     "hans_hofmann",
+    "joan_miro",
 ]
 
 
@@ -28809,3 +28810,105 @@ def test_hans_hofmann_inspiration_references_121st():
     s = get_style("hans_hofmann")
     assert "121" in s.inspiration or "TWENTY-FIRST" in s.inspiration, (
         "hans_hofmann inspiration must reference ONE HUNDRED AND TWENTY-FIRST mode")
+
+
+# ── Joan Miró (session 211) ────────────────────────────────────────────────
+
+def test_joan_miro_in_catalog():
+    """Session 211: joan_miro must be in CATALOG."""
+    assert "joan_miro" in CATALOG
+
+
+def test_joan_miro_movement():
+    """joan_miro must be classified as Surrealism or Abstract Art."""
+    s = get_style("joan_miro")
+    assert "Surreal" in s.movement or "Abstract" in s.movement, (
+        f"joan_miro movement should mention Surrealism or Abstract; got {s.movement!r}")
+
+
+def test_joan_miro_nationality():
+    """joan_miro must be identified as Spanish or Catalan."""
+    s = get_style("joan_miro")
+    assert "Spanish" in s.nationality or "Catalan" in s.nationality, (
+        f"joan_miro nationality should be Spanish/Catalan; got {s.nationality!r}")
+
+
+def test_joan_miro_palette_length():
+    """joan_miro palette must have at least 5 colours."""
+    s = get_style("joan_miro")
+    assert len(s.palette) >= 5, (
+        f"joan_miro palette must have ≥5 colours; got {len(s.palette)}")
+
+
+def test_joan_miro_palette_values_in_range():
+    """All joan_miro palette RGB values must be in [0, 1]."""
+    s = get_style("joan_miro")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"joan_miro palette channel {ch} out of [0, 1]")
+
+
+def test_joan_miro_ground_color_valid():
+    """joan_miro ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("joan_miro")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_joan_miro_period():
+    """joan_miro period must cover his Surrealist active years."""
+    s = get_style("joan_miro")
+    assert "1920" in s.period or "192" in s.period, (
+        f"joan_miro period should start around 1920; got {s.period!r}")
+
+
+def test_joan_miro_chromatic_split_false():
+    """joan_miro chromatic_split should be False — flat fills, not divisionist dots."""
+    s = get_style("joan_miro")
+    assert s.chromatic_split is False, (
+        "joan_miro chromatic_split should be False — Miró uses flat colour, not divisionist dots")
+
+
+def test_joan_miro_edge_softness_low():
+    """joan_miro edge_softness must be low — Miró uses crisp black outlines."""
+    s = get_style("joan_miro")
+    assert s.edge_softness < 0.20, (
+        f"joan_miro edge_softness should be < 0.20 for crisp outlines; got {s.edge_softness}")
+
+
+def test_joan_miro_famous_works():
+    """joan_miro must have at least 6 famous works listed."""
+    s = get_style("joan_miro")
+    assert len(s.famous_works) >= 6, (
+        f"joan_miro should have ≥6 famous works; got {len(s.famous_works)}")
+
+
+def test_joan_miro_harlequin_in_works():
+    """joan_miro famous_works must include Harlequin's Carnival."""
+    s = get_style("joan_miro")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Harlequin" in t for t in titles), (
+        f"joan_miro famous_works must include Harlequin's Carnival; got {titles}")
+
+
+def test_joan_miro_in_list_artists():
+    """Session 211: joan_miro must appear in list_artists()."""
+    assert "joan_miro" in list_artists(), (
+        "joan_miro must appear in list_artists()")
+
+
+def test_joan_miro_inspiration_references_pass():
+    """Session 211: joan_miro inspiration must reference miro_surrealist_biomorph_pass."""
+    s = get_style("joan_miro")
+    assert "miro_surrealist_biomorph_pass" in s.inspiration, (
+        "joan_miro inspiration must mention miro_surrealist_biomorph_pass")
+
+
+def test_joan_miro_inspiration_references_122nd():
+    """Session 211: inspiration must explicitly name the 122nd distinct mode."""
+    s = get_style("joan_miro")
+    assert "122" in s.inspiration or "TWENTY-SECOND" in s.inspiration, (
+        "joan_miro inspiration must reference ONE HUNDRED AND TWENTY-SECOND mode")

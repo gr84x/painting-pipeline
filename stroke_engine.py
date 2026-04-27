@@ -47572,3 +47572,139 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Hofmann Push-Pull pass complete.")
+
+    def miro_surrealist_biomorph_pass(
+        self,
+        *,
+        flat_strength:    float = 0.72,
+        outline_strength: float = 0.88,
+        edge_sigma:       float = 1.5,
+        opacity:          float = 0.80,
+    ) -> None:
+        """
+        Session 211 — Joan Miró Surrealist Biomorph pass (122nd distinct mode).
+
+        BIOMORPHIC PALETTE QUANTIZATION WITH BLACK OUTLINE INJECTION: a three-stage
+        content-driven style transfer that enforces Miró's flat-primary-colour
+        vocabulary and bold black contour language onto an arbitrary painted surface.
+
+        Algorithm:
+        (1) NEAREST-PALETTE QUANTIZATION: for every pixel (R, G, B) compute the
+            squared Euclidean distance to each of Miró's seven palette colours
+            (cadmium red, cadmium yellow, ultramarine blue, pitch black, raw white,
+            raw ochre, sap green).  Assign each pixel its nearest palette colour to
+            build a fully quantized target array Q.
+        (2) LUMINANCE GRADIENT MAGNITUDE: compute luminance L = 0.299R + 0.587G +
+            0.114B.  Apply Gaussian pre-blur with sigma = edge_sigma to reduce
+            noise.  Run Sobel operators on the blurred luminance to obtain gradient
+            magnitude G (normalised to [0, 1]).  G is large at colour-region
+            boundaries — Miró's outline positions.
+        (3) FLAT ZONE BLEND: for interior pixels (low G), blend original toward
+            quantized target colour:
+            flat_delta_ch = flat_strength × (1 − G) × (Q_ch − original_ch)
+            This flattens interior regions to pure primary colour.
+        (4) BLACK OUTLINE INJECTION: for boundary pixels (high G), blend toward
+            pitch black (0.04, 0.04, 0.04):
+            outline_delta_ch = outline_strength × G × (black_ch − original_ch)
+            This injects Miró's characteristic bold black contours precisely at
+            colour-region edges driven by the image's own luminance boundaries.
+        (5) COMPOSITE: adjusted_ch = clip(original_ch + flat_delta_ch +
+            outline_delta_ch, 0, 1).  Final = original × (1 − opacity) +
+            adjusted × opacity.
+
+        NOVEL: ONE HUNDRED AND TWENTY-SECOND DISTINCT MODE.  First pass to combine
+        CONTENT-DRIVEN PALETTE QUANTIZATION (nearest Miró palette colour per pixel)
+        + GRADIENT-WEIGHTED INTERIOR FLATTENING (low-G pixels pulled toward flat
+        primary colour) + EXPLICIT BLACK OUTLINE INJECTION (high-G boundary pixels
+        darkened toward pitch black).  Prior passes: Hofmann (temperature
+        differential amplification — no palette quantization, no outline injection);
+        Albers (Chebyshev zone simultaneous contrast — no quantization, no explicit
+        outline); Kline (gestural calligraphic axis sweep — black applied along
+        structural image axis, NOT at colour-region edges); Kusama (circular dot
+        fields — no palette quantization); all 121 prior passes lack the combination
+        of palette quantization + gradient-weighted flat fill + explicit black outline
+        injection at content-derived colour boundaries.
+
+        flat_strength    : blend weight toward quantized palette in flat interiors
+        outline_strength : blend weight toward pitch black at gradient boundaries
+        edge_sigma       : Gaussian sigma for luminance pre-blur before Sobel
+        opacity          : final composite blend over original canvas
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        W, H = self.canvas.w, self.canvas.h
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Nearest-palette quantization ──────────────────────────────────
+        # Miró's seven palette colours as (R, G, B) float32
+        miro_palette = _np.array([
+            [0.89, 0.15, 0.07],   # cadmium red
+            [0.98, 0.85, 0.04],   # cadmium yellow
+            [0.06, 0.12, 0.75],   # ultramarine blue
+            [0.04, 0.04, 0.04],   # pitch black
+            [0.96, 0.94, 0.88],   # raw canvas white
+            [0.75, 0.58, 0.20],   # raw ochre
+            [0.12, 0.55, 0.25],   # sap green
+        ], dtype=_np.float32)   # shape (7, 3)
+
+        # Stack image channels → (H*W, 3) for vectorised distance computation
+        pixels = _np.stack([r0, g0, b0], axis=-1).reshape(-1, 3)   # (H*W, 3)
+        # Squared distances from each pixel to each palette colour: (H*W, 7)
+        diff = pixels[:, _np.newaxis, :] - miro_palette[_np.newaxis, :, :]
+        sq_dist = (diff * diff).sum(axis=-1)                         # (H*W, 7)
+        nearest_idx = sq_dist.argmin(axis=-1)                        # (H*W,)
+        q_colors = miro_palette[nearest_idx].reshape(H, W, 3)        # (H, W, 3)
+        q_r = q_colors[:, :, 0]
+        q_g = q_colors[:, :, 1]
+        q_b = q_colors[:, :, 2]
+
+        # ── (2) Luminance gradient magnitude ──────────────────────────────────
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        lum_blur = _gf(lum, sigma=float(edge_sigma))
+        gx = _sobel(lum_blur, axis=1)
+        gy = _sobel(lum_blur, axis=0)
+        grad_mag = _np.sqrt(gx * gx + gy * gy)
+        g_max = float(grad_mag.max())
+        if g_max > 1e-8:
+            grad_mag /= g_max   # normalise to [0, 1]
+
+        # ── (3) Flat zone blend toward quantized palette ───────────────────────
+        interior = (1.0 - grad_mag) * float(flat_strength)
+        flat_dr = interior * (q_r - r0)
+        flat_dg = interior * (q_g - g0)
+        flat_db = interior * (q_b - b0)
+
+        # ── (4) Black outline injection at boundaries ─────────────────────────
+        BLACK_R, BLACK_G, BLACK_B = 0.04, 0.04, 0.04
+        outline = grad_mag * float(outline_strength)
+        out_dr = outline * (BLACK_R - r0)
+        out_dg = outline * (BLACK_G - g0)
+        out_db = outline * (BLACK_B - b0)
+
+        # ── (5) Composite ──────────────────────────────────────────────────────
+        adj_r = _np.clip(r0 + flat_dr + out_dr, 0.0, 1.0)
+        adj_g = _np.clip(g0 + flat_dg + out_dg, 0.0, 1.0)
+        adj_b = _np.clip(b0 + flat_db + out_db, 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + adj_r * op
+        new_g = g0 * (1.0 - op) + adj_g * op
+        new_b = b0 * (1.0 - op) + adj_b * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Miró Surrealist Biomorph pass complete.")
