@@ -48283,3 +48283,125 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Lucian Freud Impasto Vulnerability pass complete.")
+
+    def diebenkorn_ocean_park_pass(
+        self,
+        *,
+        n_zones:           int   = 5,
+        zone_smooth_sigma: float = 28.0,
+        smooth_blend_frac: float = 0.55,
+        line_width:        int   = 2,
+        line_opacity:      float = 0.62,
+        palette_shift:     float = 0.30,
+        luminosity_boost:  float = 0.07,
+        opacity:           float = 0.65,
+    ) -> None:
+        """
+        Richard Diebenkorn Ocean Park pass — 127th distinct mode.
+
+        Segments the canvas into horizontal compositional zones, smooths each
+        zone into an open color field, draws thin ruled boundary lines, and
+        applies Diebenkorn's luminous coastal palette shift.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        # ── (0) Read canvas ────────────────────────────────────────────────────
+        surface = self.canvas.surface
+        H, W    = self.canvas.h, self.canvas.w
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape((H, W, 4)).copy()
+        b0      = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0      = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0      = orig[:, :, 2].astype(_np.float32) / 255.0
+        adj_r   = r0.copy()
+        adj_g   = g0.copy()
+        adj_b   = b0.copy()
+
+        rng = _np.random.RandomState(seed=216)
+
+        # ── (1) Zone segmentation ──────────────────────────────────────────────
+        # Place n_zones-1 sorted horizontal split points with slight diagonal tilt
+        raw_splits = _np.sort(rng.uniform(0.12, 0.88, max(1, n_zones - 1))) * H
+        tilt_px    = rng.uniform(-0.04, 0.04, n_zones) * W  # tilt per zone (px/full-width)
+
+        col_idx = _np.arange(W, dtype=_np.float32)[_np.newaxis, :]  # (1, W)
+        row_idx = _np.arange(H, dtype=_np.float32)[:, _np.newaxis]  # (H, 1)
+
+        # ── (2) Zone smoothing ─────────────────────────────────────────────────
+        sigma    = float(zone_smooth_sigma)
+        smooth_r = _gf(adj_r, sigma=sigma, mode="reflect")
+        smooth_g = _gf(adj_g, sigma=sigma, mode="reflect")
+        smooth_b = _gf(adj_b, sigma=sigma, mode="reflect")
+
+        splits_full = _np.concatenate([[0.0], raw_splits, [float(H)]])
+        blend       = float(smooth_blend_frac)
+
+        for zone_i in range(n_zones):
+            y_lo  = splits_full[zone_i]
+            y_hi  = splits_full[zone_i + 1]
+            tilt  = tilt_px[zone_i] / W        # slope: px shift per pixel of x
+            tilt_adj = col_idx * tilt           # (1, W) y-shift per column
+            mask  = (row_idx >= (y_lo + tilt_adj)) & (row_idx < (y_hi + tilt_adj))
+            adj_r = _np.where(mask, adj_r * (1.0 - blend) + smooth_r * blend, adj_r)
+            adj_g = _np.where(mask, adj_g * (1.0 - blend) + smooth_g * blend, adj_g)
+            adj_b = _np.where(mask, adj_b * (1.0 - blend) + smooth_b * blend, adj_b)
+
+        # ── (3) Boundary lines ─────────────────────────────────────────────────
+        lo      = float(line_opacity)
+        half_lw = max(1, line_width // 2)
+
+        for split_y in raw_splits:
+            y_int     = int(round(float(split_y)))
+            y_lo_draw = max(0, y_int - half_lw)
+            y_hi_draw = min(H, y_int + half_lw + 1)
+            neigh_lo  = max(0, y_int - 4)
+            neigh_hi  = min(H, y_int + 5)
+            # Boundary color: local neighborhood mean, darkened
+            line_r    = adj_r[neigh_lo:neigh_hi, :].mean(axis=0) * 0.85
+            line_g    = adj_g[neigh_lo:neigh_hi, :].mean(axis=0) * 0.85
+            line_b    = adj_b[neigh_lo:neigh_hi, :].mean(axis=0) * 0.85
+            adj_r[y_lo_draw:y_hi_draw, :] = (
+                adj_r[y_lo_draw:y_hi_draw, :] * (1.0 - lo) + line_r * lo)
+            adj_g[y_lo_draw:y_hi_draw, :] = (
+                adj_g[y_lo_draw:y_hi_draw, :] * (1.0 - lo) + line_g * lo)
+            adj_b[y_lo_draw:y_hi_draw, :] = (
+                adj_b[y_lo_draw:y_hi_draw, :] * (1.0 - lo) + line_b * lo)
+
+        # ── (4) Coastal palette shift ──────────────────────────────────────────
+        ps  = float(palette_shift)
+        lb  = float(luminosity_boost)
+
+        # Perceptual luminance before palette shift
+        lum = 0.2126 * adj_r + 0.7152 * adj_g + 0.0722 * adj_b
+
+        # Luminosity lift: boost brightness toward white
+        adj_r = _np.clip(adj_r + lb * (1.0 - adj_r), 0.0, 1.0)
+        adj_g = _np.clip(adj_g + lb * (1.0 - adj_g), 0.0, 1.0)
+        adj_b = _np.clip(adj_b + lb * (1.0 - adj_b), 0.0, 1.0)
+
+        # Shadow cooling: shift dark regions toward Pacific blue-cool
+        shadow_w = _np.clip((0.45 - lum) / 0.45, 0.0, 1.0) * ps
+        adj_r    = _np.clip(adj_r - shadow_w * 0.08, 0.0, 1.0)
+        adj_b    = _np.clip(adj_b + shadow_w * 0.06, 0.0, 1.0)
+
+        # Mild global desaturation (sun-bleached coastal look)
+        desat = 0.15 * ps
+        lum2  = 0.2126 * adj_r + 0.7152 * adj_g + 0.0722 * adj_b
+        adj_r = _np.clip(adj_r * (1.0 - desat) + lum2 * desat, 0.0, 1.0)
+        adj_g = _np.clip(adj_g * (1.0 - desat) + lum2 * desat, 0.0, 1.0)
+        adj_b = _np.clip(adj_b * (1.0 - desat) + lum2 * desat, 0.0, 1.0)
+
+        # ── (5) Composite ──────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + adj_r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + adj_g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + adj_b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Richard Diebenkorn Ocean Park pass complete.")

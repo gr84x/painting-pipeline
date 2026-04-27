@@ -215,6 +215,7 @@ EXPECTED_ARTISTS = [
     "mark_rothko",
     "wassily_kandinsky",
     "lucian_freud",
+    "richard_diebenkorn",
 ]
 
 
@@ -29248,3 +29249,84 @@ def test_lucian_freud_in_list_artists():
     """Session 215: lucian_freud must appear in list_artists()."""
     assert "lucian_freud" in list_artists(), (
         "lucian_freud must appear in list_artists()")
+
+
+# ── Session 216: Richard Diebenkorn ───────────────────────────────────────
+
+
+def test_richard_diebenkorn_in_catalog():
+    """Session 216: richard_diebenkorn must be present in CATALOG."""
+    assert "richard_diebenkorn" in CATALOG, "richard_diebenkorn not found in CATALOG"
+
+
+def test_richard_diebenkorn_artist_name():
+    """Session 216: artist field must equal 'Richard Diebenkorn'."""
+    s = get_style("richard_diebenkorn")
+    assert s.artist == "Richard Diebenkorn", (
+        f"Expected 'Richard Diebenkorn'; got {s.artist!r}")
+
+
+def test_richard_diebenkorn_movement():
+    """Session 216: movement must reference Bay Area Figurative or Color Field."""
+    s = get_style("richard_diebenkorn")
+    assert (
+        "Bay Area" in s.movement
+        or "Color Field" in s.movement
+        or "Figurative" in s.movement
+    ), f"richard_diebenkorn movement unexpected: {s.movement!r}"
+
+
+def test_richard_diebenkorn_nationality():
+    """Session 216: nationality must be American."""
+    s = get_style("richard_diebenkorn")
+    assert "American" in s.nationality, (
+        f"richard_diebenkorn nationality should be American; got {s.nationality!r}")
+
+
+def test_richard_diebenkorn_palette_length():
+    """Session 216: richard_diebenkorn must have at least 5 palette colors."""
+    s = get_style("richard_diebenkorn")
+    assert len(s.palette) >= 5, (
+        f"richard_diebenkorn palette should have >= 5 colors; got {len(s.palette)}")
+
+
+def test_richard_diebenkorn_palette_in_range():
+    """Session 216: all palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("richard_diebenkorn")
+    for rgb in s.palette:
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"richard_diebenkorn palette channel {ch} out of [0, 1]")
+
+
+def test_richard_diebenkorn_no_crackle():
+    """Session 216: richard_diebenkorn crackle must be False."""
+    s = get_style("richard_diebenkorn")
+    assert s.crackle is False, "richard_diebenkorn crackle must be False"
+
+
+def test_richard_diebenkorn_famous_works_count():
+    """Session 216: richard_diebenkorn must have at least 6 famous works listed."""
+    s = get_style("richard_diebenkorn")
+    assert len(s.famous_works) >= 6, (
+        f"richard_diebenkorn should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_richard_diebenkorn_inspiration_references_pass():
+    """Session 216: inspiration must reference diebenkorn_ocean_park_pass."""
+    s = get_style("richard_diebenkorn")
+    assert "diebenkorn_ocean_park_pass" in s.inspiration, (
+        "richard_diebenkorn inspiration must mention diebenkorn_ocean_park_pass")
+
+
+def test_richard_diebenkorn_inspiration_references_127th():
+    """Session 216: inspiration must explicitly name the 127th distinct mode."""
+    s = get_style("richard_diebenkorn")
+    assert "127" in s.inspiration or "TWENTY-SEVENTH" in s.inspiration, (
+        "richard_diebenkorn inspiration must reference ONE HUNDRED AND TWENTY-SEVENTH mode")
+
+
+def test_richard_diebenkorn_in_list_artists():
+    """Session 216: richard_diebenkorn must appear in list_artists()."""
+    assert "richard_diebenkorn" in list_artists(), (
+        "richard_diebenkorn must appear in list_artists()")

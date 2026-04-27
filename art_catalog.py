@@ -19136,6 +19136,133 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Richard Diebenkorn ────────────────────────────────────────────────────
+    "richard_diebenkorn": ArtStyle(
+        artist="Richard Diebenkorn",
+        movement="Bay Area Figurative / Color Field",
+        nationality="American",
+        period="1922–1993",
+        palette=[
+            (0.82, 0.80, 0.72),   # warm chalk white — light-flooded wall
+            (0.56, 0.70, 0.76),   # Pacific blue — clear coastal sky
+            (0.64, 0.74, 0.62),   # dusty sage — sun-bleached foliage
+            (0.86, 0.78, 0.58),   # sandy ochre — beach and sand tones
+            (0.68, 0.58, 0.52),   # muted terra cotta — warm earth shadow
+            (0.82, 0.85, 0.88),   # cool blue-gray — studio haze
+            (0.42, 0.50, 0.46),   # deep slate — quiet anchoring dark
+        ],
+        ground_color=(0.88, 0.86, 0.78),   # warm off-white linen ground
+        stroke_size=28.0,
+        wet_blend=0.55,
+        edge_softness=0.70,
+        jitter=0.12,
+        glazing=(0.78, 0.85, 0.88),   # cool coastal glaze
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Richard Diebenkorn's Ocean Park series (1967–1988) represents one of "
+            "American abstraction's most sustained investigations into light, space, "
+            "and color. Working from his Santa Monica studio near the Pacific, "
+            "Diebenkorn developed a singular language of horizontal and diagonal "
+            "compositional zones, thin ruled or scraped boundary lines, and muted "
+            "coastal color harmonies that shimmer with accumulated surface history.\n\n"
+            "His process was geological in its patience. Diebenkorn would work a "
+            "canvas for weeks or months, building up layers of thinly applied paint, "
+            "wiping and scraping back, repainting, repositioning zones. The finished "
+            "surface reveals its history: ghost lines from earlier configurations "
+            "bleed through translucent upper layers, creating palimpsest depth that "
+            "rewards sustained looking. X-ray photographs of his Ocean Park works "
+            "reveal dramatically different underlying compositions.\n\n"
+            "The compositional architecture is deceptively simple: horizontal bands "
+            "dominate (evoking the Pacific horizon), interrupted by diagonal scrapes "
+            "and thin ruled lines that suggest window frames, interior geometry, or "
+            "the angle of light through Venetian blinds. These thin lines — drawn "
+            "with charcoal, incised with a palette knife, or painted with a fine "
+            "brush — are the structural skeleton around which vast color fields breathe.\n\n"
+            "Color is Diebenkorn's primary subject. His Ocean Park palette is coastal "
+            "and specific: warm sandy whites, Pacific blues that range from clear "
+            "cerulean to hazy overcast gray, dusty sage greens, sandy ochres, and "
+            "occasional warm terra cotta that anchors the temperature contrast. "
+            "He described this palette as the specific light of Southern California — "
+            "not Mediterranean heat but the gentle, diffused light of marine layer "
+            "mornings and clear afternoon glare off the Pacific.\n\n"
+            "The color fields themselves appear simple but are chromatically rich. "
+            "Each zone receives multiple overpaintings; warm underpaintings peek "
+            "through cool scumbles; a field of blue carries traces of green, ochre, "
+            "and gray in its depths. The overall effect is luminous unity with "
+            "subterranean chromatic complexity.\n\n"
+            "Diebenkorn worked with the canvas horizontal on the floor for large "
+            "pours and washes, then vertical on the wall for drawing and refinement. "
+            "He used wide housepainting brushes for broad passages, palette knives "
+            "for scraping, and ruling tools pressed against the frame for the "
+            "characteristic thin boundary lines.\n\n"
+            "ALGORITHM: diebenkorn_ocean_park_pass() implements this through five stages. "
+            "First, zone segmentation: n_zones horizontal split-points are placed "
+            "across the canvas height with slight diagonal tilt, dividing the image "
+            "into compositional bands. Second, zone smoothing: within each zone, "
+            "strong Gaussian blurring (zone_smooth_sigma controls radius) unifies "
+            "tonal variation into open color fields, blended at smooth_blend_frac "
+            "with the original detail. Third, boundary lines: at each zone boundary, "
+            "thin (line_width pixel) lines are composited with a color derived from "
+            "the local neighborhood at line_opacity strength — representing "
+            "Diebenkorn's characteristic ruled or scraped boundary marks. Fourth, "
+            "coastal palette shift: a cool color adjustment lifts luminosity by "
+            "luminosity_boost, nudges dark regions toward Diebenkorn's cool Pacific "
+            "tones (reducing R, lifting B in shadows), and applies a mild global "
+            "desaturation at palette_shift strength. Fifth, composite at opacity.\n\n"
+            "Recommended pipeline for Ocean Park aesthetic:\n"
+            "tone_ground() with warm off-white (0.88, 0.86, 0.78).\n"
+            "underpainting() broad washes (stroke_size=42).\n"
+            "block_in() with wide strokes (stroke_size=30).\n"
+            "diebenkorn_ocean_park_pass(n_zones=5, zone_smooth_sigma=28.0, "
+            "smooth_blend_frac=0.55, line_width=2, line_opacity=0.62, "
+            "palette_shift=0.30, luminosity_boost=0.07, opacity=0.65) as the primary pass.\n"
+            "glazing_pass() with cool coastal tint."
+        ),
+        famous_works=[
+            ("Ocean Park No. 67", "1973"),
+            ("Ocean Park No. 83", "1975"),
+            ("Ocean Park No. 115", "1979"),
+            ("Ocean Park No. 122", "1980"),
+            ("Ocean Park No. 27", "1970"),
+            ("Woman on a Porch", "1958"),
+            ("Cityscape I", "1963"),
+            ("Berkeley No. 22", "1954"),
+        ],
+        inspiration=(
+            "diebenkorn_ocean_park_pass — ONE HUNDRED AND TWENTY-SEVENTH distinct mode "
+            "(session 216).\n\n"
+            "Implements Diebenkorn's Ocean Park compositional language: horizontal zone "
+            "segmentation, open color-field smoothing within zones, thin ruled boundary "
+            "lines, and a coastal palette shift that lifts luminosity and cools shadows.\n\n"
+            "Parameters and defaults:\n"
+            "  n_zones              = 5      # number of horizontal compositional zones\n"
+            "  zone_smooth_sigma    = 28.0   # Gaussian sigma for within-zone smoothing\n"
+            "  smooth_blend_frac    = 0.55   # blend of smoothed vs original within zone\n"
+            "  line_width           = 2      # boundary line thickness in pixels\n"
+            "  line_opacity         = 0.62   # boundary line composite opacity\n"
+            "  palette_shift        = 0.30   # coastal desaturation / cool-shift strength\n"
+            "  luminosity_boost     = 0.07   # global luminosity lift (airy Pacific light)\n"
+            "  opacity              = 0.65   # final composite opacity vs original canvas\n\n"
+            "Stage 1 — ZONE SEGMENTATION:\n"
+            "  Generate n_zones-1 sorted split y-positions in range [0.12*H, 0.88*H].\n"
+            "  Apply a small per-zone diagonal tilt (slope ~0.04 px/px) to simulate\n"
+            "  Diebenkorn's near-horizontal but subtly angled compositional bands.\n\n"
+            "Stage 2 — ZONE SMOOTHING:\n"
+            "  Apply gaussian_filter(canvas_rgb, sigma=zone_smooth_sigma) globally.\n"
+            "  Within each zone mask: adj = orig*(1-blend) + smooth*blend.\n\n"
+            "Stage 3 — BOUNDARY LINES:\n"
+            "  At each split_y, composite a strip of line_width pixels with a color\n"
+            "  = local neighborhood mean * 0.85 at line_opacity strength.\n\n"
+            "Stage 4 — COASTAL PALETTE SHIFT:\n"
+            "  Luminosity lift: adj += luminosity_boost * (1 - adj) per channel.\n"
+            "  Shadow cooling (lum < 0.45): R down, B up by palette_shift*(0.45-lum)/0.45.\n"
+            "  Mild desaturation: blend toward lum*[1,1,1] at 0.15*palette_shift.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + adj*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 

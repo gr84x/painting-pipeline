@@ -18949,3 +18949,87 @@ def test_s215_freud_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 216: Richard Diebenkorn — diebenkorn_ocean_park_pass ──────────
+
+
+def test_s216_diebenkorn_pass_exists():
+    """Session 216: Painter must expose diebenkorn_ocean_park_pass."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "diebenkorn_ocean_park_pass"), (
+        "Painter missing diebenkorn_ocean_park_pass method")
+
+
+def test_s216_diebenkorn_pass_runs():
+    """Session 216: diebenkorn_ocean_park_pass must execute without exception on a 64x64 canvas."""
+    p = _make_small_painter(64, 64)
+    p.diebenkorn_ocean_park_pass()
+
+
+def test_s216_diebenkorn_pass_modifies_canvas():
+    """Session 216: diebenkorn_ocean_park_pass must change at least one pixel value."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(216)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(50, 180, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.diebenkorn_ocean_park_pass(opacity=0.65)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "diebenkorn_ocean_park_pass must change canvas pixels")
+
+
+def test_s216_diebenkorn_pass_zero_opacity_no_change():
+    """Session 216: diebenkorn_ocean_park_pass at opacity=0.0 must not change any pixels."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(2160)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(20, 200, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.diebenkorn_ocean_park_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "diebenkorn_ocean_park_pass at opacity=0.0 must not change any pixels")
+
+
+def test_s216_diebenkorn_in_catalog():
+    """Session 216: richard_diebenkorn must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "richard_diebenkorn" in CATALOG, "richard_diebenkorn missing from CATALOG"
+    s = get_style("richard_diebenkorn")
+    assert (
+        "Bay Area" in s.movement
+        or "Color Field" in s.movement
+        or "Figurative" in s.movement
+    ), f"richard_diebenkorn movement unexpected: {s.movement!r}"
+    assert s.crackle is False, "richard_diebenkorn crackle must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
