@@ -18380,3 +18380,90 @@ def test_s209_albers_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 210 — Hans Hofmann: hofmann_push_pull_pass (121st distinct mode) ─
+
+def test_hofmann_push_pull_pass_exists():
+    """Session 210: hofmann_push_pull_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "hofmann_push_pull_pass"), (
+        "Painter must have a hofmann_push_pull_pass method")
+    assert callable(getattr(Painter, "hofmann_push_pull_pass"))
+
+
+def test_hofmann_push_pull_pass_runs():
+    """Session 210: hofmann_push_pull_pass must run without exception on a 64×64 canvas."""
+    p = _make_small_painter(64, 64)
+    p.hofmann_push_pull_pass(push_sigma=4.0, push_strength=0.20, pull_strength=0.15, opacity=0.50)
+
+
+def test_hofmann_push_pull_pass_modifies_canvas():
+    """Session 210: hofmann_push_pull_pass must visibly change the canvas when applied to a warm-cool reference."""
+    import numpy as _np
+    from PIL import Image
+    # Build a reference with a strong warm-cool split: left half orange, right half blue
+    ref_arr = _np.zeros((64, 64, 3), dtype=_np.uint8)
+    ref_arr[:, :32, 0] = 220   # red channel — warm left
+    ref_arr[:, 32:, 2] = 220   # blue channel — cool right
+    ref = Image.fromarray(ref_arr, "RGB")
+
+    p = _make_small_painter(64, 64)
+    p.underpainting(ref, stroke_size=16, n_strokes=50)
+    before = _canvas_bytes(p)
+    p.hofmann_push_pull_pass(push_sigma=4.0, push_strength=0.28, pull_strength=0.22, opacity=0.65)
+    after = _canvas_bytes(p)
+    assert before != after, "hofmann_push_pull_pass must modify the canvas"
+
+
+def test_hofmann_push_pull_pass_zero_opacity_noop():
+    """Session 210: hofmann_push_pull_pass with opacity=0.0 must not change any pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    before = _canvas_bytes(p)
+    p.hofmann_push_pull_pass(push_sigma=4.0, push_strength=0.25, pull_strength=0.20, opacity=0.0)
+    after = _canvas_bytes(p)
+    assert before == after, (
+        "hofmann_push_pull_pass with opacity=0.0 must not change any pixels")
+
+
+def test_hofmann_push_pull_pass_deterministic():
+    """Session 210: hofmann_push_pull_pass must produce identical output on repeated calls."""
+    import numpy as _np
+    from PIL import Image
+    ref_arr = _np.zeros((64, 64, 3), dtype=_np.uint8)
+    ref_arr[:, :32, 0] = 200
+    ref_arr[:, 32:, 2] = 200
+    ref = Image.fromarray(ref_arr, "RGB")
+
+    p1 = _make_small_painter(64, 64)
+    p1.underpainting(ref, stroke_size=16, n_strokes=50)
+    p1.hofmann_push_pull_pass(push_sigma=5.0, push_strength=0.25, pull_strength=0.20, opacity=0.55)
+    out1 = _np.frombuffer(
+        p1.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    p2 = _make_small_painter(64, 64)
+    p2.underpainting(ref, stroke_size=16, n_strokes=50)
+    p2.hofmann_push_pull_pass(push_sigma=5.0, push_strength=0.25, pull_strength=0.20, opacity=0.55)
+    out2 = _np.frombuffer(
+        p2.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    assert _np.array_equal(out1, out2), (
+        "hofmann_push_pull_pass must produce identical output given identical inputs")
+
+
+def test_s210_hofmann_in_catalog():
+    """Session 210: hans_hofmann must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "hans_hofmann" in CATALOG, "hans_hofmann missing from CATALOG"
+    s = get_style("hans_hofmann")
+    assert "Abstract" in s.movement or "abstract" in s.movement.lower(), (
+        f"hans_hofmann movement should reference Abstract Expressionism; got {s.movement!r}")
+    assert s.chromatic_split is False, "hans_hofmann chromatic_split must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
