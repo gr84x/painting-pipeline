@@ -206,6 +206,9 @@ EXPECTED_ARTISTS = [
     "henri_rousseau",
     "hopper",
     "alphonse_mucha",
+    "robert_delaunay",
+    "franz_kline",
+    "josef_albers",
 ]
 
 
@@ -28611,3 +28614,123 @@ def test_franz_kline_inspiration_references_119th():
     s = get_style("franz_kline")
     assert "NINETEENTH" in s.inspiration or "119" in s.inspiration, (
         "franz_kline inspiration must reference ONE HUNDRED AND NINETEENTH mode")
+
+
+# ── Session 209: Josef Albers — albers_homage_square_pass (120th mode) ────────
+
+def test_josef_albers_in_catalog():
+    """Session 209: josef_albers must be present in CATALOG."""
+    assert "josef_albers" in CATALOG, "josef_albers missing from CATALOG"
+
+
+def test_josef_albers_style_retrieval():
+    """Session 209: get_style('josef_albers') must return an ArtStyle without raising."""
+    s = get_style("josef_albers")
+    assert s is not None
+
+
+def test_josef_albers_artist_name():
+    """Session 209: artist name must be 'Josef Albers'."""
+    s = get_style("josef_albers")
+    assert s.artist == "Josef Albers", (
+        f"josef_albers artist should be 'Josef Albers'; got {s.artist!r}")
+
+
+def test_josef_albers_movement():
+    """Session 209: movement must reference Bauhaus or Hard-Edge."""
+    s = get_style("josef_albers")
+    assert "Bauhaus" in s.movement or "Hard" in s.movement or "Concrete" in s.movement, (
+        f"josef_albers movement should reference Bauhaus/Hard-Edge; got {s.movement!r}")
+
+
+def test_josef_albers_nationality():
+    """Session 209: nationality must reference German or American."""
+    s = get_style("josef_albers")
+    assert "German" in s.nationality or "American" in s.nationality, (
+        f"josef_albers nationality should be German-American; got {s.nationality!r}")
+
+
+def test_josef_albers_period():
+    """Session 209: period must reference 1920 and 1976."""
+    s = get_style("josef_albers")
+    assert "1920" in s.period or "1976" in s.period, (
+        f"josef_albers period should reference 1920 or 1976; got {s.period!r}")
+
+
+def test_josef_albers_palette_count():
+    """Session 209: palette must have at least 6 colours."""
+    s = get_style("josef_albers")
+    assert len(s.palette) >= 6, (
+        f"josef_albers should have >= 6 palette colours; got {len(s.palette)}")
+
+
+def test_josef_albers_palette_valid():
+    """Session 209: all palette RGB values must be in [0, 1]."""
+    s = get_style("josef_albers")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+def test_josef_albers_no_glazing():
+    """Session 209: Albers used no glazing — glazing must be None."""
+    s = get_style("josef_albers")
+    assert s.glazing is None, (
+        f"josef_albers glazing should be None; got {s.glazing!r}")
+
+
+def test_josef_albers_no_crackle():
+    """Session 209: crackle must be False — Masonite panels don't crack."""
+    s = get_style("josef_albers")
+    assert s.crackle is False, "josef_albers crackle must be False"
+
+
+def test_josef_albers_chromatic_split_false():
+    """Session 209: chromatic_split must be False."""
+    s = get_style("josef_albers")
+    assert s.chromatic_split is False, "josef_albers chromatic_split must be False"
+
+
+def test_josef_albers_low_wet_blend():
+    """Session 209: wet_blend must be very low — palette knife application, no blending."""
+    s = get_style("josef_albers")
+    assert s.wet_blend < 0.10, (
+        f"josef_albers wet_blend should be very low (< 0.10); got {s.wet_blend}")
+
+
+def test_josef_albers_homage_in_works():
+    """Session 209: 'Homage' must appear in famous_works."""
+    s = get_style("josef_albers")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Homage" in t for t in titles), (
+        f"josef_albers famous_works must include 'Homage to the Square'; got {titles}")
+
+
+def test_josef_albers_gate_in_works():
+    """Session 209: 'Gate' must appear in famous_works."""
+    s = get_style("josef_albers")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Gate" in t for t in titles), (
+        f"josef_albers famous_works must include 'Gate'; got {titles}")
+
+
+def test_josef_albers_in_list_artists():
+    """Session 209: josef_albers must appear in list_artists()."""
+    from art_catalog import list_artists
+    assert "josef_albers" in list_artists(), (
+        "josef_albers must appear in list_artists()")
+
+
+def test_josef_albers_inspiration_references_pass():
+    """Session 209: inspiration must reference albers_homage_square_pass."""
+    s = get_style("josef_albers")
+    assert "albers_homage_square_pass" in s.inspiration, (
+        "josef_albers inspiration must mention albers_homage_square_pass")
+
+
+def test_josef_albers_inspiration_references_120th():
+    """Session 209: inspiration must explicitly name the 120th distinct mode."""
+    s = get_style("josef_albers")
+    assert "TWENTIETH" in s.inspiration or "120" in s.inspiration, (
+        "josef_albers inspiration must reference ONE HUNDRED AND TWENTIETH mode")
