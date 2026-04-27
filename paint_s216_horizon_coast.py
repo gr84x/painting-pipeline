@@ -81,105 +81,95 @@ def build_horizon_coast_reference(w: int, h: int) -> Image.Image:
     with a diagonal pier structure for Diebenkorn Ocean Park rendering.
     """
     arr = np.zeros((h, w, 3), dtype=np.float32)
-    xx  = np.linspace(0.0, 1.0, w)[np.newaxis, :]   # (1, W)
-    yy  = np.linspace(0.0, 1.0, h)[:, np.newaxis]   # (H, 1)
+    yf  = np.linspace(0.0, 1.0, h)   # (H,) — fractional y per row
+    xf  = np.linspace(0.0, 1.0, w)   # (W,) — fractional x per col
+    yy  = yf[:, np.newaxis]           # (H, 1)  — used for 2-D spatial ops
+    xx  = xf[np.newaxis, :]           # (1, W)
 
-    def _blend(base, color, alpha):
-        c = np.array(color, dtype=np.float32)
-        return base + (c - base) * np.clip(alpha, 0.0, 1.0)[..., np.newaxis]
+    # _blend: alpha must be (H, W) float for broadcasting against arr (H, W, 3)
+    def _blend(base, color, alpha_hw):
+        c = np.array(color, dtype=np.float32)  # (3,)
+        a = np.clip(alpha_hw, 0.0, 1.0)[:, :, np.newaxis]  # (H, W, 1)
+        return base + (c - base) * a
 
     # ── Zone boundaries (y fractions) ─────────────────────────────────────────
-    z_sand_top   = 0.0
-    z_sand_bot   = 0.62   # sand occupies lower 38% of canvas
-    z_water_bot  = 0.40   # mid-water band
-    z_ocean_bot  = 0.30   # deep ocean band
-    # sky: 0.0 → 0.30
+    z_ocean_bot = 0.30   # sky  : 0.00 → 0.30
+    z_water_bot = 0.40   # ocean: 0.30 → 0.40
+    z_sand_bot  = 0.62   # water: 0.40 → 0.62  |  sand: 0.62 → 1.00
 
-    # ── Sky zone (0.0 → z_ocean_bot) ─────────────────────────────────────────
-    sky_top  = np.array([0.86, 0.88, 0.92], dtype=np.float32)   # bleached zenith
-    sky_bot  = np.array([0.76, 0.82, 0.88], dtype=np.float32)   # horizon haze
-    sky_grad = np.clip(yy / z_ocean_bot, 0.0, 1.0)
-    sky_col  = sky_top[np.newaxis, np.newaxis, :] * (1.0 - sky_grad[..., np.newaxis]) + \
-               sky_bot[np.newaxis, np.newaxis, :] * sky_grad[..., np.newaxis]
-    sky_mask = np.clip(1.0 - (yy - z_ocean_bot) / 0.04, 0.0, 1.0)
-    arr = _blend(arr, [0.0, 0.0, 0.0], sky_mask * 0.0)  # initialize
-    arr += sky_col * (yy < z_ocean_bot)
+    r_ocean = int(z_ocean_bot * h)
+    r_water = int(z_water_bot * h)
+    r_sand  = int(z_sand_bot  * h)
 
-    # ── Deep ocean band (z_ocean_bot → z_water_bot) ───────────────────────────
-    ocean_col  = np.array([0.46, 0.62, 0.72], dtype=np.float32)
-    ocean_mask = (yy >= z_ocean_bot) & (yy < z_water_bot)
-    arr += ocean_col * ocean_mask
+    # ── Sky gradient (rows 0 → r_ocean) ──────────────────────────────────────
+    t_sky = np.linspace(0.0, 1.0, max(r_ocean, 1))[:, np.newaxis]  # (r_ocean, 1)
+    arr[:r_ocean, :, 0] = (0.86 + (0.76 - 0.86) * t_sky)   # broadcasts over W
+    arr[:r_ocean, :, 1] = (0.88 + (0.82 - 0.88) * t_sky)
+    arr[:r_ocean, :, 2] = (0.92 + (0.88 - 0.92) * t_sky)
 
-    # ── Mid-water band (z_water_bot → z_sand_bot) ────────────────────────────
-    water_top = np.array([0.60, 0.74, 0.80], dtype=np.float32)
-    water_bot = np.array([0.70, 0.80, 0.76], dtype=np.float32)  # warmer near sand
-    water_frac = np.clip((yy - z_water_bot) / (z_sand_bot - z_water_bot), 0.0, 1.0)
-    water_col  = water_top * (1.0 - water_frac) + water_bot * water_frac
-    water_mask = (yy >= z_water_bot) & (yy < z_sand_bot)
-    arr += water_col * water_mask
+    # ── Deep ocean band (rows r_ocean → r_water) ──────────────────────────────
+    arr[r_ocean:r_water, :, :] = [0.46, 0.62, 0.72]
 
-    # ── Sand / foreground (z_sand_bot → 1.0) ─────────────────────────────────
-    sand_top = np.array([0.76, 0.74, 0.62], dtype=np.float32)   # wet sand at tide line
-    sand_bot = np.array([0.88, 0.82, 0.64], dtype=np.float32)   # dry sand foreground
-    sand_frac = np.clip((yy - z_sand_bot) / (1.0 - z_sand_bot), 0.0, 1.0)
-    sand_col  = sand_top * (1.0 - sand_frac) + sand_bot * sand_frac
-    sand_mask = (yy >= z_sand_bot)
-    arr += sand_col * sand_mask
+    # ── Mid-water gradient (rows r_water → r_sand) ───────────────────────────
+    n_water = max(r_sand - r_water, 1)
+    t_water = np.linspace(0.0, 1.0, n_water)[:, np.newaxis]
+    arr[r_water:r_sand, :, 0] = 0.60 + 0.10 * t_water
+    arr[r_water:r_sand, :, 1] = 0.74 + 0.06 * t_water
+    arr[r_water:r_sand, :, 2] = 0.80 - 0.04 * t_water
+
+    # ── Sand gradient (rows r_sand → h) ──────────────────────────────────────
+    n_sand = max(h - r_sand, 1)
+    t_sand = np.linspace(0.0, 1.0, n_sand)[:, np.newaxis]
+    arr[r_sand:, :, 0] = 0.76 + 0.12 * t_sand
+    arr[r_sand:, :, 1] = 0.74 + 0.08 * t_sand
+    arr[r_sand:, :, 2] = 0.62 + 0.02 * t_sand
 
     # ── Pier structure — diagonal from lower-left to mid-distance ─────────────
-    # Pier deck: a diagonal band, narrowing with perspective
-    # Pier goes from (0.04, 0.98) at bottom-left to (0.45, 0.48) at middle
-    def pier_x_at_y(y_frac):
-        """Return pier centerline x at given y_frac."""
-        # Linear perspective recession
-        t = np.clip((y_frac - 0.48) / (0.98 - 0.48), 0.0, 1.0)
-        return 0.04 + (0.45 - 0.04) * (1.0 - t)
+    # Pier centerline: from (x=0.04, y=0.98) to (x=0.45, y=0.48)
+    t_pier       = np.clip((yy - 0.48) / 0.50, 0.0, 1.0)   # (H, 1)
+    pier_cx      = 0.04 + (0.45 - 0.04) * (1.0 - t_pier)    # (H, 1)
+    pier_half_w  = 0.003 + 0.022 * t_pier                    # (H, 1) widens toward viewer
+    pier_dist_hw = np.abs(xx - pier_cx) / np.maximum(pier_half_w, 1e-4)  # (H, W)
+    pier_alpha   = np.clip(1.0 - pier_dist_hw, 0.0, 1.0) ** 0.7 * (yy >= 0.48)  # (H, W)
 
-    pier_center_x = pier_x_at_y(yy)          # (H, 1)
-    pier_width_frac = 0.003 + 0.022 * np.clip((yy - 0.48) / 0.50, 0.0, 1.0)  # widens nearer
-    pier_dist = np.abs(xx - pier_center_x) / np.maximum(pier_width_frac, 1e-4)
-    pier_alpha = np.clip(1.0 - pier_dist, 0.0, 1.0) ** 0.7 * (yy >= 0.48)
+    arr = _blend(arr, [0.62, 0.54, 0.46], pier_alpha * 0.85)
 
-    pier_color = np.array([0.62, 0.54, 0.46], dtype=np.float32)   # weathered timber
-    arr = _blend(arr, pier_color, pier_alpha * 0.85)
-
-    # Pier side shadow (underside, slightly darker cool)
-    pier_shadow_dist = np.abs(xx - (pier_center_x + pier_width_frac * 1.2)) / \
-                       np.maximum(pier_width_frac * 0.6, 1e-4)
-    pier_shadow_a = np.clip(1.0 - pier_shadow_dist, 0.0, 1.0) ** 1.2 * (yy >= 0.50)
-    arr = _blend(arr, [0.30, 0.34, 0.38], pier_shadow_a * 0.50)
+    # Pier shadow underside
+    pier_shad_cx  = pier_cx + pier_half_w * 1.2
+    pier_shad_hw  = np.abs(xx - pier_shad_cx) / np.maximum(pier_half_w * 0.6, 1e-4)
+    pier_shad_a   = np.clip(1.0 - pier_shad_hw, 0.0, 1.0) ** 1.2 * (yy >= 0.50)
+    arr = _blend(arr, [0.30, 0.34, 0.38], pier_shad_a * 0.50)
 
     # ── Pier shadow cast on water ─────────────────────────────────────────────
-    shadow_x_offset = 0.018   # shadow falls slightly right of pier in morning light
-    pier_shadow_water_dist = np.abs(
-        xx - (pier_center_x + shadow_x_offset)) / np.maximum(pier_width_frac * 0.8, 1e-4)
-    water_shadow_a = np.clip(1.0 - pier_shadow_water_dist, 0.0, 1.0) * \
-                     ((yy >= z_water_bot) & (yy < z_sand_bot))
-    arr = _blend(arr, [0.36, 0.46, 0.54], water_shadow_a * 0.55)
+    wshadow_cx  = pier_cx + 0.018
+    wshadow_hw  = np.abs(xx - wshadow_cx) / np.maximum(pier_half_w * 0.8, 1e-4)
+    wshadow_a   = (np.clip(1.0 - wshadow_hw, 0.0, 1.0)
+                   * ((yy >= z_water_bot) & (yy < z_sand_bot)))
+    arr = _blend(arr, [0.36, 0.46, 0.54], wshadow_a * 0.55)
 
-    # ── Horizon line accent — thin dark band at ocean/sky boundary ────────────
-    horizon_dist = np.abs(yy - z_ocean_bot)
-    horizon_a    = np.clip(1.0 - horizon_dist / 0.008, 0.0, 1.0) * 0.60
+    # ── Horizon line — thin dark accent at ocean/sky boundary ────────────────
+    horizon_a = np.clip(1.0 - np.abs(yy - z_ocean_bot) / 0.008, 0.0, 1.0) * 0.60
+    horizon_a = np.broadcast_to(horizon_a, (h, w)).copy()
     arr = _blend(arr, [0.34, 0.44, 0.52], horizon_a)
 
-    # ── Foam line — thin bright band at sand/water boundary ───────────────────
-    foam_dist = np.abs(yy - z_sand_bot)
-    foam_a    = np.clip(1.0 - foam_dist / 0.012, 0.0, 1.0) * 0.70
+    # ── Foam line — thin bright accent at sand/water boundary ─────────────────
+    foam_a = np.clip(1.0 - np.abs(yy - z_sand_bot) / 0.012, 0.0, 1.0) * 0.70
+    foam_a = np.broadcast_to(foam_a, (h, w)).copy()
     arr = _blend(arr, [0.92, 0.92, 0.92], foam_a)
 
-    # ── Contrail — single pale diagonal line in upper sky ─────────────────────
-    contrail_dist = np.abs((yy - 0.08) - (xx - 0.20) * 0.18)
-    contrail_a    = np.clip(1.0 - contrail_dist / 0.006, 0.0, 1.0) * \
-                    (yy < 0.22) * (xx > 0.18) * 0.35
+    # ── Contrail — single pale diagonal streak in upper sky ───────────────────
+    contrail_dist = np.abs((yy - 0.08) - (xx - 0.20) * 0.18)   # (H, W)
+    contrail_a    = (np.clip(1.0 - contrail_dist / 0.006, 0.0, 1.0)
+                     * (yy < 0.22) * (xx > 0.18) * 0.35)
     arr = _blend(arr, [0.92, 0.92, 0.94], contrail_a)
 
-    # ── Subtle sand texture (noise) ───────────────────────────────────────────
+    # ── Sand texture noise ────────────────────────────────────────────────────
     rng        = np.random.RandomState(216)
     sand_noise = rng.uniform(-0.03, 0.03, (h, w)).astype(np.float32)
-    sand_noise_mask = (yy >= z_sand_bot)[:, :, 0] if yy.shape[1] == 1 else (yy >= z_sand_bot)
-    arr[:, :, 0] += sand_noise * sand_noise_mask.squeeze()
-    arr[:, :, 1] += sand_noise * 0.8 * sand_noise_mask.squeeze()
-    arr[:, :, 2] += sand_noise * 0.5 * sand_noise_mask.squeeze()
+    sand_mask  = (yf >= z_sand_bot)[:, np.newaxis]   # (H, 1) → broadcasts to (H, W)
+    arr[:, :, 0] += sand_noise * sand_mask
+    arr[:, :, 1] += sand_noise * 0.8 * sand_mask
+    arr[:, :, 2] += sand_noise * 0.5 * sand_mask
 
     arr = np.clip(arr, 0.0, 1.0)
     arr_u8 = (arr * 255).astype(np.uint8)
