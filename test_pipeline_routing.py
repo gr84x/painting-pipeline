@@ -18742,3 +18742,108 @@ def test_s213_rothko_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 214 — kandinsky_synesthetic_composition_pass (125th distinct mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_kandinsky_synesthetic_composition_pass_exists():
+    """Session 214: kandinsky_synesthetic_composition_pass must exist as a method on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "kandinsky_synesthetic_composition_pass"), (
+        "Painter must have a kandinsky_synesthetic_composition_pass method")
+    assert callable(getattr(Painter, "kandinsky_synesthetic_composition_pass")), (
+        "kandinsky_synesthetic_composition_pass must be callable")
+
+
+def test_kandinsky_synesthetic_composition_pass_runs():
+    """Session 214: kandinsky_synesthetic_composition_pass must execute without error."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.22, 0.20, 0.18), texture_strength=0.0)
+    p.kandinsky_synesthetic_composition_pass(
+        n_chords=6, chord_radius=20, chord_strength=0.62,
+        ring_alpha=0.45, opacity=0.76)
+
+
+def test_kandinsky_synesthetic_composition_pass_modifies_canvas():
+    """Session 214: kandinsky_synesthetic_composition_pass must visibly change a coloured canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    buf = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    for row in range(64):
+        val = int(row * 4)
+        buf[row, :, 2] = val
+        buf[row, :, 1] = 255 - val
+        buf[row, :, 0] = 80
+        buf[row, :, 3] = 255
+    p.canvas.surface.get_data()[:] = buf.tobytes()
+    p.canvas.surface.mark_dirty()
+    before = bytes(p.canvas.surface.get_data())
+    p.kandinsky_synesthetic_composition_pass(
+        n_chords=6, chord_radius=20, chord_strength=0.62,
+        ring_alpha=0.45, opacity=0.76)
+    after = bytes(p.canvas.surface.get_data())
+    assert before != after, "kandinsky_synesthetic_composition_pass must modify the canvas"
+
+
+def test_kandinsky_synesthetic_composition_pass_zero_opacity_noop():
+    """Session 214: kandinsky_synesthetic_composition_pass with opacity=0.0 must not change pixels."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.22, 0.20, 0.18), texture_strength=0.0)
+    before = bytes(p.canvas.surface.get_data())
+    p.kandinsky_synesthetic_composition_pass(
+        n_chords=6, chord_radius=20, chord_strength=0.62,
+        ring_alpha=0.45, opacity=0.0)
+    after = bytes(p.canvas.surface.get_data())
+    assert before == after, (
+        "kandinsky_synesthetic_composition_pass with opacity=0.0 must not change any pixels")
+
+
+def test_kandinsky_synesthetic_composition_pass_deterministic():
+    """Session 214: kandinsky_synesthetic_composition_pass must produce identical output on repeated calls."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(214)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(20, 200, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p1 = _make_painter()
+    p1.kandinsky_synesthetic_composition_pass(
+        n_chords=6, chord_radius=20, chord_strength=0.62,
+        ring_alpha=0.45, opacity=0.76)
+    out1 = _np.frombuffer(
+        p1.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    p2 = _make_painter()
+    p2.kandinsky_synesthetic_composition_pass(
+        n_chords=6, chord_radius=20, chord_strength=0.62,
+        ring_alpha=0.45, opacity=0.76)
+    out2 = _np.frombuffer(
+        p2.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+
+    assert _np.array_equal(out1, out2), (
+        "kandinsky_synesthetic_composition_pass must produce identical output given identical inputs")
+
+
+def test_s214_kandinsky_in_catalog():
+    """Session 214: wassily_kandinsky must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "wassily_kandinsky" in CATALOG, "wassily_kandinsky missing from CATALOG"
+    s = get_style("wassily_kandinsky")
+    assert "Blaue" in s.movement or "Abstract" in s.movement or "Expressionism" in s.movement, (
+        f"wassily_kandinsky movement should reference Der Blaue Reiter or Abstract; got {s.movement!r}")
+    assert s.chromatic_split is False, "wassily_kandinsky chromatic_split must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
