@@ -18352,6 +18352,85 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Franz Kline ───────────────────────────────────────────────────────────
+    "franz_kline": ArtStyle(
+        artist="Franz Kline",
+        movement="Abstract Expressionism",
+        nationality="American",
+        period="1910–1962",
+        palette=[
+            (0.04, 0.04, 0.05),   # lamp black — primary gesture colour
+            (0.10, 0.09, 0.09),   # ivory black — secondary dark mass
+            (0.95, 0.94, 0.90),   # titanium white — exposed ground
+            (0.88, 0.86, 0.82),   # warm white — painted ground areas
+            (0.32, 0.30, 0.28),   # grey mid-tone — edge bleed zone
+            (0.58, 0.56, 0.53),   # silver grey — atmospheric haze
+        ],
+        ground_color=(0.92, 0.91, 0.88),    # raw white/cream — unprimed canvas feel
+        stroke_size=1.8,
+        wet_blend=0.15,                      # dry, architectural — little wet blending
+        edge_softness=0.12,                  # hard edges, bleed only at stroke borders
+        jitter=0.06,
+        glazing=(0.95, 0.94, 0.90),          # near-white unifying veil
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Kline's signature: vast calligraphic gestures of near-black on raw white canvas, "
+            "executed with wide house-painter's brushes at architectural scale.  "
+            "No colour — pure structural tension through mass, direction, and the energy of "
+            "the mark.  Edges are hard but bleed slightly into the raw ground.  "
+            "The white is as active as the black: unpainted areas carry as much weight as "
+            "the gestural slashes."
+        ),
+        famous_works=[
+            ("Chief",                   "1950"),
+            ("Mahoning",                "1956"),
+            ("Nijinsky (Petrushka)",    "1950"),
+            ("Wotan",                   "1950"),
+            ("New York, N.Y.",          "1953"),
+            ("Accent Grave",            "1955"),
+            ("Scudera",                 "1961"),
+        ],
+        inspiration=(
+            "Apply kline_gestural_slash_pass() as the signature effect "
+            "— ONE HUNDRED AND NINETEENTH DISTINCT MODE.\n\n"
+            "Algorithm: DIRECTIONAL CALLIGRAPHIC SWEEP FIELD — detect dominant "
+            "structural axes from the reference image's luminance gradient orientation "
+            "histogram (gradient magnitude-weighted, 36 bins over [0, π]).  "
+            "Pick the top-3 dominant angles.  Generate n_strokes mega-strokes: each "
+            "stroke follows one dominant axis (cycling mod 3) with angle_noise jitter.  "
+            "Each stroke is rendered as a swept rectangular brush footprint using "
+            "fully vectorised NumPy: for every canvas pixel, compute t_proj (signed "
+            "projection along the stroke axis) and d_perp (perpendicular distance).  "
+            "Pixels within [-half_length, half_length] along the axis and within "
+            "w_px × pressure_t of the centreline contribute to the stroke accumulator "
+            "with weight = pressure_t × (1 − d_perp / w_at_t).  "
+            "pressure_t = sin(π × t_norm) gives maximum width at the stroke's midpoint "
+            "and full taper at the tips.  After all strokes are accumulated, the "
+            "accumulator is Gaussian-blurred by bleed_sigma to simulate ink/paint bleed "
+            "at stroke edges.  The final stroke mask (clipped to [0,1]) is composited "
+            "over the canvas in near-black at the given opacity.\n\n"
+            "NOVEL: ONE HUNDRED AND NINETEENTH DISTINCT MODE.  First pass to use "
+            "DIRECTIONAL CALLIGRAPHIC SWEEP FIELD: discrete sweeping mega-strokes that "
+            "follow structural image axes derived from luminance gradient orientation, "
+            "rendered with variable-pressure rectangular brush footprints and edge bleed "
+            "scatter.  Prior passes: Delaunay (multi-disk radial ring fields — no "
+            "discrete strokes, no axis detection, no pressure modulation); Mucha (single "
+            "radial × angular joint field — no strokes); Hopper (linear dot-product "
+            "projection — no strokes, no sweeping action); Riley (sinusoidal wave "
+            "interference — no discrete marks); Munch (multi-source scalar distance "
+            "interference — purely per-pixel, no stroke accumulation).  The combination "
+            "of axis detection + discrete sweep strokes + pressure-modulated width + "
+            "edge bleed cannot be assembled from any prior single pass.\n\n"
+            "tone_ground() with warm white (0.92, 0.91, 0.88).\n"
+            "underpainting() for mass and structure (stroke_size=40).\n"
+            "kline_gestural_slash_pass(n_strokes=18, width_scale=0.06, "
+            "bleed_sigma=4.0, opacity=0.92) as the primary pass.\n\n"
+            "Use kline_gestural_slash_pass(n_strokes=18, width_scale=0.06, "
+            "bleed_sigma=4.0, opacity=0.92)."
+        ),
+    ),
+
 }
 
 

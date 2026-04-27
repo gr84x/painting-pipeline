@@ -18204,3 +18204,89 @@ def test_s207_delaunay_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session 208 — Franz Kline: kline_gestural_slash_pass (119th distinct mode)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_s208_kline_slash_pass_exists():
+    """Session 208: kline_gestural_slash_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "kline_gestural_slash_pass"), (
+        "Painter must have a kline_gestural_slash_pass method")
+
+
+def test_s208_kline_slash_pass_runs():
+    """Session 208: kline_gestural_slash_pass must run without exception on a 64×64 canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.91, 0.88), texture_strength=0.0)
+    p.kline_gestural_slash_pass(n_strokes=4, width_scale=0.08, bleed_sigma=2.0, opacity=0.80)
+
+
+def test_s208_kline_slash_pass_modifies_canvas():
+    """Session 208: kline_gestural_slash_pass must visibly change the canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.91, 0.88), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.kline_gestural_slash_pass(n_strokes=6, width_scale=0.10, bleed_sigma=2.0, opacity=0.88)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "kline_gestural_slash_pass must modify the canvas")
+
+
+def test_s208_kline_slash_pass_zero_opacity_no_change():
+    """Session 208: kline_gestural_slash_pass with opacity=0.0 must not change any pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.92, 0.91, 0.88), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.kline_gestural_slash_pass(n_strokes=6, width_scale=0.08, bleed_sigma=2.0, opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "kline_gestural_slash_pass with opacity=0.0 must not change any pixels")
+
+
+def test_s208_kline_slash_pass_custom_seed():
+    """Session 208: kline_gestural_slash_pass must accept and use a custom seed."""
+    import numpy as _np
+    p1 = _make_small_painter(64, 64)
+    p1.tone_ground((0.92, 0.91, 0.88), texture_strength=0.0)
+    p1.kline_gestural_slash_pass(n_strokes=5, width_scale=0.08, bleed_sigma=2.0, opacity=0.80, seed=99)
+    out1 = _np.frombuffer(
+        p1.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    p2 = _make_small_painter(64, 64)
+    p2.tone_ground((0.92, 0.91, 0.88), texture_strength=0.0)
+    p2.kline_gestural_slash_pass(n_strokes=5, width_scale=0.08, bleed_sigma=2.0, opacity=0.80, seed=99)
+    out2 = _np.frombuffer(
+        p2.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    assert _np.array_equal(out1, out2), (
+        "kline_gestural_slash_pass with same seed must produce identical output")
+
+
+def test_s208_kline_in_catalog():
+    """Session 208: franz_kline must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "franz_kline" in CATALOG, "franz_kline missing from CATALOG"
+    s = get_style("franz_kline")
+    assert "Expressionism" in s.movement or "expressionism" in s.movement.lower(), (
+        f"franz_kline movement should reference Abstract Expressionism; got {s.movement!r}")
+    assert s.chromatic_split is False, "franz_kline chromatic_split must be False"
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

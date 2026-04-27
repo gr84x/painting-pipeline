@@ -47148,3 +47148,163 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Delaunay Orphist Disk pass complete.")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Session 208 — Franz Kline: kline_gestural_slash_pass (119th distinct mode)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def kline_gestural_slash_pass(
+        self,
+        *,
+        n_strokes:    int   = 18,
+        width_scale:  float = 0.06,
+        bleed_sigma:  float = 4.0,
+        opacity:      float = 0.92,
+        stroke_color: tuple = (0.04, 0.04, 0.05),
+        angle_noise:  float = 0.18,
+        seed:         int   = 0,
+    ) -> None:
+        """
+        Session 208 — Franz Kline gestural slash pass (119th distinct mode).
+
+        DIRECTIONAL CALLIGRAPHIC SWEEP FIELD: dominant structural axes are
+        detected from the reference canvas's luminance gradient orientation
+        histogram (magnitude-weighted, 36 bins over [0, π]).  N mega-strokes
+        are swept along the top-3 axes with pressure-modulated width and
+        Gaussian edge bleed, producing Kline's monumental black gestures on
+        white ground.
+
+        Algorithm (fully vectorised):
+        (1) AXIS DETECTION: compute luminance from current canvas, take 2-D
+            gradient, build orientation histogram weighted by gradient magnitude.
+            Top-3 histogram bins supply the dominant angles θ₁, θ₂, θ₃.
+        (2) STROKE GENERATION: for stroke i, pick angle = θ_{i mod 3} +
+            uniform(−angle_noise, +angle_noise).  Random centre (cx, cy) and
+            length = uniform(0.35, 0.80) × min(W, H).  Stroke width =
+            width_scale × min(W, H) × uniform(0.7, 1.4).
+        (3) VECTORISED RENDER per stroke: for every canvas pixel, compute
+            t_proj (signed projection along stroke axis) and d_perp
+            (perpendicular distance).  Within [−half_len, +half_len] along
+            axis, pressure_t = sin(π × t_norm) ∈ [0, 1].  Pixels within
+            d_perp < w_px × pressure_t contribute weight =
+            pressure_t × (1 − d_perp / (w_at_t + ε)).
+        (4) ACCUMULATION + BLEED: stroke contributions accumulate into a
+            float32 mask, then Gaussian-blurred by bleed_sigma to simulate
+            paint bleed at stroke edges.
+        (5) COMPOSITE: near-black stroke_color composited over the canvas at
+            mask × opacity.
+
+        NOVEL: ONE HUNDRED AND NINETEENTH DISTINCT MODE.  First pass to use
+        DIRECTIONAL CALLIGRAPHIC SWEEP FIELD — discrete sweeping mega-strokes
+        following structural image axes derived from luminance gradient
+        orientation, with variable-pressure rectangular brush footprints and
+        edge bleed.  Prior passes (Delaunay, Mucha, Munch, Hopper, Riley) all
+        operate as per-pixel field functions; none accumulates discrete stroke
+        objects or uses axis detection + pressure modulation + bleed together.
+
+        n_strokes    : number of calligraphic mega-strokes
+        width_scale  : stroke width as fraction of min(W, H)
+        bleed_sigma  : Gaussian blur radius (pixels) for edge bleed simulation
+        opacity      : final composite opacity
+        stroke_color : RGB of the calligraphic marks (near-black for Kline)
+        angle_noise  : random angular jitter per stroke (radians)
+        seed         : RNG seed for reproducibility
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        rng = _np.random.default_rng(seed)
+        W, H = self.canvas.w, self.canvas.h
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Detect dominant structural axes from luminance gradient ────────
+        lum = 0.2126 * r0 + 0.7152 * g0 + 0.0722 * b0
+        gy, gx = _np.gradient(lum)
+        gmag   = _np.sqrt(gx ** 2 + gy ** 2)
+        gangle = _np.arctan2(gy, gx)
+        # Undirected orientation in [0, π)
+        orient = gangle % _np.pi
+
+        n_bins = 36
+        hist, bin_edges = _np.histogram(
+            orient.ravel(),
+            bins=n_bins,
+            range=(0.0, _np.pi),
+            weights=gmag.ravel(),
+        )
+        top_bins   = _np.argsort(hist)[::-1][:3]
+        dom_angles = [
+            float((bin_edges[b] + bin_edges[b + 1]) * 0.5) for b in top_bins
+        ]
+
+        # ── (2–4) Generate and render strokes ────────────────────────────────
+        min_dim   = float(min(W, H))
+        base_w_px = max(4.0, min_dim * float(width_scale))
+
+        # Pixel coordinate grids (broadcast-friendly)
+        xs_grid = _np.arange(W, dtype=_np.float32)[_np.newaxis, :]  # (1, W)
+        ys_grid = _np.arange(H, dtype=_np.float32)[:, _np.newaxis]  # (H, 1)
+
+        stroke_acc = _np.zeros((H, W), dtype=_np.float32)
+
+        for i in range(n_strokes):
+            angle   = dom_angles[i % len(dom_angles)] + rng.uniform(-float(angle_noise), float(angle_noise))
+            cx      = rng.uniform(0.10, 0.90) * W
+            cy      = rng.uniform(0.10, 0.90) * H
+            length  = rng.uniform(0.35, 0.80) * min_dim
+            w_px    = base_w_px * rng.uniform(0.7, 1.4)
+
+            dx = float(_np.cos(angle))
+            dy = float(_np.sin(angle))
+            # Perpendicular unit vector
+            px_u = -dy
+            py_u =  dx
+
+            half_len = length * 0.5
+
+            # Per-pixel projections (vectorised)
+            rel_x  = xs_grid - cx
+            rel_y  = ys_grid - cy
+            t_proj = rel_x * dx + rel_y * dy          # signed along-axis distance
+            d_perp = _np.abs(rel_x * px_u + rel_y * py_u)  # perp distance
+
+            in_len  = (_np.abs(t_proj) <= half_len)
+            t_norm  = (t_proj + half_len) / (2.0 * half_len + 1e-8)
+            pres    = _np.sin(_np.pi * _np.clip(t_norm, 0.0, 1.0))
+            w_at_t  = w_px * pres
+
+            in_wid  = (d_perp < (w_at_t + 0.5))
+            contrib = pres * _np.clip(1.0 - d_perp / (w_at_t + 1e-6), 0.0, 1.0)
+            stroke_acc += _np.where(in_len & in_wid, contrib * 0.55, 0.0)
+
+        # ── (4) Edge bleed ────────────────────────────────────────────────────
+        stroke_mask = _gf(_np.clip(stroke_acc, 0.0, 3.0), sigma=float(bleed_sigma))
+        stroke_mask = _np.clip(stroke_mask, 0.0, 1.0)
+
+        # ── (5) Composite ─────────────────────────────────────────────────────
+        sc_r = float(stroke_color[0])
+        sc_g = float(stroke_color[1])
+        sc_b = float(stroke_color[2])
+        op   = float(opacity)
+
+        alpha = stroke_mask * op
+        new_r = r0 * (1.0 - alpha) + sc_r * alpha
+        new_g = g0 * (1.0 - alpha) + sc_g * alpha
+        new_b = b0 * (1.0 - alpha) + sc_b * alpha
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Kline Gestural Slash pass complete.")

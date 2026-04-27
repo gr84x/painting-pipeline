@@ -28513,3 +28513,101 @@ def test_robert_delaunay_inspiration_references_118th():
     s = get_style("robert_delaunay")
     assert "EIGHTEENTH" in s.inspiration or "118" in s.inspiration, (
         "robert_delaunay inspiration must reference ONE HUNDRED AND EIGHTEENTH mode")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 208 — Franz Kline (119th distinct mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_franz_kline_in_catalog():
+    """Session 208: franz_kline must be present in CATALOG."""
+    assert "franz_kline" in CATALOG, "franz_kline missing from CATALOG"
+
+
+def test_franz_kline_artist_name():
+    """Session 208: artist field must be Franz Kline."""
+    s = get_style("franz_kline")
+    assert s.artist == "Franz Kline", (
+        f"franz_kline artist should be 'Franz Kline'; got {s.artist!r}")
+
+
+def test_franz_kline_movement():
+    """Session 208: movement should reference Abstract Expressionism."""
+    s = get_style("franz_kline")
+    assert "Expressionism" in s.movement or "expressionism" in s.movement.lower(), (
+        f"franz_kline movement should reference Abstract Expressionism; got {s.movement!r}")
+
+
+def test_franz_kline_nationality():
+    """Session 208: nationality should be American."""
+    s = get_style("franz_kline")
+    assert "American" in s.nationality, (
+        f"franz_kline nationality should be American; got {s.nationality!r}")
+
+
+def test_franz_kline_period():
+    """Session 208: period should reference 1910 or 1962."""
+    s = get_style("franz_kline")
+    assert "1910" in s.period or "1962" in s.period, (
+        f"franz_kline period should reference 1910 or 1962; got {s.period!r}")
+
+
+def test_franz_kline_palette_count():
+    """Session 208: palette should have at least 6 colours."""
+    s = get_style("franz_kline")
+    assert len(s.palette) >= 6, (
+        f"franz_kline should have >= 6 palette colours; got {len(s.palette)}")
+
+
+def test_franz_kline_palette_valid():
+    """Session 208: all palette RGB values must be in [0, 1]."""
+    s = get_style("franz_kline")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"franz_kline palette value out of range: {ch!r} in {rgb!r}")
+
+
+def test_franz_kline_chromatic_split_false():
+    """Session 208: chromatic_split should be False (Kline is monochromatic)."""
+    s = get_style("franz_kline")
+    assert s.chromatic_split is False, (
+        "franz_kline chromatic_split should be False — Kline works are near-monochrome")
+
+
+def test_franz_kline_famous_works():
+    """Session 208: famous_works must include at least 5 entries."""
+    s = get_style("franz_kline")
+    assert len(s.famous_works) >= 5, (
+        f"franz_kline should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_franz_kline_chief_in_works():
+    """Session 208: 'Chief' must appear in famous_works."""
+    s = get_style("franz_kline")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Chief" in t for t in titles), (
+        f"franz_kline famous_works must include 'Chief'; got {titles}")
+
+
+def test_franz_kline_mahoning_in_works():
+    """Session 208: 'Mahoning' must appear in famous_works."""
+    s = get_style("franz_kline")
+    titles = [w[0] for w in s.famous_works]
+    assert any("Mahoning" in t for t in titles), (
+        f"franz_kline famous_works must include 'Mahoning'; got {titles}")
+
+
+def test_franz_kline_inspiration_references_pass():
+    """Session 208: inspiration must reference kline_gestural_slash_pass."""
+    s = get_style("franz_kline")
+    assert "kline_gestural_slash_pass" in s.inspiration, (
+        "franz_kline inspiration must mention kline_gestural_slash_pass")
+
+
+def test_franz_kline_inspiration_references_119th():
+    """Session 208: inspiration must explicitly name the 119th distinct mode."""
+    s = get_style("franz_kline")
+    assert "NINETEENTH" in s.inspiration or "119" in s.inspiration, (
+        "franz_kline inspiration must reference ONE HUNDRED AND NINETEENTH mode")
