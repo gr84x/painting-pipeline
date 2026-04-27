@@ -47443,3 +47443,132 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Albers Homage Square pass complete.")
+
+    def hofmann_push_pull_pass(
+        self,
+        *,
+        push_sigma:     float = 18.0,
+        push_strength:  float = 0.28,
+        pull_strength:  float = 0.22,
+        opacity:        float = 0.65,
+    ) -> None:
+        """
+        Session 210 — Hans Hofmann Push-Pull pass (121st distinct mode).
+
+        PUSH-PULL CHROMATIC SPATIAL TENSION FIELD: Hofmann's governing principle
+        holds that warm colors ADVANCE (push toward the viewer) and cool colors
+        RECEDE (pull away), creating pictorial depth through color temperature
+        alone without any linear perspective.
+
+        Algorithm:
+        (1) COLOR TEMPERATURE MAP: per-pixel temperature T = (R − B), range [−1, 1].
+            Positive T = warm, negative T = cool.
+        (2) LOCAL REFERENCE TEMPERATURE: Gaussian-blur T with sigma = push_sigma
+            to obtain T_smooth — the neighborhood mean temperature at each pixel.
+        (3) DELTA TEMPERATURE: dT = T − T_smooth.  Positive dT means this pixel
+            is warmer than its neighborhood (push candidate); negative dT means
+            it is cooler than its neighborhood (pull candidate).
+        (4) GRADIENT MAGNITUDE (boundary strength): Sobel operators on T_smooth
+            give the local temperature gradient G.  Normalised to [0, 1].
+            G is large at warm-cool color boundaries — Hofmann's most charged edges.
+        (5) PUSH (warm advance): where dT > 0, amplify R and G toward orange-warm:
+            push_amt = dT × G × push_strength
+            R += push_amt,  G += push_amt × 0.35,  B −= push_amt × 0.20
+            This brightens and warms pixels that are already warmer than their
+            surroundings, most strongly at warm-cool boundaries.
+        (6) PULL (cool recede): where dT < 0, deepen toward blue-violet:
+            pull_amt = −dT × G × pull_strength
+            B += pull_amt,  G += pull_amt × 0.10,  R −= pull_amt × 0.18
+            This enriches and cools pixels that are cooler than their surroundings,
+            most strongly at the same warm-cool boundaries.
+        (7) COMPOSITE: clip to [0, 1], then blend with original at opacity.
+
+        NOVEL: ONE HUNDRED AND TWENTY-FIRST DISTINCT MODE.  First pass to use
+        LOCAL COLOR TEMPERATURE GRADIENT DIFFERENTIAL AMPLIFICATION: content-
+        driven warm/cool detection via (R−B) temperature map + local neighborhood
+        comparison via Gaussian smoothing + Sobel-gradient boundary finding +
+        separate warm-PUSH (advance: orange-warm amplification) and cool-PULL
+        (recede: blue-violet deepening) chromatic amplification weighted by
+        local gradient magnitude.  Prior passes: Albers (fixed Chebyshev
+        rectangular zones from centre — not content-driven); Delaunay (Euclidean
+        ring geometry — fixed structure, no temperature logic); Kline (gestural
+        axis sweep — no colour temperature); Munch (swirl vectors from image
+        luminance mass — no warm/cool split); all 120 prior passes lack the
+        combination of content-driven temperature gradient detection and
+        differential directional chromatic amplification.
+
+        push_sigma    : Gaussian sigma for local temperature reference (pixels)
+        push_strength : amplitude of warm-advance amplification
+        pull_strength : amplitude of cool-recession amplification
+        opacity       : final composite blend over original canvas
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        W, H = self.canvas.w, self.canvas.h
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Color temperature map T = R − B ────────────────────────────────
+        temp = r0 - b0   # range [-1, 1]; positive = warm, negative = cool
+
+        # ── (2) Local reference temperature (neighborhood mean) ────────────────
+        temp_smooth = _gf(temp, sigma=float(push_sigma))
+
+        # ── (3) Delta temperature: how much warmer/cooler than local mean ──────
+        dt = temp - temp_smooth   # positive = local warm, negative = local cool
+
+        # ── (4) Gradient magnitude of smooth temperature field ─────────────────
+        gx = _sobel(temp_smooth, axis=1)
+        gy = _sobel(temp_smooth, axis=0)
+        grad_mag = _np.sqrt(gx * gx + gy * gy)
+        g_max = float(grad_mag.max())
+        if g_max > 1e-8:
+            grad_mag /= g_max   # normalise to [0, 1]
+
+        # ── (5) PUSH: warm pixels advance (orange-warm amplification) ──────────
+        warm_mask = (dt > 0).astype(_np.float32)
+        push_amt  = dt * warm_mask * grad_mag * float(push_strength)
+
+        r_push = push_amt
+        g_push = push_amt * 0.35
+        b_push = -push_amt * 0.20
+
+        # ── (6) PULL: cool pixels recede (blue-violet deepening) ──────────────
+        cool_mask = (dt < 0).astype(_np.float32)
+        pull_amt  = (-dt) * cool_mask * grad_mag * float(pull_strength)
+
+        b_pull = pull_amt
+        g_pull = pull_amt * 0.10
+        r_pull = -pull_amt * 0.18
+
+        # Combine push + pull deltas
+        dr = r_push + r_pull
+        dg = g_push + g_pull
+        db = b_push + b_pull
+
+        # ── (7) Composite ──────────────────────────────────────────────────────
+        adj_r = _np.clip(r0 + dr, 0.0, 1.0)
+        adj_g = _np.clip(g0 + dg, 0.0, 1.0)
+        adj_b = _np.clip(b0 + db, 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + adj_r * op
+        new_g = g0 * (1.0 - op) + adj_g * op
+        new_b = b0 * (1.0 - op) + adj_b * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Hofmann Push-Pull pass complete.")

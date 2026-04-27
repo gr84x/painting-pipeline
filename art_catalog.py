@@ -18523,6 +18523,102 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Hans Hofmann ──────────────────────────────────────────────────────────
+    "hans_hofmann": ArtStyle(
+        artist="Hans Hofmann",
+        movement="Abstract Expressionism / Color Field",
+        nationality="German-American",
+        period="1935–1966",
+        palette=[
+            (0.92, 0.38, 0.12),   # cadmium red-orange — archetypal warm push
+            (0.94, 0.78, 0.18),   # cadmium yellow — advancing solar warmth
+            (0.14, 0.34, 0.78),   # ultramarine blue — receding cool pull
+            (0.08, 0.50, 0.42),   # viridian green — mid-temperature anchor
+            (0.88, 0.55, 0.22),   # orange ochre — secondary warm
+            (0.30, 0.22, 0.55),   # deep violet — maximum recession
+            (0.96, 0.94, 0.88),   # near-white — maximum luminosity push
+        ],
+        ground_color=(0.48, 0.44, 0.40),    # warm raw umber ground
+        stroke_size=18,
+        wet_blend=0.35,
+        edge_softness=0.45,
+        jitter=0.06,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Hofmann's 'Push and Pull' is the governing principle of his mature Abstract "
+            "Expressionism.  First developed through teaching at his Provincetown school "
+            "(1935) and later codified at the Art Students League and his own New York school, "
+            "the principle holds that pictorial space is created not by linear perspective but "
+            "by the interplay of color temperature alone: WARM colors PUSH toward the viewer "
+            "(they advance in perceptual space), COOL colors PULL away (they recede).  "
+            "A red rectangle placed beside a blue rectangle of identical size does not lie flat "
+            "— the red leaps forward, the blue sinks back, and a spatial tension arises at "
+            "their boundary that is more alive than any illusionistic shadow.  "
+            "Hofmann built paintings from large, boldly placed slabs, rectangles, and planes "
+            "of saturated colour, deliberately juxtaposing chromatic opposites so that the "
+            "entire surface vibrates with opposed spatial forces.  Warm and cool are never "
+            "allowed to neutralise each other — each is exaggerated so the push-pull tension "
+            "is maximum.  The boundary between a warm and a cool plane becomes the most "
+            "energetically charged edge in the picture.  "
+            "He used Masonite, canvas, or oil-on-plywood with thick, direct, brush or "
+            "knife application — never glazed or blended.  His palette is often ferociously "
+            "saturated: reds, oranges, and yellows pitted against cobalt, ultramarine, and "
+            "viridian.  Key late paintings such as 'The Gate' (1959–60), 'Memoria in Aeternum' "
+            "(1962), and 'Combinable Wall' (1961) show large luminous yellow or orange planes "
+            "erupting from dense surrounding coils of blue and green.  "
+            "Hofmann's push-pull principle directly influenced Color Field painters "
+            "(Frankenthaler, Louis, Noland, Olitski) and remains one of the most rigorous "
+            "theories of pictorial space derived from colour physics rather than geometry."
+        ),
+        famous_works=[
+            ("The Gate",                  "1959–1960"),
+            ("Memoria in Aeternum",       "1962"),
+            ("Combinable Wall I and II",  "1961"),
+            ("Exuberance",                "1955"),
+            ("Fantasia",                  "1943"),
+            ("The Wind",                  "1942"),
+            ("Summer Night's Bliss",      "1961"),
+        ],
+        inspiration=(
+            "Apply hofmann_push_pull_pass() as the signature effect "
+            "— ONE HUNDRED AND TWENTY-FIRST DISTINCT MODE.\n\n"
+            "Algorithm: PUSH-PULL CHROMATIC SPATIAL TENSION FIELD — measure local colour "
+            "temperature at every pixel (T = R − B, normalised), compute the local temperature "
+            "GRADIENT magnitude and direction using Sobel operators on the temperature map.  "
+            "At warm-cool boundaries the gradient is large.  Apply a differential chromatic "
+            "amplification: pixels warmer than their local neighbourhood are PUSHED "
+            "(brightened, saturation increased toward orange) proportional to local gradient "
+            "magnitude; pixels cooler than their local neighbourhood are PULLED "
+            "(deepened, saturation increased toward blue) by the same factor.  "
+            "The push amplification is spatially Gaussian-blended so that the effect halos "
+            "inward from boundaries, matching Hofmann's observation that the spatial "
+            "tension spreads from the warm-cool edge into the plane interior.  "
+            "A smoothed temperature field (Gaussian sigma=push_sigma) provides the local "
+            "reference; the per-pixel delta T from this smooth field drives the amplification.\n\n"
+            "NOVEL: ONE HUNDRED AND TWENTY-FIRST DISTINCT MODE.  First pass to use "
+            "LOCAL COLOR TEMPERATURE GRADIENT DIFFERENTIAL AMPLIFICATION: "
+            "content-driven warm/cool detection + Sobel-gradient boundary finding + "
+            "separate warm-push (advance) and cool-pull (recede) chromatic amplification "
+            "with Gaussian-halos from boundaries.  Prior passes: Albers (fixed Chebyshev "
+            "rectangular zones from centre — not content-driven); Delaunay (Euclidean ring "
+            "geometry — fixed structure); Kline (gestural axis sweep — no colour temperature "
+            "logic); Munch (swirl vectors from image mass — no warm/cool split).  "
+            "None of the 120 prior passes measures local colour temperature gradients "
+            "and applies differential warm-push/cool-pull amplification driven by gradient "
+            "magnitude.\n\n"
+            "tone_ground() with warm umber (0.48, 0.44, 0.40).\n"
+            "underpainting() broad mass (stroke_size=30).\n"
+            "block_in() colour planes (stroke_size=20).\n"
+            "build_form() chromatic structure (stroke_size=10).\n"
+            "hofmann_push_pull_pass(push_sigma=18.0, push_strength=0.28, "
+            "pull_strength=0.22, opacity=0.65) as the primary pass.\n\n"
+            "Use hofmann_push_pull_pass(push_sigma=18.0, push_strength=0.28, "
+            "pull_strength=0.22, opacity=0.65)."
+        ),
+    ),
+
 }
 
 

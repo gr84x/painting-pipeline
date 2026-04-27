@@ -209,6 +209,7 @@ EXPECTED_ARTISTS = [
     "robert_delaunay",
     "franz_kline",
     "josef_albers",
+    "hans_hofmann",
 ]
 
 
@@ -28734,3 +28735,77 @@ def test_josef_albers_inspiration_references_120th():
     s = get_style("josef_albers")
     assert "TWENTIETH" in s.inspiration or "120" in s.inspiration, (
         "josef_albers inspiration must reference ONE HUNDRED AND TWENTIETH mode")
+
+
+# ── Hans Hofmann (session 210) ─────────────────────────────────────────────
+
+def test_hans_hofmann_in_catalog():
+    """Session 210: hans_hofmann must be in CATALOG."""
+    assert "hans_hofmann" in CATALOG
+
+
+def test_hans_hofmann_movement():
+    """hans_hofmann must be classified as Abstract Expressionist / Color Field."""
+    s = get_style("hans_hofmann")
+    assert "Abstract" in s.movement or "abstract" in s.movement.lower(), (
+        f"hans_hofmann movement should mention Abstract Expressionism; got {s.movement!r}")
+
+
+def test_hans_hofmann_palette_length():
+    """hans_hofmann palette must have at least 5 colours."""
+    s = get_style("hans_hofmann")
+    assert len(s.palette) >= 5, (
+        f"hans_hofmann palette must have ≥5 colours; got {len(s.palette)}")
+
+
+def test_hans_hofmann_palette_values_in_range():
+    """All hans_hofmann palette RGB values must be in [0, 1]."""
+    s = get_style("hans_hofmann")
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"hans_hofmann palette channel {ch} out of [0,1]")
+
+
+def test_hans_hofmann_ground_color_valid():
+    """hans_hofmann ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("hans_hofmann")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0
+
+
+def test_hans_hofmann_period():
+    """hans_hofmann period must cover his mature abstract expressionist era."""
+    s = get_style("hans_hofmann")
+    assert "1935" in s.period or "193" in s.period, (
+        f"hans_hofmann period should start around 1935; got {s.period!r}")
+
+
+def test_hans_hofmann_gate_in_works():
+    """hans_hofmann famous_works must include 'The Gate'."""
+    s = get_style("hans_hofmann")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Gate" in t for t in titles), (
+        f"hans_hofmann famous_works must include 'The Gate'; got {titles}")
+
+
+def test_hans_hofmann_in_list_artists():
+    """Session 210: hans_hofmann must appear in list_artists()."""
+    assert "hans_hofmann" in list_artists(), (
+        "hans_hofmann must appear in list_artists()")
+
+
+def test_hans_hofmann_inspiration_references_pass():
+    """Session 210: hans_hofmann inspiration must reference hofmann_push_pull_pass."""
+    s = get_style("hans_hofmann")
+    assert "hofmann_push_pull_pass" in s.inspiration, (
+        "hans_hofmann inspiration must mention hofmann_push_pull_pass")
+
+
+def test_hans_hofmann_inspiration_references_121st():
+    """Session 210: inspiration must explicitly name the 121st distinct mode."""
+    s = get_style("hans_hofmann")
+    assert "121" in s.inspiration or "TWENTY-FIRST" in s.inspiration, (
+        "hans_hofmann inspiration must reference ONE HUNDRED AND TWENTY-FIRST mode")
