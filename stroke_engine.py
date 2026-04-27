@@ -47893,3 +47893,148 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Mondrian Neoplastic Grid pass complete.")
+
+    def rothko_color_field_pass(
+        self,
+        *,
+        n_bands:      int   = 3,
+        hue_strength: float = 0.68,
+        edge_sigma:   float = 28.0,
+        veil_factor:  float = 0.88,
+        opacity:      float = 0.80,
+    ) -> None:
+        """
+        Session 213 — Mark Rothko Color Field pass (124th distinct mode).
+
+        LUMINANCE-BAND CHROMATIC FIELD AMPLIFICATION: a five-stage pass that
+        imposes Rothko's horizontal colour-field vocabulary onto a painted
+        surface by segmenting the canvas into horizontal luminance bands,
+        amplifying each band's dominant hue, and dissolving interband
+        boundaries with a sigmoid-weighted gradient.
+
+        Algorithm:
+        (1) HORIZONTAL BAND SEGMENTATION: divide the canvas into n_bands
+            horizontal zones of equal pixel height.  For each band, compute
+            the mean (R, G, B) of original pixels — the band's dominant colour.
+        (2) BAND HUE AMPLIFICATION: for every pixel in band i, shift colour
+            toward the band's dominant colour by hue_strength:
+              adj = orig × (1 − hue_strength) + band_mean × hue_strength.
+            Amplifies chromatic coherence within each zone.
+        (3) SOFT INTERBAND BOUNDARY DISSOLVE: at each band boundary row y_b,
+            compute per-row sigmoid weights:
+              w_next(y) = 0.5 + 0.5 × tanh((y − y_b) / edge_sigma)
+              w_prev(y) = 1 − w_next(y)
+            Pixels within 3 × edge_sigma rows of a boundary receive a weighted
+            blend of adjacent bands' amplified colours — the 'breathing' soft
+            edge that defines Rothko's fields.
+        (4) DARKENING VEIL: multiply adj channels by veil_factor to simulate
+            Rothko's layered dammar-resin glazing — luminous but never bright.
+        (5) COMPOSITE: blend darkened field image with the original canvas
+            at opacity.
+
+        NOVEL: ONE HUNDRED AND TWENTY-FOURTH DISTINCT MODE.  First pass to
+        combine HORIZONTAL BAND HUE AMPLIFICATION (per-band mean-colour shift)
+        + SOFT INTERBAND SIGMOID-WEIGHTED BOUNDARY DISSOLVE (per-row tanh
+        weighting within 3×sigma of boundary) + CHROMATIC DARKENING VEIL
+        (global channel multiply).  Prior passes: Mondrian (orthogonal grid +
+        flat cell colour snapping — hard edges, no boundary dissolve);
+        Albers (concentric rectangles from centre — fixed geometry, no
+        content-derived bands); Miró (pixel-level palette quantisation +
+        gradient outline — no banding); Hofmann (warm/cool temperature
+        differential — whole-canvas, not band-segmented); all 123 prior
+        passes lack horizontal band segmentation + per-band hue amplification
+        + sigmoid interband boundary dissolve.
+
+        n_bands      : number of horizontal colour field bands (Rothko: 2–4)
+        hue_strength : blend weight toward each band's dominant colour [0, 1]
+        edge_sigma   : Gaussian sigma in pixels for interband boundary dissolve
+        veil_factor  : global luminance multiplier for chromatic depth [0, 1]
+        opacity      : final composite blend weight over original canvas
+        """
+        import numpy as _np
+
+        W, H = self.canvas.w, self.canvas.h
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA channel order
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        nb = max(1, int(n_bands))
+        hs = float(hue_strength)
+        sigma = max(1.0, float(edge_sigma))
+        veil = float(veil_factor)
+
+        # ── (1) Horizontal band segmentation ──────────────────────────────────
+        band_h = H // nb
+        boundaries = [i * band_h for i in range(nb)] + [H]
+
+        band_means_r = _np.empty(nb, dtype=_np.float32)
+        band_means_g = _np.empty(nb, dtype=_np.float32)
+        band_means_b = _np.empty(nb, dtype=_np.float32)
+        for i in range(nb):
+            r_lo, r_hi = boundaries[i], boundaries[i + 1]
+            band_means_r[i] = r0[r_lo:r_hi, :].mean()
+            band_means_g[i] = g0[r_lo:r_hi, :].mean()
+            band_means_b[i] = b0[r_lo:r_hi, :].mean()
+
+        # ── (2) Band hue amplification ─────────────────────────────────────────
+        adj_r = r0.copy()
+        adj_g = g0.copy()
+        adj_b = b0.copy()
+
+        for i in range(nb):
+            r_lo, r_hi = boundaries[i], boundaries[i + 1]
+            adj_r[r_lo:r_hi, :] = r0[r_lo:r_hi, :] * (1.0 - hs) + band_means_r[i] * hs
+            adj_g[r_lo:r_hi, :] = g0[r_lo:r_hi, :] * (1.0 - hs) + band_means_g[i] * hs
+            adj_b[r_lo:r_hi, :] = b0[r_lo:r_hi, :] * (1.0 - hs) + band_means_b[i] * hs
+
+        # ── (3) Soft interband boundary dissolve ───────────────────────────────
+        for i in range(nb - 1):
+            y_b = boundaries[i + 1]                       # boundary row index
+            y_range = max(1, int(3.0 * sigma))
+            y_lo = max(0, y_b - y_range)
+            y_hi = min(H, y_b + y_range)
+            if y_lo >= y_hi:
+                continue
+
+            rows_f = _np.arange(y_lo, y_hi, dtype=_np.float32) - y_b  # (n,)
+            w_next = (0.5 + 0.5 * _np.tanh(rows_f / sigma))[:, _np.newaxis]  # (n, 1)
+            w_prev = 1.0 - w_next
+
+            # Amplified colours for adjacent bands
+            prev_r = r0[y_lo:y_hi, :] * (1.0 - hs) + band_means_r[i]     * hs
+            prev_g = g0[y_lo:y_hi, :] * (1.0 - hs) + band_means_g[i]     * hs
+            prev_b = b0[y_lo:y_hi, :] * (1.0 - hs) + band_means_b[i]     * hs
+
+            next_r = r0[y_lo:y_hi, :] * (1.0 - hs) + band_means_r[i + 1] * hs
+            next_g = g0[y_lo:y_hi, :] * (1.0 - hs) + band_means_g[i + 1] * hs
+            next_b = b0[y_lo:y_hi, :] * (1.0 - hs) + band_means_b[i + 1] * hs
+
+            adj_r[y_lo:y_hi, :] = w_prev * prev_r + w_next * next_r
+            adj_g[y_lo:y_hi, :] = w_prev * prev_g + w_next * next_g
+            adj_b[y_lo:y_hi, :] = w_prev * prev_b + w_next * next_b
+
+        # ── (4) Darkening veil ─────────────────────────────────────────────────
+        adj_r = _np.clip(adj_r * veil, 0.0, 1.0)
+        adj_g = _np.clip(adj_g * veil, 0.0, 1.0)
+        adj_b = _np.clip(adj_b * veil, 0.0, 1.0)
+
+        # ── (5) Composite ──────────────────────────────────────────────────────
+        op = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + adj_r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + adj_g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + adj_b * op, 0.0, 1.0)
+
+        buf = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Rothko Color Field pass complete.")

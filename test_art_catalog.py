@@ -211,6 +211,8 @@ EXPECTED_ARTISTS = [
     "josef_albers",
     "hans_hofmann",
     "joan_miro",
+    "piet_mondrian",
+    "mark_rothko",
 ]
 
 
@@ -29017,3 +29019,80 @@ def test_piet_mondrian_inspiration_references_123rd():
     s = get_style("piet_mondrian")
     assert "123" in s.inspiration or "TWENTY-THIRD" in s.inspiration, (
         "piet_mondrian inspiration must reference ONE HUNDRED AND TWENTY-THIRD mode")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session 213 — mark_rothko / rothko_color_field_pass (124th distinct mode)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_mark_rothko_in_catalog():
+    """Session 213: mark_rothko must be present in the CATALOG."""
+    assert "mark_rothko" in CATALOG, "mark_rothko missing from CATALOG"
+
+
+def test_mark_rothko_movement():
+    """Session 213: mark_rothko movement must reference Abstract Expressionism or Color Field."""
+    s = get_style("mark_rothko")
+    assert "Abstract" in s.movement or "Color Field" in s.movement or "Colour Field" in s.movement, (
+        f"mark_rothko movement must reference Abstract Expressionism or Color Field; got {s.movement!r}")
+
+
+def test_mark_rothko_period():
+    """Session 213: mark_rothko period must reference the 1940s–1970 range."""
+    s = get_style("mark_rothko")
+    assert "1940" in s.period or "1903" in s.period, (
+        f"mark_rothko period must reference 1940 or 1903; got {s.period!r}")
+
+
+def test_mark_rothko_palette_valid():
+    """Session 213: mark_rothko palette must have >= 5 colours, all channels in [0, 1]."""
+    s = get_style("mark_rothko")
+    assert len(s.palette) >= 5, f"mark_rothko needs >= 5 palette colours; got {len(s.palette)}"
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"Palette entry must have 3 channels; got {rgb}"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Palette channel out of range [0, 1]: {ch}"
+
+
+def test_mark_rothko_ground_color_dark():
+    """Session 213: mark_rothko ground must be dark (luminance < 0.25) to match his imprimatura."""
+    s = get_style("mark_rothko")
+    r, g, b = s.ground_color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    assert lum < 0.25, (
+        f"mark_rothko ground_color should be dark (lum < 0.25); got luminance {lum:.3f}")
+
+
+def test_mark_rothko_edge_softness_high():
+    """Session 213: mark_rothko edge_softness must be >= 0.6 — soft edges are his hallmark."""
+    s = get_style("mark_rothko")
+    assert s.edge_softness >= 0.6, (
+        f"mark_rothko edge_softness must be >= 0.6; got {s.edge_softness}")
+
+
+def test_mark_rothko_famous_works_include_orange_and_yellow():
+    """Session 213: famous_works must include Orange and Yellow."""
+    s = get_style("mark_rothko")
+    titles = [t for t, _ in s.famous_works]
+    assert any("Orange" in t for t in titles), (
+        f"mark_rothko famous_works must include 'Orange and Yellow'; got {titles}")
+
+
+def test_mark_rothko_inspiration_references_pass():
+    """Session 213: mark_rothko inspiration must reference rothko_color_field_pass."""
+    s = get_style("mark_rothko")
+    assert "rothko_color_field_pass" in s.inspiration, (
+        "mark_rothko inspiration must mention rothko_color_field_pass")
+
+
+def test_mark_rothko_inspiration_references_124th():
+    """Session 213: inspiration must explicitly name the 124th distinct mode."""
+    s = get_style("mark_rothko")
+    assert "124" in s.inspiration or "TWENTY-FOURTH" in s.inspiration, (
+        "mark_rothko inspiration must reference ONE HUNDRED AND TWENTY-FOURTH mode")
+
+
+def test_mark_rothko_in_list_artists():
+    """Session 213: mark_rothko must appear in list_artists()."""
+    assert "mark_rothko" in list_artists(), (
+        "mark_rothko must appear in list_artists()")
