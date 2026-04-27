@@ -19033,3 +19033,70 @@ def test_s216_diebenkorn_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 217: Chaïm Soutine — soutine_visceral_distortion_pass ────────────
+
+def test_s217_soutine_pass_changes_pixels():
+    """Session 217: soutine_visceral_distortion_pass must change canvas pixels."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(217)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(50, 180, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.soutine_visceral_distortion_pass(opacity=0.75)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "soutine_visceral_distortion_pass must change canvas pixels")
+
+
+def test_s217_soutine_pass_zero_opacity_no_change():
+    """Session 217: soutine_visceral_distortion_pass at opacity=0.0 must not change any pixels."""
+    import numpy as _np
+
+    def _make_painter():
+        p = _make_small_painter(64, 64)
+        rng = _np.random.RandomState(2170)
+        buf = _np.frombuffer(
+            p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+        buf[:, :, :3] = rng.randint(20, 200, (64, 64, 3), dtype=_np.uint8)
+        buf[:, :, 3]  = 255
+        p.canvas.surface.get_data()[:] = buf.tobytes()
+        p.canvas.surface.mark_dirty()
+        return p
+
+    p = _make_painter()
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    p.soutine_visceral_distortion_pass(opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "soutine_visceral_distortion_pass at opacity=0.0 must not change any pixels")
+
+
+def test_s217_soutine_in_catalog():
+    """Session 217: chaim_soutine must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "chaim_soutine" in CATALOG, "chaim_soutine missing from CATALOG"
+    s = get_style("chaim_soutine")
+    assert "Expressionism" in s.movement, (
+        f"chaim_soutine movement unexpected: {s.movement!r}")
+    assert s.crackle is False, "chaim_soutine crackle must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

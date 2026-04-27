@@ -48405,3 +48405,139 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Richard Diebenkorn Ocean Park pass complete.")
+
+    def soutine_visceral_distortion_pass(
+        self,
+        *,
+        warp_strength:    float = 7.0,
+        red_push:         float = 0.20,
+        ochre_warm:       float = 0.28,
+        impasto_radius:   int   = 6,
+        impasto_strength: float = 0.50,
+        opacity:          float = 0.75,
+    ) -> None:
+        """
+        Chaïm Soutine visceral distortion pass — 128th distinct mode.
+
+        Algorithm: SOUTINE VISCERAL DISTORTION PASS
+        (1) WRITHING WARP FIELD: multi-frequency sinusoidal displacement warps
+            canvas coordinates (three layers: low/mid/high spatial frequency),
+            making forms appear to writhe in the Soutine manner.
+            Applied via scipy.ndimage.map_coordinates bilinear remapping.
+        (2) RED-OCHRE CHROMATIC PUSH: midtone reds boosted, blues suppressed;
+            shadows warmed toward burnt sienna ochre (0.58, 0.38, 0.10).
+        (3) IMPASTO RIDGE CARVING: local luminance variance amplified aggressively
+            (no raking gradient; continuous amplification scaled by local contrast).
+        (4) Composite at opacity.
+
+        NOVEL: ONE HUNDRED AND TWENTY-EIGHTH DISTINCT MODE. First pass to combine
+        multi-frequency sinusoidal coordinate warping (map_coordinates pixel
+        remapping — distinct from Munch's stroke-based swirl) with warm red-ochre
+        chromatic push and impasto ridge amplification without a raking gradient.
+        The three-layer warp field (low/mid/high frequency sine superposition)
+        produces Soutine's characteristic writhing-form distortion as a pixel-space
+        coordinate transformation rather than a stroke-drawing operation.
+        """
+        import numpy as _np
+        from scipy.ndimage import map_coordinates as _mc
+        from scipy.ndimage import uniform_filter as _uf
+
+        # ── (0) Read canvas ────────────────────────────────────────────────────
+        surface = self.canvas.surface
+        H, W    = self.canvas.h, self.canvas.w
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape((H, W, 4)).copy()
+        b0      = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0      = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0      = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        rng    = _np.random.RandomState(seed=217)
+        phases = rng.uniform(0.0, 2.0 * _np.pi, 8)
+        pi2    = 2.0 * _np.pi
+        ws     = float(warp_strength)
+
+        # Normalised coordinate grids (0→1)
+        yn = _np.arange(H, dtype=_np.float32)[:, _np.newaxis] / max(H - 1, 1)  # (H,1)
+        xn = _np.arange(W, dtype=_np.float32)[_np.newaxis, :] / max(W - 1, 1)  # (1,W)
+
+        # ── (1) Writhing warp field — three-frequency sine superposition ───────
+        # Low frequency: broad writhing (~4 cycles across image)
+        dx = (ws * 0.60) * _np.sin(pi2 * 4.0 * yn + phases[0]) * _np.cos(pi2 * 3.0 * xn + phases[1])
+        dy = (ws * 0.60) * _np.cos(pi2 * 3.5 * xn + phases[2]) * _np.sin(pi2 * 4.5 * yn + phases[3])
+
+        # Mid frequency: knotted twist (~8 cycles + cross-coupling)
+        dx += (ws * 0.30) * _np.sin(pi2 * 8.0 * yn + phases[4] + pi2 * 0.7 * xn)
+        dy += (ws * 0.30) * _np.cos(pi2 * 7.0 * xn + phases[5] + pi2 * 0.8 * yn)
+
+        # High frequency: grain-level agitation (~16 cycles)
+        dx += (ws * 0.10) * _np.sin(pi2 * 16.0 * yn + phases[6] * xn)
+        dy += (ws * 0.10) * _np.cos(pi2 * 15.0 * xn + phases[7] * yn)
+
+        # Build displaced pixel coordinate grids (in pixel-index space)
+        row_idx = _np.arange(H, dtype=_np.float32)[:, _np.newaxis]  # (H,1)
+        col_idx = _np.arange(W, dtype=_np.float32)[_np.newaxis, :]  # (1,W)
+        src_row = (row_idx + dy).ravel()  # (H*W,)
+        src_col = (col_idx + dx).ravel()  # (H*W,)
+        coords  = [src_row, src_col]
+
+        # Remap each channel (bilinear, reflect-pad borders)
+        warped_b = _mc(b0, coords, order=1, mode="reflect").reshape((H, W))
+        warped_g = _mc(g0, coords, order=1, mode="reflect").reshape((H, W))
+        warped_r = _mc(r0, coords, order=1, mode="reflect").reshape((H, W))
+
+        warped_r = _np.clip(warped_r, 0.0, 1.0)
+        warped_g = _np.clip(warped_g, 0.0, 1.0)
+        warped_b = _np.clip(warped_b, 0.0, 1.0)
+
+        # ── (2) Red-ochre chromatic push ───────────────────────────────────────
+        lum = 0.299 * warped_r + 0.587 * warped_g + 0.114 * warped_b
+
+        # Midtone zone boost (lum in [0.20, 0.70])
+        midtone_w = _np.clip(
+            _np.minimum(lum - 0.20, 0.70 - lum) / 0.20, 0.0, 1.0
+        )
+        rp        = float(red_push)
+        warped_r  = _np.clip(warped_r + rp * midtone_w, 0.0, 1.0)
+        warped_b  = _np.clip(warped_b - rp * 0.40 * midtone_w, 0.0, 1.0)
+
+        # Shadow ochre warming (lum < 0.40) toward burnt sienna (0.58, 0.38, 0.10)
+        ochre_r, ochre_g, ochre_b = 0.58, 0.38, 0.10
+        ow       = float(ochre_warm)
+        shadow_w = _np.clip((0.40 - lum) / 0.40, 0.0, 1.0) * ow
+        warped_r = _np.clip(warped_r * (1.0 - shadow_w) + ochre_r * shadow_w, 0.0, 1.0)
+        warped_g = _np.clip(warped_g * (1.0 - shadow_w) + ochre_g * shadow_w, 0.0, 1.0)
+        warped_b = _np.clip(warped_b * (1.0 - shadow_w) + ochre_b * shadow_w, 0.0, 1.0)
+
+        # ── (3) Impasto ridge carving ──────────────────────────────────────────
+        lum2        = 0.299 * warped_r + 0.587 * warped_g + 0.114 * warped_b
+        k           = int(impasto_radius) * 2 + 1
+        lum_mean    = _uf(lum2,        size=k, mode="reflect")
+        lum_sq_mean = _uf(lum2 ** 2,   size=k, mode="reflect")
+        lum_var     = _np.clip(lum_sq_mean - lum_mean ** 2, 0.0, None)
+        lum_std     = _np.sqrt(lum_var)
+
+        # Aggressive continuous amplification (no threshold; stronger cap than Freud)
+        ims          = float(impasto_strength)
+        ridge_amp    = 1.0 + ims * lum_std * 8.0
+        dev          = lum2 - lum_mean
+        adj_lum      = _np.clip(lum_mean + dev * ridge_amp, 0.0, 1.0)
+
+        lum_safe     = _np.where(lum2 > 1e-6, lum2, 1e-6)
+        lum_ratio    = _np.clip(adj_lum / lum_safe, 0.0, 2.8)
+        warped_r     = _np.clip(warped_r * lum_ratio, 0.0, 1.0)
+        warped_g     = _np.clip(warped_g * lum_ratio, 0.0, 1.0)
+        warped_b     = _np.clip(warped_b * lum_ratio, 0.0, 1.0)
+
+        # ── (4) Composite ──────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + warped_r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + warped_g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + warped_b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Chaïm Soutine Visceral Distortion pass complete.")

@@ -29330,3 +29330,77 @@ def test_richard_diebenkorn_in_list_artists():
     """Session 216: richard_diebenkorn must appear in list_artists()."""
     assert "richard_diebenkorn" in list_artists(), (
         "richard_diebenkorn must appear in list_artists()")
+
+
+# ── Session 217: Chaïm Soutine ───────────────────────────────────────────────
+
+def test_chaim_soutine_in_catalog():
+    """Session 217: chaim_soutine must appear in CATALOG with Expressionism movement."""
+    from art_catalog import CATALOG, get_style
+    assert "chaim_soutine" in CATALOG, "chaim_soutine missing from CATALOG"
+    s = get_style("chaim_soutine")
+    assert "Expressionism" in s.movement, (
+        f"chaim_soutine movement should contain Expressionism; got {s.movement!r}")
+    assert s.crackle is False, "chaim_soutine crackle must be False"
+    assert len(s.palette) >= 5
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+def test_chaim_soutine_nationality():
+    """Session 217: nationality must reference French and Lithuanian."""
+    s = get_style("chaim_soutine")
+    nat = s.nationality.lower()
+    assert "french" in nat or "lithuanian" in nat, (
+        f"chaim_soutine nationality should reference French or Lithuanian; got {s.nationality!r}")
+
+
+def test_chaim_soutine_palette_length():
+    """Session 217: chaim_soutine must have at least 6 palette colors."""
+    s = get_style("chaim_soutine")
+    assert len(s.palette) >= 6, (
+        f"chaim_soutine palette should have >= 6 colors; got {len(s.palette)}")
+
+
+def test_chaim_soutine_palette_in_range():
+    """Session 217: all palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("chaim_soutine")
+    for rgb in s.palette:
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"chaim_soutine palette channel {ch} out of [0, 1]")
+
+
+def test_chaim_soutine_no_crackle():
+    """Session 217: chaim_soutine crackle must be False."""
+    s = get_style("chaim_soutine")
+    assert s.crackle is False, "chaim_soutine crackle must be False"
+
+
+def test_chaim_soutine_famous_works_count():
+    """Session 217: chaim_soutine must have at least 6 famous works listed."""
+    s = get_style("chaim_soutine")
+    assert len(s.famous_works) >= 6, (
+        f"chaim_soutine should have >= 6 famous works; got {len(s.famous_works)}")
+
+
+def test_chaim_soutine_inspiration_references_pass():
+    """Session 217: inspiration must reference soutine_visceral_distortion_pass."""
+    s = get_style("chaim_soutine")
+    assert "soutine_visceral_distortion_pass" in s.inspiration, (
+        "chaim_soutine inspiration must mention soutine_visceral_distortion_pass")
+
+
+def test_chaim_soutine_inspiration_references_128th():
+    """Session 217: inspiration must explicitly name the 128th distinct mode."""
+    s = get_style("chaim_soutine")
+    assert "128" in s.inspiration or "TWENTY-EIGHTH" in s.inspiration, (
+        "chaim_soutine inspiration must reference ONE HUNDRED AND TWENTY-EIGHTH mode")
+
+
+def test_chaim_soutine_in_list_artists():
+    """Session 217: chaim_soutine must appear in list_artists()."""
+    assert "chaim_soutine" in list_artists(), (
+        "chaim_soutine must appear in list_artists()")
