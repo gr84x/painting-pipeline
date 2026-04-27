@@ -47308,3 +47308,138 @@ class Painter:
         self.canvas.surface.get_data()[:] = buf.tobytes()
         self.canvas.surface.mark_dirty()
         print("    Kline Gestural Slash pass complete.")
+
+    def albers_homage_square_pass(
+        self,
+        *,
+        n_zones:           int   = 5,
+        contrast_strength: float = 0.15,
+        zone_sigma:        float = 6.0,
+        opacity:           float = 0.55,
+    ) -> None:
+        """
+        Session 209 — Josef Albers Homage Square pass (120th distinct mode).
+
+        CONCENTRIC CHEBYSHEV ZONE CHROMATIC INTERACTION FIELD: the canvas is
+        divided into n_zones concentric rectangular bands by L∞ (Chebyshev)
+        distance from the image centre.  For each zone z the mean RGB is
+        computed.  Each zone z > 0 receives a SIMULTANEOUS CONTRAST shift:
+        every pixel is pushed AWAY from the adjacent inner zone's mean by
+        exaggerating their colour difference (shift = (pixel − inner_mean) ×
+        contrast_strength).  The shift field is Gaussian-blurred by zone_sigma
+        to produce smooth zone-boundary halation.  The adjusted image is
+        composited over the original at opacity.
+
+        Algorithm:
+        (1) CHEBYSHEV DISTANCE: for pixel (y, x) normalise dy = |y − cy| / cy,
+            dx = |x − cx| / cx, then cheby = max(dy, dx).  Clamp to [0, 1].
+            Rectangular iso-contours match Albers' nested square geometry.
+        (2) ZONE LABELS: zone_idx = floor(cheby × n_zones), clamped to
+            [0, n_zones − 1].
+        (3) PER-ZONE MEAN: for each zone z compute mean_r_z, mean_g_z, mean_b_z
+            over all pixels assigned to that zone.
+        (4) SIMULTANEOUS CONTRAST: build a zero-initialised shift field
+            (delta_r, delta_g, delta_b).  For each zone z > 0:
+            delta_ch[mask_z] = (ch[mask_z] − mean_ch_{z−1}) × contrast_strength.
+            This EXAGGERATES each pixel's departure from the inner zone's mean.
+        (5) ZONE BOUNDARY SMOOTHING: Gaussian-blur the shift field with sigma =
+            zone_sigma to create soft halation at zone edges.
+        (6) COMPOSITE: adjusted_ch = clip(ch + delta_ch_blurred, 0, 1).
+            Final = ch × (1 − opacity) + adjusted_ch × opacity.
+
+        NOVEL: ONE HUNDRED AND TWENTIETH DISTINCT MODE.  First pass to use
+        CONCENTRIC CHEBYSHEV ZONE CHROMATIC INTERACTION FIELD: L∞ distance
+        gives rectangular iso-contours (not Euclidean circles), combined with
+        per-zone simultaneous contrast — exaggeration of each zone's colour
+        difference from its adjacent inner zone's mean.  Prior passes:
+        Delaunay (Euclidean multi-disk ring fields — circular, no zone-mean
+        interaction); Kline (axis-detected sweep strokes — no zoning, no
+        contrast); Riley (sinusoidal wave interference — no zone structure);
+        Kusama (circular dot fields — no simultaneous contrast); Klee (tonal
+        magic square cells — no zone-mean interaction, no exaggeration).
+        The combination of Chebyshev rectangular zoning + per-zone mean
+        colour + simultaneous contrast exaggeration + blurred shift field
+        cannot be assembled from any prior single pass.
+
+        n_zones           : number of concentric rectangular zones (default 5)
+        contrast_strength : exaggeration factor per zone step (default 0.15)
+        zone_sigma        : Gaussian blur sigma for zone-boundary smoothing
+        opacity           : overall composite opacity over the original canvas
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        W, H = self.canvas.w, self.canvas.h
+
+        orig = _np.frombuffer(
+            self.canvas.surface.get_data(), dtype=_np.uint8
+        ).reshape((H, W, 4)).copy()
+
+        # Cairo BGRA
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # ── (1) Chebyshev distance → rectangular iso-contours ─────────────────
+        cy_c = (H - 1) * 0.5
+        cx_c = (W - 1) * 0.5
+        ys = _np.arange(H, dtype=_np.float32).reshape(-1, 1)
+        xs = _np.arange(W, dtype=_np.float32).reshape(1, -1)
+        dy = _np.abs(ys - cy_c) / (cy_c + 1e-8)
+        dx = _np.abs(xs - cx_c) / (cx_c + 1e-8)
+        cheby = _np.minimum(_np.maximum(dy, dx), 1.0)
+
+        # ── (2) Zone labels ───────────────────────────────────────────────────
+        n = int(n_zones)
+        zone_idx = _np.minimum((cheby * n).astype(_np.int32), n - 1)
+
+        # ── (3) Per-zone mean colour ──────────────────────────────────────────
+        zone_mean_r = _np.zeros(n, dtype=_np.float32)
+        zone_mean_g = _np.zeros(n, dtype=_np.float32)
+        zone_mean_b = _np.zeros(n, dtype=_np.float32)
+        for z in range(n):
+            mask_z = zone_idx == z
+            n_px = int(mask_z.sum())
+            if n_px > 0:
+                zone_mean_r[z] = float(r0[mask_z].mean())
+                zone_mean_g[z] = float(g0[mask_z].mean())
+                zone_mean_b[z] = float(b0[mask_z].mean())
+
+        # ── (4) Simultaneous contrast shift field ─────────────────────────────
+        shift_r = _np.zeros((H, W), dtype=_np.float32)
+        shift_g = _np.zeros((H, W), dtype=_np.float32)
+        shift_b = _np.zeros((H, W), dtype=_np.float32)
+        s = float(contrast_strength)
+        for z in range(1, n):
+            mask_z = zone_idx == z
+            if not mask_z.any():
+                continue
+            shift_r[mask_z] = (r0[mask_z] - zone_mean_r[z - 1]) * s
+            shift_g[mask_z] = (g0[mask_z] - zone_mean_g[z - 1]) * s
+            shift_b[mask_z] = (b0[mask_z] - zone_mean_b[z - 1]) * s
+
+        # ── (5) Smooth zone boundaries ────────────────────────────────────────
+        sig = float(zone_sigma)
+        if sig > 0.0:
+            shift_r = _gf(shift_r, sigma=sig)
+            shift_g = _gf(shift_g, sigma=sig)
+            shift_b = _gf(shift_b, sigma=sig)
+
+        # ── (6) Composite ─────────────────────────────────────────────────────
+        adj_r = _np.clip(r0 + shift_r, 0.0, 1.0)
+        adj_g = _np.clip(g0 + shift_g, 0.0, 1.0)
+        adj_b = _np.clip(b0 + shift_b, 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + adj_r * op
+        new_g = g0 * (1.0 - op) + adj_g * op
+        new_b = b0 * (1.0 - op) + adj_b * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        self.canvas.surface.get_data()[:] = buf.tobytes()
+        self.canvas.surface.mark_dirty()
+        print("    Albers Homage Square pass complete.")

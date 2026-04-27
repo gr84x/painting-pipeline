@@ -18290,3 +18290,93 @@ def test_s208_kline_in_catalog():
         assert len(rgb) == 3
         for ch in rgb:
             assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"
+
+
+# ── Session 209 — Josef Albers: albers_homage_square_pass (120th distinct mode)
+
+def test_s209_albers_pass_exists():
+    """Session 209: albers_homage_square_pass must exist on Painter."""
+    from stroke_engine import Painter
+    assert hasattr(Painter, "albers_homage_square_pass"), (
+        "Painter must have a albers_homage_square_pass method")
+    assert callable(getattr(Painter, "albers_homage_square_pass"))
+
+
+def test_s209_albers_pass_runs():
+    """Session 209: albers_homage_square_pass must run without exception on a 64×64 canvas."""
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.54, 0.54, 0.54), texture_strength=0.0)
+    p.albers_homage_square_pass(n_zones=4, contrast_strength=0.12, zone_sigma=3.0, opacity=0.50)
+
+
+def test_s209_albers_pass_modifies_canvas():
+    """Session 209: albers_homage_square_pass must visibly change the canvas."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.54, 0.54, 0.54), texture_strength=0.0)
+    p.underpainting(
+        _np.full((64, 64, 3), 0.54, dtype=_np.float32),
+        stroke_size=10,
+    )
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.albers_homage_square_pass(n_zones=4, contrast_strength=0.20, zone_sigma=3.0, opacity=0.60)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert not _np.array_equal(before, after), (
+        "albers_homage_square_pass must modify the canvas")
+
+
+def test_s209_albers_pass_zero_opacity_no_change():
+    """Session 209: albers_homage_square_pass with opacity=0.0 must not change any pixels."""
+    import numpy as _np
+    p = _make_small_painter(64, 64)
+    p.tone_ground((0.54, 0.54, 0.54), texture_strength=0.0)
+    before = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    p.albers_homage_square_pass(n_zones=4, contrast_strength=0.15, zone_sigma=3.0, opacity=0.0)
+    after = _np.frombuffer(
+        p.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+    assert _np.array_equal(before, after), (
+        "albers_homage_square_pass with opacity=0.0 must not change any pixels")
+
+
+def test_s209_albers_pass_deterministic():
+    """Session 209: albers_homage_square_pass must produce identical output on repeated calls."""
+    import numpy as _np
+    p1 = _make_small_painter(64, 64)
+    p1.tone_ground((0.54, 0.54, 0.54), texture_strength=0.0)
+    p1.albers_homage_square_pass(n_zones=5, contrast_strength=0.15, zone_sigma=4.0, opacity=0.55)
+    out1 = _np.frombuffer(
+        p1.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    p2 = _make_small_painter(64, 64)
+    p2.tone_ground((0.54, 0.54, 0.54), texture_strength=0.0)
+    p2.albers_homage_square_pass(n_zones=5, contrast_strength=0.15, zone_sigma=4.0, opacity=0.55)
+    out2 = _np.frombuffer(
+        p2.canvas.surface.get_data(), dtype=_np.uint8
+    ).reshape((64, 64, 4)).copy()
+
+    assert _np.array_equal(out1, out2), (
+        "albers_homage_square_pass must produce identical output given identical inputs")
+
+
+def test_s209_albers_in_catalog():
+    """Session 209: josef_albers must appear in CATALOG with correct movement."""
+    from art_catalog import CATALOG, get_style
+    assert "josef_albers" in CATALOG, "josef_albers missing from CATALOG"
+    s = get_style("josef_albers")
+    assert "Bauhaus" in s.movement or "Hard" in s.movement or "Concrete" in s.movement, (
+        f"josef_albers movement should reference Bauhaus/Hard-Edge; got {s.movement!r}")
+    assert s.glazing is None, "josef_albers glazing must be None"
+    assert s.chromatic_split is False, "josef_albers chromatic_split must be False"
+    assert len(s.palette) >= 6
+    for rgb in s.palette:
+        assert len(rgb) == 3
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, f"Out-of-range palette value: {ch}"

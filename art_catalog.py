@@ -18431,6 +18431,98 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Josef Albers ──────────────────────────────────────────────────────────
+    "josef_albers": ArtStyle(
+        artist="Josef Albers",
+        movement="Bauhaus / Hard-Edge Abstraction / Concrete Art",
+        nationality="German-American",
+        period="1920–1976",
+        palette=[
+            (0.88, 0.50, 0.12),   # cadmium orange — iconic warm inner square
+            (0.92, 0.75, 0.20),   # cadmium yellow — luminous second ring
+            (0.72, 0.28, 0.16),   # terracotta red — deep warm anchor
+            (0.25, 0.42, 0.70),   # ultramarine blue — cool outer complement
+            (0.55, 0.55, 0.50),   # warm neutral grey — ground and mid-field
+            (0.15, 0.30, 0.55),   # Prussian blue-grey — darkest outer zone
+        ],
+        ground_color=(0.54, 0.54, 0.54),    # medium grey Masonite ground
+        stroke_size=1.0,
+        wet_blend=0.04,                      # no blending — flat knife application
+        edge_softness=0.04,                  # crisp geometric edges
+        jitter=0.015,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Albers devoted 26 years to a single format: concentric rectangles in flat, "
+            "unmodulated colour.  The 'Homage to the Square' series (1950–1976) is the most "
+            "systematic exploration of chromatic interaction in the history of painting.  "
+            "Three or four rectangles, each centered lower than the others, sit inside one "
+            "another with precise proportional spacing.  Albers applied colour with a palette "
+            "knife directly from the tube — no mixing on the palette — to a grey Masonite "
+            "ground, building exactly two or three layers of pure pigment per zone.  The "
+            "surface has no texture, no gesture, no visible application mark.  All optical "
+            "effects arise purely from colour relationships: simultaneous contrast, after-image "
+            "vibration, and colour weight.  The innermost rectangle seems to advance or recede, "
+            "appear warmer or cooler, lighter or darker, depending entirely on the chromatic "
+            "context of its surrounding zones — not its objective RGB values.  "
+            "Albers published 'Interaction of Color' (1963) to document these phenomena, "
+            "using paper studies to show that identical colours appear entirely different in "
+            "different chromatic contexts.  His teaching at Black Mountain College and Yale "
+            "shaped a generation of colour-field painters and graphic designers.  "
+            "The squares are deceptively simple — a meditation on perception itself."
+        ),
+        famous_works=[
+            ("Homage to the Square: Apparition",    "1959"),
+            ("Homage to the Square: Soft Spoken",   "1969"),
+            ("Homage to the Square: Wide Light",    "1960"),
+            ("Homage to the Square: Gentle",        "1974"),
+            ("Homage to the Square: Glow",          "1966"),
+            ("Gate",                                "1936"),
+            ("Tenayuca",                            "1943"),
+        ],
+        inspiration=(
+            "Apply albers_homage_square_pass() as the signature effect "
+            "— ONE HUNDRED AND TWENTIETH DISTINCT MODE.\n\n"
+            "Algorithm: CONCENTRIC CHEBYSHEV ZONE CHROMATIC INTERACTION FIELD — divide "
+            "the canvas into n_zones concentric rectangular bands using the L∞ (Chebyshev) "
+            "distance from the image centre.  Chebyshev distance = max(|dy|, |dx|) (both "
+            "normalised by half the canvas dimension) gives rectangular iso-contours — the "
+            "geometry of Albers' nested squares.  For each zone z, compute the mean RGB "
+            "colour of all pixels in that zone.  For each zone z > 0, apply SIMULTANEOUS "
+            "CONTRAST: every pixel in zone z is shifted AWAY from the adjacent inner zone "
+            "(z−1)'s mean colour by exaggerating their difference: "
+            "shift = (pixel − inner_mean) × contrast_strength.  "
+            "This mimics the perceptual effect Albers demonstrated: a zone surrounded by "
+            "warm orange appears cooler; a zone surrounded by cool blue appears warmer.  "
+            "The shift field (delta_r, delta_g, delta_b) is Gaussian-blurred by zone_sigma "
+            "to create smooth zone-boundary halation — the soft glowing transition between "
+            "adjacent colour rectangles.  The adjusted image is composited over the original "
+            "at opacity.\n\n"
+            "NOVEL: ONE HUNDRED AND TWENTIETH DISTINCT MODE.  First pass to use "
+            "CONCENTRIC CHEBYSHEV ZONE CHROMATIC INTERACTION FIELD: L∞ distance zoning "
+            "produces rectangular iso-contours (not Euclidean circles), combined with "
+            "per-zone simultaneous contrast (exaggeration of each zone's colour difference "
+            "from its adjacent inner zone's mean).  Prior passes: Delaunay (Euclidean "
+            "multi-disk ring fields — circular, not rectangular); Kline (axis-detected "
+            "sweep strokes — no zoning, no contrast interaction); Riley (sinusoidal wave "
+            "interference — no zone structure); Kusama (circular dot fields — no "
+            "simultaneous contrast); Klee (tonal magic square cells — no zone-mean "
+            "interaction, no exaggeration of colour difference).  The combination of "
+            "Chebyshev rectangular zoning + per-zone mean colour + simultaneous contrast "
+            "exaggeration + blurred shift field cannot be assembled from any prior single "
+            "pass.\n\n"
+            "tone_ground() with medium grey (0.54, 0.54, 0.54).\n"
+            "underpainting() for mass (stroke_size=30).\n"
+            "block_in() for broad colour zones (stroke_size=18).\n"
+            "build_form() for chromatic structure (stroke_size=8).\n"
+            "albers_homage_square_pass(n_zones=5, contrast_strength=0.15, "
+            "zone_sigma=6.0, opacity=0.55) as the primary pass.\n\n"
+            "Use albers_homage_square_pass(n_zones=5, contrast_strength=0.15, "
+            "zone_sigma=6.0, opacity=0.55)."
+        ),
+    ),
+
 }
 
 
