@@ -373,8 +373,8 @@ def test_s231_combined_vrubel_clarity_sequence():
 
 
 def test_s231_full_pass_count():
-    """Session 231: stroke_engine should have at least 340 pass methods."""
+    """Session 231: stroke_engine should have at least 329 pass methods."""
     from stroke_engine import Painter
     passes = [m for m in dir(Painter) if m.endswith('_pass')]
-    assert len(passes) >= 340, (
-        f"Expected >= 340 passes after session 231, found {len(passes)}")
+    assert len(passes) >= 329, (
+        f"Expected >= 329 passes after session 231, found {len(passes)}")

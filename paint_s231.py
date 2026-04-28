@@ -249,7 +249,7 @@ def main():
         p.glaze((0.55, 0.50, 0.70), opacity=0.20)
 
         print("  vignette...")
-        p.vignette(strength=0.35)
+        p.canvas.vignette(strength=0.35)
 
         print(f"Saving to {OUTPUT_PATH}...")
         p.canvas.save(OUTPUT_PATH)
