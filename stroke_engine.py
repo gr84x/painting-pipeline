@@ -52523,3 +52523,206 @@ class Painter:
         n_far  = int((far_gate > 0.3).sum())
         print(f"    Chromatic Focal Pull pass complete  "
               f"(near_px={n_near}  far_px={n_far})")
+
+    def redon_luminous_reverie_pass(
+        self,
+        shadow_thresh:  float = 0.30,
+        violet_lift:    float = 0.06,
+        phosphor_boost: float = 0.35,
+        dream_sigma:    float = 1.8,
+        shimmer_thresh: float = 0.82,
+        shimmer_str:    float = 0.08,
+        opacity:        float = 0.75,
+    ) -> None:
+        """
+        Redon Luminous Reverie -- session 229: ONE HUNDRED AND FORTIETH distinct mode.
+
+        Implements Odilon Redon (1840-1916) Symbolist phosphorescent luminosity.
+        Four stages unified by one shared luminance map:
+
+        Stage 1 VIOLET SHADOW LIFT: gate=clip((shadow_thresh-lum)/shadow_thresh,0,1)^1.2
+        R-=gate*violet_lift*0.55; B+=gate*violet_lift; G-=gate*violet_lift*0.18.
+        Shifts shadows toward spectral indigo of Redon noirs.
+
+        Stage 2 PHOSPHORESCENT MIDTONE BLOOM: bell=exp(-0.5*((lum-0.50)/0.28)^2);
+        sat_scale=1+phosphor_boost*bell; ch=lum3+(ch-lum3)*sat_scale.
+        Bell-curve peak at lum=0.50 creates glowing-from-within midtone quality.
+
+        Stage 3 DREAM-HAZE SHADOW SOFTENING: Gaussian blur at dream_sigma;
+        blend blurred into result weighted by shadow_gate*0.50 -- highlights unaffected.
+
+        Stage 4 HIGHLIGHT SHIMMER BLOOM: shimmer_gate=clip((lum-shimmer_thresh)/
+        (1-shimmer_thresh),0,1); tiny Gaussian bloom sigma=0.9; additive at shimmer_str.
+
+        NOVEL vs. existing passes:
+        (a) Bell-curve luminance gate for saturation (first mid-luma peak saturation pass).
+        (b) Violet-indigo directional hue shift in shadow zones (not darkening/cool push).
+        (c) Shadow-zone Gaussian softening + highlight shimmer in single unified model.
+        (d) All four operations share one luminance computation.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print("    Redon Luminous Reverie pass (session 229 -- 140th mode)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # Stage 1: Violet Shadow Lift
+        st = float(shadow_thresh)
+        shadow_gate = _np.clip((st - lum) / (st + 1e-6), 0.0, 1.0) ** 1.2
+        vl = float(violet_lift)
+        r1 = _np.clip(r0 - shadow_gate * vl * 0.55, 0.0, 1.0)
+        g1 = _np.clip(g0 - shadow_gate * vl * 0.18, 0.0, 1.0)
+        b1 = _np.clip(b0 + shadow_gate * vl,         0.0, 1.0)
+
+        # Stage 2: Phosphorescent Midtone Bloom (bell-curve saturation)
+        bell = _np.exp(-0.5 * ((lum - 0.50) / 0.28) ** 2).astype(_np.float32)
+        pb = float(phosphor_boost)
+        sat_scale = 1.0 + pb * bell
+        lum3 = (0.299 * r1 + 0.587 * g1 + 0.114 * b1).astype(_np.float32)
+        r2 = _np.clip(lum3 + (r1 - lum3) * sat_scale, 0.0, 1.0)
+        g2 = _np.clip(lum3 + (g1 - lum3) * sat_scale, 0.0, 1.0)
+        b2 = _np.clip(lum3 + (b1 - lum3) * sat_scale, 0.0, 1.0)
+
+        # Stage 3: Dream-Haze Shadow Softening
+        ds = float(dream_sigma)
+        r_blur = _gf(r2, ds).astype(_np.float32)
+        g_blur = _gf(g2, ds).astype(_np.float32)
+        b_blur = _gf(b2, ds).astype(_np.float32)
+        haze_gate = shadow_gate * 0.50
+        r3 = r2 * (1.0 - haze_gate) + r_blur * haze_gate
+        g3 = g2 * (1.0 - haze_gate) + g_blur * haze_gate
+        b3 = b2 * (1.0 - haze_gate) + b_blur * haze_gate
+
+        # Stage 4: Highlight Shimmer Bloom
+        sth = float(shimmer_thresh)
+        shimmer_gate = _np.clip((lum - sth) / (1.0 - sth + 1e-6), 0.0, 1.0)
+        r_sh = _gf(r3, 0.9).astype(_np.float32)
+        g_sh = _gf(g3, 0.9).astype(_np.float32)
+        b_sh = _gf(b3, 0.9).astype(_np.float32)
+        ss = float(shimmer_str)
+        r4 = _np.clip(r3 + shimmer_gate * ss * (r_sh - r3), 0.0, 1.0)
+        g4 = _np.clip(g3 + shimmer_gate * ss * (g_sh - g3), 0.0, 1.0)
+        b4 = _np.clip(b3 + shimmer_gate * ss * (b_sh - b3), 0.0, 1.0)
+
+        # Composite at opacity
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r4 * op
+        new_g = g0 * (1.0 - op) + g4 * op
+        new_b = b0 * (1.0 - op) + b4 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_violet  = int((shadow_gate > 0.2).sum())
+        n_bloom   = int((bell > 0.5).sum())
+        n_shimmer = int((shimmer_gate > 0.1).sum())
+        print(f"    Redon Luminous Reverie complete "
+              f"(violet_px={n_violet} bloom_px={n_bloom} shimmer_px={n_shimmer})")
+
+    def impasto_relief_pass(
+        self,
+        light_angle:    float = 2.36,
+        relief_scale:   float = 0.12,
+        thickness_gate: float = 0.30,
+        relief_sigma:   float = 1.2,
+        opacity:        float = 0.55,
+    ) -> None:
+        """
+        Impasto Relief -- session 229 artistic improvement.
+
+        Models the 3D surface of thick oil paint under directional raking light.
+        Oil paint physically builds up in ridges; a raking light from above-left
+        reveals the micro-topography: bright highlights on ridge faces toward the
+        light, dark shadows on faces pointing away.
+
+        Mechanism: treat smoothed luminance as a paint-height proxy. Compute a
+        directional Sobel derivative along light_angle. Positive gradient (surface
+        slopes toward light) gets brightness addition; negative gradient subtraction.
+        Gated by luminance threshold so only moderately thick paint shows the relief.
+
+        NOVEL vs. existing passes:
+        - canvas_tooth_texture_pass models the canvas BELOW the paint (periodic
+          woven structure), not the paint surface itself.
+        - edge_definition_pass sharpens edges uniformly with no directional light.
+        - This pass simulates PAINT SURFACE TOPOGRAPHY under a user-defined raking
+          light -- first pass using directional Sobel on luminance-as-height-proxy
+          to derive paint surface normals for 3D relief lighting.
+
+        light_angle    : Direction of raking light in radians (default ~135 deg NW).
+        relief_scale   : Amplitude of relief brightness modulation [0, 0.30].
+        thickness_gate : Luminance threshold -- relief only where lum > this.
+        relief_sigma   : Gaussian sigma for smoothing the height-proxy.
+        opacity        : Final composite opacity.
+        """
+        import numpy as _np
+        import math as _math
+        from scipy.ndimage import gaussian_filter as _gf, sobel as _sobel
+
+        print("    Impasto Relief pass (session 229 improvement)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Paint height proxy: smoothed luminance
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+        height = _gf(lum, float(relief_sigma)).astype(_np.float32)
+
+        # Directional derivative along light_angle
+        la = float(light_angle)
+        dx = _sobel(height, axis=1).astype(_np.float32)
+        dy = _sobel(height, axis=0).astype(_np.float32)
+        relief = (dx * _math.cos(la) + dy * _math.sin(la)).astype(_np.float32)
+
+        # Normalise relief to [-1, 1]
+        r_max = _np.abs(relief).max()
+        if r_max > 1e-6:
+            relief = relief / r_max
+
+        # Thickness gate: relief only where paint is thick enough
+        tg = float(thickness_gate)
+        thick_gate = _np.clip((lum - tg) / (1.0 - tg + 1e-6), 0.0, 1.0) ** 0.8
+
+        rs = float(relief_scale)
+        delta = relief * rs * thick_gate
+
+        r1 = _np.clip(r0 + delta,        0.0, 1.0)
+        g1 = _np.clip(g0 + delta * 0.95, 0.0, 1.0)
+        b1 = _np.clip(b0 + delta * 0.88, 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r1 * op
+        new_g = g0 * (1.0 - op) + g1 * op
+        new_b = b0 * (1.0 - op) + b1 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_lit  = int((delta > 0.005).sum())
+        n_dark = int((delta < -0.005).sum())
+        print(f"    Impasto Relief pass complete (lit_px={n_lit} dark_px={n_dark})")
