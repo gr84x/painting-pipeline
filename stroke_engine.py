@@ -3540,6 +3540,7 @@ class Painter:
 
             angles = flow_field(rarr)   # strokes follow the colour contour
             dark_size = max(3.0, drag_size * 0.30)   # smaller, crisper than washes
+            dark_load = PaintLoad(reload_mode='every_stroke')
 
             for pos in dark_positions:
                 py, px = int(pos // w), int(pos % w)
@@ -3569,7 +3570,17 @@ class Painter:
                     jitter_amt=0.018,
                     rng=self._rng_py,
                     region_mask=effective_mask,
+                    paint_load=dark_load,
                 )
+
+        # ── Stage 4: Drying — diffuse wet edges and granulate paper surface ───────
+        print("  Stage 4: watercolour drying…")
+        self.canvas.watercolor_dry(
+            amount=0.55,
+            diffuse_strength=0.25,
+            diffuse_passes=1,
+            granulate_strength=0.18,
+        )
 
     def flat_plane_pass(self,
                         reference:       Union[np.ndarray, Image.Image],
@@ -6185,6 +6196,62 @@ class Painter:
                                      pressure_profile=pressure_profile,
                                      paint_load=paint_load)
 
+        # ── Edge treatment ─────────────────────────────────────────────────────────
+        # full_coverage: paint the border strip that the erosion + margin clamp leaves
+        # empty.  overpainting uses a wider strip.  natural_border (default) skips.
+        if getattr(self, 'edge_treatment', 'natural_border') != 'natural_border':
+            bw = max(4, int(stroke_size * 2.0))
+            if self.edge_treatment == 'overpainting':
+                bw = int(bw * 2)
+
+            edge_wt = np.zeros((h, w), dtype=np.float32)
+            edge_wt[:bw, :]  = 1.0
+            edge_wt[-bw:, :] = 1.0
+            edge_wt[:, :bw]  = 1.0
+            edge_wt[:, -bw:] = 1.0
+
+            if stroke_mask is not None:
+                edge_wt *= stroke_mask
+            edge_err   = err * edge_wt
+            edge_total = float(edge_err.sum())
+            if edge_total > 1e-9:
+                edge_prob = (edge_err / edge_total).flatten()
+                n_edge    = max(1, n_strokes // 4)
+                edge_pos  = self.rng.choice(h * w, size=n_edge,
+                                             p=edge_prob, replace=True)
+                for pos in edge_pos:
+                    ey, ex = int(pos // w), int(pos % w)
+                    ex = int(np.clip(ex, 1, w - 2))
+                    ey = int(np.clip(ey, 1, h - 2))
+
+                    if override_color is not None:
+                        ecol = jitter(override_color, jitter_amt, self._rng_py)
+                    else:
+                        ecol = tuple(float(rarr[ey, ex, c]) for c in range(3))
+                        ecol = jitter(ecol, jitter_amt, self._rng_py)
+
+                    ea    = float(angles[ey, ex]) + self._rng_py.uniform(-0.25, 0.25)
+                    eL    = stroke_size * self._rng_py.uniform(0.9, 2.2)
+                    estart = (ex - math.cos(ea) * eL * 0.5,
+                              ey - math.sin(ea) * eL * 0.5)
+                    epts  = stroke_path(estart, ea, eL,
+                                        curve=self._rng_py.uniform(
+                                            -curvature * 0.5, curvature * 0.5),
+                                        n=max(3, int(eL / 5)))
+                    ews   = [stroke_size * self._rng_py.uniform(0.55, 1.10)] * len(epts)
+
+                    eff_t = brush_profile if brush_profile is not None else tip
+                    self.canvas.apply_stroke(
+                        epts, ews, ecol, eff_t,
+                        opacity=opacity,
+                        wet_blend=wet_blend * 0.8,
+                        jitter_amt=jitter_amt,
+                        rng=self._rng_py,
+                        region_mask=(stroke_mask.astype(np.float32)
+                                     if stroke_mask is not None else None),
+                        pressure_profile=pressure_profile,
+                        paint_load=paint_load)
+
     def color_field_pass(self,
                          reference:              Union[np.ndarray, Image.Image],
                          n_bands:                int   = 3,
@@ -7617,12 +7684,13 @@ class Painter:
 
             self.canvas.apply_stroke(
                 pts, widths, blended,
-                tip=BrushTip(BrushTip.FILBERT),
+                tip=BRUSH_PRESETS['hog_filbert'],
                 opacity=0.28,
                 wet_blend=0.72,
                 jitter_amt=0.022,
                 rng=rng,
                 region_mask=self._figure_mask,
+                pressure_profile=PressureProfile('feather', 0.55),
             )
 
         # ── Stage 3: Loaded impasto highlights ────────────────────────────────
@@ -7666,12 +7734,14 @@ class Painter:
 
             self.canvas.apply_stroke(
                 pts, widths, mixed,
-                tip=BrushTip(BrushTip.FLAT),
+                tip=BRUSH_PRESETS['hog_flat'],
                 opacity=impasto_opacity * 0.95,
-                wet_blend=0.28,    # low wet_blend — impasto stays crisp
-                jitter_amt=0.012,
+                wet_blend=0.10,    # impasto: minimal blending, crisp mark
+                jitter_amt=0.028,
                 rng=rng,
                 region_mask=self._figure_mask,
+                pressure_profile=PressureProfile('stab', 1.0),
+                paint_load=PaintLoad('every_stroke'),
             )
             placed += 1
 
@@ -11383,65 +11453,36 @@ class Painter:
             cx = int(xs[idx])
 
             # Stroke geometry: length and angle
-            length = rng.uniform(min_length, max_length)
+            length    = rng.uniform(min_length, max_length)
             angle_deg = rng.uniform(-angle_spread, angle_spread)
-            angle_r = math.radians(angle_deg)
-            cos_a = math.cos(angle_r)
-            sin_a = math.sin(angle_r)
+            angle_r   = math.radians(angle_deg)
+            half_l    = length / 2.0
 
-            half_l = length / 2.0
-
-            # Sample and perturb colour (value shift for tonal plane separation)
+            # Sample and value-shift colour (tonal plane separation)
             base = rng.choice(palette)
             bh, bs, bv = _cs.rgb_to_hsv(*base)
             bv = max(0.0, min(1.0, bv + rng.uniform(-value_contrast, value_contrast)))
             cr, cg, cb = _cs.hsv_to_rgb(bh, bs, bv)
 
-            # ── Draw filled knife stroke (rotated rectangle) ──────────────────
-            # Scan bounding box of the rotated rectangle
-            corners_l = [-half_l, half_l, half_l, -half_l]
-            corners_t = [-half_t, -half_t, half_t, half_t]
-            px_corners = [cx + cl * cos_a - ct * sin_a for cl, ct in zip(corners_l, corners_t)]
-            py_corners = [cy + cl * sin_a + ct * cos_a for cl, ct in zip(corners_l, corners_t)]
+            # Path: two endpoints along stroke direction
+            dx = math.cos(angle_r) * half_l
+            dy = math.sin(angle_r) * half_l
+            pts_k  = [(cx - dx, cy - dy), (cx + dx, cy + dy)]
+            wids_k = [thickness, thickness]
 
-            bx0 = max(0, int(min(px_corners)) - 1)
-            bx1 = min(w - 1, int(max(px_corners)) + 2)
-            by0 = max(0, int(min(py_corners)) - 1)
-            by1 = min(h - 1, int(max(py_corners)) + 2)
+            region = (self._figure_mask.astype(np.float32)
+                      if figure_only and self._figure_mask is not None else None)
 
-            self.canvas.ctx.set_source_rgba(cr, cg, cb, opacity)
-            for py in range(by0, by1 + 1):
-                for px in range(bx0, bx1 + 1):
-                    # Transform to stroke-local coordinates (inverse rotate)
-                    dx = px - cx
-                    dy = py - cy
-                    local_l =  dx * cos_a + dy * sin_a
-                    local_t = -dx * sin_a + dy * cos_a
-                    if abs(local_l) <= half_l and abs(local_t) <= half_t:
-                        self.canvas.ctx.rectangle(px, py, 1, 1)
-            self.canvas.ctx.fill()
-
-            # ── Edge ridge: thin darker border around the knife stroke ────────
-            if edge_ridge > 0.0:
-                ridge_r = max(0.0, cr - 0.15)
-                ridge_g = max(0.0, cg - 0.15)
-                ridge_b = max(0.0, cb - 0.15)
-                self.canvas.ctx.set_source_rgba(ridge_r, ridge_g, ridge_b, edge_ridge)
-                ridge_margin = 1.5
-                for py in range(by0, by1 + 1):
-                    for px in range(bx0, bx1 + 1):
-                        dx = px - cx
-                        dy = py - cy
-                        local_l =  dx * cos_a + dy * sin_a
-                        local_t = -dx * sin_a + dy * cos_a
-                        in_outer = (abs(local_l) <= half_l + ridge_margin and
-                                    abs(local_t) <= half_t + ridge_margin)
-                        in_inner = (abs(local_l) <= half_l - 0.5 and
-                                    abs(local_t) <= half_t - 0.5)
-                        if in_outer and not in_inner:
-                            self.canvas.ctx.rectangle(px, py, 1, 1)
-                self.canvas.ctx.fill()
-
+            self.canvas.apply_knife_stroke(
+                pts_k, wids_k, (cr, cg, cb),
+                profile=BRUSH_PRESETS['knife_trowel'],
+                opacity=opacity,
+                scrape=False,
+                wet_blend=0.06,
+                jitter_amt=0.02,
+                rng=rng,
+                region_mask=region,
+            )
             n_placed += 1
 
         print(f"    Palette knife complete  (strokes_placed={n_placed})")
@@ -11628,9 +11669,10 @@ class Painter:
                     pts     = pts,
                     widths  = widths,
                     color   = (r_s, g_s, b_s),
-                    tip     = BrushTip(BrushTip.FILBERT),
+                    tip     = BRUSH_PRESETS['round_sable'],
                     opacity = opacity,
                     wet_blend = wet_blend,
+                    rng     = rng,
                 )
                 pass_placed += 1
 
@@ -11638,6 +11680,25 @@ class Painter:
             # Partial dry between passes: settles slightly but stays workable.
             # This prevents consecutive passes from becoming a single merged wash.
             self.canvas.dry(amount=0.18)
+
+        # Bouguereau's finishing step: a dry fan brush swept across the surface
+        # to merge micro-marks into seamless flesh.  Only if skin region detected.
+        if n_candidates > 0:
+            y0 = int(ys.min())
+            y1 = int(ys.max())
+            x0 = int(xs.min())
+            x1 = int(xs.max())
+            mid_y = float((y0 + y1) * 0.5)
+            sweep_pts = [(float(x0), mid_y), (float(x1), mid_y)]
+            fan_w = max(20.0, float(y1 - y0) * 0.4)
+            self.canvas.fan_blend(
+                sweep_pts,
+                width=fan_w,
+                strength=0.30,
+                n_passes=2,
+                region_mask=(self._figure_mask
+                             if self._figure_mask is not None else None),
+            )
 
         print(f"    Academic skin complete  "
               f"(total_strokes={total_placed}  passes={n_passes})")
