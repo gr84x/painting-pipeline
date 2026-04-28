@@ -1882,6 +1882,223 @@ class PaintCanvas:
         # their physical relief long after the surface dries.
         self.thickness_map *= (1.0 - amount * 0.20)
 
+    # ── Phase 4 — Watercolour physics ─────────────────────────────────────────
+
+    def diffuse_wet(self, passes: int = 1, strength: float = 0.50):
+        """
+        Bleed wet paint outward — watercolour wet-into-wet diffusion.
+
+        Simulates water carrying pigment across wet regions.  Very wet areas
+        receive a wider diffusion radius; barely-wet areas barely bleed.
+
+        Call immediately after placing strokes, before granulate() and
+        dry_edges().
+
+        Usage guidance
+        --------------
+        - One pass at strength 0.35–0.55 gives natural soft-edged washes.
+        - Two passes at strength 0.60+ give the heavy bloom of wet-on-wet.
+        - Do NOT call on a dry canvas — wetness gates the effect completely.
+        - Not needed for oil painting; oil does not bleed this way.
+
+        Parameters
+        ----------
+        passes   : Number of diffusion sweeps.  1 = subtle; 2 = heavy bloom.
+        strength : [0, 1] blend fraction toward the diffused result per pass.
+        """
+        if self.wetness.max() < 0.10:
+            return
+
+        from scipy.ndimage import gaussian_filter
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4)
+        rgb = arr[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        for _ in range(passes):
+            # Multi-scale diffusion: very wet → wide blur, barely wet → fine blur.
+            # Three wetness bands drive three Gaussian radii.
+            for threshold, sigma in [(0.70, 3.5), (0.40, 2.0), (0.15, 1.0)]:
+                mask = np.clip(
+                    (self.wetness - threshold) / (1.0 - threshold + 1e-6),
+                    0.0, 1.0,
+                )
+                if mask.max() < 0.01:
+                    continue
+                blurred = gaussian_filter(rgb, sigma=[sigma, sigma, 0])
+                m3d     = (mask * strength)[..., np.newaxis]
+                rgb     = rgb * (1.0 - m3d) + blurred * m3d
+
+        out = arr.copy()
+        out[:, :, 0] = np.clip(rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 1] = np.clip(rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 2] = np.clip(rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(out.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def dry_edges(self, darkening: float = 0.88, edge_width: int = 2):
+        """
+        Concentrate pigment at the boundary of drying wet regions.
+
+        As watercolour dries, receding water carries dissolved pigment to the
+        drying front, depositing a darker, crisper ring — the characteristic
+        hard edge (cauliflower / bloom / backrun).
+
+        Call just before dry() so the effect is applied while paint is still
+        wet.  The darkening is modulated by local wetness: pixels that are
+        barely wet produce a faint edge; very wet pixels produce the full ring.
+
+        Usage guidance
+        --------------
+        - darkening 0.85–0.92 is natural (8–15 % darker at the edge).
+        - edge_width 1–2 for fine-grained paper; 3–4 for large washes.
+        - Call once per drying cycle.  Repeated calls stack and over-darken.
+        - Not needed for oil painting.
+
+        Parameters
+        ----------
+        darkening  : Multiplier for edge pixels — 1.0 = no effect, 0.80 = strong.
+        edge_width : Pixel width of the darkened ring.
+        """
+        from scipy.ndimage import binary_dilation, binary_erosion
+
+        wet_mask = self.wetness > 0.25
+        if not wet_mask.any():
+            return
+
+        struct  = np.ones((3, 3), dtype=bool)
+        dilated = binary_dilation(wet_mask, structure=struct,
+                                  iterations=edge_width)
+        eroded  = binary_erosion(wet_mask, structure=struct,
+                                 iterations=max(1, edge_width - 1))
+        # Edge band: the ring just outside (or just inside) the wet boundary.
+        edge    = (dilated & ~eroded).astype(np.float32)
+
+        # Weight by local wetness so the effect is strongest where wetter.
+        edge   *= np.clip(self.wetness, 0.0, 1.0)
+
+        if edge.max() < 0.01:
+            return
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4).astype(np.float32)
+
+        dark_factor = 1.0 - edge * (1.0 - darkening)
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * dark_factor, 0, 255)
+        arr[:, :, 1] = np.clip(arr[:, :, 1] * dark_factor, 0, 255)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * dark_factor, 0, 255)
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(arr.astype(np.uint8).tobytes()),
+            cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def granulate(self, strength: float = 0.22, pigment_weight: float = 1.0):
+        """
+        Simulate pigment granulation into paper / canvas texture.
+
+        Paper valleys accumulate pigment (darker, denser where the texture
+        dips); surface peaks resist the wash (slightly lighter where the
+        texture rises).  Effect is gated by local wetness — dry areas do not
+        granulate because the water that carries pigment is gone.
+
+        Naturally more visible on cold-press watercolour paper (deeper tooth)
+        than on linen canvas, but both surfaces produce the effect at scale.
+
+        Usage guidance
+        --------------
+        - strength 0.15–0.25 is natural; above 0.40 reads as exaggerated.
+        - Call after diffuse_wet() so bleeding has already spread the pigment
+          before it settles into the texture.
+        - Earth pigments (raw umber, burnt sienna, ultramarine) granulate more
+          strongly in real life.  Use pigment_weight 1.2–1.5 for those hues
+          and 0.6–0.8 for synthetic pigments (cadmium, phthalo).
+        - Not needed for oil painting; oil pigment does not granulate.
+
+        Parameters
+        ----------
+        strength       : [0, 1] maximum darkening / lightening amplitude.
+        pigment_weight : Multiplier for the effect — use to differentiate
+                         granulating pigments (> 1) from smooth ones (< 1).
+        """
+        if self.wetness.max() < 0.10 or strength < 0.01:
+            return
+
+        # Normalise texture to [-1, 1] centred at its midpoint.
+        t_min, t_max = float(self.texture.min()), float(self.texture.max())
+        mid      = (t_min + t_max) * 0.5
+        t_range  = (t_max - t_min) * 0.5 + 1e-6
+        tex_norm = (self.texture - mid) / t_range   # -1 (valley) to +1 (peak)
+
+        # Valleys darken (pigment pools); peaks lighten slightly (pigment skims).
+        valley_dark = np.clip(-tex_norm, 0.0, 1.0) * strength * pigment_weight
+        peak_light  = np.clip( tex_norm, 0.0, 1.0) * strength * 0.45 * pigment_weight
+
+        wet_w      = np.clip(self.wetness, 0.0, 1.0)
+        modulation = 1.0 - valley_dark * wet_w + peak_light * wet_w
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4).astype(np.float32)
+
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * modulation, 0, 255)
+        arr[:, :, 1] = np.clip(arr[:, :, 1] * modulation, 0, 255)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * modulation, 0, 255)
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(arr.astype(np.uint8).tobytes()),
+            cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def watercolor_dry(self,
+                       amount:             float = 0.55,
+                       diffuse_strength:   float = 0.40,
+                       diffuse_passes:     int   = 1,
+                       granulate_strength: float = 0.22,
+                       pigment_weight:     float = 1.0,
+                       edge_darkening:     float = 0.88,
+                       edge_width:         int   = 2):
+        """
+        Watercolour drying sequence — one call for physically correct drying.
+
+        Runs diffusion, granulation, and edge concentration in the correct
+        physical order, then reduces wetness.  Use in place of dry() for all
+        watercolour painting passes.
+
+        Physical sequence
+        -----------------
+        1. diffuse_wet()  — wet paint bleeds while still fluid
+        2. granulate()    — pigment settles into paper texture
+        3. dry_edges()    — pigment concentrates at the receding drying front
+        4. dry()          — wetness reduced
+
+        Usage guidance
+        --------------
+        - For a light first wash: diffuse_strength=0.30, granulate_strength=0.15,
+          edge_darkening=0.92 (subtle bleed, faint granulation, light edge).
+        - For a heavy wet-on-wet bloom: diffuse_strength=0.60, diffuse_passes=2,
+          granulate_strength=0.25, edge_darkening=0.84 (heavy bleed, strong ring).
+        - amount matches dry() — 0.55 typical, 0.90 near-complete.
+        - Do NOT use for oil painting passes; use dry() instead.
+
+        Parameters
+        ----------
+        amount             : Drying fraction passed to dry() [0, 1].
+        diffuse_strength   : Bleeding intensity [0, 1].
+        diffuse_passes     : Diffusion sweep count.  1–2.
+        granulate_strength : Texture granulation depth [0, 1].
+        pigment_weight     : Granulation multiplier (earth pigments > 1).
+        edge_darkening     : Pigment ring darkness multiplier (0.80–0.95).
+        edge_width         : Pixel width of the darkened edge band.
+        """
+        self.diffuse_wet(passes=diffuse_passes, strength=diffuse_strength)
+        self.granulate(strength=granulate_strength, pigment_weight=pigment_weight)
+        self.dry_edges(darkening=edge_darkening, edge_width=edge_width)
+        self.dry(amount)
+
     def glaze(self, color: Color, opacity: float = 0.10):
         """Transparent colour wash over entire canvas (final warmth / tone)."""
         self.ctx.rectangle(0, 0, self.w, self.h)
