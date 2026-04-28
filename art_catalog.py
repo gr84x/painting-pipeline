@@ -20475,6 +20475,76 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Fernand Khnopff ────────────────────────────────────────────────────────
+    "fernand_khnopff": ArtStyle(
+        artist="Fernand Khnopff",
+        movement="Belgian Symbolism",
+        nationality="Belgian",
+        period="1858-1921",
+        palette=[
+            (0.72, 0.72, 0.78),   # cool silver-grey (dominant — the mist tone of Belgian sky)
+            (0.55, 0.60, 0.68),   # blue-grey (shadow midtone — desaturated dusk)
+            (0.88, 0.82, 0.72),   # warm ivory-amber (figure highlight — rare warmth emerging from grey)
+            (0.38, 0.42, 0.52),   # slate blue (deep mid-shadow — cool atmospheric depth)
+            (0.82, 0.76, 0.68),   # pale pearl (highlight flesh — luminous, cool white skin)
+            (0.65, 0.55, 0.42),   # amber-ochre (single warm accent — hair, bronze detail)
+            (0.20, 0.22, 0.30),   # near-black blue-charcoal (deepest shadow void)
+            (0.62, 0.65, 0.72),   # muted periwinkle (mid-tone atmospheric haze)
+            (0.90, 0.88, 0.85),   # near-white pearl (brightest highlight — enigmatic face)
+            (0.42, 0.38, 0.32),   # warm dark umber (single dark accent — grounding element)
+        ],
+        ground_color=(0.55, 0.56, 0.60),   # cool blue-grey imprimatura — Belgian mist ground
+        stroke_size=2.0,
+        wet_blend=0.55,
+        edge_softness=0.60,
+        jitter=0.018,
+        glazing=(0.60, 0.62, 0.68),        # cool blue-grey unifying glaze — the Khnopff veil
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Fernand Khnopff created a world of suspended time — his paintings feel "
+            "like memories that haven't quite solidified, seen through a translucent "
+            "grey veil that drains warmth from everything except a single luminous face "
+            "or detail.  Trained at the Brussels Académie and deeply influenced by the "
+            "English Pre-Raphaelites (particularly Burne-Jones) and the Belgian "
+            "Symbolist circle, he developed a technique of extraordinary atmospheric "
+            "restraint: palette reduced to cool silver-greys with only rare amber or "
+            "ivory accents, forms dissolved at their edges by a smooth atmospheric haze "
+            "that grows stronger in shadows and midtones, while highlights (a face, a "
+            "garment fold, a distant horizon) are preserved crisp and pale.  His "
+            "subjects — sphinx women, sleeping figures, desolate Belgian townscapes — "
+            "exist in an emotional limbo between waking and dreaming.  The defining "
+            "technical quality: highlights are pearl-cool (barely warm), shadows "
+            "dissolve into blue-charcoal atmospheric blur, mid-tones are almost "
+            "monochromatic.  'I Lock My Door Upon Myself' (1891) typifies the formula: "
+            "a single pale face emerging from grey veiled darkness, surrounded by cold "
+            "blue-grey fabrics, with one lily accent as the only warm note.  Edge "
+            "softness is high: forms melt into atmosphere.  Wet blend is medium-high: "
+            "glazes fuse.  Stroke size is very small: surfaces smooth as enamel."
+        ),
+        famous_works=[
+            ("I Lock My Door Upon Myself", "1891"),
+            ("The Caress", "1896"),
+            ("Memories", "1889"),
+            ("Who Shall Deliver Me?", "1891"),
+            ("Bruges-la-Morte", "1892"),
+            ("Isolation", "1890"),
+            ("Secret-Reflet", "1902"),
+        ],
+        inspiration=(
+            "khnopff_frozen_reverie_pass(): cool silver desaturation pulling channels "
+            "toward a blue-grey veil (strongest in shadows, fading in highlights); "
+            "atmospheric mist blur gated away from bright highlights (dissolves shadow "
+            "and midtone edges while preserving crisp luminous highlights); cool pearl "
+            "tint in the brightest zones (B+ in lum>0.70) for the characteristic "
+            "cold-white Khnopff highlight quality.  Use cool blue-grey ground "
+            "(0.55, 0.56, 0.60), glazing=(0.60, 0.62, 0.68) cool grey glaze.  "
+            "Combine with build_form() for smooth surface and warm_cool_zone_pass() "
+            "for shadow-cooling.  Best for Symbolist portraits, introspective figures, "
+            "atmospheric landscapes with a dreamlike emotional register."
+        ),
+    ),
+
 
 }
 
