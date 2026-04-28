@@ -50023,3 +50023,227 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Color Temperature Oscillation pass complete.")
+
+    def segantini_stitch_weave_pass(
+        self,
+        *,
+        stitch_density:  float = 12.0,
+        weave_strength:  float = 0.14,
+        warm_target_r:   float = 0.84,
+        warm_target_g:   float = 0.70,
+        warm_target_b:   float = 0.32,
+        cool_target_r:   float = 0.52,
+        cool_target_g:   float = 0.72,
+        cool_target_b:   float = 0.90,
+        saturation_boost: float = 0.10,
+        opacity:         float = 0.78,
+    ) -> None:
+        """
+        Segantini Stitch Weave -- ONE HUNDRED AND THIRTY-SIXTH distinct mode.
+        Session 225: Giovanni Segantini (1858-1899).
+
+        Five-stage algorithm implementing Segantini's 'pennellate a virgola' (comma-stroke)
+        Divisionist technique: the local gradient direction of the luminance field is
+        computed; a sinusoidal stitch mask oscillates perpendicular to the local contour;
+        warm and cool oscillations simulate the alternating discrete strokes on a white
+        ground; a saturation lift replicates high-altitude alpine UV-rich chroma.
+
+        Novelty vs. existing passes:
+        All prior warm/cool oscillation passes (serov_sunlit_portrait_pass,
+        color_temperature_oscillation_pass) operate on global luminance zones (highlights,
+        shadows, mid-tones) regardless of local form direction.  This pass derives the
+        oscillation *axis* from the local image gradient -- stripes run perpendicular to
+        the local contour, following the form the way Segantini's actual brushstrokes did.
+        The sinusoidal stitch pattern creates visible discrete marks at the pixel scale,
+        something no prior pass produces.  The saturation_boost is also unique to this
+        pass: prior luminosity lifts (serov, halation) modify value/brightness, not chroma
+        independently.
+
+        stitch_density   : Number of stitch cycles per 100 pixels of canvas.
+                           8 = coarse weave; 12 = standard; 20 = fine hatching.
+        weave_strength   : Amplitude of warm/cool colour blend at stitch peaks/troughs.
+                           0.08 = subtle; 0.14 = standard; 0.25 = dramatic.
+        warm_target_r/g/b: Warm pole colour (default: golden ochre).
+        cool_target_r/g/b: Cool pole colour (default: alpine sky blue).
+        saturation_boost : Fractional saturation increase (0.10 = 10% more vivid).
+        opacity          : Final composite blend with original canvas.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Segantini Stitch Weave pass (136th mode)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        # Stage 1: Gradient direction via Sobel; fall back to diagonal on flat regions
+        kx = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        ky = _np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=_np.float32)
+        grad_x = _ndi.convolve(lum, kx)
+        grad_y = _ndi.convolve(lum, ky)
+        # Perpendicular direction (rotate 90 degrees)
+        perp_cos = -grad_y
+        perp_sin =  grad_x
+        raw_mag = _np.sqrt(perp_cos ** 2 + perp_sin ** 2)
+        # In flat/uniform regions the gradient is near-zero; fall back to 45-degree stitch
+        flat = raw_mag < 0.01
+        perp_cos = _np.where(flat,  0.7071068, perp_cos)
+        perp_sin = _np.where(flat,  0.7071068, perp_sin)
+        raw_mag  = _np.where(flat,  1.0,       raw_mag)
+        perp_cos = perp_cos / (raw_mag + 1e-9)
+        perp_sin = perp_sin / (raw_mag + 1e-9)
+
+        # Stage 2: Stitch mask — sinusoidal oscillation perpendicular to gradient
+        ys_idx = _np.arange(h, dtype=_np.float32)[:, None] * _np.ones((1, w), dtype=_np.float32)
+        xs_idx = _np.ones((h, 1), dtype=_np.float32) * _np.arange(w, dtype=_np.float32)[None, :]
+        density = float(stitch_density)
+        phase   = (xs_idx * perp_cos + ys_idx * perp_sin) * (density / 100.0)
+        stitch  = _np.sin(phase * 2.0 * _np.pi).astype(_np.float32)  # -1..+1
+
+        # Stage 3: Warm/cool oscillation at stitch peaks and troughs
+        pos_mask = _np.clip( stitch, 0.0, 1.0)
+        neg_mask = _np.clip(-stitch, 0.0, 1.0)
+        ws = float(weave_strength)
+        wr = float(warm_target_r)
+        wg = float(warm_target_g)
+        wb = float(warm_target_b)
+        cr = float(cool_target_r)
+        cg = float(cool_target_g)
+        cb = float(cool_target_b)
+        r  = _np.clip(r + pos_mask * ws * (wr - r) + neg_mask * ws * (cr - r), 0.0, 1.0)
+        g  = _np.clip(g + pos_mask * ws * (wg - g) + neg_mask * ws * (cg - g), 0.0, 1.0)
+        b  = _np.clip(b + pos_mask * ws * (wb - b) + neg_mask * ws * (cb - b), 0.0, 1.0)
+
+        # Stage 4: Alpine saturation boost — scale each channel's deviation from luma
+        sb = float(saturation_boost)
+        if sb > 0.001:
+            lum2 = 0.299 * r + 0.587 * g + 0.114 * b
+            r  = _np.clip(lum2 + (r - lum2) * (1.0 + sb), 0.0, 1.0)
+            g  = _np.clip(lum2 + (g - lum2) * (1.0 + sb), 0.0, 1.0)
+            b  = _np.clip(lum2 + (b - lum2) * (1.0 + sb), 0.0, 1.0)
+
+        # Stage 5: Composite
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Segantini Stitch Weave pass complete.")
+
+    def alpine_luminance_intensification_pass(
+        self,
+        *,
+        shadow_violet_r: float = 0.62,
+        shadow_violet_g: float = 0.52,
+        shadow_violet_b: float = 0.88,
+        shadow_thresh:   float = 0.32,
+        highlight_boost: float = 0.07,
+        highlight_thresh: float = 0.75,
+        chroma_scale:    float = 1.18,
+        opacity:         float = 0.72,
+    ) -> None:
+        """
+        Alpine Luminance Intensification -- session 225 artistic improvement.
+
+        Models the optical properties of high-altitude alpine light that Segantini
+        pioneered: (1) snow and deep shadows shift toward vivid violet-blue (the cold
+        sky dome reflects intensely with no atmospheric buffer); (2) highlights push
+        toward pure overexposed white (UV-rich irradiation saturates local colour);
+        (3) overall chroma is elevated via a non-uniform saturation scale (thin air
+        passes full-spectrum light, making all colours more vivid).
+
+        Novelty vs. existing passes:
+        Unlike serov_sunlit_portrait_pass which applies warm/cool zonal shifts to model
+        plein-air light, and unlike halation_glow_pass which models optical bloom from
+        bright sources, this pass models the *atmospheric physics of altitude*: the
+        shadow-to-violet shift uses a steeper transfer curve than any prior pass; the
+        highlight boost targets only the uppermost luminance range (above
+        highlight_thresh) rather than the full highlight zone; and the chroma_scale
+        applies a multiplicative saturation increase across the entire canvas -- the
+        first global chroma scale in the pipeline distinct from Bonnard's additive
+        saturation boost approach.
+
+        shadow_violet_r/g/b : Target violet-blue colour for deepest shadow passages.
+        shadow_thresh       : Luminance below which shadow violeting begins.
+        highlight_boost     : Additive brightness push for near-white highlights.
+        highlight_thresh    : Luminance above which highlight boost applies.
+        chroma_scale        : Multiplicative saturation factor (1.0 = no change).
+        opacity             : Final composite opacity.
+        """
+        import numpy as _np
+
+        print("    Alpine Luminance Intensification pass (session 225 improvement)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        # Stage 1: Shadow violet shift (sky-reflected blue in unlit snow and shadow)
+        st  = float(shadow_thresh)
+        svr = float(shadow_violet_r)
+        svg = float(shadow_violet_g)
+        svb = float(shadow_violet_b)
+        sh_gate = _np.clip((st - lum) / max(st, 1e-6), 0.0, 1.0) ** 1.8
+        r = _np.clip(r + sh_gate * (svr - r), 0.0, 1.0)
+        g = _np.clip(g + sh_gate * (svg - g), 0.0, 1.0)
+        b = _np.clip(b + sh_gate * (svb - b), 0.0, 1.0)
+
+        # Stage 2: Highlight push toward pure white (UV overexposure on snow)
+        ht  = float(highlight_thresh)
+        hb  = float(highlight_boost)
+        hi_gate = _np.clip((lum - ht) / max(1.0 - ht, 1e-6), 0.0, 1.0)
+        if hb > 0.001:
+            r = _np.clip(r + hi_gate * hb, 0.0, 1.0)
+            g = _np.clip(g + hi_gate * hb, 0.0, 1.0)
+            b = _np.clip(b + hi_gate * hb, 0.0, 1.0)
+
+        # Stage 3: Global chroma scale (thin alpine air — multiplicative saturation)
+        cs = float(chroma_scale)
+        if cs > 1.001:
+            c_max = _np.maximum(_np.maximum(r, g), b)
+            r  = _np.clip(c_max + (r - c_max) * cs, 0.0, 1.0)
+            g  = _np.clip(c_max + (g - c_max) * cs, 0.0, 1.0)
+            b  = _np.clip(c_max + (b - c_max) * cs, 0.0, 1.0)
+
+        # Stage 4: Composite
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_shadow = int((lum < st).sum())
+        n_hi     = int((lum > ht).sum())
+        print(f"    Alpine Luminance Intensification pass complete  "
+              f"(shadow_px={n_shadow}  highlight_px={n_hi}  chroma_scale={cs:.2f})")
