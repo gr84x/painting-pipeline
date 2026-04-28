@@ -223,6 +223,7 @@ EXPECTED_ARTISTS = [
     "felix_vallotton",
     "helene_schjerfbeck",
     "valentin_serov",
+    "giovanni_segantini",
 ]
 
 

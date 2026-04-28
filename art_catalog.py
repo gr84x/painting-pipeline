@@ -20034,6 +20034,122 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Giovanni Segantini ─────────────────────────────────────────────────────
+    "giovanni_segantini": ArtStyle(
+        artist="Giovanni Segantini",
+        movement="Alpine Symbolism / Neo-Impressionism",
+        nationality="Italian-Swiss",
+        period="1858–1899",
+        palette=[
+            (0.92, 0.96, 1.00),   # snow luminance — pure highland diffuse light
+            (0.52, 0.72, 0.90),   # alpine sky blue — cold clear mountain atmosphere
+            (0.20, 0.36, 0.24),   # deep fir green — dark conifer shadow passages
+            (0.84, 0.70, 0.32),   # golden ochre — sunlit meadow grass, dry straw
+            (0.38, 0.26, 0.16),   # warm umber — earth, bark, and deepest shadow
+            (0.68, 0.54, 0.72),   # snow shadow mauve — violet-blue in shaded snow
+            (0.62, 0.78, 0.52),   # pale sage — sunlit lichen and spring meadow
+        ],
+        ground_color=(0.90, 0.88, 0.82),    # warm primed white — pale gesso
+        stroke_size=5,
+        wet_blend=0.12,
+        edge_softness=0.25,
+        jitter=0.024,
+        glazing=None,
+        crackle=False,
+        chromatic_split=True,
+        technique=(
+            "Giovanni Segantini (1858–1899) is the supreme painter of the high Alps, "
+            "a self-taught master whose life embodied the isolation and spiritual intensity "
+            "of the mountains that consumed him entirely.  Born in the Italian Trentino to "
+            "a poverty-stricken family, largely abandoned, briefly imprisoned as an "
+            "adolescent, he emerged in Milan to paint under the influence of the Scapigliatura "
+            "movement before making the decisive journey that defined his art: withdrawal to "
+            "the Engadine mountains of Switzerland, ultimately to Maloja at 1,800 metres, "
+            "where he died in 1899 of peritonitis, attended by a doctor brought by sled "
+            "through the snow.  That life of ascent — physical, spiritual, artistic — is "
+            "inseparable from the peculiar grandeur of his paintings.\n\n"
+            "His signature technique is the 'pennellate a virgola' — comma-strokes, or more "
+            "accurately stitch-strokes — short, parallel, slightly curved marks laid in "
+            "densely woven arrangements whose direction follows the form of each surface: "
+            "horizontal on flat snow, diagonal on mountain slopes, vertical on fir trunks, "
+            "curling along the contour of animal bodies.  The strokes are applied dry onto "
+            "a white ground (Segantini rejected the dark grounds of academic tradition), "
+            "and because each mark is discrete, the white ground reads between them as a "
+            "luminous optical matrix.  Adjacent strokes carry slightly different hues — two "
+            "chromatic neighbours from opposite sides of the colour wheel — so the surface "
+            "vibrates like a tapestry, never quite mixing but producing optical combination "
+            "at the viewer's retina.  This places him firmly within the Divisionist orbit "
+            "(contemporaneous with Seurat and Signac), though his marks are longer, more "
+            "gestural, and always form-following rather than uniform in direction.\n\n"
+            "High-altitude alpine light has unique properties that Segantini was the first "
+            "painter to fully anatomise: the air is thin and pure, so shadows are not warm "
+            "and neutral but a vivid violet-blue (reflecting the full cold dome of sky with "
+            "no atmospheric buffer); highlights on snow push toward absolute white (UV-rich "
+            "irradiation overexposes the local colour); and the overall saturation of every "
+            "colour — sky, foliage, earth, sky-reflected snow — is elevated because shorter "
+            "wavelengths reach the eye undiffused.  His famous triptych 'Life, Nature, Death' "
+            "(1896–1899) renders this as almost hallucinatory chromatic clarity: the snow is "
+            "never simply white but a woven matrix of blue-violet, cream, and pale gold; "
+            "the sky is an architectural cobalt that feels structural rather than atmospheric; "
+            "the dark firs read as almost black-green, absorbing light like a counterpoint "
+            "to the brilliant snowfield.\n\n"
+            "Symbolist mythology pervades his later work — figures of shepherdesses, "
+            "mothers, angels, and Alpine archetypes inhabit an Engadine landscape that "
+            "functions simultaneously as physical location and psychic territory.  "
+            "'The Evil Mothers' (1894), 'The Angel of Life' (1894), and 'The Punishment "
+            "of Lust' (1897) blend his technical precision with a moral-mythological "
+            "dimension inherited from Rossetti and the Pre-Raphaelites, filtered through "
+            "the absolute Alpine reality he observed daily.  The result is painting that "
+            "is simultaneously the most empirically grounded (his studies of mountain light "
+            "are still used by atmospheric physicists) and the most transcendent in the "
+            "European tradition of his generation."
+        ),
+        famous_works=[
+            ("Ave Maria a trasbordo", "1886"),
+            ("The Punishment of Lust", "1897"),
+            ("The Angel of Life", "1894"),
+            ("The Evil Mothers", "1894"),
+            ("Life, Nature, Death (triptych)", "1896–1899"),
+            ("Return from the Forest", "1890"),
+            ("Ploughing in the Engadine", "1890"),
+        ],
+        inspiration=(
+            "segantini_stitch_weave_pass — ONE HUNDRED AND THIRTY-SIXTH distinct mode "
+            "(session 225).\n\n"
+            "Implements Segantini's 'pennellate a virgola' stitch-stroke Divisionism: "
+            "local gradient direction is computed via Sobel filtering; a sinusoidal "
+            "stitch mask is generated perpendicular to the local contour direction; "
+            "pixels at stitch peaks shift toward a warm complementary colour and "
+            "pixels at stitch troughs shift toward a cool complementary colour, "
+            "replicating the optical vibration of adjacent discrete strokes on a white "
+            "ground.  A secondary alpine saturation lift elevates the overall chroma "
+            "to simulate high-altitude UV-rich light.\n\n"
+            "Parameters and defaults:\n"
+            "  stitch_density     = 12.0  # strokes per 100px; higher = finer weave\n"
+            "  weave_strength     = 0.14  # amplitude of warm/cool oscillation [0-1]\n"
+            "  warm_target        = (0.84, 0.70, 0.32)  # golden ochre warm pole\n"
+            "  cool_target        = (0.52, 0.72, 0.90)  # alpine sky cool pole\n"
+            "  saturation_boost   = 0.10  # alpine UV saturation lift [0-1]\n"
+            "  opacity            = 0.78  # final composite opacity\n\n"
+            "Stage 1 — GRADIENT DIRECTION:\n"
+            "  Sobel-filter luminance to obtain grad_x and grad_y.  Compute angle = "
+            "arctan2(grad_y, grad_x).  Perpendicular direction = angle + pi/2.\n\n"
+            "Stage 2 — STITCH MASK:\n"
+            "  For each pixel (px, py), compute phase = (px * cos(perp) + py * sin(perp)) "
+            "* stitch_density / 100.  stitch = sin(phase * 2*pi): oscillates -1 to +1 "
+            "along contour-perpendicular direction, giving discrete stripe pattern.\n\n"
+            "Stage 3 — WARM/COOL OSCILLATION:\n"
+            "  pos_mask = clip(stitch, 0, 1); neg_mask = clip(-stitch, 0, 1).\n"
+            "  Blend toward warm_target at weave_strength * pos_mask.\n"
+            "  Blend toward cool_target at weave_strength * neg_mask.\n\n"
+            "Stage 4 — ALPINE SATURATION LIFT:\n"
+            "  Compute per-pixel HSV saturation; scale by (1 + saturation_boost).\n"
+            "  Convert back to RGB — elevates chroma as at high altitude.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 
