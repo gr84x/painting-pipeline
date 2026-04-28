@@ -52287,3 +52287,239 @@ class Painter:
         n_shadow = int((lum < st).sum())
         print(f"    Vermeer Pearl Light pass complete  "
               f"(pearls={n_pearls}  lit_px={n_lit}  shadow_px={n_shadow})")
+
+    def boccioni_futurist_motion_pass(
+        self,
+        *,
+        contour_thresh: float = 0.035,
+        force_strength: float = 0.28,
+        smear_distance: int   = 6,
+        sat_boost:      float = 0.22,
+        velocity_blur:  float = 1.8,
+        opacity:        float = 0.78,
+    ) -> None:
+        """
+        Boccioni Futurist Motion -- ONE HUNDRED AND THIRTY-NINTH distinct mode.
+        Session 228: Umberto Boccioni (1882–1916).
+
+        Four-stage algorithm implementing Boccioni's Futurist force-line technique.
+
+        Novelty vs. existing passes:
+        chromatic_zoning_pass splits channels by hue zone globally.
+        boldini_belle_epoque_swirl_pass uses rotational distortion.
+        This pass operates differently: (a) per-pixel directional sampling via
+        map_coordinates — first pass using a geometric warp based on the local
+        gradient vector rather than global blur or tonal shift; (b) complementary
+        warm-forward / cool-back channel split aligned to each pixel's own force
+        direction; (c) combined force-line fringe + saturation burst + velocity
+        blur trail in a single physically-motivated Futurist force-field model.
+
+        contour_thresh : Gradient magnitude threshold for force-line activation.
+        force_strength : Chromatic fringe blend amplitude in motion zones [0, 1].
+        smear_distance : Pixel displacement for forward/back channel shift.
+        sat_boost      : Saturation scale boost in high-gradient zones [0, 0.50].
+        velocity_blur  : Sigma for soft velocity-blur overlay on luma [pixels].
+        opacity        : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Boccioni Futurist Motion pass (139th mode)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # Stage 1: Gradient field — magnitude M, unit direction (ux, uy)
+        kx  = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        ky  = kx.T
+        gx  = _ndi.convolve(lum, kx)
+        gy  = _ndi.convolve(lum, ky)
+        mag = _np.sqrt(gx * gx + gy * gy + 1e-12).astype(_np.float32)
+        ux  = (gx / mag).astype(_np.float32)
+        uy  = (gy / mag).astype(_np.float32)
+
+        ct = float(contour_thresh)
+        # Force gate: smooth ramp above contour_thresh, shaped with 0.7 power curve
+        force_gate = _np.clip((mag - ct) / max(0.18, 1e-6), 0.0, 1.0) ** 0.7
+
+        # Stage 2: Directional chromatic fringe via per-pixel map_coordinates shift
+        # R channel shifts in +gradient direction (warm leading edge)
+        # B channel shifts in -gradient direction (cool trailing edge)
+        sd = float(smear_distance)
+        ys = _np.arange(h, dtype=_np.float32)[:, None].repeat(w, axis=1)
+        xs = _np.arange(w, dtype=_np.float32)[None, :].repeat(h, axis=0)
+
+        fs = float(force_strength)
+        # Shift magnitude per pixel: gate * smear_distance, capped at smear_distance
+        shift_mag = force_gate * sd
+
+        coords_r_y = _np.clip(ys + uy * shift_mag, 0.0, h - 1.0).ravel()
+        coords_r_x = _np.clip(xs + ux * shift_mag, 0.0, w - 1.0).ravel()
+        r_shifted  = _ndi.map_coordinates(
+            r0, [coords_r_y, coords_r_x], order=1, mode='nearest'
+        ).reshape(h, w).astype(_np.float32)
+
+        coords_b_y = _np.clip(ys - uy * shift_mag, 0.0, h - 1.0).ravel()
+        coords_b_x = _np.clip(xs - ux * shift_mag, 0.0, w - 1.0).ravel()
+        b_shifted  = _ndi.map_coordinates(
+            b0, [coords_b_y, coords_b_x], order=1, mode='nearest'
+        ).reshape(h, w).astype(_np.float32)
+
+        blend = force_gate * fs
+        r = _np.clip(r0 * (1.0 - blend) + r_shifted * blend, 0.0, 1.0)
+        g = g0.copy()
+        b = _np.clip(b0 * (1.0 - blend) + b_shifted * blend, 0.0, 1.0)
+
+        # Stage 3: Saturation burst in motion zones
+        sb = float(sat_boost)
+        if sb > 0.001:
+            lum3  = 0.299 * r + 0.587 * g + 0.114 * b
+            scale = 1.0 + sb * force_gate
+            r = _np.clip(lum3 + (r - lum3) * scale, 0.0, 1.0)
+            g = _np.clip(lum3 + (g - lum3) * scale, 0.0, 1.0)
+            b = _np.clip(lum3 + (b - lum3) * scale, 0.0, 1.0)
+
+        # Stage 4: Velocity blur layer — soft horizontal luma trail at motion zones
+        vb = float(velocity_blur)
+        if vb > 0.1:
+            lum_blurred = _ndi.gaussian_filter(lum, sigma=[0.5, vb]).astype(_np.float32)
+            # Overlay luma trail at gate * 0.18 strength
+            trail_str = force_gate * 0.18
+            r = _np.clip(r + (lum_blurred - lum) * trail_str, 0.0, 1.0)
+            g = _np.clip(g + (lum_blurred - lum) * trail_str, 0.0, 1.0)
+            b = _np.clip(b + (lum_blurred - lum) * trail_str, 0.0, 1.0)
+
+        # Stage 5: Composite with opacity
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_active = int((force_gate > 0.1).sum())
+        print(f"    Boccioni Futurist Motion pass complete  "
+              f"(active_px={n_active}  smear_dist={smear_distance})")
+
+    def chromatic_focal_pull_pass(
+        self,
+        *,
+        focal_x:    float = 0.50,
+        focal_y:    float = 0.42,
+        reach:      float = 0.55,
+        warm_pull:  float = 0.08,
+        cool_push:  float = 0.06,
+        opacity:    float = 0.70,
+    ) -> None:
+        """
+        Chromatic Focal Pull -- session 228 artistic improvement.
+
+        Directs the viewer's eye toward a focal point using opposing chromatic
+        and saturation gradients: the near-focal zone gains saturation and a
+        subtle warm temperature bias; the peripheral zone loses saturation and
+        gains a subtle cool bias.  Unlike vignette() which darkens the periphery,
+        this pass operates only in hue/saturation space — values are preserved.
+        Unlike edge_quality_variation_pass which varies edge sharpness by focus
+        distance, this pass shifts chromaticity to create compositional energy
+        flow without blurring or altering tonal values.
+
+        Novelty vs. existing passes:
+        vignette() darkens borders uniformly (no focal control, no chroma).
+        atmospheric_depth_pass shifts value AND colour based on depth layers.
+        This pass has no blurring, no value change, and is driven by a single
+        user-defined focal point — pure hue/saturation compositional pull.
+
+        focal_x    : Focal point horizontal position [0, 1] (0=left, 1=right).
+        focal_y    : Focal point vertical position [0, 1] (0=top, 1=bottom).
+        reach      : Normalised distance at which warm-pull fades to zero and
+                     cool-push peaks [0, 1].
+        warm_pull  : Saturation + warm-bias boost at the focal centre [0, 0.30].
+        cool_push  : Saturation reduction + cool-bias at the periphery [0, 0.20].
+        opacity    : Final composite opacity.
+        """
+        import numpy as _np
+
+        print("    Chromatic Focal Pull pass (session 228 improvement)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        # Normalised distance from focal point
+        ys = (_np.arange(h, dtype=_np.float32) / max(h - 1, 1)).reshape(h, 1)
+        xs = (_np.arange(w, dtype=_np.float32) / max(w - 1, 1)).reshape(1, w)
+        fx = float(focal_x)
+        fy = float(focal_y)
+        dist = _np.sqrt((xs - fx) ** 2 + (ys - fy) ** 2).astype(_np.float32)
+        # Normalise so that a dist of `reach` maps to 1.0
+        r_reach = float(reach) * (2.0 ** 0.5)  # max possible dist is sqrt(2)
+        dist_n  = _np.clip(dist / max(r_reach, 1e-6), 0.0, 1.0)
+
+        # Near-focal gate: 1 at centre, 0 at reach
+        near_gate = _np.clip(1.0 - dist_n, 0.0, 1.0) ** 1.4
+        # Far-focal gate: 0 at centre, 1 at periphery
+        far_gate  = _np.clip(dist_n, 0.0, 1.0) ** 1.2
+
+        lum3 = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+
+        # Near-focal: boost saturation + subtle warm bias (lift R slightly)
+        wp = float(warm_pull)
+        if wp > 0.001:
+            sat_scale_near = 1.0 + wp * near_gate
+            r = _np.clip(lum3 + (r - lum3) * sat_scale_near, 0.0, 1.0)
+            g = _np.clip(lum3 + (g - lum3) * sat_scale_near, 0.0, 1.0)
+            b = _np.clip(lum3 + (b - lum3) * sat_scale_near, 0.0, 1.0)
+            # Warm bias: very slight R lift, B dip
+            r = _np.clip(r + near_gate * wp * 0.25, 0.0, 1.0)
+            b = _np.clip(b - near_gate * wp * 0.15, 0.0, 1.0)
+
+        # Far-focal: reduce saturation + subtle cool bias (lift B slightly)
+        cp = float(cool_push)
+        if cp > 0.001:
+            lum3b = 0.299 * r + 0.587 * g + 0.114 * b
+            sat_scale_far = 1.0 - cp * far_gate
+            r = _np.clip(lum3b + (r - lum3b) * sat_scale_far, 0.0, 1.0)
+            g = _np.clip(lum3b + (g - lum3b) * sat_scale_far, 0.0, 1.0)
+            b = _np.clip(lum3b + (b - lum3b) * sat_scale_far, 0.0, 1.0)
+            # Cool bias: slight B lift, R dip
+            b = _np.clip(b + far_gate * cp * 0.22, 0.0, 1.0)
+            r = _np.clip(r - far_gate * cp * 0.12, 0.0, 1.0)
+
+        # Composite
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_near = int((near_gate > 0.3).sum())
+        n_far  = int((far_gate > 0.3).sum())
+        print(f"    Chromatic Focal Pull pass complete  "
+              f"(near_px={n_near}  far_px={n_far})")

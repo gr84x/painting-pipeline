@@ -20268,6 +20268,108 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Umberto Boccioni ──────────────────────────────────────────────────────
+    "umberto_boccioni": ArtStyle(
+        artist="Umberto Boccioni",
+        movement="Italian Futurism",
+        nationality="Italian",
+        period="1910–1916",
+        palette=[
+            (0.18, 0.14, 0.42),   # electric violet — Futurist force-field shadow
+            (0.28, 0.38, 0.78),   # kinetic cobalt-blue — primary force line colour
+            (0.88, 0.64, 0.14),   # amber-gold — heated figure at movement centre
+            (0.96, 0.84, 0.22),   # chrome yellow — motion-flash highlight
+            (0.82, 0.26, 0.12),   # vermillion-red — kinetic energy peak
+            (0.92, 0.92, 0.90),   # near-white — motion-blur residue at speed edge
+            (0.12, 0.10, 0.08),   # deep charcoal — structural anchor in stillness
+        ],
+        ground_color=(0.22, 0.18, 0.34),    # dark violet imprimatura
+        stroke_size=9,
+        wet_blend=0.42,
+        edge_softness=0.30,
+        jitter=0.048,
+        glazing=None,
+        crackle=False,
+        chromatic_split=True,
+        technique=(
+            "Umberto Boccioni (1882–1916) is the supreme technician of the Italian Futurist "
+            "movement — the painter who most completely translated the group's manifesto "
+            "ambition (capture motion, force, and simultaneous states in a static medium) "
+            "into actual pictorial reality.  Born in Reggio Calabria, trained in Rome under "
+            "Giacomo Balla, he arrived at Futurism in 1909 after Marinetti's Manifesto and "
+            "co-authored the Technical Manifesto of Futurist Painting (1910) with Carrà, "
+            "Russolo, Severini, and Balla.\n\n"
+            "Boccioni's central formal invention is the *linea di forza* (force line): a "
+            "directional energy vector that radiates outward from moving or intensely "
+            "present forms into the surrounding space, carrying the form's velocity and "
+            "emotional charge beyond its physical boundary.  In 'The City Rises' (1910), "
+            "these vectors sweep through the canvas as horse-and-worker energy fields; in "
+            "the 'States of Mind' triptych (1911), they become the psychic emanations of "
+            "passengers at a station — each emotional state producing a distinct graphic "
+            "signature in the force-line field.\n\n"
+            "His palette is intense and directionally chromatic: warm amber and orange at "
+            "the centre of movement; cool violet-blue in the trailing edge and shadow zones; "
+            "near-pure yellows and reds at speed peaks; deep charcoal as the structural "
+            "anchor of momentarily arrested mass.  Edges do not describe containment — they "
+            "describe velocity.  A figure at rest has a softer edge; a figure in motion has "
+            "chromatic fringing where the advancing and retreating faces of its silhouette "
+            "split into complementary colour casts (warm forward, cool behind).\n\n"
+            "His brushwork in the Futurist period is fragmented and diagonal: short curved "
+            "arcs of colour laid in directions that reinforce the energy vectors, creating "
+            "a surface that vibrates with accumulated directional force.  He did not want "
+            "the viewer to see a frozen moment but to experience a visual equivalent of "
+            "kinetic sensation — the painting itself should feel like it is moving."
+        ),
+        famous_works=[
+            ("The City Rises", "1910"),
+            ("States of Mind I: The Farewells", "1911"),
+            ("States of Mind II: Those Who Go", "1911"),
+            ("States of Mind III: Those Who Stay", "1911"),
+            ("The Laugh", "1911"),
+            ("Unique Forms of Continuity in Space (sculpture)", "1913"),
+        ],
+        inspiration=(
+            "boccioni_futurist_motion_pass — ONE HUNDRED AND THIRTY-NINTH distinct mode "
+            "(session 228).\n\n"
+            "Implements Boccioni's Futurist force-line technique: per-pixel directional "
+            "chromatic fringing along gradient vectors (warm channel shifted forward, cool "
+            "channel shifted back), saturation burst in motion zones (high-gradient areas), "
+            "and a velocity-blur layer that smears luma along the dominant force direction.\n\n"
+            "Parameters and defaults:\n"
+            "  contour_thresh  = 0.035 # gradient magnitude above which force lines activate\n"
+            "  force_strength  = 0.28  # chromatic fringe blend amplitude in motion zones\n"
+            "  smear_distance  = 6     # pixel displacement of forward/back channel shift\n"
+            "  sat_boost       = 0.22  # saturation scale boost in high-gradient zones\n"
+            "  velocity_blur   = 1.8   # sigma for anisotropic luma-direction blur layer\n"
+            "  opacity         = 0.78  # final composite opacity\n\n"
+            "Stage 1 — GRADIENT FIELD:\n"
+            "  Sobel Gx, Gy on luminance → magnitude M, unit direction (ux, uy).\n"
+            "  force_gate = clip((M - contour_thresh) / 0.18, 0, 1)^0.7.\n\n"
+            "Stage 2 — DIRECTIONAL CHROMATIC FRINGE:\n"
+            "  For each pixel p, compute offset coords p ± (ux,uy)*smear_distance*gate.\n"
+            "  R channel samples at p + offset (warm leading edge).\n"
+            "  B channel samples at p − offset (cool trailing edge).\n"
+            "  G channel unchanged.\n"
+            "  Implemented via map_coordinates bilinear sampling.\n\n"
+            "Stage 3 — SATURATION BURST IN MOTION ZONES:\n"
+            "  sat_gate = force_gate.\n"
+            "  lum3 = 0.299r+0.587g+0.114b; scale = 1 + sat_boost*sat_gate.\n"
+            "  ch = lum3 + (ch-lum3)*scale.\n\n"
+            "Stage 4 — VELOCITY BLUR LAYER:\n"
+            "  Horizontal Gaussian blur on luma (sigma=velocity_blur) added as a very\n"
+            "  soft overlay layer at force_gate*0.18 strength — suggests motion trail.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+            "  Novel vs. prior passes: (a) per-pixel directional sampling via "
+            "map_coordinates "
+            "(first pass using geometric warp rather than global blur or tonal shift); "
+            "(b) complementary warm-forward / cool-back channel split (not chromatic_zoning "
+            "which splits by hue zone, not boldini_swirl which uses rotational distortion); "
+            "(c) combined force-line fringe + saturation + velocity blur in a single "
+            "physically-motivated Futurist force-field model."
+        ),
+    ),
+
 }
 
 
