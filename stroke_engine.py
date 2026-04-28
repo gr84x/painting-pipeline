@@ -52726,3 +52726,217 @@ class Painter:
         n_lit  = int((delta > 0.005).sum())
         n_dark = int((delta < -0.005).sum())
         print(f"    Impasto Relief pass complete (lit_px={n_lit} dark_px={n_dark})")
+
+    def hammershoi_grey_interior_pass(
+        self,
+        grey_veil:       float = 0.55,
+        window_lift:     float = 0.09,
+        window_cool:     float = 0.06,
+        stillness_sigma: float = 1.6,
+        stillness_str:   float = 0.40,
+        opacity:         float = 0.70,
+    ) -> None:
+        """
+        Hammershøi Grey Interior -- session 230: ONE HUNDRED AND FORTY-FIRST distinct mode.
+
+        Implements Vilhelm Hammershøi (1864-1916) Danish Intimist silvery interior quality.
+        Three stages unified by one shared luminance map:
+
+        Stage 1 MIDTONE GREY VEIL: bell=exp(-0.5*((lum-0.55)/0.30)^2) peaks at lum=0.55.
+        Desaturate toward grey: grey=lum (per-channel); ch=ch*(1-bell*grey_veil)+grey*bell*grey_veil.
+        Preserve warmth in highlights (lum>0.75: tiny warm lift +0.012 R) and coolness in
+        shadows (lum<0.30: tiny cool lift +0.010 B).
+
+        Stage 2 UNIDIRECTIONAL LEFT-WINDOW GRADIENT: x_norm in [0,1] left-to-right.
+        window_gate=clip(1-x_norm/0.55, 0, 1)^1.5 — soft left-column brightening.
+        R+=window_gate*window_lift; G+=window_gate*window_lift*0.90; B+=window_gate*window_lift*0.82.
+        Far side: cool_gate=clip((x_norm-0.65)/0.35, 0, 1); B+=cool_gate*window_cool;
+        R-=cool_gate*window_cool*0.55 — cool blue cast in the shadow-right zone.
+
+        Stage 3 STILLNESS HAZE: midtone bell_s=exp(-0.5*((lum-0.55)/0.28)^2).
+        Gaussian blur at stillness_sigma; blend at bell_s*stillness_str — blurs
+        interior contours at midtones while leaving the lit window zone and deep
+        corner shadows crisp.
+
+        NOVEL vs. existing passes:
+        (a) Midtone-peaking bell-curve for desaturation (strongest at grey mid-tones,
+            tapering off at both highlights and shadows) — no prior pass uses this.
+        (b) Unidirectional horizontal left-right window gradient (not radial like
+            vermeer_pearl_light_pass, not distance-based like atmospheric_depth_pass).
+        (c) Midtone-gated stillness haze (bell at lum=0.55) vs. shadow-gated
+            (redon stage 3) or edge-gated (diffuse_boundary_pass).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print("    Hammershøi Grey Interior pass (session 230 -- 141st mode)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # Stage 1: Midtone Grey Veil
+        bell = _np.exp(-0.5 * ((lum - 0.55) / 0.30) ** 2).astype(_np.float32)
+        gv = float(grey_veil)
+        veil_w = bell * gv
+        r1 = r0 * (1.0 - veil_w) + lum * veil_w
+        g1 = g0 * (1.0 - veil_w) + lum * veil_w
+        b1 = b0 * (1.0 - veil_w) + lum * veil_w
+
+        # Preserve warmth in highlights
+        hi_gate = _np.clip((lum - 0.75) / 0.25, 0.0, 1.0)
+        r1 = _np.clip(r1 + hi_gate * 0.012, 0.0, 1.0)
+
+        # Preserve cool cast in shadows
+        sh_gate = _np.clip((0.30 - lum) / 0.30, 0.0, 1.0)
+        b1 = _np.clip(b1 + sh_gate * 0.010, 0.0, 1.0)
+
+        # Stage 2: Unidirectional Left-Window Gradient
+        x_norm = _np.linspace(0.0, 1.0, w, dtype=_np.float32)[_np.newaxis, :]
+        window_gate = _np.clip(1.0 - x_norm / 0.55, 0.0, 1.0) ** 1.5
+        wl = float(window_lift)
+        r2 = _np.clip(r1 + window_gate * wl,        0.0, 1.0)
+        g2 = _np.clip(g1 + window_gate * wl * 0.90, 0.0, 1.0)
+        b2 = _np.clip(b1 + window_gate * wl * 0.82, 0.0, 1.0)
+
+        cool_gate = _np.clip((x_norm - 0.65) / 0.35, 0.0, 1.0)
+        wc = float(window_cool)
+        r2 = _np.clip(r2 - cool_gate * wc * 0.55, 0.0, 1.0)
+        b2 = _np.clip(b2 + cool_gate * wc,         0.0, 1.0)
+
+        # Stage 3: Stillness Haze (midtone-gated)
+        ss = float(stillness_sigma)
+        r_blur = _gf(r2, ss).astype(_np.float32)
+        g_blur = _gf(g2, ss).astype(_np.float32)
+        b_blur = _gf(b2, ss).astype(_np.float32)
+        bell_s = _np.exp(-0.5 * ((lum - 0.55) / 0.28) ** 2).astype(_np.float32)
+        haze_w = bell_s * float(stillness_str)
+        r3 = r2 * (1.0 - haze_w) + r_blur * haze_w
+        g3 = g2 * (1.0 - haze_w) + g_blur * haze_w
+        b3 = b2 * (1.0 - haze_w) + b_blur * haze_w
+
+        # Composite at opacity
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r3 * op
+        new_g = g0 * (1.0 - op) + g3 * op
+        new_b = b0 * (1.0 - op) + b3 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_veiled  = int((bell > 0.5).sum())
+        n_window  = int((window_gate > 0.2).sum())
+        n_haze    = int((bell_s > 0.5).sum())
+        print(f"    Hammershøi Grey Interior complete "
+              f"(veiled_px={n_veiled} window_px={n_window} haze_px={n_haze})")
+
+    def chromatic_memory_pass(
+        self,
+        memory_radius:  int   = 9,
+        memory_pull:    float = 0.22,
+        sat_threshold:  float = 0.18,
+        opacity:        float = 0.60,
+    ) -> None:
+        """
+        Chromatic Memory -- session 230 artistic improvement.
+
+        Models the painter's unconscious colour harmony: in low-saturation zones,
+        neighbouring hues gently pull each pixel toward the local average colour,
+        creating soft chromatic cohesion without touching saturated focal areas.
+
+        Artists working in muted palettes (Hammershøi, Morandi, Tuymans) achieve
+        a subtle harmony where low-saturation greys and near-neutrals carry a faint
+        shared tint — the whole interior breathes the same colour memory.  This pass
+        replicates that effect computationally.
+
+        Mechanism:
+        1. Compute saturation map (HSV S channel).
+        2. For pixels where saturation < sat_threshold: compute local-average RGB
+           within a box of radius memory_radius via uniform_filter.
+        3. Pull each low-saturation pixel memory_pull of the way toward its local
+           neighbourhood average — creating soft harmonic cohesion among near-greys.
+        4. High-saturation pixels are unaffected (gate = 0 above threshold).
+
+        NOVEL vs. existing passes:
+        - chromatic_zoning_pass: splits by absolute hue zone (warm vs. cool), not by
+          saturation level; it shifts hue, not toward local average.
+        - chromatic_focal_pull_pass: pulls toward/away from focal zone by distance,
+          not toward neighbourhood average.
+        - palette_proximity_pull_pass: pulls toward a fixed artist palette, not toward
+          spatially-local neighbours.
+        - wet_blend: a stroke-level simulation during painting; this is a post-pass.
+        - This pass: spatial colour memory via local-average pull gated by saturation —
+          first pass in pipeline using per-pixel neighbourhood-average as the target.
+
+        memory_radius  : Half-width of neighbourhood box for local average (pixels).
+        memory_pull    : Blend fraction toward local average [0, 1].
+        sat_threshold  : Only pixels with HSV saturation below this are affected.
+        opacity        : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import uniform_filter as _uf
+
+        print("    Chromatic Memory pass (session 230 improvement)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Saturation from RGB: sat = (max-min)/max  (HSV S approximation)
+        cmax = _np.maximum(_np.maximum(r0, g0), b0)
+        cmin = _np.minimum(_np.minimum(r0, g0), b0)
+        sat  = _np.where(cmax > 1e-6, (cmax - cmin) / (cmax + 1e-6), 0.0).astype(_np.float32)
+
+        # Gate: active only below sat_threshold
+        st = float(sat_threshold)
+        gate = _np.clip(1.0 - sat / (st + 1e-6), 0.0, 1.0)
+
+        # Local neighbourhood average
+        ksize = 2 * int(memory_radius) + 1
+        r_avg = _uf(r0, ksize).astype(_np.float32)
+        g_avg = _uf(g0, ksize).astype(_np.float32)
+        b_avg = _uf(b0, ksize).astype(_np.float32)
+
+        # Pull toward local average, scaled by gate and memory_pull
+        mp = float(memory_pull)
+        r1 = r0 + gate * mp * (r_avg - r0)
+        g1 = g0 + gate * mp * (g_avg - g0)
+        b1 = b0 + gate * mp * (b_avg - b0)
+
+        r1 = _np.clip(r1, 0.0, 1.0)
+        g1 = _np.clip(g1, 0.0, 1.0)
+        b1 = _np.clip(b1, 0.0, 1.0)
+
+        # Composite at opacity
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r1 * op
+        new_g = g0 * (1.0 - op) + g1 * op
+        new_b = b0 * (1.0 - op) + b1 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_active = int((gate > 0.2).sum())
+        print(f"    Chromatic Memory pass complete (active_px={n_active})")

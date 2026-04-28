@@ -20427,6 +20427,70 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Vilhelm Hammershøi ────────────────────────────────────────────────────
+    "vilhelm_hammershoi": ArtStyle(
+        artist="Vilhelm Hammershøi",
+        movement="Symbolism / Danish Intimism",
+        nationality="Danish",
+        period="1864-1916",
+        palette=[
+            (0.82, 0.80, 0.76),   # warm silver-ivory window light
+            (0.68, 0.67, 0.65),   # mid-grey plaster wall
+            (0.54, 0.55, 0.58),   # cool blue-grey shadow mid-distance
+            (0.40, 0.38, 0.36),   # warm dark oak / worn floor
+            (0.22, 0.22, 0.24),   # deep charcoal corner shadow
+            (0.90, 0.88, 0.85),   # silver highlight — lit floor near window
+            (0.36, 0.38, 0.42),   # cool blue-grey far wall in shadow
+        ],
+        ground_color=(0.52, 0.51, 0.50),   # mid neutral grey imprimatura
+        stroke_size=6,
+        wet_blend=0.38,
+        edge_softness=0.72,
+        jitter=0.012,
+        glazing=(0.70, 0.70, 0.68),        # faint silver-grey final unifying veil
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Vilhelm Hammershøi (1864-1916) painted silence.  His interiors are "
+            "almost monochromatic — drained of colour toward a silver-grey register "
+            "that suggests dusty northern daylight filtered through aged linen "
+            "curtains.  He stripped the domestic scene to its bones: an empty chair, "
+            "a closed door, bare floorboards, a figure seen from behind.  His palette "
+            "runs from near-white window-light to near-black corner shadow through "
+            "five or six barely-differentiated grey values.  The genius is in the "
+            "modulation: warm ivory near the window, slightly cooler grey mid-room, "
+            "a bluish cast in the deep shadow.  Edges are soft but present — never "
+            "sfumato, never hard.  He worked from observation, never symbolic, yet "
+            "the result is profoundly mysterious: what was the person doing there? "
+            "Where are they now?  Hammershøi painted the moment after departure."
+        ),
+        famous_works=[
+            ("Dust Motes Dancing in the Sunbeams", "1900"),
+            ("Interior, Strandgade 30", "1901"),
+            ("Rest", "1905"),
+            ("Interior with Young Woman from Behind", "1904"),
+            ("The White Door", "1888"),
+            ("Five Portraits", "1901-1902"),
+            ("Sunbeams, or Sunshine in the Drawing Room III", "1903"),
+        ],
+        inspiration=(
+            "hammershoi_grey_interior_pass -- ONE HUNDRED AND FORTY-FIRST distinct "
+            "mode (session 230).  Three-stage silvery interior model: "
+            "(1) Midtone grey veil — luminance-modulated desaturation strongest at "
+            "mid-luma (bell-curve at lum=0.55) with differential warm-highlight / "
+            "cool-shadow preservation; "
+            "(2) Unidirectional left-window light gradient — horizontal axis brightening "
+            "at left margin with warm lift, complementary cool-blue deepening at right; "
+            "(3) Stillness haze — midtone-gated Gaussian softening (bell at lum=0.55) "
+            "that blurs interior contours without touching lit or shadow extremes. "
+            "NOVEL: (a) midtone-peaking luminance bell-curve for desaturation (first "
+            "pass with strongest effect at mid-grey, not highlights or shadows); "
+            "(b) horizontal unidirectional window gradient (not radial, not diagonal); "
+            "(c) midtone-gated stillness haze distinct from shadow-gated or edge-gated "
+            "softening in all prior passes."
+        ),
+    ),
+
 }
 
 
