@@ -362,8 +362,8 @@ def main():
     # Diffuse boundary — soft interior edges
     print("  diffuse_boundary_pass...")
     p.diffuse_boundary_pass(
-        boundary_sigma=1.2,
-        boundary_str=0.30,
+        sigma=1.2,
+        strength=0.30,
         opacity=0.50,
     )
 
@@ -373,7 +373,7 @@ def main():
 
     # Vignette: deepen outer edges toward charcoal
     print("  vignette...")
-    p.vignette(strength=0.42)
+    p.canvas.vignette(strength=0.42)
 
     print(f"  Saving to {OUT}...")
     p.save(OUT)
