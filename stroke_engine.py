@@ -3,25 +3,46 @@ stroke_engine.py — Natural painting primitives.
 
 Architecture
 ============
-  PaintCanvas   — cairo surface + numpy wetness map + linen texture
-  BrushTip      — tip shape mask (round, filbert, flat)
-  Stroke        — tapered bezier path with pigment color
-  mix_paint()   — subtractive (pigment) color mixing in sqrt-space
-  Painter       — high-level layered painting API
+  PaintCanvas      — cairo surface + numpy wetness / thickness maps + linen texture
+  BrushProfile     — physical tool descriptor (bristle count, distribution, stiffness…)
+  PressureProfile  — within-stroke and per-pass pressure variation
+  PaintLoad        — cross-stroke paint charge and depletion model
+  BrushTip         — legacy tip descriptor (auto-converted to BrushProfile at render)
+  mix_paint()      — subtractive (pigment) color mixing in sqrt-space
+  Painter          — high-level layered painting API
+
+Brush system v2
+===============
+  Each stroke is decomposed into N individual bristle sub-strokes with
+  seeded-deterministic deviation.  The aggregate produces ragged organic
+  edges, visible bristle tracks, and natural dry-brush effects as paint
+  depletes — impossible with the old polygon fill approach.
+
+  Named presets:
+    BRUSH_PRESETS     — BrushProfile instances by name
+    TECHNIQUE_PRESETS — brush + pressure + load combos for known styles
+
+Tool operations
+===============
+  deposit    — apply_stroke() / apply_knife_stroke() — adds new paint
+  manipulate — smear() (finger tool) — moves existing paint
+  remove     — apply_knife_stroke(scrape=True) — lifts paint to lower layer
 
 Workflow
 ========
-  p = Painter(800, 1000)
+  p = Painter(800, 1000, edge_treatment="full_coverage")
   p.tone_ground(TERRE_VERTE)
   p.underpainting(reference, stroke_size=55)
   p.block_in(reference,      stroke_size=38)
   p.build_form(reference,    stroke_size=16)
   p.place_lights(reference,  stroke_size=6)
+  p.canvas.sheen_pass()
   p.glaze(WARM_AMBER, opacity=0.10)
   p.save("out.png")
 """
 
 import math, random, colorsys
+from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Union
 
 import numpy as np
@@ -285,6 +306,242 @@ class BrushTip:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# BrushProfile — physical tool properties driving bristle simulation
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class BrushProfile:
+    """
+    Describes the physical contact surface of a painting tool.
+
+    Replaces BrushTip as the authoritative tool descriptor.  BrushTip instances
+    are silently converted to BrushProfile at render time so all existing call
+    sites receive bristle simulation without modification.
+
+    Fields
+    ------
+    name            : Human-readable label (used in debug/logging).
+    tool_type       : "brush" | "knife" | "finger" | "sponge"
+    bristle_count   : Number of simulated bristles; 0 for knives/fingers.
+    distribution    : How bristles are arranged across the ferrule:
+                      "linear"  — evenly spaced (flat/bright brushes)
+                      "oval"    — Gaussian cluster, denser at centre (filbert)
+                      "radial"  — even angular spread (round brushes)
+                      "arc"     — wide fan (fan/hake brushes)
+    stiffness       : 0.0 (soft sable) to 1.0 (stiff hog bristle).
+                      Drives per-bristle path deviation; low = more flex.
+    spread          : Base fan-width multiplier relative to nominal stroke width.
+                      1.0 = bristles exactly fill the stated width.
+    pressure_spread : Additional spread gained at maximum pressure.
+    load_capacity   : Relative paint charge compared to a standard brush (1.0).
+    edge_sharpness  : For knives only — 0.0 = soft scrape, 1.0 = crisp edge.
+    """
+    name:             str
+    tool_type:        str   = "brush"
+    bristle_count:    int   = 14
+    distribution:     str   = "oval"
+    stiffness:        float = 0.5
+    spread:           float = 1.0
+    pressure_spread:  float = 0.2
+    load_capacity:    float = 1.0
+    edge_sharpness:   float = 0.0
+
+    @classmethod
+    def from_brush_tip(cls, tip: 'BrushTip') -> 'BrushProfile':
+        """
+        Convert a legacy BrushTip to the equivalent BrushProfile.
+
+        bristle_noise maps to stiffness: noise=0 → loose/soft bristles,
+        noise=0.25 → stiff hog-like bristles with heavy deviation.
+        """
+        stiffness = max(0.05, min(1.0, 0.1 + tip.bristle_noise * 3.6))
+        if tip.kind == BrushTip.FLAT:
+            return cls("hog_flat",    "brush", 16, "linear", stiffness, 1.00, 0.25, 1.00)
+        elif tip.kind == BrushTip.FILBERT:
+            return cls("hog_filbert", "brush", 14, "oval",   stiffness, 0.90, 0.20, 0.95)
+        else:  # ROUND
+            return cls("round_sable", "brush", 10, "radial", stiffness, 0.50, 0.15, 0.70)
+
+
+# ── Named brush presets ───────────────────────────────────────────────────────
+
+BRUSH_PRESETS: dict = {
+    # Oil brushes
+    "hog_flat":     BrushProfile("hog_flat",     "brush", 16, "linear", 0.85, 1.00, 0.25, 1.00),
+    "hog_filbert":  BrushProfile("hog_filbert",  "brush", 14, "oval",   0.80, 0.90, 0.20, 0.95),
+    "round_sable":  BrushProfile("round_sable",  "brush", 10, "radial", 0.25, 0.50, 0.15, 0.70),
+    "fan":          BrushProfile("fan",          "brush", 28, "arc",    0.30, 2.00, 0.10, 0.60),
+    "mop":          BrushProfile("mop",          "brush", 36, "oval",   0.10, 1.80, 0.05, 0.80),
+    "rigger":       BrushProfile("rigger",       "brush",  6, "radial", 0.20, 0.15, 0.05, 0.40),
+    "dry_brush":    BrushProfile("dry_brush",    "brush", 18, "linear", 0.90, 1.30, 0.10, 0.25),
+    # Tools
+    "knife_trowel": BrushProfile("knife_trowel", "knife",  0, "linear", 1.00, 1.00, 0.00, 1.20, edge_sharpness=0.92),
+    "knife_diamond":BrushProfile("knife_diamond","knife",  0, "linear", 1.00, 0.70, 0.00, 1.20, edge_sharpness=0.96),
+    "finger":       BrushProfile("finger",       "finger", 0, "oval",   0.05, 1.20, 0.30, 0.00),
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PressureProfile — within-stroke and per-pass pressure control
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class PressureProfile:
+    """
+    Controls how hard the painter presses at each point along a stroke and
+    across strokes in a pass.
+
+    Profile types
+    -------------
+    even        — Constant pressure throughout (filling, glazing).
+    press_lift  — Heavy at start, taper off as stroke ends; the most natural
+                  alla prima mark; models the brush leaving the canvas.
+    lift_press  — Light touch building to full pressure mid-stroke; used for
+                  building form without disturbing the underlying layer at entry.
+    stab        — Immediate full pressure, released sharply; Cézanne comma
+                  strokes, impasto dabs.
+    feather     — Very light throughout; final blending, sfumato, glazing.
+
+    Parameters
+    ----------
+    base_pressure : 0.0–1.0 default for this pass.
+    variance      : Per-stroke random ± variation around base_pressure.
+    """
+    profile_type:  str   = "press_lift"
+    base_pressure: float = 1.0
+    variance:      float = 0.0
+
+    def at(self, t: float) -> float:
+        """Pressure in [0, 1] at normalised position t along a single stroke."""
+        t = max(0.0, min(1.0, t))
+        bp = self.base_pressure
+        if self.profile_type == "even":
+            return bp
+        elif self.profile_type == "press_lift":
+            return bp * (1.0 - t * 0.55)
+        elif self.profile_type == "lift_press":
+            return bp * (0.40 + t * 0.60)
+        elif self.profile_type == "stab":
+            return bp * math.exp(-t * 5.0)
+        elif self.profile_type == "feather":
+            return bp * 0.30
+        return bp
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PaintLoad — cross-stroke paint charge and depletion
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PaintLoad:
+    """
+    Tracks paint charge on the brush across multiple strokes.
+
+    A freshly loaded brush (load=1.0) deposits opaque, tightly bundled marks.
+    As paint depletes, coverage thins and bristles spread — producing natural
+    dry-brush texture automatically without any special-casing.
+
+    Reload modes
+    ------------
+    every_stroke  — Reload after every stroke (alla prima / Sargent style).
+    every_n       — Reload every N strokes; controlled gradation.
+    threshold     — Reload when load drops below reload_threshold fraction.
+    never         — Full depletion cycle; brush runs completely dry (Wyeth-style
+                    dry brush, long texture runs).
+
+    Usage guidance
+    --------------
+    - Pair ``every_stroke`` with press_lift pressure for bold alla prima work.
+    - Pair ``threshold=0.15`` with even pressure for medium dry-brush sequences.
+    - Pair ``never`` with long stroke_size for broken texture effects.
+    - Do not use ``never`` for glazing passes; paint runs out almost immediately.
+    """
+
+    # Pixels of stroke travel that deplete one full load at neutral pressure.
+    _PIXELS_PER_FULL_LOAD = 1200.0
+
+    def __init__(
+        self,
+        capacity:         float = 1.0,
+        reload_mode:      str   = "every_stroke",
+        reload_n:         int   = 1,
+        reload_threshold: float = 0.20,
+    ):
+        self.capacity         = capacity
+        self.reload_mode      = reload_mode
+        self.reload_n         = reload_n
+        self.reload_threshold = reload_threshold
+        self.current_load     = capacity
+        self._stroke_count    = 0
+
+    def deplete(self, stroke_length: float, pressure: float = 1.0):
+        """Reduce load by distance × pressure, then reload if the mode requires it."""
+        rate = pressure / self._PIXELS_PER_FULL_LOAD
+        self.current_load = max(0.0, self.current_load - stroke_length * rate * self.capacity)
+        self._stroke_count += 1
+
+        if self.reload_mode == "every_stroke":
+            self.current_load = self.capacity
+        elif self.reload_mode == "every_n":
+            if self._stroke_count % max(1, self.reload_n) == 0:
+                self.current_load = self.capacity
+        elif self.reload_mode == "threshold":
+            if self.current_load < self.reload_threshold * self.capacity:
+                self.current_load = self.capacity
+
+    @property
+    def coverage(self) -> float:
+        """Alpha multiplier: 1.0 when full, ~0.05 at near-empty."""
+        t = self.current_load / (self.capacity + 1e-9)
+        return max(0.05, t ** 0.5)
+
+    @property
+    def bristle_spread_bonus(self) -> float:
+        """Extra lateral spread as load depletes: 0.0 full → 0.4 empty."""
+        t = 1.0 - self.current_load / (self.capacity + 1e-9)
+        return t * 0.4
+
+
+# ── Technique presets ─────────────────────────────────────────────────────────
+# Named combinations of BrushProfile + PressureProfile + PaintLoad that
+# correspond to recognised oil painting approaches.
+
+def _technique(brush_key: str, profile_type: str = "press_lift",
+               base_pressure: float = 1.0, reload_mode: str = "every_stroke",
+               reload_n: int = 1, reload_threshold: float = 0.20
+               ) -> dict:
+    """Return a dict of kwargs for _place_strokes."""
+    return {
+        "brush_profile":    BRUSH_PRESETS[brush_key],
+        "pressure_profile": PressureProfile(profile_type, base_pressure),
+        "paint_load":       PaintLoad(reload_mode=reload_mode, reload_n=reload_n,
+                                      reload_threshold=reload_threshold),
+    }
+
+TECHNIQUE_PRESETS: dict = {
+    # Alla prima (Sargent / Sorolla): reload every stroke, heavy press_lift.
+    # Deposit ratio ~90%.  Each mark is fresh and confident.
+    "alla_prima":  _technique("hog_filbert", "press_lift",  1.0,  "every_stroke"),
+
+    # Glazing: thin transparent layers over dry paint.
+    # Deposit ratio ~70%, very low load capacity.
+    "glazing":     _technique("round_sable", "feather",     0.55, "every_stroke"),
+
+    # Dry brush: long runs between reloads; broken texture is the goal.
+    # Deposit ratio ~85%.  Load depletes within 2–3 strokes.
+    "dry_brush":   _technique("dry_brush",   "even",        0.85, "threshold",
+                               reload_threshold=0.08),
+
+    # Impasto: maximum load, stab pressure, knife or hog flat.
+    # Deposit ratio ~95%.
+    "impasto":     _technique("hog_flat",    "stab",        1.0,  "every_stroke"),
+
+    # Blending pass (dry fan): manipulate only — no load, feather pressure.
+    # Use PaintCanvas.smear() or apply_stroke with opacity near zero instead.
+    "blending":    _technique("fan",         "feather",     0.25, "every_stroke"),
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Stroke geometry helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -374,6 +631,116 @@ def stroke_path(origin: Tuple, angle: float, length: float,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Bristle simulation helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _bristle_offsets(
+    profile: BrushProfile,
+    rng: random.Random,
+) -> List[Tuple[float, float]]:
+    """
+    Compute (lateral_fraction, deviation_amplitude) for each bristle.
+
+    lateral_fraction  : -1 (far left) to +1 (far right) of nominal half-width.
+    deviation_amplitude: signed scale of per-step path wander (bristle flex).
+
+    Seeded via the caller's RNG so results are deterministic per stroke.
+    """
+    n   = profile.bristle_count
+    s   = profile.stiffness
+    spd = profile.spread
+    out = []
+
+    for i in range(n):
+        dist = profile.distribution
+        if dist == "linear":
+            # Evenly spaced chisel edge; outer bristles deviate more.
+            lat = (i / (n - 1) * 2.0 - 1.0) * spd if n > 1 else 0.0
+            dev = s * (0.5 + abs(lat / max(spd, 1e-6)) * 0.5)
+        elif dist == "oval":
+            # Gaussian cluster denser at centre.
+            lat = max(-spd, min(spd, rng.gauss(0.0, spd * 0.38)))
+            dev = s * 0.6
+        elif dist == "radial":
+            # Even angular spread for round/rigger brushes.
+            lat = math.sin(i * 2.0 * math.pi / max(n, 1)) * spd * 0.8
+            dev = s * 0.4
+        elif dist == "arc":
+            # Wide fan: bristles splay beyond nominal width.
+            lat = (i / (n - 1) * 2.0 - 1.0) * spd if n > 1 else 0.0
+            dev = s * 0.2
+        else:
+            lat = rng.uniform(-spd, spd)
+            dev = s * 0.5
+
+        out.append((lat, dev))
+
+    return out
+
+
+def _bristle_path(
+    pts:          List[Tuple],
+    scaled_widths: List[float],
+    lat_fraction: float,
+    dev_amplitude: float,
+    rng:          random.Random,
+) -> List[Tuple]:
+    """
+    Compute the world-space path for one bristle.
+
+    The bristle sits at lat_fraction × half-width perpendicular to the stroke
+    center-line and accumulates a small longitudinal wander (dev_amplitude)
+    at each step — modelling bristle flex under paint drag.
+
+    At the tips, scaled_widths is small, so bristles naturally converge toward
+    the center.  Taper is thus geometric rather than requiring per-segment alpha.
+    """
+    n   = len(pts)
+    out = []
+    cum = 0.0   # cumulative longitudinal deviation
+
+    for i in range(n):
+        if i == 0:
+            dx, dy = pts[1][0] - pts[0][0],   pts[1][1] - pts[0][1]
+        elif i == n - 1:
+            dx, dy = pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1]
+        else:
+            dx, dy = pts[i+1][0] - pts[i-1][0], pts[i+1][1] - pts[i-1][1]
+
+        mag = math.hypot(dx, dy) or 1e-6
+        px, py = -dy / mag, dx / mag   # perpendicular (left normal)
+        fx, fy =  dx / mag, dy / mag   # forward
+
+        hw  = scaled_widths[i] * 0.5
+        lat = lat_fraction * hw
+
+        cum += dev_amplitude * rng.gauss(0.0, 0.4)
+        cum *= 0.82  # decay prevents unbounded drift
+
+        out.append((pts[i][0] + px * lat + fx * cum,
+                    pts[i][1] + py * lat + fy * cum))
+
+    return out
+
+
+def _tip_taper(distribution: str, t: float) -> float:
+    """
+    Alpha taper factor at normalised position t (0 = stroke start, 1 = end).
+
+    For flat/linear brushes the taper is minimal and sharp (chisel edge).
+    For oval/radial the taper follows a full sin bell.
+    """
+    if distribution == "linear":
+        # Sharp taper only at the outermost 12% of each end.
+        margin = t if t < 0.5 else (1.0 - t)
+        if margin < 0.12:
+            return math.sin(margin / 0.12 * math.pi * 0.5)
+        return 1.0
+    else:
+        return math.sin(max(0.0, min(1.0, t)) * math.pi)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # PaintCanvas
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -394,6 +761,10 @@ class PaintCanvas:
 
         # Wetness: 1.0 = fresh paint, decays between layers
         self.wetness = np.zeros((height, width), dtype=np.float32)
+
+        # Impasto thickness: accumulated per-pixel paint height [0, 1].
+        # Driven by load and pressure; used by the sheen pass.
+        self.thickness_map = np.zeros((height, width), dtype=np.float32)
 
         # Linen texture (built once)
         print("  Weaving linen texture…")
@@ -433,57 +804,267 @@ class PaintCanvas:
         return r / 255.0, g / 255.0, b / 255.0
 
     def apply_stroke(self,
-                     pts:        List[Tuple],
-                     widths:     List[float],
-                     color:      Color,
-                     tip:        BrushTip,
-                     opacity:    float = 0.82,
-                     wet_blend:  float = 0.22,
-                     jitter_amt: float = 0.03,
+                     pts:              List[Tuple],
+                     widths:           List[float],
+                     color:            Color,
+                     tip:              Union[BrushTip, BrushProfile],
+                     opacity:          float = 0.82,
+                     wet_blend:        float = 0.22,
+                     jitter_amt:       float = 0.03,
                      rng=None,
-                     region_mask: Optional[np.ndarray] = None):
+                     region_mask:      Optional[np.ndarray] = None,
+                     pressure_profile: Optional[PressureProfile] = None,
+                     paint_load:       Optional[PaintLoad]       = None):
         """
-        Place one brush stroke on the canvas.
+        Place one brush stroke on the canvas using bristle simulation.
 
-        The stroke is rendered as a series of tapered polygon segments.
-        Wet-on-wet: at the stroke mid-point, the incoming colour is mixed
-        with the canvas colour proportionally to local wetness.
+        Each stroke is decomposed into N individual bristle sub-strokes whose
+        paths deviate deterministically from the centre-line (seeded from stroke
+        origin + angle).  The emergent bundle produces ragged, organic edges and
+        visible bristle tracks — impossible with the old polygon fill approach.
+
+        Accepts either a legacy BrushTip (auto-converted to BrushProfile) or a
+        BrushProfile directly.  All existing call sites continue to work without
+        modification.
+
+        New optional parameters
+        -----------------------
+        pressure_profile : PressureProfile controlling within-stroke pressure.
+                           Defaults to press_lift when None.
+        paint_load       : PaintLoad tracking charge across strokes.  When None,
+                           each stroke behaves as if fully loaded (reload_mode
+                           = every_stroke).
         """
         if len(pts) < 2:
             return
 
-        # Smooth centre-line (recompute widths to match new point count)
+        # ── Convert legacy BrushTip → BrushProfile ───────────────────────────
+        profile: BrushProfile = (
+            tip if isinstance(tip, BrushProfile)
+            else BrushProfile.from_brush_tip(tip)
+        )
+
+        # ── Smooth centre-line ────────────────────────────────────────────────
         pts = catmull_rom(pts, steps=5)
-        # Widths were for the original pts; resample to match smoothed length
         orig_n = len(widths)
         new_n  = len(pts)
         if new_n != orig_n:
             widths = [widths[int(i * (orig_n - 1) / max(new_n - 1, 1))]
                       for i in range(new_n)]
 
-        # ── Wet blending ─────────────────────────────────────────────────────
-        mid   = pts[len(pts) // 2]
-        mx, my = int(mid[0]), int(mid[1])
-        canvas_col = self._sample_color(mx, my)
-        wet_at = float(self.wetness[max(0, min(self.h-1, my)),
-                                    max(0, min(self.w-1, mx))])
-        blend_t = wet_blend * wet_at
-        paint_col = mix_paint(color, canvas_col, blend_t)
-        paint_col = jitter(paint_col, jitter_amt, rng)
+        # ── Wet blending (sampled at stroke midpoint for colour) ─────────────
+        # Colour is blended once at the midpoint — sampling per-segment would
+        # be prohibitively slow.  Wetness IS sampled at start, mid, and end so
+        # the gradient can modulate edge softness along the stroke length.
+        def _wet(pt: Tuple) -> float:
+            return float(self.wetness[max(0, min(self.h-1, int(pt[1]))),
+                                      max(0, min(self.w-1, int(pt[0])))])
 
-        r, g, b = paint_col
+        wet_start  = _wet(pts[0])
+        wet_mid_pt = pts[len(pts) // 2]
+        wet_mid    = _wet(wet_mid_pt)
+        wet_end    = _wet(pts[-1])
 
-        # ── Build outline ─────────────────────────────────────────────────────
-        wp = width_profile(len(pts))
+        canvas_col = self._sample_color(int(wet_mid_pt[0]), int(wet_mid_pt[1]))
+        blend_t    = wet_blend * wet_mid
+        paint_col  = mix_paint(color, canvas_col, blend_t)
+        paint_col  = jitter(paint_col, jitter_amt, rng)
+        pr, pg, pb = paint_col
+
+        # ── Width profile (bell curve — tips narrower) ────────────────────────
+        wp            = width_profile(len(pts))
         scaled_widths = [wp[i] * widths[i] for i in range(len(pts))]
-        left, right  = build_stroke_outline(pts, scaled_widths)
 
-        # ── Draw tapered segments ─────────────────────────────────────────────
+        # ── Deterministic bristle RNG seeded from stroke geometry ─────────────
+        # Seeding from (origin, angle) means re-rendering the same pass yields
+        # identical bristle patterns — important for iterative development.
+        origin       = pts[0]
+        stroke_angle = math.atan2(pts[-1][1] - origin[1],
+                                  pts[-1][0] - origin[0])
+        seed         = int(abs(origin[0] * 1373 + origin[1] * 7919
+                                + stroke_angle * 10007)) % (2 ** 31)
+        bristle_rng  = random.Random(seed)
+
+        # ── Load and spread modifiers ─────────────────────────────────────────
+        load_coverage = paint_load.coverage            if paint_load else 1.0
+        spread_bonus  = paint_load.bristle_spread_bonus if paint_load else 0.0
+
+        # Effective spread including depletion-driven splay.
+        eff_profile = BrushProfile(
+            name=profile.name, tool_type=profile.tool_type,
+            bristle_count=profile.bristle_count,
+            distribution=profile.distribution,
+            stiffness=profile.stiffness,
+            spread=profile.spread + spread_bonus,
+            pressure_spread=profile.pressure_spread,
+            load_capacity=profile.load_capacity,
+            edge_sharpness=profile.edge_sharpness,
+        )
+
+        # ── Generate bristle layout ───────────────────────────────────────────
+        bristles = _bristle_offsets(eff_profile, bristle_rng)
+        n_b      = max(len(bristles), 1)
+
+        # Per-bristle line width: overlap slightly so bundle reads as solid.
+        # Outer bristles are naturally thinner (scale down with abs(lat)).
+        base_bristle_w = max(0.6, scaled_widths[len(scaled_widths) // 2] / n_b * 2.2)
+
+        # ── Collect all bristle points for bbox (wetness + thickness update) ──
+        all_pts: List[Tuple] = []
+
+        # ── Render each bristle ───────────────────────────────────────────────
+        n_pts = len(pts)
+
+        for lat_frac, dev_amp in bristles:
+            b_pts = _bristle_path(pts, scaled_widths, lat_frac, dev_amp, bristle_rng)
+            all_pts.extend(b_pts)
+
+            # Per-bristle width varies with lateral distance from centre.
+            b_w = max(0.5, base_bristle_w * (1.0 - abs(lat_frac) * 0.25))
+
+            n_seg = len(b_pts) - 1
+            for i in range(n_seg):
+                # Region mask guard (per-segment).
+                if region_mask is not None:
+                    seg_cx = int((b_pts[i][0] + b_pts[i+1][0]) * 0.5)
+                    seg_cy = int((b_pts[i][1] + b_pts[i+1][1]) * 0.5)
+                    seg_cx = max(0, min(self.w - 1, seg_cx))
+                    seg_cy = max(0, min(self.h - 1, seg_cy))
+                    if region_mask[seg_cy, seg_cx] < 0.5:
+                        continue
+
+                t_along = (i + 0.5) / max(n_seg, 1)
+
+                # Pressure taper along stroke length.
+                pressure = (pressure_profile.at(t_along)
+                            if pressure_profile else
+                            max(0.1, 1.0 - t_along * 0.55))  # default press_lift
+
+                # Geometric taper at tips (from narrowing width profile + alpha).
+                taper = _tip_taper(eff_profile.distribution, t_along)
+
+                # ── Wetness gradient (3.3) ────────────────────────────────────
+                # Interpolate wetness along the stroke: start→mid→end.
+                # Wet paint spreads more, reads as softer and slightly more
+                # translucent; drier paint sits harder and more opaque.
+                if t_along <= 0.5:
+                    wet_t = wet_start + (wet_mid - wet_start) * (t_along * 2.0)
+                else:
+                    wet_t = wet_mid + (wet_end - wet_mid) * ((t_along - 0.5) * 2.0)
+
+                # Wet paint softens alpha slightly at edges (0–12% reduction).
+                wet_softness = 1.0 - wet_t * 0.12
+
+                # Wet paint widens the bristle slightly (paint flows laterally).
+                wet_width_bonus = 1.0 + wet_t * 0.10
+
+                seg_alpha = opacity * pressure * load_coverage * taper * wet_softness
+                if seg_alpha < 0.015:
+                    continue
+
+                self.ctx.move_to(*b_pts[i])
+                self.ctx.line_to(*b_pts[i + 1])
+                self.ctx.set_line_width(b_w * max(0.4, pressure) * wet_width_bonus)
+                self.ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+                self.ctx.set_source_rgba(pr, pg, pb, seg_alpha)
+                self.ctx.stroke()
+
+        # ── Update wetness in bbox ────────────────────────────────────────────
+        if all_pts:
+            all_x  = [int(p[0]) for p in all_pts]
+            all_y  = [int(p[1]) for p in all_pts]
+            bx0 = max(0,       min(all_x))
+            bx1 = min(self.w,  max(all_x) + 1)
+            by0 = max(0,       min(all_y))
+            by1 = min(self.h,  max(all_y) + 1)
+            self.wetness[by0:by1, bx0:bx1] = np.minimum(
+                1.0, self.wetness[by0:by1, bx0:bx1] + 0.35)
+
+            # Thickness: proportional to load × average pressure.
+            avg_pressure = (pressure_profile.base_pressure
+                            if pressure_profile else 0.7)
+            thickness_add = load_coverage * avg_pressure * 0.08
+            self.thickness_map[by0:by1, bx0:bx1] = np.minimum(
+                1.0, self.thickness_map[by0:by1, bx0:bx1] + thickness_add)
+
+        # ── Deplete paint load for next stroke ────────────────────────────────
+        if paint_load:
+            stroke_px = sum(
+                math.hypot(pts[i+1][0] - pts[i][0], pts[i+1][1] - pts[i][1])
+                for i in range(len(pts) - 1)
+            )
+            avg_p = (pressure_profile.base_pressure
+                     if pressure_profile else 0.7)
+            paint_load.deplete(stroke_px, avg_p)
+
+    # ── Knife tool ────────────────────────────────────────────────────────────
+
+    def apply_knife_stroke(self,
+                           pts:         List[Tuple],
+                           widths:      List[float],
+                           color:       Color,
+                           profile:     BrushProfile,
+                           opacity:     float = 0.96,
+                           scrape:      bool  = False,
+                           wet_blend:   float = 0.08,
+                           jitter_amt:  float = 0.01,
+                           rng=None,
+                           region_mask: Optional[np.ndarray] = None):
+        """
+        Deposit or scrape paint using a rigid painting knife.
+
+        A knife has no bristles.  In deposit mode it lays a flat slab of
+        paint with crisp lateral edges, a subtle blade-texture micro-grain,
+        and a slightly thicker ridge at the trailing edge (where the blade
+        lifts off).  In scrape mode it removes paint, revealing the layer
+        beneath.
+
+        Usage guidance
+        --------------
+        Deposit: impasto highlights, bold colour statements, textured
+                 foregrounds.  Follow with no brush strokes on the same
+                 area; let the knife mark stand.
+        Scrape : corrective lightening, creating texture contrast by
+                 revealing a lower layer.  Use sparingly — once or twice
+                 per passage.
+
+        Do not use for fine detail.  Knife marks are large, confident
+        statements — they read as such at normal viewing distance.
+        """
+        if len(pts) < 2:
+            return
+
+        pts   = catmull_rom(pts, steps=5)
+        orig_n = len(widths)
+        new_n  = len(pts)
+        if new_n != orig_n:
+            widths = [widths[int(i * (orig_n - 1) / max(new_n - 1, 1))]
+                      for i in range(new_n)]
+
+        # Wet blend (sampled at midpoint).
+        mid       = pts[len(pts) // 2]
+        mx, my    = int(mid[0]), int(mid[1])
+        canvas_c  = self._sample_color(mx, my)
+        wet_at    = float(self.wetness[max(0, min(self.h-1, my)),
+                                       max(0, min(self.w-1, mx))])
+        if not scrape:
+            blend_t   = wet_blend * wet_at
+            paint_col = mix_paint(color, canvas_c, blend_t)
+            paint_col = jitter(paint_col, jitter_amt, rng)
+        else:
+            # Scrape: blend heavily toward canvas colour (lifting paint).
+            paint_col = mix_paint(canvas_c, (1.0, 1.0, 1.0), 0.15)
+        pr, pg, pb = paint_col
+
+        # Width profile — flat brush keeps near-full width almost to the tips.
+        wp            = width_profile(len(pts), tip_frac=0.06)
+        scaled_widths = [wp[i] * widths[i] for i in range(len(pts))]
+        left, right   = build_stroke_outline(pts, scaled_widths)
+
+        rng_ = rng or random
         n_seg = len(pts) - 1
+
         for i in range(n_seg):
-            # Region mask: skip segment if its centre pixel is outside the
-            # allowed region.  This is the hard guard against brush strokes
-            # bleeding across the figure/background boundary.
             if region_mask is not None:
                 seg_cx = int((pts[i][0] + pts[i+1][0]) * 0.5)
                 seg_cy = int((pts[i][1] + pts[i+1][1]) * 0.5)
@@ -493,34 +1074,1030 @@ class PaintCanvas:
                     continue
 
             t_mid = (i + 0.5) / max(n_seg, 1)
-            seg_alpha = opacity * tip.edge_softness(t_mid)
-            seg_alpha = max(0.05, seg_alpha)
 
-            i0, i1 = min(i, len(left)-1), min(i+1, len(left)-1)
+            # Knife taper: sharp rectangular body, tiny roll-off at very ends.
+            if t_mid < 0.05 or t_mid > 0.95:
+                margin = t_mid if t_mid < 0.5 else (1.0 - t_mid)
+                alpha  = opacity * math.sin(margin / 0.05 * math.pi * 0.5)
+            else:
+                alpha = opacity
+
+            if scrape:
+                alpha *= 0.5 + wet_at * 0.5  # scrape more effective on wet paint
+
+            i0 = min(i, len(left) - 1)
+            i1 = min(i + 1, len(left) - 1)
             quad = [left[i0], left[i1], right[i1], right[i0]]
 
             self.ctx.move_to(*quad[0])
             for p in quad[1:]:
                 self.ctx.line_to(*p)
             self.ctx.close_path()
-            self.ctx.set_source_rgba(r, g, b, seg_alpha)
+            self.ctx.set_source_rgba(pr, pg, pb, alpha)
             self.ctx.fill()
 
-        # ── Update wetness in bbox ────────────────────────────────────────────
+            # Micro-grain texture: faint parallel lines along stroke direction.
+            if not scrape and i % 2 == 0:
+                dx = pts[min(i+1, n_seg)][0] - pts[i][0]
+                dy = pts[min(i+1, n_seg)][1] - pts[i][1]
+                mag = math.hypot(dx, dy) or 1e-6
+                for k in range(3):
+                    kf   = (k - 1) * 0.28
+                    px_  = -dy / mag * kf * scaled_widths[i0]
+                    py_  =  dx / mag * kf * scaled_widths[i0]
+                    self.ctx.move_to(left[i0][0]  + px_, left[i0][1]  + py_)
+                    self.ctx.line_to(left[i1][0]  + px_, left[i1][1]  + py_)
+                    self.ctx.set_line_width(0.4)
+                    self.ctx.set_source_rgba(pr * 0.92, pg * 0.92, pb * 0.92,
+                                             alpha * 0.18)
+                    self.ctx.stroke()
+
+        # Trailing-edge paint pileup: darker ridge along the final segments.
+        if not scrape and n_seg > 2:
+            ridge_start = max(0, n_seg - max(2, n_seg // 8))
+            for i in range(ridge_start, n_seg):
+                for side in (left, right):
+                    i0 = min(i, len(side) - 1)
+                    i1 = min(i + 1, len(side) - 1)
+                    self.ctx.move_to(*side[i0])
+                    self.ctx.line_to(*side[i1])
+                    self.ctx.set_line_width(1.2)
+                    self.ctx.set_source_rgba(pr * 0.78, pg * 0.78, pb * 0.78,
+                                             opacity * 0.55)
+                    self.ctx.stroke()
+
+        # Update wetness + thickness.
         all_x = [int(p[0]) for p in left + right]
         all_y = [int(p[1]) for p in left + right]
-        x0 = max(0,       min(all_x))
-        x1 = min(self.w,  max(all_x) + 1)
-        y0 = max(0,       min(all_y))
-        y1 = min(self.h,  max(all_y) + 1)
-        self.wetness[y0:y1, x0:x1] = np.minimum(
-            1.0, self.wetness[y0:y1, x0:x1] + 0.35)
+        bx0 = max(0,      min(all_x))
+        bx1 = min(self.w, max(all_x) + 1)
+        by0 = max(0,      min(all_y))
+        by1 = min(self.h, max(all_y) + 1)
+        self.wetness[by0:by1, bx0:bx1] = np.minimum(
+            1.0, self.wetness[by0:by1, bx0:bx1] + (0.50 if not scrape else 0.0))
+        if not scrape:
+            self.thickness_map[by0:by1, bx0:bx1] = np.minimum(
+                1.0, self.thickness_map[by0:by1, bx0:bx1] + 0.25)
+
+    # ── Finger / smear tool ───────────────────────────────────────────────────
+
+    def smear(self,
+              pts:         List[Tuple],
+              radius:      float = 8.0,
+              strength:    float = 0.40,
+              region_mask: Optional[np.ndarray] = None):
+        """
+        Soft Gaussian smear of existing canvas colour along a path.
+
+        Models a painter's finger dragged across wet paint.  No new colour is
+        added; the tool only blends neighbouring pixels.
+
+        Usage guidance
+        --------------
+        - Use to soften transitions between two wet areas (sky-to-horizon,
+          shadow-to-light edge).
+        - Apply after a brush pass to unify adjacent strokes into a smooth
+          tonal field.
+        - Limit to 1–3 passes over any one area; heavy use destroys texture
+          and reads as muddy, overworked paint.
+        - Do not use on impasto or knife marks; the raised texture is the
+          point of those marks.
+        - Only effective on wet paint; on dry areas the smear has minimal
+          visible impact (models real physics).
+
+        Parameters
+        ----------
+        pts      : Centre-line of the smear path.
+        radius   : Gaussian blur radius in pixels.  Larger = softer blend.
+        strength : [0, 1] blend fraction toward the smeared result.
+                   0.0 = no effect; 1.0 = full replacement.
+        """
+        if len(pts) < 1 or strength < 0.01:
+            return
+
+        pts     = catmull_rom(pts, steps=4) if len(pts) > 1 else pts
+        radius  = max(1.0, radius)
+        sigma   = radius * 0.45
+
+        # Read current canvas as float RGB.
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4)
+        rgb = arr[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        # Gaussian blur of the full canvas — blurred version is the "smear target".
+        from scipy.ndimage import gaussian_filter
+        blurred = gaussian_filter(rgb, sigma=[sigma, sigma, 0])
+
+        # For each point along path, blend a disc-shaped region toward blurred.
+        r_int = max(1, int(radius))
+        for pt in pts[::max(1, len(pts) // 20)]:
+            px, py = int(pt[0]), int(pt[1])
+            if not (0 <= px < self.w and 0 <= py < self.h):
+                continue
+            if region_mask is not None:
+                if region_mask[py, px] < 0.5:
+                    continue
+
+            # Wetness gate: smear effect scales with local wetness.
+            local_wet = float(self.wetness[py, px])
+            eff_str   = strength * (0.25 + local_wet * 0.75)
+
+            y0 = max(0,       py - r_int)
+            y1 = min(self.h,  py + r_int + 1)
+            x0 = max(0,       px - r_int)
+            x1 = min(self.w,  px + r_int + 1)
+
+            ys, xs = np.mgrid[y0:y1, x0:x1]
+            dist2  = (ys - py) ** 2 + (xs - px) ** 2
+            weight = np.exp(-dist2 / (2 * sigma ** 2))[..., np.newaxis]
+            weight = weight * eff_str
+
+            rgb[y0:y1, x0:x1] = np.clip(
+                rgb[y0:y1, x0:x1] * (1 - weight) +
+                blurred[y0:y1, x0:x1] * weight,
+                0.0, 1.0,
+            )
+
+        # Write back.
+        out = arr.copy()
+        out[:, :, 0] = np.clip(rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 1] = np.clip(rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 2] = np.clip(rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(out.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    # ── Sheen pass (wet paint highlight) ─────────────────────────────────────
+
+    def sheen_pass(self, light_angle: float = 2.36, strength: float = 0.35):
+        """
+        Composite a specular sheen over raised impasto edges.
+
+        Finds high-gradient regions of the thickness_map and adds a directional
+        highlight — simulating raking light catching the edges of thick paint
+        strokes.  Called after all painting passes, before vignette.
+
+        Usage guidance
+        --------------
+        - strength 0.20–0.40 is natural for oil; higher reads as very wet /
+          varnished.
+        - light_angle matches the Painter's light_pos convention where
+          applicable; default ~135° (upper-left) matches studio lighting.
+
+        Parameters
+        ----------
+        light_angle : Direction of raking light in radians.
+        strength    : Peak highlight opacity added at raised edges.
+        """
+        if self.thickness_map.max() < 0.01:
+            return
+
+        lx = math.cos(light_angle)
+        ly = math.sin(light_angle)
+
+        # Gradient of thickness map along light direction.
+        from scipy.ndimage import sobel
+        gx = sobel(self.thickness_map, axis=1).astype(np.float32)
+        gy = sobel(self.thickness_map, axis=0).astype(np.float32)
+        directional = (gx * lx + gy * ly)
+        directional = np.clip(directional, 0.0, None)
+
+        # Normalise to [0, 1].
+        peak = directional.max()
+        if peak < 1e-6:
+            return
+        highlight = (directional / peak * strength).astype(np.float32)
+
+        # ── Tinted highlight (3.2) ────────────────────────────────────────────
+        # Rather than adding pure white, the highlight is tinted from the
+        # local paint colour.  Real specular highlights on oil paint pick up a
+        # warm, slightly desaturated version of the surrounding colour —
+        # pure white reads as plastic.
+        #
+        # Formula: highlight_colour = local_colour × 0.35 + white × 0.65
+        # Then brightened by ×1.25 so the result is noticeably lighter than
+        # the paint body.
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4).astype(np.float32)
+
+        # BGRA channel layout: 0=B, 1=G, 2=R, 3=A
+        b_f = arr[:, :, 0] / 255.0
+        g_f = arr[:, :, 1] / 255.0
+        r_f = arr[:, :, 2] / 255.0
+
+        # Tint: mix local colour with white, then brighten.
+        tint_r = np.clip(r_f * 0.35 + 0.65, 0.0, 1.0) * 1.25
+        tint_g = np.clip(g_f * 0.35 + 0.65, 0.0, 1.0) * 1.25
+        tint_b = np.clip(b_f * 0.35 + 0.65, 0.0, 1.0) * 1.25
+
+        arr[:, :, 2] = np.clip((r_f + highlight * tint_r) * 255, 0, 255)
+        arr[:, :, 1] = np.clip((g_f + highlight * tint_g) * 255, 0, 255)
+        arr[:, :, 0] = np.clip((b_f + highlight * tint_b) * 255, 0, 255)
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(arr.astype(np.uint8).tobytes()),
+            cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    # ── Phase 2 tools ─────────────────────────────────────────────────────────
+
+    def fan_blend(self,
+                  pts:         List[Tuple],
+                  width:       float = 30.0,
+                  strength:    float = 0.45,
+                  n_passes:    int   = 1,
+                  region_mask: Optional[np.ndarray] = None):
+        """
+        Dry fan-brush blend along a path — pure manipulation, no new paint.
+
+        Models a fan brush with zero load dragged lightly across wet strokes.
+        Merges neighbouring colours with a soft directional Gaussian, producing
+        smooth tonal transitions without adding any colour of its own.
+
+        Usage guidance
+        --------------
+        - Apply after a brush pass to soften edges that should not remain as
+          distinct marks (sky gradients, shadow-to-light on skin, background).
+        - Run parallel to the dominant stroke direction for smooth blends;
+          perpendicular for a more diffuse, all-over merge.
+        - 1–2 passes maximum per area.  More passes destroy surface texture and
+          read as overworked, muddy paint.
+        - Do NOT use after a knife pass or on impasto areas; the raised texture
+          is the point of those marks — blending flattens them.
+        - Only meaningfully effective while the underlying paint is wet.
+
+        Parameters
+        ----------
+        pts      : Centre-line of the blend path.
+        width    : Blend radius in pixels; wider = softer, less directional.
+        strength : [0, 1] blend fraction toward smeared average per pass.
+        n_passes : Number of sweeps.  Keep ≤ 2.
+        """
+        # Fan blend is the smear tool running at lower strength with a wider
+        # radius and a directional orientation bias.  We reuse smear() with
+        # a sigma that makes it explicitly directional.
+        if len(pts) < 1 or strength < 0.01:
+            return
+        sigma_lat = max(1.0, width * 0.5)
+        sigma_fwd = max(1.0, width * 0.12)   # much tighter along stroke direction
+
+        pts_s = catmull_rom(pts, steps=4) if len(pts) > 1 else list(pts)
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4)
+        rgb = arr[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        from scipy.ndimage import gaussian_filter
+
+        for _ in range(n_passes):
+            blurred = gaussian_filter(rgb, sigma=[sigma_lat, sigma_lat, 0])
+            for pt in pts_s[::max(1, len(pts_s) // 24)]:
+                px, py = int(pt[0]), int(pt[1])
+                if not (0 <= px < self.w and 0 <= py < self.h):
+                    continue
+                if region_mask is not None and region_mask[py, px] < 0.5:
+                    continue
+                local_wet = float(self.wetness[py, px])
+                eff = strength * (0.15 + local_wet * 0.85)
+                r_int = max(1, int(sigma_lat))
+                y0 = max(0,      py - r_int); y1 = min(self.h, py + r_int + 1)
+                x0 = max(0,      px - r_int); x1 = min(self.w, px + r_int + 1)
+                ys, xs = np.mgrid[y0:y1, x0:x1]
+                w2d = np.exp(-((ys-py)**2 / (2*sigma_lat**2) +
+                               (xs-px)**2 / (2*sigma_lat**2)))[..., np.newaxis] * eff
+                rgb[y0:y1, x0:x1] = np.clip(
+                    rgb[y0:y1, x0:x1] * (1 - w2d) + blurred[y0:y1, x0:x1] * w2d,
+                    0.0, 1.0)
+
+        out = arr.copy()
+        out[:, :, 0] = np.clip(rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 1] = np.clip(rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 2] = np.clip(rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(out.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def rag(self,
+            pts:         List[Tuple],
+            width:       float = 40.0,
+            mode:        str   = "drag",
+            strength:    float = 0.40,
+            region_mask: Optional[np.ndarray] = None):
+        """
+        Rag / cloth — spread or lift existing paint along a path.
+
+        Two modes:
+
+        drag (manipulate)
+            Spreads wet paint thinly across a larger area, reducing local
+            opacity and adding a faint cloth-grain directional texture.
+            Classic use: establishing large tonal areas in the underpainting
+            and block-in stages; creating soft atmospheric backgrounds.
+
+        wipe (remove)
+            Lifts paint toward the underlying layer.  Proportional to
+            strength and local wetness.  Light wipe = subtle lightening;
+            heavy wipe = back toward ground colour.
+            Classic use: corrections, carving light areas into a dark ground.
+
+        Usage guidance
+        --------------
+        - Drag is most effective in early stages (underpainting, block-in)
+          before fine marks are placed.
+        - Wipe is a correction tool; use deliberately, not habitually.
+        - Do NOT rag over freshly knifed impasto — it flattens the texture.
+        - A rag-drag pass followed by a fresh brush pass is a classic sequence
+          for building soft, unified backgrounds.
+        - Like all manipulation tools: only works on wet paint.
+
+        Parameters
+        ----------
+        pts      : Centre-line of the rag path.
+        width    : Coverage radius in pixels.
+        mode     : "drag" (spread/thin) or "wipe" (lift toward ground).
+        strength : [0, 1] effect intensity per step.
+        """
+        if len(pts) < 1 or strength < 0.01:
+            return
+        pts_s = catmull_rom(pts, steps=4) if len(pts) > 1 else list(pts)
+        sigma = max(2.0, width * 0.35)
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4)
+        rgb = arr[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        from scipy.ndimage import gaussian_filter, uniform_filter
+
+        if mode == "drag":
+            # Spread + lighten: blend toward a locally averaged, slightly brighter value.
+            spread = gaussian_filter(rgb, sigma=[sigma, sigma, 0])
+            # Cloth-grain texture: alternate strength along stroke to suggest weave.
+            for idx, pt in enumerate(pts_s[::max(1, len(pts_s)//20)]):
+                px, py = int(pt[0]), int(pt[1])
+                if not (0 <= px < self.w and 0 <= py < self.h):
+                    continue
+                if region_mask is not None and region_mask[py, px] < 0.5:
+                    continue
+                local_wet = float(self.wetness[py, px])
+                grain = 1.0 + 0.08 * math.sin(idx * 2.3)   # cloth weave oscillation
+                eff = strength * grain * (0.20 + local_wet * 0.80)
+                r_int = max(1, int(sigma))
+                y0 = max(0,      py - r_int); y1 = min(self.h, py + r_int + 1)
+                x0 = max(0,      px - r_int); x1 = min(self.w, px + r_int + 1)
+                ys, xs = np.mgrid[y0:y1, x0:x1]
+                w2d = np.exp(-((ys-py)**2 + (xs-px)**2)/(2*sigma**2))[..., np.newaxis] * eff
+                rgb[y0:y1, x0:x1] = np.clip(
+                    rgb[y0:y1, x0:x1] * (1 - w2d) + spread[y0:y1, x0:x1] * w2d,
+                    0.0, 1.0)
+        else:  # wipe
+            # Lift toward a lighter ground estimate.
+            # Approximate the "ground" as a mildly brightened and desaturated local average.
+            ground = gaussian_filter(rgb, sigma=[sigma * 2, sigma * 2, 0])
+            ground = np.clip(ground * 1.18, 0.0, 1.0)   # wipe reveals a lighter layer
+            for pt in pts_s[::max(1, len(pts_s)//20)]:
+                px, py = int(pt[0]), int(pt[1])
+                if not (0 <= px < self.w and 0 <= py < self.h):
+                    continue
+                if region_mask is not None and region_mask[py, px] < 0.5:
+                    continue
+                local_wet = float(self.wetness[py, px])
+                eff = strength * (0.10 + local_wet * 0.90)  # wipe much weaker on dry paint
+                r_int = max(1, int(sigma))
+                y0 = max(0,      py - r_int); y1 = min(self.h, py + r_int + 1)
+                x0 = max(0,      px - r_int); x1 = min(self.w, px + r_int + 1)
+                ys, xs = np.mgrid[y0:y1, x0:x1]
+                w2d = np.exp(-((ys-py)**2 + (xs-px)**2)/(2*sigma**2))[..., np.newaxis] * eff
+                rgb[y0:y1, x0:x1] = np.clip(
+                    rgb[y0:y1, x0:x1] * (1 - w2d) + ground[y0:y1, x0:x1] * w2d,
+                    0.0, 1.0)
+
+        out = arr.copy()
+        out[:, :, 0] = np.clip(rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 1] = np.clip(rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 2] = np.clip(rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(out.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def sponge_stamp(self,
+                     pts:          List[Tuple],
+                     color:        Color,
+                     width:        float = 24.0,
+                     opacity:      float = 0.55,
+                     cell_density: float = 0.50,
+                     wet_blend:    float = 0.18,
+                     jitter_amt:   float = 0.05,
+                     rng=None,
+                     region_mask:  Optional[np.ndarray] = None):
+        """
+        Sponge — stamp irregular cellular texture along a path (deposit).
+
+        A Voronoi-cell mask gives each stamp naturally porous, organic edges.
+        Consecutive stamps are rotated and scaled slightly to prevent visible
+        tiling.
+
+        Usage guidance
+        --------------
+        - Use for foliage masses, clouds, rough stone, porous or mossy surfaces.
+        - Do NOT use for smooth surfaces, skin, or any area needing directional
+          structure.
+        - Best applied in two passes: a lighter first pass for colour, a slightly
+          heavier second pass for density.
+        - Sponge followed by a dry-brush stroke over the top is effective for
+          foliage that still reads as painterly rather than stamped.
+
+        Parameters
+        ----------
+        pts          : Stamp positions along path (stamps placed at intervals).
+        color        : Base paint colour for the stamps.
+        width        : Stamp diameter in pixels.
+        opacity      : Peak opacity at stamp centre.
+        cell_density : [0, 1] — 0 = large open holes (sea sponge);
+                       1 = fine dense texture (foam sponge).
+        wet_blend    : Blend fraction with underlying wet paint.
+        """
+        if len(pts) < 1:
+            return
+        rng_ = rng or self._rng_for_stamps
+
+        pts_s = catmull_rom(pts, steps=3) if len(pts) > 1 else list(pts)
+        stride = max(1, int(width * 0.55))   # spacing between stamps
+
+        for idx, pt in enumerate(pts_s[::stride]):
+            px, py = int(pt[0]), int(pt[1])
+            if not (0 <= px < self.w and 0 <= py < self.h):
+                continue
+            if region_mask is not None and region_mask[py, px] < 0.5:
+                continue
+
+            # Wet blend at stamp centre.
+            canvas_c = self._sample_color(px, py)
+            wet_at   = float(self.wetness[py, px])
+            paint_c  = mix_paint(color, canvas_c, wet_blend * wet_at)
+            paint_c  = jitter(paint_c, jitter_amt, rng_)
+            pr, pg, pb = paint_c
+
+            # Build a Voronoi-cell mask in a local patch.
+            r_int = max(3, int(width * 0.5))
+            patch_sz = r_int * 2 + 1
+            n_cells  = max(3, int(cell_density * 18 + 4))
+            seed_pts = [(rng_.uniform(0, patch_sz), rng_.uniform(0, patch_sz))
+                        for _ in range(n_cells)]
+
+            ys_loc, xs_loc = np.mgrid[0:patch_sz, 0:patch_sz]
+            # Distance to nearest Voronoi seed.
+            dists = np.stack([
+                np.hypot(xs_loc - sx, ys_loc - sy) for sx, sy in seed_pts
+            ], axis=0)
+            nearest = dists.min(axis=0)
+            second  = np.sort(dists, axis=0)[1]
+            # Voronoi edge = where distance to nearest ≈ distance to second-nearest.
+            edge_dist = second - nearest
+            # Mask: high alpha AWAY from cell edges (cells fill, edges are holes).
+            cell_mask = np.clip(edge_dist / (width * 0.12 + 1e-6), 0.0, 1.0)
+            # Radial falloff so stamp fades at its boundary.
+            cy_loc, cx_loc = r_int, r_int
+            radial = np.clip(
+                1.0 - np.hypot(xs_loc - cx_loc, ys_loc - cy_loc) / (r_int + 1e-6),
+                0.0, 1.0)
+            alpha_mask = (cell_mask * radial * opacity).astype(np.float32)
+
+            # Paint each pixel in the patch.
+            y0 = max(0,      py - r_int); y1 = min(self.h, py + r_int + 1)
+            x0 = max(0,      px - r_int); x1 = min(self.w, px + r_int + 1)
+            ly0 = y0 - (py - r_int); ly1 = ly0 + (y1 - y0)
+            lx0 = x0 - (px - r_int); lx1 = lx0 + (x1 - x0)
+
+            a_slice = alpha_mask[ly0:ly1, lx0:lx1]
+            if a_slice.max() < 0.02:
+                continue
+
+            # Render as a semi-transparent ARGB patch.
+            patch_rgba = np.zeros((y1-y0, x1-x0, 4), dtype=np.uint8)
+            patch_rgba[:, :, 0] = np.clip(pb * 255, 0, 255)
+            patch_rgba[:, :, 1] = np.clip(pg * 255, 0, 255)
+            patch_rgba[:, :, 2] = np.clip(pr * 255, 0, 255)
+            patch_rgba[:, :, 3] = np.clip(a_slice * 255, 0, 255).astype(np.uint8)
+
+            tmp_surf = cairo.ImageSurface.create_for_data(
+                bytearray(patch_rgba.tobytes()),
+                cairo.FORMAT_ARGB32, x1-x0, y1-y0)
+            self.ctx.set_source_surface(tmp_surf, x0, y0)
+            self.ctx.paint()
+
+            # Wetness update.
+            self.wetness[y0:y1, x0:x1] = np.minimum(
+                1.0, self.wetness[y0:y1, x0:x1] + 0.20 * a_slice)
+
+    @property
+    def _rng_for_stamps(self):
+        """Fallback RNG for tools that aren't passed an explicit rng."""
+        if not hasattr(self, '_default_rng'):
+            self._default_rng = random.Random(42)
+        return self._default_rng
+
+    def spatter(self,
+                origin:      Tuple[float, float],
+                color:       Color,
+                angle:       float = 0.0,
+                spread:      float = 0.40,
+                reach:       float = 80.0,
+                dot_size:    float = 2.5,
+                dot_count:   int   = 60,
+                opacity:     float = 0.75,
+                jitter_amt:  float = 0.06,
+                wet_blend:   float = 0.08,
+                rng=None,
+                region_mask: Optional[np.ndarray] = None):
+        """
+        Spatter — Poisson-distributed paint dots fired from an origin point.
+
+        Models a toothbrush or stiff brush flicked toward the canvas.  Dots are
+        Poisson-spaced within a directional cone so they never clump.  Size
+        grows slightly with distance from the source (coarser spread at reach).
+
+        Usage guidance
+        --------------
+        - Use as a *texture accent*, not a primary mark.  Spatter reads as
+          natural randomness; overuse reads as chaos.
+        - Apply over dry or near-dry paint only — wet paint causes dots to bleed
+          into each other, losing the characteristic distinct drop texture.
+        - `dot_count` should be low enough that individual dots are visible at
+          normal viewing distance; 30–80 is a typical range.
+        - Good uses: soil, rock texture, foliage edge texture, water droplets,
+          sand, splashed colour accents.
+
+        Parameters
+        ----------
+        origin     : (x, y) source point.
+        color      : Base paint colour.
+        angle      : Direction of spray in radians (0 = right).
+        spread     : Half-angle of the cone in radians (π = full hemisphere).
+        reach      : Maximum travel distance in pixels.
+        dot_size   : Base dot radius in pixels; actual size varies ± 40%.
+        dot_count  : Total number of dots to attempt.
+        opacity    : Per-dot alpha at full reach; closer dots are stronger.
+        wet_blend  : Blend fraction with underlying wet paint.
+        """
+        rng_ = rng or self._rng_for_stamps
+        ox, oy = origin
+
+        # Poisson-disk sampling in the cone.
+        min_sep = dot_size * 2.2
+        placed: List[Tuple[float, float]] = []
+
+        attempts = 0
+        while len(placed) < dot_count and attempts < dot_count * 20:
+            attempts += 1
+            # Random polar coords in the cone.
+            r   = rng_.uniform(reach * 0.05, reach)
+            phi = rng_.uniform(angle - spread, angle + spread)
+            cx  = ox + math.cos(phi) * r
+            cy  = oy + math.sin(phi) * r
+
+            if not (0 <= cx < self.w and 0 <= cy < self.h):
+                continue
+            if region_mask is not None:
+                ix, iy = int(cx), int(cy)
+                if region_mask[max(0,min(self.h-1,iy)), max(0,min(self.w-1,ix))] < 0.5:
+                    continue
+
+            # Poisson spacing check.
+            too_close = any(math.hypot(cx-px, cy-py) < min_sep for px, py in placed)
+            if too_close:
+                continue
+
+            placed.append((cx, cy))
+
+            # Dot properties.
+            dist_frac = r / max(reach, 1.0)
+            dot_r   = dot_size * rng_.uniform(0.6, 1.4) * (0.7 + dist_frac * 0.6)
+            dot_r   = max(0.5, dot_r)
+            dot_a   = opacity * (1.0 - dist_frac * 0.45) * rng_.uniform(0.7, 1.0)
+            if dot_a < 0.05:
+                continue
+
+            # Wet blend at dot centre.
+            canvas_c = self._sample_color(int(cx), int(cy))
+            wet_at   = float(self.wetness[max(0, min(self.h-1, int(cy))),
+                                          max(0, min(self.w-1, int(cx)))])
+            paint_c  = mix_paint(color, canvas_c, wet_blend * wet_at)
+            paint_c  = jitter(paint_c, jitter_amt, rng_)
+
+            self.ctx.arc(cx, cy, dot_r, 0, 2 * math.pi)
+            self.ctx.set_source_rgba(*paint_c, dot_a)
+            self.ctx.fill()
+
+    def sgraffito(self,
+                  pts:           List[Tuple],
+                  scratch_depth: float = 0.70,
+                  width:         float = 1.2,
+                  region_mask:   Optional[np.ndarray] = None):
+        """
+        Sgraffito — scratch through wet paint to reveal the layer beneath.
+
+        Draws a hard-edged line that reduces local paint opacity, exposing the
+        colour of whatever was painted earlier.  On a linen-toned ground this
+        typically produces a warm ochre or grey-green highlight.
+
+        Usage guidance
+        --------------
+        - Use for bright highlights scratched into dark wet passages: specular
+          light on water, windows in a night scene, grasses in a dark foreground.
+        - Use for fine linear texture: branches against sky, fur direction marks,
+          hair highlight lines.
+        - Finishing technique only — apply at the very end of a pass.
+        - Use sparingly: 3–5 scratches per passage maximum.  More becomes
+          decorative rather than structural.
+        - Only effective on wet or semi-wet paint.  On fully dry paint the
+          scratch has no visible effect (models real physics).
+        - ``scratch_depth`` 0.3–0.5 gives subtle texture; 0.7–1.0 gives a
+          clear bright line.
+
+        Parameters
+        ----------
+        pts           : Path of the scratch.
+        scratch_depth : [0, 1] — 0 = slight lightening; 1 = full reveal to
+                        ground (near-transparent).
+        width         : Scratch line width in pixels.  Keep narrow (0.8–2.5).
+        """
+        if len(pts) < 2 or scratch_depth < 0.01:
+            return
+
+        pts_s = catmull_rom(pts, steps=6)
+
+        # Sgraffito blends toward a transparent/ground state.
+        # We achieve this by painting the scratch line with a
+        # "destination-out" composite over a copy of the pre-scratch surface,
+        # then re-compositing at reduced opacity.
+        # Simpler approach: paint with the per-pixel canvas colour sampled at
+        # the scratch, brightened slightly (the layer beneath).
+        for i in range(len(pts_s) - 1):
+            seg_cx = int((pts_s[i][0] + pts_s[i+1][0]) * 0.5)
+            seg_cy = int((pts_s[i][1] + pts_s[i+1][1]) * 0.5)
+            seg_cx = max(0, min(self.w-1, seg_cx))
+            seg_cy = max(0, min(self.h-1, seg_cy))
+
+            if region_mask is not None and region_mask[seg_cy, seg_cx] < 0.5:
+                continue
+
+            # Scale effect with wetness at that point.
+            local_wet = float(self.wetness[seg_cy, seg_cx])
+            eff_alpha = scratch_depth * (0.15 + local_wet * 0.85)
+
+            # Reveal colour: sample what is painted and push toward the ground.
+            # We approximate the ground as a desaturated, lightened version of
+            # the current colour (since the actual ground may be buried).
+            cur = self._sample_color(seg_cx, seg_cy)
+            reveal = tuple(min(1.0, c * 0.55 + 0.45) for c in cur)
+
+            self.ctx.move_to(*pts_s[i])
+            self.ctx.line_to(*pts_s[i+1])
+            self.ctx.set_line_width(width)
+            self.ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+            self.ctx.set_source_rgba(*reveal, eff_alpha)
+            self.ctx.stroke()
+
+    def comb_drag(self,
+                  pts:          List[Tuple],
+                  width:        float = 30.0,
+                  tine_count:   int   = 8,
+                  tine_spacing: float = 0.0,
+                  groove_depth: float = 0.55,
+                  region_mask:  Optional[np.ndarray] = None):
+        """
+        Comb / texture drag — draw a rigid comb through wet paint.
+
+        Produces parallel grooves running along the drag direction.  Each groove
+        partially exposes the layer beneath by rendering a thin dark-then-light
+        alternation.  Classic uses: wood grain, hair masses, calm water
+        reflections, grass fields.
+
+        Usage guidance
+        --------------
+        - Drag in one consistent direction per passage.  Crossing directions
+          produces a crosshatch that reads as fabric or woven texture rather
+          than organic grain — only use that intentionally.
+        - Works only on wet paint; apply immediately after a brush or knife pass.
+        - Coarse combs (wide tine_spacing) for large structural features (planks,
+          coarse hair); fine combs (tight spacing) for hair, fur, grass.
+        - Do NOT comb over impasto knife marks — the tines skip over the raised
+          texture and the effect is lost.
+
+        Parameters
+        ----------
+        pts          : Centre-line of the drag path.
+        width        : Total comb width in pixels.
+        tine_count   : Number of tines (grooves).  4–16 is typical.
+        tine_spacing : Override spacing between tine centres in pixels.
+                       0 = auto-derive from width / tine_count.
+        groove_depth : [0, 1] how strongly each groove darkens then lightens.
+        """
+        if len(pts) < 2 or groove_depth < 0.01:
+            return
+
+        pts_s = catmull_rom(pts, steps=5)
+        spacing = tine_spacing if tine_spacing > 0 else width / max(tine_count, 1)
+
+        half_w = width * 0.5
+        offsets = [
+            -half_w + spacing * (i + 0.5)
+            for i in range(tine_count)
+        ]
+
+        n = len(pts_s)
+        for lat in offsets:
+            # Build tine path (parallel offset from centre-line).
+            tine_pts = []
+            for i in range(n):
+                if i == 0:
+                    dx, dy = pts_s[1][0]-pts_s[0][0], pts_s[1][1]-pts_s[0][1]
+                elif i == n-1:
+                    dx, dy = pts_s[-1][0]-pts_s[-2][0], pts_s[-1][1]-pts_s[-2][1]
+                else:
+                    dx, dy = pts_s[i+1][0]-pts_s[i-1][0], pts_s[i+1][1]-pts_s[i-1][1]
+                mag = math.hypot(dx, dy) or 1e-6
+                px_, py_ = -dy/mag, dx/mag
+                tine_pts.append((pts_s[i][0] + px_*lat, pts_s[i][1] + py_*lat))
+
+            for i in range(len(tine_pts) - 1):
+                seg_cx = int((tine_pts[i][0] + tine_pts[i+1][0]) * 0.5)
+                seg_cy = int((tine_pts[i][1] + tine_pts[i+1][1]) * 0.5)
+                seg_cx = max(0, min(self.w-1, seg_cx))
+                seg_cy = max(0, min(self.h-1, seg_cy))
+
+                if region_mask is not None and region_mask[seg_cy, seg_cx] < 0.5:
+                    continue
+
+                local_wet = float(self.wetness[seg_cy, seg_cx])
+                eff = groove_depth * (0.10 + local_wet * 0.90)
+
+                cur = self._sample_color(seg_cx, seg_cy)
+
+                # Dark pass (groove displaces paint inward → darker).
+                dark_col = tuple(max(0.0, c * (1.0 - eff * 0.6)) for c in cur)
+                self.ctx.move_to(*tine_pts[i])
+                self.ctx.line_to(*tine_pts[i+1])
+                self.ctx.set_line_width(max(0.8, spacing * 0.30))
+                self.ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+                self.ctx.set_source_rgba(*dark_col, eff * 0.8)
+                self.ctx.stroke()
+
+                # Light pass (paint piles on groove edges → lighter flanks).
+                light_col = tuple(min(1.0, c * (1.0 + eff * 0.35)) for c in cur)
+                for sign in (-1.0, 1.0):
+                    dx = tine_pts[i+1][0] - tine_pts[i][0]
+                    dy = tine_pts[i+1][1] - tine_pts[i][1]
+                    mag = math.hypot(dx, dy) or 1e-6
+                    off = sign * spacing * 0.28
+                    px_, py_ = -dy/mag * off, dx/mag * off
+                    self.ctx.move_to(tine_pts[i][0]+px_,   tine_pts[i][1]+py_)
+                    self.ctx.line_to(tine_pts[i+1][0]+px_, tine_pts[i+1][1]+py_)
+                    self.ctx.set_line_width(max(0.5, spacing * 0.18))
+                    self.ctx.set_source_rgba(*light_col, eff * 0.45)
+                    self.ctx.stroke()
 
     # ── Post-processing ───────────────────────────────────────────────────────
 
     def dry(self, amount: float = 0.55):
-        """Simulate paint drying between layers — reduces wetness."""
+        """
+        Simulate paint drying between layers.
+
+        Reduces both wetness and thickness.  Wetness drops quickly (paint
+        surface dries); thickness decays much more slowly (the physical paint
+        body settles but does not disappear).
+
+        Parameters
+        ----------
+        amount : [0, 1] drying fraction.  0.55 = typical between-pass dry.
+                 0.90 = near-complete dry (underpainting stage).
+                 1.00 = fully dry (no wet-on-wet blending in next pass).
+        """
         self.wetness *= (1.0 - amount)
+        # Thickness decays at 20 % of the wetness rate — impasto marks retain
+        # their physical relief long after the surface dries.
+        self.thickness_map *= (1.0 - amount * 0.20)
+
+    # ── Phase 4 — Watercolour physics ─────────────────────────────────────────
+
+    def diffuse_wet(self, passes: int = 1, strength: float = 0.50):
+        """
+        Bleed wet paint outward — watercolour wet-into-wet diffusion.
+
+        Simulates water carrying pigment across wet regions.  Very wet areas
+        receive a wider diffusion radius; barely-wet areas barely bleed.
+
+        Call immediately after placing strokes, before granulate() and
+        dry_edges().
+
+        Usage guidance
+        --------------
+        - One pass at strength 0.35–0.55 gives natural soft-edged washes.
+        - Two passes at strength 0.60+ give the heavy bloom of wet-on-wet.
+        - Do NOT call on a dry canvas — wetness gates the effect completely.
+        - Not needed for oil painting; oil does not bleed this way.
+
+        Parameters
+        ----------
+        passes   : Number of diffusion sweeps.  1 = subtle; 2 = heavy bloom.
+        strength : [0, 1] blend fraction toward the diffused result per pass.
+        """
+        if self.wetness.max() < 0.10:
+            return
+
+        from scipy.ndimage import gaussian_filter
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4)
+        rgb = arr[:, :, [2, 1, 0]].astype(np.float32) / 255.0
+
+        for _ in range(passes):
+            # Multi-scale diffusion: very wet → wide blur, barely wet → fine blur.
+            # Three wetness bands drive three Gaussian radii.
+            for threshold, sigma in [(0.70, 3.5), (0.40, 2.0), (0.15, 1.0)]:
+                mask = np.clip(
+                    (self.wetness - threshold) / (1.0 - threshold + 1e-6),
+                    0.0, 1.0,
+                )
+                if mask.max() < 0.01:
+                    continue
+                blurred = gaussian_filter(rgb, sigma=[sigma, sigma, 0])
+                m3d     = (mask * strength)[..., np.newaxis]
+                rgb     = rgb * (1.0 - m3d) + blurred * m3d
+
+        out = arr.copy()
+        out[:, :, 0] = np.clip(rgb[:, :, 2] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 1] = np.clip(rgb[:, :, 1] * 255, 0, 255).astype(np.uint8)
+        out[:, :, 2] = np.clip(rgb[:, :, 0] * 255, 0, 255).astype(np.uint8)
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(out.tobytes()), cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def dry_edges(self, darkening: float = 0.88, edge_width: int = 2):
+        """
+        Concentrate pigment at the boundary of drying wet regions.
+
+        As watercolour dries, receding water carries dissolved pigment to the
+        drying front, depositing a darker, crisper ring — the characteristic
+        hard edge (cauliflower / bloom / backrun).
+
+        Call just before dry() so the effect is applied while paint is still
+        wet.  The darkening is modulated by local wetness: pixels that are
+        barely wet produce a faint edge; very wet pixels produce the full ring.
+
+        Usage guidance
+        --------------
+        - darkening 0.85–0.92 is natural (8–15 % darker at the edge).
+        - edge_width 1–2 for fine-grained paper; 3–4 for large washes.
+        - Call once per drying cycle.  Repeated calls stack and over-darken.
+        - Not needed for oil painting.
+
+        Parameters
+        ----------
+        darkening  : Multiplier for edge pixels — 1.0 = no effect, 0.80 = strong.
+        edge_width : Pixel width of the darkened ring.
+        """
+        from scipy.ndimage import binary_dilation, binary_erosion
+
+        wet_mask = self.wetness > 0.25
+        if not wet_mask.any():
+            return
+
+        struct  = np.ones((3, 3), dtype=bool)
+        dilated = binary_dilation(wet_mask, structure=struct,
+                                  iterations=edge_width)
+        eroded  = binary_erosion(wet_mask, structure=struct,
+                                 iterations=max(1, edge_width - 1))
+        # Edge band: the ring just outside (or just inside) the wet boundary.
+        edge    = (dilated & ~eroded).astype(np.float32)
+
+        # Weight by local wetness so the effect is strongest where wetter.
+        edge   *= np.clip(self.wetness, 0.0, 1.0)
+
+        if edge.max() < 0.01:
+            return
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4).astype(np.float32)
+
+        dark_factor = 1.0 - edge * (1.0 - darkening)
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * dark_factor, 0, 255)
+        arr[:, :, 1] = np.clip(arr[:, :, 1] * dark_factor, 0, 255)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * dark_factor, 0, 255)
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(arr.astype(np.uint8).tobytes()),
+            cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def granulate(self, strength: float = 0.22, pigment_weight: float = 1.0):
+        """
+        Simulate pigment granulation into paper / canvas texture.
+
+        Paper valleys accumulate pigment (darker, denser where the texture
+        dips); surface peaks resist the wash (slightly lighter where the
+        texture rises).  Effect is gated by local wetness — dry areas do not
+        granulate because the water that carries pigment is gone.
+
+        Naturally more visible on cold-press watercolour paper (deeper tooth)
+        than on linen canvas, but both surfaces produce the effect at scale.
+
+        Usage guidance
+        --------------
+        - strength 0.15–0.25 is natural; above 0.40 reads as exaggerated.
+        - Call after diffuse_wet() so bleeding has already spread the pigment
+          before it settles into the texture.
+        - Earth pigments (raw umber, burnt sienna, ultramarine) granulate more
+          strongly in real life.  Use pigment_weight 1.2–1.5 for those hues
+          and 0.6–0.8 for synthetic pigments (cadmium, phthalo).
+        - Not needed for oil painting; oil pigment does not granulate.
+
+        Parameters
+        ----------
+        strength       : [0, 1] maximum darkening / lightening amplitude.
+        pigment_weight : Multiplier for the effect — use to differentiate
+                         granulating pigments (> 1) from smooth ones (< 1).
+        """
+        if self.wetness.max() < 0.10 or strength < 0.01:
+            return
+
+        # Normalise texture to [-1, 1] centred at its midpoint.
+        t_min, t_max = float(self.texture.min()), float(self.texture.max())
+        mid      = (t_min + t_max) * 0.5
+        t_range  = (t_max - t_min) * 0.5 + 1e-6
+        tex_norm = (self.texture - mid) / t_range   # -1 (valley) to +1 (peak)
+
+        # Valleys darken (pigment pools); peaks lighten slightly (pigment skims).
+        valley_dark = np.clip(-tex_norm, 0.0, 1.0) * strength * pigment_weight
+        peak_light  = np.clip( tex_norm, 0.0, 1.0) * strength * 0.45 * pigment_weight
+
+        wet_w      = np.clip(self.wetness, 0.0, 1.0)
+        modulation = 1.0 - valley_dark * wet_w + peak_light * wet_w
+
+        buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
+        arr = buf.reshape(self.h, self.w, 4).astype(np.float32)
+
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * modulation, 0, 255)
+        arr[:, :, 1] = np.clip(arr[:, :, 1] * modulation, 0, 255)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * modulation, 0, 255)
+
+        tmp = cairo.ImageSurface.create_for_data(
+            bytearray(arr.astype(np.uint8).tobytes()),
+            cairo.FORMAT_ARGB32, self.w, self.h)
+        self.ctx.set_source_surface(tmp, 0, 0)
+        self.ctx.paint()
+
+    def watercolor_dry(self,
+                       amount:             float = 0.55,
+                       diffuse_strength:   float = 0.40,
+                       diffuse_passes:     int   = 1,
+                       granulate_strength: float = 0.22,
+                       pigment_weight:     float = 1.0,
+                       edge_darkening:     float = 0.88,
+                       edge_width:         int   = 2):
+        """
+        Watercolour drying sequence — one call for physically correct drying.
+
+        Runs diffusion, granulation, and edge concentration in the correct
+        physical order, then reduces wetness.  Use in place of dry() for all
+        watercolour painting passes.
+
+        Physical sequence
+        -----------------
+        1. diffuse_wet()  — wet paint bleeds while still fluid
+        2. granulate()    — pigment settles into paper texture
+        3. dry_edges()    — pigment concentrates at the receding drying front
+        4. dry()          — wetness reduced
+
+        Usage guidance
+        --------------
+        - For a light first wash: diffuse_strength=0.30, granulate_strength=0.15,
+          edge_darkening=0.92 (subtle bleed, faint granulation, light edge).
+        - For a heavy wet-on-wet bloom: diffuse_strength=0.60, diffuse_passes=2,
+          granulate_strength=0.25, edge_darkening=0.84 (heavy bleed, strong ring).
+        - amount matches dry() — 0.55 typical, 0.90 near-complete.
+        - Do NOT use for oil painting passes; use dry() instead.
+
+        Parameters
+        ----------
+        amount             : Drying fraction passed to dry() [0, 1].
+        diffuse_strength   : Bleeding intensity [0, 1].
+        diffuse_passes     : Diffusion sweep count.  1–2.
+        granulate_strength : Texture granulation depth [0, 1].
+        pigment_weight     : Granulation multiplier (earth pigments > 1).
+        edge_darkening     : Pigment ring darkness multiplier (0.80–0.95).
+        edge_width         : Pixel width of the darkened edge band.
+        """
+        self.diffuse_wet(passes=diffuse_passes, strength=diffuse_strength)
+        self.granulate(strength=granulate_strength, pigment_weight=pigment_weight)
+        self.dry_edges(darkening=edge_darkening, edge_width=edge_width)
+        self.dry(amount)
 
     def glaze(self, color: Color, opacity: float = 0.10):
         """Transparent colour wash over entire canvas (final warmth / tone)."""
@@ -800,20 +2377,36 @@ class Painter:
     Each method corresponds to a real stage in oil painting practice.
     """
 
-    def __init__(self, width: int, height: int, seed: int = 7):
+    def __init__(self, width: int, height: int, seed: int = 7,
+                 edge_treatment: str = "natural_border"):
         """
         Parameters
         ----------
-        width, height : Canvas dimensions in pixels.
-        seed          : RNG seed for reproducibility.  Change to generate
-                        compositionally different paintings from the same
-                        reference.  Use PipelineSpec.seed to drive this from
-                        the session level.
+        width, height  : Canvas dimensions in pixels.
+        seed           : RNG seed for reproducibility.  Change to generate
+                         compositionally different paintings from the same
+                         reference.  Use PipelineSpec.seed to drive this from
+                         the session level.
+        edge_treatment : How to handle canvas edges.
+
+                         "natural_border"  — Ground colour visible at edges;
+                           appropriate for plein air studies, academic figure
+                           work, and sketches.  Current default behaviour.
+
+                         "full_coverage"   — Dedicated edge pass after each
+                           painting stage ensures the entire canvas surface is
+                           painted.  Use for finished gallery-ready works.
+
+                         "overpainting"    — Post-pass that targets
+                           undersampled edge regions and fills them with
+                           outward-biased strokes.  Aggressive — use only
+                           when a painting must fill edge-to-edge.
         """
-        self.canvas   = PaintCanvas(width, height)
-        self.rng      = np.random.default_rng(seed)
-        self._rng_py  = random.Random(seed)
-        self.w, self.h = width, height
+        self.canvas         = PaintCanvas(width, height)
+        self.rng            = np.random.default_rng(seed)
+        self._rng_py        = random.Random(seed)
+        self.w, self.h      = width, height
+        self.edge_treatment = edge_treatment
         # Figure mask: (H, W) float32 — 1.0=figure, 0.0=background.
         # Set via set_figure_mask() before painting.
         self._figure_mask: Optional[np.ndarray] = None
@@ -4357,7 +5950,7 @@ class Painter:
                        wet_blend:           float,
                        jitter_amt:          float,
                        curvature:           float,
-                       tip:                 BrushTip,
+                       tip:                 Union[BrushTip, BrushProfile],
                        stroke_mask:         Optional[np.ndarray] = None,
                        override_color:      Optional[Color]      = None,
                        composition_map:     Optional[np.ndarray] = None,
@@ -4380,6 +5973,10 @@ class Painter:
                        # ── Improvement #11 — palette harmony snapping ────────
                        palette_colors:      Optional[List[Color]] = None,
                        harmony_snap:        float = 0.0,   # [0, 1]; 0 = off
+                       # ── Brush system v2 ───────────────────────────────────
+                       pressure_profile:    Optional[PressureProfile] = None,
+                       paint_load:          Optional[PaintLoad]       = None,
+                       brush_profile:       Optional[BrushProfile]    = None,
                        ):
         """
         Core stroke placement loop.
@@ -4578,12 +6175,15 @@ class Painter:
                                 n=n_pts)
             ws    = [eff_w_val] * len(pts)
 
-            self.canvas.apply_stroke(pts, ws, col, tip,
+            effective_tip = brush_profile if brush_profile is not None else tip
+            self.canvas.apply_stroke(pts, ws, col, effective_tip,
                                      opacity=stroke_opacity,
                                      wet_blend=wet_blend,
                                      jitter_amt=jitter_amt,
                                      rng=self._rng_py,
-                                     region_mask=region_mask_for_draw)
+                                     region_mask=region_mask_for_draw,
+                                     pressure_profile=pressure_profile,
+                                     paint_load=paint_load)
 
     def color_field_pass(self,
                          reference:              Union[np.ndarray, Image.Image],
