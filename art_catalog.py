@@ -4166,87 +4166,6 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
-    "vilhelm_hammershoi": ArtStyle(
-        artist="Vilhelm Hammershøi",
-        movement="Symbolism / Danish Intimisme",
-        nationality="Danish",
-        period="c. 1884–1916",
-        palette=[
-            (0.82, 0.80, 0.78),   # silver ash (primary tone — lit interior wall)
-            (0.68, 0.67, 0.65),   # cool grey (dominant mid-tone — floors and shadow walls)
-            (0.52, 0.50, 0.48),   # pewter shadow (darker room recesses)
-            (0.35, 0.34, 0.33),   # charcoal grey (furniture silhouettes and deep shadow)
-            (0.14, 0.13, 0.14),   # near-black (the deepest tonal anchor — door frames, curtain hems)
-            (0.92, 0.91, 0.88),   # pale ivory (direct north window light — the brightest zone)
-            (0.72, 0.71, 0.74),   # blue-grey (window glass reflection — slightly cooler than walls)
-            (0.45, 0.44, 0.47),   # muted blue-grey shadow (wall in shadow — a ghost of colour)
-        ],
-        ground_color=(0.68, 0.67, 0.65),   # cool silver-ash priming ground
-        stroke_size=4.0,
-        wet_blend=0.75,
-        edge_softness=0.72,
-        jitter=0.008,
-        glazing=(0.78, 0.77, 0.74),        # cool grey glaze — near-neutral, R≈G≈B with a whisper of blue
-        crackle=False,
-        chromatic_split=False,
-        technique=(
-            "Hammershøi's technique achieves near-total silence through a deliberate "
-            "strategy of suppression.  His Copenhagen interiors are constructed from an "
-            "extremely limited tonal range — essentially a single grey chord modulated "
-            "across the canvas — with almost all colour saturation removed.  What little "
-            "colour remains is the ghost of colour: a faint cool bias in the wall tones, "
-            "a whisper of warm ivory in the lit window zone, a hint of blue-grey in the "
-            "shadowed recesses.  The key decision is the palette: everything is built "
-            "from a family of silvers and grey-ivories sharing the same hue family, so "
-            "the eye perceives not colour contrast but pure tonal relationship.  "
-            "His brushwork is invisible — the surface reads as seamless and continuous "
-            "rather than built from marks.  This effect requires extremely high wet "
-            "blending: every stroke dissolves immediately into its neighbour, and the "
-            "resulting tonal transitions are gradual and smooth to the point of "
-            "imperceptibility.  Edge_softness is also very high: even the figure-to-"
-            "background boundary is a tone gradient, not a line.  Light enters from the "
-            "north window — always from the left in his interiors — as a cool, diffuse "
-            "glow that illuminates without casting harsh shadows.  The shadows themselves "
-            "receive no warm bounce light; they are simply cooler and darker versions of "
-            "the wall tone.  The total effect is of a held breath — the room exists in "
-            "a suspension of time, drained of incident, waiting.  Hammershøi's restraint "
-            "is itself the subject.  The near-absence of colour, the near-absence of "
-            "visible facture, the near-absence of narrative: these absences accumulate "
-            "into a profound positive quality — the quality of interior silence made "
-            "palpable on canvas."
-        ),
-        famous_works=[
-            ("Dust Motes Dancing in Sunrays",          "1900"),
-            ("Interior with Young Woman from Behind",  "c. 1904"),
-            ("The Four Rooms",                         "1914"),
-            ("Interior, Strandgade 30",                "1901"),
-            ("Ida Reading a Letter",                   "1899"),
-            ("Interior with Turned Back Figure",       "c. 1913"),
-            ("White Doors",                            "1905"),
-            ("A Room in the Artist's Home in Strandgade", "1906"),
-        ],
-        inspiration=(
-            "Use hammershoi_grey_silence_pass() as the defining stylistic pass — "
-            "it applies systematic desaturation toward grey (leaving only a ghost of "
-            "hue at rate 0.82) followed by differential window-light cooling in bright "
-            "zones (B lift, R+G damp) and shadow cooling in dark zones.  This tripartite "
-            "strategy — desaturate, cool the lights, cool the shadows — reproduces the "
-            "characteristic near-monochrome silver-grey of Hammershøi's Copenhagen "
-            "interiors without collapsing into pure greyscale.  "
-            "Cool silver-ash ground_color (0.68, 0.67, 0.65) must remain visible in "
-            "the mid-tone passages — Hammershøi's walls are the ground showing through "
-            "thin paint rather than densely opaque coverage.  "
-            "wet_blend=0.75 is the highest in the catalog — use it and do not reduce; "
-            "the invisibility of brushwork IS the technique.  "
-            "edge_softness=0.72 ensures all edges dissolve gradually — no hard "
-            "outlines anywhere, not even at the figure boundary.  "
-            "glazing=(0.78, 0.77, 0.74) applies the final cool unifying veil — "
-            "a near-neutral grey with the faintest blue suggestion.  "
-            "Apply hammershoi_grey_silence_pass() with desaturation=0.82 (default) "
-            "after build_form() and before the final glaze."
-        ),
-    ),
-
     # ── Giovanni Bellini ───────────────────────────────────────────────────────
     "giovanni_bellini": ArtStyle(
         artist="Giovanni Bellini",
@@ -20490,6 +20409,72 @@ CATALOG: Dict[str, ArtStyle] = {
             "softening in all prior passes."
         ),
     ),
+
+    # ── Mikhail Vrubel ─────────────────────────────────────────────────────────
+    "mikhail_vrubel": ArtStyle(
+        artist="Mikhail Vrubel",
+        movement="Russian Symbolism / Art Nouveau",
+        nationality="Russian",
+        period="1856-1910",
+        palette=[
+            (0.22, 0.28, 0.52),   # deep lapis blue (dominant — sky, demon robes, water)
+            (0.55, 0.42, 0.65),   # violet-mauve (crystal facet shadow — Vrubel's defining mid-tone)
+            (0.75, 0.68, 0.28),   # burnished gold-amber (facet highlight — Byzantine gilt)
+            (0.18, 0.38, 0.35),   # dark malachite (foliage, serpent, demon wings)
+            (0.62, 0.52, 0.72),   # periwinkle crystal (mid-lit facet zone)
+            (0.88, 0.82, 0.65),   # pale ivory-gold (peak highlight — crystalline edge glint)
+            (0.12, 0.10, 0.28),   # near-black indigo (deepest shadow void — demon eyes)
+            (0.42, 0.60, 0.55),   # aqua-green (swan plumage, lilac-adjacent cool tone)
+            (0.78, 0.55, 0.45),   # warm coral-flesh (face and hand highlight)
+            (0.30, 0.24, 0.48),   # deep purple (demon figure, compositional anchor)
+        ],
+        ground_color=(0.20, 0.18, 0.38),   # deep blue-violet imprimatura
+        stroke_size=3.5,
+        wet_blend=0.30,
+        edge_softness=0.25,
+        jitter=0.035,
+        glazing=(0.55, 0.50, 0.70),        # cool violet-blue glaze — crystalline unifying veil
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Vrubel's technique produces a mosaic-like, crystalline surface unique in "
+            "Russian art.  Influenced by Byzantine enamel, Venetian mosaic, and the "
+            "iridescent wings of moths he obsessively studied, he built his forms from "
+            "angular, facet-like brushstrokes — each mark a distinct colour-plane, "
+            "slightly divergent from its neighbours, like a shattered stained-glass "
+            "window reassembled on canvas.  The edges between these colour facets are "
+            "left crisp, sometimes darkened, so the eye reads the surface as a field of "
+            "crystalline planes rather than a continuous tonal gradation.  This gives "
+            "his Demon figures (Seated Demon, 1890; Demon Downcast, 1902) their "
+            "brooding, jewelled unreality.  His palette centres on deep lapis blue, "
+            "violet-mauve, and burnished gold against near-black voids — the palette of "
+            "Byzantine icon yet thoroughly Symbolist in emotional register.  The Swan "
+            "Princess (1900) and Lilacs (1900) extend this mosaic surface to natural "
+            "subjects, fragmenting feathers and flower-clusters into iridescent facets.  "
+            "Edge softness is LOW: facet boundaries are crisp to simulate crystal "
+            "planes.  Stroke size is small to medium: each facet is a distinct mark.  "
+            "Wet blend is low: strokes do not dissolve into each other."
+        ),
+        famous_works=[
+            ("The Demon Seated", "1890"),
+            ("The Demon Downcast", "1902"),
+            ("The Swan Princess", "1900"),
+            ("Lilacs", "1900"),
+            ("Pan", "1899"),
+            ("The Pearl", "1904"),
+            ("Mephisto Waltz", "1906"),
+        ],
+        inspiration=(
+            "vrubel_crystal_facet_pass(): detect region-level luminance gradient edges "
+            "using pre-smoothed Sobel, darken at facet boundaries (mosaic grout), and "
+            "apply jewel-like saturation boost in flat facet interiors.  Use deep blue-"
+            "violet ground (0.20, 0.18, 0.38), glazing=(0.55, 0.50, 0.70) cool violet "
+            "glaze.  Combine with build_form() for facet density and edge_definition_pass() "
+            "to reinforce crystal-plane boundaries.  Best for Symbolist figure work, "
+            "ornate decorative compositions, mythological subjects."
+        ),
+    ),
+
 
 }
 
