@@ -20370,6 +20370,63 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+
+    "odilon_redon": ArtStyle(
+        artist="Odilon Redon",
+        movement="Symbolism / Post-Impressionism",
+        nationality="French",
+        period="1840-1916",
+        palette=[
+            (0.58, 0.20, 0.72),
+            (0.86, 0.42, 0.78),
+            (0.28, 0.48, 0.85),
+            (0.96, 0.86, 0.52),
+            (0.44, 0.82, 0.62),
+            (0.94, 0.70, 0.36),
+            (0.14, 0.08, 0.22),
+        ],
+        ground_color=(0.18, 0.12, 0.28),
+        stroke_size=7,
+        wet_blend=0.48,
+        edge_softness=0.55,
+        jitter=0.038,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Odilon Redon (1840-1916) is the supreme technician of Symbolist "
+            "luminosity -- the painter who translated interior psychological states "
+            "into radiant chromatic vision.  He began with noirs: velvety black "
+            "lithographs with floating eyes and hybrid creatures drifting through "
+            "infinite black space.  After 1890 he shifted to pastels and oil, "
+            "unleashing a palette of supernatural intensity.  His phosphorescent "
+            "colour quality -- reds, purples, blues appearing to emit light from "
+            "within -- arose from translucent pastel layers over a dark ground. "
+            "His flower paintings carry almost impossible hue: rose simultaneously "
+            "pink, violet, and gold; petal margins dissolving into warm cream air."
+        ),
+        famous_works=[
+            ("The Cyclops", "1914"),
+            ("Ophelia Among the Flowers", "1905-1908"),
+            ("The Buddha", "1906-1907"),
+            ("Flowers in a Black Vase", "1909"),
+            ("Apollo Chariot", "1909"),
+            ("Orpheus", "1913-1916"),
+            ("Vase of Flowers Pink Background", "1906"),
+        ],
+        inspiration=(
+            "redon_luminous_reverie_pass -- ONE HUNDRED AND FORTIETH distinct mode "
+            "(session 229).  Implements Redon's Symbolist phosphorescent luminosity: "
+            "violet shadow lift (spectral hue shift in dark zones), bell-curve "
+            "phosphorescent saturation bloom in midtones, dream-haze shadow softening, "
+            "and a shimmer-bloom on near-white highlights.  "
+            "NOVEL: (a) luminance bell-curve gate for saturation bloom; "
+            "(b) directional violet-blue hue shift in shadow zones; "
+            "(c) shadow-zone Gaussian softening + highlight shimmer in one pass; "
+            "(d) all operations driven by one shared luminance map."
+        ),
+    ),
+
 }
 
 
