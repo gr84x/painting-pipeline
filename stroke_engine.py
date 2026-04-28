@@ -49333,3 +49333,229 @@ class Painter:
         surface.get_data()[:] = buf.tobytes()
         surface.mark_dirty()
         print("    Vallotton Hard-Edge Flat pass complete.")
+
+    def schjerfbeck_sparse_portrait_pass(
+        self,
+        *,
+        dissolution_radius:   float = 0.40,
+        dissolution_strength: float = 0.70,
+        flatten_sigma:        float = 3.0,
+        flatten_strength:     float = 0.45,
+        cool_shift:           float = 0.12,
+        veil_opacity:         float = 0.08,
+        opacity:              float = 0.78,
+    ) -> None:
+        """
+        Schjerfbeck Sparse Portrait — ONE HUNDRED AND THIRTY-THIRD distinct mode.
+        Session 222: Helene Schjerfbeck (1862–1946).
+
+        Five-stage algorithm implementing Schjerfbeck's radical late simplification:
+        peripheral dissolution softens the background outward from a central anchor;
+        tonal flattening compresses gradients into soft form-planes; a Nordic cool
+        wash pulls the palette toward bleached chalk-white; a final thin veil
+        simulates extreme paint dilution over a pale linen ground.
+
+        Novelty vs. existing passes:
+        Distinct from tuymans_pale_wash_pass (total desaturation, no radial structure),
+        vallotton_hard_edge_flat_pass (image-space posterisation/sharpening, no
+        dissolution), and atmospheric_depth_pass (depth-axis haze, not radial centre/
+        periphery logic).  The radial peripheral blur with a hard centre-preserve zone
+        is unique to this pass — it models how Schjerfbeck's late portraits dissolve
+        everything except the face into near-nothingness.
+
+        dissolution_radius   : Normalised radius (0–1) within which the canvas is
+                               preserved sharp.  0.40 centres on roughly the face
+                               region for a head-cropped portrait.
+        dissolution_strength : Maximum blur intensity applied at canvas extremes.
+                               Higher = more complete background dissolution.
+        flatten_sigma        : Gaussian sigma for tonal form-plane flattening.
+                               Applied most strongly in the centre (inverse of
+                               dissolution weight).
+        flatten_strength     : Blend fraction toward flattened planes in the centre.
+        cool_shift           : Strength of the Nordic cool bone-white tonal shift,
+                               gated to mid-bright luminance zones.
+        veil_opacity         : Opacity of the final thin pale veil overlay.
+        opacity              : Final composite blend with original canvas.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Schjerfbeck Sparse Portrait pass (133rd mode)…")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+
+        # ── Radial weight map (normalised distance from canvas centre) ─────────
+        cy, cx   = h / 2.0, w / 2.0
+        ys       = (_np.arange(h) - cy) / max(cy, 1e-6)
+        xs       = (_np.arange(w) - cx) / max(cx, 1e-6)
+        YY, XX   = _np.meshgrid(ys, xs, indexing='ij')
+        dist_n   = _np.sqrt(YY ** 2 + XX ** 2) / _np.sqrt(2.0)   # 0 at centre, ~1 at corners
+
+        rr        = float(dissolution_radius)
+        periph_wt = _np.clip(
+            (dist_n - rr) / max(1.0 - rr, 1e-6), 0.0, 1.0
+        ).astype(_np.float32) ** 1.5
+
+        # ── Stage 1 — Peripheral Dissolution ─────────────────────────────────
+        ds        = float(dissolution_strength)
+        max_sigma = ds * min(h, w) * 0.03
+        if max_sigma > 0.5:
+            blur_sigma = max_sigma * 0.7   # single representative sigma for efficiency
+            br = _ndi.gaussian_filter(r, sigma=blur_sigma).astype(_np.float32)
+            bg = _ndi.gaussian_filter(g, sigma=blur_sigma).astype(_np.float32)
+            bb = _ndi.gaussian_filter(b, sigma=blur_sigma).astype(_np.float32)
+            blend_wt = _np.clip(periph_wt * ds, 0.0, 1.0)
+            r = r * (1.0 - blend_wt) + br * blend_wt
+            g = g * (1.0 - blend_wt) + bg * blend_wt
+            b = b * (1.0 - blend_wt) + bb * blend_wt
+
+        # ── Stage 2 — Tonal Flattening (form-plane simplification) ───────────
+        fs = max(0.5, float(flatten_sigma))
+        fr = _ndi.gaussian_filter(r, sigma=fs).astype(_np.float32)
+        fg = _ndi.gaussian_filter(g, sigma=fs).astype(_np.float32)
+        fb = _ndi.gaussian_filter(b, sigma=fs).astype(_np.float32)
+        # Flatten more in the centre (interior of form-planes), less at edges
+        centre_wt = _np.clip(1.0 - periph_wt, 0.0, 1.0)
+        fw        = _np.clip(float(flatten_strength) * centre_wt, 0.0, 1.0)
+        r = _np.clip(r * (1.0 - fw) + fr * fw, 0.0, 1.0)
+        g = _np.clip(g * (1.0 - fw) + fg * fw, 0.0, 1.0)
+        b = _np.clip(b * (1.0 - fw) + fb * fw, 0.0, 1.0)
+
+        # ── Stage 3 — Nordic Cool Wash ────────────────────────────────────────
+        lum      = 0.299 * r + 0.587 * g + 0.114 * b
+        cool_gate = _np.clip((lum - 0.28) / 0.45, 0.0, 1.0)   # mid-to-bright only
+        cs        = float(cool_shift)
+        # Cool bone-white target — Schjerfbeck's bleached Nordic surface
+        r = _np.clip(r + cool_gate * cs * (0.92 - r), 0.0, 1.0)
+        g = _np.clip(g + cool_gate * cs * (0.92 - g), 0.0, 1.0)
+        b = _np.clip(b + cool_gate * cs * (0.95 - b), 0.0, 1.0)
+
+        # ── Stage 4 — Thin Veil ───────────────────────────────────────────────
+        vo = float(veil_opacity)
+        if vo > 0.001:
+            r = _np.clip(r + vo * (0.94 - r), 0.0, 1.0)
+            g = _np.clip(g + vo * (0.90 - g), 0.0, 1.0)
+            b = _np.clip(b + vo * (0.84 - b), 0.0, 1.0)
+
+        # ── Stage 5 — Composite ───────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Schjerfbeck Sparse Portrait pass complete.")
+
+    def halation_glow_pass(
+        self,
+        *,
+        threshold:       float = 0.75,
+        bloom_sigma:     float = 0.04,
+        bloom_intensity: float = 0.35,
+        glow_warm_r:     float = 1.00,
+        glow_warm_g:     float = 0.95,
+        glow_warm_b:     float = 0.80,
+        opacity:         float = 0.65,
+    ) -> None:
+        """
+        Halation Glow — session 222 artistic improvement.
+
+        Models optical light blooming (halation): bright highlight areas spread
+        their luminosity into surrounding pixels, creating a luminous aura.  This
+        replicates the optical spreading seen in Turner, the Impressionists, and
+        Symbolist painters where bright light sources appear to radiate beyond
+        their physical boundaries.
+
+        Novelty vs. existing passes:
+        All prior passes treat luminosity zones as fixed regions (even
+        chiaroscuro_focus_pass only applies a static falloff mask).  Halation
+        spreads luminosity *outward* from individual bright pixels via Gaussian
+        convolution — a forward-scatter rather than a zonal remap.  The bloom is
+        warm-tinted to simulate incandescence (candle, sun, electric arc).  The
+        composite adds the glow only to the *surrounding* mid-tones, not back into
+        the already-bright source pixels, which would blow them out.
+
+        threshold       : Luminance threshold above which pixels seed the bloom.
+                          0.70–0.80 for highlights only; 0.60 for broader glow.
+        bloom_sigma     : Gaussian spread as a fraction of min(canvas w, h).
+                          0.03–0.05 = tight glow; 0.08–0.12 = broad soft halo.
+        bloom_intensity : Peak bloom brightness added to surrounding pixels.
+                          0.20 = subtle; 0.50 = dramatic.
+        glow_warm_r/g/b : RGB tint of the bloom.  Default warm amber-gold
+                          (1.0, 0.95, 0.80) simulates incandescent light.
+        opacity         : Final composite blend.  0.50–0.70 is naturalistic.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Halation Glow pass (session 222 improvement)…")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # ── Build highlight seed mask ──────────────────────────────────────────
+        thr      = float(threshold)
+        seed     = _np.clip((lum - thr) / max(1.0 - thr, 1e-6), 0.0, 1.0)
+
+        # ── Gaussian spread of the bloom (forward scatter) ─────────────────────
+        sigma_px = float(bloom_sigma) * min(h, w)
+        sigma_px = max(1.0, sigma_px)
+        bloom    = _ndi.gaussian_filter(seed, sigma=sigma_px).astype(_np.float32)
+        # Normalise so peak bloom equals bloom_intensity
+        bmax = bloom.max()
+        if bmax > 1e-9:
+            bloom = bloom / bmax * float(bloom_intensity)
+
+        # ── Warm tint the bloom ────────────────────────────────────────────────
+        bloom_r = bloom * float(glow_warm_r)
+        bloom_g = bloom * float(glow_warm_g)
+        bloom_b = bloom * float(glow_warm_b)
+
+        # ── Apply to surrounding mid-tones only (not back into the bright source) ─
+        # Gate: suppress bloom where the pixel is already bright (avoid blow-out)
+        mid_gate = _np.clip(1.0 - seed * 2.0, 0.0, 1.0)
+
+        r_glow = _np.clip(r0 + bloom_r * mid_gate, 0.0, 1.0)
+        g_glow = _np.clip(g0 + bloom_g * mid_gate, 0.0, 1.0)
+        b_glow = _np.clip(b0 + bloom_b * mid_gate, 0.0, 1.0)
+
+        # ── Composite ─────────────────────────────────────────────────────────
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r_glow * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g_glow * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b_glow * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_seeds = int((seed > 0.01).sum())
+        print(f"    Halation Glow pass complete  (bloom_sigma={sigma_px:.1f}px  "
+              f"seeds={n_seeds}px  intensity={bloom_intensity:.2f})")

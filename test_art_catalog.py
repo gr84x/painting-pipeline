@@ -220,6 +220,8 @@ EXPECTED_ARTISTS = [
     "oskar_kokoschka",
     "giovanni_boldini",
     "luc_tuymans",
+    "felix_vallotton",
+    "helene_schjerfbeck",
 ]
 
 

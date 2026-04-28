@@ -19666,6 +19666,91 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Helene Schjerfbeck ────────────────────────────────────────────────────
+    "helene_schjerfbeck": ArtStyle(
+        artist="Helene Schjerfbeck",
+        movement="Finnish Symbolism / Modernism",
+        nationality="Finnish",
+        period="1862–1946",
+        palette=[
+            (0.88, 0.84, 0.78),   # chalk-white flesh — cool, bleached
+            (0.72, 0.65, 0.56),   # warm ochre mid-tone — skin plane
+            (0.48, 0.45, 0.43),   # grey-brown shadow — cool and dry
+            (0.30, 0.28, 0.26),   # deep charcoal — simplified dark accent
+            (0.80, 0.75, 0.68),   # warm bone — highlight plane
+            (0.62, 0.62, 0.65),   # cool blue-grey — peripheral dissolution
+            (0.52, 0.46, 0.38),   # raw umber — structural shadow line
+        ],
+        ground_color=(0.80, 0.77, 0.72),    # pale warm linen — Finnish winter light
+        stroke_size=8,
+        wet_blend=0.35,                      # partial blending — thin layers visible
+        edge_softness=0.55,                  # selective softness — some edges sharp, others dissolve
+        jitter=0.018,                        # restrained variation — simplified palette
+        glazing=None,                        # no unifying glaze — surfaces remain matte and spare
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Finnish modernist painter whose late work reduced portraiture to pure "
+            "psychological essence: the face becomes a nearly abstract mask of flat "
+            "planes, peripheral detail dissolves into bare canvas or chalky ground, "
+            "and paint is applied in the thinnest of veils.  Working in increasing "
+            "isolation in Hyvinkää during her final decades, she stripped away every "
+            "conventional comfort of painterly skill — the careful rendering of "
+            "hands, jewellery, fabric — until only the essential relationship between "
+            "light and the human form survived.  Her palette narrowed toward a cool "
+            "Nordic chalk-white, muted ochre, and dark structural line.  Technique "
+            "was the opposite of impasto: extreme dilution, transparent layers, "
+            "almost no paint substance on the surface.  An ellipse of light defines "
+            "the face; all else recedes or disappears.  A profound influence on "
+            "twentieth-century Scandinavian modernism without seeking to be."
+        ),
+        famous_works=[
+            ("The Convalescent", "1888"),
+            ("The Door", "1884"),
+            ("Self-Portrait with Black Background", "1915"),
+            ("The Seamstress", "1905"),
+            ("Self-Portrait, the Studio Wall", "1945"),
+            ("Red-Cheeked Girl", "1884"),
+            ("Torchlight Procession", "1900"),
+        ],
+        inspiration=(
+            "schjerfbeck_sparse_portrait_pass — ONE HUNDRED AND THIRTY-THIRD distinct mode "
+            "(session 222).\n\n"
+            "Implements Schjerfbeck's radical late simplification: peripheral dissolution "
+            "blurs the background outward from a central anchor, tonal flattening compresses "
+            "gradients into soft planes, a Nordic cool wash pulls the palette toward bleached "
+            "chalk-white and cool grey, and a final thin veil simulates the extreme dilution "
+            "of her late technique.\n\n"
+            "Parameters and defaults:\n"
+            "  dissolution_radius   = 0.40  # fraction of canvas half-diagonal for centre zone\n"
+            "  dissolution_strength = 0.70  # maximum blur at extreme periphery\n"
+            "  flatten_sigma        = 3.0   # Gaussian sigma for form-plane simplification\n"
+            "  flatten_strength     = 0.45  # blend toward flattened planes\n"
+            "  cool_shift           = 0.12  # blue-white tonal shift amount\n"
+            "  veil_opacity         = 0.08  # thin final pale veil\n"
+            "  opacity              = 0.78  # final composite opacity\n\n"
+            "Stage 1 — PERIPHERAL DISSOLUTION:\n"
+            "  Build a radial weight map: weight = clip((d - dissolution_radius) / "
+            "(1 - dissolution_radius), 0, 1)^1.5 where d = normalised distance from canvas "
+            "centre.  Gaussian blur scaled to max_sigma = dissolution_strength * min(h,w)*0.03; "
+            "blend blurred result at each pixel by weight * dissolution_strength.\n"
+            "  Result: background/periphery softens; face-centre remains sharp.\n\n"
+            "Stage 2 — TONAL FLATTENING:\n"
+            "  Gaussian blur at flatten_sigma (form-plane smoothing).  Blend toward blurred "
+            "by flatten_strength * (1 - radial_weight).  Interior of forms flattens to planes; "
+            "sharp contour lines survive at edges.\n\n"
+            "Stage 3 — NORDIC COOL WASH:\n"
+            "  Blend toward cool bone-white (0.92, 0.92, 0.95) by cool_shift, gated "
+            "to mid-bright luminance (lum > 0.28).  Replicates Schjerfbeck's bleached, "
+            "chalk-dry surface under diffuse Nordic winter light.\n\n"
+            "Stage 4 — THIN VEIL:\n"
+            "  Overlay pale warm veil (0.94, 0.90, 0.84) at veil_opacity uniformly.  "
+            "Simulates how thin paint over a light ground lifts dark tones slightly.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
     # ── Félix Vallotton ────────────────────────────────────────────────────────
     "felix_vallotton": ArtStyle(
         artist="Félix Vallotton",
