@@ -20545,6 +20545,77 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    "arkhip_kuindzhi": ArtStyle(
+        artist="Arkhip Kuindzhi",
+        movement="Russian Romanticism / Tonalism",
+        nationality="Ukrainian-Russian",
+        period="1842–1910",
+        palette=[
+            (0.04, 0.06, 0.16),   # deep night indigo
+            (0.06, 0.05, 0.10),   # near-black velvet shadow
+            (0.10, 0.14, 0.34),   # midnight blue
+            (0.72, 0.76, 0.44),   # cold moonlight yellow-white
+            (0.54, 0.62, 0.32),   # moonlit grass green
+            (0.18, 0.28, 0.42),   # blue-grey river
+            (0.88, 0.90, 0.72),   # lunar highlight cream
+            (0.26, 0.20, 0.08),   # dark earth brown
+        ],
+        ground_color=(0.06, 0.06, 0.14),
+        stroke_size=10.0,
+        wet_blend=0.60,
+        edge_softness=0.45,
+        jitter=0.04,
+        glazing=(0.68, 0.72, 0.40),
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Arkhip Kuindzhi (1842-1910) was the supreme painter of theatrical natural "
+            "light in Russian art — a master of moonlight so luminous it seemed to glow "
+            "from within the canvas rather than reflect from it.  His technique was "
+            "built on extreme tonal contrast: the darkest shadows in Russian painting, "
+            "pressed to near-black velvet, set against the most incandescent highlights "
+            "ever rendered on canvas — moonlit clearings, sunlit glades, the glowing "
+            "horizon of a Ukrainian steppe at sunset.  He achieved this not through "
+            "sfumato or atmospheric blending but through brutal chromatic purity: flat, "
+            "broad zones of deep shadow interrupted by pools of saturated, clean light.  "
+            "The moon (or sun) in a Kuindzhi painting reads almost as a light source "
+            "embedded in the canvas itself — surrounded by a cool luminous halo that "
+            "grades into cold blue sky.  His most famous work, 'Moonlit Night on the "
+            "Dnieper' (1880), caused a sensation: crowds queued for hours to see it, "
+            "some suspecting a concealed light behind the canvas.  The composition is "
+            "architecturally simple: broad horizontal strata of sky, river, and earth, "
+            "held together by the vertical axis of the moon reflection on water.  His "
+            "colour palette is severe — black, indigo, silver-white, cold yellow, muted "
+            "green — with almost no earth tones in lit zones.  Strokes are broad and "
+            "confident; he does not model form through small marks but through the "
+            "collision of large tonal planes.  His atmospheric passes are few and "
+            "decisive: a haze corona around the light source, graded edge-softening "
+            "where the lit zone meets dark sky, absolute stillness in the dark zones."
+        ),
+        famous_works=[
+            ("Moonlit Night on the Dnieper", "1880"),
+            ("Birch Grove", "1879"),
+            ("After the Rain", "1879"),
+            ("Twilight on the Ukraine", "1878"),
+            ("The Dnieper in the Morning", "1881"),
+            ("Red Sunset on the Dnieper", "1905"),
+            ("North", "1879"),
+        ],
+        inspiration=(
+            "kuindzhi_moonlit_radiance_pass(): four-stage theatrical moonlight model — "
+            "(1) halo corona: Gaussian-expanded bright zone with additive ring of pale "
+            "cold light around the light source; (2) shadow velveting: power-curve "
+            "darkening of already-dark zones to near-black, eliminating mid-shadow grey; "
+            "(3) moonlight chromatic shift: cold blue-white tint in the bright zone "
+            "(B+ in highlights) and deep indigo-blue push in shadows (B+ in lows); "
+            "(4) lunar reflection streak: vertical luminance streak below the halo "
+            "centre simulating moon-on-water reflection.  Use near-black ground "
+            "(0.06, 0.06, 0.14).  Combine with aerial_perspective_pass() for depth "
+            "haze in distant zones.  Best for nocturnal landscapes, moonlight scenes, "
+            "dramatic natural light, Ukrainian or Russian steppe vistas."
+        ),
+    ),
+
 
 }
 
