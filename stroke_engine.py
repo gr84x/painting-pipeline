@@ -852,13 +852,21 @@ class PaintCanvas:
             widths = [widths[int(i * (orig_n - 1) / max(new_n - 1, 1))]
                       for i in range(new_n)]
 
-        # ── Wet blending (sampled at stroke midpoint) ─────────────────────────
-        mid        = pts[len(pts) // 2]
-        mx, my     = int(mid[0]), int(mid[1])
-        canvas_col = self._sample_color(mx, my)
-        wet_at     = float(self.wetness[max(0, min(self.h-1, my)),
-                                        max(0, min(self.w-1, mx))])
-        blend_t    = wet_blend * wet_at
+        # ── Wet blending (sampled at stroke midpoint for colour) ─────────────
+        # Colour is blended once at the midpoint — sampling per-segment would
+        # be prohibitively slow.  Wetness IS sampled at start, mid, and end so
+        # the gradient can modulate edge softness along the stroke length.
+        def _wet(pt: Tuple) -> float:
+            return float(self.wetness[max(0, min(self.h-1, int(pt[1]))),
+                                      max(0, min(self.w-1, int(pt[0])))])
+
+        wet_start  = _wet(pts[0])
+        wet_mid_pt = pts[len(pts) // 2]
+        wet_mid    = _wet(wet_mid_pt)
+        wet_end    = _wet(pts[-1])
+
+        canvas_col = self._sample_color(int(wet_mid_pt[0]), int(wet_mid_pt[1]))
+        blend_t    = wet_blend * wet_mid
         paint_col  = mix_paint(color, canvas_col, blend_t)
         paint_col  = jitter(paint_col, jitter_amt, rng)
         pr, pg, pb = paint_col
@@ -935,13 +943,28 @@ class PaintCanvas:
                 # Geometric taper at tips (from narrowing width profile + alpha).
                 taper = _tip_taper(eff_profile.distribution, t_along)
 
-                seg_alpha = opacity * pressure * load_coverage * taper
+                # ── Wetness gradient (3.3) ────────────────────────────────────
+                # Interpolate wetness along the stroke: start→mid→end.
+                # Wet paint spreads more, reads as softer and slightly more
+                # translucent; drier paint sits harder and more opaque.
+                if t_along <= 0.5:
+                    wet_t = wet_start + (wet_mid - wet_start) * (t_along * 2.0)
+                else:
+                    wet_t = wet_mid + (wet_end - wet_mid) * ((t_along - 0.5) * 2.0)
+
+                # Wet paint softens alpha slightly at edges (0–12% reduction).
+                wet_softness = 1.0 - wet_t * 0.12
+
+                # Wet paint widens the bristle slightly (paint flows laterally).
+                wet_width_bonus = 1.0 + wet_t * 0.10
+
+                seg_alpha = opacity * pressure * load_coverage * taper * wet_softness
                 if seg_alpha < 0.015:
                     continue
 
                 self.ctx.move_to(*b_pts[i])
                 self.ctx.line_to(*b_pts[i + 1])
-                self.ctx.set_line_width(b_w * max(0.4, pressure))
+                self.ctx.set_line_width(b_w * max(0.4, pressure) * wet_width_bonus)
                 self.ctx.set_line_cap(cairo.LINE_CAP_ROUND)
                 self.ctx.set_source_rgba(pr, pg, pb, seg_alpha)
                 self.ctx.stroke()
@@ -1246,12 +1269,31 @@ class PaintCanvas:
             return
         highlight = (directional / peak * strength).astype(np.float32)
 
-        # Read canvas, add highlight as a bright white-ish tint.
+        # ── Tinted highlight (3.2) ────────────────────────────────────────────
+        # Rather than adding pure white, the highlight is tinted from the
+        # local paint colour.  Real specular highlights on oil paint pick up a
+        # warm, slightly desaturated version of the surrounding colour —
+        # pure white reads as plastic.
+        #
+        # Formula: highlight_colour = local_colour × 0.35 + white × 0.65
+        # Then brightened by ×1.25 so the result is noticeably lighter than
+        # the paint body.
         buf = np.frombuffer(self.surface.get_data(), dtype=np.uint8).copy()
         arr = buf.reshape(self.h, self.w, 4).astype(np.float32)
 
-        for ch in range(3):
-            arr[:, :, ch] = np.clip(arr[:, :, ch] + highlight * 255, 0, 255)
+        # BGRA channel layout: 0=B, 1=G, 2=R, 3=A
+        b_f = arr[:, :, 0] / 255.0
+        g_f = arr[:, :, 1] / 255.0
+        r_f = arr[:, :, 2] / 255.0
+
+        # Tint: mix local colour with white, then brighten.
+        tint_r = np.clip(r_f * 0.35 + 0.65, 0.0, 1.0) * 1.25
+        tint_g = np.clip(g_f * 0.35 + 0.65, 0.0, 1.0) * 1.25
+        tint_b = np.clip(b_f * 0.35 + 0.65, 0.0, 1.0) * 1.25
+
+        arr[:, :, 2] = np.clip((r_f + highlight * tint_r) * 255, 0, 255)
+        arr[:, :, 1] = np.clip((g_f + highlight * tint_g) * 255, 0, 255)
+        arr[:, :, 0] = np.clip((b_f + highlight * tint_b) * 255, 0, 255)
 
         tmp = cairo.ImageSurface.create_for_data(
             bytearray(arr.astype(np.uint8).tobytes()),
@@ -1822,8 +1864,23 @@ class PaintCanvas:
     # ── Post-processing ───────────────────────────────────────────────────────
 
     def dry(self, amount: float = 0.55):
-        """Simulate paint drying between layers — reduces wetness."""
+        """
+        Simulate paint drying between layers.
+
+        Reduces both wetness and thickness.  Wetness drops quickly (paint
+        surface dries); thickness decays much more slowly (the physical paint
+        body settles but does not disappear).
+
+        Parameters
+        ----------
+        amount : [0, 1] drying fraction.  0.55 = typical between-pass dry.
+                 0.90 = near-complete dry (underpainting stage).
+                 1.00 = fully dry (no wet-on-wet blending in next pass).
+        """
         self.wetness *= (1.0 - amount)
+        # Thickness decays at 20 % of the wetness rate — impasto marks retain
+        # their physical relief long after the surface dries.
+        self.thickness_map *= (1.0 - amount * 0.20)
 
     def glaze(self, color: Color, opacity: float = 0.10):
         """Transparent colour wash over entire canvas (final warmth / tone)."""
