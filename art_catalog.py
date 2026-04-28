@@ -20617,6 +20617,72 @@ CATALOG: Dict[str, ArtStyle] = {
     ),
 
 
+
+    "albert_pinkham_ryder": ArtStyle(
+        artist="Albert Pinkham Ryder",
+        movement="American Tonalism / Romantic Symbolism",
+        nationality="American",
+        period="1847–1917",
+        palette=[
+            (0.06, 0.05, 0.08),
+            (0.10, 0.08, 0.06),
+            (0.28, 0.22, 0.12),
+            (0.52, 0.46, 0.30),
+            (0.72, 0.70, 0.58),
+            (0.88, 0.86, 0.74),
+            (0.16, 0.14, 0.18),
+            (0.38, 0.32, 0.18),
+        ],
+        ground_color=(0.14, 0.11, 0.08),
+        stroke_size=14.0,
+        wet_blend=0.72,
+        edge_softness=0.68,
+        jitter=0.06,
+        glazing=(0.42, 0.36, 0.18),
+        crackle=True,
+        chromatic_split=False,
+        technique=(
+            "Albert Pinkham Ryder (1847-1917) was the supreme visionary of American "
+            "Tonalism -- a reclusive New Bedford seaman's son who reduced the sea, "
+            "sky, and moon to bare elemental forms in near-total darkness. He built "
+            "his small canvases over years and decades, applying layer after layer of "
+            "thick paint, asphaltum, and resinous varnish, obsessively reworking each "
+            "surface until the forms dissolved into one another like shapes in a "
+            "half-remembered dream. His palette was severely restricted: raw umber, "
+            "ivory black, white lead, yellow ochre, bitumen. The defining Ryder "
+            "composition: a vast dark sea occupying the lower two-thirds, a pale "
+            "luminous sky behind thin torn clouds, a small incandescent moon, and "
+            "perhaps a solitary figure or ship barely discernible against the dark. "
+            "His shadows are absolute -- the absence of colour and form. His lights "
+            "glow amber and pale gold rather than cold blue-white. The amber tint "
+            "came from bituminous mediums that aged and yellowed dramatically. Forms "
+            "lose their edges: sea meets sky, figure meets dark, cloud meets void. "
+            "He was a precursor to Abstract Expressionism. Pollock admired him."
+        ),
+        famous_works=[
+            ("Moonlit Cove", "c.1880-1890"),
+            ("Jonah and the Whale", "c.1890"),
+            ("Death on a Pale Horse", "c.1898-1908"),
+            ("Flying Dutchman", "c.1887"),
+            ("Siegfried and the Rhine Maidens", "c.1888-1891"),
+            ("Toilers of the Sea", "c.1884"),
+            ("Macbeth and the Witches", "c.1890"),
+        ],
+        inspiration=(
+            "ryder_moonlit_sea_pass(): three-stage visionary tonalism model -- "
+            "(1) tonal massing: zone-selective dual luminance pull -- dark zones "
+            "crushed toward near-black (dark_gate^dark_power * dark_crush), "
+            "light zones lifted toward white (light_gate^light_power * light_lift); "
+            "(2) amber ochre glaze: bell-curve gate at lum=0.40, R+amber_r, G+amber_g, "
+            "B-amber_b -- aged bituminous medium tint at shadow-mid transition; "
+            "(3) visionary dissolution: global isotropic Gaussian blur at "
+            "dissolution_blend ratio -- universal form softening. Use warm dark "
+            "brown ground (0.14, 0.11, 0.08). Best for nocturnal seascapes, moonlit "
+            "pastoral, visionary or symbolic subjects."
+        ),
+    ),
+
+
 }
 
 
