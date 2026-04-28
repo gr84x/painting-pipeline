@@ -168,8 +168,17 @@ CATALOG: Dict[str, ArtStyle] = {
             ("Woman Reading a Letter", "c. 1663"),
         ],
         inspiration=(
-            "place_lights() with very small bright dots ('pearls') on edges of "
-            "highlights. Cool shadows, warm lights — a 2:1 warm/cool split."
+            "138th mode: vermeer_pearl_light_pass() — apply after build_form() and "
+            "place_lights() to impose Vermeer's four-stage optical vocabulary: "
+            "(1) north-window radial gradient (light_x=0.20, light_y=0.12 by default) "
+            "brightens the lit side and deepens the far shadow side; "
+            "(2) warm/cool temperature split — lit passages warmed toward amber, shadow "
+            "passages cooled toward the characteristic Vermeer ultramarine blue-grey; "
+            "(3) 'Vermeer pearl' pointillé sparkle placed only on bright gradient edges "
+            "(pearl earrings, satin, glazed pottery) — cream-white dots with Gaussian "
+            "envelope; (4) shadow-zone Gaussian softening reproducing the camera obscura "
+            "peripheral blur that made Vermeer's backgrounds so unusually soft. "
+            "Cool shadows, warm lights — a 2:1 warm/cool split."
         ),
     ),
 

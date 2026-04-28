@@ -52117,3 +52117,173 @@ class Painter:
 
         n_boundary = int((gate > 0.1).sum())
         print(f"    Diffuse Boundary pass complete  (boundary_px={n_boundary}  sigma={sig:.1f})")
+
+    def vermeer_pearl_light_pass(
+        self,
+        *,
+        light_x:         float = 0.20,
+        light_y:         float = 0.12,
+        light_reach:     float = 0.55,
+        warm_strength:   float = 0.10,
+        cool_strength:   float = 0.10,
+        light_thresh:    float = 0.60,
+        shadow_thresh:   float = 0.38,
+        pearl_thresh:    float = 0.72,
+        pearl_density:   float = 0.006,
+        pearl_radius:    float = 1.4,
+        pearl_r:         float = 0.97,
+        pearl_g:         float = 0.95,
+        pearl_b:         float = 0.88,
+        shadow_sigma:    float = 1.0,
+        shadow_blur_str: float = 0.35,
+        opacity:         float = 0.75,
+        seed:            int   = 227,
+    ) -> None:
+        """
+        Vermeer Pearl Light -- ONE HUNDRED AND THIRTY-EIGHTH distinct mode.
+        Session 227: Johannes Vermeer (1632–1675).
+
+        Four-stage algorithm implementing Vermeer's singular optical vocabulary.
+
+        Novelty vs. existing passes:
+        sorolla_mediterranean_light_pass models outdoor specular bleaching and azure sea
+        reflections.  This pass models interior north-window light: (1) a radial gradient
+        from a single window source brightening the light side of the canvas while cooling
+        the shadow side — no existing pass applies a spatial window-position gradient;
+        (2) a warm/cool temperature split gated separately on luminance (warm = R push in
+        highlights, cool = B push in shadows) — distinct from color_temperature_oscillation_pass
+        which cycles periodically across the canvas; (3) "Vermeer pearls" — cream-tinted
+        pointillé dots placed stochastically only on pixels that are BOTH above the
+        luminance pearl threshold AND on gradient edges (high gradient magnitude), modelling
+        the specular sparkle on pearls, satin, and glazed pottery that appears in Vermeer's
+        foreground objects; (4) shadow-zone Gaussian softening with luminance gate —
+        diffuse_boundary_pass gates on gradient magnitude; this gate on luminance value,
+        which softens only the dark shadow recession while leaving lit passages crisp,
+        reproducing the peripheral softness associated with Vermeer's use of a camera obscura.
+
+        light_x/light_y   : Normalised [0, 1] canvas position of the window light source.
+        light_reach        : Radial falloff distance (fraction of canvas diagonal) [0.2, 1.0].
+        warm_strength      : Warm push amplitude in lit passages (R+, B−).
+        cool_strength      : Cool push amplitude in shadow passages (B+, R−).
+        light_thresh       : Luminance gate above which warm temperature shift is applied.
+        shadow_thresh      : Luminance gate below which cool shadow shift is applied.
+        pearl_thresh       : Minimum luminance for a pixel to receive pearl sparkle.
+        pearl_density      : Fraction of qualifying pixels receiving a pearl [0, 0.02].
+        pearl_radius       : Gaussian spread of each pearl dot in pixels [0.5, 3.0].
+        pearl_r/g/b        : Pearl colour (warm cream-white by default).
+        shadow_sigma       : Gaussian blur radius for shadow softening [0.5, 2.5].
+        shadow_blur_str    : Blend weight of blurred image in shadow zone [0, 0.6].
+        opacity            : Final composite opacity.
+        seed               : RNG seed for reproducible pearl placement.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Vermeer Pearl Light pass (138th mode)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        # Stage 1: Window light radial gradient — brighten pixels near the light source,
+        # deepen pixels far from it.  Models the fall-off of a single north-facing window.
+        ys = (_np.arange(h, dtype=_np.float32) / max(h - 1, 1)).reshape(h, 1)
+        xs = (_np.arange(w, dtype=_np.float32) / max(w - 1, 1)).reshape(1, w)
+        diag = (h * h + w * w) ** 0.5
+        dx   = xs - float(light_x)
+        dy   = ys - float(light_y)
+        dist = _np.sqrt(dx * dx + dy * dy + 1e-9) * max(h, w) / diag
+        reach = float(light_reach)
+        # Proximity: 1.0 at window, 0.0 at reach distance
+        prox = _np.clip(1.0 - dist / reach, 0.0, 1.0).astype(_np.float32)
+        # Subtle luminance boost near light, subtle darkening far away
+        lift = prox * 0.08
+        r = _np.clip(r + lift, 0.0, 1.0)
+        g = _np.clip(g + lift, 0.0, 1.0)
+        b = _np.clip(b + lift, 0.0, 1.0)
+        # Recompute luminance after lift
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        # Stage 2: Warm-light / cool-shadow temperature split
+        lt  = float(light_thresh)
+        st  = float(shadow_thresh)
+        ws  = float(warm_strength)
+        cs  = float(cool_strength)
+
+        # Warm gate: smooth ramp above light_thresh
+        warm_gate = _np.clip((lum - lt) / max(1.0 - lt, 1e-6), 0.0, 1.0)
+        r = _np.clip(r + warm_gate * ws,        0.0, 1.0)
+        b = _np.clip(b - warm_gate * ws * 0.60, 0.0, 1.0)
+
+        # Cool gate: smooth ramp below shadow_thresh
+        cool_gate = _np.clip((st - lum) / max(st, 1e-6), 0.0, 1.0)
+        b = _np.clip(b + cool_gate * cs,        0.0, 1.0)
+        r = _np.clip(r - cool_gate * cs * 0.50, 0.0, 1.0)
+
+        # Stage 3: Vermeer pearl sparkle — pointillé cream dots on specular edge highlights.
+        # Gate: pixel must be above pearl_thresh AND on a gradient edge.
+        kx = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        ky = kx.T
+        gx  = _ndi.convolve(lum, kx)
+        gy  = _ndi.convolve(lum, ky)
+        gmag = _np.sqrt(gx * gx + gy * gy)
+        # Qualify: bright AND on a local edge (gradient not flat)
+        pt   = float(pearl_thresh)
+        qual = (lum > pt) & (gmag > 0.02)
+        rng  = _np.random.RandomState(int(seed))
+        rand = rng.random_sample((h, w)).astype(_np.float32)
+        pearl_mask = qual & (rand < float(pearl_density))
+        if pearl_mask.any():
+            # Grow each pearl dot with a Gaussian envelope
+            pr = float(pearl_radius)
+            pk = _ndi.gaussian_filter(
+                pearl_mask.astype(_np.float32), sigma=pr)
+            pk = _np.clip(pk / max(pk.max(), 1e-6), 0.0, 1.0)
+            pr_col, pg_col, pb_col = float(pearl_r), float(pearl_g), float(pearl_b)
+            r = _np.clip(r + pk * (pr_col - r), 0.0, 1.0)
+            g = _np.clip(g + pk * (pg_col - g), 0.0, 1.0)
+            b = _np.clip(b + pk * (pb_col - b), 0.0, 1.0)
+
+        # Stage 4: Shadow-zone softening — camera-obscura peripheral diffusion.
+        # Blur only shadow pixels; crisp lit areas remain sharp.
+        sig  = float(shadow_sigma)
+        sbs  = float(shadow_blur_str)
+        if sbs > 0.001:
+            # Shadow gate: 1.0 in deep shadow, fades to 0 at shadow_thresh + 0.12
+            sh_gate = _np.clip(
+                (st + 0.12 - lum) / max(st + 0.12, 1e-6), 0.0, 1.0)
+            r_blur = _ndi.gaussian_filter(r, sigma=sig).astype(_np.float32)
+            g_blur = _ndi.gaussian_filter(g, sigma=sig).astype(_np.float32)
+            b_blur = _ndi.gaussian_filter(b, sigma=sig).astype(_np.float32)
+            blend  = sh_gate * sbs
+            r = _np.clip(r * (1.0 - blend) + r_blur * blend, 0.0, 1.0)
+            g = _np.clip(g * (1.0 - blend) + g_blur * blend, 0.0, 1.0)
+            b = _np.clip(b * (1.0 - blend) + b_blur * blend, 0.0, 1.0)
+
+        # Stage 5: Composite with opacity
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_pearls = int(pearl_mask.sum()) if pearl_mask.any() else 0
+        n_lit    = int((lum > lt).sum())
+        n_shadow = int((lum < st).sum())
+        print(f"    Vermeer Pearl Light pass complete  "
+              f"(pearls={n_pearls}  lit_px={n_lit}  shadow_px={n_shadow})")
