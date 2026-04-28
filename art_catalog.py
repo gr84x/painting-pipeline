@@ -20150,6 +20150,115 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Joaquín Sorolla ────────────────────────────────────────────────────────
+    "joaquin_sorolla": ArtStyle(
+        artist="Joaquín Sorolla y Bastida",
+        movement="Spanish Luminism / Post-Impressionism",
+        nationality="Spanish",
+        period="1863–1923",
+        palette=[
+            (0.98, 0.97, 0.95),   # sun-bleached white — peak specular on fabric and foam
+            (0.28, 0.58, 0.86),   # Mediterranean azure — sea and sky blue
+            (0.94, 0.80, 0.42),   # bright sand ochre — wet beach in full sun
+            (0.84, 0.52, 0.30),   # warm burnt sienna — deep shadow in sunlit flesh
+            (0.62, 0.82, 0.92),   # shallow-water cyan — transparent shallows over pale sand
+            (0.96, 0.88, 0.68),   # warm peach gold — sunlit flesh and white highlights
+            (0.22, 0.30, 0.50),   # deep blue shadow — deep water and cast shadows
+        ],
+        ground_color=(0.92, 0.90, 0.86),
+        stroke_size=8,
+        wet_blend=0.28,
+        edge_softness=0.22,
+        jitter=0.032,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Joaquín Sorolla y Bastida (1863–1923) is the supreme painter of Mediterranean "
+            "light — the singular artist who taught the world what true outdoor sunshine "
+            "actually looks like at its most extreme.  Born in Valencia, orphaned at two, "
+            "raised by his maternal aunt, he trained in Valencia and Rome before settling "
+            "into a practice that would make him the best-paid living artist in the world "
+            "by 1900.  His canvases of the Valencian coast — fishing boats, bathers, "
+            "children in the sea, women in white on wet sand — remain the most accurate "
+            "depictions of full Mediterranean summer light ever produced.\n\n"
+            "Sorolla's fundamental technical obsession was the behaviour of light on white "
+            "surfaces.  White fabric, white foam, white flesh bleached by noon sun: in his "
+            "hand, white is never a single colour but a full chromatic spectrum — the "
+            "brightest highlight is close to pure 255,255,255; the turning of form from "
+            "light to shadow moves through warm cream and gold before arriving at the "
+            "transparent azure blue of reflected sky.  He rarely uses pure black; his "
+            "deepest shadows are a dark transparent blue-violet, lit from within by "
+            "reflected light from the sand or sea below.  The overall key of his "
+            "paintings is extremely high — colours are pushed to their most saturated "
+            "values, whites are blindingly bright, and the entire composition sits near "
+            "the top of the tonal register.\n\n"
+            "His brushwork is extraordinarily free for its precision: broad, fluid strokes "
+            "loaded with wet paint and dragged in single decisive gestures that describe "
+            "form, light, and material simultaneously.  A single stroke can define the "
+            "curve of a wave, its foam cap, and the sky reflected in its face.  The "
+            "wet-into-wet handling means adjacent colour zones interpenetrate at their "
+            "edges, producing natural soft gradients within a generally high-contrast "
+            "composition.  He worked rapidly and in large format — his biggest paintings "
+            "are metres wide — because the Mediterranean light he was pursuing changes "
+            "within minutes and cannot be captured slowly.\n\n"
+            "His particular achievement with reflective surfaces (wet sand, sea surface, "
+            "white fabric in wind) was to identify and paint the stochastic scatter of "
+            "specular highlights: dozens of tiny bright flashes scattered across a wet "
+            "beach or disturbed water surface, each one a miniature image of the sun.  "
+            "This scatter gives his surfaces their characteristic dazzle — the sense that "
+            "you are looking directly at light rather than at a representation of it.  "
+            "No painter before or after has matched his command of this phenomenon."
+        ),
+        famous_works=[
+            ("Sad Inheritance", "1899"),
+            ("Sewing the Sail", "1896"),
+            ("Walk on the Beach", "1909"),
+            ("Children at the Beach (Afternoon Sun)", "1910"),
+            ("The Pink Robe", "1916"),
+            ("Velázquez's Buffoons", "1899"),
+            ("Spanish Ports (Visions of Spain murals)", "1919–1920"),
+        ],
+        inspiration=(
+            "sorolla_mediterranean_light_pass — ONE HUNDRED AND THIRTY-SEVENTH distinct mode "
+            "(session 226).\n\n"
+            "Implements Sorolla's luminous Mediterranean technique: extreme highlight bleaching "
+            "to near-pure white, transparent azure shadow shift (warmer than alpine violet), "
+            "stochastic specular scatter on reflective surfaces, and warm mid-tone saturation "
+            "boost in the sun-lit zone.\n\n"
+            "Parameters and defaults:\n"
+            "  bleach_thresh      = 0.82  # luminance above which bleaching begins [0-1]\n"
+            "  bleach_strength    = 0.55  # push-toward-white amplitude in highlight zone\n"
+            "  azure_shadow_r     = 0.28  # Mediterranean azure shadow colour — R\n"
+            "  azure_shadow_g     = 0.58  # Mediterranean azure shadow colour — G\n"
+            "  azure_shadow_b     = 0.86  # Mediterranean azure shadow colour — B\n"
+            "  shadow_thresh      = 0.38  # luminance below which azure shadow begins\n"
+            "  scatter_density    = 0.004 # fraction of pixels receiving specular scatter\n"
+            "  scatter_brightness = 0.55  # additive brightness of scatter flashes\n"
+            "  warm_boost         = 0.08  # warm saturation lift in mid-tone sun zone\n"
+            "  opacity            = 0.80  # final composite opacity\n\n"
+            "Stage 1 — HIGHLIGHT BLEACHING:\n"
+            "  bleach_gate = clip((lum - bleach_thresh) / (1 - bleach_thresh), 0, 1)^0.6.\n"
+            "  ch = ch + bleach_gate * bleach_strength * (1 - ch).\n"
+            "  Steeper curve than alpine_luminance_intensification_pass; models direct "
+            "specular overexposure on white fabric and foam.\n\n"
+            "Stage 2 — AZURE SHADOW SHIFT:\n"
+            "  shadow_gate = clip((shadow_thresh - lum) / shadow_thresh, 0, 1)^0.8.\n"
+            "  Blend each channel toward azure_shadow colour at shadow_gate strength.\n"
+            "  Warmer and less purple than alpine violet — Mediterranean reflected-sky hue.\n\n"
+            "Stage 3 — SPECULAR SCATTER:\n"
+            "  Bernoulli mask at scatter_density (~0.4% of pixels selected).\n"
+            "  Each selected pixel: add scatter_brightness * rng.uniform(0.6, 1.0).\n"
+            "  Simulates stochastic sun-reflection micro-highlights on wet surfaces.\n\n"
+            "Stage 4 — WARM MID-TONE SATURATION BOOST:\n"
+            "  mid_gate = clip(1 - |lum - 0.62| / 0.24, 0, 1): bell centred at lum=0.62.\n"
+            "  lum3 = 0.299r+0.587g+0.114b; ch = lum3 + (ch-lum3)*(1+warm_boost*mid_gate).\n"
+            "  Warms only the sun-lit mid-tone zone; leaves bleached whites and cool shadows.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 

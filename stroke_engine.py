@@ -50247,3 +50247,212 @@ class Painter:
         n_hi     = int((lum > ht).sum())
         print(f"    Alpine Luminance Intensification pass complete  "
               f"(shadow_px={n_shadow}  highlight_px={n_hi}  chroma_scale={cs:.2f})")
+
+    def sorolla_mediterranean_light_pass(
+        self,
+        *,
+        bleach_thresh:      float = 0.82,
+        bleach_strength:    float = 0.55,
+        azure_shadow_r:     float = 0.28,
+        azure_shadow_g:     float = 0.58,
+        azure_shadow_b:     float = 0.86,
+        shadow_thresh:      float = 0.38,
+        scatter_density:    float = 0.004,
+        scatter_brightness: float = 0.55,
+        warm_boost:         float = 0.08,
+        opacity:            float = 0.80,
+        seed:               int   = 226,
+    ) -> None:
+        """
+        Sorolla Mediterranean Light -- ONE HUNDRED AND THIRTY-SEVENTH distinct mode.
+        Session 226: Joaquín Sorolla (1863–1923).
+
+        Five-stage algorithm implementing Sorolla's luminous Mediterranean technique.
+
+        Novelty vs. existing passes:
+        alpine_luminance_intensification_pass models altitude physics (UV chroma scale,
+        cold violet from sky dome).  This pass models Mediterranean surface optics:
+        (1) extreme specular bleaching toward pure white (steeper than alpine's additive
+        highlight push, using a 0.6-power gate); (2) transparent azure shadow shift warmer
+        and less purple than alpine violet — Mediterranean sea/sky reflected hue;
+        (3) stochastic scatter of specular micro-highlights — no existing pass applies
+        Bernoulli-mask scatter, this is the first; (4) warm-zone mid-tone saturation boost
+        confined to a bell gate around lum=0.62 (distinct from Bonnard's global additive
+        boost and alpine's multiplicative global scale).
+
+        bleach_thresh      : Luminance above which highlight bleaching begins.
+        bleach_strength    : Push-toward-white amplitude. 0.30=subtle, 0.55=standard, 0.80=extreme.
+        azure_shadow_r/g/b : Mediterranean azure reflection colour for shadow passages.
+        shadow_thresh      : Luminance below which azure shadow shift begins.
+        scatter_density    : Fraction of pixels receiving stochastic specular scatter [0, 0.02].
+        scatter_brightness : Additive brightness of each scatter flash [0, 1].
+        warm_boost         : Warm saturation scale boost in sun-lit mid-tone zone [0, 0.30].
+        opacity            : Final composite opacity.
+        seed               : RNG seed for reproducible specular scatter.
+        """
+        import numpy as _np
+
+        print("    Sorolla Mediterranean Light pass (137th mode)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        # Stage 1: Highlight bleaching — specular overexposure on white fabric/foam
+        bt  = float(bleach_thresh)
+        bs  = float(bleach_strength)
+        hi_gate = _np.clip((lum - bt) / max(1.0 - bt, 1e-6), 0.0, 1.0) ** 0.6
+        r = _np.clip(r + hi_gate * bs * (1.0 - r), 0.0, 1.0)
+        g = _np.clip(g + hi_gate * bs * (1.0 - g), 0.0, 1.0)
+        b = _np.clip(b + hi_gate * bs * (1.0 - b), 0.0, 1.0)
+
+        # Stage 2: Azure shadow shift — Mediterranean sea/sky reflected into shadow passages
+        st  = float(shadow_thresh)
+        asr = float(azure_shadow_r)
+        asg = float(azure_shadow_g)
+        asb = float(azure_shadow_b)
+        sh_gate = _np.clip((st - lum) / max(st, 1e-6), 0.0, 1.0) ** 0.8
+        r = _np.clip(r + sh_gate * (asr - r), 0.0, 1.0)
+        g = _np.clip(g + sh_gate * (asg - g), 0.0, 1.0)
+        b = _np.clip(b + sh_gate * (asb - b), 0.0, 1.0)
+
+        # Stage 3: Stochastic specular scatter — sun micro-reflections on wet surfaces
+        rng  = _np.random.RandomState(int(seed))
+        mask = rng.random_sample((h, w)).astype(_np.float32) < float(scatter_density)
+        if mask.any():
+            flash = rng.uniform(0.6, 1.0, (h, w)).astype(_np.float32)
+            sb2   = float(scatter_brightness)
+            r = _np.clip(r + mask * flash * sb2, 0.0, 1.0)
+            g = _np.clip(g + mask * flash * sb2, 0.0, 1.0)
+            b = _np.clip(b + mask * flash * sb2, 0.0, 1.0)
+
+        # Stage 4: Warm mid-tone saturation boost (bell gate around lum=0.62)
+        wb = float(warm_boost)
+        if wb > 0.001:
+            mid_gate = _np.clip(1.0 - _np.abs(lum - 0.62) / 0.24, 0.0, 1.0)
+            lum3 = 0.299 * r + 0.587 * g + 0.114 * b
+            scale = 1.0 + wb * mid_gate
+            r  = _np.clip(lum3 + (r - lum3) * scale, 0.0, 1.0)
+            g  = _np.clip(lum3 + (g - lum3) * scale, 0.0, 1.0)
+            b  = _np.clip(lum3 + (b - lum3) * scale, 0.0, 1.0)
+
+        # Stage 5: Composite
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_bleached = int((lum > bt).sum())
+        n_shadowed = int((lum < st).sum())
+        n_scatter  = int(mask.sum())
+        print(f"    Sorolla Mediterranean Light pass complete  "
+              f"(bleached_px={n_bleached}  shadow_px={n_shadowed}  scatter_px={n_scatter})")
+
+    def diffuse_boundary_pass(
+        self,
+        *,
+        low_grad:  float = 0.04,
+        high_grad: float = 0.22,
+        sigma:     float = 1.2,
+        strength:  float = 0.55,
+        opacity:   float = 0.65,
+    ) -> None:
+        """
+        Diffuse Boundary -- session 226 artistic improvement.
+
+        Models wet-into-wet paint diffusion at colour zone boundaries: adjacent
+        passages of freshly-laid oil or watercolour bleed into each other at their
+        shared edges, producing natural soft gradients between colour masses while
+        leaving hard-edged details and flat interior zones intact.
+
+        Novelty vs. existing passes:
+        sfumato_pass applies a global Gaussian blur, softening the entire canvas
+        uniformly.  edge_quality_variation_pass varies edge sharpness based on a
+        focal-distance mask.  This pass operates differently: it computes local
+        gradient magnitude, identifies moderate-gradient boundary zones (low_grad <
+        mag < high_grad), applies a controlled isotropic blur only in those zones,
+        and uses a linear gate to weight the blend.  Hard edges (mag >= high_grad)
+        and flat interiors (mag <= low_grad) receive no diffusion — only the
+        intermediate colour-zone boundaries are softened, simulating physical
+        wet-paint interpenetration without destroying the structure.
+
+        low_grad  : Gradient magnitude below which no diffusion is applied (flat interior).
+        high_grad : Gradient magnitude above which no diffusion is applied (hard edge).
+        sigma     : Gaussian blur radius applied to the boundary zone [pixels].
+        strength  : Blend factor between original and blurred pixels in boundary zone [0, 1].
+        opacity   : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Diffuse Boundary pass (session 226 improvement)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        lum = 0.299 * r0 + 0.587 * g0 + 0.114 * b0
+
+        # Compute gradient magnitude via Sobel
+        kx = _np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=_np.float32)
+        ky = _np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=_np.float32)
+        gx = _ndi.convolve(lum, kx)
+        gy = _ndi.convolve(lum, ky)
+        mag = _np.sqrt(gx * gx + gy * gy)
+
+        # Gate: 1.0 in moderate-gradient boundary zones, 0 outside
+        lo = float(low_grad)
+        hi = float(high_grad)
+        gate = _np.clip((mag - lo) / max(hi - lo, 1e-6), 0.0, 1.0) * \
+               _np.clip((hi - mag) / max(hi - lo, 1e-6), 0.0, 1.0) * 4.0
+        gate = _np.clip(gate, 0.0, 1.0)
+
+        # Gaussian blur of each channel
+        sig = float(sigma)
+        r_blur = _ndi.gaussian_filter(r0, sigma=sig).astype(_np.float32)
+        g_blur = _ndi.gaussian_filter(g0, sigma=sig).astype(_np.float32)
+        b_blur = _ndi.gaussian_filter(b0, sigma=sig).astype(_np.float32)
+
+        # Blend blurred into original at gate * strength
+        st = float(strength)
+        blend = gate * st
+        r_mid = _np.clip(r0 * (1.0 - blend) + r_blur * blend, 0.0, 1.0)
+        g_mid = _np.clip(g0 * (1.0 - blend) + g_blur * blend, 0.0, 1.0)
+        b_mid = _np.clip(b0 * (1.0 - blend) + b_blur * blend, 0.0, 1.0)
+
+        # Composite
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r_mid * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g_mid * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b_mid * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_boundary = int((gate > 0.1).sum())
+        print(f"    Diffuse Boundary pass complete  (boundary_px={n_boundary}  sigma={sig:.1f})")
