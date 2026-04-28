@@ -19932,6 +19932,108 @@ CATALOG: Dict[str, ArtStyle] = {
         ),
     ),
 
+    # ── Valentin Serov ────────────────────────────────────────────────────────
+    "valentin_serov": ArtStyle(
+        artist="Valentin Serov",
+        movement="Russian Impressionism / Post-Impressionism",
+        nationality="Russian",
+        period="1865–1911",
+        palette=[
+            (0.96, 0.82, 0.64),   # warm peach sunlight — flesh in direct outdoor light
+            (0.68, 0.64, 0.76),   # cool shadow — reflected sky-blue in flesh shadow
+            (0.98, 0.96, 0.88),   # brilliant near-white — sun-saturated highlight plane
+            (0.42, 0.38, 0.50),   # deep cool violet-shadow — deepest shaded passages
+            (0.76, 0.84, 0.90),   # pale ambient sky-blue — cool fill from open sky
+            (0.70, 0.58, 0.42),   # warm ochre mid-flesh — interior skin in transition
+            (0.90, 0.78, 0.58),   # sun-warm mid-flesh — peach register of lit skin planes
+        ],
+        ground_color=(0.84, 0.80, 0.70),    # warm light linen — plein-air brightness
+        stroke_size=7,
+        wet_blend=0.55,
+        edge_softness=0.45,
+        jitter=0.030,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Valentin Serov (1865–1911) was the pre-eminent Russian portraitist of the "
+            "late nineteenth century and the most acute chromatic observer of flesh in the "
+            "Russian tradition.  Trained by Ilya Repin at the age of nine and then at the "
+            "St Petersburg Academy under Pavel Chistyakov, he absorbed the Russian Realist "
+            "commitment to direct optical observation — every brushstroke purposeful, every "
+            "passage committed to what was actually seen rather than what was conventionally "
+            "expected.  But his summers in the Abramtsevo artist colony (and a formative "
+            "encounter with French Impressionism in his twenties) gave his surfaces an airy "
+            "chromatic freshness that distinguished him sharply from the darker academic "
+            "tradition of his teachers.  'Girl with Peaches' (Vera Mamontova, 1887) remains "
+            "the canonical Russian Impressionist image: warm peach flesh in strong direct "
+            "window light, cool blue-violet shadows that carry reflected light from the sky "
+            "and the white tablecloth below, and an overall luminosity that makes the room "
+            "feel genuinely lit rather than studio-approximated.\n\n"
+            "Serov's defining technical contribution is his understanding of warm-cool "
+            "colour temperature in flesh.  Where direct sunlight strikes skin, it reads "
+            "warm — ochre-amber-peach, the colour of light itself warming its target.  "
+            "Where skin is shaded, it receives reflected light from sky, surfaces, and "
+            "ambient atmosphere, reading as a distinct cool blue-violet or green-grey.  "
+            "This is not the sfumato tradition's smooth tonal gradient into neutral shadow, "
+            "nor the Baroque tradition's warm umber void — it is a genuinely chromatic "
+            "observation of outdoor optical physics that the Impressionists were the first "
+            "to systematise and Serov imported into Russian painting with complete authority.  "
+            "He combined this with a loose but precise brushstroke — individual marks readable "
+            "at close range but fusing into naturalistic surfaces at distance — and a "
+            "compositional instinct that placed his subjects in light as an essential element "
+            "of their psychological presence, not merely as a backdrop.  His late portraits "
+            "(Ida Rubinstein, 1910; Princess Youssoupova, 1902) demonstrate how this "
+            "initial plein-air freshness evolved toward bold simplified Modernism: flatter "
+            "planes, fewer colours, starker edges, but the same fundamental chromatic "
+            "intelligence intact."
+        ),
+        famous_works=[
+            ("Girl with Peaches", "1887"),
+            ("Girl in the Sunlight", "1888"),
+            ("Portrait of Princess Youssoupova", "1902"),
+            ("Portrait of Ida Rubinstein", "1910"),
+            ("Mika Morozov", "1901"),
+            ("Portrait of Mikhail Morozov", "1902"),
+            ("October: Domotkanovo", "1895"),
+        ],
+        inspiration=(
+            "serov_sunlit_portrait_pass — ONE HUNDRED AND THIRTY-FIFTH distinct mode "
+            "(session 224).\n\n"
+            "Implements Serov's plein-air warm-cool light system: highlight zones shift "
+            "toward warm peach-amber (direct sunlight on flesh); shadow zones shift toward "
+            "cool blue-violet (reflected sky in shadow passages); a luminosity lift raises "
+            "overall brightness to outdoor levels; and a chromatic mid-tone vibration "
+            "introduces the optical freshness of broken colour.\n\n"
+            "Parameters and defaults:\n"
+            "  warm_shift         = 0.22  # warm peach blend strength in highlight zones [0-1]\n"
+            "  cool_shift         = 0.18  # cool blue-violet blend strength in shadow zones [0-1]\n"
+            "  highlight_thresh   = 0.65  # luminance above which highlights are warmed\n"
+            "  shadow_thresh      = 0.40  # luminance below which shadows are cooled\n"
+            "  luminosity_lift    = 0.06  # additive brightness increase (plein-air lift)\n"
+            "  vibration_strength = 0.04  # chromatic noise amplitude in mid-tone zone\n"
+            "  opacity            = 0.80  # final composite opacity\n\n"
+            "Stage 1 — WARM HIGHLIGHT SHIFT:\n"
+            "  Compute highlight gate = clip((lum - highlight_thresh) / "
+            "(1 - highlight_thresh), 0, 1).\n"
+            "  Blend toward warm peach-amber (0.96, 0.82, 0.64) at warm_shift * gate.\n"
+            "  Replicates direct sunlight on flesh — warm even where fully lit.\n\n"
+            "Stage 2 — COOL SHADOW SHIFT:\n"
+            "  Shadow gate = clip((shadow_thresh - lum) / shadow_thresh, 0, 1).\n"
+            "  Blend toward cool blue-violet (0.55, 0.55, 0.78) at cool_shift * gate.\n"
+            "  Replicates reflected sky-light in shadow passages — Serov's crucial insight.\n\n"
+            "Stage 3 — PLEIN-AIR LUMINOSITY LIFT:\n"
+            "  Add luminosity_lift uniformly to all channels (clipped to 1.0).\n"
+            "  Simulates increased overall brightness of outdoor painting vs. studio.\n\n"
+            "Stage 4 — CHROMATIC MID-TONE VIBRATION:\n"
+            "  Gate to mid-tone zone (shadow_thresh < lum < highlight_thresh).\n"
+            "  Apply seeded Gaussian noise at sigma=0.8px per channel independently.\n"
+            "  Blend at vibration_strength — creates optical freshness of broken colour.\n\n"
+            "Stage 5 — COMPOSITE:\n"
+            "  new = orig*(1-opacity) + result*opacity, clipped to [0, 1].\n"
+        ),
+    ),
+
 }
 
 

@@ -49811,3 +49811,215 @@ class Painter:
         n_seeds = int((seed > 0.01).sum())
         print(f"    Halation Glow pass complete  (bloom_sigma={sigma_px:.1f}px  "
               f"seeds={n_seeds}px  intensity={bloom_intensity:.2f})")
+
+    def serov_sunlit_portrait_pass(
+        self,
+        *,
+        warm_shift:         float = 0.22,
+        cool_shift:         float = 0.18,
+        highlight_thresh:   float = 0.65,
+        shadow_thresh:      float = 0.40,
+        luminosity_lift:    float = 0.06,
+        vibration_strength: float = 0.04,
+        opacity:            float = 0.80,
+    ) -> None:
+        """
+        Serov Sunlit Portrait -- ONE HUNDRED AND THIRTY-FIFTH distinct mode.
+        Session 224: Valentin Serov (1865-1911).
+
+        Five-stage algorithm implementing Serov's plein-air warm-cool observation:
+        warm sunlight tints highlights toward peach-amber; reflected sky cools shadow
+        passages toward blue-violet; a luminosity lift brightens the whole surface to
+        outdoor levels; and chromatic mid-tone vibration introduces the optical
+        freshness of Russian Impressionism.
+
+        Novelty vs. existing passes:
+        Unlike schjerfbeck_sparse_portrait_pass (uniform Nordic cool wash, radial
+        peripheral dissolution), bonnard_chromatic_intimism_pass (global saturation
+        boost with violet shadows), and halation_glow_pass (highlight bloom spread),
+        this pass applies opposite warm/cool temperature shifts to different luminance
+        zones simultaneously -- warm to highlights, cool to shadows -- which no existing
+        pass combines.  The luminosity_lift simulates plein-air ambient brightness
+        absent from all studio-based modes.
+
+        warm_shift          : Warm peach-amber blend strength in highlight zones.
+        cool_shift          : Cool blue-violet blend strength in shadow zones.
+        highlight_thresh    : Luminance above which highlights are warmed.
+        shadow_thresh       : Luminance below which shadows are cooled.
+        luminosity_lift     : Additive brightness increase across the whole canvas.
+        vibration_strength  : Chromatic noise amplitude in mid-tone zone.
+        opacity             : Final composite blend with original canvas.
+        """
+        import numpy as _np
+        from scipy import ndimage as _ndi
+
+        print("    Serov Sunlit Portrait pass (135th mode)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        ht = float(highlight_thresh)
+        st = float(shadow_thresh)
+
+        # Stage 1: Warm Highlight Shift -- direct sunlight on flesh: peach-amber (0.96, 0.82, 0.64)
+        hi_gate = _np.clip((lum - ht) / max(1.0 - ht, 1e-6), 0.0, 1.0)
+        ws      = float(warm_shift)
+        r = _np.clip(r + hi_gate * ws * (0.96 - r), 0.0, 1.0)
+        g = _np.clip(g + hi_gate * ws * (0.82 - g), 0.0, 1.0)
+        b = _np.clip(b + hi_gate * ws * (0.64 - b), 0.0, 1.0)
+
+        # Stage 2: Cool Shadow Shift -- reflected sky in shadow: blue-violet (0.55, 0.55, 0.78)
+        sh_gate = _np.clip((st - lum) / max(st, 1e-6), 0.0, 1.0)
+        cs      = float(cool_shift)
+        r = _np.clip(r + sh_gate * cs * (0.55 - r), 0.0, 1.0)
+        g = _np.clip(g + sh_gate * cs * (0.55 - g), 0.0, 1.0)
+        b = _np.clip(b + sh_gate * cs * (0.78 - b), 0.0, 1.0)
+
+        # Stage 3: Plein-Air Luminosity Lift
+        ll = float(luminosity_lift)
+        if ll > 0.001:
+            r = _np.clip(r + ll, 0.0, 1.0)
+            g = _np.clip(g + ll, 0.0, 1.0)
+            b = _np.clip(b + ll, 0.0, 1.0)
+
+        # Stage 4: Chromatic Mid-Tone Vibration
+        vib = float(vibration_strength)
+        if vib > 0.001:
+            band     = max(ht - st, 1e-6)
+            mid_gate = _np.clip(
+                _np.minimum((lum - st) / band, (ht - lum) / band) * 2.0,
+                0.0, 1.0,
+            )
+            rng     = _np.random.RandomState(224)
+            noise_r = _ndi.gaussian_filter(rng.randn(h, w).astype(_np.float32), sigma=0.8)
+            noise_g = _ndi.gaussian_filter(rng.randn(h, w).astype(_np.float32), sigma=0.8)
+            noise_b = _ndi.gaussian_filter(rng.randn(h, w).astype(_np.float32), sigma=0.8)
+            r = _np.clip(r + mid_gate * vib * noise_r, 0.0, 1.0)
+            g = _np.clip(g + mid_gate * vib * noise_g, 0.0, 1.0)
+            b = _np.clip(b + mid_gate * vib * noise_b, 0.0, 1.0)
+
+        # Stage 5: Composite
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Serov Sunlit Portrait pass complete.")
+
+    def color_temperature_oscillation_pass(
+        self,
+        *,
+        warm_highlight_r: float = 1.00,
+        warm_highlight_g: float = 0.96,
+        warm_highlight_b: float = 0.82,
+        cool_midtone_r:   float = 0.82,
+        cool_midtone_g:   float = 0.90,
+        cool_midtone_b:   float = 1.00,
+        warm_shadow_r:    float = 0.45,
+        warm_shadow_g:    float = 0.28,
+        warm_shadow_b:    float = 0.12,
+        highlight_gate:   float = 0.72,
+        shadow_gate:      float = 0.35,
+        strength:         float = 0.18,
+        opacity:          float = 0.75,
+    ) -> None:
+        """
+        Color Temperature Oscillation -- session 224 artistic improvement.
+
+        Models the warm/cool oscillation used by Sorolla, Sargent, Zorn, and Serov:
+        highlights shift warm (golden-amber-white), light-to-shadow transitions cool
+        (blue-green), and shadow depths warm again (umber-brown).  Creates the
+        vibrating chromatic quality of great oil painting.
+
+        Novelty vs. existing passes:
+        Prior passes apply single-direction tonal colour shifts: bonnard applies global
+        saturation boost; schjerfbeck applies a uniform Nordic cool wash; glazing applies
+        a uniform warm tint.  This pass applies opposite temperature shifts at different
+        luminance zones simultaneously -- warm at both extremes (highlights and shadows),
+        cool in the midtone transition -- creating an oscillation unreachable by any
+        single-zone pass.
+
+        warm_highlight_r/g/b : Warm target colour for the brightest highlight pixels.
+        cool_midtone_r/g/b   : Cool target colour for the mid-tone transition zone.
+        warm_shadow_r/g/b    : Warm umber target for the deepest shadow pixels.
+        highlight_gate       : Luminance above which highlight warming begins.
+        shadow_gate          : Luminance below which shadow warming begins.
+        strength             : Scale factor on all oscillation blend weights.
+        opacity              : Final composite opacity.
+        """
+        import numpy as _np
+
+        print("    Color Temperature Oscillation pass (session 224 improvement)...")
+
+        surface = self.canvas.surface
+        orig    = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+                      (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w    = orig.shape[:2]
+
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+
+        r, g, b = r0.copy(), g0.copy(), b0.copy()
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        sg  = float(shadow_gate)
+        hg  = float(highlight_gate)
+        mid = (sg + hg) * 0.5
+        st  = float(strength)
+
+        shadow_w = _np.clip((sg - lum) / max(sg, 1e-6), 0.0, 1.0) ** 1.5
+        hi_w     = _np.clip((lum - hg) / max(1.0 - hg, 1e-6), 0.0, 1.0) ** 1.5
+        mid_band = max(mid - sg, 1e-6)
+        mid_w    = _np.clip(
+            1.0 - _np.abs(lum - mid) / mid_band, 0.0, 1.0
+        ) * _np.clip(1.0 - shadow_w - hi_w, 0.0, 1.0)
+
+        hw = _np.clip(hi_w * st, 0.0, 1.0)
+        r  = r + hw * (float(warm_highlight_r) - r)
+        g  = g + hw * (float(warm_highlight_g) - g)
+        b  = b + hw * (float(warm_highlight_b) - b)
+
+        mw = _np.clip(mid_w * st, 0.0, 1.0)
+        r  = r + mw * (float(cool_midtone_r) - r)
+        g  = g + mw * (float(cool_midtone_g) - g)
+        b  = b + mw * (float(cool_midtone_b) - b)
+
+        sw = _np.clip(shadow_w * st, 0.0, 1.0)
+        r  = r + sw * (float(warm_shadow_r) - r)
+        g  = g + sw * (float(warm_shadow_g) - g)
+        b  = b + sw * (float(warm_shadow_b) - b)
+
+        r = _np.clip(r, 0.0, 1.0)
+        g = _np.clip(g, 0.0, 1.0)
+        b = _np.clip(b, 0.0, 1.0)
+
+        op    = float(opacity)
+        new_r = _np.clip(r0 * (1.0 - op) + r * op, 0.0, 1.0)
+        new_g = _np.clip(g0 * (1.0 - op) + g * op, 0.0, 1.0)
+        new_b = _np.clip(b0 * (1.0 - op) + b * op, 0.0, 1.0)
+
+        buf          = orig.copy()
+        buf[:, :, 2] = (new_r * 255).astype(_np.uint8)
+        buf[:, :, 1] = (new_g * 255).astype(_np.uint8)
+        buf[:, :, 0] = (new_b * 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print("    Color Temperature Oscillation pass complete.")
