@@ -271,18 +271,18 @@ def paint():
     p.tone_ground((0.92, 0.92, 0.90), texture_strength=0.03)
 
     # Underpainting — large blocking strokes, sea + sky masses
-    p.underpainting(ref, stroke_size=44, n_strokes=160, opacity=0.82)
+    p.underpainting(ref, stroke_size=44, n_strokes=160)
 
     # Block in — two passes, broad then medium
-    p.block_in(ref, stroke_size=28, n_strokes=220, opacity=0.76)
-    p.block_in(ref, stroke_size=16, n_strokes=280, opacity=0.70)
+    p.block_in(ref, stroke_size=28, n_strokes=220)
+    p.block_in(ref, stroke_size=16, n_strokes=280)
 
     # Build form — medium then fine strokes
-    p.build_form(ref, stroke_size=9, n_strokes=340, opacity=0.65)
-    p.build_form(ref, stroke_size=4, n_strokes=420, opacity=0.60)
+    p.build_form(ref, stroke_size=9, n_strokes=340)
+    p.build_form(ref, stroke_size=4, n_strokes=420)
 
     # Place lights — crisp highlight touches (white sails, wave highlights)
-    p.place_lights(ref, stroke_size=2, n_strokes=180, opacity=0.72)
+    p.place_lights(ref, stroke_size=2, n_strokes=180)
 
     # ── Session 240 new artistic pass: Dufy Chromatic Dissociation (151st mode) ──
     p.dufy_chromatic_dissociation_pass(
@@ -314,7 +314,7 @@ def paint():
     p.glaze((0.14, 0.52, 0.88), opacity=0.12)
 
     # Vignette
-    p.vignette(strength=0.18)
+    p.canvas.vignette(strength=0.18)
 
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "s240_dufy_deauville_regatta.png")
