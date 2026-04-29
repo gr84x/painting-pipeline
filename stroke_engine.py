@@ -1,4 +1,4 @@
-"""
+﻿"""
 stroke_engine.py — Natural painting primitives.
 
 Architecture
@@ -56325,6 +56325,214 @@ class Painter:
         print(f"    Signac Divisionist Mosaic complete "
               f"(patch_size={ps} comp_mix={cm:.2f} "
               f"mean_sat={mean_sat:.3f} mean_boundary_boost={mean_boost:.4f})")
+
+
+    def kirchner_brucke_expressionist_pass(
+        self,
+        hue_pull_str:    float = 0.55,
+        contour_thresh:  float = 0.08,
+        contour_dark:    float = 0.32,
+        polarize_radius: int   = 7,
+        polarize_str:    float = 0.28,
+        opacity:         float = 0.80,
+    ) -> None:
+        r"""Kirchner Die Brucke Expressionist -- session 243: ONE HUNDRED AND FIFTY-FOURTH distinct mode.
+
+        THREE-STAGE DIE BRUECKE EXPRESSIONIST SIMULATION:
+        Stage 1 CHROMATIC DISSONANCE AMPLIFICATION: Five Kirchner hue poles (0, 50, 110, 225, 300 deg).
+        Per-pixel hue rotated toward nearest pole; rot_mag=hue_pull_str*(1-dist/90), zero at pole.
+        Saturation boosted by 0.5*rot_mag. NOVEL: (a) MULTI-POLE HUE ATTRACTION -- first pass
+        to pull each pixel hue toward its nearest entry in an artist-specific pole vocabulary
+        using per-pixel angular-distance weighting; prior passes use single warm/cool target.
+        Stage 2 WOODCUT CONTOUR DARKENING: Sobel gradient normalised to 99th percentile.
+        dark_factor=1-(1-contour_dark)*clip((grad-thresh)/(1-thresh),0,1). Multiplicative
+        darkening drives high-gradient pixels toward pure black, simulating woodblock contour.
+        NOVEL: (b) GRADIENT-MAGNITUDE-WEIGHTED MULTIPLICATIVE CONTOUR DARKENING -- first pass
+        to apply gradient-proportional multiplicative darkness at form boundaries toward black.
+        Stage 3 FLAT PLANE VALUE POLARIZATION: local luminance mean via uniform_filter(radius).
+        above-mean pushed brighter, below-mean pushed darker by polarize_str*(lum-local_mean).
+        NOVEL: (c) LOCAL-MEAN-RELATIVE LUMINANCE POLARIZATION -- first pass to apply
+        bidirectional value push relative to sliding luminance mean, creating Kirchner hard
+        tonal jumps between slab-like colour planes.
+
+        hue_pull_str    : Chromatic pull strength toward Kirchner palette poles.
+        contour_thresh  : Normalised gradient threshold for contour darkening.
+        contour_dark    : Minimum value multiplier at strongest edges (0=black, 1=no effect).
+        polarize_radius : Half-width of box-filter window for local luminance mean.
+        polarize_str    : Bidirectional value push magnitude.
+        opacity         : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import uniform_filter as _ufilt, sobel as _sobel
+
+        print("    Kirchner Die Brucke Expressionist pass (session 243: 154th mode)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        def _rgb_to_hsv(r, g, b):
+            maxc = _np.maximum(r, _np.maximum(g, b)).astype(_np.float32)
+            minc = _np.minimum(r, _np.minimum(g, b)).astype(_np.float32)
+            v    = maxc
+            diff = (maxc - minc).astype(_np.float32)
+            s    = _np.where(maxc > 1e-7, diff / (maxc + 1e-7), 0.0).astype(_np.float32)
+            eps  = 1e-7
+            h_deg = _np.zeros_like(r, dtype=_np.float32)
+            mr = (maxc == r) & (diff > eps)
+            mg = (maxc == g) & ~mr & (diff > eps)
+            mb = (maxc == b) & ~mr & ~mg & (diff > eps)
+            h_deg[mr] = (60.0 * ((g[mr] - b[mr]) / (diff[mr] + eps))) % 360.0
+            h_deg[mg] = (60.0 * ((b[mg] - r[mg]) / (diff[mg] + eps))) + 120.0
+            h_deg[mb] = (60.0 * ((r[mb] - g[mb]) / (diff[mb] + eps))) + 240.0
+            h_deg = h_deg % 360.0
+            return h_deg, s, v
+
+        def _hsv_to_rgb(h_deg, s, v):
+            h6 = (h_deg / 60.0).astype(_np.float32)
+            i  = _np.floor(h6).astype(_np.int32) % 6
+            f  = (h6 - _np.floor(h6)).astype(_np.float32)
+            p  = (v * (1.0 - s)).astype(_np.float32)
+            q  = (v * (1.0 - f * s)).astype(_np.float32)
+            t  = (v * (1.0 - (1.0 - f) * s)).astype(_np.float32)
+            r_ = _np.select([i==0,i==1,i==2,i==3,i==4],[v,q,p,p,t], default=v)
+            g_ = _np.select([i==0,i==1,i==2,i==3,i==4],[t,v,v,q,p], default=p)
+            b_ = _np.select([i==0,i==1,i==2,i==3,i==4],[p,p,t,v,v], default=q)
+            return r_.astype(_np.float32), g_.astype(_np.float32), b_.astype(_np.float32)
+
+        hue, sat, val = _rgb_to_hsv(r0, g0, b0)
+
+        # Stage 1: Chromatic dissonance amplification
+        poles = _np.array([0.0, 50.0, 110.0, 225.0, 300.0], dtype=_np.float32)
+        pull  = float(hue_pull_str)
+        h_exp = hue[:, :, _np.newaxis]
+        raw   = _np.abs(h_exp - poles[_np.newaxis, _np.newaxis, :])
+        dist  = _np.minimum(raw, 360.0 - raw).astype(_np.float32)
+        nearest_idx  = _np.argmin(dist, axis=2).astype(_np.int32)
+        nearest_hue  = poles[nearest_idx].astype(_np.float32)
+        nearest_dist = dist[_np.arange(h)[:, None], _np.arange(w)[None, :], nearest_idx]
+        rot_mag  = _np.clip(1.0 - nearest_dist / 90.0, 0.0, 1.0).astype(_np.float32) * pull
+        raw_diff = nearest_hue - hue
+        rot_dir  = _np.where(raw_diff > 180.0, raw_diff - 360.0,
+                   _np.where(raw_diff < -180.0, raw_diff + 360.0, raw_diff))
+        rot_dir  = _np.sign(rot_dir).astype(_np.float32)
+        hue_rot    = (hue + rot_dir * rot_mag * 45.0) % 360.0
+        sat_pulled = _np.clip(sat + 0.5 * rot_mag, 0.0, 1.0).astype(_np.float32)
+        r1, g1, b1 = _hsv_to_rgb(hue_rot, sat_pulled, val)
+
+        # Stage 2: Woodcut contour darkening
+        lum1 = (0.299 * r1 + 0.587 * g1 + 0.114 * b1).astype(_np.float32)
+        gx = _sobel(lum1, axis=1).astype(_np.float32)
+        gy = _sobel(lum1, axis=0).astype(_np.float32)
+        grad_mag  = _np.hypot(gx, gy).astype(_np.float32)
+        p99 = max(float(_np.percentile(grad_mag, 99)), 1e-7)
+        grad_norm = _np.clip(grad_mag / p99, 0.0, 1.0).astype(_np.float32)
+        ct  = float(contour_thresh)
+        cd  = float(contour_dark)
+        dark_factor = 1.0 - _np.clip((grad_norm - ct)/(1.0-ct+1e-7), 0.0, 1.0)*(1.0-cd)
+        hue2, sat2, val2 = _rgb_to_hsv(r1, g1, b1)
+        val2_dark = _np.clip(val2 * dark_factor, 0.0, 1.0).astype(_np.float32)
+        r2, g2, b2 = _hsv_to_rgb(hue2, sat2, val2_dark)
+
+        # Stage 3: Flat plane value polarization
+        pr = max(1, int(polarize_radius))
+        ps = float(polarize_str)
+        lum2 = (0.299 * r2 + 0.587 * g2 + 0.114 * b2).astype(_np.float32)
+        local_mean = _ufilt(lum2, size=2*pr+1, mode='reflect').astype(_np.float32)
+        polar_push = ps * (lum2 - local_mean)
+        hue3, sat3, val3 = _rgb_to_hsv(r2, g2, b2)
+        val3_polar = _np.clip(val3 + polar_push, 0.0, 1.0).astype(_np.float32)
+        r_out, g_out, b_out = _hsv_to_rgb(hue3, sat3, val3_polar)
+        r_out = _np.clip(r_out, 0.0, 1.0)
+        g_out = _np.clip(g_out, 0.0, 1.0)
+        b_out = _np.clip(b_out, 0.0, 1.0)
+        op    = float(opacity)
+        new_r = r0*(1.0-op) + r_out*op
+        new_g = g0*(1.0-op) + g_out*op
+        new_b = b0*(1.0-op) + b_out*op
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r*255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g*255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b*255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print(f"    Kirchner Die Brucke Expressionist complete (hue_pull={pull:.2f} "
+              f"mean_rot={float(rot_mag.mean()):.3f} mean_grad={float(grad_norm.mean()):.3f} "
+              f"mean_polar={float(_np.abs(polar_push).mean()):.4f})")
+
+    def paint_imprimatura_warmth_pass(
+        self,
+        warmth_gate:   float = 0.35,
+        warmth_str:    float = 0.22,
+        imprimatura_r: float = 0.68,
+        imprimatura_g: float = 0.42,
+        imprimatura_b: float = 0.18,
+        edge_warmth:   float = 0.12,
+        edge_sigma:    float = 1.2,
+        opacity:       float = 0.60,
+    ) -> None:
+        r"""Paint Imprimatura Warmth -- session 243 artistic improvement.
+
+        Simulates the warm oil ground (imprimatura) glowing through thin paint in
+        shadow zones and at brushstroke edges. THREE-STAGE LUMINANCE-GATED:
+        Stage 1: warmth_mask=clip((warmth_gate-L)/warmth_gate,0,1) -- luminance-gated mask.
+        Stage 2: imprimatura colour blend: ch=ch*(1-str*mask)+imp_ch*str*mask.
+        Stage 3: Sobel edge fringe -- warm colour bled at high-gradient stroke perimeters.
+        NOVEL: (a) luminance-gated imprimatura blend; (b) configurable ground colour
+        per-pixel blend with luminance-inverse weight; (c) gradient-detected edge warmth
+        fringe. All three novel over prior passes (warm_cool_zone_pass applies spatial zones).
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gauss, sobel as _sobel
+
+        print("    Paint Imprimatura Warmth pass (session 243 improvement)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        lum = (0.299*r0 + 0.587*g0 + 0.114*b0).astype(_np.float32)
+        wg = float(warmth_gate); ws = float(warmth_str)
+        imp_r = float(imprimatura_r); imp_g = float(imprimatura_g); imp_b = float(imprimatura_b)
+
+        warmth_mask = _np.clip((wg - lum)/(wg + 1e-7), 0.0, 1.0).astype(_np.float32)
+        blend = ws * warmth_mask
+        r1 = _np.clip(r0*(1.0-blend) + imp_r*blend, 0.0, 1.0).astype(_np.float32)
+        g1 = _np.clip(g0*(1.0-blend) + imp_g*blend, 0.0, 1.0).astype(_np.float32)
+        b1 = _np.clip(b0*(1.0-blend) + imp_b*blend, 0.0, 1.0).astype(_np.float32)
+
+        gx = _sobel(lum, axis=1).astype(_np.float32)
+        gy = _sobel(lum, axis=0).astype(_np.float32)
+        grad_mag  = _np.hypot(gx, gy).astype(_np.float32)
+        p99 = max(float(_np.percentile(grad_mag, 99)), 1e-7)
+        grad_norm = _np.clip(grad_mag/p99, 0.0, 1.0).astype(_np.float32)
+        edge_mask = _gauss(grad_norm, sigma=float(edge_sigma)).astype(_np.float32)
+        ew = float(edge_warmth)
+        r_out = _np.clip(r1 + ew*edge_mask*(imp_r-r1), 0.0, 1.0).astype(_np.float32)
+        g_out = _np.clip(g1 + ew*edge_mask*(imp_g-g1), 0.0, 1.0).astype(_np.float32)
+        b_out = _np.clip(b1 + ew*edge_mask*(imp_b-b1), 0.0, 1.0).astype(_np.float32)
+
+        op    = float(opacity)
+        new_r = r0*(1.0-op) + r_out*op
+        new_g = g0*(1.0-op) + g_out*op
+        new_b = b0*(1.0-op) + b_out*op
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r*255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g*255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b*255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print(f"    Paint Imprimatura Warmth complete (gate={wg:.2f} str={ws:.2f} "
+              f"mean_mask={float(warmth_mask.mean()):.3f} mean_edge={float(edge_mask.mean()):.3f})")
 
     def paint_color_bloom_pass(
         self,
