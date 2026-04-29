@@ -54949,4 +54949,219 @@ class Painter:
         n_active  = int((gate > 0.2).sum())
         print(f"    Paint Scumble complete "
               f"(bristle_px={n_bristle} active_px={n_active})")
+    def feininger_crystalline_prism_pass(
+        self,
+        facet_sigma:   float = 8.0,
+        prism_cycles:  float = 3.0,
+        chroma_tilt:   float = 0.10,
+        lum_facet:     float = 0.06,
+        opacity:       float = 0.72,
+    ) -> None:
+        r"""
+        Feininger Crystalline Prism -- session 238: ONE HUNDRED AND FORTY-NINTH distinct mode.
+
+        Implements Lyonel Feininger (1871-1956) Cubist-Expressionist crystalline
+        aesthetic.  Feininger organised his canvases as interlocking angular planes
+        of subtly differentiated atmospheric colour, each planar zone catching light
+        from a slightly different directional angle -- the structural logic of a
+        crystal face illuminated by directional light.
+
+        TWO-STAGE CRYSTALLINE FACET SIMULATION unified by gradient direction angle:
+
+        Stage 1 COHERENT ANGLE MAP via circular Gaussian averaging:
+        sx = sobel(lum, axis=1); sy = sobel(lum, axis=0);
+        angle = atan2(sy, sx) in [-pi, pi].
+        Circular averaging (correct for angle arithmetic -- not affected by
+        the 2*pi wraparound discontinuity):
+        z_cos = gaussian(cos(angle), facet_sigma);
+        z_sin = gaussian(sin(angle), facet_sigma);
+        coherent_angle = atan2(z_sin, z_cos).
+        FIRST pass in project to use spatial gradient DIRECTION (atan2) as its
+        primary variable -- all prior Sobel-based passes (e.g. rouault_stained_glass)
+        use gradient MAGNITUDE only.  FIRST use of circular/angular Gaussian
+        blurring via complex-exponential decomposition.
+
+        Stage 2 PRISMATIC WARM/COOL CHROMATIC MAPPING:
+        warm_cool = cos(coherent_angle * prism_cycles) in [-1, 1].
+        lum_mod   = sin(coherent_angle * prism_cycles + pi/6) * lum_facet.
+        Channel adjustments:
+        R += warm_cool * ct * 0.78 + lum_mod;
+        G += warm_cool * ct * 0.28 + lum_mod * 0.80;
+        B -= warm_cool * ct * 0.92 - lum_mod * 0.60.
+        Positive warm_cool: R+, G+slightly, B- (amber/warm crystal face).
+        Negative warm_cool: R-, G-slightly, B+ (cobalt/cool crystal face).
+        FIRST cyclic periodic warm/cool mapping governed by local gradient
+        DIRECTION -- prior periodic passes (e.g. kupka_orphic_fugue) derive
+        oscillation from spatial POSITION (radial distance from centroid),
+        not from local gradient orientation angle.
+
+        NOVEL vs. existing passes:
+        (a) CIRCULAR ANGLE AVERAGING via cos/sin decomposition -- first
+            directional spatial average; prior Sobel passes use only magnitude.
+        (b) GRADIENT DIRECTION (atan2) as primary mapping variable, not magnitude.
+        (c) CYCLIC DIRECTION-ANGLE chromatic modulation -- first pass where
+            warm/cool oscillation is governed by local gradient orientation.
+
+        facet_sigma  : Gaussian blur radius for coherent angle region formation.
+        prism_cycles : Number of warm/cool oscillation cycles per 2*pi angle sweep.
+        chroma_tilt  : Maximum chromatic deviation in warm or cool direction [0, 0.20].
+        lum_facet    : Luminance modulation amplitude across facet planes [0, 0.12].
+        opacity      : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel, gaussian_filter as _gf
+
+        print("    Feininger Crystalline Prism pass (session 238: 149th mode)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # Stage 1: Coherent angle map via circular Gaussian averaging
+        sx = _sobel(lum, axis=1).astype(_np.float32)
+        sy = _sobel(lum, axis=0).astype(_np.float32)
+        angle = _np.arctan2(sy, sx).astype(_np.float32)
+
+        sigma = float(facet_sigma)
+        z_cos = _gf(_np.cos(angle).astype(_np.float32), sigma)
+        z_sin = _gf(_np.sin(angle).astype(_np.float32), sigma)
+        coherent_angle = _np.arctan2(z_sin, z_cos).astype(_np.float32)
+
+        # Stage 2: Prismatic warm/cool chromatic mapping
+        pc = float(prism_cycles)
+        warm_cool = _np.cos(coherent_angle * pc).astype(_np.float32)
+        lum_mod   = (_np.sin(coherent_angle * pc + _np.pi / 6.0)
+                     * float(lum_facet)).astype(_np.float32)
+
+        ct = float(chroma_tilt)
+        r1 = _np.clip(r0 + warm_cool * ct * 0.78 + lum_mod, 0.0, 1.0)
+        g1 = _np.clip(g0 + warm_cool * ct * 0.28 + lum_mod * 0.80, 0.0, 1.0)
+        b1 = _np.clip(b0 - warm_cool * ct * 0.92 + lum_mod * 0.60, 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r1 * op
+        new_g = g0 * (1.0 - op) + g1 * op
+        new_b = b0 * (1.0 - op) + b1 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_warm = int((warm_cool > 0.5).sum())
+        n_cool = int((warm_cool < -0.5).sum())
+        print(f"    Feininger Crystalline Prism complete "
+              f"(warm_px={n_warm} cool_px={n_cool})")
+
+    def paint_split_toning_pass(
+        self,
+        shadow_cool:      float = 0.065,
+        highlight_warm:   float = 0.055,
+        shadow_pivot:     float = 0.30,
+        highlight_pivot:  float = 0.72,
+        transition_width: float = 0.18,
+        opacity:          float = 0.52,
+    ) -> None:
+        r"""
+        Paint Split Toning -- session 238 improvement.
+
+        Split toning is a photographic darkroom technique in which shadow and
+        highlight regions receive distinct, opposing colour tints while midtones
+        remain near-neutral.  Classic split toning pushes shadows toward cool
+        blue-teal and highlights toward warm amber-gold, reinforcing the natural
+        temperature contrast between ambient (cool sky fill) and direct (warm sun)
+        light sources.
+
+        TWO-STAGE SPLIT TONING:
+
+        Stage 1 LUMINANCE ZONE GATES with smooth linear transitions:
+        shadow_gate    = clip((shadow_pivot - lum) / transition_width, 0, 1).
+        highlight_gate = clip((lum - highlight_pivot) / transition_width, 0, 1).
+        Both gates ramp from 0 to 1 over a transition_width luminance band.
+        Midtone region (luminances between the two pivots) receives zero tinting.
+
+        Stage 2 OPPOSING DUAL-ZONE TINTING:
+        Shadow (cool): R -= shadow_gate * shadow_cool * 0.50;
+                       G -= shadow_gate * shadow_cool * 0.15;
+                       B += shadow_gate * shadow_cool * 0.90.
+        Highlight (warm): R += highlight_gate * highlight_warm * 0.88;
+                          G += highlight_gate * highlight_warm * 0.48;
+                          B -= highlight_gate * highlight_warm * 0.65.
+        Both adjustments are summed before opacity composite.
+
+        NOVEL vs. existing passes:
+        (a) SIMULTANEOUS OPPOSING DUAL-ZONE TINTING: shadows driven cool (B+,R-)
+            and highlights driven warm (R+,B-) in a single pass -- no prior pass
+            applies two opposing colour shifts to two distinct luminance zones
+            simultaneously.
+        (b) THREE-ZONE LUMINANCE SEGMENTATION (shadow/midtone/highlight) with
+            independent smooth linear gates -- prior lum-gated passes (scumble,
+            varnish, granulation) operate on a single zone or one-sided ramp.
+
+        shadow_cool      : Max cool tint in dark zones [0, 0.15].
+        highlight_warm   : Max warm tint in bright zones [0, 0.12].
+        shadow_pivot     : Luminance below which shadow tint is at full strength.
+        highlight_pivot  : Luminance above which highlight tint begins to ramp.
+        transition_width : Luminance width of each tint ramp zone.
+        opacity          : Final composite opacity.
+        """
+        import numpy as _np
+
+        print("    Paint Split Toning pass (session 238 improvement)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # Stage 1: Luminance zone gates
+        tw = float(transition_width)
+        sp = float(shadow_pivot)
+        hp = float(highlight_pivot)
+        shadow_gate    = _np.clip((sp - lum) / (tw + 1e-7), 0.0, 1.0)
+        highlight_gate = _np.clip((lum - hp) / (tw + 1e-7), 0.0, 1.0)
+
+        # Stage 2: Opposing dual-zone tinting
+        sc = float(shadow_cool)
+        hw = float(highlight_warm)
+        r_adj = -shadow_gate * sc * 0.50 + highlight_gate * hw * 0.88
+        g_adj = -shadow_gate * sc * 0.15 + highlight_gate * hw * 0.48
+        b_adj = +shadow_gate * sc * 0.90 - highlight_gate * hw * 0.65
+
+        r1 = _np.clip(r0 + r_adj, 0.0, 1.0)
+        g1 = _np.clip(g0 + g_adj, 0.0, 1.0)
+        b1 = _np.clip(b0 + b_adj, 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r1 * op
+        new_g = g0 * (1.0 - op) + g1 * op
+        new_b = b0 * (1.0 - op) + b1 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_shadow    = int((shadow_gate    > 0.5).sum())
+        n_highlight = int((highlight_gate > 0.5).sum())
+        print(f"    Paint Split Toning complete "
+              f"(shadow_px={n_shadow} highlight_px={n_highlight})")
+
 
