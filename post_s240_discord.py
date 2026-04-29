@@ -1,4 +1,12 @@
-"""Post session 240 painting to Discord #gustave channel."""
+"""Post session 240 painting to Discord #gustave channel.
+
+Discord message IDs (posted 2026-04-29):
+  Text 1: 1498930877961470093
+  Text 2: 1498930883103817790
+  Text 3: 1498930887415300219
+  Text 4: 1498930892041883648
+  Image:  1498930897473507409
+"""
 import os
 import sys
 import json
