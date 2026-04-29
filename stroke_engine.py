@@ -56679,3 +56679,292 @@ class Painter:
         print(f"    Paint Color Bloom complete "
               f"(threshold={bt:.2f} sigma={bs:.1f} "
               f"mean_sat={mean_sat:.3f} bloom_coverage={mean_bloom_coverage:.3f})")
+
+    def beckmann_black_armature_pass(
+        self,
+        armature_thresh:   float = 0.12,
+        armature_snap:     float = 0.82,
+        compress_str:      float = 0.18,
+        compress_mid:      float = 0.48,
+        palette_str:       float = 0.40,
+        palette_radius:    float = 55.0,
+        opacity:           float = 0.82,
+    ) -> None:
+        r"""Beckmann Black Armature -- session 244: ONE HUNDRED AND FIFTY-FIFTH distinct mode.
+
+        THREE-STAGE BLACK ARMATURE EXPRESSIONIST SIMULATION (Max Beckmann):
+
+        Stage 1 GRADIENT-THRESHOLD SATURATION-STRIPPING SNAP TO BLACK: Compute Sobel
+        gradient magnitude of luminance; normalise to 99th percentile. Where grad_norm
+        exceeds armature_thresh, strip saturation and snap value toward black with
+        strength proportional to (grad_norm - thresh)/(1-thresh)*armature_snap.
+        This hard, erasure-like snap -- not Kirchner's gradual multiplicative darkening
+        -- produces the decisive drawn-black armature bounding Beckmann's forms.
+        NOVEL: (a) SATURATION-STRIPPED BLACK SNAP AT GRADIENT BOUNDARIES -- first pass
+        to simultaneously zero saturation and snap value to black at high-gradient edges
+        with a hard threshold gate; prior contour passes (kirchner) darken multiplicatively
+        without saturation removal; this simulates Beckmann's drawn contour lines which
+        are fully desaturated black, not darkened-colour outlines.
+
+        Stage 2 BIDIRECTIONAL VALUE RANGE COMPRESSION TOWARD MIDTONE: Compute per-pixel
+        value V; apply compression function V' = compress_mid + (V - compress_mid) *
+        (1 - compress_str). Pixels above mid are pulled down; pixels below mid are pulled
+        up. This symmetrically contracts the tonal range toward the mid-grey anchor,
+        creating the airless, claustrophobic tonal flatness of Beckmann's interiors.
+        NOVEL: (b) SYMMETRIC TONAL COMPRESSION TOWARD CONFIGURABLE MID-ANCHOR -- first
+        pass to apply a symmetric linear contraction of the entire tonal range toward a
+        single midpoint; prior passes push values apart (kirchner polarize), boost shadows
+        (imprimatura warmth), or add glaze shift; none compress both extremes simultaneously
+        toward a neutral anchor point.
+
+        Stage 3 BECKMANN PALETTE ATTRACTION WITH HARD ANGULAR SNAP: Five Beckmann hue
+        poles (salmon-orange 15, acid yellow-green 80, cold blue-violet 220, brick red
+        350, deep teal 175 deg). Per-pixel hue pulled toward nearest pole if within
+        palette_radius degrees; snap strength = palette_str * (1 - dist/palette_radius).
+        Unlike Kirchner's soft rotation (rot_dir * rot_mag * 45), this applies a
+        proportional angular fraction of the full rotation, landing harder at the pole.
+        NOVEL: (c) PROPORTIONAL ANGULAR FRACTION HALO SNAP -- first pass to apply a
+        proportional-distance snap where the hue jumps palette_str fraction of the
+        remaining angular gap to the pole (rather than a fixed rotation magnitude);
+        creates the sudden non-naturalistic hue jumps characteristic of Beckmann's palette.
+
+        armature_thresh : Normalised gradient threshold for black armature activation.
+        armature_snap   : Maximum snap strength toward black at strongest edges.
+        compress_str    : Tonal compression strength (0=none, 1=all pixels to mid).
+        compress_mid    : Mid-grey anchor for tonal compression (default 0.48).
+        palette_str     : Fraction of angular gap to close toward each palette pole.
+        palette_radius  : Angular search radius (degrees) for palette pole attraction.
+        opacity         : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import uniform_filter as _ufilt, sobel as _sobel
+
+        print("    Beckmann Black Armature pass (session 244: 155th mode)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        def _rgb_to_hsv(r, g, b):
+            maxc = _np.maximum(r, _np.maximum(g, b)).astype(_np.float32)
+            minc = _np.minimum(r, _np.minimum(g, b)).astype(_np.float32)
+            v    = maxc
+            diff = (maxc - minc).astype(_np.float32)
+            s    = _np.where(maxc > 1e-7, diff / (maxc + 1e-7), 0.0).astype(_np.float32)
+            eps  = 1e-7
+            h_deg = _np.zeros_like(r, dtype=_np.float32)
+            mr = (maxc == r) & (diff > eps)
+            mg = (maxc == g) & ~mr & (diff > eps)
+            mb = (maxc == b) & ~mr & ~mg & (diff > eps)
+            h_deg[mr] = (60.0 * ((g[mr] - b[mr]) / (diff[mr] + eps))) % 360.0
+            h_deg[mg] = (60.0 * ((b[mg] - r[mg]) / (diff[mg] + eps))) + 120.0
+            h_deg[mb] = (60.0 * ((r[mb] - g[mb]) / (diff[mb] + eps))) + 240.0
+            h_deg = h_deg % 360.0
+            return h_deg, s, v
+
+        def _hsv_to_rgb(h_deg, s, v):
+            h6 = (h_deg / 60.0).astype(_np.float32)
+            i  = _np.floor(h6).astype(_np.int32) % 6
+            f  = (h6 - _np.floor(h6)).astype(_np.float32)
+            p  = (v * (1.0 - s)).astype(_np.float32)
+            q  = (v * (1.0 - f * s)).astype(_np.float32)
+            t  = (v * (1.0 - (1.0 - f) * s)).astype(_np.float32)
+            r_ = _np.select([i==0,i==1,i==2,i==3,i==4],[v,q,p,p,t], default=v)
+            g_ = _np.select([i==0,i==1,i==2,i==3,i==4],[t,v,v,q,p], default=p)
+            b_ = _np.select([i==0,i==1,i==2,i==3,i==4],[p,p,t,v,v], default=q)
+            return r_.astype(_np.float32), g_.astype(_np.float32), b_.astype(_np.float32)
+
+        hue, sat, val = _rgb_to_hsv(r0, g0, b0)
+
+        # Stage 1: Gradient-threshold saturation-stripping snap to black
+        lum0 = (0.299*r0 + 0.587*g0 + 0.114*b0).astype(_np.float32)
+        gx = _sobel(lum0, axis=1).astype(_np.float32)
+        gy = _sobel(lum0, axis=0).astype(_np.float32)
+        grad_mag  = _np.hypot(gx, gy).astype(_np.float32)
+        p99 = max(float(_np.percentile(grad_mag, 99)), 1e-7)
+        grad_norm = _np.clip(grad_mag / p99, 0.0, 1.0).astype(_np.float32)
+        at  = float(armature_thresh)
+        asnap = float(armature_snap)
+        snap_weight = _np.clip((grad_norm - at) / (1.0 - at + 1e-7), 0.0, 1.0) * asnap
+        val1 = _np.clip(val * (1.0 - snap_weight), 0.0, 1.0).astype(_np.float32)
+        sat1 = _np.clip(sat * (1.0 - snap_weight), 0.0, 1.0).astype(_np.float32)
+        r1, g1, b1 = _hsv_to_rgb(hue, sat1, val1)
+
+        # Stage 2: Bidirectional value range compression toward midtone
+        cs   = float(compress_str)
+        cmid = float(compress_mid)
+        hue2, sat2, val2 = _rgb_to_hsv(r1, g1, b1)
+        val2_comp = _np.clip(cmid + (val2 - cmid) * (1.0 - cs), 0.0, 1.0).astype(_np.float32)
+        r2, g2, b2 = _hsv_to_rgb(hue2, sat2, val2_comp)
+
+        # Stage 3: Beckmann palette attraction with proportional angular snap
+        poles = _np.array([15.0, 80.0, 175.0, 220.0, 350.0], dtype=_np.float32)
+        pr    = float(palette_radius)
+        ps    = float(palette_str)
+        hue3, sat3, val3 = _rgb_to_hsv(r2, g2, b2)
+        h_exp = hue3[:, :, _np.newaxis]
+        raw   = _np.abs(h_exp - poles[_np.newaxis, _np.newaxis, :])
+        dist  = _np.minimum(raw, 360.0 - raw).astype(_np.float32)
+        nearest_idx  = _np.argmin(dist, axis=2).astype(_np.int32)
+        nearest_hue  = poles[nearest_idx].astype(_np.float32)
+        nearest_dist = dist[_np.arange(h)[:, None], _np.arange(w)[None, :], nearest_idx]
+        in_radius = (nearest_dist < pr).astype(_np.float32)
+        frac = _np.clip(1.0 - nearest_dist / (pr + 1e-7), 0.0, 1.0) * ps * in_radius
+        raw_diff  = nearest_hue - hue3
+        rot_dir   = _np.where(raw_diff > 180.0, raw_diff - 360.0,
+                    _np.where(raw_diff < -180.0, raw_diff + 360.0, raw_diff))
+        hue_out   = (hue3 + rot_dir * frac) % 360.0
+        r_out, g_out, b_out = _hsv_to_rgb(hue_out, sat3, val3)
+        r_out = _np.clip(r_out, 0.0, 1.0)
+        g_out = _np.clip(g_out, 0.0, 1.0)
+        b_out = _np.clip(b_out, 0.0, 1.0)
+
+        op    = float(opacity)
+        new_r = r0 * (1.0 - op) + r_out * op
+        new_g = g0 * (1.0 - op) + g_out * op
+        new_b = b0 * (1.0 - op) + b_out * op
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        print(f"    Beckmann Black Armature complete (snap={asnap:.2f} "
+              f"compress={cs:.2f} palette_str={ps:.2f} "
+              f"mean_snap={float(snap_weight.mean()):.3f} "
+              f"mean_in_radius={float(in_radius.mean()):.3f})")
+
+    def paint_aerial_perspective_pass(
+        self,
+        fine_sigma:    float = 1.2,
+        coarse_sigma:  float = 12.0,
+        depth_str:     float = 0.45,
+        haze_r:        float = 0.80,
+        haze_g:        float = 0.82,
+        haze_b:        float = 0.90,
+        haze_strength: float = 0.28,
+        desat_str:     float = 0.30,
+        opacity:       float = 0.70,
+    ) -> None:
+        r"""Paint Aerial Perspective -- session 244 artistic improvement.
+
+        Atmospheric (aerial) perspective is the phenomenon whereby objects farther from
+        the viewer appear lighter, bluer, and less saturated than objects in the
+        foreground -- a consequence of light scattering in the intervening column of
+        atmosphere.  Leonardo noted it as "perspective of disappearance"; Turner,
+        Corot, Constable, and later Cézanne exploited it systematically.  In a
+        traditional oil painting, distant passages are worked with thin, cool, pale
+        washes; foreground passages are thick, warm, and saturated.
+
+        This pass estimates scene depth non-geometrically using spatial frequency
+        analysis: regions of low spatial frequency (large smooth areas) statistically
+        correspond to distance/sky, while high-frequency (fine detail) areas correspond
+        to foreground.  The Difference-of-Gaussians (DoG) map isolates this distinction
+        and drives per-pixel desaturation and warm-to-cool haze blending.
+
+        THREE-STAGE SPATIAL-FREQUENCY AERIAL PERSPECTIVE:
+
+        Stage 1 DIFFERENCE-OF-GAUSSIANS DEPTH ESTIMATION: Compute luma channel; apply
+        two Gaussian blurs at different scales (fine_sigma, coarse_sigma); DoG =
+        |gaussian(luma, fine_sigma) - gaussian(luma, coarse_sigma)|; normalise to [0,1];
+        depth_map = 1 - clip(DoG / 95th_percentile, 0, 1) -- high DoG = foreground
+        (detail-rich), low DoG = background (smooth/distant). Normalise to [0,1].
+        NOVEL: (a) DIFFERENCE-OF-GAUSSIANS INVERSE-FREQUENCY DEPTH MAP -- first pass to
+        estimate foreground/background depth from spatial-frequency content using a DoG
+        operator; all prior passes are frequency-agnostic or use gradient magnitude for
+        edge detection, not for global depth estimation; the DoG map is a well-known
+        scale-space operator repurposed here as a non-geometric depth proxy.
+
+        Stage 2 DEPTH-WEIGHTED ATMOSPHERIC DESATURATION: Compute saturation S; apply
+        per-pixel desaturation: S' = S * (1 - desat_str * depth_map). Pixels in smooth
+        /background regions lose saturation proportionally to their estimated depth.
+        NOVEL: (b) SPATIAL-FREQUENCY-GATED SELECTIVE DESATURATION -- first pass to apply
+        saturation reduction gated by the DoG depth map rather than by luminance, gradient,
+        or spatial zone; desat_str controls atmosphere density; the depth_map ensures
+        that only statistically distant pixels are desaturated.
+
+        Stage 3 DEPTH-WEIGHTED COOL HAZE BLEND: Blend each pixel toward the haze colour
+        (default cool blue-grey) proportionally to depth_map * haze_strength. Lighter,
+        cooler haze tint applied to background zones simulates the spectral shift caused
+        by Rayleigh scattering of blue light in the atmosphere.
+        NOVEL: (c) SPATIAL-FREQUENCY-GATED ATMOSPHERIC HAZE TINT -- first pass to apply
+        a configurable haze colour blend weighted by DoG depth map; prior passes apply
+        warm tints (imprimatura warmth, glaze gradient) or cool shifts (sfumato focus)
+        but none use spatial frequency to gate a configurable atmospheric haze tint.
+
+        fine_sigma    : Gaussian sigma for the fine-scale (foreground detail) blur.
+        coarse_sigma  : Gaussian sigma for the coarse-scale (background smooth) blur.
+        depth_str     : Scale applied to depth_map before downstream stages.
+        haze_r/g/b    : RGB components of the atmospheric haze colour (default cool grey).
+        haze_strength : Maximum fraction of haze colour blended at furthest depth.
+        desat_str     : Maximum saturation reduction fraction at furthest depth.
+        opacity       : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gauss
+
+        print("    Paint Aerial Perspective pass (session 244 improvement)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+        lum = (0.299*r0 + 0.587*g0 + 0.114*b0).astype(_np.float32)
+
+        # Stage 1: DoG depth estimation
+        fs = float(fine_sigma)
+        cs_ = float(coarse_sigma)
+        fine_blur   = _gauss(lum, sigma=fs).astype(_np.float32)
+        coarse_blur = _gauss(lum, sigma=cs_).astype(_np.float32)
+        dog = _np.abs(fine_blur - coarse_blur).astype(_np.float32)
+        p95 = max(float(_np.percentile(dog, 95)), 1e-7)
+        dog_norm  = _np.clip(dog / p95, 0.0, 1.0).astype(_np.float32)
+        depth_map = _np.clip((1.0 - dog_norm) * float(depth_str), 0.0, 1.0).astype(_np.float32)
+
+        # Stage 2: Depth-weighted atmospheric desaturation
+        maxc = _np.maximum(r0, _np.maximum(g0, b0)).astype(_np.float32)
+        minc = _np.minimum(r0, _np.minimum(g0, b0)).astype(_np.float32)
+        diff = (maxc - minc).astype(_np.float32)
+        sat  = _np.where(maxc > 1e-7, diff / (maxc + 1e-7), 0.0).astype(_np.float32)
+        ds = float(desat_str)
+        new_sat = _np.clip(sat * (1.0 - ds * depth_map), 0.0, 1.0).astype(_np.float32)
+        desat_ratio = _np.where(sat > 1e-7, new_sat / (sat + 1e-7), 1.0).astype(_np.float32)
+        r1 = lum + (r0 - lum) * desat_ratio
+        g1 = lum + (g0 - lum) * desat_ratio
+        b1 = lum + (b0 - lum) * desat_ratio
+        r1 = _np.clip(r1, 0.0, 1.0).astype(_np.float32)
+        g1 = _np.clip(g1, 0.0, 1.0).astype(_np.float32)
+        b1 = _np.clip(b1, 0.0, 1.0).astype(_np.float32)
+
+        # Stage 3: Depth-weighted cool haze blend
+        hr = float(haze_r); hg = float(haze_g); hb_ = float(haze_b)
+        hs = float(haze_strength)
+        haze_blend = depth_map * hs
+        r_out = _np.clip(r1 * (1.0 - haze_blend) + hr * haze_blend, 0.0, 1.0).astype(_np.float32)
+        g_out = _np.clip(g1 * (1.0 - haze_blend) + hg * haze_blend, 0.0, 1.0).astype(_np.float32)
+        b_out = _np.clip(b1 * (1.0 - haze_blend) + hb_ * haze_blend, 0.0, 1.0).astype(_np.float32)
+
+        op    = float(opacity)
+        new_r = r0 * (1.0 - op) + r_out * op
+        new_g = g0 * (1.0 - op) + g_out * op
+        new_b = b0 * (1.0 - op) + b_out * op
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        mean_depth = float(depth_map.mean())
+        mean_desat = float((1.0 - desat_ratio).mean())
+        print(f"    Paint Aerial Perspective complete (fine_sigma={fs:.1f} "
+              f"coarse_sigma={cs_:.1f} mean_depth={mean_depth:.3f} "
+              f"mean_desat={mean_desat:.3f} haze_str={hs:.2f})")
