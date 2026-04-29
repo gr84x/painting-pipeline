@@ -58109,3 +58109,276 @@ class Painter:
         print(f"    Paint Halation complete (thresh={ht:.2f} sigma={sig:.1f} "
               f"bloom_strength={bs:.2f} bright_frac={bright_frac:.3f} "
               f"bloom_mean={bloom_mean:.4f})")
+    def basquiat_neo_expressionist_scrawl_pass(
+        self,
+        n_levels:        int   = 6,
+        n_marks:         int   = 180,
+        mark_length:     int   = 18,
+        mark_width:      float = 2.0,
+        mark_strength:   float = 0.22,
+        dark_mark_frac:  float = 0.65,
+        mid_lo:          float = 0.22,
+        mid_hi:          float = 0.72,
+        sat_boost:       float = 0.40,
+        opacity:         float = 0.82,
+        seed:            int   = 249,
+    ) -> None:
+        r"""Jean-Michel Basquiat Neo-Expressionist Scrawl -- session 249: ONE HUNDRED AND SIXTIETH distinct mode.
+
+        THREE-STAGE NEO-EXPRESSIONIST SCRAWL (Jean-Michel Basquiat):
+
+        Stage 1 PER-PIXEL CHANNEL DISCRETE POSTERIZATION: For each pixel,
+        independently quantize each R, G, B channel to n_levels discrete steps
+        using: quantized = floor(channel * n_levels) / n_levels. This flattens
+        continuous tonal gradients into discrete flat colour fields, reproducing
+        the graphic sign-painter directness of Basquiat flat primary-colour zones
+        -- cadmium red, chrome yellow, near-white, near-black -- where colour is
+        applied as a single flat decision rather than a modulated tonal field.
+        NOVEL: (a) GLOBAL PER-PIXEL PER-CHANNEL DISCRETE POSTERIZATION AS PRIMARY
+        COLOUR STAGE -- first pass to apply global per-pixel per-channel discrete
+        level quantization (floor rounding) as its primary colour operation;
+        de Stael tile mean quantization (session 248) averages all pixels within
+        a spatial tile region before replacing them -- a spatial average; this
+        pass operates independently on each pixel by channel without any spatial
+        averaging; no prior pass applies floor-rounding to discrete channel levels
+        as its primary colour stage.
+
+        Stage 2 RANDOM DIRECTIONAL CRUDE MARK OVERLAY: Generate n_marks random
+        oriented marks using rng with seed. For each mark: random centre (cx, cy)
+        in [0, W) x [0, H); random angle theta in [0, pi); polarity = -1 (dark)
+        with probability dark_mark_frac else +1 (light). Compute a local bounding
+        box around the centre. Within that box, compute per-pixel distance to the
+        line segment at angle theta clamped to half_length. Pixels within
+        mark_width/2 of the segment receive +/- mark_strength.
+        NOVEL: (b) RANDOM DIRECTIONAL LINE-SEGMENT RASTER MARK FIELD -- first
+        pass to generate a parametric random field of short oriented line-segment
+        raster marks; each mark is defined by a random position, angle, and
+        polarity, rasterized by per-pixel distance to the clamped segment; prior
+        directional passes apply convolutional kernels uniformly to the full
+        canvas -- none generate individually positioned and oriented segment marks.
+
+        Stage 3 MIDTONE SATURATION AMPLIFICATION: Compute per-pixel luminance
+        lum = 0.299r + 0.587g + 0.114b. Build a midtone mask with smooth ramps.
+        Within the masked region, push each channel away from the pixel luminance
+        value by factor (1 + sat_boost): ch_boosted = lum + (ch - lum) * (1 + sat_boost).
+        NOVEL: (c) MIDTONE-WINDOW SATURATION AMPLIFICATION -- first pass to
+        selectively amplify saturation within a bounded midtone luminance window
+        [mid_lo, mid_hi] while leaving very dark shadows and very bright highlights
+        at their natural saturation; no prior pass applies saturation amplification
+        gated by a two-sided luminance threshold window.
+
+        n_levels       : Number of discrete levels per channel for posterization.
+        n_marks        : Total number of crude marks scattered across the canvas.
+        mark_length    : Half-length of each mark segment in pixels.
+        mark_width     : Perpendicular width of each mark in pixels.
+        mark_strength  : Luminance shift amplitude per mark (+/- applied to RGB).
+        dark_mark_frac : Fraction of marks that darken (polarity = -1).
+        mid_lo         : Lower luminance bound of the midtone saturation window.
+        mid_hi         : Upper luminance bound of the midtone saturation window.
+        sat_boost      : Saturation amplification factor within the midtone window.
+        opacity        : Final composite opacity (0=no change, 1=full effect).
+        seed           : RNG seed for reproducibility of mark positions.
+        """
+        import numpy as _np
+
+        print("    Basquiat Neo-Expressionist Scrawl pass (session 249: 160th mode)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Stage 1: Per-pixel channel discrete posterization
+        nl = int(max(2, n_levels))
+        r1 = (_np.floor(r0 * nl) / nl).astype(_np.float32)
+        g1 = (_np.floor(g0 * nl) / nl).astype(_np.float32)
+        b1 = (_np.floor(b0 * nl) / nl).astype(_np.float32)
+
+        # Stage 2: Random directional crude mark overlay
+        rng = _np.random.default_rng(int(seed))
+        mark_buf = _np.zeros((h, w), dtype=_np.float32)
+        half_l  = float(mark_length) / 2.0
+        mw_half = float(mark_width) / 2.0
+        ms  = float(mark_strength)
+        dmf = float(dark_mark_frac)
+
+        for _ in range(int(n_marks)):
+            cx    = float(rng.integers(0, w))
+            cy    = float(rng.integers(0, h))
+            theta = float(rng.uniform(0.0, _np.pi))
+            pol   = -1.0 if rng.random() < dmf else 1.0
+            cos_t = float(_np.cos(theta))
+            sin_t = float(_np.sin(theta))
+
+            xl = max(0, int(cx - abs(cos_t) * half_l - mw_half - 1))
+            xr = min(w, int(cx + abs(cos_t) * half_l + mw_half + 2))
+            yt = max(0, int(cy - abs(sin_t) * half_l - mw_half - 1))
+            yb = min(h, int(cy + abs(sin_t) * half_l + mw_half + 2))
+            if xl >= xr or yt >= yb:
+                continue
+
+            cols = _np.arange(xl, xr, dtype=_np.float32) - cx
+            rows = _np.arange(yt, yb, dtype=_np.float32) - cy
+            cc, rr = _np.meshgrid(cols, rows)
+
+            t   = _np.clip(cc * cos_t + rr * sin_t, -half_l, half_l)
+            px  = cc - t * cos_t
+            py  = rr - t * sin_t
+            dist = _np.sqrt(px * px + py * py)
+
+            seg_mask = (dist <= mw_half).astype(_np.float32)
+            mark_buf[yt:yb, xl:xr] += seg_mask * pol * ms
+
+        mark_buf = _np.clip(mark_buf, -0.5, 0.5)
+        r2 = _np.clip(r1 + mark_buf, 0.0, 1.0).astype(_np.float32)
+        g2 = _np.clip(g1 + mark_buf, 0.0, 1.0).astype(_np.float32)
+        b2 = _np.clip(b1 + mark_buf, 0.0, 1.0).astype(_np.float32)
+
+        # Stage 3: Midtone saturation amplification
+        lum   = (0.299 * r2 + 0.587 * g2 + 0.114 * b2).astype(_np.float32)
+        ml    = float(mid_lo)
+        mh    = float(mid_hi)
+        ramp  = 0.05
+        lo_ramp = _np.clip((lum - ml) / max(ramp, 1e-6), 0.0, 1.0)
+        hi_ramp = _np.clip((mh - lum) / max(ramp, 1e-6), 0.0, 1.0)
+        mid_mask = (lo_ramp * hi_ramp).astype(_np.float32)
+
+        sb = float(sat_boost)
+        def _boost(ch, _lum, _mask):
+            boosted = _lum + (ch - _lum) * (1.0 + sb)
+            return (ch * (1.0 - _mask) + _np.clip(boosted, 0.0, 1.0) * _mask).astype(_np.float32)
+
+        r3 = _boost(r2, lum, mid_mask)
+        g3 = _boost(g2, lum, mid_mask)
+        b3 = _boost(b2, lum, mid_mask)
+
+        op    = float(opacity)
+        new_r = r0 * (1.0 - op) + r3 * op
+        new_g = g0 * (1.0 - op) + g3 * op
+        new_b = b0 * (1.0 - op) + b3 * op
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        mark_mean = float(_np.abs(mark_buf).mean())
+        sat_area  = float((mid_mask > 0.5).mean())
+        print(f"    Basquiat Scrawl complete (n_levels={nl} n_marks={int(n_marks)} "
+              f"mark_mean={mark_mean:.4f} sat_boost={sb:.2f} sat_area={sat_area:.3f})")
+    def paint_chroma_focus_pass(
+        self,
+        focus_x:              float = 0.50,
+        focus_y:              float = 0.40,
+        focus_radius:         float = 0.38,
+        center_sat_boost:     float = 0.32,
+        periphery_sat_reduce: float = 0.22,
+        opacity:              float = 0.55,
+    ) -> None:
+        r"""Paint Chroma Focus -- session 249 artistic improvement.
+
+        RADIALLY-VARYING SATURATION DIFFERENTIAL: Build a smooth radial weight
+        map from a configurable focus point. Within the focus radius, boost
+        saturation. Beyond the focus radius, gently reduce saturation toward grey.
+        The result guides the viewer to the focal area through chromatic contrast.
+
+        THREE-STAGE CHROMA FOCUS:
+
+        Stage 1 RADIAL DISTANCE MAP: For each pixel (row r, col c), compute
+        Euclidean distance d_px to the focus point (focus_x * W, focus_y * H).
+        Normalise by focus_radius * min(H, W) to obtain dimensionless radial
+        distance d. Center weight cw = clip(1 - d, 0, 1). Periphery weight
+        pw = clip(d - 1, 0, 1).
+        NOVEL: (a) SMOOTH RADIAL CENTRE-PERIPHERY WEIGHT MAP -- first improvement
+        pass to build a per-pixel radial distance field from a configurable focus
+        point yielding separate centre and periphery weight arrays; prior
+        improvement passes use luminance thresholds, frequency bands, or uniform
+        overlays -- none compute a geometric radial distance from a focal point.
+
+        Stage 2 DIFFERENTIAL SATURATION: At each pixel, compute luminance
+        lum = 0.299r + 0.587g + 0.114b. In the focus zone: boost saturation by
+        pushing channels away from lum by (1 + center_sat_boost * cw). In the
+        periphery: reduce saturation by pulling channels toward lum by
+        (1 - periphery_sat_reduce * pw).
+        NOVEL: (b) RADIAL DIFFERENTIAL SATURATION -- first improvement pass to
+        simultaneously boost saturation in a central zone and reduce it in the
+        peripheral zone; no prior improvement pass applies a geometric
+        centre-boost / periphery-reduce saturation differential.
+
+        Stage 3 OPACITY COMPOSITE: Blend adjusted result with original at opacity.
+
+        focus_x              : Horizontal focus centre as canvas fraction [0,1].
+        focus_y              : Vertical focus centre as canvas fraction [0,1].
+        focus_radius         : Focus zone radius as fraction of min(H, W).
+        center_sat_boost     : Saturation boost factor at focus centre.
+        periphery_sat_reduce : Saturation reduction factor at canvas edge.
+        opacity              : Final composite opacity.
+        """
+        import numpy as _np
+
+        print("    Paint Chroma Focus pass (session 249 improvement)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        # Stage 1: Radial distance map
+        fx = float(focus_x) * float(w)
+        fy = float(focus_y) * float(h)
+        fr = max(float(focus_radius) * float(min(h, w)), 1.0)
+
+        rows = _np.arange(h, dtype=_np.float32)[:, None]
+        cols = _np.arange(w, dtype=_np.float32)[None, :]
+        d_px = _np.sqrt((cols - fx) ** 2 + (rows - fy) ** 2)
+        d    = (d_px / fr).astype(_np.float32)
+
+        cw = _np.clip(1.0 - d, 0.0, 1.0).astype(_np.float32)
+        pw = _np.clip(d - 1.0, 0.0, 1.0).astype(_np.float32)
+
+        # Stage 2: Differential saturation
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+        csb = float(center_sat_boost)
+        psr = float(periphery_sat_reduce)
+
+        def _adjust(ch):
+            centre_adj    = lum + (ch - lum) * (1.0 + csb * cw)
+            periphery_adj = lum + (ch - lum) * (1.0 - psr * pw)
+            in_centre  = (cw > 0).astype(_np.float32)
+            in_periph  = (pw > 0).astype(_np.float32)
+            at_boundary = ((cw == 0) & (pw == 0)).astype(_np.float32)
+            result = (
+                _np.clip(centre_adj,    0.0, 1.0) * in_centre +
+                _np.clip(periphery_adj, 0.0, 1.0) * in_periph * (1.0 - in_centre) +
+                ch * at_boundary
+            )
+            return result.astype(_np.float32)
+
+        r1 = _adjust(r0)
+        g1 = _adjust(g0)
+        b1 = _adjust(b0)
+
+        # Stage 3: Opacity composite
+        op    = float(opacity)
+        new_r = r0 * (1.0 - op) + r1 * op
+        new_g = g0 * (1.0 - op) + g1 * op
+        new_b = b0 * (1.0 - op) + b1 * op
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+        centre_area    = float((cw > 0.1).mean())
+        periphery_area = float((pw > 0.1).mean())
+        print(f"    Paint Chroma Focus complete (focus=({float(focus_x):.2f},{float(focus_y):.2f}) "
+              f"radius={float(focus_radius):.2f} centre_boost={csb:.2f} "
+              f"periphery_reduce={psr:.2f} centre_area={centre_area:.3f})")
