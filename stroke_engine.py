@@ -54731,3 +54731,222 @@ class Painter:
         n_dark   = int((valley_gate > 0.5).sum())
         print(f"    Paint Medium Pooling complete "
               f"(valley_px={n_valley} deep_valley_px={n_dark})")
+    def rouault_stained_glass_pass(
+        self,
+        contour_thresh: float = 0.18,
+        contour_depth:  float = 0.72,
+        contour_power:  float = 1.8,
+        lead_cool:      float = 0.08,
+        jewel_boost:    float = 0.55,
+        opacity:        float = 0.82,
+    ) -> None:
+        r"""
+        Rouault Stained Glass -- session 237: ONE HUNDRED AND FORTY-EIGHTH distinct mode.
+
+        Implements Georges Rouault (1871-1958) Expressionist stained-glass aesthetic.
+        Three stages unified by a single Sobel gradient magnitude map:
+
+        Stage 1 CONTOUR DETECTION via Sobel derivative:
+        sx = sobel(lum, axis=1); sy = sobel(lum, axis=0);
+        grad = sqrt(sx^2 + sy^2); grad_norm = clip(grad/contour_thresh, 0, 1);
+        contour_gate = grad_norm^contour_power.
+        FIRST pass in project to use a spatial derivative (Sobel operator) as
+        its primary tool -- all prior passes use luminance thresholds, chroma
+        gates, bell-curve functions, or morphological operators.
+
+        Stage 2 CONTOUR DARKENING + LEAD-LINE COOL TINT:
+        R,G,B *= (1 - contour_depth * contour_gate).
+        Then shift boundary toward blue-grey of raw lead came:
+        R -= contour_gate * lead_cool * 0.60;
+        G -= contour_gate * lead_cool * 0.30;
+        B += contour_gate * lead_cool.
+        No prior pass darkens by gradient magnitude.
+
+        Stage 3 INTERIOR JEWEL SATURATION (inverse gradient gate):
+        interior_gate = clip(1 - grad_norm, 0, 1);
+        sat_scale = 1 + jewel_boost * interior_gate;
+        ch = lum + (ch - lum) * sat_scale.
+        INVERSE GRADIENT GATE: contour zones darkened, interior zones saturated.
+
+        NOVEL vs. existing passes:
+        (a) SOBEL GRADIENT as primary spatial operator (first derivative-based pass).
+        (b) CONTOUR DARKENING by gradient magnitude (no prior pass does this).
+        (c) INVERSE GRADIENT GATE for interior saturation (complementary dual).
+        (d) LEAD-LINE COOL TINT at contour peaks (blue-grey shift of lead came).
+
+        contour_thresh : Gradient magnitude at which contour_gate saturates.
+        contour_depth  : Maximum darkening factor in contour zones [0, 1].
+        contour_power  : Power exponent on contour gate (higher = sharper lines).
+        lead_cool      : Blue-grey cool shift at maximum contour [0, 0.12].
+        jewel_boost    : Saturation multiplier in interior zones [0, 0.8].
+        opacity        : Final composite opacity.
+        """
+        import numpy as _np
+        from scipy.ndimage import sobel as _sobel
+
+        print("    Rouault Stained Glass pass (session 237 -- 148th mode)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # Stage 1: Sobel gradient magnitude
+        sx = _sobel(lum, axis=1).astype(_np.float32)
+        sy = _sobel(lum, axis=0).astype(_np.float32)
+        grad = _np.sqrt(sx ** 2 + sy ** 2)
+        ct = float(contour_thresh)
+        grad_norm = _np.clip(grad / (ct + 1e-7), 0.0, 1.0)
+        cp = float(contour_power)
+        contour_gate = grad_norm ** cp
+
+        # Stage 2: Contour darkening + lead-line cool tint
+        cd = float(contour_depth)
+        r1 = _np.clip(r0 * (1.0 - cd * contour_gate), 0.0, 1.0)
+        g1 = _np.clip(g0 * (1.0 - cd * contour_gate), 0.0, 1.0)
+        b1 = _np.clip(b0 * (1.0 - cd * contour_gate), 0.0, 1.0)
+        lc = float(lead_cool)
+        r2 = _np.clip(r1 - contour_gate * lc * 0.60, 0.0, 1.0)
+        g2 = _np.clip(g1 - contour_gate * lc * 0.30, 0.0, 1.0)
+        b2 = _np.clip(b1 + contour_gate * lc,         0.0, 1.0)
+
+        # Stage 3: Interior jewel saturation
+        interior_gate = _np.clip(1.0 - grad_norm, 0.0, 1.0)
+        jb = float(jewel_boost)
+        lum2 = (0.299 * r2 + 0.587 * g2 + 0.114 * b2).astype(_np.float32)
+        sat_scale = 1.0 + jb * interior_gate
+        r3 = _np.clip(lum2 + (r2 - lum2) * sat_scale, 0.0, 1.0)
+        g3 = _np.clip(lum2 + (g2 - lum2) * sat_scale, 0.0, 1.0)
+        b3 = _np.clip(lum2 + (b2 - lum2) * sat_scale, 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r3 * op
+        new_g = g0 * (1.0 - op) + g3 * op
+        new_b = b0 * (1.0 - op) + b3 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_contour  = int((contour_gate > 0.3).sum())
+        n_interior = int((interior_gate > 0.7).sum())
+        print(f"    Rouault Stained Glass complete "
+              f"(contour_px={n_contour} interior_px={n_interior})")
+
+    def paint_scumble_pass(
+        self,
+        bristle_sigma:  float = 0.75,
+        bristle_thresh: float = 0.60,
+        scumble_lift:   float = 0.13,
+        cool_tint:      float = 0.055,
+        lum_gate_low:   float = 0.25,
+        lum_gate_high:  float = 0.85,
+        opacity:        float = 0.46,
+        seed:           int   = 237,
+    ) -> None:
+        r"""
+        Paint Scumble -- session 237 improvement.
+
+        Scumbling: a nearly-dry brush loaded with semi-opaque lighter paint is
+        dragged roughly over a darker underpainting, catching on canvas texture
+        peaks and skipping valleys, revealing the underlayer in a broken pattern.
+
+        THREE-STAGE SCUMBLE SIMULATION:
+
+        Stage 1 SPARSE BRISTLE MASK: uniform noise smoothed at bristle_sigma,
+        normalised to [0,1], then thresholded at bristle_thresh to produce a
+        near-binary sparse mask of bristle contact zones.  FIRST in project to
+        use a thresholded binary noise mask -- all prior noise passes use
+        continuous noise (film_grain, pigment_granulation).
+
+        Stage 2 LUMINANCE GATE: scumbling concentrates in mid-to-upper luminance
+        zones (shadows are too dark to lift significantly).
+        lum_gate = clip((lum - lum_gate_low)/(lum_gate_high - lum_gate_low), 0, 1).
+        combined_gate = bristle_mask * lum_gate.
+
+        Stage 3 SCUMBLE DEPOSIT: cool asymmetric channel lift in gate zones:
+        R += gate * scumble_lift * 0.82;
+        G += gate * scumble_lift * 0.92;
+        B += gate * (scumble_lift + cool_tint).
+        Models thin cool dry-paint deposit catching on texture peaks.
+
+        NOVEL vs. existing passes:
+        (a) SPARSE THRESHOLDED NOISE bristle pattern (binary vs. continuous).
+        (b) LUMINANCE-GATED POSITIVE LIFT (distinct from impasto, varnish, granulation).
+        (c) COOL ASYMMETRIC CHANNEL LIFT via sparse binary gate.
+
+        bristle_sigma  : Gaussian blur sigma for noise smoothing.
+        bristle_thresh : Threshold for binarising the noise [0.5-0.7 typical].
+        scumble_lift   : Maximum luminance lift in bristle zones [0, 0.20].
+        cool_tint      : Additional blue lift over scumble_lift [0, 0.10].
+        lum_gate_low   : Luminance below which scumbling has no effect.
+        lum_gate_high  : Luminance above which scumbling is at full effect.
+        opacity        : Final composite opacity.
+        seed           : RNG seed for reproducibility.
+        """
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        print("    Paint Scumble pass (session 237 improvement)...")
+
+        surface = self.canvas.surface
+        orig = _np.frombuffer(surface.get_data(), dtype=_np.uint8).reshape(
+            (self.canvas.h, self.canvas.w, 4)).copy()
+        h, w = orig.shape[:2]
+
+        b0 = orig[:, :, 0].astype(_np.float32) / 255.0
+        g0 = orig[:, :, 1].astype(_np.float32) / 255.0
+        r0 = orig[:, :, 2].astype(_np.float32) / 255.0
+
+        lum = (0.299 * r0 + 0.587 * g0 + 0.114 * b0).astype(_np.float32)
+
+        # Stage 1: Sparse bristle mask via thresholded noise
+        rng = _np.random.RandomState(int(seed))
+        noise = rng.uniform(0.0, 1.0, (h, w)).astype(_np.float32)
+        smoothed = _gf(noise, float(bristle_sigma))
+        sn_min = float(smoothed.min())
+        sn_max = float(smoothed.max())
+        smoothed = (smoothed - sn_min) / (sn_max - sn_min + 1e-7)
+        bristle_mask = (smoothed > float(bristle_thresh)).astype(_np.float32)
+
+        # Stage 2: Luminance gate
+        low  = float(lum_gate_low)
+        high = float(lum_gate_high)
+        lum_gate = _np.clip((lum - low) / (high - low + 1e-7), 0.0, 1.0)
+        gate = bristle_mask * lum_gate
+
+        # Stage 3: Scumble deposit (cool asymmetric channel lift)
+        sl = float(scumble_lift)
+        ct = float(cool_tint)
+        r1 = _np.clip(r0 + gate * sl * 0.82, 0.0, 1.0)
+        g1 = _np.clip(g0 + gate * sl * 0.92, 0.0, 1.0)
+        b1 = _np.clip(b0 + gate * (sl + ct), 0.0, 1.0)
+
+        op = float(opacity)
+        new_r = r0 * (1.0 - op) + r1 * op
+        new_g = g0 * (1.0 - op) + g1 * op
+        new_b = b0 * (1.0 - op) + b1 * op
+
+        buf = orig.copy()
+        buf[:, :, 2] = _np.clip(new_r * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 1] = _np.clip(new_g * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 0] = _np.clip(new_b * 255, 0, 255).astype(_np.uint8)
+        buf[:, :, 3] = orig[:, :, 3]
+        surface.get_data()[:] = buf.tobytes()
+        surface.mark_dirty()
+
+        n_bristle = int((bristle_mask > 0.5).sum())
+        n_active  = int((gate > 0.2).sum())
+        print(f"    Paint Scumble complete "
+              f"(bristle_px={n_bristle} active_px={n_active})")
+
