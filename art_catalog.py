@@ -22098,6 +22098,102 @@ CATALOG: Dict[str, ArtStyle] = {
             "memory; large-format compositions with rhythmic colour fields."
         ),
     ),
+    "francis_bacon": ArtStyle(
+        artist="Francis Bacon",
+        movement="Figurative Expressionism",
+        nationality="Irish-British",
+        period="1909-1992",
+        palette=[
+            (0.62, 0.28, 0.08),
+            (0.84, 0.44, 0.18),
+            (0.42, 0.18, 0.12),
+            (0.90, 0.86, 0.72),
+            (0.06, 0.08, 0.42),
+            (0.08, 0.10, 0.08),
+            (0.22, 0.44, 0.24),
+            (0.72, 0.52, 0.32),
+            (0.88, 0.30, 0.12),
+            (0.48, 0.46, 0.52),
+        ],
+        ground_color=(0.88, 0.82, 0.68),
+        stroke_size=18,
+        wet_blend=0.28,
+        edge_softness=0.40,
+        jitter=0.22,
+        glazing=None,
+        crackle=False,
+        chromatic_split=False,
+        technique=(
+            "Francis Bacon (1909-1992) was born in Dublin to English parents and "
+            "arrived in London in the 1920s, initially working as an interior decorator "
+            "before arriving at painting without formal training in the early 1930s. His "
+            "breakthrough came with Three Studies for Figures at the Base of a Crucifixion "
+            "(1944), which shocked a London audience still raw from the war with its images "
+            "of screaming, contorted figures in a featureless orange void. Bacon worked "
+            "exclusively in a chaotic Reece Mews studio in South Kensington, surrounded by "
+            "torn photographs, paint rags, and reproductions of Muybridge, Velazquez, and "
+            "Degas, and he built his images not from direct observation but from an intimate "
+            "archive of source imagery: accident and anatomy photographs from medical "
+            "journals, frames from Eisenstein Battleship Potemkin, X-rays, and a lifelong "
+            "series of Muybridge animal locomotion plates. His defining technical "
+            "signatures: (1) THE ISOLATION FRAME -- Bacon habitually enclosed his figures "
+            "within geometric structures: rectangles, ovals, diagonal rails, cages of "
+            "perspective lines that did not correspond to any rational space. These "
+            "structures -- he called them armatures -- both contained and menaced the "
+            "figure. They are not rooms or cages but spatial concentrators, forcing "
+            "attention to the isolated flesh at their centre; (2) DIRECTIONAL SMEAR AND "
+            "SCRUB -- Bacon was known to work rags, his hands, and blunt brushes directly "
+            "across wet paint, especially in the face and flesh passages, creating "
+            "directional smears that interrupted the representation. The effect: faces that "
+            "are simultaneously present and dissolving, flesh that is both specific and "
+            "generic. He said: I want to record a person but at the same time I want to "
+            "make a kind of ghost of them; (3) FLAT BACKGROUND FIELDS -- In marked "
+            "contrast to the turbulence of the figures, Bacon backgrounds are typically "
+            "flat, unarticulated fields of intense pure colour: raw sienna, viridian, "
+            "cobalt, cadmium orange. These fields were painted with a hard roller or "
+            "house-painter brush to achieve absolute uniformity, making them feel less "
+            "like painted space and more like colour itself; (4) THE TRIPTYCH FORMAT -- "
+            "Bacon habitually painted in triptychs, presenting three versions or moments "
+            "of a figure or situation as discrete panels with no narrative connecting them "
+            "-- an influence from the altarpiece tradition, but secularised: three states "
+            "of flesh, three positions of an event, three aspects of a person; (5) THE "
+            "ACCIDENT AS METHOD -- Bacon famously worked with chance: he would throw paint "
+            "at the canvas, use paint-covered rags as improvised brushes, and accept the "
+            "results of his own slips and accidents as image-generating events. He sought "
+            "the sensation-image, not the illustration; the nervous system, not the brain."
+        ),
+        famous_works=[
+            ("Three Studies for Figures at the Base of a Crucifixion", "1944"),
+            ("Study after Velazquez's Portrait of Pope Innocent X",     "1953"),
+            ("Two Figures",                                              "1953"),
+            ("Study for a Portrait of Van Gogh IV",                     "1957"),
+            ("Three Studies for a Self-Portrait",                       "1979"),
+            ("Triptych May-June 1973",                                  "1973"),
+            ("Figure with Meat",                                        "1954"),
+            ("Portrait of George Dyer Crouching",                       "1966"),
+            ("Second Version of Triptych 1944",                         "1988"),
+        ],
+        inspiration=(
+            "bacon_isolated_figure_pass(): ONE HUNDRED AND SIXTY-SECOND "
+            "distinct mode -- three-stage isolated figure smear -- "
+            "(1) ELLIPTICAL ISOLATION VIGNETTE: divide canvas into interior zone "
+            "(inside configurable ellipse centred at focal_x, focal_y with semi-axes "
+            "rx, ry) and exterior zone; darken exterior pixels by exterior_strength "
+            "toward a near-black field; apply smooth transition band at ellipse edge "
+            "of width transition_width; first pass to impose an elliptical spatial "
+            "concentration frame as primary spatial structure -- distinct from radial "
+            "chroma_focus (modulates saturation, circular), from vignette_pass (darkens "
+            "corners), from meso/micro detail passes (sharpness); (2) DIRECTIONAL LINEAR "
+            "SMEAR: within the ellipse interior, apply a discrete linear averaging kernel "
+            "along smear_angle, smear_length pixels long, weighted by per-pixel luminance "
+            "proximity to mid_luminance (smear strongest at middle grey, weakest at "
+            "extremes); first pass to apply a discrete linear motion-blur kernel as primary "
+            "figure-zone treatment; (3) FLAT BACKGROUND TONE FIELD: in the exterior zone, "
+            "blend all pixel colours toward a configurable flat_hue and flat_sat target; "
+            "first pass to apply hue/saturation-field unification to an exterior isolation "
+            "zone. Best for figurative subjects, figure-in-void compositions."
+        ),
+    ),
 }
 
 
