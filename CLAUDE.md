@@ -103,9 +103,25 @@ p.place_lights(ref, stroke_size=6, n_strokes=160) # lights and accents
 p.save("output.png")
 ```
 
-**Stroke counts:** Use at least 280–400 for `block_in`, 240–320 for `build_form`, 140–200 for `place_lights` on a standard canvas. Sparse strokes leave the ground showing through — increase counts if coverage looks thin.
+**Stroke counts:** Run each structural phase as two passes (large stroke then fine), not one. Minimum counts per pass:
 
-**Canvas sizes:** 760×900 to 1040×1440 depending on subject. Portraits and animals benefit from larger canvases (1040×1440) for feature resolution.
+| Phase | stroke_size | n_strokes |
+|---|---|---|
+| `underpainting` | 48–56 | 200–280 |
+| `block_in` (broad) | 28–36 | 400–520 |
+| `block_in` (medium) | 16–22 | 420–540 |
+| `build_form` (medium) | 10–14 | 480–600 |
+| `build_form` (fine) | 4–8 | 380–480 |
+| `place_lights` | 3–5 | 260–360 |
+
+Sparse strokes leave bare ground showing through and produce formless output. If in doubt, go higher — excess strokes blend into coverage; too few cannot be recovered by passes alone.
+
+**Canvas sizes:** Minimum 1000px on the short side. Standard sizes:
+- Portrait / animal head: **1040 × 1440**
+- Landscape / wide scene: **1440 × 1040**
+- Square: **1200 × 1200**
+
+Smaller canvases (760×900) lack resolution to resolve facial features and fur texture. Do not use them for figurative subjects.
 
 **`p._comp_map`** — assign a float32 `(H, W)` weight map to bias stroke placement toward features. Values >1 attract more strokes. Built by `build_combined_weight_map()` from the anatomy module.
 
