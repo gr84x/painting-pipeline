@@ -332,7 +332,6 @@ def main():
     print("Applying Contour Weight pass...")
     p.paint_contour_weight_pass(
         contour_threshold=0.06,
-        contour_strength=0.55,
         max_weight=0.85,
         weight_exponent=1.4,
         taper_strength=0.25,
