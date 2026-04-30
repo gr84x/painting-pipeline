@@ -382,9 +382,18 @@ CATALOG: Dict[str, ArtStyle] = {
             ("Tree of Knowledge, No. 5", "1913"),
         ],
         inspiration=(
-            "Contrast large warm (amber/orange) zones against cool blue/violet zones. "
-            "Use flowing spherical_flow() field for organic curved strokes. "
-            "Jewel palette hint. Light pale ground visible in low-density areas."
+            "hilma_af_klint_biomorphic_pass(): ONE HUNDRED AND SIXTY-EIGHTH "
+            "(168th) distinct mode -- three-stage biomorphic abstraction -- "
+            "(1) CONCENTRIC RADIAL GROWTH RING FIELD: compute luminance-weighted "
+            "centroid; radial distance normalised by mean corner distance; "
+            "ring_field = 0.5*(1+sin(2*pi*r_norm*ring_count)); first pass to "
+            "generate concentric sine-wave rings from luminance-weighted centroid; "
+            "(2) BIOMORPHIC ZONE COLOUR RESONANCE: inner zones pushed warm, outer "
+            "zones cool, strength proportional to ring_field distance from 0.5; "
+            "first pass to apply radial ring-distance-weighted chromatic warm/cool "
+            "zone push; (3) LUMINOUS BOUNDARY HAZE: gradient magnitude of ring_field "
+            "blurred at haze_sigma, applied as multiplicative luminosity boost at "
+            "ring boundaries; first pass to add luminosity glow along ring boundaries."
         ),
     ),
 
