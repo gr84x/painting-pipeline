@@ -383,7 +383,7 @@ def render_scene(scene, output_path: str, verbose: bool = False) -> str:
             cmd,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=480,
         )
         if verbose:
             print(result.stdout[-2000:] if result.stdout else "")
