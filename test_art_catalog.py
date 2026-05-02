@@ -224,6 +224,7 @@ EXPECTED_ARTISTS = [
     "helene_schjerfbeck",
     "valentin_serov",
     "giovanni_segantini",
+    "camille_pissarro",
 ]
 
 
