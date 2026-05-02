@@ -225,6 +225,7 @@ EXPECTED_ARTISTS = [
     "valentin_serov",
     "giovanni_segantini",
     "camille_pissarro",
+    "jean_dubuffet",
 ]
 
 
@@ -29869,3 +29870,97 @@ def test_pierre_bonnard_in_list_artists():
     """Session 222: pierre_bonnard must appear in list_artists()."""
     assert "pierre_bonnard" in list_artists(), (
         "pierre_bonnard must appear in list_artists()")
+
+
+# ── Jean Dubuffet (session 289, 200th mode) ───────────────────────────────────
+
+def test_jean_dubuffet_in_catalog():
+    """Session 289: jean_dubuffet must appear in CATALOG."""
+    assert "jean_dubuffet" in CATALOG, "jean_dubuffet missing from CATALOG"
+
+
+def test_jean_dubuffet_movement():
+    """Session 289: jean_dubuffet movement must reference Art Brut."""
+    s = get_style("jean_dubuffet")
+    mv = s.movement.lower()
+    assert "art brut" in mv or "outsider" in mv, (
+        f"jean_dubuffet movement unexpected: {s.movement!r}")
+
+
+def test_jean_dubuffet_palette_length():
+    """Session 289: jean_dubuffet must have at least 5 palette entries."""
+    s = get_style("jean_dubuffet")
+    assert len(s.palette) >= 5, (
+        f"jean_dubuffet should have >= 5 palette entries; got {len(s.palette)}")
+
+
+def test_jean_dubuffet_palette_in_range():
+    """Session 289: all jean_dubuffet palette RGB values must be in [0.0, 1.0]."""
+    s = get_style("jean_dubuffet")
+    for rgb in s.palette:
+        assert len(rgb) == 3, f"jean_dubuffet palette entry not 3-tuple: {rgb}"
+        for ch in rgb:
+            assert 0.0 <= ch <= 1.0, (
+                f"jean_dubuffet palette channel {ch} out of [0, 1]")
+
+
+def test_jean_dubuffet_ground_color_valid():
+    """Session 289: jean_dubuffet ground_color must be a valid 3-tuple in [0, 1]."""
+    s = get_style("jean_dubuffet")
+    assert len(s.ground_color) == 3
+    for ch in s.ground_color:
+        assert 0.0 <= ch <= 1.0, (
+            f"jean_dubuffet ground_color channel {ch} out of [0, 1]")
+
+
+def test_jean_dubuffet_low_wet_blend():
+    """Session 289: Dubuffet's dry material surfaces -- wet_blend should be <= 0.35."""
+    s = get_style("jean_dubuffet")
+    assert s.wet_blend <= 0.35, (
+        f"jean_dubuffet wet_blend should be <= 0.35 (dry material); got {s.wet_blend}")
+
+
+def test_jean_dubuffet_low_edge_softness():
+    """Session 289: Dubuffet's scored hard outlines -- edge_softness should be <= 0.30."""
+    s = get_style("jean_dubuffet")
+    assert s.edge_softness <= 0.30, (
+        f"jean_dubuffet edge_softness should be <= 0.30 (hard outlines); got {s.edge_softness}")
+
+
+def test_jean_dubuffet_no_crackle():
+    """Session 289: jean_dubuffet crackle must be False."""
+    s = get_style("jean_dubuffet")
+    assert s.crackle is False, "jean_dubuffet crackle must be False"
+
+
+def test_jean_dubuffet_no_chromatic_split():
+    """Session 289: jean_dubuffet chromatic_split must be False (flat palette)."""
+    s = get_style("jean_dubuffet")
+    assert s.chromatic_split is False, "jean_dubuffet chromatic_split must be False"
+
+
+def test_jean_dubuffet_famous_works_count():
+    """Session 289: jean_dubuffet must have at least 5 famous works listed."""
+    s = get_style("jean_dubuffet")
+    assert len(s.famous_works) >= 5, (
+        f"jean_dubuffet should have >= 5 famous works; got {len(s.famous_works)}")
+
+
+def test_jean_dubuffet_inspiration_references_pass():
+    """Session 289: inspiration must reference dubuffet_art_brut_pass."""
+    s = get_style("jean_dubuffet")
+    assert "dubuffet_art_brut_pass" in s.inspiration, (
+        "jean_dubuffet inspiration must mention dubuffet_art_brut_pass")
+
+
+def test_jean_dubuffet_inspiration_references_200th():
+    """Session 289: inspiration must explicitly name the 200th distinct mode."""
+    s = get_style("jean_dubuffet")
+    assert "200" in s.inspiration, (
+        "jean_dubuffet inspiration must reference 200th distinct mode")
+
+
+def test_jean_dubuffet_in_list_artists():
+    """Session 289: jean_dubuffet must appear in list_artists()."""
+    assert "jean_dubuffet" in list_artists(), (
+        "jean_dubuffet must appear in list_artists()")
