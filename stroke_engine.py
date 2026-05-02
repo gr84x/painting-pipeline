@@ -71548,3 +71548,827 @@ class Painter:
         print(f"    Repin Character Depth complete "
               f"(mid_px={mid_px}, shadow_px={shadow_px}, edge_px={edge_px})")
 
+
+    def paint_chromatic_shadow_shift_pass(
+        self,
+        shadow_thresh:       float = 0.38,
+        shadow_range:        float = 0.15,
+        shadow_hue_shift:    float = 28.0,
+        highlight_thresh:    float = 0.72,
+        highlight_range:     float = 0.14,
+        highlight_hue_shift: float = 12.0,
+        shift_strength:      float = 0.80,
+        opacity:             float = 0.75,
+    ) -> None:
+        r"""Chromatic Shadow Shift -- s284 improvement.
+
+        THE PHYSICAL BASIS: HUE ROTATION IN SHADOW AND HIGHLIGHT ZONES
+
+        In traditional oil painting, shadows are never simply dark versions of
+        the lit colour. They shift in hue. This phenomenon -- called "chromatic
+        shadow" in colour theory and "simultaneous contrast" in perceptual
+        psychology -- has several independent causes:
+
+        1. SKY-LIGHT HUE CONTAMINATION: Outdoor shadows receive skylight from
+           above. Since sky radiates predominantly in the blue-violet range
+           (Rayleigh scattering of short-wavelength photons), shadows on warm
+           subjects (ochre stone, bare earth, human skin) are pushed toward
+           cool blue-violet. A yellow-ochre wall in sunlight casts a shadow
+           tinged with grey-blue from the sky.
+
+        2. SIMULTANEOUS CONTRAST (SIMULTANEOUS COLOUR INDUCTION): Adjacent
+           complementary colours appear mutually enhanced. The visual system,
+           adapted to the dominant warm key-light, interprets shadow areas
+           through a complementary filter. If the key light is warm (orange),
+           the eye interprets the shadow zone as its complement (blue-violet).
+           This is not an optical illusion; it is the mechanism by which the
+           brain separates illumination from surface colour.
+
+        3. REFLECTIVE LIGHT HUES: Shadows receive bounced light from nearby
+           surfaces. A figure in a garden receives green-reflected light from
+           grass on their shaded side. A harbour scene receives blue-green from
+           water. The reflected hue contamination is always in the shadow zone.
+
+        4. HIGHLIGHT WARM SHIFT: Conversely, direct-lit highlights -- where the
+           key light strikes the surface most perpendicularly -- are shifted
+           toward the key light's hue. For the common warm lighting conditions
+           of classical and Expressionist painting (candle, incandescent, late
+           afternoon sun), highlights shift toward amber-warm, slightly away
+           from the cool middle tones.
+
+        This shadow-cool / highlight-warm hue separation is described by:
+          - Delacroix: "There are no neutral shadows; the shadow of a warm
+            object is always tinged with its complement."
+          - Cézanne: explicitly constructed his colour using hue opposition
+            between the warm-lit facets and cool-shadow facets.
+          - Kokoschka: used vivid cobalt and prussian blue in shadow passages
+            alongside crimson in lit zones, creating a violent chromatic charge.
+          - Sorolla: pushed shadow zones to deep cool blue-violet, lit zones
+            to warm acid yellow-green, creating the Mediterranean light effect.
+
+        NOVELTY ANALYSIS: FIRST PASS TO OPERATE IN HSV COLOUR SPACE.
+        Every prior pass in this engine operates on RGB channels directly:
+          - shadow_temperature_pass (s281): LERP toward warm/cool targets in RGB
+          - contre_jour_rim_pass (s282): LERP at luminance boundaries in RGB
+          - form_curvature_tint_pass (s283): LERP on convex/concave zones in RGB
+          - repin_character_depth_pass (s283): warm/cool push in RGB with gates
+          - All edge, texture, and structural passes: direct RGB manipulation
+        No prior pass:
+          (i)   converts the canvas from RGB to HSV colour space;
+          (ii)  modifies the HUE ANGLE independently of saturation and value;
+          (iii) applies a HUE ROTATION (angular shift of the hue circle) rather
+                than a hue PUSH (LERP toward a fixed target hue);
+          (iv)  converts back from HSV to RGB after modification.
+        The distinction between a hue PUSH and a hue ROTATION is critical:
+          PUSH: new_H = LERP(old_H, target_H, mask * strength)
+                This moves all hues toward one fixed target; a red and a blue
+                in shadow both move toward, say, blue-violet (0.67). The amount
+                depends on their angular distance from the target.
+          ROTATION: new_H = old_H + delta_H * mask * strength
+                This shifts EVERY hue by the SAME angular amount. A red in
+                shadow shifts +28 deg (toward orange-red, i.e., hue 28 deg).
+                A blue in shadow shifts +28 deg (toward blue-violet). A green
+                shifts +28 deg (toward yellow-green). The direction and magnitude
+                are identical for all hues, but the RESULT is different because
+                each starting hue is different. This preserves the hue
+                RELATIONSHIPS between colours while shifting them uniformly
+                around the wheel -- modelling the physics of a coloured ambient
+                light field, which tints all colours equally.
+
+        Stage 1 RGB TO HSV CONVERSION (First HSV operation in engine):
+        For each pixel, convert (R, G, B) to (H, S, V) using standard formulas:
+          V = max(R, G, B)
+          delta = max(R, G, B) - min(R, G, B)
+          S = delta / V                          (if V > 0, else 0)
+          H computed from which channel is maximum:
+            if max = R: H = ((G - B) / delta) mod 6
+            if max = G: H = (B - R) / delta + 2
+            if max = B: H = (R - G) / delta + 4
+          H normalized to [0, 1] range (divide by 6)
+        The value channel V serves as the luminance proxy for zone masking.
+        NOVEL: (a) HSV CONVERSION -- first time this engine works in the
+        HSV representation of colour rather than the raw RGB channels.
+
+        Stage 2 SHADOW ZONE HUE ROTATION:
+        shadow_mask = clip((shadow_thresh - V) / max(shadow_range, 0.01), 0, 1)
+        H_new = (H + shadow_hue_shift / 360.0 * shadow_mask * shift_strength) mod 1.0
+        The shadow zone (V < shadow_thresh) receives a positive hue rotation
+        of shadow_hue_shift degrees. Default: +28 degrees shifts the hue
+        toward warmer-complementary (orange-red shifts toward yellow, blue
+        shifts toward blue-violet, green shifts toward cyan). This models
+        the blue-sky ambient light component in outdoor shadows.
+        NOVEL: (b) ANGULAR HUE ROTATION IN SHADOW ZONE -- no prior pass adds
+        a fixed angular delta to the hue channel. Prior passes LERP toward a
+        fixed colour target, which has the same effect for all hues (equal pull
+        toward the same destination). The rotation preserves inter-hue
+        relationships while shifting the collective hue cluster in the shadow.
+
+        Stage 3 HIGHLIGHT ZONE HUE TILT:
+        highlight_mask = clip((V - highlight_thresh) / max(highlight_range, 0.01), 0, 1)
+        H_new = (H_new - highlight_hue_shift / 360.0 * highlight_mask * shift_strength) mod 1.0
+        The highlight zone (V > highlight_thresh) receives a NEGATIVE rotation
+        of highlight_hue_shift degrees. Default: -12 degrees shifts highlights
+        slightly backward on the hue wheel (toward the key-light's natural hue).
+        This creates the warm-highlight / cool-shadow hue opposition that
+        characterizes luminous painting from Delacroix to Kokoschka.
+        NOVEL: (c) OPPOSING ROTATIONS IN SHADOW AND HIGHLIGHT ZONES -- both
+        zones receive hue rotations, but in opposite angular directions. The
+        midtone zone (mid-V) receives no rotation, acting as the hue anchor.
+        This three-zone structure (shadow rotated +, midtone unchanged,
+        highlight rotated -) models the full chromatic temperature structure
+        of naturally lit painting.
+
+        Stage 4 HSV TO RGB CONVERSION AND COMPOSITE:
+        Convert modified (H_new, S, V) back to (R_new, G_new, B_new) using
+        the standard inverse HSV-to-RGB formula. Composite at opacity:
+          R_out = R + (R_new - R) * opacity
+        The shadow_px and highlight_px counts measure actual coverage.
+        NOVEL: (d) ROUND-TRIP HSV PROCESSING PRESERVING SATURATION AND VALUE
+        -- the pass modifies ONLY the hue channel; S and V are read from RGB
+        and written back unchanged. This is structurally distinct from
+        colour-temperature passes that modify all three RGB channels: the
+        RGB-to-HSV decomposition allows surgical modification of one perceptual
+        dimension (hue) without contaminating the others (brightness, chroma).
+        """
+        print("    Chromatic Shadow Shift pass (session 284 improvement)...")
+
+        import numpy as _np
+
+        canvas = self.canvas
+        H_, W_ = canvas.h, canvas.w
+
+        raw = _np.frombuffer(canvas.surface.get_data(), dtype=_np.uint8
+                             ).reshape((H_, W_, 4)).copy()
+        R = raw[:, :, 2].astype(_np.float32) / 255.0
+        G = raw[:, :, 1].astype(_np.float32) / 255.0
+        B = raw[:, :, 0].astype(_np.float32) / 255.0
+
+        # Stage 1: RGB → HSV
+        Cmax = _np.maximum(_np.maximum(R, G), B).astype(_np.float32)
+        Cmin = _np.minimum(_np.minimum(R, G), B).astype(_np.float32)
+        delta = (Cmax - Cmin).astype(_np.float32)
+
+        V_ch = Cmax.copy()
+
+        S_ch = _np.where(Cmax > 1e-8, delta / _np.maximum(Cmax, 1e-8), 0.0
+                         ).astype(_np.float32)
+
+        H_ch = _np.zeros((H_, W_), dtype=_np.float32)
+        eps = 1e-8
+        d_safe = _np.maximum(delta, eps)
+        mask_r = (Cmax == R) & (delta > eps)
+        mask_g = (Cmax == G) & (delta > eps)
+        mask_b = (Cmax == B) & (delta > eps)
+        H_ch = _np.where(mask_r, ((G - B) / d_safe) % 6.0, H_ch)
+        H_ch = _np.where(mask_g, (B - R) / d_safe + 2.0, H_ch)
+        H_ch = _np.where(mask_b, (R - G) / d_safe + 4.0, H_ch)
+        H_ch = (H_ch / 6.0).astype(_np.float32)  # normalise to [0, 1]
+
+        # Stage 2: Shadow zone hue rotation (positive shift)
+        st  = float(shadow_thresh)
+        sr  = max(float(shadow_range), 0.01)
+        shadow_mask = _np.clip((st - V_ch) / sr, 0.0, 1.0).astype(_np.float32)
+
+        sshift = float(shadow_hue_shift) / 360.0 * float(shift_strength)
+        H_new = (H_ch + sshift * shadow_mask) % 1.0
+
+        # Stage 3: Highlight zone hue tilt (negative shift)
+        ht  = float(highlight_thresh)
+        hr  = max(float(highlight_range), 0.01)
+        highlight_mask = _np.clip((V_ch - ht) / hr, 0.0, 1.0).astype(_np.float32)
+
+        hshift = float(highlight_hue_shift) / 360.0 * float(shift_strength)
+        H_new = (H_new - hshift * highlight_mask) % 1.0
+
+        # Stage 4: HSV → RGB
+        h6   = H_new * 6.0
+        i_ch = _np.floor(h6).astype(_np.int32) % 6
+        f_ch = (h6 - _np.floor(h6)).astype(_np.float32)
+        p_ch = (V_ch * (1.0 - S_ch)).astype(_np.float32)
+        q_ch = (V_ch * (1.0 - f_ch * S_ch)).astype(_np.float32)
+        t_ch = (V_ch * (1.0 - (1.0 - f_ch) * S_ch)).astype(_np.float32)
+
+        R_new = _np.select(
+            [i_ch == 0, i_ch == 1, i_ch == 2, i_ch == 3, i_ch == 4, i_ch == 5],
+            [V_ch, q_ch, p_ch, p_ch, t_ch, V_ch]
+        ).astype(_np.float32)
+        G_new = _np.select(
+            [i_ch == 0, i_ch == 1, i_ch == 2, i_ch == 3, i_ch == 4, i_ch == 5],
+            [t_ch, V_ch, V_ch, q_ch, p_ch, p_ch]
+        ).astype(_np.float32)
+        B_new = _np.select(
+            [i_ch == 0, i_ch == 1, i_ch == 2, i_ch == 3, i_ch == 4, i_ch == 5],
+            [p_ch, p_ch, t_ch, V_ch, V_ch, q_ch]
+        ).astype(_np.float32)
+
+        # Composite at opacity
+        op = float(opacity)
+        R_out = _np.clip(R + (R_new - R) * op, 0.0, 1.0).astype(_np.float32)
+        G_out = _np.clip(G + (G_new - G) * op, 0.0, 1.0).astype(_np.float32)
+        B_out = _np.clip(B + (B_new - B) * op, 0.0, 1.0).astype(_np.float32)
+
+        shadow_px    = int((shadow_mask    > 0.05).sum())
+        highlight_px = int((highlight_mask > 0.05).sum())
+
+        out = raw.copy()
+        out[:, :, 2] = (R_out * 255).astype(_np.uint8)
+        out[:, :, 1] = (G_out * 255).astype(_np.uint8)
+        out[:, :, 0] = (B_out * 255).astype(_np.uint8)
+        canvas.surface.get_data()[:] = out.tobytes()
+
+        print(f"    Chromatic Shadow Shift complete "
+              f"(shadow_px={shadow_px}, highlight_px={highlight_px})")
+
+
+    def kokoschka_vibrating_surface_pass(
+        self,
+        gradient_sigma:      float = 1.1,
+        edge_percentile:     float = 80.0,
+        glow_lo:             float = 0.35,
+        glow_hi:             float = 0.70,
+        glow_r:              float = 0.94,
+        glow_g:              float = 0.82,
+        glow_b:              float = 0.52,
+        glow_strength:       float = 0.22,
+        edge_r:              float = 0.28,
+        edge_g:              float = 0.50,
+        edge_b:              float = 0.90,
+        edge_strength:       float = 0.28,
+        sat_boost:           float = 0.30,
+        opacity:             float = 0.84,
+    ) -> None:
+        r"""Kokoschka Vibrating Surface (Austrian Expressionism) -- 195th mode.
+
+        OSKAR KOKOSCHKA (1886-1980) -- AUSTRIAN EXPRESSIONIST;
+        PAINTER OF THE INNER VISION AND THE AGITATED SOUL:
+
+        Oskar Kokoschka was born in Pöchlarn, Austria in 1886, the son of a
+        Czech goldsmith. He studied at the Vienna School of Arts and Crafts
+        from 1904, initially working in the Wiener Werkstätte decorative arts
+        movement. By 1908, exposed to the psychoanalytic climate of Freudian
+        Vienna, Kokoschka broke decisively with decorative art and began his
+        series of psychological portraits that brought him international
+        notoriety and scandal.
+
+        His early Vienna portraits -- of Adolf Loos, Karl Kraus, Herwarth
+        Walden, Else Lasker-Schüler -- are among the most intense psychological
+        investigations in Western painting. Kokoschka did not paint appearances.
+        He believed that the surface of the face was merely a mask obscuring
+        the inner psychic reality, and that the painter's task was to strip
+        away that mask through obsessive observation until the interior life
+        of the sitter became visible. His sitters frequently emerged looking
+        haggard, disturbed, and exposed -- though Kokoschka insisted he was
+        revealing their truest nature.
+
+        His most famous single painting, "Die Windsbraut" ("The Bride of the
+        Wind," also known as "The Tempest," 1913-14), is a monumental self-
+        portrait with his lover Alma Mahler, the two figures swirling in a
+        shell-shaped vortex of swirling blue and violet air, suspended above
+        an alpine landscape. The painting is simultaneously a personal
+        confession and a technical manifesto: all form is in constant agitation,
+        all surfaces vibrate, the boundary between body and world dissolves.
+
+        After severe wounds suffered in World War I, Kokoschka moved through
+        Dresden, Vienna again, Paris, London (where he spent the war years),
+        Salzburg and finally Villeneuve-sur-Mer on Lake Geneva, where he died
+        in 1980 at the age of 93. His landscape paintings of Dresden, the
+        Prague panorama, Constantinople from the Galata Bridge, and the Aegean
+        coastline share a panoramic, vibrating energy: the entire landscape
+        seems to breathe and shift, observed from an elevated position that
+        Kokoschka described as "the cosmic viewpoint."
+
+        KOKOSCHKA'S FIVE DEFINING TECHNICAL CHARACTERISTICS:
+
+        1. THE VIBRATING BRUSHSTROKE: Kokoschka applied paint in short, agitated,
+           comma-like or spiral strokes that never settled into a smooth surface.
+           The strokes remain individually legible, creating a physical texture
+           of restless motion. Even in quiet areas of sky or water, the strokes
+           impart a trembling quality. Kokoscha called this the "heartbeat of
+           the paint."
+
+        2. CHROMATIC EDGE ACCENTUATION: At the edges between forms -- where
+           flesh meets air, where rock meets water, where building meets sky --
+           Kokoschka applied vivid, often unexpected colour accents. Not the
+           dark outlines of Beckmann or the blurred transitions of the
+           Impressionists, but vivid cobalt blues, prussian violets, raw siennas
+           at the boundary zone. These chromatic edge accents function like
+           the leading lines in stained glass, separating colour zones with
+           vivid, charged boundaries.
+
+        3. INNER CHROMATIC GLOW: Kokoschka believed in an inner light latent
+           in subjects -- a warmth or luminosity emanating from the subject
+           itself rather than reflected from an external source. He achieved
+           this by enriching the mid-luminance zones -- the broad middle register
+           between the extremes of deep shadow and specular highlight -- with
+           a characteristic warm amber-ochre-cream. The skin of his subjects
+           glows from within; the walls of his cities emit light rather than
+           merely reflecting it.
+
+        4. AGGRESSIVE CHROMATIC SATURATION IN FORM INTERIORS: Within the bounded
+           areas of any form (away from the edges), Kokoschka pushed colour to
+           its maximum chroma. He regarded desaturated, grey-toned painting as
+           morally timid. Every zone of his canvases carries its full chromatic
+           load: a blue zone is electric cobalt, not powder blue; a yellow zone
+           is cadmium-burning, not buff.
+
+        5. THE RGB MULTI-CHANNEL GRADIENT (NOVELTY BASIS): Kokoschka perceived
+           colour transitions independently of tonal transitions. A red-to-green
+           boundary at equal luminance (isobrightness colour contrast) was, for
+           him, as significant an edge as a light-to-dark boundary. His eyes
+           registered chromatic contrast (opposition in hue and saturation at
+           similar value) as equal in structural importance to tonal contrast.
+           The engine implements this by computing the GRADIENT MAGNITUDE across
+           all three RGB channels simultaneously, detecting colour-domain edges
+           that pure luminance gradient would miss.
+
+        THE GREAT WORKS:
+        "Die Windsbraut (The Bride of the Wind)" (1913-14): A monumental (181 x
+        220 cm) swirling composition of two figures in a shell-vortex of blue
+        air above an alpine landscape. The entire surface vibrates and rotates.
+
+        "Portrait of Adolf Loos" (1909): The architect, stripped bare of social
+        facade, rendered in trembling energetic strokes that make the sitter
+        seem barely contained within his skin.
+
+        "Prague -- View from the Moldau Bridge" (1934): A panoramic cityscape
+        seen from an elevated position with Kokoschka's characteristic cosmic
+        viewpoint -- the entire city breathes and shifts in electric afternoon light.
+
+        "Constantinople" (1929): The Bosporus, the minarets, the crowded harbour
+        seen from the Galata Bridge at high noon -- a tumultuous, jewel-coloured
+        landscape that makes the viewer feel both above and within the scene.
+
+        "Portrait of a Young Woman (Hanna)" (1932): The subject's face appears
+        to vibrate with inner light -- the warm amber skin against vivid cobalt
+        background creates the chromatic edge accentuation that defines
+        Kokoschka's mature portrait style.
+
+        Stage 1 RGB MULTI-CHANNEL COLOUR GRADIENT EXTRACTION:
+        Compute spatial derivatives of each colour channel independently:
+          for C in {R, G, B}:
+            Gc_x = GaussianDerivative(C, sigma=gradient_sigma, order=[0,1])
+            Gc_y = GaussianDerivative(C, sigma=gradient_sigma, order=[1,0])
+        Combine into a total colour gradient magnitude:
+          color_grad = sqrt( (GR_x^2 + GR_y^2) + (GG_x^2 + GG_y^2) + (GB_x^2 + GB_y^2) )
+        This measures the rate of change of the full colour vector in space,
+        not just of the luminance scalar. Edges between equally-bright surfaces
+        of different colour (e.g., red fabric against green foliage at matched
+        luminance) are detected by this measure and missed by luminance gradient.
+        Normalise: color_grad_norm = clip(color_grad / percentile(color_grad, edge_percentile), 0, 1)
+        Build edge_mask from color_grad_norm.
+        NOVEL: (a) RGB MULTI-CHANNEL COLOUR GRADIENT -- this is the first pass
+        in this engine to compute and use the COLOUR GRADIENT MAGNITUDE across
+        all three channels. Every prior gradient computation uses luminance:
+          L = 0.299R + 0.587G + 0.114B
+          Gx, Gy from L (repin_character_depth_pass Stage 1, Stage 4;
+                          savrasov_lyrical_mist_pass Stage 3;
+                          contre_jour_rim_pass Stage 2;
+                          form_curvature_tint_pass Stage 2;
+                          lost_found_edges_pass; paint_shadow_temperature_pass)
+        The colour gradient detects edges that exist in hue/saturation space
+        but not in luminance space, capturing a class of boundaries that all
+        prior passes miss entirely.
+
+        Stage 2 INNER CHROMATIC GLOW (Kokoschka's Emanating Inner Light):
+        Compute luminance L from Stage-1 channels R, G, B.
+        Apply a bell-gate in the mid-luminance zone [glow_lo, glow_hi]:
+          lo_ramp = clip((L - glow_lo) / max(band, 1e-5), 0, 1)
+          hi_ramp = clip((glow_hi - L) / max(band, 1e-5), 0, 1)
+          glow_mask = lo_ramp * hi_ramp
+        Within the interior of forms (zone_mask = 1 - sqrt(edge_mask)):
+          combined_mask = glow_mask * (1 - sqrt(edge_mask))
+        Push toward Kokoschka's warm amber inner-glow (glow_r/g/b = 0.94/0.82/0.52):
+          R1 = R + combined_mask * glow_strength * (glow_r - R)
+        The zone_mask restriction ensures the inner glow applies within forms,
+        not at their chromatic edges, creating the interior luminosity without
+        contaminating the edge coloration of Stage 3.
+        NOVEL: (b) INTERIOR-GATED MID-LUMINANCE WARM GLOW -- Prior mid-luminance
+        bell-gate passes (savrasov_lyrical_mist_pass, repin_character_depth_pass)
+        apply the mid-gate uniformly across the entire canvas. This pass adds a
+        second gate from Stage 1: the colour gradient edge mask. The result is a
+        glow that applies to INTERIOR ZONES only (low colour-gradient) and is
+        suppressed at edges. This two-gate combination (luminance bell AND colour
+        gradient complement) is the first dual-gate structure in any pass.
+
+        Stage 3 VIVID CHROMATIC EDGE ACCENT (Kokoschka's Charged Boundaries):
+        Use the colour gradient edge_mask from Stage 1.
+        Push high-gradient pixels toward Kokoschka's characteristic cobalt edge
+        accent (edge_r/g/b = 0.28/0.50/0.90 -- vivid cobalt blue):
+          R2 = R1 + edge_mask * edge_strength * (edge_r - R1)
+          G2 = G1 + edge_mask * edge_strength * (edge_g - G1)
+          B2 = B1 + edge_mask * edge_strength * (edge_b - B1)
+        NOVEL: (c) COLOUR-GRADIENT-GATED CHROMATIC PUSH AT EDGES -- This is the
+        first pass to:
+          (i)  use the colour gradient (not luminance gradient) to locate edges;
+          (ii) apply a COLOURED push (not darkening, not sharpening) at those edges.
+        Prior edge-modifying passes:
+          - lost_found_edges_pass: alternately sharpens and blurs using luminance
+            gradient; does not apply a colour push.
+          - repin_character_depth_pass Stage 4: sharpens using luminance gradient.
+          - paint_contre_jour_rim_pass: applies warm rim and cool edge at luminance
+            boundaries, using dilated luminance masks.
+        None uses colour-gradient edge detection + chromatic colour push together.
+
+        Stage 4 INTERIOR SATURATION SURGE (Expressionist Full-Chroma Interiors):
+        Build interior_mask = 1 - clip(edge_mask, 0, 1)  (inverted edge mask).
+        Apply saturation boost within low-gradient interior zones:
+          grey = (R2 + G2 + B2) / 3.0
+          sat_boost_R = (R2 - grey) * sat_boost
+          R3 = clip(R2 + interior_mask * sat_boost_R, 0, 1)
+        NOVEL: (d) INTERIOR-GATED SATURATION BOOST COMPLEMENTARY TO EDGE TREATMENT
+        -- This stage is the structural complement to Stage 3: edges are pushed
+        toward a specific chromatic accent colour (Stage 3), while interiors are
+        pushed toward higher chroma of their OWN existing colour (Stage 4).
+        The combination creates the Kokoschka opposition: edges charged with an
+        external chromatic impulse (cobalt accent), interiors charged with the
+        maximum expression of their own intrinsic colour. No prior pass implements
+        this complementary edge-vs-interior colour treatment. The closest prior pass
+        (paint_focal_vignette_pass, s278) applies a radial spatial gate, not one
+        derived from local colour gradient structure.
+        """
+        print("    Kokoschka Vibrating Surface pass (195th mode)...")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        canvas = self.canvas
+        H_, W_ = canvas.h, canvas.w
+
+        raw = _np.frombuffer(canvas.surface.get_data(), dtype=_np.uint8
+                             ).reshape((H_, W_, 4)).copy()
+        R = raw[:, :, 2].astype(_np.float32) / 255.0
+        G = raw[:, :, 1].astype(_np.float32) / 255.0
+        B = raw[:, :, 0].astype(_np.float32) / 255.0
+
+        # Stage 1: RGB multi-channel colour gradient
+        gsig = max(float(gradient_sigma), 0.5)
+        GR_x = _gf(R, sigma=gsig, order=[0, 1]).astype(_np.float32)
+        GR_y = _gf(R, sigma=gsig, order=[1, 0]).astype(_np.float32)
+        GG_x = _gf(G, sigma=gsig, order=[0, 1]).astype(_np.float32)
+        GG_y = _gf(G, sigma=gsig, order=[1, 0]).astype(_np.float32)
+        GB_x = _gf(B, sigma=gsig, order=[0, 1]).astype(_np.float32)
+        GB_y = _gf(B, sigma=gsig, order=[1, 0]).astype(_np.float32)
+
+        color_grad = _np.sqrt(
+            GR_x * GR_x + GR_y * GR_y +
+            GG_x * GG_x + GG_y * GG_y +
+            GB_x * GB_x + GB_y * GB_y
+        ).astype(_np.float32)
+
+        ep = float(edge_percentile)
+        cg_scale = max(float(_np.percentile(color_grad, ep)), 1e-6)
+        edge_mask = _np.clip(color_grad / cg_scale, 0.0, 1.0).astype(_np.float32)
+
+        # Stage 2: Inner chromatic glow (interior-gated, mid-luminance bell gate)
+        L = (0.299 * R + 0.587 * G + 0.114 * B).astype(_np.float32)
+        gl = float(glow_lo)
+        gh = float(glow_hi)
+        band = max(0.08, (gh - gl) * 0.25)
+        lo_ramp = _np.clip((L - gl)  / max(band, 1e-5), 0.0, 1.0).astype(_np.float32)
+        hi_ramp = _np.clip((gh - L) / max(band, 1e-5), 0.0, 1.0).astype(_np.float32)
+        glow_mask = (lo_ramp * hi_ramp).astype(_np.float32)
+
+        interior = _np.clip(1.0 - _np.sqrt(edge_mask), 0.0, 1.0).astype(_np.float32)
+        combined_glow = (glow_mask * interior).astype(_np.float32)
+
+        gstr = float(glow_strength)
+        gr_, gg_, gb_ = float(glow_r), float(glow_g), float(glow_b)
+        R1 = _np.clip(R + combined_glow * gstr * (gr_ - R), 0.0, 1.0).astype(_np.float32)
+        G1 = _np.clip(G + combined_glow * gstr * (gg_ - G), 0.0, 1.0).astype(_np.float32)
+        B1 = _np.clip(B + combined_glow * gstr * (gb_ - B), 0.0, 1.0).astype(_np.float32)
+
+        # Stage 3: Vivid chromatic edge accent (cobalt blue at colour-gradient edges)
+        estr = float(edge_strength)
+        er_, eg_, eb_ = float(edge_r), float(edge_g), float(edge_b)
+        R2 = _np.clip(R1 + edge_mask * estr * (er_ - R1), 0.0, 1.0).astype(_np.float32)
+        G2 = _np.clip(G1 + edge_mask * estr * (eg_ - G1), 0.0, 1.0).astype(_np.float32)
+        B2 = _np.clip(B1 + edge_mask * estr * (eb_ - B1), 0.0, 1.0).astype(_np.float32)
+
+        # Stage 4: Interior saturation surge (complementary to edge treatment)
+        interior_mask = _np.clip(1.0 - edge_mask, 0.0, 1.0).astype(_np.float32)
+        grey2 = ((R2 + G2 + B2) / 3.0).astype(_np.float32)
+        sb = float(sat_boost)
+        R3 = _np.clip(R2 + interior_mask * (R2 - grey2) * sb, 0.0, 1.0).astype(_np.float32)
+        G3 = _np.clip(G2 + interior_mask * (G2 - grey2) * sb, 0.0, 1.0).astype(_np.float32)
+        B3 = _np.clip(B2 + interior_mask * (B2 - grey2) * sb, 0.0, 1.0).astype(_np.float32)
+
+        # Composite at opacity
+        op = float(opacity)
+        R_out = _np.clip(R + (R3 - R) * op, 0.0, 1.0).astype(_np.float32)
+        G_out = _np.clip(G + (G3 - G) * op, 0.0, 1.0).astype(_np.float32)
+        B_out = _np.clip(B + (B3 - B) * op, 0.0, 1.0).astype(_np.float32)
+
+        edge_px     = int((edge_mask     > 0.20).sum())
+        glow_px     = int((combined_glow > 0.05).sum())
+        interior_px = int((interior_mask > 0.50).sum())
+
+        out = raw.copy()
+        out[:, :, 2] = (R_out * 255).astype(_np.uint8)
+        out[:, :, 1] = (G_out * 255).astype(_np.uint8)
+        out[:, :, 0] = (B_out * 255).astype(_np.uint8)
+        canvas.surface.get_data()[:] = out.tobytes()
+
+        print(f"    Kokoschka Vibrating Surface complete "
+              f"(edge_px={edge_px}, glow_px={glow_px}, interior_px={interior_px})")
+
+
+    def grosz_neue_sachlichkeit_pass(
+        self,
+        gradient_sigma:     float = 1.3,
+        shadow_darken:      float = 0.60,
+        zone_sigma:         float = 6.0,
+        flat_strength:      float = 0.28,
+        acid_strength:      float = 0.26,
+        acid_r:             float = 0.78,
+        acid_g:             float = 0.84,
+        acid_b:             float = 0.14,
+        dark_push_r:        float = 0.10,
+        dark_push_g:        float = 0.08,
+        dark_push_b:        float = 0.16,
+        dark_push_strength: float = 0.22,
+        gamma_value:        float = 0.80,
+        opacity:            float = 0.82,
+    ) -> None:
+        r"""Grosz Neue Sachlichkeit (German New Objectivity -- Weimar Satirist) -- 195th mode.
+
+        GEORGE GROSZ (1893-1959) -- GERMAN SATIRIST, EXPRESSIONIST, AND
+        CHRONICLER OF WEIMAR GERMANY'S GROTESQUE SOCIAL THEATRE:
+
+        George Grosz was born in Berlin in 1893, the son of an innkeeper. He
+        studied at the Dresden Academy and the Berlin School of Arts and Crafts
+        before the First World War, during which he served twice and was twice
+        declared unfit for service on psychological grounds. The war and its
+        aftermath -- the Weimar Republic with its inflation, street violence,
+        political assassinations, and feverish decadence -- became the raw
+        material for his most important work.
+
+        Grosz was a founding member of Berlin Dada (1918) and later a central
+        figure in the Neue Sachlichkeit (New Objectivity) movement. While the
+        New Objectivity label encompassed both the "Verists" (Grosz, Dix) and
+        the "Magic Realists" (Schad, Räderscheidt), Grosz was the supreme Verist:
+        his paintings and drawings attacked the military, the bourgeoisie, the
+        church, and the institutions of Weimar society with a ferocity unmatched
+        in the visual arts. He was prosecuted three times for "offences against
+        public morality" and once for "blasphemy" for his portfolio "Ecce Homo"
+        (1923).
+
+        In 1933, the day after Hitler came to power, Grosz emigrated to the
+        United States, where he spent the rest of his career teaching in New
+        York. He returned to Germany in 1959 and died there the same year,
+        weeks after his return.
+
+        GROSZ'S FIVE DEFINING TECHNICAL CHARACTERISTICS:
+
+        1. THE DIRECTIONAL CAST SHADOW LINE (Raking Light Model): Grosz
+           structured his images with an implied raking light from the upper
+           left, creating heavy cast shadows on the right and lower edges of
+           every form. This is not Rembrandt's modelled rounding; it is a
+           graphic convention -- the shadow is painted as a dark edge, a bold
+           cast line, giving every form a harsh two-dimensionality. The painted
+           form looks cut from paper, not modelled in clay.
+
+        2. FLAT ZONE GRAPHIC UNIFICATION: Between the dark contour lines, Grosz
+           applied relatively flat areas of uniform colour. These zones are not
+           the shimmering, varied brushwork of the Impressionists or the faceted
+           strokes of the Post-Impressionists. They are graphic, almost poster-
+           like: a single local colour applied smoothly within its defined area.
+           The flatness emphasises the satirical reading -- these are not living
+           beings but types, figures in a political cartoon.
+
+        3. ACID YELLOW-GREEN PALETTE (Moral Sickness as Colour): Grosz's figures
+           frequently carry a sickly, jaundiced colour: yellow-green flesh, acid
+           ochre fabric, garish vermillion accents. This is not naturalistic; it
+           is deliberately disturbing. The acid colour suggests disease, moral
+           corruption, poisoned atmosphere. It is the colour of the Weimar
+           night club, the hospital ward, the courtroom.
+
+        4. DEEP SHADOW OPACITY WITH DARK GROUND SHOW-THROUGH: Grosz's darkest
+           zones -- the interiors of buildings, the shadows under hat-brims, the
+           backs of figures -- are pushed toward a deep, slightly warm dark. The
+           dark ground of the canvas shows through the paint in these zones,
+           creating the impression that the darkness has substance and weight,
+           not merely an absence of light.
+
+        5. HARSH TONAL CLARITY (Gamma-Expanded Mid-Values): Despite the brutal
+           subject matter, Grosz's actual tonal range is unusually clear and
+           well-separated. Mid-values are pushed slightly brighter by a gamma
+           expansion (equivalent to a power curve of approximately gamma=0.80),
+           creating the harsh, over-lit quality of fluorescent lighting or
+           German daylight in winter -- clinical, remorseless, with no soft
+           half-light to hide the subject's ugliness.
+
+        THE GREAT WORKS:
+        "Pillars of Society" (1926): A horrifying gallery of Weimar German
+        types -- a military officer with a chamber pot for a skull, a priest with
+        a bloody dagger, a journalist with feces in his head -- each displaying
+        the hypocrisy of their class in their face and posture.
+
+        "The Funeral (Dedication to Oskar Panizza)" (1917-18): A Bruegel-like
+        panorama of urban chaos -- a hearse in a red-lit city, surrounded by
+        grotesque, hysterical crowds. The composition is compressed, the colour
+        lurid.
+
+        "Eclipse of the Sun" (1926): A headless general takes orders from a
+        businessman while politicians eat their documents and the sun is blocked
+        by a dollar sign. The flatness and harsh colour are typical.
+
+        "Metropolis" (1916-17): An early work showing the Expressionist-Cubist
+        synthesis: the Berlin street rendered as an overlapping collision of
+        human types, vehicles, and buildings in violent primary and acid colours.
+
+        Stage 1 DIRECTIONAL CAST SHADOW EDGE (Signed-Gradient Asymmetric Darkening):
+        Compute the signed spatial gradient of the luminance channel:
+          L  = 0.299R + 0.587G + 0.114B
+          Gx = GaussianDerivative(L, sigma=gradient_sigma, order=[0,1])
+          Gy = GaussianDerivative(L, sigma=gradient_sigma, order=[1,0])
+        The SIGN of Gx encodes the light-direction at each edge:
+          Gx > 0: luminance is increasing left-to-right (bright side is to the right)
+          Gx < 0: luminance is decreasing left-to-right (dark side is to the right;
+                  this is the SHADOW SIDE under a left-to-right illumination model)
+        Compute gradient magnitude for edge weighting:
+          G_mag = sqrt(Gx^2 + Gy^2)
+          Gx_scale = max(percentile(|Gx|, 85), 1e-6)
+          G_scale  = max(percentile(G_mag,  80), 1e-6)
+          Gx_norm = clip(Gx / Gx_scale, -1, 1)
+          G_norm  = clip(G_mag / G_scale, 0, 1)
+        Build directional shadow mask from NEGATIVE Gx (light from upper-left,
+        shadows fall on right/lower edges):
+          shadow_edge_mask = clip(-Gx_norm, 0, 1) * G_norm
+        Apply darkening on the shadow side:
+          R1 = R * (1 - shadow_edge_mask * shadow_darken)
+        NOVEL: (a) SIGNED GRADIENT DIRECTION AS EDGE TREATMENT GATE -- this is
+        the FIRST pass in this engine to use the SIGN of a gradient component
+        (Gx or Gy) as a discriminating gate, rather than the MAGNITUDE alone.
+        Every prior pass that uses gradient information uses G_mag, |Gx|, or |Gy|:
+          - savrasov_lyrical_mist_pass Stage 3: uses |Gy| (unsigned y-derivative)
+          - contre_jour_rim_pass: uses G_mag (luminance boundary detection)
+          - repin_character_depth_pass Stages 1+4: uses G_mag
+          - form_curvature_tint_pass: uses Laplacian (second derivative, signed,
+            but used for convex/concave sign, not directional illumination)
+        No prior pass uses a signed FIRST-ORDER gradient component (signed Gx or Gy)
+        to model a directed illumination field at edges. The signed-Gx approach
+        encodes the Grosz "raking light from upper-left" model: it darkens pixels
+        on the SHADOW SIDE of edges (where luminance falls in the illumination
+        direction) while leaving the lit side untouched.
+
+        Stage 2 FLAT ZONE GRAPHIC UNIFICATION (Interior Colour Homogenisation):
+        Build interior_mask = (1 - G_norm).                Low-gradient areas.
+        Apply zone-flattening blur weighted by interior:
+          R_blur2 = GaussianFilter(R1, sigma=zone_sigma)
+          R2 = R1 + interior_mask * flat_strength * (R_blur2 - R1)
+        This smooths low-gradient zones while leaving high-gradient edges sharp,
+        creating Grosz's graphic, flat-zone quality.
+        NOVEL: (b) INTERIOR-GATED ZONE FLATTENING -- while the kokoschka_vibrating
+        _surface_pass (s284 bonus) uses a colour-gradient interior mask for saturation
+        boost, this pass uses a LUMINANCE-GRADIENT interior mask for SPATIAL
+        FLATTENING (directional blur toward local mean). The mathematical quantity
+        (interior_mask from luminance G_norm) and the operation (spatial smoothing,
+        not saturation) are distinct from Stage 4 of the Kokoschka pass.
+
+        Stage 3 ACID COLOUR PUSH (Grosz's Sickly Weimar Palette):
+        Compute luminance L2 from R2/G2/B2.
+        Identify yellow-green-dominant zones: where G2 > R2 and G2 > B2 and the
+        luminance is in mid-range [0.35, 0.80]:
+          green_dom = clip((G2 - _np.maximum(R2, B2)) / 0.15, 0, 1)
+          mid_gate  = bell_gate(L2, 0.35, 0.80)
+          acid_mask = green_dom * mid_gate
+        Push acid pixels toward Grosz's signature yellow-green (acid_r/g/b =
+        0.78/0.84/0.14 -- a jarring cadmium yellow-green):
+          R3 = R2 + acid_mask * acid_strength * (acid_r - R2)
+        Also push the darkest regions toward a deep warm dark (dark_push_r/g/b):
+          dark_mask = clip((0.25 - L2) / 0.15, 0, 1)
+          R3 += dark_mask * dark_push_strength * (dark_push_r - R3)
+        NOVEL: (c) GREEN-DOMINANCE GATE FOR ACID PUSH -- no prior pass uses a
+        per-channel DOMINANCE metric (G2 > max(R2, B2)) as a gate for a colour
+        push. Prior colour-temperature passes use luminance thresholds alone
+        (shadow_temperature_pass, repin_character_depth_pass Stages 2+3, etc.)
+        or the Laplacian sign (form_curvature_tint_pass). The green-dominance
+        gate identifies specifically chromatic zones in colour space, not in
+        luminance space -- it will push a bright yellow-green sky differently
+        from a similarly-bright warm ochre sky, selecting only the green-dominant
+        portions for the acid push.
+
+        Stage 4 GAMMA TONAL EXPANSION (Grosz's Harsh Fluorescent Clarity):
+        Compute L3 from R3/G3/B3.
+        Apply a power-law gamma expansion:
+          L3_gamma = clip(L3, 0, 1)^gamma_value         [gamma_value = 0.80]
+          scale = L3_gamma / max(L3, 1e-6)
+          R4 = clip(R3 * scale, 0, 1)
+        For gamma_value < 1.0: mid-tones are lifted (expanded upward), giving the
+        canvas the harsh, fluorescent quality of Grosz's work. The scale factor
+        preserves hue (all channels multiplied by the same ratio) while adjusting
+        the tonal curve.
+        NOVEL: (d) POWER-LAW GAMMA TONAL REMAPPING -- This is the FIRST pass in
+        this engine to apply a power-law (gamma / exponent) tonal curve to the
+        canvas. Prior passes that modify tone use: linear pushes (LERP toward
+        a target), sigmoid mappings (none yet), unsharp mask (add high-freq detail),
+        luminance-threshold gating (shadow/highlight zone selection). None applies
+        C^gamma or a scale-factor-based power curve. The gamma operation is the
+        classic non-linear tonal adjustment of photography and film, translated
+        here into the painting domain to model the specific tonal signature of
+        Grosz's mid-values. Gamma < 1 (expansion) models the effect of harsh,
+        flat, even illumination (no shadows to hide the detail): everything is
+        lit, everything is visible, no soft transition is allowed.
+        """
+        print("    Grosz Neue Sachlichkeit pass (195th mode)...")
+
+        import numpy as _np
+        from scipy.ndimage import gaussian_filter as _gf
+
+        canvas = self.canvas
+        H_, W_ = canvas.h, canvas.w
+
+        raw = _np.frombuffer(canvas.surface.get_data(), dtype=_np.uint8
+                             ).reshape((H_, W_, 4)).copy()
+        R = raw[:, :, 2].astype(_np.float32) / 255.0
+        G = raw[:, :, 1].astype(_np.float32) / 255.0
+        B = raw[:, :, 0].astype(_np.float32) / 255.0
+
+        L = (0.299 * R + 0.587 * G + 0.114 * B).astype(_np.float32)
+
+        # Stage 1: Signed-Gx directional cast shadow edge
+        gsig = max(float(gradient_sigma), 0.5)
+        Gx = _gf(L, sigma=gsig, order=[0, 1]).astype(_np.float32)
+        Gy = _gf(L, sigma=gsig, order=[1, 0]).astype(_np.float32)
+        G_mag = _np.sqrt(Gx * Gx + Gy * Gy).astype(_np.float32)
+
+        gx_scale = max(float(_np.percentile(_np.abs(Gx), 85.0)), 1e-6)
+        g_scale  = max(float(_np.percentile(G_mag,        80.0)), 1e-6)
+        Gx_norm = _np.clip(Gx / gx_scale, -1.0, 1.0).astype(_np.float32)
+        G_norm  = _np.clip(G_mag / g_scale, 0.0, 1.0).astype(_np.float32)
+
+        # Shadow side: where luminance is decreasing left-to-right (Gx < 0)
+        shadow_edge_mask = (_np.clip(-Gx_norm, 0.0, 1.0) * G_norm).astype(_np.float32)
+
+        sd = float(shadow_darken)
+        R1 = _np.clip(R * (1.0 - shadow_edge_mask * sd), 0.0, 1.0).astype(_np.float32)
+        G1 = _np.clip(G * (1.0 - shadow_edge_mask * sd), 0.0, 1.0).astype(_np.float32)
+        B1 = _np.clip(B * (1.0 - shadow_edge_mask * sd), 0.0, 1.0).astype(_np.float32)
+
+        # Stage 2: Interior zone flattening (graphic unification)
+        interior = _np.clip(1.0 - G_norm, 0.0, 1.0).astype(_np.float32)
+        zsig = max(float(zone_sigma), 1.0)
+        R_blur2 = _gf(R1, sigma=zsig).astype(_np.float32)
+        G_blur2 = _gf(G1, sigma=zsig).astype(_np.float32)
+        B_blur2 = _gf(B1, sigma=zsig).astype(_np.float32)
+        fs = float(flat_strength)
+        R2 = _np.clip(R1 + interior * fs * (R_blur2 - R1), 0.0, 1.0).astype(_np.float32)
+        G2 = _np.clip(G1 + interior * fs * (G_blur2 - G1), 0.0, 1.0).astype(_np.float32)
+        B2 = _np.clip(B1 + interior * fs * (B_blur2 - B1), 0.0, 1.0).astype(_np.float32)
+
+        # Stage 3: Acid colour push (green-dominance gate + dark push)
+        L2 = (0.299 * R2 + 0.587 * G2 + 0.114 * B2).astype(_np.float32)
+        green_dom = _np.clip(
+            (G2 - _np.maximum(R2, B2)) / max(0.10, 1e-6), 0.0, 1.0
+        ).astype(_np.float32)
+        lo_a, hi_a = 0.35, 0.80
+        band_a = max(0.08, (hi_a - lo_a) * 0.25)
+        lo_ramp_a = _np.clip((L2 - lo_a) / max(band_a, 1e-5), 0.0, 1.0).astype(_np.float32)
+        hi_ramp_a = _np.clip((hi_a - L2) / max(band_a, 1e-5), 0.0, 1.0).astype(_np.float32)
+        mid_gate_a = (lo_ramp_a * hi_ramp_a).astype(_np.float32)
+        acid_mask = (green_dom * mid_gate_a).astype(_np.float32)
+
+        astr = float(acid_strength)
+        ar_, ag_, ab_ = float(acid_r), float(acid_g), float(acid_b)
+        R3 = _np.clip(R2 + acid_mask * astr * (ar_ - R2), 0.0, 1.0).astype(_np.float32)
+        G3 = _np.clip(G2 + acid_mask * astr * (ag_ - G2), 0.0, 1.0).astype(_np.float32)
+        B3 = _np.clip(B2 + acid_mask * astr * (ab_ - B2), 0.0, 1.0).astype(_np.float32)
+
+        # Dark push toward deep warm shadow
+        dark_mask = _np.clip((0.25 - L2) / max(0.15, 1e-5), 0.0, 1.0).astype(_np.float32)
+        dstr = float(dark_push_strength)
+        dr_, dg_, db_ = float(dark_push_r), float(dark_push_g), float(dark_push_b)
+        R3 = _np.clip(R3 + dark_mask * dstr * (dr_ - R3), 0.0, 1.0).astype(_np.float32)
+        G3 = _np.clip(G3 + dark_mask * dstr * (dg_ - G3), 0.0, 1.0).astype(_np.float32)
+        B3 = _np.clip(B3 + dark_mask * dstr * (db_ - B3), 0.0, 1.0).astype(_np.float32)
+
+        # Stage 4: Gamma tonal expansion
+        L3 = (0.299 * R3 + 0.587 * G3 + 0.114 * B3).astype(_np.float32)
+        L3_safe = _np.maximum(L3, 1e-8)
+        gv = float(gamma_value)
+        L3_gamma = _np.clip(L3_safe, 0.0, 1.0) ** gv
+        scale = (L3_gamma / L3_safe).astype(_np.float32)
+        R4 = _np.clip(R3 * scale, 0.0, 1.0).astype(_np.float32)
+        G4 = _np.clip(G3 * scale, 0.0, 1.0).astype(_np.float32)
+        B4 = _np.clip(B3 * scale, 0.0, 1.0).astype(_np.float32)
+
+        # Composite at opacity
+        op = float(opacity)
+        R_out = _np.clip(R + (R4 - R) * op, 0.0, 1.0).astype(_np.float32)
+        G_out = _np.clip(G + (G4 - G) * op, 0.0, 1.0).astype(_np.float32)
+        B_out = _np.clip(B + (B4 - B) * op, 0.0, 1.0).astype(_np.float32)
+
+        shadow_edge_px = int((shadow_edge_mask > 0.15).sum())
+        acid_px        = int((acid_mask        > 0.05).sum())
+        dark_px        = int((dark_mask        > 0.05).sum())
+
+        out = raw.copy()
+        out[:, :, 2] = (R_out * 255).astype(_np.uint8)
+        out[:, :, 1] = (G_out * 255).astype(_np.uint8)
+        out[:, :, 0] = (B_out * 255).astype(_np.uint8)
+        canvas.surface.get_data()[:] = out.tobytes()
+
+        print(f"    Grosz Neue Sachlichkeit complete "
+              f"(shadow_edge_px={shadow_edge_px}, acid_px={acid_px}, "
+              f"dark_px={dark_px})")
+
